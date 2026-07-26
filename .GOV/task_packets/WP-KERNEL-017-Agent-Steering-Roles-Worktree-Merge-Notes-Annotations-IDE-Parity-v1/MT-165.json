@@ -1,0 +1,165 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-165",
+  "title": "RD-MT165-ManualsForAgentHarness",
+  "group": "RD Recording + diagnostics + manuals",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-165.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give the WP-017 agent harness a COMPLETE built-in manual so a NO-CONTEXT model (and the operator) can operate every Pillar-A surface -- session launch/steer/interrupt/resume, roles, model-to-model tools, the MT dispatch loop, and worktree merge-back -- from durable in-product documentation alone, with no chat history and no hidden assumptions. This MT authors the UserManual entries for those surfaces AND defines the same-change conformance obligation (a compiled coverage check the feature MTs must satisfy: the manual entry ships in the SAME change as the behavior, or the check fails). Per GLOBAL-BUILD the model manual must explain purpose, core workflows, startup/run commands, expected inputs/outputs, navigation paths, safety constraints, common failure modes, and recovery steps -- this MT is where the WP-017 harness gets all of those.\n\nPRODUCT GROUNDING (this is the canonical manual store; do NOT invent a new one): the product stores its manual in src/backend/handshake_core/src/user_manual/ (WP-KERNEL-009 UserManualAndNoContextOps). Authority is PostgreSQL (user_manual_* tables, migration 0310) + EventLedger (KNOWLEDGE_USER_MANUAL_ENTRY_RECORDED receipts); rendered markdown/HTML are projections only. The compiled-in seed corpus + idempotent seeder live in user_manual/seed.rs (seed_corpus() -> SeedCorpus { pages, tools, features, aliases }; ensure_seeded is idempotent; corpus_hash/content_hash drive the MT-204 freshness check). Row/store types live in user_manual/store.rs (UserManualStore, NewUserManualPage, UserManualPage, UserManualSection, UserManualAnchor, UserManualToolEntry, UserManualFeatureEntry). The corpus version constant is user_manual::USER_MANUAL_VERSION (currently 2.0.14) and MUST be bumped on any seed content change (mod.rs lines 71-77). The canonical route namespace is user_manual::ROUTE_NAMESPACE '/usermanual' (api/user_manual.rs). The machine-checked coverage pattern is user_manual/behavior_coverage.rs (BehaviorCoverageRow + verify_*_behavior_coverage joining each behavior to its runtime surface, schema, manual page, tool entry, EventLedger/FR evidence path, and HBR-INT-009 posture).\n\nEXPECTED DIFF SHAPE: (a) new WP-017 harness pages appended in src/backend/handshake_core/src/user_manual/seed.rs (new page_* fns wired into seed_pages(), new tool entries into seed_tool_entries(), new feature entries into seed_feature_entries()); (b) USER_MANUAL_VERSION bump in user_manual/mod.rs (2.0.14 -> next, since seed content changed); (c) a WP-017 coverage matrix + verifier in a new file src/backend/handshake_core/src/user_manual/agent_harness_coverage.rs (mirroring behavior_coverage.rs: one row per Pillar-A surface joining behavior_id -> runtime_surface_id -> user_manual_slug -> tool_id -> EventLedger/FR evidence path -> HBR-INT-009 posture) + re-export in user_manual/mod.rs; (d) new test file src/backend/handshake_core/tests/agent_harness_manual_tests.rs; (e) IF the repo's seed-freshness/coverage tests live in an existing test file, extend it additively rather than duplicating (verify existing tests/user_manual_*_tests.rs first). No React, no native UI (the /usermanual route + existing UserManual surfaces already render pages).\n\nDETAILED SPEC -- MANUAL ENTRIES (one no-context page per Pillar-A surface; each page carries the GLOBAL-BUILD-002..010 sections: PURPOSE, CORE WORKFLOW, COMMANDS/ROUTES, INPUTS/OUTPUTS, NAVIGATION, SAFETY CONSTRAINTS, FAILURE MODES, RECOVERY -- written so a model with zero history can drive the surface):\n  1. usermanual/agent-harness/session-launch      -- launch an agent session (adapter selection, worktree binding); inputs (adapter, wp/mt, worktree), outputs (session_id), route/IPC, failure modes (adapter missing, worktree busy), recovery.\n  2. usermanual/agent-harness/session-steer       -- send a steer message into a live session; queue/deliver/ack model (FR-EVT-SESSION-STEER-*), how to confirm delivery via the audit surface (MT-166), reject reasons, recovery (re-queue after reject).\n  3. usermanual/agent-harness/session-interrupt   -- interrupt a running turn; requested/confirmed semantics, exit codes, what is and is NOT guaranteed (in-flight tool output), recovery/resume.\n  4. usermanual/agent-harness/session-resume      -- resume a thread after interrupt/restart; resume_kind, prior_turn_count, when replay vs fresh, failure (checkpoint missing) + recovery.\n  5. usermanual/agent-harness/roles               -- inject a role protocol/persona into a session; injection kinds, rejection reasons, how roles bound behavior; safety (no unreviewed role text), recovery.\n  6. usermanual/agent-harness/model-to-model      -- model-to-model spawn/steer/notify tools; spawn request/deny (policy/capacity/injection scan), how a parent steers/notifies a child, attribution (who-spawned-whom), safety (injection scan per MT-104), recovery on deny.\n  7. usermanual/agent-harness/mt-dispatch-loop    -- the MT dispatch loop; dispatch/signal/handoff phases (FR-EVT-MT-*), how a session signals progress/blocker/ready, handoff between sessions/roles, failure (starvation/exec error) + recovery.\n  8. usermanual/agent-harness/merge-back          -- worktree merge-back; propose/approve/execute/conflict/abort lifecycle (FR-EVT-MERGE-*), inputs (source/target branch), approvals, conflict handling, safety (no force merge), recovery on conflict/abort.\nEach page's SAFETY + FAILURE + RECOVERY sections must be concrete (name the route/tool, the reject/deny reason strings, and the exact recovery action) -- a page that only describes the happy path fails the no-context bar. Each page also states its OBSERVABILITY: which FR event ids (MT-161) record the action, which ledger rows (MT-162) persist it, and that the MT-166 audit surface is where an operator inspects who-did-what.\n\nSAME-CHANGE CONFORMANCE OBLIGATION (the check other MTs cite -- this is the reusable contract line): this MT sets, for the WP-017 Pillar-A feature MTs, user_manual_obligation.required = YES, same_change_update_required = YES, manual_version_bump_required = YES. The agent_harness_coverage.rs verifier is the compiled enforcement: for every Pillar-A behavior_id it asserts the manual page + tool entry exist in the seeded corpus, the feature's manual_version == USER_MANUAL_VERSION, the content_hash is non-empty, and the HBR-INT-009 posture text is present (Tier-1 FR WIRED; internal_diagnostics/Palmistry DEFERRED-with-reason unless shipped) -- exactly the join behavior_coverage.rs::verify_model_runtime_registry_behavior_coverage performs (lines 867-1121). A Pillar-A feature MT that ships behavior without its manual entry FAILS this verifier in CI; that is the same-change discipline made mechanical.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the grounding first: user_manual/mod.rs (module law, USER_MANUAL_VERSION + CANONICAL_TERM + ROUTE_NAMESPACE, re-exports), user_manual/seed.rs (seed_corpus/seed_pages/seed_tool_entries/seed_feature_entries, corpus_hash, the existing page_* fns e.g. page_core_workflows/page_startup_and_run_commands/page_backend_navigation_and_identity as the authoring template), user_manual/store.rs (NewUserManualPage/UserManualPage/UserManualSection/UserManualAnchor/UserManualToolEntry/UserManualFeatureEntry shapes + sha256_hex), user_manual/behavior_coverage.rs (BehaviorCoverageRow + verify_* join, DiagnosticTierPosture, the HBR-INT-009 marker text lines 1101-1114), user_manual/freshness.rs (content_hash freshness check, MT-204), api/user_manual.rs (route namespace), and the existing tests/user_manual_*_tests.rs to extend rather than duplicate.\n2. Author the 8 harness pages as NewUserManualPage values (slug + sections + anchors) following the existing page_* fns; keep each section text no-context-complete (purpose/workflow/commands/io/nav/safety/failure/recovery/observability). Wire them into seed_pages(); add matching tool entries (one per operable tool/route) into seed_tool_entries() and feature entries into seed_feature_entries().\n3. Bump USER_MANUAL_VERSION (2.0.14 -> next patch/minor) because seed content changed -- the freshness check (MT-204) compares content_hash per page and user_manual_versions records the seeded version; NOT bumping is a defect the freshness test will flag.\n4. Create agent_harness_coverage.rs: AgentHarnessCoverageRow (behavior_id, runtime_surface_id, user_manual_slug, tool_id, fr_event_family/evidence path, internal_diagnostics_posture, palmistry_posture, deferred_reason, follow_up_ref, manual_version), agent_harness_coverage_matrix() (one row per Pillar-A surface above), and verify_agent_harness_manual_coverage(rows, pages, tools, features) applying the behavior_coverage.rs join checks. Re-export from mod.rs.\n5. Author tests/agent_harness_manual_tests.rs: (a) ensure_seeded is idempotent with the new pages (call twice, corpus_hash stable); (b) every harness slug resolves to a seeded page with non-empty required sections; (c) verify_agent_harness_manual_coverage returns Ok on the seeded corpus; (d) negative: a coverage row whose page is missing -> Err (proves the same-change check bites); (e) manual_version parity: every harness feature.manual_version == USER_MANUAL_VERSION; (f) HBR-INT-009 posture text present per page/feature (Tier-1 WIRED; tier-2/3 DEFERRED-with-reason).\n6. Run the existing user_manual seed/freshness/coverage tests to prove no regression from the version bump; cargo build -p handshake_core green; clippy clean.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/user_manual/seed.rs (append WP-017 harness pages/tools/features into the existing seed fns; do not rewrite existing pages)",
+      "src/backend/handshake_core/src/user_manual/mod.rs (USER_MANUAL_VERSION bump + one-line re-export of agent_harness_coverage)",
+      "src/backend/handshake_core/src/user_manual/agent_harness_coverage.rs (new: WP-017 coverage matrix + verifier)",
+      "src/backend/handshake_core/tests/agent_harness_manual_tests.rs (new)",
+      "src/backend/handshake_core/tests/user_manual_storage_tests.rs (additive extension ONLY if the repo convention keeps seed-coverage assertions there; verify first)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (no React; UserManual pages render via existing /usermanual surfaces)",
+      ".GOV/** (product manual lives in PostgreSQL seed, never .GOV)",
+      "src/backend/handshake_core/src/model_manual/** (DECLARED DEPRECATED legacy shim; user_manual is canonical -- do NOT add new content to the legacy shim)",
+      "src/backend/handshake_core/src/user_manual/store.rs (row/store shapes KEPT AS-IS; consume them, do not alter the schema)",
+      "src/backend/handshake_core/src/user_manual/behavior_coverage.rs (existing WP-1 matrices KEPT AS-IS; mirror the pattern in the new agent_harness_coverage.rs file, do not edit the existing one)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR ids are MT-161; the manual REFERENCES them, does not define them)"
+    ],
+    "acceptance_criteria": [
+      "Eight no-context UserManual pages exist in the seeded corpus (session-launch, session-steer, session-interrupt, session-resume, roles, model-to-model, mt-dispatch-loop, merge-back), each with PURPOSE/CORE WORKFLOW/COMMANDS-ROUTES/INPUTS-OUTPUTS/NAVIGATION/SAFETY/FAILURE-MODES/RECOVERY/OBSERVABILITY sections filled -- proven by a section-completeness test, not just slug presence.",
+      "USER_MANUAL_VERSION is bumped from 2.0.14 because seed content changed; the freshness/version tests pass with the new value.",
+      "seed.rs pages are appended into seed_pages()/seed_tool_entries()/seed_feature_entries(); ensure_seeded remains idempotent (double-call, stable corpus_hash) -- existing pages unchanged.",
+      "agent_harness_coverage.rs provides a WP-017 coverage matrix (one row per Pillar-A surface) and verify_agent_harness_manual_coverage that joins each behavior to its manual page + tool entry + feature + HBR-INT-009 posture, mirroring behavior_coverage.rs::verify_*.",
+      "The verifier returns Ok on the seeded corpus and Err when a page/tool/feature is missing (negative test) -- this is the compiled same-change enforcement other Pillar-A MTs cite.",
+      "Each harness page states its observability (which MT-161 FR ids record it, which MT-162 ledger rows persist it, and that MT-166 is the audit inspection surface) and its HBR-INT-009 posture text (Tier-1 FR WIRED; internal_diagnostics/Palmistry DEFERRED-with-reason).",
+      "Every WP-017 harness feature.manual_version == USER_MANUAL_VERSION (parity test).",
+      "No new content added to the deprecated model_manual shim; all authored content lives in the canonical user_manual store.",
+      "Existing user_manual seed/freshness/coverage tests pass (no regression); cargo build -p handshake_core green; clippy clean.",
+      "Contract line established for downstream Pillar-A MTs: user_manual_obligation.required = YES, same_change_update_required = YES, manual_version_bump_required = YES, checked by verify_agent_harness_manual_coverage."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_harness_manual --nocapture 2>&1 | tee /tmp/mt165_run.txt && grep -E 'test result: ok' /tmp/mt165_run.txt",
+      "cargo test -p handshake_core user_manual --nocapture 2>&1 | grep -E 'test result: ok'",
+      "grep -c 'agent-harness/' src/backend/handshake_core/src/user_manual/seed.rs | awk '{ if ($1 >= 8) print \"PAGES_OK\" }' | grep -q PAGES_OK",
+      "grep -n 'USER_MANUAL_VERSION' src/backend/handshake_core/src/user_manual/mod.rs",
+      "grep -n 'verify_agent_harness_manual_coverage' src/backend/handshake_core/src/user_manual/agent_harness_coverage.rs",
+      "grep -n 'DEFERRED-with-reason' src/backend/handshake_core/src/user_manual/seed.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/user_manual/seed.rs (8 harness pages + tool/feature entries)",
+      "src/backend/handshake_core/src/user_manual/mod.rs (USER_MANUAL_VERSION bump + re-export)",
+      "src/backend/handshake_core/src/user_manual/agent_harness_coverage.rs (new: matrix + verifier)",
+      "src/backend/handshake_core/tests/agent_harness_manual_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "seed idempotency + stable corpus_hash with new pages",
+      "section-completeness per harness page (all GLOBAL-BUILD sections non-empty)",
+      "verify_agent_harness_manual_coverage Ok on seeded corpus (+ negative: missing page -> Err)",
+      "manual_version parity (feature.manual_version == USER_MANUAL_VERSION) + freshness pass",
+      "HBR-INT-009 posture text present per page/feature",
+      "no-regression run of existing user_manual seed/coverage/freshness tests"
+    ],
+    "implementation_notes": [
+      "user_manual is the CANONICAL store; model_manual is a declared-deprecated legacy shim (mod.rs lines 18-34). All WP-017 harness content goes into user_manual/seed.rs -- adding to the shim would create split-brain docs the storage tests explicitly forbid.",
+      "The version bump is mandatory, not optional: freshness (MT-204) compares content_hash per page and user_manual_versions records each seeded version; shipping new seed content on the old version number is exactly the drift the freshness test catches.",
+      "Mirror, don't edit: agent_harness_coverage.rs is a NEW file following behavior_coverage.rs's verify_* join pattern (behavior -> runtime surface -> manual page -> tool -> evidence -> HBR-INT-009 posture). The existing WP-1 matrices in behavior_coverage.rs stay untouched.",
+      "The same-change discipline only has teeth if it is compiled: the verifier is the mechanism, and the Pillar-A feature MTs cite this MT's verifier as their manual-conformance gate. A prose-only 'remember to update the manual' rule is not acceptable -- the CI check must fail when behavior ships without its entry.",
+      "No-context bar is the acceptance test, not a slogan: each page's SAFETY/FAILURE/RECOVERY sections must name concrete routes, reject/deny reason strings, and exact recovery actions -- the section-completeness test asserts every required section is non-empty, and a reviewer reads one page cold to confirm a no-history model could operate the surface.",
+      "Observability cross-links keep the RD family coherent: each page points at the MT-161 FR ids, MT-162 ledger rows, and the MT-166 audit surface, so a model reading the manual knows exactly where the durable evidence of each harness action lives."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "No new GUI; UserManual pages render through the existing /usermanual route and UserManual surfaces (WP-KERNEL-009). This MT authors seed content + a compiled coverage verifier; the seeded PostgreSQL rows + EventLedger receipts satisfy trace-projection reconstructability, and the pages are the operator/model documentation the other WP-017 GUI (MT-166) links to."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "usermanual/agent-harness/session-launch",
+      "usermanual/agent-harness/session-steer",
+      "usermanual/agent-harness/session-interrupt",
+      "usermanual/agent-harness/session-resume",
+      "usermanual/agent-harness/roles",
+      "usermanual/agent-harness/model-to-model",
+      "usermanual/agent-harness/mt-dispatch-loop",
+      "usermanual/agent-harness/merge-back"
+    ],
+    "not_applicable_reason": "N/A -- this MT IS the WP-017 manual-authoring MT: it ships the harness manual entries and defines the same-change conformance check (required=YES, same_change_update_required=YES, manual_version_bump_required=YES) that the Pillar-A feature MTs cite."
+  },
+  "hbr_obligations": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder: WIRED -- each harness page documents the MT-161 FR event ids that record the surface's actions; Tier-1 is the shipped observability the manual points operators/models at",
+    "internal_diagnostics: DEFERRED-with-reason (WP-KERNEL-015-not-shipped) -- each page's observability section states the tier-2 posture per the MT-164 wiring manifest; flipped to WIRED text only when WP-KERNEL-015 ships",
+    "palmistry: DEFERRED-with-reason (WP-KERNEL-015-not-shipped) -- documented per page consistent with the MT-164 manifest; the coverage verifier asserts the posture text is present so the manual cannot silently claim tiers that do not exist"
+  ],
+  "risk_if_missed": "The WP-017 agent harness ships with no built-in manual: a no-context model cannot launch/steer/interrupt/resume sessions, inject roles, drive model-to-model tools, run the MT loop, or merge back without chat history; the operator has no durable reference; and there is no compiled same-change check, so feature MTs ship behavior with stale or absent docs (GLOBAL-BUILD manual requirement unmet).",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Happy-path-only pages -- pages describe how to launch/steer but omit reject/deny/conflict failure modes and recovery, so a no-context model gets stuck the moment anything fails.",
+      "RISK-2: Stale version -- seed content changes without a USER_MANUAL_VERSION bump, so the freshness check and user_manual_versions record a version that no longer matches the corpus (silent doc drift).",
+      "RISK-3: Split-brain docs -- new content is added to the deprecated model_manual shim instead of the canonical user_manual store, creating two divergent manuals the storage tests exist to prevent.",
+      "RISK-4: Toothless same-change rule -- the same-change obligation is stated in prose but not compiled, so a feature MT ships behavior without a manual entry and nothing fails.",
+      "RISK-5: Posture lies -- a page claims internal_diagnostics/Palmistry observability that does not exist yet, misleading operators about what evidence they can actually inspect."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): section-completeness test asserts every required GLOBAL-BUILD section (incl. SAFETY/FAILURE-MODES/RECOVERY) is non-empty per page, and a reviewer reads one page cold to confirm the no-context bar; happy-path-only pages fail.",
+      "CTRL-2 (RISK-2): manual_version_bump_required=YES; the freshness/version tests compare content_hash and USER_MANUAL_VERSION and fail on a stale version -- the bump is enforced, not trusted.",
+      "CTRL-3 (RISK-3): model_manual/** is a forbidden path; all content lands in user_manual/seed.rs; the existing user_manual_storage tests enforce the legacy-canonical mapping so divergence is caught.",
+      "CTRL-4 (RISK-4): verify_agent_harness_manual_coverage is a compiled verifier that Errs when a Pillar-A behavior's page/tool/feature is missing; the Pillar-A MTs cite it as their CI gate, making the same-change rule mechanical.",
+      "CTRL-5 (RISK-5): the coverage verifier asserts each feature's HBR-INT-009 posture text matches the MT-164 manifest (Tier-1 WIRED; tier-2/3 DEFERRED-with-reason unless a producer ships), so a page cannot claim observability tiers that are not wired."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: user_manual/mod.rs (WP-KERNEL-009 module law, USER_MANUAL_VERSION 2.0.14 lines 71-77 bump-on-seed-change, CANONICAL_TERM/ROUTE_NAMESPACE '/usermanual' lines 82-86, model_manual deprecation lines 18-34), user_manual/seed.rs (seed_corpus/SeedCorpus lines 133-143, corpus_hash 143, seed_pages/seed_tool_entries/seed_feature_entries + existing page_* templates page_core_workflows/page_startup_and_run_commands/page_backend_navigation_and_identity/page_permissions_and_safety), user_manual/store.rs (UserManualStore + NewUserManualPage/UserManualPage/UserManualSection/UserManualAnchor/UserManualToolEntry/UserManualFeatureEntry + sha256_hex), user_manual/behavior_coverage.rs (BehaviorCoverageRow + verify_model_runtime_registry_behavior_coverage join pattern lines 599-1121, DiagnosticTierPosture, HBR-INT-009 marker text lines 1101-1114), user_manual/freshness.rs (content_hash freshness MT-204), api/user_manual.rs (route). GLOBAL-BUILD built-in-manual sections (002-010) define the required page structure.",
+    "corrections": [
+      "Stub said 'search the product worktree for the user_manual module (seed.rs)' -- verified the module at src/backend/handshake_core/src/user_manual/ with seed.rs holding the compiled-in corpus + idempotent seeder and mod.rs holding USER_MANUAL_VERSION (2.0.14) that must bump on content change; the contract targets these exact surfaces rather than inventing a manual store.",
+      "Confirmed model_manual is a DECLARED DEPRECATED legacy shim (mod.rs 18-34) and user_manual is canonical -- forbidden_paths blocks adding new content to the shim to avoid the split-brain the storage tests guard against.",
+      "Adopted behavior_coverage.rs::verify_* as the compiled template for the same-change enforcement so the manual-conformance gate is a real CI check (Err on missing page/tool/feature), not a prose reminder -- this is what makes same_change_update_required=YES enforceable for the Pillar-A MTs.",
+      "Representative Pillar-A anchor MTs recorded as soft deps in the WP taskboard sense (MT-007 session, MT-023 Claude, MT-043 Codex, MT-062 ACP, MT-082 roles, MT-101 model-to-model, MT-122 MT-lifecycle, MT-142 merge); this MT has no hard code dependency on them (manual seed is standalone), so lifecycle.depends_on stays empty and the coupling is expressed via the coverage verifier they cite."
+    ]
+  }
+}

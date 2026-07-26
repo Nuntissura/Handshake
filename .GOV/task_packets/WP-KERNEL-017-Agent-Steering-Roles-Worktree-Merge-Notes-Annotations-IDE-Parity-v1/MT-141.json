@@ -1,0 +1,162 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-141",
+  "title": "WM-MT141-SessionWorktreeBranchMode",
+  "group": "WM Worktree merge-back",
+  "clause": "Session worktrees provision on named session/<id> branches (detach kept as compat mode); keep-until-merged reclaim",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-141.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Upgrade session worktree provisioning in src/backend/handshake_core/src/workspace_safety.rs from detached-HEAD checkouts to named session branches, so downstream merge-back (MT-142..147) has a real branch to merge, while preserving the existing --detach behavior behind a backward-compat mode. This MT is the foundation of the WM family: today ensure_session_worktree_allocation (~line 370) runs `git -C <repo_root> -c core.longpaths=true worktree add --detach <worktree_path> HEAD` under SESSION_WORKTREE_GIT_LOCK, placing worktrees under session_worktrees/<session_id> (or HANDSHAKE_SESSION_WORKTREE_ROOT, session_worktree_path ~line 356), and a detached worktree's commits are unreachable refs once the worktree is removed.\n\nEXPECTED DIFF SHAPE: workspace_safety.rs gains a typed checkout-mode enum, a mode-aware allocation function (the existing ensure_session_worktree_allocation becomes a thin wrapper), branch naming/collision policy, and a branch-aware cleanup path. swarm_orchestration/events.rs FR worktree event payloads gain branch/mode fields (NO new event kinds; kinds stay FR-EVT-SWARM-WORKTREE-CREATED/MOUNTED/RECLAIMED/CLEANUP-FAILED, events.rs lines 75-78). New tests under the handshake_core test tree.\n\nDETAILED SPEC:\n1. Typed enums (in workspace_safety.rs):\n   pub enum SessionWorktreeCheckoutMode { SessionBranch { base_ref: String }, DetachedHead }\n   pub enum SessionBranchReclaimPolicy { KeepUntilMerged, DeleteOnReclaim }\n   Default mode = SessionBranch; default base_ref resolution order: explicit caller argument > HANDSHAKE_SESSION_WORKTREE_BASE_REF env (trimmed, non-empty) > the repo's current branch (the WP feature branch in governed runs) > literal \"HEAD\". Default reclaim policy = KeepUntilMerged (the branch survives worktree removal until MT-147 confirms merge).\n2. Function signatures:\n   pub fn ensure_session_worktree_allocation_with_mode(repo_root: &Path, session_id: &str, mode: SessionWorktreeCheckoutMode) -> io::Result<SessionWorktreeAllocation>\n   pub fn ensure_session_worktree_allocation(repo_root: &Path, session_id: &str) -> io::Result<SessionWorktreeAllocation>  // wrapper; resolves default mode\n   pub fn cleanup_session_worktree_with_policy(repo_root: &Path, worktree_path: &Path, policy: SessionBranchReclaimPolicy) -> io::Result<()>\n   SessionWorktreeAllocation gains fields: branch: Option<String>, checkout_mode (serde-serializable), base_ref: Option<String>.\n3. Git command lines (all serialized under SESSION_WORKTREE_GIT_LOCK, all with -c core.longpaths=true, matching the existing invocation shape at workspace_safety.rs ~396-403):\n   SessionBranch mode: `git -C <repo_root> -c core.longpaths=true worktree add -b session/<session_id> <worktree_path> <base_ref>`\n   DetachedHead mode (unchanged compat): `git -C <repo_root> -c core.longpaths=true worktree add --detach <worktree_path> HEAD`\n   Branch deletion on DeleteOnReclaim: `git -C <repo_root> -c core.longpaths=true branch -d session/<session_id>`  // -d NEVER -D: unmerged branches fail closed and surface the error\n4. Branch naming policy: branch = \"session/\" + session_id, validated with `git check-ref-format --branch session/<session_id>` before use; invalid session ids are an error, never silently mangled. Collision handling: if refs/heads/session/<session_id> already exists and is not checked out in any worktree (`git worktree list --porcelain` scan), allocate deterministic suffix session/<session_id>-r2, -r3, ... bounded at -r99, then error. NEVER pass -f/--force to `worktree add` or `branch`; NEVER delete an existing branch to make room.\n5. FR events: extend the payloads emitted with FR-EVT-SWARM-WORKTREE-CREATED and FR-EVT-SWARM-WORKTREE-RECLAIMED to carry { branch, checkout_mode, base_ref, reclaim_policy } so merge-back tooling and TraceProjection can reconstruct provisioning without git access. No schema re-open of event kinds.\n6. BOUNDARY: this MT governs git worktree CODE provisioning only. It is strictly separate from CRDT document merging (kernel/crdt live shared documents). Nothing in this MT may route document state through git or git state through the CRDT layer.\n\nSTEP-BY-STEP:\n1. Read workspace_safety.rs lines 330-450 (session_worktree_path, ensure_session_worktree_allocation, cleanup_session_worktree, SESSION_WORKTREE_GIT_LOCK usage) and the existing SessionWorktreeAllocation struct.\n2. Add SessionWorktreeCheckoutMode + SessionBranchReclaimPolicy enums and the base_ref resolution helper.\n3. Implement ensure_session_worktree_allocation_with_mode with the -b command line, branch validation, and collision suffixing; keep the existing pre-existing-path removal behavior.\n4. Convert ensure_session_worktree_allocation into the default-mode wrapper; add a compat entry point (env HANDSHAKE_SESSION_WORKTREE_DETACH=1 forces DetachedHead) so existing callers keep working unchanged.\n5. Implement cleanup_session_worktree_with_policy; existing cleanup_session_worktree delegates with KeepUntilMerged.\n6. Extend the FR worktree event payload construction sites with the new fields.\n7. Write tests (scratch git repo in a temp dir): branch mode creates session/<id> at base_ref; detach compat unchanged; collision produces -r2; branch -d fails closed on unmerged branch under DeleteOnReclaim; KeepUntilMerged leaves the branch after worktree removal; concurrent allocations serialize under the lock.\n8. Run proof targets; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_safety.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI IPC allowed only on the GUI MT, MT-146)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain; do not conflate with git worktree code merge)"
+    ],
+    "acceptance_criteria": [
+      "SessionWorktreeCheckoutMode { SessionBranch{base_ref}, DetachedHead } and SessionBranchReclaimPolicy { KeepUntilMerged, DeleteOnReclaim } exist and are serde-serializable.",
+      "ensure_session_worktree_allocation_with_mode provisions `git worktree add -b session/<session_id> <path> <base_ref>` with -c core.longpaths=true under SESSION_WORKTREE_GIT_LOCK; default mode is SessionBranch.",
+      "DetachedHead compat mode reproduces the exact pre-MT command shape (`worktree add --detach <path> HEAD`) and is selectable via HANDSHAKE_SESSION_WORKTREE_DETACH=1.",
+      "Branch collision yields deterministic session/<id>-rN suffixing (bounded at r99) with no -f/--force and no branch deletion.",
+      "Branch deletion path uses `git branch -d` only; a live test proves deleting an unmerged session branch fails closed with a surfaced error.",
+      "KeepUntilMerged (default) leaves refs/heads/session/<id> intact after cleanup_session_worktree_with_policy removes the worktree.",
+      "FR-EVT-SWARM-WORKTREE-CREATED / -RECLAIMED payloads carry branch, checkout_mode, base_ref, reclaim_policy; no new FR kinds added.",
+      "Zero occurrences of `--force` or `-D` in the branch-management code added by this MT (worktree remove --force is pre-existing cleanup code, untouched).",
+      "All git invocations added by this MT include -c core.longpaths=true and run under SESSION_WORKTREE_GIT_LOCK."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core session_worktree_branch_mode -- --nocapture",
+      "cargo test -p handshake_core session_worktree_detach_compat -- --nocapture",
+      "cargo test -p handshake_core session_branch_collision_suffix -- --nocapture",
+      "cargo test -p handshake_core session_branch_delete_fails_closed_unmerged -- --nocapture",
+      "bash -lc \"grep -n 'worktree add' src/backend/handshake_core/src/workspace_safety.rs | grep -q '\\-b' && echo BRANCH_MODE_PRESENT\"",
+      "bash -lc \"! grep -nE 'branch\\\", \\\"-D|\\\"-D\\\"' src/backend/handshake_core/src/workspace_safety.rs && echo NO_FORCE_BRANCH_DELETE\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/workspace_safety.rs (session_worktree_path ~356, ensure_session_worktree_allocation ~370, cleanup_session_worktree ~418, SESSION_WORKTREE_GIT_LOCK)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (FR-EVT-SWARM-WORKTREE-CREATED/MOUNTED/RECLAIMED/CLEANUP-FAILED, lines 75-78; payload fields only)"
+    ],
+    "expected_tests": [
+      "scratch-repo test: branch-mode allocation creates worktree AND refs/heads/session/<id> at the requested base_ref",
+      "scratch-repo test: detach compat mode leaves no session branch (HEAD detached)",
+      "scratch-repo test: second allocation for a colliding branch name yields session/<id>-r2",
+      "scratch-repo test: DeleteOnReclaim on an unmerged branch errors (branch -d fails closed), branch still exists",
+      "scratch-repo test: KeepUntilMerged leaves the branch after worktree removal",
+      "concurrency test: two threads allocating different sessions serialize without git lock errors"
+    ],
+    "implementation_notes": [
+      "Windows discipline is non-negotiable: every new git Command must chain .args([\"-c\",\"core.longpaths=true\"]) exactly like the existing call sites (workspace_safety.rs ~383, ~399, ~425) and take the SESSION_WORKTREE_GIT_LOCK guard first.",
+      "Backward-compat is load-bearing: MT-144 (patch fallback) exists precisely because legacy detached worktrees have no branch; do not remove or break the detach path.",
+      "The base_ref default 'repo current branch' is read via `git -C <repo_root> branch --show-current`; empty output (detached repo HEAD) falls through to literal HEAD.",
+      "Do NOT emit new FR event kinds here; merge-lifecycle kinds (proposed/approved/executed/conflicted/aborted) belong to MT-161 (cross-family seam) and are consumed in MT-145.",
+      "Keep the pre-existing stale-worktree removal (`worktree remove --force` on an already-existing path) as-is; that force flag predates this MT and applies to worktree files, never to branches and never to push."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend worktree-provisioning MT; the operator-facing merge surface is MT-146. Provisioning is reconstructable from FR worktree events (TraceProjection per HBR-VIS-004)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Worktrees > Session branches (session/<id> naming, base ref resolution, detach compat flag HANDSHAKE_SESSION_WORKTREE_DETACH)",
+      "Worktrees > Branch reclaim policy (keep-until-merged default)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "Reuse FR-EVT-SWARM-WORKTREE-CREATED/RECLAIMED with branch/checkout_mode/base_ref/reclaim_policy payload fields; no new kinds."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit a diagnostic event on allocation failure (git worktree add non-zero exit) via the open diagnostic-event API if present in the implementing worktree; otherwise record DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Short-lived git subprocess; liveness capture surviving a Handshake crash adds no evidence beyond the FR/diagnostic record."
+    }
+  ],
+  "risk_if_missed": "Session worktrees stay detached: agent commits are unreachable refs after cleanup, MT-142..147 have no branch to merge, and merge-back is only possible via the lossier patch path.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Branch collision handling silently reuses or force-recreates an existing session/<id> branch, destroying another session's unmerged commits.",
+      "RISK-2: The detach compat path drifts (flag ignored or default flipped), breaking every existing caller that assumes detached provisioning and invalidating MT-144's legacy premise.",
+      "RISK-3: Branch deletion uses -D (or worktree-style --force) and an unmerged session branch is destroyed on reclaim, losing agent work with no recovery path.",
+      "RISK-4: New git invocations skip -c core.longpaths=true or the SESSION_WORKTREE_GIT_LOCK, producing Windows long-path failures or interleaved `git worktree` metadata corruption under parallel sessions."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Collision path is deterministic suffixing only (-r2..-r99); a live test proves the colliding branch's commits are untouched and no -f/--force reaches `worktree add`/`branch`.",
+      "CTRL-2 (RISK-2): Dedicated compat test asserts the exact legacy command shape (`worktree add --detach <path> HEAD`) when HANDSHAKE_SESSION_WORKTREE_DETACH=1, and default-mode tests never modify pre-existing callers' observable results beyond the added branch.",
+      "CTRL-3 (RISK-3): Deletion is `git branch -d` only; negative test proves an unmerged branch survives a DeleteOnReclaim attempt with a surfaced error; grep proof target asserts no \"-D\" in branch management code.",
+      "CTRL-4 (RISK-4): Code review + test assert every added Command includes core.longpaths=true and acquires SESSION_WORKTREE_GIT_LOCK; concurrency test runs two parallel allocations."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-multi-model-orchestration-v1 src/backend/handshake_core/src/workspace_safety.rs (session_worktree_path ~356-368, ensure_session_worktree_allocation ~370-416 `worktree add --detach <path> HEAD` with -c core.longpaths=true under SESSION_WORKTREE_GIT_LOCK, cleanup_session_worktree ~418-440 `worktree remove --force`); swarm_orchestration/events.rs FR-EVT-SWARM-WORKTREE-CREATED/MOUNTED/RECLAIMED/CLEANUP-FAILED (lines 75-78). Field practice: git worktree add -b is the standard named-branch worktree idiom; `branch -d` fail-closed on unmerged is git's built-in safety and is retained instead of custom merged-state tracking.",
+    "corrections": [
+      "Operator/red-team decisions baked in: never force-push (no push exists in this MT at all); keep-until-merged default branch retention; detach preserved as explicit compat mode, not removed.",
+      "Git worktree CODE merge is strictly separated from CRDT document merging (kernel/crdt); boundary stated in scope and forbidden_paths."
+    ]
+  }
+}

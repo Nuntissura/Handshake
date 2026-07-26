@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-010",
+  "title": "SC-MT010-SessionCoreRuntimeProofs",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-010.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Prove the whole session-runtime core end-to-end against a REAL child process: a test-only fake agent CLI (allowed as the counterparty because the real transports — Claude/Codex/ACP — are proven in their own adapter families MT-021+/041+/061+; the CORE's contract is transport-agnostic stdio+JSONL, which the fake exercises for real) driving the full state machine launch -> generate -> steer queued -> ack -> interrupt -> resume -> teardown, plus concurrency races (steer arriving exactly at a turn boundary from concurrent tasks) and ProcessOwnershipLedger row assertions. No mocks for spec-required runtime behavior: the fake is a genuinely spawned OS process with real pipes, real JSONL frames, real exit codes, supervised by the real MT-005 supervisor through the real MT-004 stdio infrastructure.\n\nEXPECTED DIFF SHAPE: (a) new test-only binary src/backend/handshake_core/src/bin/hsk_fake_agent_cli.rs + [[bin]] registration in src/backend/handshake_core/Cargo.toml (the crate already carries many [[bin]] targets — Cargo.toml lines 54+); (b) new integration test file src/backend/handshake_core/tests/agent_sessions_runtime_proofs.rs. NOTHING else: this MT writes zero product-module code; if a defect is found in MT-001..009 surfaces it is routed back to the owning MT, not patched here.\n\nFAKE AGENT CLI SPEC (hsk_fake_agent_cli.rs — deterministic, argument-driven):\n- Reads JSONL frames from stdin (real stdin, line-buffered); writes stream-json-shaped JSONL to stdout with flush-per-line.\n- On start: emits {\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"<from --session-id arg>\",\"capabilities\":[<from --caps arg, comma-separated, e.g. steer_mid_turn,delivery_ack,resume,interrupt_mid_turn>]} — the MT-003 TestFixture-compatible probe payload.\n- On each received user frame {\"type\":\"user\",\"text\":...}: if --replay-user-messages was passed, first echo {\"type\":\"user\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":<same text>}]}} (the MT-008 correlation shape), then emit a bounded 'turn': {\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"echo:<text>\"}]}} lines (N configurable via --turn-lines, default 3, one every --line-interval-ms, default 20ms) then a turn-complete marker {\"type\":\"result\"}.\n- On frame {\"type\":\"interrupt\"}: abandon the in-flight turn immediately and emit {\"type\":\"result\",\"subtype\":\"interrupted\"}.\n- On stdin EOF: exit 0. On --stubborn: ignore EOF and keep sleeping (forces the MT-005 tree-kill path). On --exit-code N + EOF: exit N.\n- On --resume <session-id>: emit the init envelope with \"resumed\":true and REQUIRE that the current working directory equals the --expect-cwd arg, else print a wrong-cwd marker and emit an EMPTY session (mimicking Claude's silent wrong-cwd behavior so the MT-006 guard is proven against the exact real-world failure shape).\n- Never opens a window, never reads the console, never foregrounds (HBR-QUIET-001/002): pure pipe I/O.\n\nPROOF SUITE SPEC (agent_sessions_runtime_proofs.rs — each scenario is a real spawn through MT-004 spawn_interactive semantics via the MT-007 service with a SessionLauncher that launches the fake bin; managed-PG-gated scenarios use the store, non-PG scenarios use the in-memory paths where the contract allows):\n- P-01 LifecycleHappyPath: launch (caps incl. steer_mid_turn+delivery_ack) -> init probe registers capabilities (assert registry contents) -> first prompt frame -> turn Generating (bus TurnStateChanged observed) -> turn completes -> steer enqueued mid-idle drains -> replay echo drives receipt Sent->Delivered (MT-008 correlator) -> TurnItem::SteerMessage append drives Executed -> graceful stop -> exit 0 -> mapped Completed/Closed per stop reason -> ledger START+STOP rows exist for the session pid with engine_kind=OfficialCliBridge.\n- P-02 SteerMidTurn: steer while --turn-lines 50 turn is streaming; DrainMode::MidTurn delivers before turn end; assert the fake received the frame mid-turn (its echo interleaves before its result line); FIFO order preserved for 3 steers.\n- P-03 TurnBoundaryOnly: same scenario with caps EXCLUDING steer_mid_turn; assert zero stdin steer frames while Generating and delivery after the result line (MT-002 drain rule live).\n- P-04 Interrupt: interrupt during a long turn -> fake emits interrupted result -> turn mapped Interrupted -> thread Idle -> resumable=true persisted (managed-PG gated assertion).\n- P-05 ResumeCwdGuard: resume with the recorded cwd succeeds (fake asserts cwd match, init resumed:true, capabilities re-registered); resume attempt with a different requested_cwd -> typed ResumeCwdMismatch and the launcher is never invoked; a lying-launcher harness variant returns wrong effective_cwd -> fail-closed error (MT-006 steps 4/6 proven at runtime).\n- P-06 StubbornTeardown: --stubborn child; stop() escalates to tree kill within graceful_stop_timeout+margin; ledger STOP recorded; no process with the child pid remains (poll-until-gone bounded assertion).\n- P-07 AckDegradation: caps WITHOUT delivery_ack -> receipts open as Unknown with pinned reason; no Delivered ever appears despite echoes being off.\n- P-08 BoundaryRace: two tokio tasks steer concurrently exactly around a turn-completion boundary (fake with --line-interval-ms 1 for tight turns, 100 iterations): assert NO steer is lost, NO steer double-delivered (fake counts received frames; compare to sent set), FIFO per producer preserved, and bus consumers reconcile (received+missed==published) even with a deliberately slow subscriber.\n- P-09 QueueBackpressureLive: cap-4 queue; flood 10 steers while a turn blocks draining; assert exactly the typed QueueFull rejections and post-drain retry succeeds.\n- P-10 LedgerAccounting: after ALL scenarios, assert every fake-agent spawn in the test run has exactly one START and one STOP row (no unattributed path — the MT-127-class invariant, official_cli_bridge.rs lines 2439-2453) using the in-memory/test LedgerBatcher harness already used by CLI-bridge tests.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read every MT-001..009 public surface and the existing CLI-bridge test harness patterns (official_cli_bridge.rs test module around lines 2960-3060: source-guard test, mock spawner with take_stdout override) plus Cargo.toml [[bin]] registration style (lines 54+).\n2. Implement hsk_fake_agent_cli.rs per spec: std-only (clap not required — hand-parse args), line-buffered stdout with explicit flush, deterministic timing via the interval args.\n3. Register the [[bin]] target; verify `cargo build -p handshake_core --bin hsk_fake_agent_cli` green.\n4. Build the test harness: FakeAgentLauncher implementing MT-007's SessionLauncher + MT-006's SessionResumeLauncher by spawning the built bin (locate via env!(\"CARGO_BIN_EXE_hsk_fake_agent_cli\") — the cargo-provided path for integration tests, no PATH guessing).\n5. Implement P-01..P-10 as separate #[test]/#[tokio::test] functions with bounded deadlines on every wait (no unbounded loops; every poll has a hard timeout that fails with a diagnostic dump of bus events + ledger rows).\n6. Managed-PG-gated assertions (P-01 record persistence, P-04 resumable flag) follow the MT-001 gate: typed NEEDS_MANAGED_RESOURCE_PROOF skip when the env is absent; everything process/pipe/ledger-in-memory runs unconditionally.\n7. cargo test green; full run leaves zero stray processes (P-06/P-10 assertions) and zero artifacts inside the repo worktree (all temp cwds under std::env::temp_dir()).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/bin/hsk_fake_agent_cli.rs",
+      "src/backend/handshake_core/Cargo.toml ([[bin]] registration only)",
+      "src/backend/handshake_core/tests/agent_sessions_runtime_proofs.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/agent_sessions/** (proof-only MT: defects route back to the owning MT)",
+      "src/backend/handshake_core/src/model_runtime/**",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "hsk_fake_agent_cli builds as a [[bin]] target and implements the full argument-driven behavior spec (init caps, replay echo, turns, interrupt, EOF exit, --stubborn, --resume with --expect-cwd wrong-cwd mimicry).",
+      "P-01 full happy-path state machine proven end-to-end against the real spawned child, including capability probe registration, ack ladder to Executed, and ledger START+STOP.",
+      "P-02/P-03 prove the capability-driven drain split live (mid-turn interleave vs boundary-only) with FIFO preserved.",
+      "P-04/P-05 prove interrupt mapping + resumable persistence and BOTH cwd guards (pre-call mismatch, lying launcher) at runtime against the wrong-cwd-mimicking fake.",
+      "P-06 proves stubborn-child tree-kill teardown with ledger STOP and no surviving pid.",
+      "P-07 proves the Unknown ack floor live (no Delivered without DeliveryAck capability).",
+      "P-08 proves the boundary race over 100 iterations: zero loss, zero double-delivery, bus reconciliation with a slow subscriber (received+missed==published).",
+      "P-09 proves live typed backpressure and post-drain retry; P-10 proves the no-unattributed-spawn ledger invariant across the whole run.",
+      "Every wait is deadline-bounded with diagnostic dump on timeout; run leaves zero stray processes and writes nothing into the repo worktree.",
+      "PG-gated assertions use the typed NEEDS_MANAGED_RESOURCE_PROOF skip; nothing fabricates PASS."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core --bin hsk_fake_agent_cli 2>&1 | tail -5",
+      "cargo test -p handshake_core agent_sessions_runtime_proofs --nocapture 2>&1 | tee /tmp/mt010_run.txt && grep -E 'test result: ok' /tmp/mt010_run.txt",
+      "grep -c 'fn p_' src/backend/handshake_core/tests/agent_sessions_runtime_proofs.rs",
+      "cargo test -p handshake_core agent_sessions_runtime_proofs --nocapture 2>&1 | grep -q 'boundary_race'",
+      "cargo test -p handshake_core agent_sessions_runtime_proofs --nocapture 2>&1 | grep -q 'ledger_accounting'",
+      "grep -rn 'mock' src/backend/handshake_core/tests/agent_sessions_runtime_proofs.rs | grep -v 'no mock' | wc -l | grep -q '^0'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/bin/hsk_fake_agent_cli.rs (new, test-only bin)",
+      "src/backend/handshake_core/Cargo.toml ([[bin]] entry)",
+      "src/backend/handshake_core/tests/agent_sessions_runtime_proofs.rs (new)"
+    ],
+    "expected_tests": [
+      "P-01..P-10 as enumerated in the spec (10 scenario functions, deadline-bounded)"
+    ],
+    "implementation_notes": [
+      "Why a fake counterparty is legitimate here (and only here): the core's spec surface is 'bidirectional JSONL over supervised attached stdio with capability-declared semantics' — the fake exercises every one of those spec behaviors with a REAL process, REAL pipes, REAL exits; what it does not prove (real Claude/Codex/ACP dialect fidelity) is exactly the adapter families' proof obligation. This division is contract-stated so no validator mistakes it for a mock shortcut.",
+      "env!(\"CARGO_BIN_EXE_<name>\") is the canonical cargo mechanism for integration tests to locate a crate bin; it forces the bin to be built before the test runs — no race, no PATH dependence, portable across machines (GLOBAL-PORTABILITY).",
+      "P-08's slow-subscriber reconciliation is the live proof of MT-009's HBR-SWARM-002 no-silent-loss contract under real concurrency, not just the unit-level lag synthesis.",
+      "The wrong-cwd mimicry in the fake reproduces the REAL Claude failure mode (silent empty session) so P-05 proves the guard prevents precisely the disaster the research identified — not a synthetic error the guard trivially catches.",
+      "Timing discipline: interval-driven determinism plus generous deadline bounds (>=10x interval) keeps the suite green on loaded CI hosts; no assertion may depend on wall-clock tightness (MT-045's RISK-1 lesson).",
+      "Keep the suite serial-friendly: scenarios spawn few short-lived children; if parallel test execution causes pid-assertion interference, mark the ledger-accounting test #[serial]-equivalent via a test-local mutex (document it)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Proof-suite MT for headless runtime; HBR-VIS-004 satisfied by the bus/ledger/store evidence the suite itself asserts (TraceProjection-reconstructable truth), with diagnostic dumps on failure."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Test/proof-only MT; no product behavior or operator surface changes. MT-007 carries the family's manual entry."
+  },
+  "hbr_obligations": [
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-VIS-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "The core ships as a pile of unit-proven parts with no evidence they compose: races at turn boundaries, teardown leaks, and ack lies would surface for the first time under real Claude/Codex sessions — where diagnosis is 10x costlier and cloud spend is burning.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fake drifts from spec — the fake's dialect diverges from the shapes MT-003/MT-008 actually parse, so proofs pass against a counterparty nothing real resembles.",
+      "RISK-2: Flaky timing — tight wall-clock assertions fail on loaded hosts, breeding retry culture and masking real races (MT-045 RISK-1 precedent).",
+      "RISK-3: Process leakage from the SUITE itself — failed scenarios strand stubborn children on CI machines.",
+      "RISK-4: Proof-scope creep — 'small fixes' to agent_sessions modules land in this MT, bypassing the owning MTs' review and contracts.",
+      "RISK-5: Race test that cannot fail — P-08 written so loosely (no accounting, generous dedup) that a genuine loss/duplication bug still passes."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): the fake's init/echo shapes are pinned by tests that parse them with the SAME production parsers (MT-003 probe path, MT-008 correlator, agent_activity claude shapes) — drift breaks the build.",
+      "CTRL-2 (RISK-2): interval-driven determinism, deadlines >=10x interval, zero tight wall-clock assertions; documented in the test header.",
+      "CTRL-3 (RISK-3): every scenario wraps its child in a kill-on-drop guard independent of the code under test; a suite-level final sweep asserts no hsk_fake_agent_cli process survives.",
+      "CTRL-4 (RISK-4): forbidden_paths bans agent_sessions/** edits; acceptance requires routing defects to owning MTs; validator diff-checks.",
+      "CTRL-5 (RISK-5): P-08 does exact set accounting (sent ids == fake-received ids, multiset equality) over 100 iterations plus bus reconciliation arithmetic — a single lost or doubled steer fails deterministically."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: Cargo.toml multi-[[bin]] precedent (L54+), official_cli_bridge.rs test harness patterns (source-guard + mock-spawner shapes L2960-3060) and ledger fail-closed invariant L2439-2453, agent_activity.rs claude envelope shapes (init/user/assistant/result) as the fake's dialect template, MT-001..009 contract surfaces. Research digest: Claude stream-json envelopes + --replay-user-messages echo + SIGTERM/143 + cwd-scoped resume; Codex Thread/Turn/Item; ACP sequential turns.",
+    "corrections": [
+      "Brief allowed 'test-only echo child process' — encoded here as a registered [[bin]] (hsk_fake_agent_cli) located via CARGO_BIN_EXE_* rather than an ad-hoc script, so the counterparty is deterministic, portable, and buildable on any machine."
+    ]
+  }
+}

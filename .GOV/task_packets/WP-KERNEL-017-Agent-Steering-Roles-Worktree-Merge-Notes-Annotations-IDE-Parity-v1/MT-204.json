@@ -1,0 +1,156 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-204",
+  "title": "AC-MT204-ReanchorEngine",
+  "group": "AC Annotation core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-204.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-202",
+      "MT-203",
+      "MT-161"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the deterministic re-anchoring pipeline that keeps annotations attached to the right code after a file changes, consuming the MT-202 multi-selector anchor in the Hypothesis fallback order and emitting an EXPLICIT outcome — REANCHORED(confidence) | OUTDATED | ORPHANED — that NEVER silently mis-attaches. This MT also runs and records the fuzzy-match crate benchmark (diff-match-patch-rs vs dissimilar) and selects the winner with a written rationale. Re-anchor outcomes persist through MT-203 and emit MT-161 FR event kinds.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/annotations/reanchor.rs with the pipeline, the outcome enum, and the bounded-window search; (b) annotations/mod.rs re-exports; (c) src/backend/handshake_core/Cargo.toml — add `similar = \"2\"` (position-first line mapping) and the CHOSEN fuzzy crate (diff-match-patch-rs OR dissimilar) after verifying neither is already incumbent; (d) a committed benchmark record annotations/reanchor_benchmark.md OR an inline rustdoc table capturing the comparison and selection; (e) unit tests. NO storage code (MT-203 owns the write-back), NO routes/tools, NO edits to record.rs/anchor.rs beyond re-export.\n\nDETAILED SPEC — `fn reanchor(anchor: &AnnotationAnchor, current_text: &str) -> ReanchorOutcome` (pure, I/O-free; caller supplies the new file/side text):\n1. STAGE 1 content_hash fast path: call the MT-202 `AnnotationAnchor::resolve_exact(current_text)`. If it returns Match, emit REANCHORED{ anchor: unchanged, confidence: 1.0, method: ExactHash } immediately — no diff, no search.\n2. STAGE 2 position-first line mapping: on a hash miss, compute a line-level old->new mapping with `similar` (TextDiff::from_lines, Myers — the SAME engine and half-open Range convention as diff_engine.rs) between the anchor's recorded quote-region context window and current_text; if the recorded line_range maps cleanly to a new contiguous range whose text hashes to content_hash, emit REANCHORED{ new line_range, confidence: 0.9..1.0, method: PositionMap }.\n3. STAGE 3 quote-in-context fuzzy: if position mapping is ambiguous or fails, search for the exact `quote` within a BOUNDED window around the position hint (window = position +/- a documented line budget, default e.g. 200 lines, NOT the whole file — the Hypothesis short-generic-quote perf mitigation) using the chosen fuzzy crate; score candidates by quote similarity AND prefix/suffix context agreement (Hypothesis TextQuoteSelector + context). A unique candidate above the confidence floor -> REANCHORED{ new range, confidence, method: FuzzyQuote }.\n4. OUTCOMES (explicit, exhaustive, never silent): REANCHORED{ anchor, confidence: f32 in [0,1], method } when a single high-confidence target is found; OUTDATED when the region still plausibly exists but below the confidence floor OR multiple candidates tie within the ambiguity band (the annotation is kept, flagged stale, NOT moved); ORPHANED when the region is gone (deletion) or no candidate clears the floor. Duplicate-snippet ambiguity MUST resolve to the position-hint winner ONLY if it is uniquely closest; otherwise OUTDATED/ORPHANED — a mis-attach is the one forbidden result (umputun/revdiff explicit-orphan policy over silent re-point).\n5. Confidence floor + ambiguity band are named constants with rustdoc rationale and are overridable by the caller via a ReanchorConfig (floor, window_lines, ambiguity_delta) so MT-209's adversarial suite can pin behavior.\n6. Determinism guarantee: reanchor is a pure function of (anchor, current_text, config); identical inputs yield an identical outcome including the SAME confidence and the SAME chosen candidate under duplicate-snippet ties (deterministic tie-break: nearest-to-position-hint, then lowest line index). No time, no RNG, no global state.\n7. Events: the CALLER (MT-205 route / MT-206 tool) persists the outcome via MT-203 `reanchor_persist` and emits the MT-161 FR event kinds for REANCHORED/OUTDATED/ORPHANED; this module returns the typed outcome and does NOT itself touch storage or the ledger (seam law + I/O-free).\n8. Benchmark: measure diff-match-patch-rs vs dissimilar on representative re-anchor inputs (small edit, large reformat, duplicate snippets, 10k-line window) for correctness of the chosen candidate and per-call latency; record the table and the selection rationale (field-standard maturity, license, perf, API fit). Only the SELECTED crate is added as a dependency.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read anchor.rs (resolve_exact, LineRange half-open, quote/context/content_hash) and diff_engine.rs (similar TextDiff::from_lines, DiffBlock half-open ranges) before writing.\n2. Verify similar / diff-match-patch-rs / dissimilar are not already in the backend Cargo.toml (they are not, per the grounding audit); add similar + the winner only.\n3. Implement the three staged pipeline with the explicit outcome enum and the bounded window.\n4. Run the benchmark; commit the table + rationale; wire the chosen crate.\n5. Unit tests per expected_tests including multi-byte UTF-8 and the duplicate-snippet no-mis-attach case; assert determinism by running each case twice and asserting byte-identical outcomes.\n6. Run proof targets; keep the module I/O-free and import-clean (seam law).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/annotations/reanchor.rs",
+      "src/backend/handshake_core/src/annotations/mod.rs (re-exports only)",
+      "src/backend/handshake_core/src/annotations/reanchor_benchmark.md (benchmark record; or inline rustdoc)",
+      "src/backend/handshake_core/Cargo.toml (add similar + the SELECTED fuzzy crate only)",
+      "src/backend/handshake_core/tests/annotation_reanchor_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (GUI owned by NA family MT-221+)",
+      "src/backend/handshake_core/src/annotations/record.rs (MT-201 owns the record; re-export only)",
+      "src/backend/handshake_core/src/annotations/anchor.rs (MT-202 owns the anchor; consume resolve_exact, do not edit)",
+      "src/backend/handshake_core/src/storage/** (persistence + reanchor_persist write-back is MT-203)",
+      "src/backend/handshake_core/src/api/** and src/mcp/** (event emission + tool surface are MT-205/MT-206)"
+    ],
+    "acceptance_criteria": [
+      "reanchor(anchor, current_text, config) is a pure I/O-free function returning an exhaustive ReanchorOutcome of REANCHORED{confidence, method} | OUTDATED | ORPHANED; there is NO variant and NO code path that silently moves an annotation onto a low-confidence or ambiguous target.",
+      "Stage 1 (content_hash via MT-202 resolve_exact) short-circuits to REANCHORED confidence 1.0 with no diff/search on unchanged content; stage 2 uses `similar` line mapping with the same half-open Range convention as diff_engine.rs.",
+      "Stage 3 fuzzy search runs ONLY inside a bounded window around the position hint (default documented line budget, never whole-file), scoring quote similarity AND prefix/suffix context agreement.",
+      "Duplicate-snippet ambiguity resolves to the unique position-hint-closest candidate or, when no unique winner exists, to OUTDATED/ORPHANED — a mis-attach never occurs (proven by a dedicated duplicate-snippet test).",
+      "The benchmark comparing diff-match-patch-rs vs dissimilar is recorded with per-case correctness + latency and a written selection rationale; ONLY the selected crate is added to Cargo.toml.",
+      "reanchor is deterministic: identical (anchor, current_text, config) yields byte-identical outcomes including confidence and the chosen candidate under ties (deterministic tie-break documented); no time/RNG/global state.",
+      "Confidence floor, ambiguity band, and window size are named constants overridable via ReanchorConfig; the module emits no storage writes and no ledger events (the caller owns MT-203 persistence and MT-161 FR events).",
+      "cargo build + clippy clean; annotations module still imports nothing from storage/api/mcp/knowledge/loom/atelier."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_reanchor -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_reanchor::determinism_repeat_run_identical -- --nocapture 2>&1 | grep -q 'ok'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_reanchor::duplicate_snippet_never_misattaches -- --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rn 'use crate::\\(storage\\|api\\|mcp\\|knowledge\\|loom\\|atelier\\)' src/backend/handshake_core/src/annotations/reanchor.rs | wc -l | grep -q '^0$' (I/O-free + seam law)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/annotations/reanchor.rs (new pipeline + outcome enum)",
+      "src/backend/handshake_core/src/annotations/mod.rs (re-exports)",
+      "src/backend/handshake_core/Cargo.toml (similar + selected fuzzy crate)"
+    ],
+    "expected_tests": [
+      "annotation_reanchor::stage1_content_hash_fast_path_unchanged_reanchored_1_0",
+      "annotation_reanchor::stage2_position_map_edit_above_below_inside_reanchored",
+      "annotation_reanchor::stage3_fuzzy_quote_context_bounded_window_reanchored_with_confidence",
+      "annotation_reanchor::region_deleted_orphaned_region_below_floor_outdated",
+      "annotation_reanchor::duplicate_snippet_never_misattaches",
+      "annotation_reanchor::determinism_repeat_run_identical",
+      "annotation_reanchor::multibyte_utf8_quote_and_context_reanchor"
+    ],
+    "implementation_notes": [
+      "The staged order (hash -> position -> fuzzy) IS the Hypothesis fuzzy-anchoring fallback chain; MT-202 recorded the selectors, this MT consumes them cheapest-first so the common unchanged/small-edit case never runs a fuzzy search.",
+      "The bounded search window is the direct mitigation for Hypothesis's documented short-generic-quote perf hazard: a generic quote in a 10k-line file must not trigger a full-file fuzzy scan; window it around the position hint.",
+      "`similar` is the same crate diff_engine.rs uses (MIT, Myers, ecosystem-hardened, TextDiff::from_lines) — reusing it keeps the line-range convention identical and avoids a second diff algorithm (GLOBAL-RESEARCH-039).",
+      "diff-match-patch-rs vs dissimilar: diff-match-patch-rs ports Google's diff-match-patch (character-level, fuzzy match_main with a location+distance model well-suited to quote-in-window search); dissimilar is a Rust port of Google's algorithm focused on clean diffs. The benchmark must pick on correctness-under-ambiguity first, latency second; record the rationale so MT-209 and future maintainers see why.",
+      "OUTDATED vs ORPHANED is a deliberate two-state distinction (Gerrit keeps stale comments; umputun/revdiff explicitly orphans): OUTDATED keeps the annotation attached-but-flagged when the region plausibly survives; ORPHANED detaches it when the region is gone. Neither ever silently re-points.",
+      "This module is I/O-free by design; the caller (MT-205/MT-206) supplies current_text, persists via MT-203 reanchor_persist, and emits MT-161 FR event kinds. Do NOT reach into storage or the ledger here."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend/core re-anchoring engine MT; the operator-visible stale/orphaned annotation affordances are owned by the NA family (MT-221+). Runtime observability is met by the MT-161 FR outcome events the caller emits."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal engine MT with no direct operator surface; re-anchoring behavior reaches operators through the MT-205 routes and NA GUI, where the manual entries land."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason at THIS layer — reanchor is a pure function that returns a typed outcome; the caller (MT-205/MT-206) emits the MT-161 FR event kinds for REANCHORED/OUTDATED/ORPHANED when it persists the outcome.",
+    "internal_diagnostics: WIRED — every outcome is an explicit typed variant with a method + confidence; ambiguity and out-of-bounds are named states, never a silent default re-point.",
+    "Palmistry: NOT_APPLICABLE-with-reason — pure, bounded, request-scoped computation; no long-running runtime posture."
+  ],
+  "risk_if_missed": "Without an explicit-outcome deterministic re-anchor engine, edited files silently drag annotations onto the wrong code (the GitHub legacy-position failure), duplicate snippets mis-attach model feedback, a generic quote triggers a pathological full-file fuzzy scan, and non-deterministic re-anchoring makes the MT-209 adversarial suite and any audit unreproducible — poisoning agent-steering decisions with mis-placed comments.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Duplicate-snippet mis-attach — two identical regions exist after an edit and the engine re-points the annotation to the wrong one instead of returning OUTDATED/ORPHANED; mis-placed model feedback then steers the agent onto the wrong code.",
+      "RISK-2: Unbounded fuzzy search — a short/generic quote in a large file triggers a whole-file fuzzy scan (the Hypothesis perf hazard), making re-anchor O(file) and stalling MT-205/206 request paths.",
+      "RISK-3: Non-determinism — a tie-break that depends on hashmap iteration order, time, or crate-internal state yields different outcomes on repeat runs, so MT-209 cannot pin behavior and audits cannot reproduce a re-anchor decision.",
+      "RISK-4: content_hash computed over a truncated quote instead of the full region (an MT-202 hazard leaking in) so the stage-1 fast path false-matches after an edit beyond the truncation point.",
+      "RISK-5: The engine reaches into storage or emits ledger events itself, coupling the pure math to I/O, breaking the seam law and making the outcome non-testable without a database."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): A dedicated duplicate-snippet test asserts that with two identical candidate regions and no unique position-hint winner the outcome is OUTDATED or ORPHANED, never REANCHORED; the unique-winner case must be uniquely position-closest.",
+      "CTRL-2 (RISK-2): Fuzzy search is confined to a documented bounded window (ReanchorConfig.window_lines) around the position hint; a test with a generic quote in a 10k-line input asserts the search does not scan the whole file (bounded-window proof, and MT-209 owns the perf budget).",
+      "CTRL-3 (RISK-3): reanchor is a pure function of (anchor, current_text, config) with a documented deterministic tie-break (nearest-to-position-hint, then lowest line index); determinism_repeat_run_identical asserts byte-identical outcomes across two runs.",
+      "CTRL-4 (RISK-4): Stage 1 relies on MT-202 resolve_exact, which hashes the FULL region; a test flips a byte beyond the quote-truncation boundary and asserts the fast path correctly misses (falls through to stage 2/3), never false-matches.",
+      "CTRL-5 (RISK-5): A grep proof target asserts reanchor.rs imports nothing from storage/api/mcp; the outcome is returned to the caller, which owns MT-203 persistence and MT-161 FR emission."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified annotation research 2026-07-21: Hypothesis fuzzy anchoring fallback chain (position selector -> exact quote -> prefix/suffix context; bounded windows; documented short-generic-quote perf hazard) is the pipeline shape; umputun/revdiff explicit-orphan policy motivates the explicit REANCHORED/OUTDATED/ORPHANED outcome (never a silent re-point); Gerrit keeps stale comments (OUTDATED) vs revdiff orphans them (ORPHANED) motivates the two-state distinction; crate candidates diff-match-patch-rs (Google diff-match-patch port with location+distance fuzzy match_main) vs dissimilar (Rust Google-diff port) benchmarked and one selected. Grounding audit of wtc-native-editors-v1: src/frontend/handshake_native/src/code_editor/diff_engine.rs (similar v2 Myers, TextDiff::from_lines, DiffBlock half-open Range<usize> — same convention adopted for stage-2 line mapping); backend Cargo.toml confirms neither similar nor a fuzzy crate is yet an incumbent handshake_core dependency (both added here, fuzzy crate benchmark-gated).",
+    "corrections": [
+      "REJECTED diff-relative offsets (GitHub legacy position field) — re-confirmed from MT-202; re-anchoring maps positions through `similar` line diffs and quote/context, never a stored diff offset.",
+      "The fuzzy crate is added ONLY after the recorded benchmark selects it; adding both diff-match-patch-rs and dissimilar would violate the minimal-dependency rule.",
+      "FR event emission is the caller's responsibility (MT-205/MT-206 with MT-161 kinds); this engine stays pure so MT-208 can prove Studio/Stage adoption with zero runtime baggage and MT-209 can pin deterministic behavior."
+    ]
+  }
+}

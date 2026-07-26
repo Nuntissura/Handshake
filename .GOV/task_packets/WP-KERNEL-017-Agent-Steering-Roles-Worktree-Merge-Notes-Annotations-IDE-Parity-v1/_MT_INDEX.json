@@ -1,0 +1,2452 @@
+{
+ "schema_id": "hsk.microtask_index@1",
+ "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+ "generated_at_utc": "2026-07-22T00:00:00Z",
+ "mt_count": 105,
+ "id_range": "MT-001..MT-290 (contiguous within domain ranges; headroom left below each ceiling)",
+ "gui_mt_count": 24,
+ "argus_mt_count": 24,
+ "domains": {
+  "session_runtime_core": "MT-001..014 (headroom ..016)",
+  "claude_stream_json_transport": "MT-021..029 (headroom ..034)",
+  "codex_app_server_transport": "MT-041..047 (headroom ..052)",
+  "acp_client_layer": "MT-061..066 (headroom ..074)",
+  "handshake_roles": "MT-081..087 (headroom ..094)",
+  "model_to_model_orchestration": "MT-101..108 (headroom ..116)",
+  "mt_dispatch_lifecycle": "MT-121..126 (headroom ..136)",
+  "worktree_merge_back": "MT-141..148 (headroom ..154)",
+  "recording_diagnostics_manuals": "MT-161..166 (headroom ..172)",
+  "annotation_core": "MT-201..209 (headroom ..216)",
+  "notes_annotation_ui": "MT-221..226 (headroom ..234)",
+  "native_prose_diff": "MT-241..245 (headroom ..252)",
+  "ts_notes_editor_removal": "MT-261..264 (headroom ..268)",
+  "ide_parity_gap_closure": "MT-281..290 (ceiling MT-320)"
+ },
+ "external_dependencies_note": "TR family gate (MT-261) additionally reads WP-KERNEL-012 parity/perf evidence (external to this WP; gate RED as of 2026-07-22 because WP-012 MT-045 perf evidence is failing). RD MT-164 diagnostics tiers internal_diagnostics/palmistry are typed DEFERRED until WP-KERNEL-015 ships. PD MT-245 blocks TR MT-261 (TS parity reference must exist when parity suite runs). ORDERING: SC MT-011 (ToolGate) and SC MT-014 (primitives surface) are shared foundations - CS MT-021/CX MT-044/AP MT-063 bind their permission surfaces to MT-011, and MM MT-101/102 + AC MT-206 register their tools into MT-014 instead of bespoke servers.",
+ "microtasks": [
+  {
+   "mt_id": "MT-001",
+   "title": "SC-MT001-SessionModelTypes",
+   "group": "SC Session runtime core",
+   "clause": "Create the transport-agnostic typed session model for long-lived steerable agent-CLI sessions: a new module src/backend/handshake_core/src/agent_sessions/ with the Thr...",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-002",
+   "title": "SC-MT002-SteerQueueSemantics",
+   "group": "SC Session runtime core",
+   "clause": "Implement the per-session steer queue: a bounded FIFO of pending steer messages with strict ordering guarantees, duplicate suppression by SteerMessageId, a typed backp...",
+   "depends_on": [
+    "MT-001"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-SWARM-002",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-003",
+   "title": "SC-MT003-CapabilityFramework",
+   "group": "SC Session runtime core",
+   "clause": "Implement the AdapterCapabilities descriptor + per-session capability registry that every transport adapter (Claude MT-021+, Codex MT-041+, ACP MT-061+) populates AT S...",
+   "depends_on": [
+    "MT-001"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-004",
+   "title": "SC-MT004-InteractiveStdioInfra",
+   "group": "SC Session runtime core",
+   "clause": "Extend the CLI-bridge process layer with a BIDIRECTIONAL attached-stdio contract so a spawned agent CLI can be kept alive and written to (steer/interrupt frames on std...",
+   "depends_on": [
+    "MT-001"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-005",
+   "title": "SC-MT005-SessionSupervisor",
+   "group": "SC Session runtime core",
+   "clause": "Implement long-lived child supervision for interactive agent-CLI sessions: liveness/health tracking (stdout heartbeat + process-alive checks), graceful stop (stdin EOF...",
+   "depends_on": [
+    "MT-004"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-QUIET-003",
+    "HBR-SWARM-002",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-006",
+   "title": "SC-MT006-SessionPersistenceResume",
+   "group": "SC Session runtime core",
+   "clause": "Make agent sessions durable and resumable: a DurableSessionRecord persisted through the MT-001 AgentSessionStore (adapter kind, MT-003 capabilities snapshot, cwd/workt...",
+   "depends_on": [
+    "MT-001",
+    "MT-005"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-007",
+   "title": "SC-MT007-SessionApiSurface",
+   "group": "SC Session runtime core",
+   "clause": "Expose the session runtime as a governed API: an internal Rust service (AgentSessionService) composing store + capability registry + steer queue + supervisor + resume,...",
+   "depends_on": [
+    "MT-001",
+    "MT-002",
+    "MT-003",
+    "MT-004",
+    "MT-005",
+    "MT-006"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-SWARM-004",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-008",
+   "title": "SC-MT008-DeliveryReceipts",
+   "group": "SC Session runtime core",
+   "clause": "Give every steer message an honest delivery truth: an ack state machine (Sent -> Delivered -> Executed, with Unknown as the typed degraded floor), message-id correlati...",
+   "depends_on": [
+    "MT-002",
+    "MT-003"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-SWARM-004",
+    "HBR-INT-009",
+    "HBR-INT-008",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-009",
+   "title": "SC-MT009-SessionEventBus",
+   "group": "SC Session runtime core",
+   "clause": "Implement the in-process session event bus: a tokio::sync::broadcast fan-out publishing lifecycle/turn/steer/ack events for concurrent consumers (GUI panes, orchestrat...",
+   "depends_on": [
+    "MT-001"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-SWARM-002",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-010",
+   "title": "SC-MT010-SessionCoreRuntimeProofs",
+   "group": "SC Session runtime core",
+   "clause": "Prove the whole session-runtime core end-to-end against a REAL child process: a test-only fake agent CLI (allowed as the counterparty because the real transports \u2014 Cla...",
+   "depends_on": [
+    "MT-001",
+    "MT-002",
+    "MT-003",
+    "MT-004",
+    "MT-005",
+    "MT-006",
+    "MT-007",
+    "MT-008",
+    "MT-009"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-VIS-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-011",
+   "title": "SC-MT011-SessionToolGate",
+   "group": "SC Session runtime core",
+   "clause": "Build the SessionToolGate - Handshake's OWN vendor-agnostic tool-call interception point for agent sessions",
+   "depends_on": [
+    "MT-003",
+    "MT-007"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-004",
+    "HBR-QUIET-002",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-012",
+   "title": "SC-MT012-SessionHooksEngine",
+   "group": "SC Session runtime core",
+   "clause": "Handshake-owned vendor-agnostic hooks on session lifecycle + tool events (blocking + async, sandboxed actions)",
+   "depends_on": [
+    "MT-009",
+    "MT-011"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-013",
+   "title": "SC-MT013-SessionScheduling",
+   "group": "SC Session runtime core",
+   "clause": "Cron scheduling for steerable sessions (role+task launch specs, overlap/misfire/teardown policies) on the existing swarm schedule seam",
+   "depends_on": [
+    "MT-006",
+    "MT-007",
+    "MT-012"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-014",
+   "title": "SC-MT014-HandshakePrimitivesToolSurface",
+   "group": "SC Session runtime core",
+   "clause": "One uniform registry exposing Handshake primitives as governed tools to every session on every lane",
+   "depends_on": [
+    "MT-007",
+    "MT-011"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-021",
+   "title": "CS-MT021-ClaudeInteractiveLaunchPreset",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Define the SINGLE canonical launch preset for a long-lived interactive Claude Code agent session and its args-template validation gate, mirroring the existing Codex on...",
+   "depends_on": [
+    "MT-003",
+    "MT-004"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-022",
+   "title": "CS-MT022-ClaudeStreamEventParserUpgrade",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Upgrade the Claude stream-json parsing in src/backend/handshake_core/src/model_runtime/cloud/agent_activity.rs from an activity-only extractor to the FULL session enve...",
+   "depends_on": [
+    "MT-001",
+    "MT-003"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-023",
+   "title": "CS-MT023-ClaudeSteerInjection",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Mid-run steering of a RUNNING Claude Code session: drain queued steer messages from the MT-002 steer queue, serialize each as one complete stream-json user-message lin...",
+   "depends_on": [
+    "MT-002",
+    "MT-004",
+    "MT-008",
+    "MT-021",
+    "MT-022"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-024",
+   "title": "CS-MT024-ClaudeInterrupt",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Mid-turn interrupt of a RUNNING Claude Code session without killing it: emit a control_request interrupt line on the session's stdin, gated on the interrupt_receipt_v1...",
+   "depends_on": [
+    "MT-003",
+    "MT-004",
+    "MT-005",
+    "MT-023"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-025",
+   "title": "CS-MT025-ClaudeResumeFork",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Session resume and fork for the Claude lane, bound to the MT-006 session-persistence seam: relaunch a previously recorded session with `-r/--resume <session_id>` (cont...",
+   "depends_on": [
+    "MT-006",
+    "MT-021"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-005",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-026",
+   "title": "CS-MT026-ClaudeRoleOverlayBinding",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Bind Handshake Roles (machine-readable role definitions from the roles MT group: MT-081 role schema, MT-082 role injection engine) to Claude sessions at launch: the ro...",
+   "depends_on": [
+    "MT-021",
+    "MT-081",
+    "MT-082"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-006",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-027",
+   "title": "CS-MT027-ClaudeStructuredExitBinding",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Mechanical, prose-free MT lifecycle signaling from Claude worker sessions: launch workers with `--json-schema` bound to the hsk.mt_signal@1 schema (defined by MT-121) ...",
+   "depends_on": [
+    "MT-022",
+    "MT-121"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-028",
+   "title": "CS-MT028-ClaudeContractTestSuite",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "A CI-runnable CONTRACT test suite against the LIVE claude CLI that pins the behavioral assumptions MT-021..025 depend on, so an upstream CLI release that changes strea...",
+   "depends_on": [
+    "MT-021",
+    "MT-022",
+    "MT-023",
+    "MT-024",
+    "MT-025"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-029",
+   "title": "CS-MT029-ClaudeSessionRecording",
+   "group": "CS Claude Code stream-json transport",
+   "clause": "Durable, replayable recording of the Claude lane's session lifecycle: Flight Recorder events + ledger rows for launch / steer / ack / interrupt / resume with session +...",
+   "depends_on": [
+    "MT-022",
+    "MT-023",
+    "MT-161"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-VIS-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-041",
+   "title": "CX-MT041-AppServerClientCore",
+   "group": "CX Codex app-server transport",
+   "clause": "Build the persistent-lane transport core for the Codex adapter: spawn `codex app-server` as a supervised child process and speak JSON-RPC 2.0 over stdio JSONL to it, w...",
+   "depends_on": [
+    "MT-004",
+    "MT-005"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-042",
+   "title": "CX-MT042-ThreadLifecycleMapping",
+   "group": "CX Codex app-server transport",
+   "clause": "Map the Codex app-server thread lifecycle methods (thread/start, thread/resume, thread/fork, thread/list, thread/read, thread/rollback) onto Handshake's internal sessi...",
+   "depends_on": [
+    "MT-041",
+    "MT-001",
+    "MT-003",
+    "MT-006"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-043",
+   "title": "CX-MT043-TurnSteerInterrupt",
+   "group": "CX Codex app-server transport",
+   "clause": "Wire the turn layer of the Codex adapter: turn/start with the composed initial input (role overlay + MT payload from the MT-083 composition seam), turn/steer as FIRST-...",
+   "depends_on": [
+    "MT-041",
+    "MT-042",
+    "MT-002"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-044",
+   "title": "CX-MT044-ApprovalConsentBridge",
+   "group": "CX Codex app-server transport",
+   "clause": "Bridge Codex app-server server-to-client approval requests (item/commandExecution/requestApproval and item/fileChange/requestApproval) into Handshake's consent machine...",
+   "depends_on": [
+    "MT-041",
+    "MT-043"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-045",
+   "title": "CX-MT045-CodexEventRecording",
+   "group": "CX Codex app-server transport",
+   "clause": "Make the Codex app-server lane fully recorded and cross-lane comparable: map thread/turn/item events and steer/approval dispositions into Flight Recorder events using ...",
+   "depends_on": [
+    "MT-043",
+    "MT-161"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-046",
+   "title": "CX-MT046-ExecLaneCompatRouting",
+   "group": "CX Codex app-server transport",
+   "clause": "Keep the existing one-shot `codex exec --json` lane fully working alongside the new app-server lane, add the adapter-selection policy that routes work between the two ...",
+   "depends_on": [
+    "MT-042",
+    "MT-121"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-047",
+   "title": "CX-MT047-CodexContractTestSuite",
+   "group": "CX Codex app-server transport",
+   "clause": "Prove the whole CX adapter against the REAL codex CLI with a dedicated contract-test suite: app-server method availability probe, live steer-mid-turn test, live interr...",
+   "depends_on": [
+    "MT-041",
+    "MT-042",
+    "MT-043",
+    "MT-044",
+    "MT-045",
+    "MT-046"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-061",
+   "title": "AP-MT061-AcpClientCore",
+   "group": "AP ACP client layer",
+   "clause": "Integrate the official agent-client-protocol Rust crate (crates.io: agent-client-protocol, companion agent-client-protocol-schema) as a Handshake session adapter so an...",
+   "depends_on": [
+    "MT-001",
+    "MT-003",
+    "MT-004",
+    "MT-005"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-062",
+   "title": "AP-MT062-AcpTurnDiscipline",
+   "group": "AP ACP client layer",
+   "clause": "Enforce ACP sequential-turn discipline on top of the MT-061 client core so that steering a running ACP session is SAFE, HONEST, and OBSERVABLE",
+   "depends_on": [
+    "MT-061",
+    "MT-002"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-004",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-063",
+   "title": "AP-MT063-AcpClientServices",
+   "group": "AP ACP client layer",
+   "clause": "Implement the CLIENT-side services of ACP \u2014 the JSON-RPC methods the AGENT calls back INTO Handshake during a turn",
+   "depends_on": [
+    "MT-061"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-064",
+   "title": "AP-MT064-AcpAgentRegistryLane",
+   "group": "AP ACP client layer",
+   "clause": "Build the registry of ACP-launchable agents and wire the ACP lane into the production factory so an ACP agent spawn is a first-class, governed Handshake lane",
+   "depends_on": [
+    "MT-061"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-065",
+   "title": "AP-MT065-AcpRepoGovDutyParityProof",
+   "group": "AP ACP client layer",
+   "clause": "End-to-end takeover-readiness proof that the Handshake ACP lane can run the repo-governance duty currently performed by the Node broker .GOV/tools/handshake-acp-bridge...",
+   "depends_on": [
+    "MT-061",
+    "MT-062",
+    "MT-063",
+    "MT-064",
+    "MT-083",
+    "MT-121"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-004",
+    "HBR-VIS-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-066",
+   "title": "AP-MT066-AcpContractTestsWindowsHardening",
+   "group": "AP ACP client layer",
+   "clause": "Contract-test the ACP lane against LIVE third-party ACP agents (claude-agent-acp at minimum; gemini and the codex adapter when installed) and harden the Windows-specif...",
+   "depends_on": [
+    "MT-061",
+    "MT-062",
+    "MT-063",
+    "MT-064"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-081",
+   "title": "RO-MT081-RoleSchemaAndRegistry",
+   "group": "RO Handshake Roles",
+   "clause": "Create the hsk.handshake_role@1 typed schema and the PostgreSQL-backed Handshake Role registry \u2014 the foundation of the RO family",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-MAN-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-082",
+   "title": "RO-MT082-RoleInjectionEngine",
+   "group": "RO Handshake Roles",
+   "clause": "Implement the per-transport Role Injection Engine: given an ACTIVE hsk.handshake_role@1 (MT-081) and a session launch, inject the role overlay through the correct tran...",
+   "depends_on": [
+    "MT-081",
+    "MT-021",
+    "MT-043",
+    "MT-061"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-083",
+   "title": "RO-MT083-WorkerPromptComposition",
+   "group": "RO Handshake Roles",
+   "clause": "Build the Worker Prompt Composition engine: the deterministic assembler that turns (role overlay from MT-081/082) + (task payload, e.g",
+   "depends_on": [
+    "MT-081",
+    "MT-082",
+    "MT-121"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-084",
+   "title": "RO-MT084-RoleMigrationImporter",
+   "group": "RO Handshake Roles",
+   "clause": "Build the Role Migration Importer: a read-only ingester that turns the existing repo-gov role protocols into DRAFT Handshake Roles (hsk.handshake_role@1, MT-081)",
+   "depends_on": [
+    "MT-081"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-QUIET-002",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-085",
+   "title": "RO-MT085-RoleManagerGui",
+   "group": "RO Handshake Roles",
+   "clause": "Deliver the operator-facing Role Manager: (a) a native egui Role Manager pane in handshake_native for the full role lifecycle \u2014 list / create / edit (new version) / ve...",
+   "depends_on": [
+    "MT-081",
+    "MT-001",
+    "MT-007"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-QUIET-001",
+    "HBR-INT-009",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-086",
+   "title": "RO-MT086-ChildSessionRoleAssignment",
+   "group": "RO Handshake Roles",
+   "clause": "Let an ORCHESTRATING SESSION assign roles to the workers it spawns: the spawn tool surface (MT-101) accepts an optional role_id (+ optional role_version), the role is ...",
+   "depends_on": [
+    "MT-081",
+    "MT-082",
+    "MT-101",
+    "MT-106"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-MAN-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-087",
+   "title": "RO-MT087-RoleRuntimeProofs",
+   "group": "RO Handshake Roles",
+   "clause": "Live runtime proof of the whole RO family \u2014 no mocks standing in for spec-required runtime",
+   "depends_on": [
+    "MT-082",
+    "MT-084",
+    "MT-085"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-004",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-101",
+   "title": "MM-MT101-GovernedSpawnToolSurface",
+   "group": "MM Model-to-model orchestration",
+   "clause": "Expose worker spawning to orchestrator-model sessions as ONE governed tool, `spawn_worker`, so a model can request a child worker session without gaining any new spawn...",
+   "depends_on": [
+    "MT-007",
+    "MT-086",
+    "MT-106"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-102",
+   "title": "MM-MT102-SteerStatusTools",
+   "group": "MM Model-to-model orchestration",
+   "clause": "Give orchestrator-model sessions governed steering and observation tools over the workers they spawned: `steer_worker{child_session_id, message}`, `interrupt_worker{ch...",
+   "depends_on": [
+    "MT-101",
+    "MT-002"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-INT-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-103",
+   "title": "MM-MT103-ParentChildSessionRegistry",
+   "group": "MM Model-to-model orchestration",
+   "clause": "Durable parent-child session lineage: a PostgreSQL-backed registry of who spawned whom, with a max-depth limit, cycle prevention, and a cascade policy when a parent te...",
+   "depends_on": [
+    "MT-101"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-002",
+    "HBR-INT-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-104",
+   "title": "MM-MT104-InjectionScanPipeline",
+   "group": "MM Model-to-model orchestration",
+   "clause": "A reusable injection-scan pipeline for ALL inter-model content: worker final reports before orchestrator ingestion, steer messages (MT-102), spawn task payloads (MT-10...",
+   "depends_on": [
+    "MT-001"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-SWARM-002",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-105",
+   "title": "MM-MT105-OrchestratorNotificationPath",
+   "group": "MM Model-to-model orchestration",
+   "clause": "Event-driven worker-to-orchestrator notification with ZERO polling",
+   "depends_on": [
+    "MT-002",
+    "MT-009",
+    "MT-102",
+    "MT-121"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-002",
+    "HBR-INT-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-106",
+   "title": "MM-MT106-ModelToModelPolicy",
+   "group": "MM Model-to-model orchestration",
+   "clause": "The deny-by-default policy layer for model-to-model orchestration: WHICH parent roles/sessions may spawn WHICH lanes/roles, per-parent concurrent-children cap, per-par...",
+   "depends_on": [
+    "MT-101"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-SWARM-001",
+    "HBR-INT-003",
+    "HBR-MAN-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-107",
+   "title": "MM-MT107-SessionTreeGui",
+   "group": "MM Model-to-model orchestration",
+   "clause": "Make model-to-model orchestration operator-visible and operator-controllable: a session-tree UI on BOTH GUI stacks \u2014 a native egui pane in handshake_native and an exte...",
+   "depends_on": [
+    "MT-103",
+    "MT-105"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-108",
+   "title": "MM-MT108-ModelToModelRuntimeProof",
+   "group": "MM Model-to-model orchestration",
+   "clause": "Live end-to-end runtime proof of the whole MM family against a REAL orchestrator model session (any lane: local, BYOK cloud, or official CLI \u2014 whichever the host has c...",
+   "depends_on": [
+    "MT-101",
+    "MT-102",
+    "MT-103",
+    "MT-104",
+    "MT-105",
+    "MT-106",
+    "MT-107"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-001",
+    "HBR-MAN-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-121",
+   "title": "ML-MT121-MtSignalContract",
+   "group": "ML MT dispatch lifecycle",
+   "clause": "Define hsk.mt_signal@1 \u2014 the single mechanical completion-signal contract every MT-dispatched worker MUST emit as its structured exit",
+   "depends_on": [
+    "MT-001"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-122",
+   "title": "ML-MT122-MtDispatchComposer",
+   "group": "ML MT dispatch lifecycle",
+   "clause": "Build the MT dispatch composer \u2014 the Handshake component that turns a governance microtask contract (an hsk.microtask_contract@1 JSON file, the EXACT shape used in .GO...",
+   "depends_on": [
+    "MT-083",
+    "MT-121"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-123",
+   "title": "ML-MT123-MtRunStateMachine",
+   "group": "ML MT dispatch lifecycle",
+   "clause": "Build the Handshake-side MT-run state machine \u2014 the durable record of one dispatched microtask execution, advanced ONLY by mechanical inputs (dispatch record, worker c...",
+   "depends_on": [
+    "MT-121",
+    "MT-122"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-003",
+    "HBR-STOP-001",
+    "HBR-STOP-002"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-124",
+   "title": "ML-MT124-ValidationHandoff",
+   "group": "ML MT dispatch lifecycle",
+   "clause": "Build the validation handoff \u2014 what Handshake does mechanically when an MT run enters VALIDATION_HANDOFF (worker signaled READY_FOR_VALIDATION / MT_IMPLEMENTED / PARTI...",
+   "depends_on": [
+    "MT-123",
+    "MT-105",
+    "MT-101"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-STOP-001",
+    "HBR-QUIET-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-125",
+   "title": "ML-MT125-MtLifecycleBoardGui",
+   "group": "ML MT dispatch lifecycle",
+   "clause": "Give the operator (and observing models) a live MT lifecycle board \u2014 the visual surface over the MT-123 run state machine and MT-124 validation handoff",
+   "depends_on": [
+    "MT-123",
+    "MT-124"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-SWARM-001",
+    "HBR-INT-009"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-126",
+   "title": "ML-MT126-MtLoopEndToEndProof",
+   "group": "ML MT dispatch lifecycle",
+   "clause": "LIVE end-to-end proof of the FULL productized MT loop \u2014 the WP-017 packet-level acceptance criterion 'Full MT loop proven end-to-end' made executable",
+   "depends_on": [
+    "MT-121",
+    "MT-122",
+    "MT-123",
+    "MT-124",
+    "MT-125",
+    "MT-001",
+    "MT-002",
+    "MT-007",
+    "MT-009",
+    "MT-027",
+    "MT-046",
+    "MT-083",
+    "MT-086",
+    "MT-101",
+    "MT-105",
+    "MT-141",
+    "MT-161"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-141",
+   "title": "WM-MT141-SessionWorktreeBranchMode",
+   "group": "WM Worktree merge-back",
+   "clause": "Upgrade session worktree provisioning in src/backend/handshake_core/src/workspace_safety.rs from detached-HEAD checkouts to named session branches, so downstream merge...",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-142",
+   "title": "WM-MT142-MergeEngine",
+   "group": "WM Worktree merge-back",
+   "clause": "Close the verified merge gap in handshake_core source control",
+   "depends_on": [
+    "MT-141"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-143",
+   "title": "WM-MT143-ConflictBridgeToMergeUi",
+   "group": "WM Worktree merge-back",
+   "clause": "Bridge MergeOutcome::Conflicts (MT-142) into the EXISTING native 3-pane merge UI so a conflicted merge is resolved through DiffEditorPanel Merge mode and written back ...",
+   "depends_on": [
+    "MT-142"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-VIS-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-144",
+   "title": "WM-MT144-PatchExtractionFallback",
+   "group": "WM Worktree merge-back",
+   "clause": "Provide the patch-based merge-back path for worktrees that CANNOT branch-merge: legacy/compat detached-HEAD session worktrees (MT-141 DetachedHead mode), worktrees who...",
+   "depends_on": [
+    "MT-142",
+    "MT-143"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-145",
+   "title": "WM-MT145-MergeGovernanceGates",
+   "group": "WM Worktree merge-back",
+   "clause": "Add the governance layer that wraps the MT-142 headless merge engine with real merge preconditions and a protected-branch consent gate, so a session-branch merge-back ...",
+   "depends_on": [
+    "MT-142",
+    "MT-123",
+    "MT-161"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-SWARM-002",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-146",
+   "title": "WM-MT146-MergeReviewGuiFlow",
+   "group": "WM Worktree merge-back",
+   "clause": "Ship the OPERATOR-facing merge-review flow that mounts the MT-142 engine, MT-143 conflict bridge, and MT-145 governance gate behind a real surface: a native egui merge...",
+   "depends_on": [
+    "MT-142",
+    "MT-143",
+    "MT-145"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-004",
+    "HBR-MAN-001",
+    "HBR-QUIET-002",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-147",
+   "title": "WM-MT147-PostMergeReclaim",
+   "group": "WM Worktree merge-back",
+   "clause": "Close the resource lifecycle after a governed merge succeeds (MT-145 Executed): remove the session worktree, delete the session branch per the reclaim policy, snapshot...",
+   "depends_on": [
+    "MT-142",
+    "MT-145"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-148",
+   "title": "WM-MT148-MergeRuntimeProofs",
+   "group": "WM Worktree merge-back",
+   "clause": "Prove the whole WM Worktree merge-back family LIVE, end to end, exercising the real MT-141..147 APIs (not mocks of them) in a scratch git repo and real session worktre...",
+   "depends_on": [
+    "MT-141",
+    "MT-142",
+    "MT-143",
+    "MT-144",
+    "MT-145",
+    "MT-146",
+    "MT-147"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-161",
+   "title": "RD-MT161-NewFrEventKinds",
+   "group": "RD Recording + diagnostics + manuals",
+   "clause": "Define the complete ADDITIVE Flight Recorder event-kind catalogue for WP-017 (agent steering, roles, model-to-model, MT lifecycle, worktree merge, annotations) plus ty...",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-162",
+   "title": "RD-MT162-LedgerExtensions",
+   "group": "RD Recording + diagnostics + manuals",
+   "clause": "Extend the durable PostgreSQL ledgers (ModelLane/EventLedger family + ProcessOwnershipLedger adjacency) with the WP-017 row families that make steering, attribution, M...",
+   "depends_on": [
+    "MT-161"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-SWARM-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-163",
+   "title": "RD-MT163-SteeringTranscripts",
+   "group": "RD Recording + diagnostics + manuals",
+   "clause": "Make session transcripts capture the FULL steering exchange \u2014 injected steer messages, acks, interrupts, resumes, notifications, and structured signals \u2014 so a replayed...",
+   "depends_on": [
+    "MT-161",
+    "MT-162"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-SWARM-002",
+    "HBR-VIS-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-164",
+   "title": "RD-MT164-DiagnosticsTierWiring",
+   "group": "RD Recording + diagnostics + manuals",
+   "clause": "Make the HBR-INT-009 three-tier diagnostic posture EXPLICIT AND MACHINE-CHECKED for every new WP-017 behavior family, instead of leaving tier wiring implicit per-MT",
+   "depends_on": [
+    "MT-161",
+    "MT-162",
+    "MT-163"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-VIS-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-165",
+   "title": "RD-MT165-ManualsForAgentHarness",
+   "group": "RD Recording + diagnostics + manuals",
+   "clause": "Give the WP-017 agent harness a COMPLETE built-in manual so a NO-CONTEXT model (and the operator) can operate every Pillar-A surface -- session launch/steer/interrupt/...",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-INT-009"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-166",
+   "title": "RD-MT166-OrchestrationAuditSurface",
+   "group": "RD Recording + diagnostics + manuals",
+   "clause": "Build the WP-017 ORCHESTRATION AUDIT SURFACE -- the one operator-facing place that answers 'who spawned / steered / interrupted whom, when, and with what outcome' by j...",
+   "depends_on": [
+    "MT-161",
+    "MT-162"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-005",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-INT-001",
+    "HBR-INT-009"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-201",
+   "title": "AC-MT201-AnnotationRecordSchema",
+   "group": "AC Annotation core",
+   "clause": "Define the SINGLE shared annotation record schema `hsk.annotation@1` as pure Rust types + a committed JSON Schema, used identically by human (operator) and model autho...",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-202",
+   "title": "AC-MT202-AnchorModel",
+   "group": "AC Annotation core",
+   "clause": "Define the typed multi-selector anchor model `AnnotationAnchor` that makes annotations survive file edits: Hypothesis-style redundant selectors (position + exact quote...",
+   "depends_on": [
+    "MT-201"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-203",
+   "title": "AC-MT203-AnnotationStore",
+   "group": "AC Annotation core",
+   "clause": "Give the MT-201 `hsk.annotation@1` record durable PostgreSQL persistence behind an `AnnotationStore` trait, with an EventLedger receipt on every state-changing operati...",
+   "depends_on": [
+    "MT-201",
+    "MT-202"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-SWARM-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-204",
+   "title": "AC-MT204-ReanchorEngine",
+   "group": "AC Annotation core",
+   "clause": "Build the deterministic re-anchoring pipeline that keeps annotations attached to the right code after a file changes, consuming the MT-202 multi-selector anchor in the...",
+   "depends_on": [
+    "MT-202",
+    "MT-203",
+    "MT-161"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-205",
+   "title": "AC-MT205-AnnotationRoutesApi",
+   "group": "AC Annotation core",
+   "clause": "Expose the annotation core over HTTP + IPC so the operator GUI (NA family) and clients can create/read/update/resolve/reply to annotations and preview fix applications...",
+   "depends_on": [
+    "MT-203",
+    "MT-204"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-MAN-001",
+    "HBR-SWARM-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-206",
+   "title": "AC-MT206-ModelAnnotationToolSurface",
+   "group": "AC Annotation core",
+   "clause": "Give agent-steering models a GOVERNED tool surface to author annotations \u2014 annotation_create / annotation_list / annotation_reply \u2014 where provenance (robot_id / sessio...",
+   "depends_on": [
+    "MT-201",
+    "MT-202",
+    "MT-203",
+    "MT-204",
+    "MT-205",
+    "MT-104"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-207",
+   "title": "AC-MT207-FixSuggestionApply",
+   "group": "AC Annotation core",
+   "clause": "Turn a Gerrit-style fix_suggestion attached to an annotation into a one-click, safe, attributable edit: compute the apply PREVIEW diff, apply the replacements through ...",
+   "depends_on": [
+    "MT-201",
+    "MT-204"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-208",
+   "title": "AC-MT208-AnnotationSeamProof",
+   "group": "AC Annotation core",
+   "clause": "Prove the annotation core is a REUSABLE SEAM, not a leaf of the editors: the whole family compiles and its full test set passes with ZERO inbound imports from the rich...",
+   "depends_on": [
+    "MT-201",
+    "MT-202",
+    "MT-203",
+    "MT-204",
+    "MT-205",
+    "MT-206",
+    "MT-207"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-209",
+   "title": "AC-MT209-AnchorDriftTestSuite",
+   "group": "AC Annotation core",
+   "clause": "Adversarially prove the MT-204 re-anchor engine survives the full drift catalogue that breaks naive line-number anchors \u2014 edit above / inside / below the anchored regi...",
+   "depends_on": [
+    "MT-204"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-221",
+   "title": "NA-MT221-CodeEditorAnnotationMarkers",
+   "group": "NA Notes annotation UI",
+   "clause": "Render annotation gutter markers and inline thread widgets in the NATIVE code editor across every view the editor has: plain (non-diff) file view, DiffMode::SideBySide...",
+   "depends_on": [
+    "MT-201",
+    "MT-202",
+    "MT-203",
+    "MT-204",
+    "MT-205"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-222",
+   "title": "NA-MT222-RichEditorAnnotationRendering",
+   "group": "NA Notes annotation UI",
+   "clause": "Render annotations in the NATIVE rich_editor (Notes): block-range highlights plus margin markers in BOTH edit mode and reading mode, anchored to prose blocks via the A...",
+   "depends_on": [
+    "MT-221",
+    "MT-202"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-223",
+   "title": "NA-MT223-AnnotationPanel",
+   "group": "NA Notes annotation UI",
+   "clause": "Add a dedicated ANNOTATION SIDE PANEL to the native shell \u2014 a real registered pane (not an ad-hoc egui window) that lists annotations for a chosen scope (current file ...",
+   "depends_on": [
+    "MT-221",
+    "MT-222"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-224",
+   "title": "NA-MT224-OperatorAuthoringFlow",
+   "group": "NA Notes annotation UI",
+   "clause": "Give the OPERATOR the full authoring flow on annotations from the native editors \u2014 create an annotation from a selection (code editor, rich editor, or a diff hunk), ed...",
+   "depends_on": [
+    "MT-221",
+    "MT-222",
+    "MT-223",
+    "MT-205"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-QUIET-003",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-225",
+   "title": "NA-MT225-LiveModelAnnotationFlow",
+   "group": "NA Notes annotation UI",
+   "clause": "Surface model-authored annotations that ARRIVE LIVE during a running session \u2014 non-intrusively",
+   "depends_on": [
+    "MT-221",
+    "MT-222",
+    "MT-223",
+    "MT-206"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-005",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-226",
+   "title": "NA-MT226-AnnotationGuiEvidenceSuite",
+   "group": "NA Notes annotation UI",
+   "clause": "Produce ONE consolidated, reproducible GUI evidence + regression suite covering every annotation surface built by MT-221..225, so a no-context model (or the WP validat...",
+   "depends_on": [
+    "MT-221",
+    "MT-222",
+    "MT-223",
+    "MT-224",
+    "MT-225"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-241",
+   "title": "PD-MT241-NativeBlockDiffEngine",
+   "group": "PD Native prose diff",
+   "clause": "Implement the block-level native prose diff + three-way prose merge that WP-KERNEL-012 MT-009 DEFERRED",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-242",
+   "title": "PD-MT242-ProseDiffUi",
+   "group": "PD Native prose diff",
+   "clause": "Render the native prose diff produced by MT-241 in the notes/rich editor as a READ-ONLY block-level diff view with two modes \u2014 side-by-side and inline/unified \u2014 plus a...",
+   "depends_on": [
+    "MT-241"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-243",
+   "title": "PD-MT243-ProseMergeUi",
+   "group": "PD Native prose diff",
+   "clause": "Upgrade the rich-editor save-conflict resolution from a BINARY choice to a real block-level 3-way merge UI driven by MT-241's BlockMergeEngine",
+   "depends_on": [
+    "MT-241",
+    "MT-242"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-244",
+   "title": "PD-MT244-ProseDiffAnnotations",
+   "group": "PD Native prose diff",
+   "clause": "Let operators and models attach annotations to a PROSE DIFF view",
+   "depends_on": [
+    "MT-241",
+    "MT-242",
+    "MT-202",
+    "MT-221",
+    "MT-222"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-245",
+   "title": "PD-MT245-ProseDiffParityAndPerfProofs",
+   "group": "PD Native prose diff",
+   "clause": "Author and run the proof suite that (a) PROVES the native prose diff/merge (MT-241) is behaviourally equivalent to the React reference app/src/lib/editor/document_diff...",
+   "depends_on": [
+    "MT-241",
+    "MT-242",
+    "MT-243"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-002",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-261",
+   "title": "TR-MT261-RemovalPreconditionGate",
+   "group": "TR Legacy TS notes editor removal",
+   "clause": "Build the machine-readable REMOVAL PRECONDITION GATE that must evaluate GREEN before ANY legacy TypeScript/React notes-editor code is feature-flagged off (MT-262) or d...",
+   "depends_on": [
+    "MT-245",
+    "MT-222",
+    "MT-223"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-STOP-001",
+    "HBR-STOP-003",
+    "HBR-VIS-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-262",
+   "title": "TR-MT262-FeatureFlagOffThenDelete",
+   "group": "TR Legacy TS notes editor removal",
+   "clause": "Remove the legacy TypeScript/React notes editor in TWO phases so nothing new can build on it and the native Rust editors (WP-KERNEL-012) become the only notes surface ...",
+   "depends_on": [
+    "MT-261"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-QUIET-002",
+    "HBR-VIS-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-263",
+   "title": "TR-MT263-DepsAndIpcPurge",
+   "group": "TR Legacy TS notes editor removal",
+   "clause": "After MT-262 deletes the legacy TS notes-editor source, remove the now-dead notes-only dependencies and dead notes-only frontend IPC/API client surface \u2014 precisely, wi...",
+   "depends_on": [
+    "MT-262"
+   ],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-VIS-004"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-264",
+   "title": "TR-MT264-PostRemovalSweepAndProof",
+   "group": "TR Legacy TS notes editor removal",
+   "clause": "Close out the legacy TS notes-editor removal with a final repo-wide correctness sweep, a CI guard that prevents the surface from ever returning, full green builds/test...",
+   "depends_on": [
+    "MT-262",
+    "MT-263"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-QUIET-002",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-281",
+   "title": "IP-MT281-ParityMatrixArtifact",
+   "group": "IP IDE parity gap closure",
+   "clause": "Stand up the machine-readable IDE-parity matrix + a re-runnable Rust checker that is the honest tracking spine for the whole IP family (MT-282..290)",
+   "depends_on": [],
+   "gui": false,
+   "argus": false,
+   "user_manual_update": false,
+   "hbr": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-282",
+   "title": "IP-MT282-EditorPeekView",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add VS Code 'Peek' to the native code editor \u2014 the inline, in-place overlay that shows a symbol's Definition (Alt+F12) or References / Implementations (Shift+F12) WITH...",
+   "depends_on": [
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-283",
+   "title": "IP-MT283-EditorSymbolBreadcrumbs",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add the VS Code editor breadcrumb bar to the native code editor \u2014 the thin horizontal strip at the top of the editor showing the navigable path 'file \u203a OuterSymbol \u203a I...",
+   "depends_on": [
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-284",
+   "title": "IP-MT284-SnippetExpansionEngine",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add a VS Code / LSP-style snippet expansion engine to the native code editor \u2014 TextMate-syntax snippet bodies with tab-stops ($1, $2, $0), placeholders (${1:name}), mi...",
+   "depends_on": [
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-285",
+   "title": "IP-MT285-EditorScmGutterChangeMarkers",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add the VS Code 'dirty diff' gutter to the native code editor \u2014 the per-line change decorations in the editor gutter (a colored bar beside ADDED lines, MODIFIED lines,...",
+   "depends_on": [
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-286",
+   "title": "IP-MT286-EditorInlineGitBlame",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add VS Code / GitLens-class inline git blame to the native code editor \u2014 a dim end-of-line annotation on the CURRENT caret line showing 'Author, N time ago \u2022 commit su...",
+   "depends_on": [
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-287",
+   "title": "IP-MT287-InlineAiEditGhostTextSeam",
+   "group": "IP IDE parity gap closure",
+   "clause": "Build the Antigravity / Cursor-class inline AI-edit EDITOR SEAM in the native code editor \u2014 the ghost-text preview of a proposed AI edit shown inline (as dim virtual t...",
+   "depends_on": [
+    "MT-007",
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-288",
+   "title": "IP-MT288-EditorAgentContextAttach",
+   "group": "IP IDE parity gap closure",
+   "clause": "Build the Antigravity / Cursor 'Add to context' seam \u2014 the editor-side path that lets an operator attach a code/notes selection, a whole file, or a symbol to the bound...",
+   "depends_on": [
+    "MT-007",
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-289",
+   "title": "IP-MT289-EditorSaveActions",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add VS Code 'on save' editor actions to the native code editor \u2014 format-on-save (editor.formatOnSave), trim-trailing-whitespace-on-save (files.trimTrailingWhitespace),...",
+   "depends_on": [
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  },
+  {
+   "mt_id": "MT-290",
+   "title": "IP-MT290-TimelineLocalHistoryPanel",
+   "group": "IP IDE parity gap closure",
+   "clause": "Add the VS Code 'Timeline' view to the native editors \u2014 a per-file panel listing a merged, time-ordered history of that file/document's versions: git commits that touc...",
+   "depends_on": [
+    "MT-162",
+    "MT-281"
+   ],
+   "gui": true,
+   "argus": true,
+   "user_manual_update": true,
+   "hbr": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+   ],
+   "status": "PENDING"
+  }
+ ],
+ "naming_note": "Dexterity is the operator-facing name of the model-lane kernel Pillar A extends (model_lane.rs:1-5; DexterityNoOsLaunchCaller/DexterityNormalizedLaunch/dexterity_launch). Operator 2026-07-22: Dexterity is the ACP replacer. Pillar-A operator-facing surfaces use the Dexterity name; stable wire/schema ids keep their own names.",
+ "vendor_agnostic_engine_note": "VENDOR-AGNOSTIC ENGINE FRAMING (operator 2026-07-22): Handshake is a model/vendor-agnostic engine. Models are called through CLI/terminal today ONLY because Anthropic subscription plans block direct API use; Handshake is the wrapper/engine AROUND the CLI - it owns sandboxing, tool-call gating/stopping (SC MT-011), hooks (SC MT-012), cron/scheduling (SC MT-013), and exposing Handshake API/primitives to models (SC MT-014). Claude and GPT are the first two engines in the wrapper; open-source/other vendors follow. Vendor harness behaviors documented in the research basis were input, not the target; no vendor names in operator-facing surfaces, schemas, or policy vocabulary. If direct API access becomes viable, the CLI lane is swapped without touching the wrapper capabilities."
+}

@@ -1,0 +1,211 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-224",
+  "title": "NA-MT224-OperatorAuthoringFlow",
+  "group": "NA Notes annotation UI",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-224.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-221",
+      "MT-222",
+      "MT-223",
+      "MT-205"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give the OPERATOR the full authoring flow on annotations from the native editors — create an annotation from a selection (code editor, rich editor, or a diff hunk), edit their own annotations, delete with confirmation, reply in a thread, and resolve/reopen — with a COMPLETE keyboard path and AccessKit default-actions (no mouse-only flows), no focus stealing, and undo-safe behavior. This flips the shared AnnotationThreadWidget (MT-221 annotations/thread_widget.rs) out of read-only mode and turns the resolve/reopen/reply controls that MT-223's panel exposes into real mutations. Anchoring is delegated: a new annotation captures the current selection RANGE only and hands it to the AC MT-202 anchor-subject helper; this MT computes NO anchor/offset math and stores NO annotation content in the document model. Interaction pattern reference: the VS Code Comment API authoring flow (CommentController create/edit/delete/reply on a CommentThread) driven from an editor selection.\n\nEXPECTED DIFF SHAPE: New annotations/authoring.rs (the command layer: build-anchor-request-from-selection + create/edit/delete/reply/resolve/reopen calls into annotations/client.rs, which consumes AC MT-205 tools/routes); a read_only=false path + reply/edit/delete/resolve/reopen controls with AccessKit default-actions added to annotations/thread_widget.rs; the MT-223 panel's inline controls wired to these commands (annotations/panel.rs); an 'Add annotation from selection' command + keyboard binding + AccessKit action entry in code_editor/panel.rs, code_editor/diff_editor_panel.rs (hunk selection), and rich_editor/renderer/rich_editor_widget.rs (prose selection); one integration test file. No document_model change; no backend edits; no legacy React edits; no second thread widget.\n\nDETAILED SPEC (selection capture, commands, keyboard, undo):\n1. SELECTION CAPTURE (grounding-verified shapes; NO anchor math here): code editor -> the active code_editor/cursor.rs Cursor { anchor, head } byte range (cursor.start()..cursor.end()); rich editor -> rich_editor/document_model/selection.rs Selection::Text { anchor, head: DocPosition } (or Selection::Node { node_path } for an atom); diff hunk -> a code_editor/diff_engine.rs DiffBlock (its left_lines/right_lines Range<usize> and DiffStatus side) selected in diff_editor_panel.rs. annotations/authoring.rs converts each into the AC MT-202 anchor-subject REQUEST (file+range / prose block+offset / diff side+line) and calls the AC MT-202 helper to produce the anchor; authoring.rs itself contains no offset/reanchor computation.\n2. CREATE: `Add annotation from selection` is a first-class command with (a) a keyboard binding, (b) an AccessKit default-action on the selection/affordance, and (c) an entry usable from the command surface — never mouse-only. It opens a compose field (Role::TextInput) inline; submitting calls annotations/client.rs create (AC MT-205 create tool). A rangeless (file-level) annotation is created when there is no selection; it surfaces in the MT-223 panel + unanchored strip, never at a guessed line.\n3. EDIT OWN: the operator may edit the body of their OWN annotation/comment (author kind == operator, matching identity); edit is exposed on the shared widget behind read_only=false and calls the AC MT-205 update tool. Model-authored comments are NOT operator-editable (edit control hidden/disabled for model authors — provenance integrity).\n4. DELETE WITH CONFIRM: delete requires an explicit confirmation step (a confirm affordance reachable by keyboard, not a mouse-only modal), then calls the AC MT-205 delete tool. Deleting a thread head vs a reply is distinguished. Confirmation copy states what is removed.\n5. REPLY / RESOLVE / REOPEN: reply appends a comment (AC MT-205 reply); resolve transitions Open -> Resolved and reopen Resolved -> Open (AC lifecycle). These are the SAME controls MT-223 exposes in the panel and MT-221/MT-222 expose inline — one command layer, three entry points.\n6. KEYBOARD + ACCESSKIT (binding): every authoring action has a keyboard path and an AccessKit action/default-action; there are NO mouse-only flows. Toggle-style controls use Role::CheckBox (accesskit 0.21.1 has no ToggleButton); compose/edit fields use Role::TextInput. Author-side ids reuse the shared widget's stable ids (annotation_thread_{annotation_id}_reply, _resolve, _edit, _delete, _confirm) and the code-editor instance-suffix scheme on dual mounts.\n7. NO FOCUS STEALING: opening a compose field moves focus to it ONLY because the operator invoked create/edit (intentional); background refreshes, model arrivals (MT-225), or panel repopulation never move focus or raise a window (HBR-QUIET-003).\n8. UNDO-SAFE (binding): annotations are metadata ABOUT a document, never document content — authoring MUST NOT push onto the editor undo/redo stack or mutate the document model (MT-222 already established document_model is forbidden and undo history stays byte-identical). Annotation create/edit/delete is reversible only through annotation operations (delete/reopen), not through the editor's Ctrl+Z; a test proves the editor undo stack and DocJson are byte-identical before/after an authoring round-trip.\n\nSTEP-BY-STEP:\n1. Read AC MT-202 (anchor-subject request/helper) and AC MT-205 (create/update/delete/reply/resolve tools + routes); read code_editor/cursor.rs (Cursor/CursorSet), rich_editor/document_model/selection.rs (Selection/DocPosition), code_editor/diff_engine.rs + diff_editor_panel.rs (DiffBlock/MergeBlock, diff_blocks()/build_line_map), annotations/thread_widget.rs + panel.rs (MT-221/MT-223 seams), the command/keyboard registration used by code_editor/panel.rs, and manual_content_editors.rs.\n2. Build annotations/authoring.rs: selection->anchor-request converters (per surface) + create/edit/delete/reply/resolve/reopen client calls (AC MT-205). No anchor math.\n3. Add read_only=false controls + AccessKit default-actions to thread_widget.rs (reply/edit/delete/confirm/resolve/reopen), edit gated to operator-owned comments.\n4. Wire the 'Add annotation from selection' command + keyboard binding + AccessKit action into code_editor/panel.rs, diff_editor_panel.rs (hunk), rich_editor_widget.rs (prose).\n5. Wire MT-223 panel inline controls to the same command layer.\n6. Prove undo-safety, keyboard-only completeness, and provenance edit-gating in tests; add the manual topic; capture Argus evidence including a full keyboard-only authoring walkthrough.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/annotations/authoring.rs",
+      "src/frontend/handshake_native/src/annotations/mod.rs",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs",
+      "src/frontend/handshake_native/src/annotations/panel.rs",
+      "src/frontend/handshake_native/src/annotations/client.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_annotation_authoring.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by MT-261..264 — never extend it)",
+      ".GOV/**",
+      "src/backend/** (annotation core + tools are AC MT-201..209; consume via routes only)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/** (annotations are metadata, not content; no schema change; undo history must stay byte-identical)",
+      "src/frontend/handshake_native/src/code_editor/cursor.rs (read selection; do not modify the cursor/selection model)",
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs (read DiffBlock; do not modify the diff model)"
+    ],
+    "acceptance_criteria": [
+      "Operator can create an annotation from a selection in the code editor (Cursor byte range), the rich editor (Selection::Text/Node), and a diff hunk (DiffBlock side+lines); each path builds an AC MT-202 anchor REQUEST and calls AC MT-205 create; authoring.rs contains no anchor/offset math (grep-provable).",
+      "Operator can edit ONLY their own (operator-authored) annotations; the edit control is hidden/disabled for model-authored comments (provenance integrity), enforced by a test.",
+      "Delete requires an explicit keyboard-reachable confirmation (no mouse-only modal) and distinguishes deleting a thread head from a reply; reply/resolve/reopen call the AC MT-205 tools.",
+      "Every authoring action (create/edit/delete/confirm/reply/resolve/reopen) has a keyboard path AND an AccessKit default-action; a keyboard-only walkthrough completes the full flow with zero mouse events (Argus-evidenced).",
+      "Compose/edit fields use Role::TextInput and toggles use Role::CheckBox (accesskit 0.21.1 constraints); ids reuse the shared widget ids and the code-editor instance-suffix scheme on dual mounts.",
+      "Opening a compose/edit field moves focus only on explicit operator invocation; no authoring path steals focus or raises a window on background refresh (HBR-QUIET-003).",
+      "Authoring is undo-safe: a create/edit/delete round-trip leaves the editor undo/redo stack and DocJson byte-identical; annotations never enter the document model or the editor undo history (test-proven).",
+      "The shared AnnotationThreadWidget is used for all three entry points (editor inline, diff, MT-223 panel) with no fork; thread_widget.rs gains authoring controls behind read_only=false only.",
+      "UserManual updated in the same change: creating/editing/deleting/replying/resolving annotations, the keyboard shortcuts, and the operator-only edit rule."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native annotation_authoring -- --nocapture",
+      "cargo test -p handshake-native annotation_authoring_undo_safe -- --nocapture",
+      "cargo test -p handshake-native annotation_authoring_keyboard_only -- --nocapture",
+      "! rg -n \"reanchor|anchor_resolve|levenshtein|similarity|offset_of\" src/frontend/handshake_native/src/annotations/authoring.rs && ! rg -n \"struct .*ThreadWidget\" src/frontend/handshake_native/src/annotations/authoring.rs",
+      "Argus evidence: argus.inspect + argus.screenshot of (a) create-from-selection in code editor, (b) create-from-hunk in diff, (c) create-from-prose in Notes, (d) edit-own vs model-comment (edit hidden), (e) delete confirmation, (f) a full keyboard-only authoring walkthrough (no argus.click mouse path) — stored under the external HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/annotations/authoring.rs (new, command layer: selection->anchor-request + create/edit/delete/reply/resolve/reopen)",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (read_only=false controls + AccessKit default-actions)",
+      "src/frontend/handshake_native/src/annotations/panel.rs (wire MT-223 inline controls to the command layer)",
+      "src/frontend/handshake_native/src/annotations/client.rs (create/update/delete/reply/resolve route calls; no anchor math)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (Add-annotation command + keyboard + AccessKit action)",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (Add-annotation-from-hunk command)",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs (Add-annotation-from-prose-selection command)"
+    ],
+    "expected_tests": [
+      "unit: code Cursor range -> AC MT-202 anchor request; rich Selection::Text/Node -> anchor request; DiffBlock -> diff-side anchor request (converters only, no math)",
+      "unit: edit gating — operator-owned comment shows edit; model-authored comment hides/disables edit",
+      "integration: full keyboard-only walkthrough performs create/reply/resolve/delete-with-confirm with zero mouse events",
+      "integration: undo-safety — editor undo/redo stack and DocJson byte-identical before/after an authoring round-trip",
+      "integration: rangeless (no-selection) create yields a file-level annotation that appears in the MT-223 panel + strip, never at a body line",
+      "negative: no authoring path calls request_focus/window-raise on background refresh (QUIET assertion)"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): code selection = code_editor/cursor.rs Cursor { anchor:usize, head:usize } byte offsets (start()/end() at :99-106), CursorSet multi-cursor; rich selection = rich_editor/document_model/selection.rs Selection::Text{anchor,head:DocPosition} | Node{node_path} (constructors :33-46, is_collapsed :52); diff hunk = code_editor/diff_engine.rs DiffBlock { left_lines:Range<usize>, right_lines:Range<usize>, status:DiffStatus } (:59-66), surfaced via diff_editor_panel.rs diff_blocks()/build_line_map — a 'hunk' is one DiffBlock (no selected_hunk index exists; derive selection from scroll/click position).",
+      "accesskit 0.21.1: Role::TextInput for compose/edit fields, Role::CheckBox for toggles, no Role::ToggleButton/SearchBox/TextCursor (code_editor/panel.rs:150-236). AccessKit default-actions are the keyboard/agent activation path — every authoring control must expose one.",
+      "Undo-safety is structural: MT-222 already forbids document_model and proves DocJson/undo byte-identity; authoring keeps annotations off the document model and off the editor undo stack — reversal is via annotation delete/reopen only, not Ctrl+Z.",
+      "The command layer is single-source: create/edit/delete/reply/resolve/reopen live in authoring.rs and are invoked from three entry points (editor inline widget, diff panel, MT-223 panel). No entry point re-implements the mutation.",
+      "Manual: extend editors_manual_section() in manual_content_editors.rs with authoring topics + the keyboard shortcuts; documented author_ids must be live (id-audit test).",
+      "Design basis (cite in code docs): VS Code Comment API authoring (CommentController create/edit/delete/reply on CommentThread from an editor selection).",
+      "Cross-family seams (reference only): AC MT-202 anchor-subject helper, AC MT-205 create/update/delete/reply/resolve tools, MT-221 shared widget + instance-suffix ids, MT-223 panel controls, MT-225 live model arrivals (which must never trigger operator focus moves)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Add-annotation-from-selection command (code editor)",
+      "Add-annotation-from-hunk command (diff)",
+      "Add-annotation-from-prose-selection command (Notes)",
+      "inline compose field (create/edit)",
+      "reply / resolve / reopen controls on the shared thread widget",
+      "delete confirmation affordance (keyboard-reachable)",
+      "operator-vs-model edit gating on the shared widget"
+    ],
+    "argus_targets": [
+      "annotation_thread_{annotation_id}_reply",
+      "annotation_thread_{annotation_id}_resolve",
+      "annotation_thread_{annotation_id}_edit",
+      "annotation_thread_{annotation_id}_delete",
+      "annotation_thread_{annotation_id}_confirm",
+      "annotation_compose_field",
+      "code_editor_panel"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "keyboard_only_walkthrough_capture",
+      "layout_overlap_state_check",
+      "focus_no_steal_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Authoring annotations: create from selection/hunk/prose, edit your own, delete with confirm, reply, resolve/reopen, keyboard shortcuts, operator-only edit rule"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-QUIET-003",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Annotation lifecycle FR events (create/update/delete/resolve) are emitted by the AC/MT-161 backend seam this UI calls; the UI adds no new business event of its own."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Selection-capture -> anchor-request conversion, edit-gating decisions, and undo-stack-untouched assertions are exposed as structured state for the visual_debugger surface."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Operator-driven UI commands; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "Annotations are read-only in the native product: operators can view model feedback but cannot answer it, resolve it, correct their own notes, or add their own — collaboration is one-directional and review must fall back to the legacy React editor that MT-261..264 removes.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Undo corruption — authoring pushes annotation changes onto the editor undo stack or the document model, so Ctrl+Z mangles the document or annotations become persisted content.",
+      "RISK-2: Provenance forgery — the operator can edit a model-authored comment, letting operator text masquerade as model output (or vice versa), destroying the authority distinction.",
+      "RISK-3: Mouse-only trap — an authoring action (delete confirm, reply, edit) is reachable only by mouse, breaking the keyboard/AccessKit/agent path and accessibility.",
+      "RISK-4: Anchor math leak — authoring.rs computes offsets/reanchoring instead of delegating to AC MT-202, so two anchor implementations drift and annotations land on wrong ranges.",
+      "RISK-5: Focus theft on create — opening a compose field or committing a mutation steals focus or raises a window at the wrong time (e.g. during a background refresh), interrupting the operator (HBR-QUIET-003)."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): document_model/** forbidden; annotations never touch the editor undo stack; a test asserts DocJson + undo/redo stack byte-identical across an authoring round-trip.",
+      "CTRL-2 (RISK-2): edit is gated to author kind == operator with matching identity; model-authored comments have edit hidden/disabled; a test asserts the gate.",
+      "CTRL-3 (RISK-3): every action exposes a keyboard binding + AccessKit default-action; a keyboard-only integration test completes create/reply/resolve/delete with zero mouse events.",
+      "CTRL-4 (RISK-4): grep proof — no reanchor/offset math in authoring.rs; selection is converted to an AC MT-202 anchor REQUEST only; the anchor is produced by AC helpers.",
+      "CTRL-5 (RISK-5): focus moves only on explicit operator create/edit invocation; a QUIET test asserts no request_focus/window-raise on background refresh or model arrival."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/src/: code_editor/cursor.rs (Cursor{anchor,head} byte offsets, start()/end(), CursorSet), rich_editor/document_model/selection.rs (Selection::Text{anchor,head:DocPosition}|Node{node_path}) + position.rs (DocPosition), code_editor/diff_engine.rs (DiffBlock{left_lines,right_lines,status}, DiffStatus, MergeBlock/MergeChoice) + diff_editor_panel.rs (diff_blocks()/merge_blocks()/build_line_map/SyncRow), code_editor/panel.rs (accesskit 0.21.1 role constraints + AccessKit default-action + instance-suffix scheme), annotations/thread_widget.rs + panel.rs (MT-221/MT-223 seams), manual_content_editors.rs (editors_manual_section). External design basis: VS Code Comment API authoring flow (CommentController create/edit/delete/reply on CommentThread from a selection).",
+    "corrections": [
+      "diff_editor_panel.rs has NO selected_hunk/navigate index — a 'hunk selection' is derived from the click/scroll position mapped to a diff_engine DiffBlock (left_lines/right_lines + side), not from a pre-existing selection field.",
+      "Undo-safety needs no new mechanism: MT-222 already keeps annotations off document_model and proves undo byte-identity; authoring must preserve that invariant rather than add an annotation-aware undo path.",
+      "There is no ToggleButton in accesskit 0.21.1; authoring toggles (e.g. resolve) must use Role::CheckBox or a Button with an explicit AccessKit action, matching code_editor/panel.rs."
+    ]
+  }
+}

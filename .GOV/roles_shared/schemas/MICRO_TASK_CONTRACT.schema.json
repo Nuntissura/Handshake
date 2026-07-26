@@ -17,6 +17,7 @@
     "markdown_projection": { "$ref": "#/$defs/markdown_projection" },
     "lifecycle": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string" }, "depends_on": { "type": "array", "items": { "type": "string" } }, "active": { "type": "boolean" } }, "additionalProperties": true },
     "scope": { "type": "object" },
+    "resource_privacy_obligation": { "$ref": "#/$defs/resource_privacy_obligation" },
     "handoff": { "type": "object" },
     "red_team": { "$ref": "#/$defs/red_team" }
   },
@@ -27,15 +28,27 @@
       "properties": {
         "authority_surface": { "const": "MACHINE_CONTRACT" },
         "legacy_markdown_policy": { "const": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD" },
-        "projection_creation": { "enum": ["ON_DEMAND_OR_CONTRACT_BOUND"] },
+        "projection_creation": { "enum": ["ON_DEMAND_OR_CONTRACT_BOUND", "ON_OPERATOR_REQUEST_ONLY"] },
         "operator_facing_authority": { "const": false },
         "model_created_markdown_authority_allowed": { "const": false },
         "allowed_markdown_exceptions": { "type": "array", "items": { "type": "string" } }
       },
       "additionalProperties": true
     },
-    "markdown_projection": { "type": "object", "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "enum": ["GENERATED_PENDING", "GENERATED_IN_SYNC", "LEGACY_AUTHORITY", "BLOCKED"] } }, "additionalProperties": true },
-    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" } }, "additionalProperties": true }
+    "markdown_projection": { "type": "object", "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "enum": ["GENERATED_PENDING", "GENERATED_IN_SYNC", "NOT_MATERIALIZED", "NOT_GENERATED_BY_DEFAULT", "LEGACY_AUTHORITY", "BLOCKED"] } }, "additionalProperties": true },
+    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "enum": ["DETERMINISTIC_CONTRACT_MIGRATION_V1", "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1"] } }, "additionalProperties": true },
+    "resource_privacy_obligation": {
+      "type": "object",
+      "required": ["required", "resources_touched", "expected_evidence"],
+      "properties": {
+        "required": { "const": true },
+        "applicable": { "type": ["boolean", "string", "null"] },
+        "resources_touched": { "type": "array" },
+        "expected_evidence": { "type": "array", "items": { "type": "string" } },
+        "not_applicable_reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
   }
 }
 

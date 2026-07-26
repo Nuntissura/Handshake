@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-041",
+  "title": "CX-MT041-AppServerClientCore",
+  "group": "CX Codex app-server transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-041.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-004",
+      "MT-005"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Supervised `codex app-server` child + JSON-RPC 2.0 stdio JSONL client core with typed bindings and health probe",
+  "scope": {
+    "summary": "GOAL: Build the persistent-lane transport core for the Codex adapter: spawn `codex app-server` as a supervised child process and speak JSON-RPC 2.0 over stdio JSONL to it, with request/response correlation, notification dispatch, initialize handshake, typed error mapping, a health probe for the session supervisor, and hand-authored typed bindings for the method/param/result subset Handshake uses. `codex app-server` is the JSON-RPC 2.0 server that powers the official VS Code extension (successor of the deprecated `codex proto`); its primitives are Thread -> Turn -> Item. This MT delivers ONLY the client/transport core; thread lifecycle mapping is MT-042, turn/steer/interrupt is MT-043, approvals are MT-044.\n\nEXPECTED DIFF SHAPE: New module directory src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/ containing mod.rs (module root + re-exports), client.rs (AppServerClient: spawn, handshake, request/response correlation, notification dispatch, shutdown), protocol.rs (JSON-RPC 2.0 envelope types + hand-authored typed bindings for the used method set), error.rs (CodexAppServerError), health.rs (health probe + liveness snapshot). One `pub mod codex_app_server;` registration line (plus minimal re-exports) in src/backend/handshake_core/src/model_runtime/cloud/mod.rs. A minimal visibility change in official_cli_bridge.rs is permitted ONLY to reuse the existing Windows npm-shim resolution + identity verification (e.g. widen `resolve_codex_npm_shim` / the launch-plan identity helpers to pub(crate) behind their existing contract); NO behavior change to the exec lane.\n\nDETAILED SPEC:\n1. SPAWN + WINDOWS SHIM REUSE. The child argv is `codex app-server` (no --json; app-server speaks JSON-RPC on stdio by default; stdio JSONL is the stable transport - the WebSocket transport is experimental and REJECTED for this WP; do not implement it). On Windows the configured executable is the npm shim `codex.cmd`; the adapter MUST NOT launch it through cmd.exe. Reuse the exec lane's resolution: official_cli_bridge.rs `resolve_codex_npm_shim` (line 1263) verifies the shim body references node_modules\\@openai\\codex\\bin\\codex.js, verifies the launcher package manifest identity (name == \"@openai/codex\", bin.codex == \"bin/codex.js\", lines 1317-1332), resolves node.exe (local-to-shim first, then PATH, lines 1306-1312), and yields a pinned final native executable that is executed DIRECTLY so Node never sits in the runtime process tree (see cli_launch_plan lines 1223-1240). The app-server spawn must go through the same identity-locked plan. Child processes are registered with the MT-005 session supervisor seam (ownership metadata owner_session/owner_wp/owner_role/started_at; kill-on-drop; reclamation at session close/failure/staleness per HBR-QUIET-003) and use the MT-004 stdio infrastructure for non-blocking reads/writes.\n2. JSON-RPC 2.0 FRAMING. Transport is newline-delimited JSON (one JSON-RPC message per line) on the child's stdin/stdout. Reuse the incremental UTF-8 decode + line-split discipline of cli_bridge_runtime.rs (line accumulator around line 152) including a hard cap on a single unterminated line (cap constant near cli_bridge_runtime.rs line 64) so a misbehaving server cannot balloon memory. stderr is drained to a bounded ring buffer and surfaced in error context.\n3. CORRELATION. Outgoing requests carry a process-monotonic u64 id (AtomicU64). A correlation map (Mutex<HashMap<u64, oneshot::Sender<Result<serde_json::Value, JsonRpcErrorObject>>>>) resolves responses to callers. Per-request timeout (default 60s, configurable) fails the oneshot with CodexAppServerError::Timeout. When the child exits or the read loop ends, ALL pending entries are drained with CodexAppServerError::ChannelClosed - no caller may hang forever.\n4. NOTIFICATION DISPATCH. Server-to-client messages WITHOUT an id are notifications (thread/turn/item event stream); messages WITH an id and a method are server-to-client REQUESTS (approval requests - MT-044 consumes these; this MT must route them to a registered handler slot and, when no handler is registered, respond with a typed JSON-RPC error rather than dropping the id). Notifications fan out over a bounded tokio broadcast/mpsc channel; overflow is recorded (dropped-count) and never blocks the read loop.\n5. INITIALIZE HANDSHAKE. On spawn, the client performs the app-server initialize exchange (send the initialize request with client identity, await the server response, then send the initialized notification) before any other method is permitted; a handshake timeout (default 30s) is a typed CodexAppServerError::Handshake. NOTE: exact method/field casing MUST be taken from the typed schema exported by `codex app-server generate-json-schema` (or `generate-ts`) at implementation time - that export is the schema source of truth for the bindings in protocol.rs; record the CLI version the bindings were authored against in a const (BINDINGS_AUTHORED_AGAINST_CODEX_VERSION) that MT-047's drift check consumes.\n6. TYPED BINDINGS (protocol.rs). Hand-authored serde structs/enums for exactly the subset Handshake uses: JSON-RPC envelope (JsonRpcRequest/JsonRpcResponse/JsonRpcNotification/JsonRpcErrorObject with code/message/data), initialize params/result, thread/start, thread/resume, thread/fork, thread/list, thread/read, thread/rollback, turn/start, turn/steer, turn/interrupt params/results, the approval request payloads item/commandExecution/requestApproval + item/fileChange/requestApproval, and event notifications thread.started, turn.started, turn.completed (with token usage), turn.failed if present in the schema, item.started/item.updated/item.completed with item types agent_message, reasoning, command_execution, file_change, mcp_tool_call, web_search, plan_update. All event enums carry a lossless Unknown{raw} variant so schema additions never panic the adapter.\n7. TYPED ERRORS (error.rs). enum CodexAppServerError { SpawnFailed, ShimIdentity, Handshake, Transport, Protocol(JsonRpcErrorObject), Timeout, ChannelClosed, Shutdown, Unsupported }. Every public API returns Result<_, CodexAppServerError>; no stringly-typed errors on the public surface.\n8. HEALTH PROBE (health.rs). health() returns a typed snapshot: child pid + alive?, handshake completed?, last_rx_at/last_tx_at instants, pending request count, dropped notification count, and a round-trip probe using the cheapest schema-available method (thread/list with a small page). The MT-005 supervisor consumes this for restart/circuit-breaker policy; this MT only exposes the probe, it does not implement restart policy.\n9. SHUTDOWN. Graceful: close stdin, await child exit with bounded deadline, then kill. Drop = kill-on-drop. No orphan `codex app-server` processes after any test run.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-004 stdio infrastructure and MT-005 supervisor seam contracts and their delivered code in the implementation worktree; read official_cli_bridge.rs lines 963-1015 (validate_cli_preset), 1160-1249 (launch plan), 1263 onward (resolve_codex_npm_shim) and cli_bridge_runtime.rs (line accumulator + cap) before writing code.\n2. Create codex_app_server/mod.rs with module docs stating: stdio JSONL = stable transport; WebSocket = experimental, REJECTED; schema source of truth = `codex app-server generate-json-schema`.\n3. Author protocol.rs envelope + typed bindings per spec item 6, each with serde round-trip unit tests using captured/documented JSON fixtures.\n4. Author error.rs per spec item 7.\n5. Implement client.rs spawn path: build the identity-locked launch plan (reusing the npm-shim resolution on Windows; direct native executable on all platforms), spawn via the MT-004 stdio infra, register with the MT-005 supervisor.\n6. Implement the read loop: line-split with cap, classify response vs notification vs server-request, correlate/dispatch per spec items 3-4.\n7. Implement the initialize handshake per spec item 5 with timeout.\n8. Implement health.rs per spec item 8 and shutdown per spec item 9.\n9. Unit-test correlation, dispatch, handshake, timeout, pending-drain-on-exit, and notification overflow against an in-process fake transport (duplex pipe feeding scripted JSONL) - the fake exercises the REAL client code; it is not a mock of the client.\n10. Add one live smoke test (feature/env-gated) that spawns the real `codex app-server` when the CLI is installed and authenticated; when absent, emit the typed blocker NEEDS_MANAGED_RESOURCE_PROOF - never silently skip.\n11. Run proof targets; record measured outputs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/**",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (module registration + re-exports only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (visibility widening of existing npm-shim resolution/identity helpers only; no exec-lane behavior change)",
+      "src/backend/handshake_core/Cargo.toml (only if a new dev-dependency for duplex-pipe testing is required)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI work in this MT)",
+      "src/backend/handshake_core/src/swarm_orchestration/** (factory wiring lands in MT-046)"
+    ],
+    "acceptance_criteria": [
+      "codex_app_server module compiles inside handshake_core with client.rs, protocol.rs, error.rs, health.rs and is registered in cloud/mod.rs.",
+      "On Windows the spawn path resolves codex.cmd through the SAME identity-verified npm-shim resolution used by the exec lane (manifest name @openai/codex, bin.codex == bin/codex.js) and executes the pinned native image directly; a tampered shim is rejected with a typed ShimIdentity error (negative test).",
+      "Request/response correlation: concurrent in-flight requests resolve to the correct callers (test with >= 8 interleaved requests over the fake transport).",
+      "Child-exit drain: when the transport closes with pending requests, every pending caller receives CodexAppServerError::ChannelClosed within the deadline; none hang (test).",
+      "Notification dispatch: thread/turn/item notifications reach subscribers in arrival order; overflow increments a dropped-count instead of blocking the read loop (test).",
+      "Server-to-client requests (approval shapes) with no registered handler receive a typed JSON-RPC error response; the id is never dropped (test).",
+      "Initialize handshake completes before any other method is sent; calling another method pre-handshake returns a typed error (test); handshake timeout yields CodexAppServerError::Handshake (test).",
+      "Unterminated-line hard cap enforced: an over-cap line terminates the transport with a typed error instead of unbounded buffering (test).",
+      "health() returns the typed snapshot fields named in the spec and flips alive=false after child exit (test).",
+      "Shutdown/drop leaves no orphan child process (test asserts child reaped; HBR-QUIET-003 ownership metadata recorded via the MT-005 supervisor seam).",
+      "All protocol bindings round-trip serde on documented fixtures including unknown-variant tolerance (test).",
+      "Live spawn smoke test passes against an installed authenticated codex CLI, OR the typed blocker NEEDS_MANAGED_RESOURCE_PROOF is recorded; silent skip is prohibited."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core model_runtime::cloud::codex_app_server -- --nocapture",
+      "cargo clippy -p handshake_core -- -D warnings",
+      "cargo test -p handshake_core model_runtime::cloud::official_cli_bridge -- --nocapture  # exec-lane regression: visibility widening changed no behavior",
+      "HSK_CODEX_LIVE=1 cargo test -p handshake_core codex_app_server_live_spawn -- --nocapture --ignored  # live smoke; absent CLI/login => typed NEEDS_MANAGED_RESOURCE_PROOF record, never silent skip"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/client.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/protocol.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/error.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/health.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (registration)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (resolve_codex_npm_shim reuse, line 1263; launch-plan identity lines 1176-1249)"
+    ],
+    "expected_tests": [
+      "correlation_interleaved_requests_resolve_to_correct_callers",
+      "child_exit_drains_pending_with_channel_closed",
+      "notification_order_preserved_and_overflow_counted",
+      "unhandled_server_request_gets_typed_error_response",
+      "handshake_required_before_methods_and_times_out_typed",
+      "oversize_line_cap_terminates_transport_typed",
+      "tampered_codex_cmd_shim_rejected_shim_identity",
+      "health_snapshot_reflects_child_exit",
+      "shutdown_and_drop_leave_no_orphan_child",
+      "protocol_bindings_serde_round_trip_with_unknown_tolerance",
+      "codex_app_server_live_spawn (live-gated; typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent)"
+    ],
+    "implementation_notes": [
+      "Transport decision is pre-made: stdio JSONL (stable, default). The experimental WebSocket transport and Unix-socket transport are OUT OF SCOPE (REJECTED for this WP); do not add config knobs for them.",
+      "The exec lane (codex exec --json) is a DIFFERENT process shape parsed by agent_activity.rs parse_codex_line (fn at line 284; dispatch at line 131); do not route app-server frames through it. MT-045 owns event recording; this MT only exposes the typed notification stream.",
+      "The correlation map must never be held across an .await while dispatching; lock, remove the sender, unlock, then send.",
+      "Bindings are hand-authored on purpose (small verified surface). `codex app-server generate-json-schema` output is the source of truth; MT-047 checks drift in CI. Do not vendor the generated schema as runtime code.",
+      "Per HBR-INT-008 any new id minted for internal correlation entities uses Uuid::now_v7 where a Uuid is used; the JSON-RPC wire id stays a plain u64.",
+      "Keep the public API lane-shaped for MT-042/043/044: expose request(method, params) -> typed result, subscribe_events(), register_server_request_handler(), health(), shutdown()."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend transport MT: no operator-visible surface changed; visual verification = TraceProjection per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal transport core with no operator-usable behavior yet; the Codex persistent-lane UserManual entry is owned by MT-043/MT-044/MT-046 which wire operator-meaningful capabilities. If the UserManual artifact is absent in the implementation worktree, record DEFERRED-with-reason per HBR-MAN-001."
+  },
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "Transport lifecycle (spawn/handshake/exit) emits FR business events via the lane observability seam; full event mapping is MT-045."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "internal_diagnostics wiring recorded as DEFERRED-with-reason if the tool is not present in the implementation worktree at claim time; never silently skipped."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "External watcher registration for app-server child liveness deferred to the MT-005 supervisor integration; recorded, never silently skipped."
+    }
+  ],
+  "risk_if_missed": "No persistent Codex lane exists: no mid-turn steering, no approvals bridge, no resume/fork; the entire CX group (MT-042..047) is blocked and Codex remains one-shot-only.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Shim-identity bypass - spawning codex.cmd via cmd.exe (or skipping manifest verification) lets a tampered shim run arbitrary code inside the runtime process tree.",
+      "RISK-2: Correlation leak/hang - a child crash with pending requests leaves callers awaiting forever, freezing session lanes.",
+      "RISK-3: Unbounded buffering - a malformed or hostile server emitting a never-terminated line or a notification flood balloons memory.",
+      "RISK-4: Handshake deadlock - blocking synchronous read during initialize wedges the adapter when the server writes nothing.",
+      "RISK-5: Orphan processes - app-server children outlive sessions/tests, violating process-ownership discipline."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Reuse resolve_codex_npm_shim + launch-plan identity locks (official_cli_bridge.rs 1263, 1223-1240); execute the pinned native image directly; negative test proves a tampered shim is rejected typed.",
+      "CTRL-2 (RISK-2): Monotonic ids + drain-all-pending-with-ChannelClosed on transport end; test asserts no hung future.",
+      "CTRL-3 (RISK-3): Reuse the cli_bridge_runtime line hard cap; bounded notification channels with dropped-count; tests for both.",
+      "CTRL-4 (RISK-4): Fully async read loop + bounded handshake timeout returning typed Handshake error; test.",
+      "CTRL-5 (RISK-5): Supervisor registration with ownership metadata + kill-on-drop + graceful shutdown deadline; test asserts child reaped (HBR-QUIET-003)."
+    ]
+  },
+  "research_provenance": {
+    "source": "OpenAI Codex CLI official docs (developers.openai.com/codex): `codex app-server` JSON-RPC 2.0 server (successor of deprecated `codex proto`; powers the official VS Code extension); primitives Thread->Turn->Item; methods thread/start|resume|fork|list|read|rollback, turn/start|steer|interrupt; server->client approval requests item/commandExecution/requestApproval + item/fileChange/requestApproval; transports stdio JSONL (stable, default), WebSocket experimental (REJECTED for this WP), Unix socket; typed schema exportable via `codex app-server generate-ts` / `generate-json-schema`.",
+    "grounding_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
+    "verified_code_refs": [
+      "official_cli_bridge.rs validate_cli_preset lines 963-1015 (Windows codex.cmd requirement 967-978; JsonStream 979-983; exec-first 984-988; --json 989-993)",
+      "official_cli_bridge.rs resolve_codex_npm_shim line 1263 (shim body check 1282-1291; codex.js + node.exe resolution 1295-1312; @openai/codex manifest identity 1317-1332)",
+      "official_cli_bridge.rs cli_launch_plan lines 1176-1249 (pinned native image executed directly, Node kept out of the process tree, 1223-1240)",
+      "official_cli_bridge.rs CliSubprocessSpawner trait line 243; LiveCliSpawner struct line 590, impl line 2403",
+      "cli_bridge_runtime.rs stdout line accumulator (~line 152) and unterminated-line hard cap (~line 64)",
+      "production_factory.rs CliBridgeCloudRuntimeBuilder line 507; build_loaded exe-preflight + working_dir plumbing lines 580-620"
+    ],
+    "rejected_options": [
+      "WebSocket transport (experimental upstream) - rejected for this WP",
+      "Reviving deprecated `codex proto`",
+      "Vendoring generated TS/JSON-schema types as runtime bindings instead of a small hand-authored verified subset"
+    ],
+    "selected_approach": "Supervised child + stdio JSONL JSON-RPC client with hand-authored typed bindings, reusing the exec lane's Windows npm-shim identity verification and the existing line-cap stdout discipline."
+  }
+}

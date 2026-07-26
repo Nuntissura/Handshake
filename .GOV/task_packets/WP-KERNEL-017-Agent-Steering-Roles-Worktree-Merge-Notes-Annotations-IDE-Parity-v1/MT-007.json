@@ -1,0 +1,166 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-007",
+  "title": "SC-MT007-SessionApiSurface",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-007.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-006"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Expose the session runtime as a governed API: an internal Rust service (AgentSessionService) composing store + capability registry + steer queue + supervisor + resume, HTTP routes under the existing axum API surface (src/backend/handshake_core/src/api/ — router assembled in api/mod.rs routes()/routes_with_runtime() at lines 34/65, route-module pattern per api/operator_chat.rs routes() at line 138), and Tauri IPC commands in the legacy shell (app/src-tauri/src/ — #[tauri::command] precedent at app/src-tauri/src/swarm.rs lines 7-8, command modules under app/src-tauri/src/commands/). Every lifecycle verb — launch/steer/interrupt/resume/status/list/children — is behind the existing consent/authority gates: cloud-CLI launches pass ConsentGate::check_or_prompt (src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs lines 64-133) and the cloud-lane escalation bundle discipline used by the operator-chat launch path; every error is typed end-to-end.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/service.rs; (b) new file src/backend/handshake_core/src/api/agent_sessions.rs registered in api/mod.rs; (c) new file app/src-tauri/src/commands/agent_sessions.rs + registration in the shell's invoke_handler; (d) pub use in agent_sessions/mod.rs; (e) UserManual entry (same-change, HBR-MAN-001/004); (f) new test file src/backend/handshake_core/tests/agent_sessions_api_tests.rs.\n\nSPEC CATALOG:\n\n- pub struct AgentSessionService { store: AgentSessionStore, registry: Arc<CapabilityRegistry>, sessions: RwLock<HashMap<SessionId, LiveSessionEntry>>, consent: Arc<ConsentGate>, launcher: Arc<dyn SessionLauncher>, resume_launcher: Arc<dyn SessionResumeLauncher> } where LiveSessionEntry { supervised: SupervisedSession (MT-005), queue: SharedSteerQueue (MT-002), stdin: StdinWriterHandle-clone-of-sender (MT-004) }.\n- pub trait SessionLauncher: Send + Sync { fn launch(&self, req: &LaunchSessionRequest) -> Result<InteractiveCliChild, AgentSessionError>; } — adapter seam over MT-004 spawn_interactive; this MT ships the production wiring type plus a test fake.\n- Request/response DTOs (serde, all schema_id-stamped): LaunchSessionRequest { adapter_kind, model_name: String, cwd: String, worktree_id: Option<String>, swarm_id: Option<String>, role_overlay: Option<String> (reserved for MT-081+), initial_prompt: String }, LaunchSessionResponse { session_id, pid, capabilities: Vec<String> }; SteerRequest { message_id: Option<Uuid> (client-supplied for idempotent retry; minted v7 when absent), text: String }, SteerResponse { message_id, outcome: \"queued\"|\"duplicate_suppressed\", depth: usize }; InterruptRequest {} -> InterruptResponse { accepted: bool, receipt_expected: bool (from InterruptReceipt capability) }; ResumeRequest { requested_cwd: Option<String> } -> LaunchSessionResponse; SessionStatusResponse { session_id, thread_state, health, current_turn: Option<{turn_id, state, seq}>, queue_depth, capabilities, resumable, worktree_id, cwd }; SessionListResponse { sessions: Vec<SessionStatusResponse> }; SessionChildrenResponse { children: Vec<{process_record_id: Uuid, pid: Option<u32>, engine_kind: String, started_at_utc}> } — children come from ProcessOwnershipLedger rows whose parent_session_id equals this session (SpawnMeta.parent_session_id / ProcessStart::with_parent_session_id, process_ledger/mod.rs lines 83/174-176).\n- pub enum AgentSessionApiError (thiserror + axum IntoResponse): NotFound(404), CapabilityMissing(409), NotResumable(409), CwdMismatch(409), QueueFull(429 — from SteerQueueError::CapacityExceeded), QueueClosed(409), ConsentDenied(403 — from ConsentGateError/pending decision), Internal(500, message redacted to a correlation id) — mapping table is part of the contract; every response body is {\"error_kind\":\"...\",\"detail\":...,\"session_id\":...}.\n- HTTP routes (api/agent_sessions.rs, mirroring api/operator_chat.rs state/builder + Router::new() shape): POST /agent-sessions/launch; POST /agent-sessions/:session_id/steer; POST /agent-sessions/:session_id/interrupt; POST /agent-sessions/:session_id/resume; GET /agent-sessions/:session_id/status; GET /agent-sessions (query: worktree_id, resumable, state filters); GET /agent-sessions/:session_id/children.\n- Verb semantics (normative): launch = consent gate (cloud lanes) -> SessionLauncher.launch -> MT-003 probe registration -> MT-006 build_session_record_at_launch persisted -> supervision started -> first stdin frame carries initial_prompt; steer = registry-informed enqueue (MT-002) + drain trigger appropriate to DrainMode — steer NEVER writes stdin directly, only the drain path does; interrupt = registry.require(InterruptMidTurn) -> supervised.stop(StopReason::Interrupt) semantics for hard interrupt OR transport interrupt frame when the adapter supports in-band interrupt (seam flag on SessionLauncher — this MT wires the hard path; in-band arrives with adapters); resume = MT-006 ResumeCoordinator::resume then re-supervise; status/list = read model from store + live registry + queue depth (list merges live sessions and durable resumable records — list_resumable); children = ledger join.\n- CONSENT/AUTHORITY (normative): a launch whose adapter_kind implies a cloud CLI lane calls ConsentGate::check_or_prompt(session_id, lane) BEFORE any spawn; Denied/pending -> ConsentDenied with the gate's typed decision embedded; the cloud escalation bundle fields (execution policy ref, trust class) flow through LaunchSessionRequest into CliInvocationContext exactly as the operator-chat launch path does — no new authority pathway is invented.\n- Tauri IPC (app/src-tauri/src/commands/agent_sessions.rs): #[tauri::command] wrappers agent_session_launch/steer/interrupt/resume/status/list/children calling the backend HTTP surface (same-host reqwest pattern used by existing shell commands) with identical DTOs; register in the shell's invoke_handler list. If the legacy shell fails to build in the assigned worktree for pre-existing reasons, record a typed DEFERRED_SHELL_BUILD blocker in the MT evidence INSTEAD of faking the registration — the HTTP surface is the authoritative proof surface.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read api/mod.rs routes()/routes_with_runtime() (L34-160), api/operator_chat.rs (state struct L62-136, routes L138-170) as the route-module template, consent_gate.rs L27-160, process_ledger/mod.rs SpawnMeta parent linkage L76-114 + record_spawn L147-204, and the MT-001..006 public surfaces.\n2. Implement service.rs composing the five subsystems; every public method returns Result<_, AgentSessionError>; no direct stdin writes from steer (drain-only rule).\n3. Implement api/agent_sessions.rs: AgentSessionsApiState with with_* builders (operator_chat pattern), routes() -> Router, IntoResponse for AgentSessionApiError with the pinned status mapping; register the router in api/mod.rs beside the existing route merges.\n4. Implement the Tauri command module + registration (or the typed DEFERRED_SHELL_BUILD evidence path).\n5. Update the UserManual in the SAME change: entry \"Agent Sessions — launch, steer, interrupt, resume\" covering purpose, the seven verbs with routes + Tauri command names, expected inputs/outputs, capability-denial errors and what they mean per transport (ACP: no mid-turn steer; transports without Resume), the cwd resume rule in operator terms, and recovery steps (interrupt vs stop, what resumable means). HBR-MAN-002 no-context bar; HBR-MAN-003 self-consistency (named routes/commands must exist).\n6. Author tests/agent_sessions_api_tests.rs driving the axum router with fake launcher/resume-launcher and an in-memory-or-managed-PG store: (a) launch happy path returns session_id + capabilities and persists the durable record; (b) launch with cloud lane and a denying ConsentGate -> 403 ConsentDenied, NO spawn occurred; (c) steer -> queued + depth, duplicate message_id -> duplicate_suppressed; queue at cap -> 429 QueueFull; (d) interrupt without InterruptMidTurn capability -> 409 CapabilityMissing; with it -> accepted, session reaches Interrupted mapping; (e) resume wrong-cwd -> 409 CwdMismatch; (f) status/list shape assertions incl. resumable merge; (g) children returns the ledger-joined rows for a spawned fake child; (h) error-body shape pin {error_kind,...} for every failure test.\n7. cargo build + clippy green; full api test suite green.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/service.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/src/api/agent_sessions.rs",
+      "src/backend/handshake_core/src/api/mod.rs (router registration only)",
+      "app/src-tauri/src/commands/agent_sessions.rs",
+      "app/src-tauri/src/lib.rs (invoke_handler registration only)",
+      "src/backend/handshake_core/src/user_manual/** (same-change manual entry)",
+      "src/backend/handshake_core/tests/agent_sessions_api_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/** (consume ConsentGate, never modify)",
+      "src/backend/handshake_core/src/agent_sessions/{types,store,steer_queue,capabilities,supervisor,resume}.rs (compose, never modify — additive re-export only)",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "AgentSessionService exposes launch/steer/interrupt/resume/status/list/children composing MT-001..006 with typed errors; steer never writes stdin directly (drain-only rule) — enforced by grep + review.",
+      "HTTP routes exist under /agent-sessions/* following the operator_chat route-module pattern and are registered in api/mod.rs; error responses use the pinned {error_kind,...} body and status mapping (404/409/429/403/500).",
+      "Cloud-lane launch is consent-gated BEFORE spawn: a denying ConsentGate yields 403 and zero spawned processes — proven by test (b).",
+      "Capability gating is uniform via CapabilityRegistry::require: interrupt/resume/steer degrade to typed 409s per transport — proven by tests (d),(e).",
+      "children joins ProcessOwnershipLedger rows by parent_session_id — proven by test (g).",
+      "Tauri commands agent_session_* registered in the shell invoke_handler OR a typed DEFERRED_SHELL_BUILD blocker recorded with the exact build failure; never silent omission.",
+      "UserManual updated in the SAME change with the no-context entry described in step 5; self-consistency check passes (HBR-MAN-003).",
+      "cargo build -p handshake_core green; clippy clean; api test suite green."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_api --nocapture 2>&1 | tee /tmp/mt007_run.txt && grep -E 'test result: ok' /tmp/mt007_run.txt",
+      "cargo test -p handshake_core agent_sessions_api --nocapture 2>&1 | grep -q 'consent_denied_blocks_spawn'",
+      "grep -n '/agent-sessions' src/backend/handshake_core/src/api/agent_sessions.rs",
+      "grep -n 'agent_sessions' src/backend/handshake_core/src/api/mod.rs",
+      "grep -rn 'check_or_prompt' src/backend/handshake_core/src/agent_sessions/service.rs",
+      "grep -rn 'agent_session_launch' app/src-tauri/src/commands/agent_sessions.rs || echo DEFERRED_SHELL_BUILD_EVIDENCE_REQUIRED",
+      "grep -rn 'Agent Sessions' src/backend/handshake_core/src/user_manual/"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/service.rs (new)",
+      "src/backend/handshake_core/src/api/agent_sessions.rs (new)",
+      "src/backend/handshake_core/src/api/mod.rs (registration)",
+      "app/src-tauri/src/commands/agent_sessions.rs (new) + app/src-tauri/src/lib.rs (registration)",
+      "src/backend/handshake_core/src/user_manual/** (entry)",
+      "src/backend/handshake_core/tests/agent_sessions_api_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "router-driven happy paths for all 7 verbs",
+      "consent-denied blocks spawn (403, zero processes)",
+      "typed degradation matrix: CapabilityMissing/QueueFull/CwdMismatch/NotResumable",
+      "children ledger join; error-body shape pins"
+    ],
+    "implementation_notes": [
+      "The service composes; it must not re-implement: queue rules live in MT-002, capability denial in MT-003 require(), stop semantics in MT-005, cwd rules in MT-006. Any duplicated rule here is a review-rejectable defect.",
+      "Interrupt duality: hard interrupt (supervisor stop with StopReason::Interrupt) always works; in-band transport interrupt (Claude interrupt frame with interrupt_receipt_v1 acks, Codex turn/interrupt) is adapter-family work — the seam is receipt_expected driven by the InterruptReceipt capability so the GUI can show 'interrupt acknowledged' only when truthful.",
+      "List merge rule: live sessions (in-memory map) take precedence over durable records with the same session_id; durable-only rows appear with health=Exited and their resumable flag — this is what the GUI session pane binds to.",
+      "The Tauri layer is a thin relay to HTTP (one source of truth for authority/consent); do NOT re-wire service objects into the shell process.",
+      "HBR-SWARM-004 applies to steer/interrupt DTOs: message_id is the correlation id; SteerResponse echoes it; MT-008 receipts extend the same id space — no narrative-only routing."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "API-surface MT: HTTP + IPC endpoints only; the operator GUI panes that consume these routes are the GUI family's MTs, which carry the Argus obligations for the visible surface."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Agent Sessions — launch, steer, interrupt, resume (routes /agent-sessions/*, Tauri commands agent_session_*)",
+      "Agent Sessions — capability-denial errors per transport (steer/interrupt/resume availability, ACP limitations)",
+      "Agent Sessions — resume cwd/worktree rule and recovery steps"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-SWARM-004",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "The session runtime stays library-only: no operator or model can launch/steer/resume a session, no consent gating exists for long-lived cloud lanes, and the GUI/orchestrator families have no endpoint to bind — WP-017 delivers no usable behavior.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Consent bypass — a launch path that spawns a cloud CLI before ConsentGate resolves, or a resume path that skips the gate entirely, burns operator spend without authority.",
+      "RISK-2: Steer race to stdin — a 'fast path' writing steer text directly to stdin bypasses queue ordering/dup-suppression and re-creates every MT-002 failure mode.",
+      "RISK-3: Error laundering — Internal(500) leaking raw process/store errors (paths, SQL) to HTTP/IPC clients.",
+      "RISK-4: Shell drift — Tauri commands silently unregistered or diverging DTOs, so the shell shows different truth than HTTP clients.",
+      "RISK-5: Manual drift — routes ship without the same-change UserManual entry, leaving no-context models unable to operate sessions (HBR-MAN violation)."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): consent check is the FIRST statement of launch AND resume for cloud lanes; test (b) proves zero spawn on deny; validator greps call order.",
+      "CTRL-2 (RISK-2): drain-only rule is normative; grep proof that service.rs steer path never references StdinWriterHandle::write_frame; queue tests re-run through the router.",
+      "CTRL-3 (RISK-3): Internal variant carries only a correlation id; body-shape pin test asserts no raw error strings in 500 bodies.",
+      "CTRL-4 (RISK-4): shared DTO types serialized identically on both surfaces; registration is an acceptance criterion with typed DEFERRED_SHELL_BUILD as the only alternative.",
+      "CTRL-5 (RISK-5): same_change_update_required=YES + HBR-MAN-003 self-consistency test named in proof targets."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: api/mod.rs routes()/routes_with_runtime() L34/L65, api/operator_chat.rs state+routes pattern L62-170, consent_gate.rs ConsentGate/check_or_prompt/ConsentDecision L27-160, process_ledger/mod.rs SpawnMeta.parent_session_id L83 + record_spawn parent linkage L174-176, app/src-tauri/src/swarm.rs #[tauri::command] precedent L7-8 and commands/ module layout. Research digest: Claude --session-id pinning at launch; interrupt_receipt_v1 capability; Codex turn/interrupt.",
+    "corrections": [
+      "Brief said 'Tauri IPC commands' without a location: verified the live Tauri shell is app/src-tauri/src/ (NOT the forbidden app/src/** React tree); commands there are the correct IPC surface, with a typed DEFERRED_SHELL_BUILD fallback if the legacy shell cannot build in the assigned worktree."
+    ]
+  }
+}

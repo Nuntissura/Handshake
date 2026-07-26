@@ -14,7 +14,7 @@
   "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
   "group": "E11",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-23T10:08:34.9555956Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt070",
       "mode": "VERIFY_AND_PROVE",
@@ -45,10 +45,10 @@
     "blocks": [
       "MT-072"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: the MT-070 context-menu layer is NOT wired into the live render loop - show_editor_body_menu/show_node_menu/editor_body_context_items/node_context_items have NO product call site (module WIRING STATUS comment discloses it); live code-editor right-click still shows the pre-existing 2-entry menu; canvas/loom node menus still use the MT-021 layer. navigation_bus::dispatch has NO product caller; NavigationTarget byte_offset intentionally ignored (no scroll-to-byte seam). implementation_result claims AC-070-1..9 PASS and omits the load-bearing disclosure that exists only in code comments - overstatement on the contract surface. Root cause recorded in-code: BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE (allowed_paths forbids the call-site files the scope mandates). Fix: resolve the allowed-paths conflict, wire panel.rs/canvas/loom call sites + shell nav-bus consumption, add scroll-to-byte seam carry, re-prove AC-070 against the live app, amend implementation_result.",
@@ -87,11 +87,39 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260708-host",
-    "claimed_at_utc": "2026-07-08T16:52:50.946Z",
+    "claimed_by": "KERNEL_BUILDER-20260722-182301",
+    "claimed_at_utc": "2026-07-22T18:23:01Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T16:52:50.946Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260722-182301",
+    "ready_for_validation_at_utc": "2026-07-23T10:08:34.9555956Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-23T10:09:59.016Z",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_REVIEWS_2026-07-23_FINAL_REBIND",
+    "rfv_evidence_2026_07_22": {
+      "by": "KERNEL_BUILDER-20260722-182301",
+      "mode": "V2_FAILURE_REMEDIATION_AND_CANONICAL_ARGUS_PROOF",
+      "source_head": "30d8657afaac31756852929291b669723f97234e",
+      "candidate_manifest_sha256": "ef78ea0f3a440bcde3ad3c6519f8eb8c2c2518f26df694689ea3155678d24c54",
+      "tracked_patch_id": "6bcb20f988b9624a9125a9135bfdf86a3e4a18a7",
+      "proof": "Three decisive mounted localhost proofs passed 3/3; full affected binaries passed 84/84 (test_context_menu_surfaces 34/34, test_navigation_bus 5/5, test_canvas_board 23/23, test_graph_view 7/7, test_context_menu_surfaces_part2 20/20); owned-file rustfmt and scoped diff checks passed.",
+      "reviews": "Two independent adversarial post-reviews returned READY_FOR_VALIDATION_V3 on the same frozen 19-file manifest. They verified unique popup ownership across two Canvas and Graph panes, exact source routing after render/focus changes, non-vacuous QuickFix handler generation/trace, real mounted Graph localhost ActionChannel routing, disabled Graph Route reason/no Click/rejection, typed Canvas projection/error states, AccessKit identities, UserManual truth, and dirty/untracked provenance.",
+      "residuals": "GPU PNG remains typed deferred under MT-108/HBR-VIS and is not claimed as MT-070 evidence. Four unrelated manual-suite failures and unrelated backend_client.rs formatting drift remain outside MT-070. The untracked canonical_argus_driver.rs is included in the frozen manifest and must not be omitted during integration."
+    },
+    "rfv_rebind_evidence_2026_07_23": {
+      "by": "KERNEL_BUILDER-20260722-182301",
+      "mode": "MT067_SHARED_SURFACE_REBIND_AND_PROOF_INTEGRITY_HARDENING",
+      "source_head": "30d8657afaac31756852929291b669723f97234e",
+      "candidate_manifest_sort": "StringComparer.Ordinal path order; UTF-8 no BOM; each record <sha256><two spaces><repo-relative-path>\\n; final LF",
+      "candidate_manifest_file_count": 29,
+      "candidate_manifest_sha256": "40aa0cb589036905420a4884623cb32573028830d6e623f091afe3cd7ed4d00c",
+      "canvas_test_sha256": "789c83310dd910e2bc0d3722dda177c2e2cfae4494920f9ae9d534d3fff35b30",
+      "backend_binary_sha256": "628c8fa990cdb55872cc2c0010a28248bf48dfeb8539cd98b49329c98f3d935f",
+      "backend_build": "PASS: cargo build --locked --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime --bin handshake_core; CARGO_BUILD_JOBS=1; current source; external target; exit 0 after 98m01s under heavy host load.",
+      "proof": "Fresh current-source checks passed exactly: test_context_menu_surfaces 34/34; test_navigation_bus 5/5; test_canvas_board 24/24 including isolated live PostgreSQL; test_graph_view 8/8 including isolated live PostgreSQL; test_context_menu_surfaces_part2 20/20; test_editor_body_context_menu 8/8; identity collision guard 1/1; exact UserManual contracts 2/2. Primary five binaries total 91; all targeted checks total 102. The Canvas proof-integrity comment was corrected to disclose four deliberate typed host-queue injections and the separate widget-producer proofs; fresh Canvas 24/24 passed after that comment-only correction.",
+      "reviews": "Two independent adversarial reviews recomputed the final 29-file aggregate and Canvas hash, attacked popup ownership, captured-source routing, stale panes, Route-to-Stage gates, Graph Click exposure, Canvas lifecycle fail-closed states, disabled actions, QuickFix exactly-once trace, distinct create/open/reveal authority, Argus indeterminate receipts, and the MT-067 Calendar rebind. Both returned READY_FOR_VALIDATION_V3 on the final freeze.",
+      "format_and_diff": "PASS: exact rustfmt check and staged/working diff checks for test_canvas_board.rs; index and working tree match for the file after staging the truthful comment correction.",
+      "residuals": "GPU PNG remains a typed non-fatal deferral on this no-wgpu-adapter host and is not claimed as MT-070 evidence. Existing unrelated crate-wide formatting drift was observed but not modified. Historical validation_v2 FAIL_V2 and 2026-07-22 evidence remain preserved."
+    },
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260708-host",
       "mode": "GAP-fixed (coder a366fdbf + KERNEL_BUILDER authoritative proof)",
@@ -406,5 +434,46 @@
       ],
       "no_context_instruction": "Read MT-070.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
-  }
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260722-182301",
+    "prepared_at_utc": "2026-07-23T10:08:34.9555956Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "decisive_mounted_localhost_proofs": "PASS_3_OF_3",
+      "primary_runtime_tests": "PASS_91_OF_91",
+      "all_targeted_checks": "PASS_102_OF_102",
+      "owned_canvas_rustfmt": "PASS",
+      "scoped_diff_check": "PASS",
+      "candidate_manifest_sha256": "40aa0cb589036905420a4884623cb32573028830d6e623f091afe3cd7ed4d00c",
+      "backend_binary_sha256": "628c8fa990cdb55872cc2c0010a28248bf48dfeb8539cd98b49329c98f3d935f"
+    },
+    "adversarial_review": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_POST_REVIEWS_NO_BLOCKER",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-23T10:09:59.016Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-070 FAIL V2. node_context_items always renders Route to Stage enabled, while node_action_for_id returns no action when has_node_id=false. The UI therefore exposes an enabled dead action, violating the contract that every enabled entry reaches a real handler.",
+  "remediation_plan": [
+    "Gate Route to Stage with has_node_id using the same disabled-reason pattern as other entries, or provide a valid action for the no-id state; add an invariant test that every enabled item resolves.",
+    "Run canonical Argus for each editor context menu and navigation action, including unavailable/disabled states and fresh post-action observation; update canonical UserManual."
+  ],
+  "no_context_instruction": "Read MT-070.json and context_menu_surfaces.rs. Fix the enabled/action mismatch, audit all menus for the same invariant, and prove them through canonical Argus before READY_FOR_VALIDATION_V3."
+}
 }

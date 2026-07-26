@@ -1,0 +1,190 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-244",
+  "title": "PD-MT244-ProseDiffAnnotations",
+  "group": "PD Native prose diff",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-244.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-241",
+      "MT-242",
+      "MT-202",
+      "MT-221",
+      "MT-222"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Let operators and models attach annotations to a PROSE DIFF view. On MT-242's prose diff panel, a reviewer can select a contiguous run of changed blocks (the prose-diff equivalent of a code-diff 'hunk') and attach an annotation whose anchor names the diff side, the block range, and the quoted text; markers and threads reuse the NA family's shared widgets. This closes the prose-diff half of the annotation system: AC MT-201..209 own the schema/anchor/store/routes, NA MT-221/222 render annotations in the code and rich editors, and THIS MT renders them on the block-level prose diff, including model-authored prose-diff annotations.\n\nEXPECTED DIFF SHAPE: NEW module src/frontend/handshake_native/src/annotations/prose_diff_markers.rs (block-range marker placement + anchor construction for the prose diff) registered from src/frontend/handshake_native/src/annotations/mod.rs (the NA family module created in MT-221); marker/selection wiring added to MT-242's prose_diff_ui/panel.rs (the aligned-block accessor MT-242 exposed is the seam); one GUI test file. NO backend edits (consume AC routes via the NA client), NO change to MT-241's engine, NO fork of the NA thread widget.\n\nDETAILED SPEC:\n1. HUNK-EQUIVALENT selection: a prose-diff 'hunk' is a maximal contiguous run of non-Unchanged BlockDiff rows (Added/Removed/Modified) in the aligned sequence. Compute these runs from MT-242's aligned block rows; each run is an annotation TARGET. The reviewer can also target a single changed block. Provide a selection affordance on the diff (a gutter/margin marker per hunk plus a click-to-annotate control), reusing the NA marker interaction pattern from MT-221 rather than inventing a new one.\n2. ANCHOR construction via AC MT-202: build the annotation anchor as {side: old|new, block range, quoted text}. side = old (left/base) or new (right) per which pane the selected blocks belong to (a Removed run is old-side; an Added run is new-side; a Modified run may carry both — anchor to the NEW side by default and record the paired old-side block range in the anchor's context, never guessing when the side is ambiguous). block range = the half-open aligned block index range of the run mapped to that side's real block indices (from MT-242's row map). quoted text = the concatenated nodeText of the run's blocks on that side (MT-241 already computes per-block text), so the anchor survives later edits via the AC MT-204 re-anchor engine. The AC MT-201 AnnotationSubject for a diff is the Diff{old_ref,new_ref,path} / ProseBlock family — use the diff subject the AC family defines; do NOT invent a new subject shape.\n3. MARKERS + THREADS reuse NA widgets: render annotation markers beside each annotated hunk and the inline thread via the SHARED AnnotationThreadWidget from MT-221 (src/frontend/handshake_native/src/annotations/thread_widget.rs) — the same widget MT-222 reuses for the rich editor; do NOT fork it. Marker states (Open/Resolved/Orphaned/Outdated from MT-221's AnnotationMarkerState) apply unchanged; an orphaned prose-diff annotation (its block anchor did not re-resolve) goes to the 'Unanchored annotations' strip pattern MT-221 established, NEVER placed at a guessed block.\n4. MODEL-AUTHORED prose-diff annotations: a model reviewing a worktree-merge or notes diff lands its annotations here via the same AC route path the NA client uses; the model provenance badge (robot_id + session id per AC MT-201) renders on the thread exactly as in the code editor. Human and model prose-diff annotations use ONE shared surface (no model-only path).\n5. READ vs authoring: this MT renders existing prose-diff annotations and provides the block-range SELECT + attach affordance that constructs the MT-202 anchor and posts through the NA client; the annotation record creation/validation is AC-owned (this MT calls the AC constructor/route, it does not re-implement the schema). Live event-driven arrival and full authoring UX beyond attach follow the NA family's MT-224/225 seams.\n6. AccessKit: per-hunk marker `prose_diff_annotation_marker_{side}_{block_start}_{annotation_id}` (Role::Button), the reused thread widget keeps its NA author_ids (`annotation_thread_{annotation_id}` ...), the attach control `prose_diff_annotation_attach_{side}_{block_start}`, all via scoped_author_id and instance-suffixed on the dual-pane side-by-side mount so old/new-side markers never collide.\n\nSTEP-BY-STEP:\n1. Read AC MT-201 (Annotation record, AnnotationSubject Diff/ProseBlock, provenance), AC MT-202 (the typed AnnotationAnchor: side old|new + block/line range + quoted text + context), NA MT-221 (annotations/mod.rs, marker_state.rs AnnotationMarkerState, thread_widget.rs AnnotationThreadWidget, client.rs NA route consumption, the unanchored strip, the marker interaction + instance-suffix scheme), NA MT-222 (rich-editor reuse of the shared widget), and MT-242 prose_diff_ui/panel.rs (the aligned-block-row accessor + per-block author_ids + old/new indices).\n2. Create annotations/prose_diff_markers.rs: compute contiguous changed-block hunks from MT-242's aligned rows; build the MT-202 anchor (side/block range/quoted text) for a selected run; place markers per hunk; route orphaned annotations to the unanchored strip.\n3. Wire the selection + attach affordance into prose_diff_ui/panel.rs (using the accessor seam), and mount the shared AnnotationThreadWidget for an opened thread.\n4. Ensure model-authored annotations render with the NA provenance badge (robot_id + session id) and share the surface with operator annotations.\n5. Register prose_diff_markers in annotations/mod.rs; write the GUI test file (hunk detection, anchor side/range/quoted-text correctness, marker placement in the correct pane, orphaned -> strip, operator vs model badge, dual-mount id non-collision). Capture Argus evidence into HANDSHAKE_ARTIFACTS_ROOT.\n6. Update the UserManual in the same change (annotating a prose diff: selecting a changed-block run, what the anchor captures, operator vs model annotations, orphaned handling).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/annotations/prose_diff_markers.rs",
+      "src/frontend/handshake_native/src/annotations/mod.rs (module registration only; owned by NA MT-221)",
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/panel.rs (selection + attach + thread mount wiring via the MT-242 accessor)",
+      "src/frontend/handshake_native/tests/test_prose_diff_annotations.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React; removed by TR MT-261..264)",
+      ".GOV/**",
+      "src/backend/** (annotation core is AC MT-201..209; consume via the NA client/routes only)",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (shared NA widget; REUSE, never fork)",
+      "src/frontend/handshake_native/src/annotations/marker_state.rs (NA-owned; reuse)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs (MT-241 engine; consume, do not edit)"
+    ],
+    "acceptance_criteria": [
+      "A prose-diff 'hunk' (maximal contiguous run of Added/Removed/Modified BlockDiff rows) is computed from MT-242's aligned block rows and is selectable as an annotation target, plus single-changed-block targeting.",
+      "The annotation anchor is built via AC MT-202 with side (old|new), the mapped real block-index range for that side, and the concatenated quoted text of the run's blocks; a Modified run anchors to the new side and records the paired old-side range in context, never guessing an ambiguous side.",
+      "The annotation record uses the AC MT-201 diff/ProseBlock AnnotationSubject (no new subject shape invented) and is created/posted through the NA client route path, not a re-implemented schema.",
+      "Markers and the inline thread reuse the SHARED NA AnnotationThreadWidget (MT-221) unchanged (grep-provable: no second thread-widget struct); marker states (Open/Resolved/Orphaned/Outdated) apply, and an orphaned prose-diff annotation goes to the NA 'Unanchored annotations' strip, never a guessed block.",
+      "Model-authored prose-diff annotations land on the SAME surface as operator ones and render the NA model provenance badge (robot_id + session id); no model-only path.",
+      "AccessKit: prose_diff_annotation_marker_{side}_{block_start}_{annotation_id} (Button), prose_diff_annotation_attach_{side}_{block_start}, and the reused thread widget's NA author_ids — all via scoped_author_id, instance-suffixed on the side-by-side dual mount so old/new markers never collide.",
+      "UserManual updated in the same change: annotating a prose diff, what the anchor captures, operator vs model annotations, orphaned handling.",
+      "cargo test -p handshake-native prose_diff_annotations passes; Argus screenshot + AccessKit tree captured for hunk markers (both sides), an open thread with operator+model badges, and the orphaned strip."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native prose_diff_annotations -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "rg -n 'AnnotationThreadWidget' src/frontend/handshake_native/src/annotations/prose_diff_markers.rs && rg -c 'struct AnnotationThreadWidget' src/frontend/handshake_native/src/annotations/ | grep -q ':1$' (single shared widget, not forked)",
+      "rg -n 'prose_diff_annotation_marker_|prose_diff_annotation_attach_' src/frontend/handshake_native/src/annotations/prose_diff_markers.rs",
+      "! rg -n 'reqwest|axum|struct Annotation ' src/frontend/handshake_native/src/annotations/prose_diff_markers.rs (consumes AC via NA client; no schema fork, no direct route literal)",
+      "Argus evidence: argus.screenshot + AccessKit tree dump of (a) hunk markers on old and new sides, (b) an open thread with operator + model provenance badges, (c) an orphaned prose-diff annotation in the unanchored strip — stored under HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/annotations/prose_diff_markers.rs (new)",
+      "src/frontend/handshake_native/src/annotations/mod.rs (module registration)",
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/panel.rs (selection/attach/thread-mount wiring)"
+    ],
+    "expected_tests": [
+      "unit: contiguous changed-block runs computed from aligned rows (single block, multi-block run, two runs separated by unchanged blocks)",
+      "unit: anchor construction side/block-range/quoted-text correct for Added (new), Removed (old), Modified (new + paired old context)",
+      "integration: SideBySide dual mount places old-side and new-side markers in the correct pane with non-colliding suffixed author_ids",
+      "integration: opening a thread mounts the shared NA AnnotationThreadWidget with operator and model badges",
+      "integration: an orphaned prose-diff annotation appears in the unanchored strip, never at a body block",
+      "negative: a diff with no changed blocks offers no annotation targets"
+    ],
+    "implementation_notes": [
+      "This MT depends on the NA family surfaces (MT-221 markers/thread widget/unanchored strip/client, MT-222 shared-widget reuse) and the AC anchor model (MT-202 side old|new + range + quoted text; MT-201 Diff/ProseBlock subject + model provenance). Read those contracts before coding; do NOT re-implement the schema, the anchor math, or the thread widget.",
+      "The prose-diff 'hunk' is the block-level analogue of a code diff hunk: a contiguous run of changed BlockDiff rows. Compute it from MT-242's aligned-block-row accessor (the seam MT-242 exposes), not by re-diffing.",
+      "Side discipline mirrors NA MT-221's merge-pane rule: never place a marker on a guessed side. Removed -> old, Added -> new, Modified -> new with the paired old range recorded in anchor context; if the AC subject cannot name the side, route to the unanchored strip rather than guess.",
+      "Model-authored prose-diff annotations use the same AC route + NA client the operator path uses; the single shared surface (human + model) is the whole point of the AC single-schema design — do not add a model-only rendering path.",
+      "Cross-family seams (reference only): AC MT-201 record + MT-202 anchor + MT-204 re-anchor verdicts (orphaned/outdated), NA MT-221/222 widgets, MT-242 aligned-block accessor, MT-243 merge conflicts (a later reviewer may annotate merge blocks too). MT-245 does not gate on this MT."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "prose-diff hunk annotation markers (old and new side)",
+      "block-range select + attach affordance",
+      "shared NA AnnotationThreadWidget mounted on the prose diff",
+      "unanchored-annotations strip for orphaned prose-diff annotations"
+    ],
+    "argus_targets": [
+      "prose_diff_annotation_marker_{side}_{block_start}_{annotation_id}",
+      "prose_diff_annotation_attach_{side}_{block_start}",
+      "annotation_thread_{annotation_id}",
+      "annotation_unanchored_strip"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "provenance_badge_operator_vs_model_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Annotating a prose diff: selecting a changed-block run (hunk), what the anchor captures (side, block range, quoted text), operator vs model annotations, and orphaned-annotation handling"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Annotation lifecycle FR events are the AC/MT-161 seam; this UI MT renders prose-diff annotations and constructs anchors but emits no new business events beyond the AC create route it calls."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Hunk computation, anchor side/range decisions, and orphan routing are structured/inspectable so a no-context model can diagnose a mis-sided or mis-anchored prose-diff annotation."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure render + attach surface; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "The prose diff has no annotation surface: a model reviewing a worktree-merge or notes diff cannot leave block-anchored feedback where the change is, operators cannot discuss a specific changed-block run, and prose-diff review falls back to the legacy React editor that TR MT-261..264 removes — leaving the AC/NA annotation system blind to the exact surface (prose diffs) where merge review happens.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Wrong-side anchor — a Removed-block annotation is anchored to the new side (or a Modified run to a guessed side), attaching review commentary to content that does not exist on that side.",
+      "RISK-2: Silent misplacement — an orphaned prose-diff annotation (anchor did not re-resolve) is rendered at a guessed block instead of the unanchored strip, attaching feedback to the wrong prose.",
+      "RISK-3: Widget fork — a second prose-diff-only thread widget is created instead of reusing the shared NA AnnotationThreadWidget, splitting the annotation surface and drifting behaviour from the code/rich editors.",
+      "RISK-4: Provenance laundering — a model-authored prose-diff annotation renders without the robot_id/session badge, reading as operator-authored.",
+      "RISK-5: Dual-mount id collision — side-by-side mounts old and new panes; unsuffixed marker ids collide, breaking the Argus/AccessKit path and keyboard access."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): anchor-construction unit tests assert Removed->old, Added->new, Modified->new+paired-old-context; an ambiguous side routes to the unanchored strip, never a guess.",
+      "CTRL-2 (RISK-2): reuse the NA MT-221 unanchored-strip behaviour; an integration test asserts an orphaned prose-diff annotation appears only in the strip.",
+      "CTRL-3 (RISK-3): reuse thread_widget.rs unchanged; a grep proof asserts exactly one AnnotationThreadWidget struct in the annotations module.",
+      "CTRL-4 (RISK-4): the model provenance badge (robot_id + session id) renders for model annotations; a test asserts the badge kind differs by author kind on the prose-diff surface.",
+      "CTRL-5 (RISK-5): reuse the NA/panel instance-suffix scheme; a dual-mount test asserts non-colliding suffixed marker author_ids for old vs new side."
+    ]
+  },
+  "research_provenance": {
+    "source": "Cross-family contract read 2026-07-21: AC MT-201 (Annotation record, AnnotationSubject Diff{old_ref,new_ref,path}/ProseBlock, model provenance robot_id/session_id/run_id), AC MT-202 (typed AnnotationAnchor side old|new + range + quoted text + context), NA MT-221 (src/frontend/handshake_native/src/annotations/ mod.rs + marker_state.rs AnnotationMarkerState Open/Resolved/Orphaned/Outdated + thread_widget.rs shared AnnotationThreadWidget + client.rs + unanchored strip + marker interaction/instance-suffix scheme), NA MT-222 (shared-widget reuse in the rich editor). Consumes MT-241 per-block nodeText + MT-242 aligned-block-row accessor. Hunk-equivalent concept from code-diff hunk annotations (VS Code Comment API CommentThread(uri,range); hunk noteBorder inline diff annotations) applied at block granularity.",
+    "corrections": [
+      "A prose-diff hunk is a contiguous run of CHANGED BlockDiff rows (block granularity), not a line range; it is computed from MT-242's aligned rows, not re-diffed.",
+      "This MT consumes the AC schema/anchor and the NA thread widget; it neither re-implements the annotation record (no `struct Annotation` here) nor forks the thread widget — the single shared human+model surface is preserved."
+    ]
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-062",
+  "title": "AP-MT062-AcpTurnDiscipline",
+  "group": "AP ACP client layer",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-062.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-061",
+      "MT-002"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Enforce ACP sequential-turn discipline on top of the MT-061 client core so that steering a running ACP session is SAFE, HONEST, and OBSERVABLE. ACP turns are strictly sequential: the protocol has NO mid-turn steer primitive; the only mid-turn interventions are session/cancel (a notification; the agent MUST then settle the in-flight session/prompt with stop reason cancelled) followed by a new session/prompt. This MT delivers three behaviors: (1) steer requests targeting an ACP session while a turn is running are QUEUED via the MT-002 steer queue and delivered as the next session/prompt after the current turn reaches a terminal stop reason; (2) callers receive an explicit capability signal — because AdapterCapabilities.steer_mid_turn=false (MT-061), a steer submission returns a typed SteerAccepted::QueuedNextTurn outcome (never a silent inline-injection claim); (3) an explicit cancel-then-reprompt escalation path exists for callers that demand immediate steering: cancel the running turn, await the cancelled stop reason, then immediately prompt with the composed steer content.\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/agent_sessions/acp/turn_discipline.rs (queue binding, delivery loop, escalation path, typed outcomes) plus small wiring edits in acp/mod.rs and acp/client_core.rs (turn-terminal hook that triggers queue drain). Integration tests in src/backend/handshake_core/tests/acp_turn_discipline.rs against the MT-061 fixture agent (extended with a long-running scripted turn and cancel compliance).\n\nDETAILED SPEC:\n- QUEUEING: a steer request arriving while an ACP turn is in flight is enqueued on the MT-002 steer queue bound to that session (FIFO per session). The submission response is a typed outcome carrying { accepted: QueuedNextTurn, queue_position, blocking_turn_id, queued_at } — the caller always learns the steer was NOT injected mid-turn. This deliberately mirrors the governed-broker precedent (.GOV/tools/handshake-acp-bridge/agent.mjs busy-queue: control.busy_queued / ACCEPTED_QUEUED / queue_depth / blocking run id / FIFO drainQueuedRequestsForSession) — READ-ONLY reference; the product implementation lives on the MT-002 queue, not on JSONL files.\n- DELIVERY: when the running turn settles with ANY terminal stop reason (end_turn, max_tokens, max_turn_requests, refusal, cancelled, unknown-typed), the queue drains: the head steer becomes the next session/prompt on the same ACP SessionId. Drain continues turn-by-turn (one prompt per queued steer; ACP cannot batch turns). Drain must be re-entrant-safe: a single drain driver per session (mirror the drainingSessions guard concept from the bridge), no double-prompt, no lost steer.\n- CANCEL: session/cancel is sent as an ACP notification; the adapter then AWAITS the in-flight session/prompt settling with stop reason cancelled (protocol guarantee: agent MUST return cancelled). The turn terminal state is TurnCancelled; queued steers survive a cancel (they deliver on the now-idle session) unless the caller explicitly flushes the queue.\n- ESCALATION (cancel-then-reprompt): a steer submitted with urgency=Immediate triggers: (a) enqueue at queue head, (b) session/cancel, (c) await cancelled settlement with a bounded deadline — if the agent does not settle within the deadline, escalate to supervisor kill via MT-005 and settle the turn as a typed failure, (d) drain delivers the steer as the next prompt. The whole escalation is a single auditable operation with a correlation id.\n- OBSERVABILITY: every enqueue, dequeue/delivery, cancel request, cancelled settlement, escalation step, and queue flush emits a typed EventLedger event carrying session id, turn id, correlation id, and queue depth; the sequence is reconstructable from durable state alone (HBR-INT-007). Cross-agent steer messages carry typed routing fields per HBR-SWARM-004 (target_role, target_session, correlation_id).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-002 steer queue contract/API and the MT-061 turn terminal-state hook points before writing code.\n2. Implement the typed steer-submission outcome (QueuedNextTurn { queue_position, blocking_turn_id, queued_at }) returned whenever the target ACP session has a turn in flight; when idle, the steer is delivered immediately as a session/prompt and the outcome says DeliveredAsTurn.\n3. Bind the MT-002 per-session FIFO queue to the ACP session; implement the single-driver drain loop triggered by the MT-061 turn-terminal hook.\n4. Implement session/cancel dispatch + awaited cancelled settlement; map to TurnCancelled.\n5. Implement the urgency=Immediate escalation path (queue-head insert, cancel, bounded await, MT-005 kill fallback, drain) under one correlation id.\n6. Implement explicit queue flush (typed, ledgered) so a caller can abandon queued steers; flushed steers settle with a typed Flushed outcome, never vanish.\n7. Emit typed EventLedger events for every transition; wire HBR-INT-009 tier evidence.\n8. Extend the fixture agent with: a scripted long turn (streams updates until cancelled), correct cancel compliance (settles prompt with cancelled), and an idle mode.\n9. Author the integration tests listed in expected_tests.\n10. Run the proof targets; record queue/cancel timings in test output for the validator.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/acp/turn_discipline.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/mod.rs (wiring lines only)",
+      "src/backend/handshake_core/src/agent_sessions/acp/client_core.rs (turn-terminal hook only)",
+      "src/backend/handshake_core/tests/acp_turn_discipline.rs",
+      "src/backend/handshake_core/tests/acp_fixture_agent/** (extend scripted behaviors)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (the bridge is READ-ONLY reference for parity; never edited by this WP)",
+      "src/frontend/** (no GUI surface in this MT)"
+    ],
+    "acceptance_criteria": [
+      "A steer submitted while an ACP turn is running returns a typed QueuedNextTurn outcome with queue_position, blocking_turn_id, and queued_at — proven by test; no code path claims mid-turn injection for an ACP session.",
+      "A steer submitted to an idle ACP session is delivered immediately as session/prompt with a DeliveredAsTurn outcome.",
+      "When the running turn settles (each terminal stop reason covered), the queue drains FIFO: queued steers become subsequent session/prompt turns on the same ACP SessionId, one turn per steer, no loss, no duplication — proven by a test queuing >=3 steers.",
+      "Drain is re-entrant-safe: concurrent terminal events / double-trigger cannot double-prompt (single drain driver per session) — proven by a stress test.",
+      "session/cancel settles the in-flight prompt with stop reason cancelled and the turn maps to TurnCancelled; queued steers survive the cancel and deliver afterwards — proven by test.",
+      "urgency=Immediate performs cancel-then-reprompt as one correlated operation: queue-head insert, cancel, awaited cancelled settlement, steer delivered as the very next prompt — proven by test measuring the delivered order.",
+      "A fixture agent that ignores cancel past the bounded deadline triggers the MT-005 supervisor kill fallback and a typed turn failure — proven by test; no infinite wait.",
+      "Explicit queue flush settles all queued steers with a typed Flushed outcome and ledger events; nothing disappears silently.",
+      "Every enqueue/delivery/cancel/escalation/flush emits typed EventLedger events with correlation ids and queue depth; a test reconstructs the full sequence from the ledger alone (HBR-INT-007).",
+      "cargo build -p handshake_core green; all listed tests pass headless (HBR-QUIET-001)."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core",
+      "cargo test -p handshake_core --test acp_turn_discipline -- --nocapture",
+      "cargo test -p handshake_core --test acp_turn_discipline acp_steer_during_turn_queues_next_turn -- --nocapture",
+      "cargo test -p handshake_core --test acp_turn_discipline acp_cancel_then_reprompt_escalation -- --nocapture",
+      "cargo test -p handshake_core --test acp_turn_discipline acp_drain_reentrancy_stress -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/acp/turn_discipline.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/client_core.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/mod.rs"
+    ],
+    "expected_tests": [
+      "acp_steer_during_turn_queues_next_turn (typed QueuedNextTurn outcome)",
+      "acp_steer_idle_session_delivers_immediately",
+      "acp_queue_drains_fifo_across_terminal_reasons (>=3 queued steers)",
+      "acp_drain_reentrancy_stress (no double-prompt, no loss)",
+      "acp_cancel_settles_cancelled_and_preserves_queue",
+      "acp_cancel_then_reprompt_escalation (ordered delivery, one correlation id)",
+      "acp_cancel_deadline_escalates_to_supervisor_kill",
+      "acp_queue_flush_settles_typed_flushed",
+      "acp_turn_discipline_sequence_reconstructable_from_ledger"
+    ],
+    "implementation_notes": [
+      "PROTOCOL FACT: ACP has no mid-turn steer; do not invent one. steer==queued-next-turn is the honest contract this MT makes explicit to every caller (orchestrator models included via MT-106 policy surface later).",
+      "Bridge precedent (READ-ONLY): .GOV/tools/handshake-acp-bridge/agent.mjs queueGovernedRequestOnBusy + drainQueuedRequestsForSession implement the same single-active-run + FIFO-drain + queue-depth-visible discipline against JSONL/registry state. The product version binds to the MT-002 queue and EventLedger instead; behavior parity is measured in MT-065.",
+      "The bounded cancel deadline must be configurable (env or config surface) with a conservative default; record the default in the test output. A non-compliant agent is a real July-2026 ecosystem risk.",
+      "Cancelled turns still produce partial TurnItems already streamed; those remain on the event bus/ledger — do not retract them.",
+      "Do not edit the MT-002 queue implementation; if the queue API lacks something (e.g., head-insert for escalation), implement the minimal extension in THIS MT's files only if the MT-002 surface allows composition, else record a typed dependency blocker per HBR-STOP-004."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend MT: turn discipline is a session-runtime behavior; proof is ledger/TraceProjection reconstruction per HBR-VIS-004. Steering GUI surfaces belong to other WP-017 families."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "Agent sessions: steering an ACP session — steer==queued-next-turn semantics, cancel-then-reprompt escalation, queue flush"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-004",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FLIGHT_RECORDER: steer-queued, steer-delivered, cancel-requested, cancelled-settled, escalation, and flush are business events — FR emit per MT-161 kinds when landed, else DEFERRED-with-reason.",
+    "INTERNAL_DIAGNOSTICS: expose per-session queue depth, in-flight turn age, and cancel-await state to the open diagnostic-event API — WIRED or DEFERRED-with-reason.",
+    "PALMISTRY: a cancel-await that hangs past deadline is exactly the freeze class the external watcher exists for — register the bounded-await as a tracked liveness window, or DEFERRED-with-reason."
+  ],
+  "risk_if_missed": "Steering an ACP session either blocks, silently drops, or falsely claims mid-turn injection; MT-065 duty-parity (per-turn steering of repo-gov workflows) cannot be proven; orchestrator callers build on dishonest steer semantics.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fake steering — a code path that writes the steer into the running turn's stream (or claims injection) would fabricate a capability ACP does not have; callers would trust phantom steering.",
+      "RISK-2: Lost or duplicated steers — racy drain (multiple drivers, terminal-event double-fire) can drop a queued steer or prompt it twice; both corrupt the governed workflow.",
+      "RISK-3: Unbounded cancel wait — an agent that never settles cancelled hangs the session forever (the validator-observed hang class from WP-KERNEL-012 MT-045 validation is precedent for how expensive this is).",
+      "RISK-4: Silent queue flush — dropping queued steers without typed settlement makes work vanish unattributably.",
+      "RISK-5: Escalation ordering bug — a steer marked Immediate that lands behind older queued steers delivers stale instructions after the urgent one."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): steer_mid_turn=false is structural (MT-061); the only steer outcomes for a busy ACP session are QueuedNextTurn or the explicit escalation path; tests assert no other outcome exists.",
+      "CTRL-2 (RISK-2): single drain driver per session + re-entrancy stress test + FIFO order assertion over >=3 queued steers.",
+      "CTRL-3 (RISK-3): bounded cancel deadline with MT-005 supervisor kill fallback and typed failure settlement; dedicated non-compliant-agent test.",
+      "CTRL-4 (RISK-4): flush is an explicit typed operation; every flushed steer gets a Flushed settlement event; ledger reconstruction test covers flush.",
+      "CTRL-5 (RISK-5): escalation inserts at queue head under one correlation id; ordered-delivery test asserts the urgent steer is the very next prompt."
+    ]
+  },
+  "research_provenance": {
+    "source": "agentclientprotocol.com (session/cancel notification semantics: agent MUST settle in-flight prompt with cancelled; strictly sequential turns; stop reasons end_turn/max_tokens/max_turn_requests/refusal/cancelled) + .GOV/tools/handshake-acp-bridge/agent.mjs (verified busy-queue/drain/cancel precedent: queueGovernedRequestOnBusy, drainQueuedRequestsForSession, ENQUEUE_ON_BUSY -> ACCEPTED_QUEUED with queue_depth + blocking run id, drainingSessions re-entrancy guard, timeout kill-tree settlement) + WP-017 stub risks_unknowns (ACP no-mid-turn limitation and cancel-then-reprompt mitigation).",
+    "corrections": [
+      "Cancel-then-reprompt is the ONLY immediate-steer path on ACP; the contract makes it an explicit escalation with bounded deadline instead of a hidden default.",
+      "Queue authority is the MT-002 steer queue (product), not JSONL sidecar files; the bridge's file-based queue is precedent for behavior, not for storage."
+    ]
+  }
+}

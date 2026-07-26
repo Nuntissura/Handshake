@@ -135,17 +135,17 @@ function pillarDistribution(rules) {
 function runSelfTest() {
   const registry = loadRegistry();
   const rules = activeRules(registry);
-  // Pinned expected shape for registry v1.3.0 (29 active rules). The STOP
-  // pillar (5 rules) was added in v1.3.0 for the scope/session-discipline
-  // gate [CX-971]; this self-test must track registry version bumps.
-  assert.equal(rules.length, 29);
+  // Pinned expected shape for registry v1.8.0 (39 active rules). PRIV adds
+  // 8 account/resource privacy rules to the existing 29-rule registry.
+  assert.equal(rules.length, 39);
   assert.deepEqual(pillarDistribution(rules), {
-    INT: 8,
+    INT: 9,
     SWARM: 4,
     VIS: 5,
     QUIET: 4,
-    MAN: 3,
+    MAN: 4,
     STOP: 5,
+    PRIV: 8,
   });
 
   const observableRule = rules.find((rule) => rule.id === "HBR-INT-001");

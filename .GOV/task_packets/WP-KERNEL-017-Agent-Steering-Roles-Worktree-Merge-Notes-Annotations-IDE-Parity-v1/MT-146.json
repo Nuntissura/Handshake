@@ -1,0 +1,194 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-146",
+  "title": "WM-MT146-MergeReviewGuiFlow",
+  "group": "WM Worktree merge-back",
+  "clause": "Operator merge-review flow: native egui pane + SessionWorkbench extension (pending list, SideBySide diff preview, conflict->merge-UI, approve/execute/abort); AccessKit + Argus evidence",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-146.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-142",
+      "MT-143",
+      "MT-145"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Ship the OPERATOR-facing merge-review flow that mounts the MT-142 engine, MT-143 conflict bridge, and MT-145 governance gate behind a real surface: a native egui merge-review pane in handshake_native and a matching SessionWorkbench (React) extension, so an operator can see pending session-branch merges, preview each diff, open conflicts in the existing 3-pane merge UI, and approve / execute / abort — with the protected-branch consent gate (MT-145) enforced in the UI. This is the family's single GUI MT (MT-141..145 are backend/logic; MT-147 reclaim, MT-148 proofs).\n\nEXPECTED DIFF SHAPE: (a) Native: NEW pane module src/frontend/handshake_native/src/code_editor/merge_review_panel.rs (registered in code_editor/mod.rs) rendering the pending-merge list + diff preview + action bar; it REUSES DiffEditorPanel SideBySide for read-only diff preview and mounts the MT-143 merge_conflict_bridge for conflict resolution — it rebuilds neither. (b) React: extend app/src/components/swarm/SessionWorkbench.tsx (and a NEW app/src/components/swarm/MergeReviewPanel.tsx sub-component) following SessionWorkbench's established pattern of composing existing surfaces via injected callbacks and adding the MINIMUM IPC needed to list/preview/approve/execute/abort merges. (c) Backend IPC: a thin command surface exposing MT-145 governance (list pending, fetch diff/conflicts, submit approval grant, execute, abort). (d) Headless AccessKit tests + Argus visual evidence both sides.\n\nDETAILED SPEC:\n1. Native pane (merge_review_panel.rs):\n   - PendingMergeList: one row per proposed merge (merge_intent_id, source session/branch, target branch, protected? badge, MT-run validation verdict badge, state: Proposed|Approved|Conflicted|Executed|Aborted|Blocked). Data comes from the MT-145 audit/state surface; the pane NEVER fabricates a merge.\n   - Diff preview: selecting a row shows a READ-ONLY DiffEditorPanel in DiffMode::SideBySide (existing constructor `DiffEditorPanel::side_by_side`, diff_editor_panel.rs ~255) of target vs merged-result (or per-file diffs); no editing in preview.\n   - Conflict list: when state is Conflicted, list conflicted paths; 'Open in merge UI' mounts the MT-143 merge_conflict_bridge -> DiffEditorPanel DiffMode::Merge (3 panes local/base/remote) for that path. Resolution flows through the SAME bridge API; the pane adds no auto-resolution.\n   - Action bar: Approve (only shown/enabled for a protected target awaiting consent; submits a MergeApprovalGrant via IPC), Execute (runs the governed merge; disabled while unresolved conflicts remain or validation is Unsatisfied without override), Abort (always available while a merge is in Proposed/Conflicted state; drives MergeSession::abort). Result state (CleanMerged commit id, Conflicts count, Blocked reason) is shown honestly.\n   - Stable AccessKit author_ids (MT-contract identifiers, same discipline as diff_editor_panel.rs's diff_mode_toggle const ~line 54): merge_review.pending_list, merge_review.row.<merge_intent_id>, merge_review.diff_preview, merge_review.conflict_list, merge_review.action.approve, merge_review.action.execute, merge_review.action.abort.\n2. React (SessionWorkbench.tsx + MergeReviewPanel.tsx):\n   - Mirror the native surface for the operator board: pending merges list, diff/conflict summary, and approve/execute/abort actions bound to the new IPC. Follow the SessionWorkbench contract exactly — compose, do not rebuild; honest-disable any action whose IPC callback is absent (the pattern already used for onShowTerminal/onReviewSession/onResumeSession); add NO duplicate merge logic in TS.\n   - The React panel shows the protected-branch badge and requires an explicit operator confirm before submitting an approval grant (consent is a deliberate two-step, never a single accidental click).\n3. Backend IPC (Tauri command surface, app/src or src-tauri bridge): list_pending_merges, get_merge_preview(merge_intent_id), get_merge_conflicts(merge_intent_id), submit_merge_approval(grant), execute_merge(merge_intent_id), abort_merge(merge_intent_id). Each maps to the MT-145 governance gate + MT-142/143 engine; NONE bypasses the gate. Approvals carry the operator id so the MT-145 audit row records who approved.\n4. HARD RULES: the UI cannot bypass the MT-145 consent gate (Execute on a protected target with no grant returns Blocked and the pane shows it); no auto-resolution surfaced (conflicts always route to the MT-143 3-pane UI); no force / no push control exists anywhere in the surface; the pane must be QUIET (HBR-QUIET) — no focus stealing / no foreground popups while models or other operators work; git code-merge vs CRDT document-merge boundary holds (this surface never edits CRDT documents).\n5. BOUNDARY: reuse DiffEditorPanel (SideBySide + Merge) and merge_conflict_bridge as-is; this MT wires them into a review flow and adds the pending-list + action-bar + IPC. It does not modify the merge engine, the conflict bridge internals, or the governance policy.\n\nSTEP-BY-STEP:\n1. Read diff_editor_panel.rs (DiffMode SideBySide/Inline/Merge ~73-95, DiffEditorPanel::side_by_side ~255, DiffEditorPanel::merge ~305, AccessKit author_id const ~54) and the existing headless egui_kittest/AccessKit diff-panel tests; read merge_conflict_bridge.rs (MT-143) and SessionWorkbench.tsx (composition + honest-disable pattern).\n2. Implement merge_review_panel.rs: pending list, SideBySide diff preview, conflict list, action bar, with the stable author_ids above; mount merge_conflict_bridge for conflict rows.\n3. Add the Tauri IPC commands mapping to MT-145/142/143; ensure every path goes through the governance gate (no direct engine call that skips it).\n4. Implement MergeReviewPanel.tsx and wire it into SessionWorkbench.tsx via injected callbacks with honest-disable; add the two-step protected-approval confirm.\n5. Native headless tests (egui_kittest/AccessKit): pending list renders rows from a fixture; SideBySide preview populates; a Conflicted row opens the 3-pane merge UI; Approve is enabled only for a protected-awaiting-consent row; Execute is disabled while unresolved conflicts remain; Abort is available in Proposed/Conflicted.\n6. React tests (component/RTL): list + actions render; actions honest-disable when callbacks absent; protected approval requires the confirm step.\n7. Argus visual evidence: capture the pending list, the SideBySide preview, the 3-pane merge open, and each action state (approve-enabled / execute-blocked / result) for both surfaces; record targets for a no-context model to reproduce.\n8. Run proof targets; record measured output + Argus artifact paths.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/merge_review_panel.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs (module registration only)",
+      "src/frontend/handshake_native/tests/**",
+      "app/src/components/swarm/SessionWorkbench.tsx (extend: compose the merge-review panel via injected callbacks; honest-disable pattern)",
+      "app/src/components/swarm/MergeReviewPanel.tsx",
+      "app/src/**/merge* (thin IPC binding + tests only)",
+      "src-tauri/**/merge* (Tauri command surface for the governed merge flow, if the IPC layer lives here)"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/backend/handshake_core/src/source_control_merge.rs (engine is MT-142; reuse, do not modify)",
+      "src/backend/handshake_core/src/source_control_merge_policy.rs (governance is MT-145; reuse, do not modify)",
+      "src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs (bridge is MT-143; mount, do not modify)",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (reuse SideBySide + Merge as-is)",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain)"
+    ],
+    "acceptance_criteria": [
+      "A native egui merge-review pane (src/frontend/handshake_native/src/code_editor/merge_review_panel.rs) renders a pending-merge list, a read-only SideBySide diff preview (reusing DiffEditorPanel::side_by_side), a conflict list, and an Approve/Execute/Abort action bar.",
+      "Conflicted merges open in the EXISTING 3-pane merge UI via the MT-143 merge_conflict_bridge (DiffMode::Merge); the pane adds no second merge view and no auto-resolution.",
+      "SessionWorkbench.tsx is extended with a MergeReviewPanel that mirrors the flow following the compose + honest-disable pattern; absent IPC callbacks disable actions honestly rather than faking them.",
+      "Every UI action routes through the MT-145 governance gate: Execute on a protected target with no operator approval is Blocked and the pane shows the Blocked reason; approval is a deliberate two-step operator confirm.",
+      "Stable AccessKit author_ids exist for pending_list, each row, diff_preview, conflict_list, and the approve/execute/abort actions; headless AccessKit tests assert their presence and enabled/disabled state transitions.",
+      "Abort is available while a merge is Proposed/Conflicted and drives MergeSession::abort; a test proves an aborted merge leaves no MERGE_HEAD (delegated to the MT-142 guarantee).",
+      "No force / no push control exists in the surface (grep-provable: no push/force affordance in the new pane, panel, or IPC files).",
+      "Argus visual evidence is captured for the pending list, SideBySide preview, 3-pane merge open, and action states (approve-enabled / execute-blocked / result) on both native and React surfaces, with reproduction targets recorded.",
+      "The pane is QUIET: no foreground window pop, focus steal, or input hijack during model/operator work (HBR-QUIET), verified in the headless run."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native merge_review_panel -- --nocapture",
+      "cargo test -p handshake-native merge_review_accesskit_ids -- --nocapture",
+      "cargo test -p handshake-native merge_review_execute_blocked_without_approval -- --nocapture",
+      "bash -lc \"cd app && npm test -- MergeReviewPanel 2>&1 | tail -40\"",
+      "bash -lc \"! grep -rniE '(force-?push|git push|--force)' src/frontend/handshake_native/src/code_editor/merge_review_panel.rs app/src/components/swarm/MergeReviewPanel.tsx && echo NO_FORCE_NO_PUSH_UI\"",
+      "bash -lc \"grep -rn 'merge_review.action.approve' src/frontend/handshake_native/src/code_editor/merge_review_panel.rs | grep -q approve && echo ACCESSKIT_IDS_PRESENT\""
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/merge_review_panel.rs (NEW pane: pending list, SideBySide preview, conflict list, action bar, AccessKit author_ids)",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (REUSE: DiffMode::SideBySide ~73-95, side_by_side ~255, Merge ~305, author_id const ~54)",
+      "src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs (REUSE: MT-143 conflict resolution bridge)",
+      "app/src/components/swarm/SessionWorkbench.tsx (EXTEND: compose merge-review via injected callbacks; honest-disable ~35-61)",
+      "app/src/components/swarm/MergeReviewPanel.tsx (NEW React panel + IPC binding)",
+      "src/backend/handshake_core/src/source_control_merge_policy.rs (READ-ONLY: MT-145 governance the IPC maps to)"
+    ],
+    "expected_tests": [
+      "native headless (egui_kittest/AccessKit): pending list renders fixture rows with protected/validation badges",
+      "native headless: selecting a row populates the SideBySide preview; a Conflicted row opens the 3-pane merge UI via the bridge",
+      "native headless: Approve enabled only for protected-awaiting-consent; Execute disabled while unresolved conflicts remain; Abort available in Proposed/Conflicted",
+      "native headless: Execute on a protected target with no grant surfaces the MT-145 Blocked reason (no merge)",
+      "React (RTL): panel renders; actions honest-disable when callbacks absent; protected approval requires the two-step confirm",
+      "Argus: visual snapshots of pending list, preview, 3-pane merge, and action states captured on both surfaces"
+    ],
+    "implementation_notes": [
+      "Reuse is mandatory: DiffEditorPanel SideBySide is the preview and DiffEditorPanel Merge (via the MT-143 bridge) is the conflict UI; building any new diff/merge view is rejected (MT-143 already made this decision for the merge view).",
+      "Follow SessionWorkbench's contract literally (SessionWorkbench.tsx ~4-61): compose existing surfaces via injected callbacks, add no redundant IPC, honest-disable when a callback is absent — do not fabricate a merge or a conflict.",
+      "Consent is a two-step UI action on protected targets: the approval click plus an explicit confirm, so an accidental single click cannot approve a merge into main.",
+      "IPC must never expose an execute path that skips the MT-145 gate; the only merge execution route is the governed one, so the pane physically cannot force or bypass a protected merge.",
+      "Argus is the required visual-debug evidence surface (GLOBAL-BUILD visual debugging): capture readable/discoverable/non-overlapping states for a no-context model; record the exact targets and reproduction steps.",
+      "Keep the native pane free of shell/pane-registry assumptions beyond what code_editor/mod.rs registration needs, so the host surface mounts it without rework.",
+      "Merge-review annotations (comments on resolved files) are the later MT-201+ annotations family; do not build annotation storage in this pane."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "Native egui merge-review pane (merge_review_panel.rs): pending-merge list, read-only SideBySide diff preview, conflict list, Approve/Execute/Abort action bar",
+      "React SessionWorkbench merge-review extension (MergeReviewPanel.tsx): pending list, diff/conflict summary, approve/execute/abort with two-step protected-approval confirm"
+    ],
+    "argus_targets": [
+      "merge_review.pending_list (rows with protected + MT-run validation badges)",
+      "merge_review.diff_preview (DiffEditorPanel SideBySide, read-only)",
+      "merge_review.conflict_open (DiffEditorPanel Merge 3-pane via MT-143 bridge)",
+      "merge_review.action.approve (enabled state on a protected-awaiting-consent row)",
+      "merge_review.action.execute (blocked state while conflicts unresolved / no approval)",
+      "merge_review.result_state (CleanMerged commit id / Conflicts count / Blocked reason)"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Source Control > Merge review (pending merges, diff preview, opening conflicts in the 3-pane merge UI)",
+      "Source Control > Approving a protected merge (two-step operator consent; what the protected badge means)",
+      "Source Control > Executing/aborting a merge from the review pane (blocked states and how to clear them)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-004",
+    "HBR-MAN-001",
+    "HBR-QUIET-002",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "Operator approve/execute/abort actions flow through the MT-145 governance gate, which writes the MergeAuditRow + MT-161 merge FR events; the pane surfaces the resulting lifecycle state, so operator-driven transitions are recorded."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit a diagnostic event on an IPC command failure (list/preview/execute) surfaced to the pane, via the open diagnostic-event API if present; else DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "The review pane runs inside the long-lived native/React app; UI liveness is covered by the app-level watchers (Argus + existing app health), not a per-pane capture — record WIRED-via-app or DEFERRED-with-reason accordingly."
+    }
+  ],
+  "risk_if_missed": "The whole merge-back family stays headless: operators cannot see pending session merges, cannot preview or resolve conflicts in-app, and cannot exercise the MT-145 consent gate — they drop to raw git (unaudited, bypassing protection), and MT-148 has no operator surface to prove.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The UI exposes an execute path that bypasses the MT-145 consent gate (a direct engine IPC), letting an operator merge into a protected branch with no recorded approval.",
+      "RISK-2: A single accidental click approves a protected merge (no confirm step), or the protected badge is missing, so the operator does not realize consent is being granted for main/release.",
+      "RISK-3: The pane rebuilds a merge/diff view instead of reusing DiffEditorPanel, diverging from the real resolution logic so what the operator resolves is not what gets committed.",
+      "RISK-4: A force-push or push affordance leaks into the surface (a 'publish'/'sync' button), reintroducing the exact capability the family forbids.",
+      "RISK-5: The pane pops a foreground window / steals focus during model or parallel-operator work (HBR-QUIET violation), disrupting the swarm."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The only merge-execution IPC is the governed one; a test asserts execute_merge on a protected target with no grant returns Blocked and no merge commit exists, and there is no non-governed engine command exposed to the UI.",
+      "CTRL-2 (RISK-2): Approval is a deliberate two-step (click + confirm) with a visible protected badge; AccessKit/RTL tests assert the confirm is required and the badge renders for protected targets.",
+      "CTRL-3 (RISK-3): Preview reuses DiffEditorPanel::side_by_side and conflicts reuse the MT-143 bridge -> DiffEditorPanel::merge; forbidden_paths block editing those files, and an end-to-end test proves the resolved buffer the UI produces is the buffer committed (shared with MT-148).",
+      "CTRL-4 (RISK-4): grep proof target asserts no push/force affordance in the pane/panel/IPC files; the surface offers approve/execute/abort only.",
+      "CTRL-5 (RISK-5): Headless run asserts no foreground/focus-steal side effect; the pane renders in-surface and background-quiet per HBR-QUIET."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-native-editors-v1 src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs — DiffMode { SideBySide, Inline, Merge } lines 73-95, DiffEditorPanel::side_by_side ~255, DiffEditorPanel::merge ~305 (3 panes local/base/remote), stable AccessKit author_id const ~54 (diff_mode_toggle) with an existing egui_kittest/AccessKit headless test discipline; app/src/components/swarm/SessionWorkbench.tsx lines 4-61 (compose existing surfaces via injected callbacks, add NO new IPC beyond need, honest-disable when a callback is absent). MT-142 engine, MT-143 merge_conflict_bridge, and MT-145 governance gate are the backend this pane mounts. Field practice: the pending-list + diff-preview + resolve + approve/merge flow mirrors GitHub/GitLab merge-request review and Vibe-Kanban-style operator panels, reusing the in-app 3-pane mergetool contract instead of an external tool.",
+    "corrections": [
+      "Reuse decisions baked in: DiffEditorPanel SideBySide is the preview; the MT-143 bridge -> DiffEditorPanel Merge is the conflict UI; SessionWorkbench's compose + honest-disable contract is followed — no rebuilt views, no fabricated merges.",
+      "Operator/red-team hard rules: protected merges require a two-step operator consent enforced by the MT-145 gate (the UI cannot bypass it); no force / no push affordance; no auto-resolution; QUIET (no focus steal) per HBR-QUIET.",
+      "Git code-merge vs CRDT document-merge boundary restated; the review surface never edits CRDT documents. Merge-review annotations deferred to the MT-201+ annotations family."
+    ]
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-087",
+  "title": "RO-MT087-RoleRuntimeProofs",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-087.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-082",
+      "MT-084",
+      "MT-085"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Live runtime proof of the whole RO family — no mocks standing in for spec-required runtime. Two proof pillars: (A) TRANSPORT PARITY: the SAME Handshake Role (one registry row, one overlay_sha256) injected across all three transports — Claude CLI (stream-json), Codex CLI (app-server), and an ACP agent — with recorded role_injected events AND init-transcript evidence that the overlay actually took effect in each session; (B) IMPORTER ROUND-TRIP: the MT-084 importer run against at least 2 REAL .GOV role protocols (read-only source), drafts created, and the operator-approval flow (MT-085 approve-draft -> MT-081 activate) exercised to an injectable active role. Where a real CLI is absent on the proof host, the affected scenario records a typed NEEDS_MANAGED_RESOURCE_PROOF blocker — never a green claim, never a mock substitute.\n\nEXPECTED DIFF SHAPE: Proof test files under src/backend/handshake_core/tests/ (test_role_runtime_proofs.rs + role_proof_support module) and a machine-readable proof manifest (role_proof_manifest.json under the tests tree) recording per-scenario verdicts PASS / FAIL / NEEDS_MANAGED_RESOURCE_PROOF with evidence pointers. Minor test-support-only seams if a probe hook is missing. No product feature code beyond what MT-081..086 shipped; this MT proves, it does not implement (gaps found here route back to the owning MT as remediation).\n\nDETAILED SPEC — proof scenarios:\n- RP-01 claude-injection-live: activate a probe role whose overlay instructs: first assistant message MUST begin with ROLE_ACK:{role_id}@v{version}. Launch a real Claude CLI session (stream-json output) with MT-082 append-file injection; assert (a) role_injected FR event with matching overlay_sha256, (b) temp overlay file existed at spawn and is swept after session end, (c) init transcript's first assistant turn carries the ROLE_ACK marker (overlay demonstrably in effect, not just passed as args).\n- RP-02 codex-injection-live: same probe role via the Codex app-server transport; assert the first-turn input contains the frozen delimiter block (harness-side capture) and the first response carries ROLE_ACK (overlay in effect through the first-turn-prefix path).\n- RP-03 acp-injection-live: same probe role via the MT-061 ACP agent path; assert first prompt segment framing + ROLE_ACK + role_injected event. If no real ACP agent binary is available, typed NEEDS_MANAGED_RESOURCE_PROOF.\n- RP-04 same-role-parity: cross-check RP-01..03 evidence: identical role_id/version/overlay_sha256 across all three role_injected events; manifest row asserts the parity join, proving one role definition steers all transports.\n- RP-05 importer-round-trip: run the MT-084 importer with roles-source configured to the real .GOV/roles/ directory (read-only) covering at least orchestrator/ORCHESTRATOR_PROTOCOL.md and coder/CODER_PROTOCOL.md; assert >=2 drafts with imported provenance + correct source_ref hashes; assert source tree byte-identical after import.\n- RP-06 approval-flow-live: take one RP-05 draft through the operator-approval flow (MT-085 approve path or its API equivalent with the GUI evidence from MT-085's Argus targets referenced); assert draft->active transition ledger event; then inject the newly-activated imported role in ONE available transport and capture ROLE_ACK — the full migration story proven end-to-end: repo-gov protocol -> draft -> operator approval -> live injected session.\n- RP-07 negative-guard-live: attempt to inject (a) a draft role and (b) a tampered overlay (sha mismatch) against a real transport path; assert typed errors, no session spawn, no role_injected event.\n- Manifest: role_proof_manifest.json rows { scenario_id, transport, role_ref, verdict, evidence: [FR event ids, transcript paths, screenshot/artifact paths], blocker_reason? } written atomically; transcripts and captures go to the external artifacts root, never into the repo worktree.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Preflight: detect available real CLIs (claude, codex, ACP agent binary) via the existing preflight_version pattern in official_cli_bridge.rs; map absent CLIs to NEEDS_MANAGED_RESOURCE_PROOF rows up front.\n2. Author the probe role (deterministic ROLE_ACK overlay) as a test fixture registered through the real MT-081 API (not direct DB writes).\n3. Implement RP-01 with real Claude CLI spawn, stream-json capture (capture_cli_stream pattern in operator_chat.rs), FR event assertion, temp-file sweep assertion.\n4. Implement RP-02/RP-03 per transport; keep per-scenario hard timeouts so an unresponsive CLI yields FAIL-with-timeout, never a hang.\n5. Implement RP-04 parity join over recorded events.\n6. Implement RP-05 against the real .GOV/roles source (env-configured absolute path passed by the proof runner; the test itself hardcodes nothing) with pre/post source-tree hash comparison.\n7. Implement RP-06 approval + live injection of the imported role.\n8. Implement RP-07 negative guards on a real path.\n9. Manifest assembly (atomic write) + evidence routing to the external artifacts root.\n10. Sweep check: after the suite, zero orphan overlay temp files and zero surviving child processes (process-ledger reclamation assertion).",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/test_role_runtime_proofs.rs",
+      "src/backend/handshake_core/tests/role_proof_support/**",
+      "src/backend/handshake_core/tests/role_proof_support/role_proof_manifest.json",
+      "src/backend/handshake_core/src/** (test-support probe seams only, disclosed per seam)"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/frontend/handshake_native/** (GUI evidence comes from MT-085 Argus artifacts, referenced not re-implemented)",
+      "src/backend/handshake_core/migrations/**"
+    ],
+    "acceptance_criteria": [
+      "RP-01: live Claude CLI session injected via append-file shows ROLE_ACK in the first assistant turn, role_injected FR event matches the registry overlay_sha256, and the temp overlay file is swept after session end.",
+      "RP-02: live Codex app-server session shows the frozen delimiter block in captured first-turn input and ROLE_ACK in the first response.",
+      "RP-03: live ACP session proves first-segment injection + ROLE_ACK, or records a typed NEEDS_MANAGED_RESOURCE_PROOF blocker when no real agent binary exists.",
+      "RP-04: the three transports' role_injected events carry identical role_id/version/overlay_sha256 (same-role parity join).",
+      "RP-05: importer run against the real .GOV/roles source yields >=2 imported-provenance drafts with correct source_ref hashes and a byte-identical source tree afterward.",
+      "RP-06: one imported draft is operator-approved to active and then live-injected with ROLE_ACK captured (full repo-gov -> product round trip).",
+      "RP-07: draft-role and sha-tampered injection attempts fail typed on a real transport path with no session spawn and no role_injected event.",
+      "role_proof_manifest.json contains one row per scenario with verdict PASS / FAIL / NEEDS_MANAGED_RESOURCE_PROOF and evidence pointers; no scenario is silently skipped and no mock substitutes for an absent CLI.",
+      "Post-suite sweep: zero orphan overlay temp files, zero surviving spawned processes.",
+      "All transcripts/captures land under the external artifacts root, none inside the repo worktree."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test test_role_runtime_proofs -- --nocapture",
+      "python -c \"import json;m=json.load(open('src/backend/handshake_core/tests/role_proof_support/role_proof_manifest.json'));assert all(r['verdict'] in ('PASS','FAIL','NEEDS_MANAGED_RESOURCE_PROOF') for r in m) and len(m)>=7;print('manifest ok',len(m))\"",
+      "grep -c 'ROLE_ACK' <captured transcript artifacts under the external artifacts root>  # >=1 per live transport scenario",
+      "post-suite sweep assertion: no orphan overlay temp files, no surviving child processes (asserted inside the suite, printed to --nocapture output)"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/test_role_runtime_proofs.rs (new)",
+      "src/backend/handshake_core/tests/role_proof_support/ (new)"
+    ],
+    "expected_tests": [
+      "RP-01..RP-07 as named test functions",
+      "manifest completeness + atomic-write test",
+      "sweep/no-orphan assertion",
+      "timeout-bounded CLI interaction wrappers"
+    ],
+    "implementation_notes": [
+      "Reuse verified product mechanics: preflight_version + LiveCliSpawner in official_cli_bridge.rs for CLI detection/spawn; capture_cli_stream / ModelLaneCaptureRecorder in operator_chat.rs for transcript capture; process ledger for spawn/reclaim assertions.",
+      "ROLE_ACK is a behavioral probe: it proves the overlay reached the model's effective instruction set, which arg-presence alone cannot prove. Keep the probe overlay tiny and deterministic; a compliant model echoing the marker is the acceptance signal, and a missing marker on an otherwise-healthy session is a FAIL for that transport's injection path, to be triaged against MT-082.",
+      "Typed-blocker discipline (WP-KERNEL-012 MT-045 precedent): absent CLI/agent binaries produce NEEDS_MANAGED_RESOURCE_PROOF manifest rows — the precise managed-resource proof backlog — never PASS/GREEN language and never mock substitution.",
+      "RP-05/RP-06 are the operator's migration story proof; the roles-source path is injected via env/config by the proof runner (portability: the test binary hardcodes no repo-external path).",
+      "Every live CLI interaction is timeout-bounded and headless (HBR-QUIET): no foreground windows, no focus stealing, all child processes reclaimed."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Runtime proof MT: consumes MT-085's Argus evidence for the approval-flow GUI leg (referenced in RP-06 evidence pointers) but creates no new operator surface; role_proof_manifest.json + FR events + external transcripts are the trace projection."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Proof-only MT; product behaviors were documented by MT-081/085/086 manual entries. If proofs expose a behavior/manual mismatch, remediation routes to the owning MT with its manual duty."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-004",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "live role injection across three transports + importer round-trip + approval flow",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "This MT consumes and asserts the Tier-1 FR evidence produced by MT-082/086; internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1 — recorded DEFERRED with integration follow-up per HBR-INT-009."
+    }
+  ],
+  "risk_if_missed": "The RO family ships on arg-construction faith: nobody has proven a role actually steers a live session on any transport, transport parity is asserted not evidenced, the repo-gov migration story is untested end-to-end, and validators inherit an unprovable feature.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Arg-presence theater — proofs assert the injection args/bytes were constructed but never that the overlay took effect in the model's behavior; a broken flag passes green.",
+      "RISK-2: Mock substitution under CLI absence — a stub 'CLI' echoing ROLE_ACK fakes a live pass on hosts without the real binaries.",
+      "RISK-3: Proof-run pollution — live sessions leave orphan overlay temp files, surviving child processes, or transcripts written inside the repo worktree.",
+      "RISK-4: Hanging live CLIs — an unresponsive real CLI stalls the suite indefinitely, so the proof run never terminates (the exact failure mode the WP-012 validation history records).",
+      "RISK-5: Parity by coincidence — three green scenarios that injected different role versions still 'pass' individually while disproving the same-role claim."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): ROLE_ACK behavioral probe required in every live scenario's first assistant turn; arg assertions are supplementary, never sufficient.",
+      "CTRL-2 (RISK-2): CLI presence via preflight_version against the real executable path; absent binary -> typed NEEDS_MANAGED_RESOURCE_PROOF row; the suite contains no ROLE_ACK-emitting stubs (grep-provable).",
+      "CTRL-3 (RISK-3): post-suite sweep assertion (zero orphan overlays, zero surviving processes) + external-artifacts-root routing test for every evidence file.",
+      "CTRL-4 (RISK-4): hard per-scenario timeouts with kill+reclaim on expiry; timeout yields FAIL-with-reason, never a hang.",
+      "CTRL-5 (RISK-5): RP-04 parity join over recorded events (identical role_id/version/overlay_sha256) is its own manifest row and acceptance criterion."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified transport research (Claude --append-system-prompt-file overlay semantics + stream-json; Codex app-server first-turn carrier; ACP harness-owned injection) + inspected proof mechanics in product code (official_cli_bridge.rs preflight_version/LiveCliSpawner/hostile_never_eof_reader_cleanup_probe; operator_chat.rs capture_cli_stream) + WP-KERNEL-012 MT-045 precedent for typed NEEDS_MANAGED_RESOURCE_PROOF manifests, atomic manifest writes, external artifacts routing, and timeout-bounded live suites + verified .GOV/roles protocol files as the RP-05 round-trip source.",
+    "corrections": [
+      "Behavioral proof (ROLE_ACK in transcript) outranks construction proof (args present); both are recorded.",
+      "Absent managed resources produce typed blockers, never mocks and never green language (MT-045 lesson).",
+      "Same-role parity is an explicit joined assertion across transports, not three independent greens."
+    ]
+  }
+}

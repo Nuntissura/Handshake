@@ -1,11 +1,11 @@
 {
   "schema": "handshake.build_rules@1",
   "name": "HANDSHAKE_BUILD_RULES",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "status": "ACTIVE",
   "owner": "KERNEL_BUILDER",
-  "updated_at": "2026-06-28T20:14:58.092Z",
-  "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, and UserManual diagnostic linkage. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
+  "updated_at": "2026-07-26T04:35:00.000Z",
+  "purpose": "Authority registry for build-time and handoff-time gates that every Handshake product WP must demonstrate. Operationalizes interconnectivity, parallel agent + operator swarm safety, Argus visual + operator-GUI verification, quiet/non-intrusive operation, in-product UserManual currency, UserManual diagnostic linkage, and account-bound ownership/visibility/privacy for every product resource. Does NOT duplicate refinement, enrichment, Codex, AGENTS, or role-protocol authority; cite-only relationships to those surfaces.",
   "scope": {
     "trigger_phase": "build_time_and_handoff_time",
     "applies_to": "every WP that touches Handshake product code or product behavior under /src/, /app/, /tests/, or product runtime",
@@ -89,9 +89,267 @@
       "id": "STOP",
       "name": "Implementer Stop Discipline",
       "intent": "An implementer stop (claim-end, MT-end, WP-end, session-end, handoff) is a high-leverage failure point. Stops justified by token budget, session capacity, throughput, multi-session reasoning, or future-cost aggregates are the upstream cause of surface-shape implementations that pass tests without satisfying the spec. STOP rules forbid the motivational frame that produces deflection-shaped diffs; they are the upstream partner to INT (interconnectivity proof) and to the Spec-Realism Gate in role protocols."
+    },
+    {
+      "id": "PRIV",
+      "name": "Account-Bound Resource Privacy",
+      "intent": "Every Handshake resource is owned, scoped, and enforced as private by default across local accounts, operators inside the same project, model/agent lanes, shared workspaces, and future network/SaaS/MCP boundaries. A feature is not integrated until its primary and derived resources carry stable account/Principal/AccessSpace linkage and negative cross-scope proof."
     }
   ],
   "rules": [
+    {
+      "id": "HBR-PRIV-001",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP creates, reads, mutates, lists, derives, stores, imports, exports, synchronizes, previews, searches, or deletes any product resource",
+      "applicability": {
+        "predicate_text": "WP touches any folder, file, database row or namespace, project, asset, artifact, memory, model context, workflow record, log, trace, index entry, thumbnail, cache, derivative, export, remote object, or other product-managed resource",
+        "tags": [
+          "resource",
+          "ownership",
+          "visibility",
+          "privacy"
+        ]
+      },
+      "required_action": "The WP contract and runtime must attach a stable resource identity plus authoritative owning-account/Principal and AccessSpace visibility linkage before the resource is discoverable or usable. Tests prove the linkage survives move, rename, copy, derivation, replay, restart, restore, import, export, and synchronization paths that are in scope.",
+      "evidence_kind": "runtime_resource_lineage_and_scope_round_trip",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-132B"
+        }
+      ],
+      "not_applicable_when": [
+        "WP is pure repo-governance and touches no Handshake product resource"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-002",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches any resource authorization or discovery boundary",
+      "applicability": {
+        "predicate_text": "WP exposes or consumes resources through PostgreSQL, storage, filesystem, resource broker, API, search, model retrieval, tool calls, previews, exports, synchronization, or UI queries",
+        "tags": [
+          "authorization",
+          "default_deny",
+          "rls",
+          "resource_broker"
+        ]
+      },
+      "required_action": "Runtime tests prove default deny for missing, invalid, stale, revoked, ambiguous, and mismatched account, Principal, session, AccessSpace, project, tenant, resource, and delegation context at every touched boundary. UI filtering alone cannot satisfy this rule.",
+      "evidence_kind": "cross_boundary_default_deny_negative_suite",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132C"
+        }
+      ],
+      "not_applicable_when": [
+        "WP touches no product resource boundary"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-003",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches projects, workspaces, organizations, collaboration, sharing, or multi-actor access",
+      "applicability": {
+        "predicate_text": "WP creates or modifies behavior visible to multiple human or model actors, including actors who share the same project or future tenant",
+        "tags": [
+          "shared_project",
+          "shared_workspace",
+          "multi_actor",
+          "same_project_privacy"
+        ]
+      },
+      "required_action": "Concurrent runtime tests use at least two accounts in the same project plus one unrelated account and prove that private resources and their existence metadata, names, counts, thumbnails, search hits, activity, logs, and traces remain invisible without explicit resource grants while intentionally shared resources remain usable.",
+      "evidence_kind": "same_project_and_cross_project_isolation_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132D"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP has no multi-actor or shared-resource behavior"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-004",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP creates any derivative, projection, cache, index, context, memory, log, trace, export, or remote mirror from protected sources",
+      "applicability": {
+        "predicate_text": "WP derives new content or metadata from one or more source resources",
+        "tags": [
+          "derivation",
+          "non_widening",
+          "metadata_privacy",
+          "context_isolation"
+        ]
+      },
+      "required_action": "The derived object inherits an access scope no broader than all contributing source scopes unless an explicit authorized share or promotion event records the widening. Negative tests cover mixed-scope inputs and prove caches, indexes, summaries, embeddings, thumbnails, logs, traces, model contexts, exports, and sync mirrors cannot leak restricted source existence or content.",
+      "evidence_kind": "mixed_scope_derivation_non_widening_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132E"
+        }
+      ],
+      "not_applicable_when": [
+        "WP creates no derived resource or metadata"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-005",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP emits any resource-affecting event, action, log, trace, receipt, diagnostic, or audit projection",
+      "applicability": {
+        "predicate_text": "WP modifies EventLedger, Flight Recorder, diagnostics, receipts, traces, resource mutations, or delegated model/tool activity",
+        "tags": [
+          "attribution",
+          "flight_recorder",
+          "event_ledger",
+          "delegation"
+        ]
+      },
+      "required_action": "Runtime evidence records authenticated account, acting Principal, owner account/Principal, active AccessSpace, session, project/workspace context, and parent/delegated client where applicable. The audit and diagnostic projection is itself scope-enforced and cannot become a side channel.",
+      "evidence_kind": "typed_actor_owner_scope_attribution_and_visibility_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132F"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-INT-009"
+        }
+      ],
+      "not_applicable_when": [
+        "WP emits no resource-affecting event, log, trace, receipt, or diagnostic"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-006",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches login/logout, account state, role/grant changes, AccessSpace selection, project membership, visitor passes, tokens, MCP/SaaS links, sessions, caches, or in-flight work",
+      "applicability": {
+        "predicate_text": "WP can change or revoke effective authority while a session or derived state exists",
+        "tags": [
+          "revocation",
+          "session_pinning",
+          "context_switch",
+          "cache_invalidation"
+        ]
+      },
+      "required_action": "Runtime tests prove logout, disablement, role change, AccessSpace switch, project removal, resource revocation, pass expiry, token rotation, and disconnect stop future access promptly and invalidate or re-evaluate affected caches, contexts, previews, downloads, and in-flight work. Existing runs stay pinned to immutable original context and are never silently retargeted.",
+      "evidence_kind": "concurrent_revocation_and_context_switch_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132G"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-SWARM-002"
+        }
+      ],
+      "not_applicable_when": [
+        "WP cannot change effective account, resource, session, or delegation authority"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-007",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP touches remote, network, shared-workspace, SaaS, MCP, import, export, download, or synchronization behavior",
+      "applicability": {
+        "predicate_text": "WP crosses a local installation, network, tenant, service, MCP, or remote-resource boundary",
+        "tags": [
+          "saas",
+          "mcp",
+          "network",
+          "sync",
+          "remote_identity"
+        ]
+      },
+      "required_action": "The remote operation carries stable local account/Principal identity, remote tenant and resource identity, audience-bound delegation, explicit resource scope, authorization receipt, content hash, provenance, expiry/revocation state, and resulting local owner/AccessSpace. Tests prove remote linking cannot merge accounts, reuse a token for another resource audience, or widen local visibility.",
+      "evidence_kind": "remote_delegation_and_sync_scope_test",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132H"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-132E"
+        }
+      ],
+      "not_applicable_when": [
+        "WP remains entirely local and crosses no remote, import/export, MCP, SaaS, or synchronization boundary"
+      ],
+      "deferred_until": null
+    },
+    {
+      "id": "HBR-PRIV-008",
+      "pillar": "PRIV",
+      "status": "ACTIVE",
+      "novelty": "NEW",
+      "trigger": "WP exposes account, Principal, AccessSpace, project, sharing, privacy, or resource-visibility state to an operator or model",
+      "applicability": {
+        "predicate_text": "WP creates or modifies any operator/model-facing surface where current identity, scope, sharing, restriction, denial, or privacy state affects behavior",
+        "tags": [
+          "privacy_ui",
+          "scope_visibility",
+          "access_denied",
+          "argus"
+        ]
+      },
+      "required_action": "Argus or typed headless proof shows the active account, AccessSpace, relevant sharing/visibility state, and denial reason without revealing restricted resource metadata. Destructive sharing or widening actions require an explicit preview of affected resources and recipients; the visible state must match backend authorization under concurrent account/Space changes.",
+      "evidence_kind": "argus_privacy_scope_and_denial_state_proof",
+      "citations": [
+        {
+          "kind": "codex",
+          "anchor": "CX-132C"
+        },
+        {
+          "kind": "codex",
+          "anchor": "CX-132D"
+        },
+        {
+          "kind": "build_rule",
+          "anchor": "HBR-VIS-001"
+        }
+      ],
+      "not_applicable_when": [
+        "WP has no operator/model-facing identity, scope, sharing, denial, or resource visibility state"
+      ],
+      "deferred_until": null
+    },
     {
       "id": "HBR-INT-001",
       "pillar": "INT",
@@ -1177,7 +1435,8 @@
     "operator_corrections": [
       "2026-05-16: build rules must not duplicate refinement/enrichment scope; five pillars only (INT/SWARM/VIS/QUIET/MAN)",
       "2026-05-16: no default md projection; JSON is authority",
-      "2026-05-17: add HBR-INT-008 UUID v7 default per operator direction; UUID v7 to keep being used throughout the app"
+      "2026-05-17: add HBR-INT-008 UUID v7 default per operator direction; UUID v7 to keep being used throughout the app",
+      "2026-07-26: supersede the original five-pillar-only limit by adding PRIV as a permanent active pillar; account-bound resource identity, visibility, enforcement, attribution, revocation, and remote-delegation continuity are core requirements for every future Handshake build"
     ]
   },
   "version_log": [
@@ -1226,6 +1485,11 @@
       "version": "1.7.0",
       "at_utc": "2026-06-28T20:14:58.092Z",
       "change": "Added Argus as the named HBR-VIS visual inspection and GUI steering path (OPERATOR directive 2026-06-28), then updated it after MT-007 introduced the native Rust Argus MCP facade: UI/operator/diagnostic/frontend navigation/layout/style changes must be inspected through headless, non-intrusive Argus evidence before DONE/PASS. HBR-VIS-001 now requires stable author_id targeting plus argus.inspect/argus.click/argus.set_value/argus.screenshot or egui_kittest/AccessKit evidence, with list_widgets/click_widget/set_value/screenshot retained only as compatibility aliases. HBR-VIS-005 treats any in-scope surface Argus cannot see, identify, steer, or re-observe as HBR-VIS technical debt and an allowed same-MT/WP scope increase when it blocks proof. Canonical protocol: .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md; Codex anchor: CX-503D1."
+    },
+    {
+      "version": "1.8.0",
+      "at_utc": "2026-07-26T04:35:00.000Z",
+      "change": "Added PRIV as the permanent Account-Bound Resource Privacy pillar with HBR-PRIV-001 through HBR-PRIV-008. Every folder, file, PostgreSQL row/namespace, project, asset, artifact, memory, model context, log, trace, index, thumbnail, cache, derivative, export, and remote object must carry stable account/Principal/AccessSpace/ResourceGrant scope; default-deny enforcement and cross-account/same-project-private negative proof are mandatory; derived outputs cannot widen source scope; audit and metadata surfaces cannot leak restricted existence; revocation/context switching is bounded; and future shared-workspace/SaaS/MCP delegation uses the same resource identity and scope model. Operator approval: ilja260720260635."
     }
   ]
 }

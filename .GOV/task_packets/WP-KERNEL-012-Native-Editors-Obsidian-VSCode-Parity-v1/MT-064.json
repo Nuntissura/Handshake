@@ -14,7 +14,7 @@
   "title": "E9-MT-064-FemsMemoryWriteProposalFromEditor",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-25T22:56:57.3382940Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-064.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-063"
@@ -33,7 +33,7 @@
     "blocks": [
       "MT-074"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -45,6 +45,40 @@
       "cross_mt_ac004": "The contract's live proposal+FR acceptance is proven by the MT-065 FEMS-02 managed-PG run, which exercises the MT-064 production command/dialog path and asserts exact proposal/FR correlation. MT-064's local endpoint test remains intentionally a typed in-process route-absent probe because the backend endpoint is absent by contract.",
       "independent_review": "PASS — READY_FOR_VALIDATION_V2 (mt041_064_final_review, 2026-07-18). HBR-STOP-012-01 is owned by MT-065/074 and does not block MT-064 readiness.",
       "residual_uncertainty": "The backend proposal route and live FR ingestion remain external managed-resource dependencies; the live cross-MT proof is the required evidence for those clauses."
+    },
+    "claimed_by": "KERNEL_BUILDER-20260723-082350",
+    "claimed_at_utc": "2026-07-23T15:40:05.803Z",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "remediation_v3_review_hardening_completed_at_utc": "2026-07-25T22:52:00.6651093Z",
+    "ready_for_validation_at_utc": "2026-07-25T22:56:57.3382940Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260725-202657",
+    "completed_by": null,
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_FINAL_REVIEWS_NO_PRODUCT_BLOCKER",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-25T22:56:50.576Z",
+      "actor_session": "KERNEL_BUILDER-20260725-202657",
+      "overall_verdict": "PASS"
+    },
+    "ready_for_validation_summary": "MT-064 V3: commit c7063c24 implements and strictly validates the current FR-EVT-MEM-001 contract, persists the canonical hsk.memory_write_proposal@0.1 artifact and correlated event through managed PostgreSQL, fails closed across recorder failure/quarantine/review/commit, recovers exact retries across actor/process changes, proves exact Loom references, drives the mounted proposal flow through canonical localhost Argus, and updates the in-product UserManual including all three diagnostic tiers. Three final independent reviews found no remaining product defect. validator_verdict remains FAIL_V2 and completed_by remains null pending official validation.",
+    "remediation_v3_scope_authority": {
+      "kind": "OPERATOR_DIRECTIVE_CORRELATED_GAPS_INSIDE_SAME_MT",
+      "source": "Operator-provided pasted-text-1.txt read 2026-07-26",
+      "directive": "Address unexpected gaps inside the same MT when they correlate with the current MT; when remediation is implemented change status to READY_FOR_VALIDATION_V3; continue until the full WP is implemented.",
+      "reason": "The validator-required FR-EVT-MEM-001 remediation needed nine product paths outside the original pure-frontend MT contract, including four paths originally forbidden under src/backend/**. The later validation_v2 contract required the backend event implementation, and the Operator directive authorizes correlated gap closure inside this MT.",
+      "paths": [
+        "src/backend/handshake_core/src/api/flight_recorder.rs",
+        "src/backend/handshake_core/src/api/memory.rs",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs",
+        "src/backend/handshake_core/src/storage/fems_memory.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/editor_pane_factories.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_event_emitter.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs"
+      ]
     }
   },
   "scope": {
@@ -154,7 +188,8 @@
     "branch": "feat/WP-KERNEL-012",
     "commits": [
       "6bdaf32f feat MT-064 FEMS memory-write proposal from editor",
-      "b052f95f fix harden per adversarial review"
+      "b052f95f fix harden per adversarial review",
+      "c7063c24 fix(MT-064): harden canonical memory proposal events"
     ],
     "review_panel": "correctness=CHANGES_REQUIRED(2), backend-shape=CHANGES_REQUIRED(1), perf-focus-hygiene=CHANGES_REQUIRED(2) -> 5 must-fixes hardened.",
     "proofs": "AC-001..010 PASS (AC-004/PT-003 NEEDS_MANAGED_RESOURCE_PROOF); 6 integration + 10 lib + regression (relevant_memory 10, event_emitter 10, command_palette 9, interaction_bus 5, accesskit 9) green; clippy clean; Propose-to-Memory dialog (review-gated banner 'the editor never commits memory directly', 3-class radio Episodic/Semantic/Procedural, content preview + hash + class, Propose/Cancel) visually verified; screenshot EXTERNAL.",
@@ -162,7 +197,11 @@
     "steers_held": "NEVER-EDITOR-DIRECT-COMMIT (the load-bearing invariant): review_gated HARD-true (no review_gated:false anywhere, no direct memory-commit call site - grep gate; banner makes it operator-visible). content_hash REUSES the MT-032/MT-020 loom primitive (canonical_content_sha256 / ContentHash::of_content_json; proposal hash == loom block hash, 64-char lowercase hex, NO 2nd scheme). build_proposal PURE (full MemorySourceProvenance from MT-031 SharedSelection). submit OFF-thread; FR via the MT-036 NativeEditorEventEmitter (NO new emitter; event_type stays closed FR vocab; action='memory_write_proposed' payload marker + full provenance). reuse command_registry (fems.propose_to_memory, WRAP-not-fork, no dup). accesskit fems-propose-dialog/class-{x}/confirm deduped, keybind=None. no backend/SQLite.",
     "out_of_scope_disclosed": "event_emitter.rs edited (disclosed GLOBAL-SCOPE-005): added NativeEditorAction::MemoryWriteProposed + as_str arm (the FR-EVT-MEM-001 needs the action variant in the MT-036 emitter); test count 7->8; minimal unblocker.",
     "strategic_gaps": "TWO future backend packets: (1) FEMS PROPOSAL WRITE route POST /workspaces/{id}/memory/proposals absent (joins the MT-063 FEMS read-route gap); (2) FR native-editor memory_write_proposed INGESTION absent (the MT-036 closed-schema gap). Both -> the proposal->review->commit loop's editor entry is built + shape-proven; goes live when the backend exposes the routes.",
-    "waiver_granted": "fems/memory_proposal.rs (new) + fems/mod.rs + command_registry.rs + event_emitter.rs (MemoryWriteProposed action) + test in allowed_paths."
+    "waiver_granted": "fems/memory_proposal.rs (new) + fems/mod.rs + command_registry.rs + event_emitter.rs (MemoryWriteProposed action) + test in allowed_paths.",
+    "remediation_v3_commit": "c7063c24",
+    "remediation_v3_review_panel": "correctness=NO_REMAINING_PRODUCT_FIX; spec-conformance=NO_REMAINING_PRODUCT_FIX_OR_OPEN_BLOCKER; HBR/scope=TECHNICAL_FINDINGS_CLOSED. Three independent final reviews confirmed current ArtifactHandle string authority, exact FR payload/privacy/hash/counts, fail-closed quarantine/recovery, owned-current-source PostgreSQL proof, full canonical localhost Argus flow, exact terminal event UUID correlation, and UserManual three-tier posture.",
+    "remediation_v3_proofs": "PASS: backend outbox retry 1/1, quarantine/review/commit fail-closed 1/1, exact Loom reference 1/1, strict memory event validation 3/3; frontend proposal 10/10, exact event parser 1/1, UserManual 2/2; owned-current-source handshake_core + managed PostgreSQL + canonical Argus 1/1, proposal 3164d04f-4829-409e-a2ab-bceaf2cd705a with correlated FR-EVT-MEM-001. Scoped rustfmt passed for every changed Rust file except whole-file app.rs baseline formatting drift outside the MT hunks; git diff checks passed. Generic live focus audit was invalid and is not cited as MT proof; packet-level HBR-QUIET remains pending.",
+    "remediation_v3_scope_authority": "Operator directive in pasted-text-1.txt authorizes correlated gaps inside the same MT and orders implemented remediation to READY_FOR_VALIDATION_V3; exact nine-path expansion is recorded in lifecycle.remediation_v3_scope_authority."
   },
   "validation_v1_superseded_2026_07_11": {
     "verdict": "FAIL_V1",
@@ -343,5 +382,28 @@
       ],
       "no_context_instruction": "Read MT-064.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-064 FAIL V2. The proposed-memory event does not implement the current normative FR-EVT-MEM-001 shape. The spec requires event_code, proposal_id, proposal_hash, artifact_ref, scope_refs, op_count, and requires_review_count; the frontend/backend emit a different ad hoc payload, so replay/debug contract compatibility fails.",
+    "remediation_plan": [
+      "Implement the exact FR-EVT-MEM-001 event contract without raw memory content, including canonical proposal hash, artifact handle, scope refs, and counts; reject malformed variants.",
+      "Prove proposal persistence and exact EventLedger/Flight Recorder payload on real PostgreSQL, then drive the editor proposal UI through canonical Argus and update canonical UserManual."
+    ],
+    "no_context_instruction": "Read MT-064.json and SPEC_CURRENT v02.201 section 11.5.13 before editing. Correct the event schema, run real proposal/receipt and Argus proofs, and return READY_FOR_VALIDATION_V3."
   }
 }

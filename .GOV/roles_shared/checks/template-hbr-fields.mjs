@@ -8,9 +8,11 @@ import {
   formatPacketAcceptanceMatrixSection,
 } from "../scripts/lib/packet-closure-monitor-lib.mjs";
 
-const PILLARS = ["INT", "SWARM", "VIS", "QUIET", "MAN"];
+const PILLARS = ["INT", "SWARM", "VIS", "QUIET", "MAN", "PRIV"];
 
 function defaultRepoRoot() {
+  const injectedGovRoot = String(process.env.HANDSHAKE_GOV_ROOT || "").trim();
+  if (injectedGovRoot) return path.resolve(injectedGovRoot, "..");
   const injected = String(process.env.HANDSHAKE_ACTIVE_REPO_ROOT || "").trim();
   if (injected) return path.resolve(injected);
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -211,6 +213,8 @@ export function validateTemplates(repoRoot = defaultRepoRoot()) {
     ]) {
       requireIncludes(failures, "TASK_PACKET_TEMPLATE.md", taskPacketText, needle);
     }
+    requireIncludes(failures, "TASK_PACKET_TEMPLATE.md", taskPacketText, "ACCOUNT_RESOURCE_PRIVACY_CONTRACT");
+    requireIncludes(failures, "TASK_PACKET_TEMPLATE.md", taskPacketText, "HBR-PRIV-008");
   }
 
   const workPacketContract = readJson(repoRoot, "WORK_PACKET_CONTRACT_TEMPLATE.json", failures);
@@ -220,22 +224,29 @@ export function validateTemplates(repoRoot = defaultRepoRoot()) {
     requireValuePath(failures, "WORK_PACKET_CONTRACT_TEMPLATE.json", workPacketContract, "acceptance_matrix.schema_version", 1);
     requireEmptyArrayPath(failures, "WORK_PACKET_CONTRACT_TEMPLATE.json", workPacketContract, "acceptance_matrix.hbr");
     requireEmptyArrayPath(failures, "WORK_PACKET_CONTRACT_TEMPLATE.json", workPacketContract, "acceptance_matrix.hbr_not_applicable");
+    requireValuePath(failures, "WORK_PACKET_CONTRACT_TEMPLATE.json", workPacketContract, "resource_privacy_contract.required_for_every_product_wp", true);
+    requireEmptyArrayPath(failures, "WORK_PACKET_CONTRACT_TEMPLATE.json", workPacketContract, "resource_privacy_contract.resource_inventory");
   }
 
   const refinementText = readText(repoRoot, "REFINEMENT_TEMPLATE.md", failures);
   if (refinementText !== null) {
     requirePillarText(failures, "REFINEMENT_TEMPLATE.md", refinementText);
+    requireIncludes(failures, "REFINEMENT_TEMPLATE.md", refinementText, "ACCOUNT_RESOURCE_PRIVACY_REVIEW");
   }
 
   const refinementContract = readJson(repoRoot, "REFINEMENT_CONTRACT_TEMPLATE.json", failures);
   if (refinementContract !== null) {
     requirePillarJson(failures, "REFINEMENT_CONTRACT_TEMPLATE.json", refinementContract);
     requireEmptyArrayPath(failures, "REFINEMENT_CONTRACT_TEMPLATE.json", refinementContract, "refinement.microtask_plan_item_defaults.hbr_obligations");
+    requireValuePath(failures, "REFINEMENT_CONTRACT_TEMPLATE.json", refinementContract, "refinement.resource_privacy_review.required_for_every_product_refinement", true);
+    requireEmptyArrayPath(failures, "REFINEMENT_CONTRACT_TEMPLATE.json", refinementContract, "refinement.resource_privacy_review.resource_inventory");
   }
 
   const microtaskContract = readJson(repoRoot, "MICRO_TASK_CONTRACT_TEMPLATE.json", failures);
   if (microtaskContract !== null) {
     requireEmptyArrayPath(failures, "MICRO_TASK_CONTRACT_TEMPLATE.json", microtaskContract, "hbr_obligations");
+    requireValuePath(failures, "MICRO_TASK_CONTRACT_TEMPLATE.json", microtaskContract, "resource_privacy_obligation.required", true);
+    requireEmptyArrayPath(failures, "MICRO_TASK_CONTRACT_TEMPLATE.json", microtaskContract, "resource_privacy_obligation.resources_touched");
   }
 
   requireGeneratedDefaults(failures, repoRoot);

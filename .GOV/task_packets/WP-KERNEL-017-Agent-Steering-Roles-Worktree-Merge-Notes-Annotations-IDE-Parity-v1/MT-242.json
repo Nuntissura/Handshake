@@ -1,0 +1,187 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-242",
+  "title": "PD-MT242-ProseDiffUi",
+  "group": "PD Native prose diff",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-242.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-241"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Render the native prose diff produced by MT-241 in the notes/rich editor as a READ-ONLY block-level diff view with two modes — side-by-side and inline/unified — plus a mode toggle. This is the block-aware prose equivalent of the code diff panel (code_editor/diff_editor_panel.rs), reusing its exact rendering and AccessKit conventions so the two diff surfaces feel identical. It consumes MT-241's ProseDiff (BlockDiff{status, kind, left_node, right_node, left_text, right_text, inline text spans}) and renders through the EXISTING rich-editor block renderer (rich_editor::renderer / reading_mode read-only rendering), never re-implementing block layout.\n\nEXPECTED DIFF SHAPE: NEW module src/frontend/handshake_native/src/rich_editor/prose_diff_ui/ (mod.rs + panel.rs holding ProseDiffPanel + row_map.rs for the block-level synced-scroll map) registered from rich_editor/mod.rs with `pub mod prose_diff_ui;`; one integration/GUI test file. NO backend edits, NO legacy React edits, NO change to MT-241's engine.\n\nDETAILED SPEC (structs, panes, interaction, AccessKit ids):\n1. ProseDiffPanel: constructed from two RichDocuments (or a prebuilt ProseDiff) plus an `extension`/instance suffix, mirroring DiffEditorPanel::diff(left,right,extension). Holds the computed ProseDiff, a ProseDiffMode (SideBySide | Inline), and a block-level SyncScrollState. Read-only: no editing, no cursor, no transactions.\n2. ProseDiffMode enum { SideBySide, Inline } with a mode toggle button, mirroring diff_editor_panel.rs's DiffMode toggle. Toggle AccessKit author_id: `prose_diff_mode_toggle` (Role::Button, matching how diff_editor_panel uses Role::Button for the toggle because accesskit 0.21.1 lacks ToggleButton — reuse that documented workaround).\n3. SIDE-BY-SIDE mode: two read-only rich panes (left = old/base doc, right = new doc) rendered by the existing block renderer. Each changed block gets a background tint keyed by BlockDiff.status, sourced from theme tokens (crate::theme HsPalette — same no-hardcoded-hex rule as conflict_ui.rs and gutter.rs; add prose-diff tint tokens if none exist, do NOT inline hex): Added = add tint (right pane only), Removed = remove tint (left pane only), Modified = modify tint (both panes). Unchanged blocks render untinted. Synced scroll by BLOCK MAP: build a block-level row map (row_map.rs) analogous to diff_editor_panel::build_line_map/SyncRow — a Vec of (Option<left_block_idx>, Option<right_block_idx>) so scrolling one pane maps to the aligned block on the other (Added rows have no left, Removed rows have no right). Pane container author_ids instance-suffixed: `prose_diff_panel#{ext}_left` / `#{ext}_right`.\n4. INLINE / UNIFIED mode: a single pane listing blocks in aligned order. Removed blocks styled with the remove tint + a `-` block affordance; Added blocks with the add tint + a `+` affordance; Unchanged blocks plain; Modified blocks render the new block AND show the intra-block inline text diff from MT-241 (InlineTextSpan Equal/Insert/Delete) as inline insert/delete-styled text runs within the block (insert = add tint on the run, delete = remove tint + strikethrough), mirroring how code_editor inline mode marks `+ `/`- ` rows but at word granularity inside the block.\n5. CODE-BLOCK diff blocks (BlockDiff.kind == Code): render the block's code with the code-diff styling already used by the code editor (monospaced, add/remove tint) rather than prose styling, so a monacoCodeBlock edit inside a note reads like a code diff.\n6. Read-only guarantee: the panel emits NO editing affordances and holds NO SaveManager; it is a viewer. Annotation markers/threads on the diff are MT-244 (this MT leaves an integration seam: a public accessor exposing the aligned block rows + their old/new block indices so MT-244 can attach block-range anchors).\n7. AccessKit: panel root author_id `prose_diff_panel` (Role::Group, instance-suffixed on dual mount), toggle `prose_diff_mode_toggle`, each pane container suffixed as above, each changed-block region addressable as `prose_diff_block_{aligned_index}` (Role::Group) so Argus can assert per-block tinting and the block count. Reuse rich_editor::scoped_author_id for namespacing (same call conflict_ui.rs uses).\n\nSTEP-BY-STEP:\n1. Read MT-241 prose_diff.rs (ProseDiff/BlockDiff/ProseDiffStatus/InlineTextSpan/BlockMergeStatus) and the real surfaces to mirror: code_editor/diff_editor_panel.rs (DiffMode toggle, show_side_by_side/show_inline, SyncScrollState, build_line_map/SyncRow, DIFF_EDITOR_PANEL_AUTHOR_ID/DIFF_MODE_TOGGLE_AUTHOR_ID, the accesskit 0.21.1 Role::Button toggle workaround, the left/right instance-suffix scheme), rich_editor/renderer/* and reading_mode.rs (the existing READ-ONLY block renderer this MT reuses), rich_editor/mod.rs scoped_author_id, and crate::theme HsPalette tokens.\n2. Create prose_diff_ui/mod.rs + row_map.rs (block-level sync map) + panel.rs (ProseDiffPanel, ProseDiffMode, show()).\n3. Implement side-by-side: two read-only rich panes, per-block background tints from theme tokens, block-map synced scroll, suffixed pane author_ids.\n4. Implement inline/unified: single aligned list, added/removed block styling, Modified blocks show the intra-block InlineTextSpan diff; code-kind blocks use code-diff styling.\n5. Add the mode toggle + the MT-244 block-row accessor; register the module in rich_editor/mod.rs.\n6. Write the GUI test file covering both modes, all four statuses, a Modified block's inline spans, a code-block diff, and empty/identical-doc (zero tints). Capture Argus evidence (screenshot + AccessKit tree) for each surface into HANDSHAKE_ARTIFACTS_ROOT.\n7. Update the UserManual in the same change (prose diff view: modes, tint meaning, inline word diff, how to open it).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/**",
+      "src/frontend/handshake_native/src/rich_editor/mod.rs (module registration only)",
+      "src/frontend/handshake_native/src/theme.rs (prose-diff tint tokens ONLY if no reusable diff tint token exists)",
+      "src/frontend/handshake_native/tests/test_prose_diff_ui.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by TR MT-261..264; never extend it)",
+      ".GOV/**",
+      "src/backend/** (no backend involvement; diff is client-side)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs (MT-241 engine; consume, do not edit)",
+      "src/frontend/handshake_native/src/rich_editor/save/** (merge UI is MT-243)"
+    ],
+    "acceptance_criteria": [
+      "ProseDiffPanel renders MT-241's ProseDiff read-only in SideBySide (two rich panes) and Inline modes with a working prose_diff_mode_toggle button.",
+      "Changed blocks are background-tinted by status (Added right-only, Removed left-only, Modified both) using crate::theme tokens (no hardcoded hex); Unchanged blocks are untinted.",
+      "Side-by-side scroll is synced by a BLOCK map (row_map.rs), analogous to diff_editor_panel build_line_map/SyncRow, so an aligned block on one pane maps to its counterpart (Added rows have no left, Removed rows have no right).",
+      "Inline mode shows added/removed block styling and, for Modified blocks, renders the intra-block InlineTextSpan (Equal/Insert/Delete) word-level diff with insert/delete styling.",
+      "Code-kind (monacoCodeBlock / NodeKind::CodeBlock) diff blocks render with code-diff styling, not prose styling.",
+      "Blocks render through the existing rich-editor read-only renderer (rich_editor::renderer / reading_mode), not a re-implemented block layout; the panel holds no SaveManager and exposes no edit affordance.",
+      "AccessKit: panel root `prose_diff_panel` (Group), toggle `prose_diff_mode_toggle` (Button), panes `prose_diff_panel#{ext}_left`/`#{ext}_right`, changed blocks `prose_diff_block_{i}` — all via scoped_author_id, instance-suffixed on dual mount with no collision.",
+      "A public accessor exposes the aligned block rows (old/new block indices per row) for MT-244 annotation anchoring.",
+      "UserManual updated in the same change: prose diff view modes, tint legend, inline word diff, opening the view.",
+      "cargo test -p handshake-native prose_diff_ui passes; Argus screenshot + AccessKit tree captured for both modes and all four statuses."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native prose_diff_ui -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "rg -n '0x[0-9a-fA-F]{6}|Color32::from_rgb' src/frontend/handshake_native/src/rich_editor/prose_diff_ui/ | wc -l | grep -q '^0$'",
+      "rg -n 'prose_diff_mode_toggle|prose_diff_panel|prose_diff_block_' src/frontend/handshake_native/src/rich_editor/prose_diff_ui/panel.rs",
+      "Argus evidence: argus.screenshot + AccessKit tree dump of (a) SideBySide both panes with add/remove/modify tints, (b) Inline with a Modified block's word-level inline diff, (c) a code-block diff, (d) identical-doc zero-tint case — stored under HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/mod.rs (new)",
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/panel.rs (new, ProseDiffPanel + ProseDiffMode)",
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/row_map.rs (new, block-level sync map)",
+      "src/frontend/handshake_native/src/rich_editor/mod.rs (module registration)"
+    ],
+    "expected_tests": [
+      "unit: block sync row map pairs aligned blocks; Added rows have no left index, Removed rows have no right index",
+      "unit: status -> tint mapping distinct per status and sourced from theme tokens",
+      "unit: Modified block emits inline InsertSpan/DeleteSpan runs from MT-241 InlineTextSpan",
+      "integration: SideBySide dual mount produces non-colliding suffixed author_ids for both panes",
+      "integration: inline mode renders added/removed/modified/unchanged in aligned order",
+      "integration: code-kind block uses code-diff styling",
+      "negative: identical documents render zero tints and no changed-block nodes"
+    ],
+    "implementation_notes": [
+      "Mirror code_editor/diff_editor_panel.rs conventions verified 2026-07-21: DiffMode toggle with DIFF_MODE_TOGGLE_AUTHOR_ID, show_side_by_side/show_inline/show_merge, SyncScrollState + build_line_map returning SyncRow=(Option<usize>,Option<usize>), the left/right instance-suffix scheme, and the accesskit 0.21.1 note that Role::ToggleButton is unavailable so Role::Button is used for the toggle (the ACs assert author_id, not role). Reuse these patterns for the prose equivalent at BLOCK granularity.",
+      "Render read-only through the existing rich_editor block renderer (renderer/* and reading_mode.rs) — this MT is a diff CHROME layer over that renderer, not a new block layout. reading_mode.rs already renders a document read-only; wrap its per-block output with a status tint.",
+      "Theme tokens only (crate::theme HsPalette); conflict_ui.rs and gutter.rs both prove the no-hardcoded-hex rule. If a diff add/remove/modify tint token does not already exist, add it to theme.rs alongside the existing diagnostic tokens; do not inline Color32 literals.",
+      "This MT is READ-ONLY. Annotations on the diff (block-range anchors, markers, threads) are MT-244; expose the aligned-block-row accessor as the seam MT-244 consumes. The 3-way merge UI is MT-243.",
+      "Argus + AccessKit evidence must show tint distinctness and per-block addressability; capture into the external HANDSHAKE_ARTIFACTS_ROOT (never into the repo worktree)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "ProseDiffPanel SideBySide two rich panes",
+      "ProseDiffPanel Inline unified view with intra-block word diff",
+      "prose diff mode toggle",
+      "code-block diff styling within a prose diff"
+    ],
+    "argus_targets": [
+      "prose_diff_panel",
+      "prose_diff_mode_toggle",
+      "prose_diff_block_{aligned_index}"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "readability_check_all_diff_statuses",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Prose diff view: side-by-side vs inline modes, the added/removed/modified tint legend, the intra-block word-level diff on modified blocks, code-block diff styling, and how to open a prose diff"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Read-only render surface over MT-241's pure diff; it emits no business events (merge/save events are MT-243)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Per-block tint decisions and the block sync-row map are exposed as structured state readable by the visual_debugger for no-context diagnosis of a mis-tinted or misaligned block."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure render surface; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "MT-241's engine has no operator-visible surface: worktree-merge and notes conflict review cannot SEE block-level prose changes, MT-243's merge UI has no diff rendering to build on, MT-244 has no diff view to annotate, and prose review falls back to the legacy React editor that TR MT-261..264 removes.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Misaligned panes — the block sync map pairs the wrong blocks, so a changed block on the right lines up against an unrelated block on the left and the operator reads the wrong before/after.",
+      "RISK-2: Tint confusion — Added/Removed/Modified tints are color-only or too similar, so a colorblind operator cannot tell an addition from a deletion (HBR-VIS regression) or a tint bleeds onto an unchanged block.",
+      "RISK-3: The diff panel is accidentally editable (a live editor mount), letting an operator mutate a document from a viewer and corrupt state, or holding a SaveManager it should not.",
+      "RISK-4: The intra-block word diff on a Modified block is dropped or rendered as plain text, so the operator sees 'modified' with no indication of WHAT changed inside the block.",
+      "RISK-5: AccessKit id collision on dual mount — SideBySide mounts two panes; unsuffixed block/pane ids collide, breaking Argus evidence and keyboard access."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): row_map unit test asserts aligned pairs match MT-241's BlockDiff old/new indices; a mixed add/remove/modify fixture proves pane alignment.",
+      "CTRL-2 (RISK-2): tints are shape/label-reinforced (Added `+`, Removed `-`, Modified marker) not color-only, sourced from theme tokens; a readability check across all statuses is in the Argus evidence; an unchanged-block-untinted assertion guards bleed.",
+      "CTRL-3 (RISK-3): the panel type holds no SaveManager and exposes no edit method (grep-provable: no apply_transaction / no draft/save import); a test asserts the rendered content is non-editable.",
+      "CTRL-4 (RISK-4): a Modified-block test asserts InsertSpan/DeleteSpan runs are emitted from the MT-241 InlineTextSpan data, not swallowed.",
+      "CTRL-5 (RISK-5): reuse the diff_editor_panel left/right instance-suffix scheme; a dual-mount test asserts non-colliding suffixed author_ids for panes and blocks."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: code_editor/diff_editor_panel.rs (DiffMode SideBySide/Inline/Merge, DIFF_EDITOR_PANEL_AUTHOR_ID/DIFF_MODE_TOGGLE_AUTHOR_ID, SyncScrollState + build_line_map/SyncRow, left/right instance-suffix scheme, accesskit 0.21.1 Role::Button toggle workaround, show_side_by_side/show_inline), rich_editor/save/conflict_ui.rs (theme HsPalette usage + scoped_author_id pattern + read-only block_summaries), rich_editor/mod.rs (module list, scoped_author_id, renderer + reading_mode modules), rich_editor/document_model/node.rs (NodeKind including CodeBlock). Consumes MT-241 ProseDiff/BlockDiff/InlineTextSpan.",
+    "corrections": [
+      "The prose diff renders through the EXISTING read-only rich renderer (renderer/* + reading_mode.rs); this MT adds a diff-chrome layer (tints + alignment + modes), it does not re-implement block layout.",
+      "The mode toggle uses Role::Button (not ToggleButton) per the diff_editor_panel accesskit 0.21.1 constraint; the acceptance criteria assert the author_id, matching that precedent."
+    ]
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-003",
+  "title": "SC-MT003-CapabilityFramework",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-003.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the AdapterCapabilities descriptor + per-session capability registry that every transport adapter (Claude MT-021+, Codex MT-041+, ACP MT-061+) populates AT SESSION INIT from a transport probe — e.g. the capabilities array inside Claude Code's system/init stream-json envelope (which advertises entries such as interrupt_receipt_v1) or the Codex app-server initialize response — and that all capability-gated APIs (steer drain mode MT-002, delivery acks MT-008, resume MT-006, interrupt MT-005/MT-007) consult before acting. Version-string comparison is BANNED as a capability source: capabilities come from what the live transport DECLARES at init or from an explicit static declaration, never from parsing a version number.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/capabilities.rs; (b) pub use additions in agent_sessions/mod.rs; (c) extend AgentSessionError only if the reserved CapabilityMissing variant from MT-001 needs field adjustment (additive); (d) new test file src/backend/handshake_core/tests/agent_sessions_capabilities_tests.rs.\n\nSPEC CATALOG:\n\n- pub enum AdapterCapability { SteerMidTurn, InterruptMidTurn, InterruptReceipt, Resume, ForkSession, StructuredOutput, DeliveryAck, RoleOverlay } — serde rename_all snake_case; Ord+Eq+Hash so sets are BTreeSet (deterministic serialization order for snapshots); pub fn label(self) -> &'static str returning the snake_case string.\n- pub enum CapabilityProbeSource { TransportInit { raw: serde_json::Value }, DeclaredStatic { declared_by: String }, TestFixture } — TransportInit carries the RAW init payload verbatim so the capability decision is auditable and replayable; DeclaredStatic exists for transports whose init does not advertise (declared_by names the adapter module making the static claim so audits can locate it).\n- pub struct AdapterCapabilities { pub adapter_kind: AgentAdapterKind, pub flags: BTreeSet<AdapterCapability>, pub source: CapabilityProbeSource, pub probed_at_utc: DateTime<Utc> } with pub fn has(&self, cap: AdapterCapability) -> bool and pub fn snapshot_json(&self) -> serde_json::Value (stable, deterministic — this is what MT-006 persists as the capabilities snapshot on the durable session record, mirroring how the sandbox layer already snapshots adapter capabilities into ledger metadata: official_cli_bridge.rs attributed_spawn_meta sets meta.sandbox_capabilities_snapshot at lines 2332-2337).\n- pub trait CapabilityProbe: Send + Sync { fn probe(&self, init_payload: &serde_json::Value) -> BTreeSet<AdapterCapability>; } — the SEAM the adapter families implement; this MT ships only (a) a NullProbe returning the empty set (honest floor: no declared capability means no gated API works, typed errors instead of guesses) and (b) a TestFixtureProbe reading a {\"capabilities\":[\"steer_mid_turn\",...]} JSON array for tests.\n- pub struct CapabilityRegistry { inner: std::sync::RwLock<HashMap<SessionId, AdapterCapabilities>> } — pub fn register(&self, session_id: SessionId, caps: AdapterCapabilities) -> Option<AdapterCapabilities> (returns the replaced snapshot; re-probe on resume overwrites — capabilities are per-LAUNCH, not forever); pub fn get(&self, session_id: &SessionId) -> Option<AdapterCapabilities>; pub fn require(&self, session_id: &SessionId, cap: AdapterCapability) -> Result<(), AgentSessionError> returning AgentSessionError::CapabilityMissing { session_id, capability: cap.label().to_string(), adapter_kind } when absent (and ThreadNotFound when the session was never registered); pub fn remove(&self, session_id: &SessionId) — teardown hook for MT-005.\n- pub fn drain_mode_for(caps: &AdapterCapabilities) -> DrainMode — the single mapping point to MT-002: SteerMidTurn => DrainMode::MidTurn else DrainMode::TurnBoundaryOnly.\n- ANTI-VERSION-GATE (normative): capabilities.rs MUST NOT contain version parsing, semver comparison, or version-string matching of any kind; the module docs state the rule and a grep proof target enforces it. Rationale: version-gating silently breaks on forks/nightlies/back-ports; the transport's own declaration is the only honest source (Claude explicitly ships the capabilities array in system/init for exactly this purpose).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-001 types.rs (SessionId, AgentAdapterKind, AgentSessionError::CapabilityMissing reserved variant) and official_cli_bridge.rs lines 2316-2355 (attributed_spawn_meta capabilities-snapshot precedent).\n2. Implement capabilities.rs per the catalog; BTreeSet for deterministic order; snapshot_json produces {\"schema_id\":\"hsk.adapter_capabilities_snapshot@1\",\"adapter_kind\":...,\"flags\":[...],\"source_kind\":...,\"probed_at_utc\":...}.\n3. Implement CapabilityRegistry with std RwLock (read-mostly); require() is the ONLY blessed gate — module docs forbid ad-hoc `caps.flags.contains` gating outside tests so every capability denial is a uniform typed error.\n4. Implement NullProbe + TestFixtureProbe; TestFixtureProbe parses unknown capability strings by IGNORING them with a listed-unknowns return (forward-compat: a newer CLI advertising a capability we do not model must not fail the probe) — expose pub struct ProbeOutcome { pub recognised: BTreeSet<AdapterCapability>, pub unknown: Vec<String> } from a helper pub fn parse_capability_strings(raw: &[&str]) -> ProbeOutcome used by real adapters later.\n5. Author tests/agent_sessions_capabilities_tests.rs: serde snake_case wire pins for all 8 flags; registry register/get/replace-on-reprobe/remove; require() success + CapabilityMissing typed error carrying capability label and adapter_kind; ThreadNotFound for unregistered session; parse_capability_strings recognised/unknown split; drain_mode_for mapping both ways; snapshot_json determinism (two snapshots of the same set are byte-identical).\n6. cargo build + clippy clean; pub use in mod.rs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/capabilities.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/src/agent_sessions/types.rs (additive only: CapabilityMissing field adjustment if required)",
+      "src/backend/handshake_core/tests/agent_sessions_capabilities_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/** (adapter families own transport probes)",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "AdapterCapability has exactly the 8 flags SteerMidTurn/InterruptMidTurn/InterruptReceipt/Resume/ForkSession/StructuredOutput/DeliveryAck/RoleOverlay with pinned snake_case wire strings.",
+      "AdapterCapabilities carries adapter_kind + BTreeSet flags + CapabilityProbeSource (TransportInit retains the raw init payload) + probed_at_utc; snapshot_json is deterministic and schema_id-stamped (hsk.adapter_capabilities_snapshot@1).",
+      "CapabilityRegistry::require returns typed AgentSessionError::CapabilityMissing (capability label + adapter_kind) for absent flags and ThreadNotFound for unregistered sessions — proven by tests.",
+      "register() on an existing session replaces the snapshot (re-probe on resume) and returns the previous value — proven by test.",
+      "parse_capability_strings ignores unknown capability strings without failing, returning them in ProbeOutcome.unknown — proven by test.",
+      "drain_mode_for maps SteerMidTurn->MidTurn, absent->TurnBoundaryOnly — proven by test.",
+      "capabilities.rs contains ZERO version-string comparison (no semver, no version parse) — enforced by grep proof target; module docs state the anti-version-gate rule.",
+      "cargo build -p handshake_core green; clippy clean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_capabilities --nocapture 2>&1 | tee /tmp/mt003_run.txt && grep -E 'test result: ok' /tmp/mt003_run.txt",
+      "cargo test -p handshake_core capabilities --nocapture 2>&1 | grep -q 'capability_missing_is_typed'",
+      "grep -rn -i 'semver\\|version_compare\\|parse_version\\|from_version' src/backend/handshake_core/src/agent_sessions/capabilities.rs | wc -l | grep -q '^0'",
+      "grep -n 'hsk.adapter_capabilities_snapshot@1' src/backend/handshake_core/src/agent_sessions/capabilities.rs",
+      "grep -n 'interrupt_receipt' src/backend/handshake_core/tests/agent_sessions_capabilities_tests.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/capabilities.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (re-exports)",
+      "src/backend/handshake_core/tests/agent_sessions_capabilities_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "wire pin for all 8 capability strings; snapshot determinism",
+      "registry register/replace/remove/require typed-error tests",
+      "unknown-capability forward-compat probe test",
+      "drain_mode_for mapping test"
+    ],
+    "implementation_notes": [
+      "Claude probe grounding (for MT-021+, recorded here so the seam fits): system/init arrives as the FIRST stream-json line and includes a capabilities array (e.g. interrupt_receipt_v1); the adapter's CapabilityProbe::probe maps entries -> flags via parse_capability_strings and sets InterruptReceipt from interrupt_receipt_v1; SteerMidTurn is declared by the stream-json input mode handshake (queued mid-turn user messages, v2.1.205+ behavior) — still transport-declared behavior at init, never a version-number comparison inside this framework.",
+      "ACP (MT-061+): no mid-turn steer, no fork — its probe returns the honest small set; nothing in the core needs a special case.",
+      "The registry stores per-launch truth: MT-006 persists the snapshot for the durable record, and resume MUST re-probe and re-register (capabilities can differ after a CLI upgrade between launches).",
+      "RoleOverlay flags whether the transport supports role/system-prompt overlays at session start (consumed by the roles family MT-081+); it is declared here so the flag set is closed and stable for persistence."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless capability framework; capability snapshots become visible via MT-006 durable records and MT-007 status API consumed by GUI family panes."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal gating framework; operator-visible capability behavior (why steer/interrupt/resume may be refused per transport) is documented in MT-007's UserManual entry."
+  },
+  "hbr_obligations": [
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "Capability gating degenerates into version sniffing and per-adapter if-ladders: steers sent to transports that ignore them, resumes attempted where unsupported, silent behavioral divergence between lanes (HBR-INT-005 violation), and no auditable record of WHY an API was allowed.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Version-gate creep — a later contributor adds a quick version compare for a hotfix, breaking forks/nightlies and reintroducing exactly the failure mode this MT bans.",
+      "RISK-2: Optimistic defaults — a probe failure or missing init payload defaults to ALL capabilities, sending mid-turn steers into transports that drop them.",
+      "RISK-3: Stale snapshot after upgrade — resume reuses launch-time capabilities from the durable record without re-probing, acting on abilities the upgraded/downgraded CLI no longer has.",
+      "RISK-4: Unknown-capability crash — a newer CLI advertises an unmodelled capability string and the probe errors, bricking session init on upgrade.",
+      "RISK-5: Scattered gating — call sites check flags directly with divergent error shapes, so the operator sees inconsistent failures and MT-008 cannot type degradation uniformly."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): grep proof target bans semver/version tokens in capabilities.rs; module docs make the rule normative; validator re-greps.",
+      "CTRL-2 (RISK-2): NullProbe empty-set floor is the ONLY default; require() then yields typed CapabilityMissing — fail closed, proven by test.",
+      "CTRL-3 (RISK-3): register() replace semantics + MT-006 contract requires re-probe on every resume; replace test pins the behavior.",
+      "CTRL-4 (RISK-4): parse_capability_strings ignores-and-reports unknowns; forward-compat test with an invented capability string.",
+      "CTRL-5 (RISK-5): require() is the single blessed gate (docs-normative); MT-007/MT-008 contracts reference it; review rejects direct flag pokes outside tests."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: official_cli_bridge.rs attributed_spawn_meta sandbox_capabilities_snapshot precedent (L2322-2345), agent_activity.rs system/init lifecycle-envelope handling (L154-167). Research digest: Claude Code system/init capabilities array incl. interrupt_receipt_v1; queued mid-turn user messages v2.1.205+; Codex app-server initialize/Thread-Turn-Item; ACP sequential session/prompt (no mid-turn steer).",
+    "corrections": []
+  }
+}

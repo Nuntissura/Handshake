@@ -1,0 +1,164 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-261",
+  "title": "TR-MT261-RemovalPreconditionGate",
+  "group": "TR Legacy TS notes editor removal",
+  "clause": "Machine-readable removal-gate artifact + checker tool; hard-gates legacy TS notes editor deletion on recorded WP-KERNEL-012 native parity evidence, PD MT-245 prose-diff parity PASS, NA MT-222/223 annotation UI shipped, and operator sign-off; MT-262/263 hard-depend on gate GREEN.",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-261.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-245",
+      "MT-222",
+      "MT-223"
+    ],
+    "blocks": [
+      "MT-262",
+      "MT-263"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the machine-readable REMOVAL PRECONDITION GATE that must evaluate GREEN before ANY legacy TypeScript/React notes-editor code is feature-flagged off (MT-262) or deleted (MT-262/MT-263). Operator decision 2026-07-21: the legacy TS notes editor (app/src/lib/editor/, app/src/lib/tiptap/, and the notes React components) is being removed so nothing new can build on it; the native Rust editors (WP-KERNEL-012) become the ONLY notes surface. Removal MUST NOT outrun the native work: WP-KERNEL-012 is still IN_PROGRESS (MT-045 perf proof is currently FAIL_V2). This MT delivers (1) a committed gate-row definition, (2) a small checker tool that reads the concrete recorded evidence artifacts and emits a portable GREEN/RED verdict, and (3) unit tests. This MT deletes NOTHING and flags NOTHING off — it only produces the gate the destructive MTs consume.\n\nEXPECTED DIFF SHAPE: (a) new app/src/lib/removal_gate/gate_check.ts — pure gate-evaluation logic (reads named artifacts, returns a typed GateResult with per-row PASS/FAIL + reasons); (b) new app/src/lib/removal_gate/gate_rows.json — the committed row definitions (source artifact path + required-state predicate per row); (c) new thin CLI wrapper app/scripts/tr_removal_gate_check.mjs that runs gate_check against the repo, prints the table, writes the portable result JSON under the external artifacts root, and exits non-zero when RED; (d) a new npm script check:tr-removal-gate in app/package.json; (e) unit tests app/src/lib/removal_gate/gate_check.test.ts. NO product editor code is touched; NO dependency or IPC change.\n\nDETAILED SPEC — the gate has exactly FOUR rows; the checker resolves the repo root (git-root discovery or HANDSHAKE_REPO_ROOT env, never a hardcoded absolute path) and reads these REAL artifacts:\nROW (a) NATIVE_PARITY_EVIDENCE_RECORDED — WP-KERNEL-012 parity + perf evidence recorded and green. Reads, ALL required:\n  - .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-044.json -> lifecycle.validator_verdict MUST match /^PASS(_V[0-9]+)?$/ (E8-MT044-ParityProofSuite; today PASS_V1).\n  - src/frontend/handshake_native/tests/parity_manifest.json -> a 43-entry array with ZERO entries whose status == 'FAIL' (allowed terminal states: PASS or REQUIRES_PG that a live-PG run has flipped to PASS; count PASS and REQUIRES_PG and assert FAIL==0).\n  - .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json -> lifecycle.validator_verdict MUST match /^PASS(_V[0-9]+)?$/ (E8-MT045-LargeDocPerformanceProof; TODAY THIS IS FAIL_V2 -> this row is RED right now, which is the whole point of the gate).\n  - src/frontend/handshake_native/tests/perf_proof/perf_manifest.json -> exactly 20 scenario entries, ZERO with status=='FAIL', every entry has a numeric measured_value and (when present) measured_profile=='release'.\n  - .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json -> packet-level completion/validator verdict field present and matching /^PASS|COMPLETE/ (resolve the exact field name by reading the packet; if the packet uses a different completion key, pin it in gate_rows.json, do not guess at runtime).\nROW (b) PD_PROSE_DIFF_PARITY_PASS — the native prose-diff parity suite passes, because app/src/lib/editor/document_diff_merge.ts is its parity REFERENCE and must not be deleted before the native suite no longer needs it. Reads .GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-245.json -> lifecycle.validator_verdict MUST match /^PASS(_V[0-9]+)?$/.\nROW (c) NA_ANNOTATION_UI_SHIPPED — the native notes annotation UI (NA family) is shipped so removing the TS editor causes NO capability regression. Reads MT-222.json AND MT-223.json (same WP-017 dir) -> both lifecycle.validator_verdict MUST match /^PASS(_V[0-9]+)?$/.\nROW (d) OPERATOR_SIGN_OFF — a human go decision. Reads a committed sign-off record whose path is pinned in gate_rows.json (default .GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/tr_removal_operator_signoff.json) requiring { approved: true, approved_by, approved_at_utc, wp_kernel_012_evidence_head_sha }. Absent file or approved!=true -> RED. The checker NEVER fabricates or defaults this to true.\nGATE RESULT: overall verdict = GREEN iff all four rows GREEN; else RED with the failing rows and human-readable reasons enumerated. The checker writes a portable, timestamped result to ${HANDSHAKE_ARTIFACTS_ROOT:-../Handshake_Artifacts}/wp-kernel-017/tr-removal-gate/gate_result_<utc>.json AND updates a stable latest.json, so MT-262/MT-263 (and a no-context validator) can read the last verdict without re-running. Exit code 0 on GREEN, non-zero on RED.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the five WP-KERNEL-012 artifacts named above to confirm the exact field names in the CURRENT repo (MT-044/MT-045 lifecycle.validator_verdict; parity_manifest.json entry shape {feature_id,status}; perf_manifest.json entry shape {scenario_id,status,measured_value,measured_profile}; the WP-012 packet.json completion field). Pin every resolved field path into gate_rows.json.\n2. Author app/src/lib/removal_gate/gate_rows.json: an array of 4 row objects { row_id, title, sources:[{path, kind:'mt_contract'|'manifest'|'packet'|'signoff', predicate}], all_required:true }. Predicates are declarative (verdict_regex, no_status_equals:'FAIL', min_entries, require_field). No executable code in the JSON.\n3. Author app/src/lib/removal_gate/gate_check.ts: pure fn evaluateRemovalGate(repoRoot, rows) -> GateResult { verdict:'GREEN'|'RED', rows:[{row_id, verdict, reasons[]}], evaluated_at_utc, wp_kernel_012_head_sha? }. All file reads via fs with typed errors; a missing/malformed artifact is a RED reason, never a throw that hides the row.\n4. Author app/scripts/tr_removal_gate_check.mjs: resolve repoRoot, import the compiled/transpiled gate_check (or re-implement the thin IO in the mjs and import the pure evaluator), print an aligned table, write gate_result_<utc>.json + latest.json to the external artifacts root, process.exit(verdict==='GREEN'?0:1).\n5. Add \"check:tr-removal-gate\": \"node scripts/tr_removal_gate_check.mjs\" to app/package.json scripts.\n6. Unit tests (vitest) in app/src/lib/removal_gate/gate_check.test.ts using fixture artifact trees: (i) all-green fixture -> GREEN; (ii) MT-045 verdict=FAIL_V2 fixture -> RED with ROW(a) reason naming MT-045; (iii) perf_manifest with 1 FAIL entry -> RED; (iv) missing operator sign-off -> RED ROW(d); (v) MT-245 verdict PENDING -> RED ROW(b); (vi) MT-222 PASS but MT-223 PENDING -> RED ROW(c); (vii) portable result JSON is written and re-readable.\n7. Run proof targets; record measured output. Because MT-045 is currently FAIL_V2, a live run against the real repo MUST return RED and exit non-zero — that is the correct, expected result today and is itself proof the gate is not rubber-stamping.",
+    "allowed_paths": [
+      "app/src/lib/removal_gate/gate_check.ts",
+      "app/src/lib/removal_gate/gate_rows.json",
+      "app/src/lib/removal_gate/gate_check.test.ts",
+      "app/scripts/tr_removal_gate_check.mjs",
+      "app/package.json (single scripts entry: check:tr-removal-gate)"
+    ],
+    "forbidden_paths": [
+      "app/src/lib/editor/** (removal is MT-262; this MT must not touch the editor)",
+      "app/src/lib/tiptap/** (removal is MT-262)",
+      "app/src/components/** (no component edits; mount flag is MT-262)",
+      "src/** (native/backend product code; read-only evidence source only)",
+      ".GOV/task_packets/WP-KERNEL-012-** (read-only evidence source; never mutate WP-012 verdicts)"
+    ],
+    "acceptance_criteria": [
+      "app/src/lib/removal_gate/gate_rows.json defines exactly four rows: NATIVE_PARITY_EVIDENCE_RECORDED, PD_PROSE_DIFF_PARITY_PASS, NA_ANNOTATION_UI_SHIPPED, OPERATOR_SIGN_OFF, each with resolved real source artifact paths and declarative predicates (no executable code in the JSON).",
+      "ROW(a) reads MT-044.json + parity_manifest.json + MT-045.json + perf_proof/perf_manifest.json + WP-012 packet.json and is GREEN only when MT-044/MT-045 validator_verdict match /^PASS/, parity_manifest has 0 FAIL entries, perf_manifest has 20 entries with 0 FAIL and numeric measured_value, and the WP-012 packet completion field is PASS/COMPLETE.",
+      "ROW(b) reads MT-245.json and is GREEN only when its validator_verdict matches /^PASS/ (document_diff_merge.ts survival contract).",
+      "ROW(c) reads MT-222.json AND MT-223.json and is GREEN only when both validator_verdicts match /^PASS/.",
+      "ROW(d) reads a committed operator sign-off record and is GREEN only when approved==true with approved_by/approved_at_utc present; a missing file is RED and is NEVER defaulted to approved.",
+      "Overall gate verdict is GREEN iff all four rows are GREEN, otherwise RED with the failing row ids and human-readable reasons.",
+      "The checker writes a portable timestamped result plus a stable latest.json under the external artifacts root (HANDSHAKE_ARTIFACTS_ROOT or ../Handshake_Artifacts), and exits non-zero on RED.",
+      "Repo root is resolved via git-root discovery or HANDSHAKE_REPO_ROOT env; no hardcoded absolute path, drive letter, or user-profile path exists in any added file (portability).",
+      "A live run against the current repo returns RED (MT-045 is FAIL_V2 today) and exits non-zero; the gate does not rubber-stamp.",
+      "No file under app/src/lib/editor/, app/src/lib/tiptap/, or app/src/components/ is modified by this MT.",
+      "npm run check:tr-removal-gate is wired and runnable; vitest suite for gate_check passes."
+    ],
+    "proof_targets": [
+      "cd app && npx vitest run src/lib/removal_gate/gate_check.test.ts 2>&1 | grep -E 'Test Files.*passed|[0-9]+ passed'",
+      "cd app && node -e \"const c=require('fs').readFileSync('src/lib/removal_gate/gate_rows.json','utf8');const a=JSON.parse(c);if(!Array.isArray(a)||a.length!==4)process.exit(1);console.log('ROWS_OK',a.map(r=>r.row_id).join(','))\"",
+      "cd app && node scripts/tr_removal_gate_check.mjs; test $? -ne 0 && echo 'GATE_RED_AS_EXPECTED_MT045_FAIL_V2'",
+      "cd app && node scripts/tr_removal_gate_check.mjs 2>&1 | grep -E 'NATIVE_PARITY_EVIDENCE_RECORDED.*(RED|FAIL)'",
+      "bash -lc \"! grep -rnE 'D:\\\\\\\\|C:\\\\\\\\|/Users/|/home/' app/src/lib/removal_gate app/scripts/tr_removal_gate_check.mjs && echo NO_HARDCODED_ABSOLUTE_PATHS\""
+    ],
+    "code_surfaces": [
+      "app/src/lib/removal_gate/gate_check.ts (new; pure evaluator)",
+      "app/src/lib/removal_gate/gate_rows.json (new; committed row definitions)",
+      "app/scripts/tr_removal_gate_check.mjs (new; CLI wrapper, follows app/scripts/*.mjs convention e.g. check-dependency-policy.mjs)",
+      "app/package.json (scripts.check:tr-removal-gate)"
+    ],
+    "expected_tests": [
+      "gate_check::all_green_fixture_returns_green",
+      "gate_check::mt045_fail_v2_returns_red_row_a_names_mt045",
+      "gate_check::perf_manifest_one_fail_entry_returns_red",
+      "gate_check::missing_operator_signoff_returns_red_row_d",
+      "gate_check::mt245_pending_returns_red_row_b",
+      "gate_check::mt222_pass_mt223_pending_returns_red_row_c",
+      "gate_check::portable_result_written_and_rereadable"
+    ],
+    "implementation_notes": [
+      "The gate is the load-bearing safety interlock for the whole TR family: MT-262 and MT-263 declare a hard dependency on this MT and MUST read latest.json (or re-run the checker) and refuse to proceed unless verdict==GREEN. Encode that as a precondition assertion in those MTs, not as trust.",
+      "MT-045 is FAIL_V2 as of 2026-07-22 (perf_manifest 7/20 red, several debug-profile rows). Do NOT special-case or soften ROW(a) to make the gate pass; the correct current behavior is RED. The gate flips GREEN only when WP-KERNEL-012 genuinely records passing native parity + perf evidence.",
+      "document_diff_merge.ts is the PD MT-245 parity reference AND is referenced by the native Rust src/frontend/handshake_native/src/code_editor/diff_engine.rs tests and by RichDocumentView.tsx/rich_document_diff_harness.tsx. ROW(b) exists so this file is never deleted before MT-245 no longer needs it (MT-262 keeps it until then).",
+      "Resolve field names against the REAL artifacts before pinning predicates: MT-044/MT-045 store the canonical verdict at lifecycle.validator_verdict (values like PASS_V1 / FAIL_V2); parity_manifest.json is a flat array of {feature_id,cluster,...,status}; perf_manifest.json is a flat array of {scenario_id,category,...,measured_value,unit,status,measured_profile}. Confirm the WP-012 packet.json completion key by reading it rather than assuming.",
+      "Keep gate_check.ts pure and IO-thin so it is unit-testable with fixture directories; the mjs wrapper owns process.exit and artifact writing. This mirrors the existing app/scripts/check-*.mjs split.",
+      "Portable evidence only: write results under HANDSHAKE_ARTIFACTS_ROOT (default ../Handshake_Artifacts), never inside the repo worktree, matching the WP-012 measurement-artifact convention (Handshake_Artifacts/wp-kernel-012/mt-045/...)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless gate-checker tool with no operator GUI; its verdict is reconstructable from the portable gate_result JSON and latest.json (TraceProjection per HBR-VIS-004). The operator-visible notes surface is unchanged by this MT."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal precondition-gate tooling with no operator-visible behavior change; the manual update announcing the native editor as the sole notes surface lands with MT-264 after removal completes."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-STOP-001",
+    "HBR-STOP-003",
+    "HBR-VIS-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — a synchronous CLI check emits no long-running runtime events; the portable gate_result JSON is the durable record.",
+    "internal_diagnostics: WIRED — every RED row carries a typed reason (missing artifact, verdict mismatch, FAIL entry count) so a no-context model can see exactly which precondition blocks removal.",
+    "Palmistry: NOT_APPLICABLE-with-reason — short-lived process with no liveness posture to capture."
+  ],
+  "risk_if_missed": "Without a hard gate the legacy TS notes editor could be deleted while WP-KERNEL-012 is still IN_PROGRESS (MT-045 perf proof FAIL_V2) or before PD MT-245 stops referencing document_diff_merge.ts, leaving users with no working notes surface and destroying the prose-diff parity reference — an unrecoverable regression shipped on optimism instead of recorded evidence.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The checker treats a MISSING or malformed evidence artifact as PASS (or throws and is caught as 'no failure'), so removal proceeds with no proof at all.",
+      "RISK-2: ROW(a) is softened to make the currently-red MT-045 evidence pass (e.g. accepting FAIL_V2, ignoring debug-profile rows, or counting REQUIRES_PG as PASS without a live run), producing a false GREEN while native perf parity is unproven.",
+      "RISK-3: The operator sign-off row defaults to approved when the sign-off file is absent, removing the human go decision.",
+      "RISK-4: The gate reads a stale cached latest.json instead of the current evidence, so MT-262/263 act on an outdated GREEN after the evidence regressed.",
+      "RISK-5: document_diff_merge.ts survival (ROW(b)) is dropped from the gate, letting MT-262 delete the PD MT-245 parity reference and the native diff_engine test dependency."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Missing/unreadable/malformed artifact is an explicit RED reason for its row; a dedicated test feeds an absent artifact and asserts RED, not PASS. No catch-all that swallows a read error into success.",
+      "CTRL-2 (RISK-2): ROW(a) predicate requires validator_verdict to match /^PASS/ for both MT-044 and MT-045 and 0 FAIL entries in both manifests; a fixture with MT-045=FAIL_V2 asserts RED, and a live run today returns RED (proof target).",
+      "CTRL-3 (RISK-3): OPERATOR_SIGN_OFF requires an explicit approved==true record; absent file -> RED; a test asserts the checker never fabricates approval.",
+      "CTRL-4 (RISK-4): The checker always re-evaluates from source artifacts and stamps evaluated_at_utc + wp_kernel_012_head_sha into the result; MT-262/263 must re-run or verify the head_sha, not trust a stale latest.json.",
+      "CTRL-5 (RISK-5): ROW(b) is a first-class gate row keyed to MT-245; a test asserts MT-245 PENDING -> RED, and MT-262 keeps document_diff_merge.ts until ROW(b) is GREEN."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounding audit 2026-07-21/22 of wtc-native-editors-v1 and wt-gov-kernel: legacy TS notes editor confirmed at app/src/lib/editor/ (40 files incl. document_diff_merge.ts), app/src/lib/tiptap/ (14 files), notes React components (TiptapEditor/RichTextEditor/RichDocumentView/DocumentView mount at App.tsx:14+1682). WP-KERNEL-012 recorded evidence read directly: MT-044 (E8-MT044-ParityProofSuite) lifecycle.validator_verdict=PASS_V1 with tests/parity_manifest.json (43 entries, PASS|REQUIRES_PG); MT-045 (E8-MT045-LargeDocPerformanceProof) lifecycle.validator_verdict=FAIL_V2 with tests/perf_proof/perf_manifest.json (20 scenarios, 7 FAIL as of 2026-07-22). document_diff_merge.ts confirmed as the native prose-diff parity reference (src/frontend/handshake_native/src/code_editor/diff_engine.rs tests, RichDocumentView.tsx, rich_document_diff_harness.tsx). Checker/CLI split modeled on the existing app/scripts/check-dependency-policy.mjs + app/src/lib/dependency_policy/ pattern; portable-artifacts convention from HANDSHAKE_ARTIFACTS_ROOT (WP-012 mt-045 measurement runs).",
+    "corrections": [
+      "The removal gate is NOT a build-time lint; it is an evidence-precondition interlock consumed by the destructive MTs (MT-262/263) which hard-depend on GREEN. It reads recorded WP-012/WP-017 verdicts, it does not itself re-run the native parity/perf suites.",
+      "Operator sign-off is a distinct fourth row, not folded into evidence rows: recorded evidence being green is necessary but the human go decision is still required and is never defaulted true.",
+      "MT-045 being FAIL_V2 today is the expected reason the live gate is RED now; a GREEN result before WP-012 records passing perf evidence would itself be the defect."
+    ]
+  }
+}

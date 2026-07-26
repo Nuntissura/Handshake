@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-083",
+  "title": "RO-MT083-WorkerPromptComposition",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-083.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-082",
+      "MT-121"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the Worker Prompt Composition engine: the deterministic assembler that turns (role overlay from MT-081/082) + (task payload, e.g. an MT contract) + (workspace context: worktree path, branch) into the COMPLETE worker spawn payload. Basis: Anthropic's multi-agent research system finding that every worker prompt must carry objective, output format, tool/source guidance, explicit task boundaries, and an effort budget — vague worker tasks caused duplicated effort. The composed prompt is hashed and recorded so any spawned worker's exact input is reproducible.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/worker_prompt.rs (WorkerPromptComposer, ComposedWorkerPrompt, WorkerPromptSection enum, canonical serializer, hash recording), a composition-hash FR/ledger record, integration seam into the spawn path (consumed by MT-086), plus tests. No frontend edits, no migrations (hash rides existing event surfaces; if a dedicated column is needed it belongs to MT-086's attribution rows).\n\nDETAILED SPEC:\n- pub struct WorkerPromptComposer { store: HandshakeRoleStore, recorder: Arc<dyn FlightRecorder> }.\n- pub struct WorkerPromptInputs { role_id: String, role_version: Option<u32>, task_payload: TaskPayload, workspace: WorkspaceContext }.\n  * TaskPayload::MicroTaskContract { mt_json: serde_json::Value } (the common case: a hsk.microtask_contract@1 document) | TaskPayload::FreeformObjective { text: String }.\n  * WorkspaceContext { worktree_path: String, branch: String, repo_root_display: String } — paths passed through verbatim, never re-rooted (portability).\n- pub struct ComposedWorkerPrompt { sections: Vec<WorkerPromptSection>, canonical_text: String, sha256: String, role_ref: (String, u32, String) }.\n- pub enum WorkerPromptSection — FIXED deterministic order (the Anthropic worker-prompt contract):\n  1. RoleOverlay — the injected role body (or a reference marker when the transport injects the overlay separately per MT-082, to avoid double-injection).\n  2. Objective — extracted from the task payload (for MT contracts: scope.summary GOAL line + acceptance criteria digest).\n  3. OutputFormat — the expected result envelope, INCLUDING the hsk.mt_signal@1 expectation from MT-121 (workers must emit the typed MT-signal contract, not prose status).\n  4. ToolGuidance — rendered from the role's tool_policy allow/deny + transport hints.\n  5. Boundaries — explicit task boundaries rendered from the MT contract's scope.allowed_paths / forbidden_paths (workers get their write-fence in the prompt, mirroring the contract).\n  6. EffortBudget — from model_profile.effort plus per-spawn override; explicit statement of expected depth/iteration budget.\n  7. WorkspaceContext — worktree path, branch, and any session identifiers.\n- Canonical serialization: sections joined with fixed headers in fixed order, LF-normalized, no timestamps or random ids inside canonical_text; sha256 computed over canonical bytes. Same inputs => byte-identical output (pure function; test proves determinism across 2 process runs).\n- Delimiter-escape duty (CTRL from MT-082): any literal \"<handshake-role\" sequence inside task payload text is escaped before composition so payload text cannot masquerade as role framing.\n- Recording: each composition emits a worker_prompt_composed record (FR event) with { role_id, role_version, overlay_sha256, composition_sha256, mt_id?, session_target }, giving reproducibility joins: registry row -> injection event (MT-082) -> composition hash -> spawned session (MT-086).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-121's hsk.mt_signal@1 contract to render the OutputFormat section accurately (exact schema id + required fields, quoted in the prompt).\n2. Implement WorkerPromptSection + fixed-order composer with canonical LF serializer; forbid nondeterministic content in canonical_text by construction (no clock/rand imports in the module; test greps).\n3. Implement MT-contract extraction: objective from scope.summary, boundaries from allowed_paths/forbidden_paths, acceptance digest; tolerate missing optional fields with explicit \"NOT SPECIFIED\" markers rather than omission (stable shape).\n4. Implement tool-policy rendering from hsk.handshake_role@1 tool_policy.\n5. Implement effort-budget rendering with per-spawn override parameter.\n6. Implement delimiter escaping for payload text.\n7. Hash + FR worker_prompt_composed event wiring.\n8. Tests: determinism (same inputs twice => same sha256), section-order pin test, mt_signal expectation presence test, boundary-rendering test against a real MT contract fixture, escape test, missing-field stability test.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/worker_prompt.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/frontend/handshake_native/**",
+      "src/backend/handshake_core/migrations/**"
+    ],
+    "acceptance_criteria": [
+      "ComposedWorkerPrompt always contains the seven sections in the fixed order: RoleOverlay(or marker), Objective, OutputFormat, ToolGuidance, Boundaries, EffortBudget, WorkspaceContext.",
+      "OutputFormat section quotes the hsk.mt_signal@1 expectation (schema id + required fields) from MT-121.",
+      "Boundaries section renders the source MT contract's allowed_paths and forbidden_paths verbatim.",
+      "Composition is deterministic: identical inputs produce byte-identical canonical_text and identical sha256 across two independent runs.",
+      "canonical_text contains no timestamps, random ids, or machine-local absolute paths other than the passed-through WorkspaceContext values.",
+      "Literal role-delimiter sequences in task payload text are escaped in the composed output.",
+      "Every composition records a worker_prompt_composed FR event with composition_sha256 joined to role id/version/overlay_sha256.",
+      "When the transport injects the overlay separately (MT-082 Claude append-file), the RoleOverlay section is a reference marker, not a duplicate of the overlay body (no double-injection)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core worker_prompt -- --nocapture",
+      "cargo test -p handshake_core worker_prompt_determinism -- --nocapture",
+      "cargo test -p handshake_core worker_prompt_section_order -- --nocapture",
+      "grep -nE 'SystemTime|Instant::now|rand::' src/backend/handshake_core/src/swarm_orchestration/worker_prompt.rs | wc -l  # expect 0 in canonical path"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/worker_prompt.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wire)"
+    ],
+    "expected_tests": [
+      "determinism double-run test",
+      "section-order pin test",
+      "mt_signal@1 expectation presence test",
+      "boundary rendering test from real MT-contract fixture",
+      "delimiter escape test",
+      "missing-optional-field stability test"
+    ],
+    "implementation_notes": [
+      "Anthropic multi-agent research system (verified basis): worker prompts lacking objective/output-format/tool-guidance/boundaries/effort-budget caused duplicated effort and gap coverage failures — the section list is the productized form of that finding.",
+      "The composer is a pure function over its inputs; injection side effects (temp files, args) stay in MT-082, spawn side effects in MT-086.",
+      "MT contract fixtures for tests should be vendored minimal JSON documents, not reads of .GOV/ paths (forbidden; keeps tests hermetic and portable).",
+      "Reference-marker form for RoleOverlay: \"[role {id}@v{version} sha256:{h} injected via {transport}]\" — pinned in tests.",
+      "Effort budget wording should be explicit and bounded (e.g. expected tool-call scale), not vague adverbs; this is what the research flags as the duplication driver."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Pure backend composition engine; worker_prompt_composed FR events + composition hashes are the trace projection. Operator-visible role surfaces are MT-085."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal composition layer consumed by the spawn flow; documented for operators in the MT-086 spawn-surface manual entry (which names the seven-section contract)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "worker prompt composition + hash recording",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1; worker_prompt_composed FR event is the Tier-1 evidence surface."
+    }
+  ],
+  "risk_if_missed": "Workers get ad-hoc prompts: no objective/output-format/boundary/effort discipline, no hsk.mt_signal@1 expectation, duplicated effort across parallel workers (the exact failure Anthropic documented), and no reproducibility hash tying a session to its exact input.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Nondeterministic composition — timestamps, map-iteration order, or machine-local paths leak into canonical_text, breaking the reproducibility hash and making audit joins meaningless.",
+      "RISK-2: Double role injection — overlay injected by transport (MT-082) AND embedded in the composed prompt, doubling role text, burning context, and creating two divergent role copies.",
+      "RISK-3: Boundary drift — the Boundaries section paraphrases instead of quoting the MT contract's allowed/forbidden paths, so the worker's in-prompt fence disagrees with the contract fence.",
+      "RISK-4: Payload spoofing — task payload text containing role-delimiter or section-header sequences forges apparent role/section authority inside the composed prompt."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): pure-function composer, LF-normalized canonical serializer, no clock/rand in module (grep proof), determinism double-run test.",
+      "CTRL-2 (RISK-2): RoleOverlay section becomes a reference marker whenever the transport carries the overlay; test asserts overlay body appears at most once across injection+composition.",
+      "CTRL-3 (RISK-3): Boundaries rendered verbatim from contract fields with a fixture test diffing prompt lines against contract arrays.",
+      "CTRL-4 (RISK-4): delimiter/section-header escaping for payload text with an adversarial fixture test."
+    ]
+  },
+  "research_provenance": {
+    "source": "Anthropic multi-agent research system engineering findings (verified: worker prompts must carry objective, output format, tool/source guidance, explicit task boundaries, effort budget; vague tasks caused duplicated effort) + MT-121 hsk.mt_signal@1 contract seam + MT-082 injection strategies + inspected swarm_orchestration spawn path (coordinator.rs spawn_session, operator_chat.rs build_spawn_request).",
+    "corrections": [
+      "Output format = typed hsk.mt_signal@1 expectation, not prose 'report back' language.",
+      "Boundaries come from the MT contract, giving parity between the prompt fence and the governance fence.",
+      "Composition hash + FR record makes every worker's exact input reproducible — the productized form of repo-gov's startup-capsule discipline."
+    ]
+  }
+}

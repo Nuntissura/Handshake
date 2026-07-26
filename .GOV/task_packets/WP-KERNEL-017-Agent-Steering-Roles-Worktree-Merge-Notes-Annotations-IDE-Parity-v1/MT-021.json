@@ -1,0 +1,160 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-021",
+  "title": "CS-MT021-ClaudeInteractiveLaunchPreset",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-021.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-003",
+      "MT-004"
+    ],
+    "blocks": [
+      "MT-023",
+      "MT-024",
+      "MT-025",
+      "MT-026",
+      "MT-028"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define the SINGLE canonical launch preset for a long-lived interactive Claude Code agent session and its args-template validation gate, mirroring the existing Codex one-shot preset validation pattern (`validate_cli_preset`, official_cli_bridge.rs lines 963-1015) so a Handshake-launched Claude session is ALWAYS started with the exact flag set the WP-017 steering stack requires, and a misconfigured template is rejected at registration time, never at mid-session runtime.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/model_runtime/cloud/claude_interactive_preset.rs containing the preset builder + validator; (b) additive edits to src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs: one new `OfficialCliBridgeError` variant `InvalidClaudeInteractivePreset(String)` in the error enum (lines 110-160 region) and a session-mode branch so interactive configs are validated by the new validator instead of the one-shot contract; (c) mod wiring in src/backend/handshake_core/src/model_runtime/cloud/mod.rs; (d) unit + negative tests.\n\nSPEC:\n1. New enum `CliSessionMode { OneShot, Interactive }`. `CliBridgeConfig` (official_cli_bridge.rs lines 92-100) gains field `session_mode: CliSessionMode` defaulting to `OneShot` so ALL existing one-shot call sites, presets, and tests keep compiling and validating exactly as before (additive, zero behavior change for OneShot).\n2. New struct `ClaudeInteractiveLaunchPreset` with fields: `executable_path: PathBuf`, `model: String`, `session_id: uuid::Uuid` (harness pre-pins the session id via `--session-id <uuid>` so resume/recording never depend on parsing it back), `consent_policy: ClaudeConsentPolicy`, `bare_mode: bool`, `include_partial_messages: bool`, `extra_args: Vec<String>`.\n3. `ClaudeInteractiveLaunchPreset::render_args(&self) -> Vec<String>` produces the canonical argv: `-p`, `--input-format stream-json`, `--output-format stream-json`, `--verbose` (REQUIRED for full turn-by-turn output per the July 2026 CLI docs), `--replay-user-messages` (REQUIRED: MT-023 correlates steer echoes to delivery receipts), `--session-id {session_id}`, `--model {model}`; plus `--include-partial-messages` only when `include_partial_messages`; plus consent-policy args (spec point 5); plus `--bare` only when `bare_mode` (spec point 6). The PROMPT IS NEVER IN ARGV: the first user message and all steering go over stdin as stream-json lines through the MT-004 bidirectional stdio writer.\n4. `validate_claude_interactive_args(args: &[String]) -> Result<(), OfficialCliBridgeError>` is the registration-time gate, mirroring `validate_cli_preset` for Codex: REJECT unless all of `-p`, `--input-format stream-json`, `--output-format stream-json`, `--verbose`, `--replay-user-messages`, `--session-id <value>` are present; REJECT unless the model binding is the standalone pair `--model {model}` (reuse the exact rule of `validate_model_binding`, official_cli_bridge.rs lines 1017-1059, which already requires `--model` for `CliKind::ClaudeCode` at lines 1043-1046); REJECT any argv element containing `{prompt}` (typed message: interactive mode transports the prompt via stdin, never argv); REJECT `-c` / `--continue` (nondeterministic session pick; MT-025 owns resume); REJECT `--system-prompt` (full replacement is forbidden; MT-026 owns role overlays via append).\n5. `ClaudeConsentPolicy` maps the Handshake consent policy config to permission args: `permission_mode: Option<String>` renders `--permission-mode <mode>`; `allowed_tools: Vec<String>` renders one `--allowedTools <pattern>` per entry (pattern syntax e.g. `Bash(git diff *)` passed through verbatim, never re-parsed); `permission_prompt_tool: Option<String>` renders `--permission-prompt-tool <tool>`. The mapping is pure and unit-testable; the SOURCE of the policy values is the existing Handshake consent-policy configuration surface — this MT binds config to argv only, it does not create new consent semantics.\n6. `--bare` adoption is config-flagged and fail-safe: when `bare_mode=true` the launch appends `--bare` (skips hooks/skills/CLAUDE.md for deterministic scripted worker runs). The interactive supervisor (MT-005 seam) treats a failed `system/init` handshake under bare mode as a typed `BareModeLaunchFailed` outcome whose remediation is a relaunch WITHOUT `--bare`; the fallback relaunch decision belongs to the supervisor, this MT must expose the typed outcome + a `render_args_without_bare()` helper so the fallback needs no string surgery.\n7. Registration path: when `session_mode == Interactive` and `cli_kind == CliKind::ClaudeCode` (enum at official_cli_bridge.rs lines 62-79), `validate_cli_bridge_config_contract` (lines 1067+) must route to `validate_claude_interactive_args` INSTEAD of enforcing `MissingPromptPlaceholder` (error variant lines 116-117) — the one-shot rule `args_template must contain {prompt}` is INVERTED for interactive mode. One-shot Claude/Codex/Gemini validation is untouched. Interactive mode for `cli_kind != ClaudeCode` is rejected with a typed error (other interactive transports arrive in their own MT groups).\n8. Capability posture: the preset performs NO version comparison anywhere. Version sensitivity (e.g. queued-steer requires v2.1.205+) is handled by the MT-003 capability/feature-detection seam reading the `system/init` `capabilities` array; this MT only guarantees the flags that make that init event observable.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read official_cli_bridge.rs mod docs (lines 1-22), `CliKind`/`CliOutputFormat`/`CliBridgeConfig` (62-100), `validate_cli_preset` (963-1015), `validate_model_binding` (1017-1059), `validate_cli_bridge_config_contract` (1067+), and the MT-003/MT-004 delivered seams in this worktree before writing code.\n2. Add `CliSessionMode` with `Default = OneShot`; thread the new field through every `CliBridgeConfig` construction site (compiler-driven; all existing sites state `OneShot`).\n3. Create claude_interactive_preset.rs with the preset struct, consent-policy mapper, `render_args`, `render_args_without_bare`, and `validate_claude_interactive_args`; add the new error variant.\n4. Branch `validate_cli_bridge_config_contract` on `session_mode`; keep the one-shot branch byte-for-byte equivalent.\n5. Unit tests: canonical render snapshot; each REJECT rule as its own negative test (missing -p, missing --verbose, missing --replay-user-messages, missing --session-id, `{prompt}` in argv, `-c`, `--continue`, `--system-prompt`, embedded `{model}`, interactive+non-Claude kind); consent-policy mapping table test; bare-mode on/off render test; one-shot regression test proving existing Codex preset validation output is unchanged.\n6. Run proof targets; wire the UserManual entry for the new config keys in the same change.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_interactive_preset.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_interactive_preset_tests.rs",
+      "src/backend/handshake_core/src/user_manual/** (HBR-MAN same-change entry only)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "ClaudeInteractiveLaunchPreset::render_args produces exactly the canonical flag set: -p, --input-format stream-json, --output-format stream-json, --verbose, --replay-user-messages, --session-id <uuid>, --model <model>, in a stable documented order, with no {prompt} placeholder anywhere.",
+      "validate_claude_interactive_args rejects, each with a typed InvalidClaudeInteractivePreset message: missing any required flag; {prompt} in any argv element; -c/--continue present; --system-prompt present; model binding not the standalone `--model {model}` pair.",
+      "CliBridgeConfig gains session_mode with OneShot default; every pre-existing one-shot validation test still passes unchanged (Codex exec preset rules at official_cli_bridge.rs 963-1015 untouched).",
+      "Interactive mode with cli_kind != ClaudeCode is rejected with a typed error.",
+      "ClaudeConsentPolicy maps permission_mode/allowed_tools/permission_prompt_tool to --permission-mode/--allowedTools/--permission-prompt-tool argv verbatim, covered by a table-driven unit test.",
+      "bare_mode=true appends --bare; render_args_without_bare returns the identical argv minus --bare; a BareModeLaunchFailed typed outcome exists for the MT-005 supervisor fallback.",
+      "No code path in this MT performs a CLI version string comparison (grep-provable).",
+      "UserManual updated in the same change for the new operator-facing config keys (session_mode, bare_mode, consent-policy mapping)."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_interactive_preset -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml official_cli_bridge -- --nocapture 2>&1 | grep -E 'test result: ok' (one-shot regression: zero pre-existing failures introduced)",
+      "grep -rn 'version' src/backend/handshake_core/src/model_runtime/cloud/claude_interactive_preset.rs | grep -vE 'schema_version|//' | wc -l | grep -q '^0' (no version-compare logic)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent on the proof host): launch the rendered argv against the real claude binary with an empty stdin close and assert the first stdout line parses as JSON with type=system, subtype=init"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_interactive_preset.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (error variant + session_mode branch)",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (module wiring)"
+    ],
+    "expected_tests": [
+      "claude_interactive_preset::render_args_canonical_snapshot",
+      "claude_interactive_preset::rejects_prompt_placeholder_in_argv",
+      "claude_interactive_preset::rejects_missing_required_flags (one case per flag)",
+      "claude_interactive_preset::rejects_continue_and_system_prompt_flags",
+      "claude_interactive_preset::consent_policy_mapping_table",
+      "claude_interactive_preset::bare_mode_render_and_fallback_helper",
+      "official_cli_bridge::one_shot_validation_unchanged_regression"
+    ],
+    "implementation_notes": [
+      "MT-003 (capability registry) and MT-004 (bidirectional stdio) are session-core seams authored outside this group; locate their delivered modules via the WP-017 packet MT index in the implementation worktree. If either seam is not yet merged, this MT is dependency-blocked (HBR-STOP-004): do NOT stub the seam.",
+      "GROUNDING FACT: AttachedStdioContract::validate (src/backend/handshake_core/src/sandbox/adapter.rs lines 91-101) currently HARD-REJECTS any stdio contract other than null_stdin_piped_output (definition lines 83-89; CLI call site official_cli_bridge.rs line 2303). MT-004 owns relaxing that boundary; this MT must not touch sandbox/adapter.rs.",
+      "The one-shot {prompt} requirement this MT inverts for interactive mode: MissingPromptPlaceholder variant at official_cli_bridge.rs lines 116-117, enforced in validate_cli_bridge_config_contract lines 1067-1076.",
+      "render_args substitution must NOT reuse OfficialCliBridgeRuntime::render_args (lines 427-435): that helper substitutes {prompt} into argv, which is exactly what interactive mode forbids. Build argv directly from typed fields.",
+      "Flag spellings are exact per code.claude.com CLI reference (July 2026): --input-format stream-json, --output-format stream-json, --replay-user-messages, --include-partial-messages, --session-id, --permission-mode, --allowedTools, --permission-prompt-tool, --bare.",
+      "Keep the preset free of tokio/async: pure data -> argv, so MT-028 contract tests and the MT-005 supervisor can both consume it synchronously."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend launch-preset and validation logic only; no operator-visible surface changes. Session GUI surfaces are owned by the WP-017 GUI MT group."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Claude interactive session launch preset: canonical flags, session_mode config, prompt-via-stdin rule",
+      "Consent policy to --permission-mode/--allowedTools mapping",
+      "bare_mode flag: effect, deterministic-run rationale, fallback behavior"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-003",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED via existing CLI-bridge launch lifecycle events; interactive launches flow through the same attributed spawn path (LiveCliSpawner::spawn, official_cli_bridge.rs 2425, ledger START 2449).",
+    "internal_diagnostics: WIRED — preset validation rejects surface as typed OfficialCliBridgeError values visible in diagnostics; no silent fallback.",
+    "Palmistry: NOT_APPLICABLE-with-reason — pure validation/config code with no long-running runtime posture of its own; session runtime posture is owned by MT-005/MT-029."
+  ],
+  "risk_if_missed": "Every Claude session launch is ad-hoc argv assembly: missing --replay-user-messages silently breaks MT-023 delivery receipts, {prompt}-in-argv leaks prompts to process listings and breaks steering, and -c/--continue introduces nondeterministic session pickup. The whole CS group builds on this gate.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A config author passes a hand-rolled args_template that includes {prompt} or omits --replay-user-messages and the session launches anyway, breaking steering/acks only at runtime, far from the misconfiguration.",
+      "RISK-2: Adding session_mode to CliBridgeConfig silently changes one-shot Codex/Gemini validation behavior (regression in the shipped WP-1 lane).",
+      "RISK-3: --bare launches fail on operator machines whose workflow depends on hooks/CLAUDE.md context, and the failure is swallowed as a generic spawn error with no remediation path.",
+      "RISK-4: Version-compare logic sneaks in (e.g. gating queued-steer on a parsed CLI version string), violating the feature-detection-only posture and breaking on every CLI release."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): validate_claude_interactive_args is called on the registration path (not just exposed); every REJECT rule has a dedicated negative unit test.",
+      "CTRL-2 (RISK-2): session_mode defaults to OneShot; a regression test pins the one-shot Codex preset validation outcomes byte-for-byte against pre-change behavior.",
+      "CTRL-3 (RISK-3): bare-mode failure is the typed BareModeLaunchFailed outcome plus render_args_without_bare helper; the supervisor fallback path is testable without a live CLI.",
+      "CTRL-4 (RISK-4): grep proof target asserts zero version-comparison logic in the preset module; capability gating lives only behind the MT-003 seam."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (code.claude.com CLI + headless docs: -p/--print, --input-format/--output-format stream-json, --replay-user-messages, --include-partial-messages, --verbose, --session-id, --permission-mode, --allowedTools, --permission-prompt-tool, --bare, system/init capabilities feature detection; anthropics/claude-code#24594 under-documentation acknowledgment) + grounding audit of wtc-multi-model-orchestration-v1 src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (CliKind 62-79, CliBridgeConfig 92-100, MissingPromptPlaceholder 116-117, render_args 427-435, validate_cli_preset 963-1015, validate_model_binding 1017-1059 with ClaudeCode --model rule 1043-1046, validate_cli_bridge_config_contract 1067+) and src/sandbox/adapter.rs (AttachedStdioContract 76-101).",
+    "corrections": [
+      "Task-brief line refs corrected against code: codex preset validation spans 963-1015 (not 981-991); CliBridgeConfig struct body is 92-100 with the {prompt}/{model} doc comment at 88-90; model binding --model {model} rule sits at 1043-1046 inside validate_model_binding 1017-1059.",
+      "AttachedStdioContract::null_stdin_piped_output is DEFINED in src/sandbox/adapter.rs 83-89 (call site official_cli_bridge.rs 2303); its validate() at adapter.rs 91-101 rejects all non-null-stdin contracts today — bidirectional stdin is impossible until the MT-004 seam lands, hence the hard dependency."
+    ]
+  }
+}

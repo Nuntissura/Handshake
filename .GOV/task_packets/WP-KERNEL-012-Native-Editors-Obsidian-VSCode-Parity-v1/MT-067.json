@@ -14,7 +14,7 @@
   "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-18T03:34:17Z",
+  "updated_at_utc": "2026-07-23T07:28:42.1223942Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-019",
@@ -35,14 +35,12 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V1",
-    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
-    "ready_for_validation_at_utc": "2026-07-18T03:34:17Z",
-    "proof_status": "PASS_REMEDIATION_V2: mounted daily-note/CalendarEvent/ActivitySpan runtime uses the exact managed PostgreSQL backend, one journal mutation authority, bounded typed retries, generation-safe cancellation, exact Flight Recorder cardinality, and truthful operator manual states. Changed-source Calendar suite passed 19/19, exact live multi-day proof passed 3/3, focused cancellation/manual/unit gates passed, and two independent adversarial rereviews returned READY. Historical FAIL_V1 remains preserved for independent V2 validation.",
-    "post_implementation_adversarial_review_status": "PASS_2026-07-18_TWO_INDEPENDENT_REVIEWS_NO_BLOCKING_FINDINGS",
+    "validator_verdict": "PENDING_V3",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_REVIEWS_2026-07-23",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: CalendarInteropService is NEVER instantiated in the live shell - events_for_range/activity_spans_for_event/open_or_create_daily_note never called live; DailyJournalState constructed with event=None and no host calls set_calendar_unavailable or set_event_with_spans, so the contract-mandated operator-visible typed empty-state is unreachable; chip-click focus-calendar-event drain is an explicit no-op. Daily-note half IS live (LoomDailyJournal pane + DateNavigated routing). Fix: on daily-journal pane bind, issue one events_for_range/activity fetch and apply set_calendar_unavailable on EndpointUnavailable; amend carry note that the service is currently test-only.",
@@ -81,11 +79,24 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260707-224033",
-    "claimed_at_utc": "2026-07-08T02:58:52.998Z",
+    "claimed_by": "KERNEL_BUILDER-20260722-182301",
+    "claimed_at_utc": "2026-07-22T18:23:01Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-09T02:45:54.108Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260722-182301",
+    "ready_for_validation_at_utc": "2026-07-23T07:28:42.1223942Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-23T07:27:55.326Z",
+    "rfv_evidence_2026_07_23": {
+      "by": "KERNEL_BUILDER-20260722-182301",
+      "mode": "V2_TEMPORAL_LOSS_REMEDIATION_REAL_POSTGRESQL_AND_CANONICAL_ARGUS_PROOF",
+      "source_head": "30d8657afaac31756852929291b669723f97234e",
+      "candidate_file_count": 27,
+      "candidate_manifest_sort": "StringComparer.Ordinal path order; UTF-8 no BOM; each record <sha256><two spaces><repo-relative-path>\\n; final LF",
+      "candidate_manifest_sha256": "cd45607105eea8a138abd9fda9f9661bcb39e26139ccb1bffaaaef46f8015fea",
+      "backend_binary_sha256": "28f0ec50bf31ef6425e333a083134288901577bf8619338aa2de075d590e5f31",
+      "proof": "Backend temporal contract passed 5/5. Managed PostgreSQL Calendar Workflow, route, ActivitySpan, and daily-note binding proofs each passed 1/1 with exact EventLedger/outbox/Flight Recorder and rejection-no-residue assertions. The exact backend build exited zero. Selected-view timezone, accessibility registry, DateNav 13/13, canonical Argus, retry exhaustion, and in-flight cancellation proofs passed. The final serialized Calendar set passed 19/19, and the guarded live PostgreSQL plus canonical Argus acceptance passed 1/1 with exact downstream journal, CalendarEvent, ActivitySpan, and two Flight Recorder rows.",
+      "reviews": "Two independent hash-bound adversarial post-reviews returned READY_FOR_VALIDATION_V3. They verified lossless timed/all-day/floating/DST semantics, legacy recovery, migration/store/API/workflow consistency, selected-view UI/settings/manual truth, command/pane/accessibility reuse, deterministic retry harness behavior, and downstream-state-backed canonical Argus evidence.",
+      "residuals": "Official validation remains pending. Adjacent non-blockers retained for validator awareness: general cross-context Argus NodeId hardening, a dedicated retry-sleep cancellation runtime test, Calendar Flight Recorder projection reconciliation, batch-wide sync atomicity, and provider-level exponential backoff."
+    },
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
       "mode": "VERIFY_AND_PROVE (reopen 'CalendarInteropService never instantiated' resolved in code; comprehensive pre-review + independent proof)",
@@ -119,12 +130,35 @@
       "src/frontend/handshake_native/src/pane_registry.rs",
       "src/frontend/handshake_native/src/command_registry.rs",
       "src/frontend/handshake_native/tests/test_calendar_interop.rs",
-      "src/frontend/handshake_native/Cargo.toml"
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock",
+      "src/backend/handshake_core/migrations/0353_calendar_lossless_temporal_contract.sql",
+      "src/backend/handshake_core/migrations/0353_calendar_lossless_temporal_contract.down.sql",
+      "src/backend/handshake_core/src/storage/calendar.rs",
+      "src/backend/handshake_core/src/storage/calendar_activity.rs",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/postgres.rs",
+      "src/backend/handshake_core/src/storage/tests.rs",
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/api/calendar.rs",
+      "src/backend/handshake_core/tests/calendar_storage_tests.rs",
+      "src/backend/handshake_core/tests/mex_tests.rs",
+      "src/backend/handshake_core/tests/wp_kernel_012_native_editor_routes_pg_tests.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/Cargo.lock",
+      "src/frontend/handshake_native/src/workspace_settings.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/accessibility/registry.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/src/rich_editor/daily_notes/date_nav.rs",
+      "src/frontend/handshake_native/tests/test_settings_dialog.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs"
     ],
     "forbidden_paths": [
       "app/src/** (legacy React, reference only)",
       ".GOV/**",
-      "src/backend/** (reuse via API only)"
+      "src/backend/** except the explicit V2 temporal-remediation paths listed in allowed_paths"
     ],
     "acceptance_criteria": [
       "Selecting a date opens-or-creates that day's daily note idempotently: calling open_or_create_daily_note(date) twice for the same date returns the same DocId and creates no duplicate document — proven by cargo test that delegates to the MT-019 daily-note service (no re-implemented creation path).",
@@ -333,9 +367,7 @@
         "stale managed-resource manual assertion"
       ],
       "residual_uncertainty": "Independent V2 validation owns the final integrated verdict; both assigned post-fix reviewers found no MT-067 blocker."
-    },
-    "ready_for_validation_at_utc": "2026-07-18T03:34:17Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2"
+    }
   },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",
@@ -446,5 +478,84 @@
       ],
       "no_context_instruction": "Read MT-067.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
-  }
+  },
+  "scope_authority_correction_2026_07_22": {
+    "schema_id": "hsk.mt_scope_authority_correction@1",
+    "corrected_at_utc": "2026-07-22T22:26:37.8772349Z",
+    "corrected_by": "KERNEL_BUILDER-20260722-182301",
+    "authority_basis": [
+      "Operator live command: remediate every failed WP-KERNEL-012 MT and return successful implementations as READY_FOR_VALIDATION_V3.",
+      "validation_v2.remediation_plan requires the current CalendarEvent temporal contract end-to-end in backend wire and frontend domain plus real PostgreSQL cases.",
+      "validation_v2.no_context_instruction requires current v02.201 Calendar Law repair and real-data proof before READY_FOR_VALIDATION_V3."
+    ],
+    "conflict_resolved": "The original frontend-only allowed_paths and blanket src/backend/** prohibition cannot satisfy the later authoritative V2 remediation. The explicit additive paths in scope.allowed_paths are authorized only for MT-067 temporal truth, managed PostgreSQL proof, selected-view UI/settings, canonical Argus, diagnostics/manual, and required regressions.",
+    "scope_edges": [
+      "Do not rewrite applied migration 0015; use the verified next-free additive 0353 migration pair.",
+      "Do not add a parallel calendar store, HTTP client, command bus, pane registry, settings store, retry system, Flight Recorder, manual system, or Argus driver.",
+      "Reuse existing Calendar Workflow, PostgreSQL/EventLedger helpers, workspace settings, shell menu commands, accessibility registry, and canonical localhost Argus path.",
+      "Do not make adjacent Calendar/ActivitySpan changes unless the current MT-067 contract or v02.201 temporal invariants require them for the V2 closure.",
+      "Preserve unrelated dirty work and record exact pre/post hashes for every touched product file."
+    ],
+    "shared_proof_dependencies": [
+      {
+        "path": "src/frontend/handshake_native/src/mcp/mod.rs",
+        "sha256": "9731adbbef70561e4eb0c4c7838d39965d2ce95cf170f238da7d500fedf350e2",
+        "ownership": "shared canonical Argus infrastructure; reused read-only by MT-067"
+      },
+      {
+        "path": "src/frontend/handshake_native/src/mcp/argus.rs",
+        "sha256": "1b6b5705b8063096287da35691a96c2a05d7998c0995098e1215da8661ed166c",
+        "ownership": "shared canonical Argus infrastructure; reused read-only by MT-067"
+      },
+      {
+        "path": "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
+        "sha256": "498c1222d80bcafd5484e9c2f262fb93a973f7841d33b5837d89cff67dba622a",
+        "ownership": "MT-070/shared canonical Argus test driver; reused read-only by MT-067"
+      }
+    ],
+    "validator_boundary": "This correction authorizes implementation and proof only; it does not validate the MT or alter the preserved FAIL_V2 verdict."
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260722-182301",
+    "prepared_at_utc": "2026-07-23T07:28:42.1223942Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "backend_temporal_contract": "PASS_5_OF_5",
+      "managed_postgresql_proofs": "PASS_WORKFLOW_ROUTE_ACTIVITY_AND_DAILY_NOTE_BINDING",
+      "exact_backend_build": "PASS_EXIT_0",
+      "frontend_calendar_serialized": "PASS_19_OF_19_ONE_LIVE_FILTERED",
+      "guarded_live_postgresql_argus": "PASS_1_OF_1_EXACT_DOWNSTREAM_STATE",
+      "retry_exhaustion": "PASS_1_OF_1",
+      "in_flight_generation_cancellation": "PASS_1_OF_1",
+      "format_diff_residue": "PASS",
+      "candidate_manifest_sha256": "cd45607105eea8a138abd9fda9f9661bcb39e26139ccb1bffaaaef46f8015fea"
+    },
+    "adversarial_review": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_POST_REVIEWS_NO_BLOCKER",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-23T07:27:55.326Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-067 FAIL V2. CalendarEvent stores only UTC bounds plus all_day, omitting required tzid, original local wall times, was_floating, and date-only all-day boundaries. contains_date uses inclusive UTC dates, violating the current lossless timezone/DST and half-open all-day rules; near-midnight non-UTC, DST, and multi-day events can bind the wrong daily note.",
+  "remediation_plan": [
+    "Implement the current CalendarEvent temporal contract end-to-end in backend wire and frontend domain: UTC instants plus tzid/original local intent, floating provenance, and date-only half-open all-day boundaries.",
+    "Add real PostgreSQL cases for Europe/Brussels near-midnight, DST gap/overlap, multi-day timed, and all-day events; then run canonical Argus navigation/re-observation and update canonical UserManual."
+  ],
+  "no_context_instruction": "Read MT-067.json and SPEC_CURRENT v02.201 calendar sections 2.0.1-2.1.2. Repair temporal semantics without rewriting the spec, prove real data and Argus behavior, then return READY_FOR_VALIDATION_V3."
+}
 }

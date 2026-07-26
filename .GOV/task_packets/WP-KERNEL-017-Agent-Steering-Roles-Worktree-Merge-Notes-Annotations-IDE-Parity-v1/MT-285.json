@@ -1,0 +1,185 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-285",
+  "title": "IP-MT285-EditorScmGutterChangeMarkers",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-285.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add the VS Code 'dirty diff' gutter to the native code editor — the per-line change decorations in the editor gutter (a colored bar beside ADDED lines, MODIFIED lines, and a caret/triangle beside a DELETED-hunk position) computed by diffing the open buffer against its git HEAD (or index) version, plus the inline change peek + 'Revert this change' / 'Stage this change' hunk actions VS Code exposes when you click a change bar. The MT-281 matrix marks 'scm-dirty-diff-gutter' MISSING: gutter.rs GutterMarkerKind is Diagnostic|Breakpoint|FoldTriangle only, and source_control.rs is a change-LIST panel (peer of the React SourceControlPanel), NOT an in-editor per-line change gutter. The diff computation reuses the EXISTING code_editor::diff_engine (DiffEngine/DiffBlock/DiffStatus line diff) against a HEAD-version string fetched via the EXISTING SourceControlClient diff seam (backend_client ScmDiffScope) — this MT adds NO new git logic; it adds the gutter decoration channel + the change-navigation + the hunk-action wiring.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/code_editor/scm_gutter.rs (ScmChangeKind, ScmChangeHunk, ScmGutterState, the HEAD-version client seam consumption, the change->line-decoration mapping, the hunk-peek + hunk-action widget, AccessKit author_ids); (b) a new GutterMarkerKind::ScmChange(ScmChangeKind) variant in code_editor/gutter.rs (the SAME extension pattern MT-221 uses to add Annotation); (c) wiring in code_editor/panel.rs: load the HEAD version off-thread on open + on save, recompute the change set when the buffer changes (debounced), render the change bars in the gutter's marker column, Go To Next/Previous Change chords, and the click-to-peek-hunk with Revert/Stage actions; (d) one integration test file. NO backend edits (consumes the existing source-control diff/stage routes); NO new git implementation.\n\nDETAILED SPEC:\n1. scm_gutter.rs: `pub enum ScmChangeKind { Added, Modified, Deleted }`; `pub struct ScmChangeHunk { kind, start_line: usize, line_count: usize, head_text: String (the original lines for a Modified/Deleted hunk, for the peek), current_range: (usize,usize) }`; `pub struct ScmGutterState { hunks: Vec<ScmChangeHunk>, head_loaded: bool, error: Option<String> }`. The hunks come from diffing current-buffer vs head_text with diff_engine (line diff), NOT re-implemented.\n2. gutter.rs: extend GutterMarkerKind with ScmChange(ScmChangeKind) (Added=full-height bar, Modified=full-height bar in a distinct color, Deleted=a small triangle between two lines pointing at the deletion site — shape-distinct, not color-only, for colorblind readability). Colors come from theme tokens (the diagnostic_tokens_for pattern), never hardcoded hex. The SCM bar occupies a dedicated thin sub-column of the marker area so it never displaces diagnostics/breakpoints/fold triangles (co-occupancy rule, the MT-221 CTRL-5 precedent).\n3. HEAD version + change compute: on file open and after each save, dispatch (off-thread, HBR-QUIET) a SourceControlClient diff/show request for the file's HEAD (or index) content via the existing backend_client seam; on the buffer changing, recompute the current-vs-head line diff with diff_engine after a short debounce (do not diff on every keystroke). If the file is untracked or the repo/diff seam is unavailable, ScmGutterState.head_loaded stays false with a typed reason and NO change bars render (never guess changes).\n4. Change navigation: Go To Next Change / Previous Change chords (default Alt+F5 / Shift+Alt+F5, VS Code parity) move the caret to the next/previous hunk with wraparound (reuse the MT-052 navigation before/after+wrap pattern used for diagnostics).\n5. Hunk peek + actions: clicking a change bar opens a small inline hunk peek showing the head (original) lines above the current lines (for Modified/Deleted) with two actions: 'Revert this change' (replace the current hunk range with head_text as ONE undo entry — the MT-035/051 single-undo pattern) and 'Stage this change' (dispatch the EXISTING source-control stage route scoped to the file/hunk via the SourceControlEvent path — off-thread, drained next frame). Revert mutates only the buffer; Stage routes to the backend. Added hunks offer Revert (delete the added lines) + Stage.\n6. AccessKit: Role::Button per change bar `code_editor_scm_change_{line}` (instance-suffixed per panel.rs RISK-004), the hunk peek container `code_editor_scm_hunk_{line}`, and the action buttons `code_editor_scm_revert_{line}` / `code_editor_scm_stage_{line}`.\n7. Scope edge: this MT REUSES diff_engine (line diff) + the existing SourceControlClient stage/diff routes; it does NOT implement git, does NOT modify source_control.rs's change-list panel, and does NOT own commit/discard (those stay in the SCM panel).\n\nSTEP-BY-STEP:\n1. Read code_editor/gutter.rs (GutterMarkerKind/GutterMarker/Gutter::render/GutterResponse marker column, diagnostic_tokens_for), diff_engine.rs (DiffEngine/DiffBlock/DiffStatus line diff, MergeChoice), panel.rs (RISK-004 instance-suffix author_ids, off-thread dispatch + next-frame drain precedent, single-undo boundary, debounce precedent), navigation.rs (before/after+wrap for Next/Prev), backend_client.rs (SourceControlClient, ScmDiffScope) + source_control.rs (SourceControlEvent Stage path — reuse, do not modify), keymap.rs (add GoToNextChange/GoToPrevChange chords).\n2. Create scm_gutter.rs with ScmChangeKind/ScmChangeHunk/ScmGutterState + the head-version client seam + the current-vs-head diff_engine mapping to hunks + the hunk peek/action widget + AccessKit nodes; unit-test the diff->hunk mapping (added/modified/deleted lines -> correct hunks).\n3. Extend GutterMarkerKind with ScmChange(ScmChangeKind) + shape-distinct glyph/bar painting in the dedicated sub-column + co-occupancy with diagnostics/breakpoints/folds.\n4. Wire panel.rs: off-thread HEAD load on open/save, debounced recompute on change, render bars, Next/Prev Change chords, click-to-peek + Revert (single-undo buffer edit) + Stage (route dispatch off-thread).\n5. Register the module + re-exports in code_editor/mod.rs.\n6. Integration test: a buffer with an added line, a modified line, and a deletion shows the three shape-distinct bars; Next/Prev Change navigates with wrap; Revert restores the head text as one undo; Stage dispatches the stage route (fake client asserts the call); untracked file shows NO bars with a typed reason. Capture Argus screenshot + AccessKit tree of the three change kinds + an open hunk peek.\n7. Update the UserManual (same change): editor change bars — what added/modified/deleted look like, Next/Prev Change chords, click-to-peek, Revert vs Stage, and behavior for untracked files.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/scm_gutter.rs",
+      "src/frontend/handshake_native/src/code_editor/gutter.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/tests/test_scm_gutter.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (consumes the existing source-control diff/stage routes; no backend git changes)",
+      "src/frontend/handshake_native/src/source_control.rs (the SCM change-LIST panel is a distinct surface; reuse its stage event path, do not modify it)",
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs (reuse the line diff; do not fork or modify it)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/gutter.rs gains GutterMarkerKind::ScmChange(ScmChangeKind{Added,Modified,Deleted}) with SHAPE-distinct decorations (added bar / modified bar / deletion triangle), colors from theme tokens (no hardcoded hex), occupying a dedicated marker sub-column that never displaces diagnostics/breakpoints/fold triangles.",
+      "scm_gutter.rs computes hunks by diffing the current buffer vs its git HEAD/index version using the EXISTING code_editor::diff_engine (grep-provable: no new git/line-diff implementation), with the HEAD version fetched via the EXISTING SourceControlClient seam.",
+      "HEAD load + change recompute run off-thread (HBR-QUIET, no render-thread block); recompute is debounced (not per-keystroke); an untracked file or unavailable diff seam renders NO change bars and records a typed reason (never guesses changes).",
+      "Go To Next/Previous Change chords move the caret between hunks with wraparound (reusing the MT-052 before/after+wrap pattern).",
+      "Clicking a change bar opens an inline hunk peek (head lines shown for Modified/Deleted) with 'Revert this change' (buffer edit as ONE undo entry) and 'Stage this change' (dispatch the existing source-control stage route off-thread).",
+      "AccessKit author_ids code_editor_scm_change_{line} / code_editor_scm_hunk_{line} / code_editor_scm_revert_{line} / code_editor_scm_stage_{line} are stable and instance-suffixed on multi-pane mount.",
+      "UserManual updated in the same change: change bars, Next/Prev Change chords, peek, Revert vs Stage, untracked-file behavior."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native scm_gutter -- --nocapture",
+      "rg -n 'ScmChange\\(' src/frontend/handshake_native/src/code_editor/gutter.rs",
+      "rg -n 'DiffEngine|diff_engine' src/frontend/handshake_native/src/code_editor/scm_gutter.rs && rg -n 'git2::|libgit2|myers|patience' src/frontend/handshake_native/src/code_editor/scm_gutter.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of a buffer showing added/modified/deleted change bars and an open hunk peek with Revert/Stage, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/scm_gutter.rs (new change compute + hunk peek/actions)",
+      "src/frontend/handshake_native/src/code_editor/gutter.rs (extend GutterMarkerKind)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (HEAD load + debounced recompute + Next/Prev + peek/actions wiring)",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs (GoToNextChange/GoToPrevChange chords)"
+    ],
+    "expected_tests": [
+      "unit: current-vs-head diff maps added/modified/deleted lines to the correct ScmChangeHunk set",
+      "unit: shape-distinct decoration per ScmChangeKind (added bar / modified bar / deletion triangle), theme-token colors",
+      "unit: co-occupancy — an SCM bar and a diagnostic + breakpoint on the same line all render without displacement",
+      "integration: Next/Prev Change navigates hunks with wraparound",
+      "integration: Revert restores head text as one undo entry; Stage dispatches the stage route (fake client asserts the call)",
+      "integration: untracked file / unavailable seam renders zero bars with a typed reason",
+      "integration: recompute is debounced (not fired on every keystroke)"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: gutter.rs GutterMarkerKind{Diagnostic,Breakpoint,FoldTriangle} + GutterMarker{line,message,kind} + Gutter::render marker column + diagnostic_tokens_for (extend exactly as MT-221 adds Annotation); diff_engine.rs DiffEngine/DiffBlock/DiffStatus (line diff) + MergeChoice; source_control.rs SourceControlEvent::Stage routes via backend_client SourceControlClient (ScmDiffScope) to /source-control/* — reuse the stage path; navigation.rs before/after+wrap (MT-052); panel.rs off-thread dispatch + next-frame drain + single-undo boundary + RISK-004 instance-suffix ids.",
+      "Design basis (cite in code docs): VS Code dirty diff (scm.diffDecorations) — added/modified/deleted gutter bars, Go To Next/Previous Change (Alt+F5 / Shift+Alt+F5), the inline change peek with Revert/Stage hunk actions.",
+      "The HEAD-version fetch reuses the existing SourceControlClient diff seam; if the backend exposes only a file-level diff (not a raw HEAD blob), derive head_text from the diff or add the fetch to the client seam WITHOUT modifying backend git logic — record a typed DEFERRED_HEAD_SOURCE blocker if the seam genuinely cannot supply head content, rather than faking it.",
+      "Cross-family seams (reference only): MT-286 inline blame is a SEPARATE editor decoration (end-of-line annotation) sharing the SourceControlClient but not the gutter column; MT-290 timeline consumes the same SCM history but is a panel, not a gutter."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "code_editor gutter SCM change bars (added/modified/deleted)",
+      "inline hunk peek with head lines",
+      "Revert / Stage hunk actions",
+      "untracked-file empty state"
+    ],
+    "argus_targets": [
+      "code_editor_scm_change_0",
+      "code_editor_scm_hunk_0",
+      "code_editor_scm_revert_0",
+      "code_editor_gutter"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "readability_check_all_change_kinds",
+      "empty_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Editor change bars (dirty diff): added/modified/deleted meaning, Go To Next/Previous Change, click-to-peek a hunk, Revert vs Stage, and behavior for untracked files"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Revert is a local buffer edit (recorded by the existing undo path); Stage dispatches an existing source-control route that owns its own receipts. This decoration MT emits no new business events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The hunk set, head-load status, and diff outcome (n hunks / untracked / error) are exposed as structured state so a no-context model can see why bars did or did not render."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Render/decoration surface; the off-thread HEAD fetch is a bounded task, not a supervised child process."
+    }
+  ],
+  "risk_if_missed": "Without in-editor change bars an operator (or reviewing agent) editing files during a worktree session cannot see, at a glance, which lines changed versus HEAD, cannot jump between changes, and cannot revert or stage a single hunk from the editor — all baseline VS Code SCM affordances and directly relevant to the WP-017 worktree-merge review flow.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Stale/guessed change bars — bars render from a stale HEAD or a failed diff, showing changes on lines that did not change and hiding real ones, misleading review.",
+      "RISK-2: Destructive revert — 'Revert this change' replaces the wrong range (off-by-one hunk mapping) and destroys unrelated edits, or is not a single undo so it can only be partially undone.",
+      "RISK-3: Render-thread block — the HEAD fetch or per-keystroke diff runs on the frame thread, freezing the editor on large files.",
+      "RISK-4: Gutter overload — SCM bars displace or obscure diagnostics/breakpoints/fold triangles, regressing existing gutter readability.",
+      "RISK-5: Wrong-scope stage — 'Stage this change' stages the whole file (or wrong path) instead of the intended file/hunk."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Bars derive only from a successfully loaded HEAD via diff_engine; untracked/error states render NO bars with a typed reason; a test asserts no bars on a failed head load.",
+      "CTRL-2 (RISK-2): Revert replaces exactly the hunk's current_range with head_text as ONE undo entry; a test with adjacent unrelated edits asserts only the target hunk changes and one Ctrl+Z fully reverts.",
+      "CTRL-3 (RISK-3): HEAD fetch is off-thread + drained next frame; recompute is debounced; grep proves no block_on/join on the render path.",
+      "CTRL-4 (RISK-4): SCM bars occupy a dedicated marker sub-column with a documented co-occupancy rule; a test + Argus overlap check assert a line with an SCM bar + diagnostic + breakpoint renders all three.",
+      "CTRL-5 (RISK-5): Stage dispatches the existing SourceControlEvent::Stage scoped to the exact file path (and hunk where the route supports it); a fake-client test asserts the staged path/scope matches the clicked hunk."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: gutter.rs GutterMarkerKind = Diagnostic|Breakpoint|FoldTriangle only (no SCM kind); source_control.rs is a change-LIST panel dispatching Stage/Unstage/Diff/Blame events via backend_client SourceControlClient to /source-control/* (verified read-only), NOT an editor gutter; diff_engine.rs supplies the line diff; navigation.rs supplies before/after+wrap. Confirmed 'scm-dirty-diff-gutter' is not covered by WP-012 (MT-001..108), WP-013/014 stubs, STUDIO, or WP-011. External design basis: VS Code dirty diff decorations + hunk Revert/Stage.",
+    "corrections": [
+      "An SCM surface DOES exist (source_control.rs) but it is the change-LIST panel, not an in-editor per-line gutter — the gutter dirty-diff decoration, change navigation, and per-hunk Revert/Stage are all confirmed MISSING and are what this MT adds, reusing diff_engine + the existing stage route rather than adding git logic."
+    ]
+  }
+}

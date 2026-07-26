@@ -1,0 +1,161 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-107",
+  "title": "MM-MT107-SessionTreeGui",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-107.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-103",
+      "MT-105"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make model-to-model orchestration operator-visible and operator-controllable: a session-tree UI on BOTH GUI stacks — a native egui pane in handshake_native and an extension of the React SessionWorkbench — showing the parent-child tree (MT-103 lineage), per-child state (turn state, last MT-121 signal, blockers, quarantine flags), a live steering/notification feed (MT-105 deliveries + MT-102 steer calls), and interrupt/steer entry points so the OPERATOR can steer or interrupt any child directly (operator authority is never narrower than model authority).\n\nEXPECTED DIFF SHAPE: New native pane src/frontend/handshake_native/src/session_tree_pane.rs registered alongside operator_chat_pane.rs / swarm_lane_diagnostics.rs in the native shell; React extension inside app/src/components/swarm/SessionWorkbench.tsx (tree panel + feed panel + steer/interrupt controls) with a test file update; any read API needed comes from existing MT-103/105 read surfaces exposed over the existing backend API/IPC conventions (no new backend business logic in this MT — thin read/command plumbing only). AccessKit coverage on the native pane; Argus visual evidence for both stacks.\n\nDETAILED SPEC:\n1. Tree panel: renders the live_tree forest from MT-103 (operator/scheduler/model roots), one node per session: role_id, lane, session state, depth, workspace mode, spawned_by_actor badge (model-spawned children visually distinct from operator-spawned). Collapsed/expanded state persists per pane session. Terminated children remain visible (dimmed) until dismissed. Stable element identifiers on every node (session id based) for parallel-model/GUI-automation access.\n2. Per-child detail: selecting a node shows turn state, last MT-121 signal (kind + time), open blockers, pending steer-queue depth, delivery_class of its transport, budget granted vs consumed (where the lane reports it), and quarantine events affecting this child (envelope info + quarantine_id from MT-104 — NOT raw quarantined content; raw bodies stay operator-access-only via the quarantine store surface, and this pane links, not inlines).\n3. Live feed: chronological stream (newest first) of steer calls (MT-102, with parent attribution), worker notifications (MT-105: completed/failed/cancelled/blocker/signal, batched entries expandable), policy denials (MT-106 decisions), and quarantine events. Feed is event-driven from the MT-009 bus / existing GUI event plumbing — NO polling loop in either GUI (operator rule; the existing native event patterns in swarm_lane_diagnostics.rs are the reference).\n4. Operator steer/interrupt entry points: from any live child node the operator can (a) send a steer message (free-text; operator content is NOT injection-scanned — the operator is the authority; delivery still via the MT-002 queue with the same capability-aware turn semantics, labeled with the delivery class so the operator knows when it lands), (b) interrupt the current turn, (c) cascade-cancel a subtree (confirmation dialog naming the descendant count). All operator actions are ledgered with actor=operator attribution.\n5. Both stacks reach behavior parity for read surfaces; command parity: native and React both expose steer + interrupt + subtree-cancel. Argus captures the tree, detail, and feed states on both stacks; AccessKit exposes the native tree as an accessible tree with node labels (role + state) and actionable buttons.\n6. Quiet operation: the pane never pops itself to foreground, steals focus, or hijacks keyboard on events (HBR-QUIET); new-activity indication is a passive badge.\n\nSTEP-BY-STEP:\n1. Read operator_chat_pane.rs + swarm_lane_diagnostics.rs (native pane registration, event-driven update patterns) and SessionWorkbench.tsx / SwarmControlRoom.tsx / SwarmBoard.tsx (React swarm surface conventions, harness files for visual tests).\n2. Define the read projection consumed by both GUIs (tree + detail + feed) over existing MT-103/105/106 read surfaces; add thin API/IPC plumbing only where a read surface is missing.\n3. Implement session_tree_pane.rs: tree render, detail panel, feed, steer/interrupt/cancel commands, AccessKit nodes, stable ids, passive badge.\n4. Extend SessionWorkbench.tsx with the tree/detail/feed panels and commands, stable data-testid attributes, and update SessionWorkbench.test.tsx.\n5. Wire Argus targets for both stacks (native pane states + React harness states).\n6. Tests + visual evidence per expected_tests/argus_targets.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/session_tree_pane.rs",
+      "src/frontend/handshake_native/src/** (shell registration + shared pane plumbing only, minimal diff)",
+      "app/src/components/swarm/SessionWorkbench.tsx",
+      "app/src/components/swarm/SessionWorkbench.test.tsx",
+      "app/src/components/swarm/session_workbench_visual_harness.tsx",
+      "src/backend/handshake_core/src/api/** (thin read/command plumbing only; no new business logic)",
+      "src/frontend/handshake_native/tests/session_tree/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** outside the three named SessionWorkbench files (GUI MT exception covers ONLY the named surfaces)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/** (render decisions; never edit rules from this pane)"
+    ],
+    "acceptance_criteria": [
+      "Native session_tree_pane renders the MT-103 forest with per-node role/lane/state/depth/actor badges, stable ids, and persisting expand state; terminated children dim, not vanish.",
+      "React SessionWorkbench shows the same tree/detail/feed data with stable data-testid attributes; SessionWorkbench.test.tsx covers tree render, detail selection, and command dispatch.",
+      "Per-child detail shows turn state, last signal, blockers, steer-queue depth, delivery class, and quarantine envelopes (id + finding summary only — raw quarantined bodies are never inlined).",
+      "Live feed is event-driven on both stacks: no polling timer scanning backend state (code-review criterion + grep proof on the new pane).",
+      "Operator can steer any live child (via MT-002 queue, delivery class labeled), interrupt a turn, and cascade-cancel a subtree behind a confirmation naming descendant count; all three ledgered with operator attribution.",
+      "Operator steer input is not injection-scanned but IS ledgered; model-originated feed content renders as untrusted data (marker-block styling from MT-104 neutralization).",
+      "AccessKit: native tree exposed as accessible tree nodes with labels and actionable steer/interrupt buttons (verified via the project's AccessKit test harness).",
+      "Quiet: no focus steal, no foreground pop, no keyboard hijack on new events; passive badge only.",
+      "Argus visual evidence captured for the named argus_targets on both stacks."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native session_tree -- --nocapture",
+      "npx vitest run app/src/components/swarm/SessionWorkbench.test.tsx",
+      "! rg -n \"set_interval|poll|setInterval\" src/frontend/handshake_native/src/session_tree_pane.rs app/src/components/swarm/SessionWorkbench.tsx | rg -v \"comment|no-poll\"",
+      "Argus captures for argus_targets exist and are referenced in the run evidence"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/session_tree_pane.rs (new)",
+      "src/frontend/handshake_native/src/operator_chat_pane.rs (reference: pane registration + event patterns)",
+      "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs (reference: event-driven diagnostics pane precedent)",
+      "app/src/components/swarm/SessionWorkbench.tsx (extend)",
+      "app/src/components/swarm/session_workbench_visual_harness.tsx (extend for visual states)",
+      "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (reference: live_tree read surface)"
+    ],
+    "expected_tests": [
+      "native: tree renders 3-level fixture forest with correct badges and stable ids",
+      "native: detail panel populates on selection; quarantine envelope shows id, never body",
+      "native: steer/interrupt/cascade commands dispatch and ledger with operator attribution; cascade confirm shows descendant count",
+      "react: vitest tree render + detail + command dispatch via data-testid",
+      "both: new-event updates arrive event-driven (fixture event push), no polling",
+      "accesskit: tree nodes + action buttons exposed and labeled"
+    ],
+    "implementation_notes": [
+      "GUI grounding verified 2026-07-21: operator_chat_pane.rs and swarm_lane_diagnostics.rs exist in src/frontend/handshake_native/src/; SessionWorkbench.tsx, SessionWorkbench.test.tsx, session_workbench_visual_harness.tsx, SwarmControlRoom.tsx, SwarmBoard.tsx exist in app/src/components/swarm/.",
+      "Operator authority is a superset of model authority: MT-106 policy gates models, not the operator; operator commands skip policy evaluation but never skip the coordinator's mechanical enforcement or the ledger.",
+      "Feed volume: reuse MT-105 batching envelopes; expandable batch rows keep the feed readable under bursts.",
+      "React stack remains the legacy/parity surface; native pane is the primary — do not fork behavior between them beyond styling idiom.",
+      "Argus target naming follows the existing swarm harness conventions (see session_workbench_visual_harness.tsx and swarm_board_visual_harness.tsx).",
+      "Cross-family seams (reference only): MT-002 queue (operator steers ride it), MT-009 bus (feed events), MT-102 delivery classes, MT-104 marker styling, MT-121 signal kinds, session GUI seams from the session family."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "src/frontend/handshake_native/src/session_tree_pane.rs (new native egui pane)",
+      "app/src/components/swarm/SessionWorkbench.tsx (React extension: tree + detail + feed + commands)",
+      "app/src/components/swarm/session_workbench_visual_harness.tsx (visual states)"
+    ],
+    "argus_targets": [
+      "native: session tree forest with model-spawned badge states (idle/active/blocked/terminated-dimmed)",
+      "native: per-child detail panel incl quarantine envelope row",
+      "native: live feed with batched notification row expanded",
+      "native: cascade-cancel confirmation dialog with descendant count",
+      "react: SessionWorkbench tree + detail + feed panels via visual harness"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Session tree pane: reading the parent-child forest, per-child detail, live feed; steering/interrupting a child as operator; cascade-cancel; quarantine envelopes and where raw quarantined content lives"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "Model-to-model orchestration runs invisible: the operator cannot see which models spawned what, cannot steer or stop children without killing sessions blind, quarantine events go unnoticed, and trust in autonomous orchestration collapses exactly when adoption needs it.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Quarantined content leak — the pane inlines raw quarantined bodies 'for operator convenience', delivering the injection payload to the operator's context and any model reading the GUI state.",
+      "RISK-2: Misattributed feed — steer/notification rows render without (or with wrong) parent attribution, so the operator cannot tell model actions from operator actions during an incident.",
+      "RISK-3: Accidental cascade — one-click subtree cancel without confirmation kills a productive worker tree mid-write.",
+      "RISK-4: Polling reintroduction in GUI — the feed 'temporarily' polls backend state on a timer, violating the operator's zero-polling rule at the GUI layer and hammering the API under load.",
+      "RISK-5: Stale tree during incidents — event loss leaves the pane showing live children that are dead (or vice versa), and the operator steers ghosts."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Quarantine rendering contract: envelope + finding summary + link only; a test asserts raw body strings never appear in pane/DOM output for a quarantined fixture.",
+      "CTRL-2 (RISK-2): Every feed row carries actor attribution from the ledger record (model:parent_id vs operator); attribution rendering covered by test on both stacks.",
+      "CTRL-3 (RISK-3): Cascade-cancel requires a confirmation dialog naming the live descendant count; single-child interrupt is the default affordance; test asserts dialog gate.",
+      "CTRL-4 (RISK-4): Grep proof target rejects timer polling in the new surfaces; feed updates only via event push, with a manual refresh button as the sanctioned fallback.",
+      "CTRL-5 (RISK-5): Detail panel cross-checks coordinator state on selection (the MT-103 divergence diagnostic) and flags divergence visibly; refresh button re-syncs."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1 GUI surfaces: src/frontend/handshake_native/src/operator_chat_pane.rs, swarm_lane_diagnostics.rs (native pane + event-driven update precedent); app/src/components/swarm/SessionWorkbench.tsx (+ .test.tsx + visual harness), SwarmControlRoom.tsx, SwarmBoard.tsx (React swarm surface + Argus harness conventions). External precedent: process-tree UIs (htop/Task Manager tree affordances), Claude Code agent-status surfaces; Anthropic multi-agent research system's observability notes (structured result reporting rendered per-worker).",
+    "corrections": []
+  }
+}

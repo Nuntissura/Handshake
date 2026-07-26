@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "FAIL_V2",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,7 +37,7 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -600,5 +600,28 @@
       }
     ],
     "validator_instruction": "Independently rerun the current-head MT-032 proof commands against managed PostgreSQL and inspect the strict current Canvas screenshot. Preserve validation_v1.verdict and lifecycle.validator_verdict as FAIL_V1 until the independent v2 validator issues a new verdict."
-  }
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-032 FAIL V2. The mounted document/backlink surface lacks canonical Argus inspect/steer/re-observe proof, and its manual text still defers internal_diagnostics and Palmistry until those tiers ship even though both are present in this worktree. The required three-tier posture is therefore stale.",
+  "remediation_plan": [
+    "Run the real PostgreSQL document-address/backlink/content-hash path, including missing/404, stale, and restart cases.",
+    "Wire or explicitly disposition all three diagnostic tiers, correct the canonical UserManual, and execute canonical Argus navigation plus fresh post-action observation."
+  ],
+  "no_context_instruction": "Read MT-032.json, packet, current spec, and HBR-INT-009. Correct the stale diagnostics/manual posture and prove real PostgreSQL plus canonical Argus before READY_FOR_VALIDATION_V3."
+}
 }

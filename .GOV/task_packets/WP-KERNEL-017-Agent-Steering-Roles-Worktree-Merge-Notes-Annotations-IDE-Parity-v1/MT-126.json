@@ -1,0 +1,186 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-126",
+  "title": "ML-MT126-MtLoopEndToEndProof",
+  "group": "ML MT dispatch lifecycle",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-126.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-121",
+      "MT-122",
+      "MT-123",
+      "MT-124",
+      "MT-125",
+      "MT-001",
+      "MT-002",
+      "MT-007",
+      "MT-009",
+      "MT-027",
+      "MT-046",
+      "MT-083",
+      "MT-086",
+      "MT-101",
+      "MT-105",
+      "MT-141",
+      "MT-161"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: LIVE end-to-end proof of the FULL productized MT loop — the WP-017 packet-level acceptance criterion 'Full MT loop proven end-to-end' made executable. One integration proof drives: dispatch a REAL (small) hsk.microtask_contract@1 contract -> worker spawned with role+contract injected into an isolated session worktree -> worker implements and emits hsk.mt_signal@1 READY_FOR_VALIDATION as its structured exit -> MT-123 run advances -> orchestrator notified with ZERO polling (proven, not asserted) -> MT-124 validation handoff fires. Plus the three negative paths: BLOCKED signal, malformed signal, worker crash mid-run. This MT authors proof code + fixtures ONLY; any product defect it exposes is fixed in the owning MT (typed blocker + handback, never a silent patch here).\n\nEXPECTED DIFF SHAPE: New integration test src/backend/handshake_core/tests/test_mt_loop_e2e.rs + fixture MT contract JSON + a machine-readable run report under the test tree; no product-source edits.\n\nDETAILED SPEC — POSITIVE PATH (P-01):\n1. Fixture contract: a real hsk.microtask_contract@1 JSON (fixture in the test tree, structurally template-conformant: wp_id, mt_id, lifecycle, scope.summary/allowed_paths/forbidden_paths/acceptance_criteria/proof_targets) whose objective is trivially implementable (e.g. create one file with fixed content inside the workspace and run one echo-style proof command).\n2. Dispatch via MT-122: parse -> compose (role + objective + boundaries + hsk.mt_signal@1 output format + proof-target expectations) -> spawn through SwarmCoordinator. Worker lane: the cheapest live lane available per MT-027/MT-046 transport availability on the host; when no live CLI lane is available the harness's scripted/local worker lane executes the same transport contract (structured exit through the same parse path) — record WHICH lane ran; a scripted-lane run is a DISCLOSED degraded proof, not a silent substitute, and the live-lane run remains required for packet closure.\n3. Workspace isolation: worker cwd = session worktree from ensure_session_worktree_allocation (workspace_safety.rs:370 — `git worktree add --detach` under session_worktrees/<session_id> or HANDSHAKE_SESSION_WORKTREE_ROOT), in MT-141 branch mode; assert the implemented file exists INSIDE the worktree and NOT in the main tree. VM binding: when a microVM adapter is available, exercise WorktreeVmRegistry::ensure_worktree_vm on the worktree (optional path); when unavailable, record the typed skip reason (adapter-unavailable) — never fake the VM leg.\n4. Signal: worker's structured exit is hsk.mt_signal@1 READY_FOR_VALIDATION with evidence[] from its proof command and changed_paths; parsed by the MT-121 parser via the transport binding.\n5. Advance + notify: assert mt_runs row walks DISPATCHED -> ... -> SIGNALED{READY_FOR_VALIDATION} -> VALIDATION_HANDOFF; assert the orchestrator notification (MT-105) was DELIVERED (recording sink) and the MT-124 handoff receipt exists.\n6. ZERO-POLLING PROOF: over the dispatch->handoff window, scan the mechanical records (session/FR event stream, process ledger, notification log) and assert ZERO periodic status-query entries: no repeated state-read of the same run from the orchestrator side, no timer-driven poll events; the ONLY run-state reads permitted are event-triggered ones. Implement as: capture all bus/ledger entries in the window, classify with an explicit allowlist (dispatch, claim, transition, signal, notification, handoff, closure, test-harness assertions), fail on any status-query classification or unclassified read-loop pattern (>=2 identical reads of run state without an intervening event).\n7. Cleanup: cleanup_session_worktree (workspace_safety.rs:418) on every exit path; assert no leftover worktree dir and `git worktree list` contains no stale entry.\n\nNEGATIVE PATHS:\n- N-01 BLOCKED: fixture worker emits BLOCKED with typed blocker {kind: MANAGED_RESOURCE_UNAVAILABLE, detail}; assert run lands BLOCKED{blocker}, NO validation handoff fired, blocker visible via list_runs (the MT-125 data source).\n- N-02 MALFORMED SIGNAL: worker exits with non-schema output; assert SignalParseFailure typed error recorded WITH bounded raw excerpt, run lands FAILED{SignalParseFailure}, no handoff, nothing silent.\n- N-03 WORKER CRASH MID-RUN: kill the worker process after claim but before signal; assert the supervisor terminal report (or lease expiry as the fallback mechanism — record which fired) lands the run FAILED{WorkerCrashed | LeaseExpired}, event emitted, worktree still cleaned up.\n\nRUN REPORT: the proof writes a machine-readable report (test tree, e.g. tests/mt_loop_e2e/last_run_report.json): { scenario_id, lane_used, live_or_scripted, vm_leg: exercised|skipped{reason}, states_walked, polling_scan: {entries_scanned, status_queries_found}, verdict } per scenario — the honest record a validator and the packet closure can cite.\n\nSTEP-BY-STEP:\n1. Read the landed MT-121..125 surfaces + MT-027/046 transport bindings + MT-141 worktree-branch mode + MT-161 FR kinds in the product worktree; bind exact symbol names then author the test.\n2. Author fixture contract + trivial workspace objective.\n3. Implement P-01 with lane selection + disclosure, worktree/VM assertions, zero-polling scan, cleanup guards (Drop-based so panics still clean up).\n4. Implement N-01, N-02, N-03.\n5. Emit the run report atomically (temp+rename).\n6. Run everything against a live backend with managed PG per the crate's integration conventions; record measured outcomes; typed blocker (NEEDS_MANAGED_RESOURCE_PROOF) instead of green language if the managed resource is unavailable.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/test_mt_loop_e2e.rs",
+      "src/backend/handshake_core/tests/mt_loop_e2e/** (fixtures + run report)",
+      "src/backend/handshake_core/Cargo.toml ([[test]] registration only if required by crate convention)"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/src/** (proof-only MT: product defects hand back to the owning MT via typed blocker, never patched here)",
+      "app/src/** (legacy React; GUI surface exception exists only on the board MT MT-125)",
+      ".GOV/** (the product READS MT contracts; it never writes .GOV — the fixture contract lives in the test tree)",
+      ".GOV/tools/handshake-acp-bridge/** (repo-gov broker stays as-is)",
+      "src/frontend/** (board verification belongs to MT-125)"
+    ],
+    "acceptance_criteria": [
+      "P-01 passes live: fixture contract dispatched, worker spawned with role+contract injected, work performed INSIDE the session worktree (asserted in-worktree and absent from the main tree), READY_FOR_VALIDATION structured exit parsed, run walked to VALIDATION_HANDOFF, orchestrator notification delivered, handoff receipt recorded.",
+      "Zero-polling PROVEN mechanically: the dispatch->handoff window scan reports 0 status-query entries and 0 unclassified read-loop patterns over the captured bus/ledger records — a number in the run report, not a claim.",
+      "Worktree leg uses ensure_session_worktree_allocation in MT-141 branch mode; VM leg exercised via WorktreeVmRegistry::ensure_worktree_vm when an adapter is available, else recorded as typed skip (adapter-unavailable) — never faked.",
+      "N-01: BLOCKED signal lands BLOCKED{typed blocker}, no handoff fires, blocker queryable via list_runs.",
+      "N-02: malformed exit lands FAILED{SignalParseFailure} with bounded raw excerpt recorded; no handoff; no silent path.",
+      "N-03: worker killed mid-run lands FAILED{WorkerCrashed or LeaseExpired — mechanism recorded}; event emitted; worktree cleaned up.",
+      "All scenarios clean up session worktrees on success AND failure paths (Drop guards); `git worktree list` shows no stale entries after the suite.",
+      "Machine-readable run report written atomically with lane disclosure (live vs scripted), VM-leg status, states walked, polling-scan numbers, and per-scenario verdicts.",
+      "If any leg cannot run against its real resource, the result is a typed blocker (NEEDS_MANAGED_RESOURCE_PROOF / adapter-unavailable) in the report — PASS language is never written for an unexercised leg."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test test_mt_loop_e2e -- --nocapture",
+      "python -c \"import json;r=json.load(open('src/backend/handshake_core/tests/mt_loop_e2e/last_run_report.json'));assert r['P-01']['polling_scan']['status_queries_found']==0;assert all(s['verdict'] in ('PASS','TYPED_BLOCKER') for s in r.values());print('e2e report OK')\"",
+      "git -C . worktree list | grep -c session_worktrees | grep -q '^0'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/test_mt_loop_e2e.rs (new, proof-only)",
+      "src/backend/handshake_core/tests/mt_loop_e2e/ (fixtures + run report)"
+    ],
+    "expected_tests": [
+      "P-01 full-loop live scenario incl. in-worktree work assertion + notification delivery + handoff receipt",
+      "zero-polling window scan with classification allowlist",
+      "N-01 BLOCKED / N-02 malformed / N-03 crash scenarios",
+      "cleanup-on-panic Drop-guard behavior",
+      "run-report atomic write + schema shape"
+    ],
+    "implementation_notes": [
+      "This MT is the packet's honest gate for the operator's core productization claim; it deliberately mirrors the operator's live repo-gov loop (orchestrator -> coder -> validator handoff) at product level. The run report is the citeable artifact — treat it like MT-045's perf_manifest.json (atomic write, honest statuses, typed blockers instead of green language).",
+      "Scripted-lane fallback exists so the loop mechanics are provable on a host without live CLI credentials, but it is ALWAYS disclosed in the report (live_or_scripted) and packet closure requires at least one live-lane P-01 run — do not let the fallback become the only evidence.",
+      "The zero-polling scan allowlist must be explicit and enumerable in the test source so a validator can audit what counts as legitimate reads; err on the side of failing the scan and widening the allowlist consciously.",
+      "Crash-path note: whether supervisor terminal report or lease expiry fires first is timing-dependent; the assertion accepts either but REQUIRES the mechanism to be recorded — both are mechanical, neither is polling.",
+      "Windows host: session worktree paths and git worktree cleanup have Windows-specific failure modes (long paths, locked files while the child is dying); N-03 must wait for child-process exit before cleanup assertion, mirroring workspace_safety.rs's own discipline.",
+      "Fixture contract ids use a reserved test namespace (e.g. wp_id WP-TEST-E2E, mt_id MT-900 range) so no collision with real governance ids is possible in reports/ledgers."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless integration proof; the operator surface (board) is verified in MT-125. The run report is the trace projection."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "MT dispatch loop: what happens from dispatch to validation handoff (mechanical signals, no polling)",
+      "Reading the MT loop run report; interpreting BLOCKED / parse-failure / crash outcomes"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "TIER_1_STRUCTURED_STATE",
+      "obligation": "last_run_report.json exposes per-scenario lane, VM-leg, states walked, polling numbers, and verdicts to any no-context model."
+    },
+    {
+      "tier": "TIER_2_TRACE",
+      "obligation": "The proof consumes and asserts the FR/bus/ledger trace itself (the zero-polling scan IS a trace audit)."
+    },
+    {
+      "tier": "TIER_3_OPERATOR_SURFACE",
+      "obligation": "Run outcomes are visible on the MT-125 board (runs created by the proof appear as rows); UserManual entry ships same-change."
+    }
+  ],
+  "risk_if_missed": "The productized MT loop ships assembled-but-never-proven: polling could silently persist, negative paths could dead-end runs invisibly, and the WP's central acceptance criterion (full loop end-to-end, zero polling) would rest on unverified claims.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The scripted-lane fallback quietly becomes the only evidence and the 'live loop proven' claim is actually a self-test of the harness.",
+      "RISK-2: The zero-polling assertion is vacuous — the scan classifies everything as allowed or scans an empty window, proving nothing.",
+      "RISK-3: The proof patches product code to make itself pass (scope bleed), hiding defects from the owning MTs' lineage.",
+      "RISK-4: Worktree/VM legs are mocked or skipped without disclosure, so isolation is asserted but never exercised.",
+      "RISK-5: Crash-path flakiness (timing between supervisor report and lease expiry) turns N-03 into a retried-until-green test that masks real supervision gaps."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): run report discloses live_or_scripted per scenario; acceptance requires live-lane P-01 for packet closure; scripted-only is a typed degraded verdict.",
+      "CTRL-2 (RISK-2): scan must report entries_scanned > 0 and the allowlist is enumerated in test source; a canary sub-test injects one synthetic status-query record and asserts the scan FAILS on it (scanner self-proof).",
+      "CTRL-3 (RISK-3): src/** is a forbidden path for this MT; defects hand back via typed blocker naming the owning MT; proof target diff-scope check belongs to the validator's mechanical track.",
+      "CTRL-4 (RISK-4): in-worktree/not-in-main-tree file assertions + typed VM-leg skip reasons; no mock worktree.",
+      "CTRL-5 (RISK-5): N-03 accepts either mechanical mechanism but records which fired; no retry loop around the scenario — a flake is a finding, not a rerun."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-017 stub acceptance criteria ('Full MT loop proven end-to-end ... zero polling') + operator rules (polling forbidden; no green language without live proof; typed blockers) + verified product code: workspace_safety.rs ensure_session_worktree_allocation:370 / cleanup_session_worktree:418 / HANDSHAKE_SESSION_WORKTREE_ROOT:357, worktree_vm_registry.rs ensure_worktree_vm:94 / snapshot:117 / restore:129, coordinator.rs spawn/lease/reaper, events.rs sinks + MT-045 honest-manifest precedent (atomic report, typed non-PASS statuses).",
+    "corrections": [
+      "Zero-polling is proven by a self-proving scanner (canary injection) over captured mechanical records, not by absence-of-code review alone.",
+      "VM binding is an optional exercised-or-typed-skip leg because microVM adapters are host-dependent (worktree_vm_registry fake-adapter seam precedent); the worktree leg is mandatory."
+    ]
+  }
+}

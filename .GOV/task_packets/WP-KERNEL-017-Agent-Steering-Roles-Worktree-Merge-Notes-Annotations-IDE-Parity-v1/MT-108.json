@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-108",
+  "title": "MM-MT108-ModelToModelRuntimeProof",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-108.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-101",
+      "MT-102",
+      "MT-103",
+      "MT-104",
+      "MT-105",
+      "MT-106",
+      "MT-107"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Live end-to-end runtime proof of the whole MM family against a REAL orchestrator model session (any lane: local, BYOK cloud, or official CLI — whichever the host has configured; no mocks for spec-required runtime behavior). Positive path: an orchestrator model session with an injected orchestrator role (MT-081/086) calls spawn_worker, the worker spawns through SwarmCoordinator::spawn_session, the orchestrator steers it mid-run (capability-appropriate for the worker's transport: mid-turn on app-server, queued-turn on claude, next-turn on acp), the worker completes emitting a structured MT-121 signal, and the orchestrator receives the completion notification through the MT-105 push path WITHOUT any polling. Negative proofs: policy-denied spawn, cap-exceeded spawn, injection-scan quarantine of a crafted instruction-shaped worker report, and cascade-cancel on parent termination. Every step asserted in the process_ledger and FR-EVT-SWARM-* event stream.\n\nEXPECTED DIFF SHAPE: A live-proof test suite src/backend/handshake_core/tests/m2m_runtime_proof/ (harness + scenario files + machine-readable proof manifest m2m_proof_manifest.json recording scenario id, lane used, measured outcome, PASS/FAIL) plus minimal test-support fixtures (a deterministic worker task payload that completes quickly, and a crafted injection corpus entry). NO product-code changes: defects found route back to the owning MT (101..107) — this MT's allowed paths are proof-only.\n\nDETAILED SPEC — SCENARIOS:\nP-01 spawn: orchestrator session (role injected) calls spawn_worker{role_id: worker role, workspace_mode: none, small budget}; assert child spawns via coordinator (FR-EVT-SWARM-SESSION-SPAWNED with parent_session_id attribution), lineage row exists (MT-103), granted budget == clamp(request, policy ceiling).\nP-02 steer mid-run: while the worker runs, orchestrator calls steer_worker; assert delivery per the worker transport's capability class (record which class the host lane exercised), scan event exists for the steer body, ledger row with parent attribution.\nP-03 completion push: worker completes with a structured MT-121 signal; assert the orchestrator receives EXACTLY ONE worker_notification steer message (MT-105), with a full ledger lifecycle trail (received->batched->enqueued->delivered), and assert NO polling occurred: the orchestrator harness records every tool call it makes and the proof asserts zero worker_status calls between steer and notification receipt.\nN-01 policy denial: with a deny rule (or absent rule = deny-by-default) for the requested role, spawn_worker returns typed PolicyDenied; assert ledgered decision with rule attribution and FR-EVT-SWARM-SPAWN-REJECTED NOT stamped (no coordinator call happened) — the denial is pre-coordinator.\nN-02 cap exceeded: policy allows but per-parent concurrent-children cap (set to 1) is occupied; second spawn returns CapExceeded/PolicyDenied(ConcurrentChildrenCapReached); then separately exercise a coordinator-level rejection (shrunken max_concurrent) and assert typed CapExceeded surfaces to the model and FR-EVT-SWARM-SPAWN-REJECTED is stamped.\nN-03 injection quarantine: worker final report is a crafted instruction-shaped payload (from the MT-104 corpus, e.g. fake-operator-voice + marker forgery); assert the report is Quarantined, the orchestrator receives envelope + quarantine_id and NEVER the raw body (assert raw marker string absent from everything delivered to the orchestrator session), and the quarantine row is operator-listable.\nN-04 cascade cancel: orchestrator with a live worker terminates; assert cascade_cancel cancels the worker via coordinator cancellation (FR-EVT-SWARM-SESSION-CANCELLED with reason=parent_cascade in payload), lineage rows record terminated_at, no orphan process/lease/worktree remains (coordinator reclaim assertions), and the notification for the cancelled child is recorded undeliverable (parent gone) — not lost.\n\nCROSS-CUTTING ASSERTIONS: every scenario asserts its complete ledger row set and FR event set explicitly (ids listed in the manifest); the GUI read surface (MT-107 projection) is spot-checked for P-01/P-03/N-04 by asserting the tree/feed projection returns the expected rows (headless projection check — full visual evidence lives in MT-107).\n\nSTEP-BY-STEP:\n1. Read MT-101..107 contracts + implemented surfaces; pick the host's configured lane(s) for the orchestrator and worker; document lane choice in the manifest.\n2. Build the harness: spawn a REAL orchestrator session through the sanctioned operator/session API (MT-007), inject the orchestrator role, drive it with a deterministic scripted objective that triggers the tool calls (a scripted-driver model turn is acceptable ONLY for the orchestrator's decision layer; the spawn/steer/notify/scan/policy/cascade machinery under test must be the real product path end-to-end — no mocked coordinator, queue, scanner, policy, or ledger).\n3. Implement P-01..P-03 then N-01..N-04 as separate test functions writing manifest rows atomically (temp-file + rename).\n4. Assert ledger + FR sets per scenario; assert zero-polling from the recorded tool-call log.\n5. Run the full suite against managed PostgreSQL; on unavailable managed resources record typed NEEDS_MANAGED_RESOURCE_PROOF blockers instead of PASS language.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/m2m_runtime_proof/**",
+      "src/backend/handshake_core/Cargo.toml ([[test]] registration only)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/** (proof-only MT: product defects route back to MT-101..107, never patched from here)"
+    ],
+    "acceptance_criteria": [
+      "P-01: real orchestrator model session spawns a real worker exclusively via SwarmCoordinator::spawn_session; FR-EVT-SWARM-SESSION-SPAWNED carries parent attribution; lineage row present; budget clamped.",
+      "P-02: mid-run steer delivered per the exercised transport's capability class; steer body scan event present; ledger attribution correct.",
+      "P-03: exactly one worker_notification received by the orchestrator with full lifecycle ledger trail, and the recorded tool-call log proves zero worker_status polling between steer and notification.",
+      "N-01: policy-denied spawn is pre-coordinator (typed PolicyDenied, ledgered rule attribution, no coordinator spawn event).",
+      "N-02: per-parent cap and coordinator cap rejections both surface typed to the model; coordinator-level rejection stamps FR-EVT-SWARM-SPAWN-REJECTED.",
+      "N-03: crafted instruction-shaped report quarantined; orchestrator receives envelope + quarantine_id only; raw attack body provably absent from all content delivered to the orchestrator session.",
+      "N-04: parent termination cascade-cancels the worker via coordinator cancellation with parent_cascade reason; no orphan process, lease, or worktree; undeliverable notification recorded, not lost.",
+      "m2m_proof_manifest.json records every scenario with lane used, measured outcome, asserted ledger/FR id sets, and status; a passing run has 0 FAIL; blocked scenarios carry typed NEEDS_MANAGED_RESOURCE_PROOF, never PASS language.",
+      "No product code modified by this MT (proof-only; lineage check on implementing commits)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test m2m_runtime_proof -- --nocapture",
+      "cargo test -p handshake_core m2m_p03_zero_polling_push -- --nocapture",
+      "cargo test -p handshake_core m2m_n03_injection_quarantine -- --nocapture",
+      "python -c \"import json; m=json.load(open('src/backend/handshake_core/tests/m2m_runtime_proof/m2m_proof_manifest.json')); fails=[e for e in m if e['status']=='FAIL']; assert not fails, fails; print('scenarios:', len(m))\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/m2m_runtime_proof/harness.rs (new)",
+      "src/backend/handshake_core/tests/m2m_runtime_proof/positive_path.rs (new: P-01..P-03)",
+      "src/backend/handshake_core/tests/m2m_runtime_proof/negative_path.rs (new: N-01..N-04)",
+      "src/backend/handshake_core/tests/m2m_runtime_proof/m2m_proof_manifest.json (new, runner-written)",
+      "src/backend/handshake_core/src/swarm_orchestration/ (reference only: all MM surfaces under test)"
+    ],
+    "expected_tests": [
+      "P-01 spawn attribution + clamp; P-02 capability-aware steer; P-03 push-only completion notification with zero-polling assertion",
+      "N-01 pre-coordinator policy denial; N-02 dual-layer cap rejection; N-03 quarantine end-to-end with raw-body absence assertion; N-04 cascade with reclaim assertions",
+      "manifest: atomic writes, 0 FAIL on green run, typed blockers on missing managed resources"
+    ],
+    "implementation_notes": [
+      "Spec-Realism Gate (precedent: WP-KERNEL-012 MT-044/045 honest-split): the machinery under test must be real product runtime — coordinator, steer queue, scanner, policy store on managed PostgreSQL, ledger. Only the orchestrator's DECISION layer may be a scripted driver, and only if a live model lane cannot be scripted deterministically; record which mode ran in the manifest per scenario.",
+      "Lane flexibility is deliberate: 'any lane' means the proof is valid on whichever lane the host has configured; the manifest records the lane so validators know what was exercised. Steering capability classes differ per lane — P-02 asserts the class that lane declares, not a fixed class.",
+      "Zero-polling proof mechanic: the harness wraps the orchestrator's tool channel and logs every call; the P-03 assertion is on that log. This is the operator's polling-is-a-defect rule made executable.",
+      "N-03 raw-body absence: search every steer message, notification body, and transcript delivered to the orchestrator session for a unique canary substring embedded in the attack payload.",
+      "Timeouts: every scenario has a hard deadline (config, default 120s) so a hung path FAILS fast instead of hanging the suite (WP-012 validator postmortem: five-minute hangs are a verdict-killer).",
+      "External artifacts (manifest run copies, transcripts) go to the external Handshake_Artifacts root per operator directive, not into the repo worktree.",
+      "Cross-family seams exercised live: MT-007 session API (orchestrator spawn), MT-002 queue, MT-009 bus, MT-121 signals, MT-081/086 role injection; GUI projection spot-check touches the MT-107 read surface headlessly."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Runtime-proof MT: asserts the MT-107 projection headlessly; visual evidence obligations live in MT-107."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "NO",
+    "target_entries": [
+      "Model-to-model orchestration: end-to-end behavior summary (what the operator can expect from spawn -> steer -> complete -> notify, and what the negative guardrails do), referencing the proof manifest as evidence"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "The MM family ships as seven individually-tested parts with no proof the chain works live: integration seams (role injection -> spawn -> steer -> scan -> notify -> cascade) are exactly where privilege-escalation and silent-loss defects hide, and the WP's core security claims remain unproven assertions.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Mock creep — the 'live' proof quietly substitutes a mocked coordinator/queue/scanner, proving nothing about the real privilege-escalation surface (the classic Spec-Realism failure).",
+      "RISK-2: Green-by-timeout-absence — a hung steer or notification path makes the suite hang instead of fail, and partial green is read as PASS.",
+      "RISK-3: Polling hidden in the harness — the harness itself polls for completion, masking a broken push path while P-03 'passes'.",
+      "RISK-4: Attack-body leak in evidence — the N-03 crafted payload lands verbatim in transcripts/manifest artifacts that models later read, turning the proof fixture into a real injection vector.",
+      "RISK-5: Proof patches product — a failing scenario gets 'fixed' by editing product code from this MT, bypassing the owning MT's contract and validation."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Manifest records real-vs-scripted mode per scenario and the concrete lane; acceptance requires real product machinery for coordinator/queue/scanner/policy/ledger; validator cross-checks no test doubles of those types exist in the harness (grep-level review).",
+      "CTRL-2 (RISK-2): Hard per-scenario deadlines (default 120s) that FAIL the scenario; manifest atomic-write pattern preserves prior rows on panic.",
+      "CTRL-3 (RISK-3): P-03's zero-polling assertion runs on the recorded tool-call log, and the harness's own waiting is event-subscription on the bus, not status polling (asserted in harness review + a harness self-test).",
+      "CTRL-4 (RISK-4): Attack payloads are built at runtime from fragments with a per-run canary; artifacts store finding summaries + canary hits, never the assembled payload; absence assertion uses the canary.",
+      "CTRL-5 (RISK-5): forbidden_paths bans src/** edits; acceptance criterion + mechanical lineage check enforce proof-only commits; defects route to the owning MT with a typed finding."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: coordinator.rs (spawn_session enforcement chain under test), events.rs (FR-EVT-SWARM catalogue asserted), error.rs (typed rejections), process_ledger/ (audit spine). Precedent: WP-KERNEL-012 MT-044/045 proof-manifest + honest-split + budget/deadline hardening (validator postmortem: hangs and mock creep are the two proof-killers). External precedent: Anthropic multi-agent research system end-to-end orchestrator-worker episodes with structured result reporting; Claude Code injection-defended report ingestion as the N-03 model.",
+    "corrections": []
+  }
+}

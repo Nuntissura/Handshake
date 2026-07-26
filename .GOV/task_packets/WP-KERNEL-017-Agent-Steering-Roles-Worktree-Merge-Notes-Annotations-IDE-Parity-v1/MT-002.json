@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-002",
+  "title": "SC-MT002-SteerQueueSemantics",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-002.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the per-session steer queue: a bounded FIFO of pending steer messages with strict ordering guarantees, duplicate suppression by SteerMessageId, a typed backpressure rejection at the cap, explicit drain rules keyed on turn boundaries and transport capability, and lifecycle integration mirroring the per-session CancellationToken discipline already used by SwarmCoordinator (SessionHandle owns `cancel: CancellationToken` at src/backend/handshake_core/src/swarm_orchestration/coordinator.rs line 134; cancel cancels + unloads + ledger-stops per the module contract in swarm_orchestration/mod.rs). The queue is transport-agnostic: Claude Code (v2.1.205+) queues mid-turn user messages natively, Codex app-server accepts turn/steer, ACP has NO mid-turn steer (sequential session/prompt turns only) — the SAME queue serves all three because drain timing is capability-driven (MT-003), not hardcoded.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/steer_queue.rs; (b) pub use additions in agent_sessions/mod.rs; (c) new test file src/backend/handshake_core/tests/agent_sessions_steer_queue_tests.rs. No other module touched.\n\nSPEC CATALOG:\n\n- pub const DEFAULT_STEER_QUEUE_CAP: usize = 64; — per-session cap, overridable per queue at construction.\n- pub struct QueuedSteerMessage { pub message_id: SteerMessageId, pub session_id: SessionId, pub text: String, pub queued_at_utc: DateTime<Utc>, pub resend_of: Option<SteerMessageId> } — resend_of reserved for MT-008's at-least-once resend policy (a resend carries the SAME message_id; resend_of tracks provenance only).\n- pub enum EnqueueOutcome { Queued { depth: usize }, DuplicateSuppressed { message_id: SteerMessageId } } — duplicate enqueue of an already-pending OR already-drained message_id is NOT an error (idempotent for at-least-once delivery); it is a typed no-op.\n- pub enum SteerQueueError (thiserror): CapacityExceeded { session_id: SessionId, cap: usize, rejected_message_id: SteerMessageId }, QueueClosed { session_id: SessionId }, — CapacityExceeded is the typed backpressure rejection; callers surface it, they never silently drop (HBR-SWARM-002: backpressure works under load, no silent loss).\n- pub enum DrainMode { MidTurn, TurnBoundaryOnly } — set from the MT-003 AdapterCapabilities: SteerMidTurn present => MidTurn (drain immediately while a turn is Generating); absent (e.g. ACP) => TurnBoundaryOnly (drain only when the active turn reaches a terminal state or no turn is active).\n- pub enum TurnBoundary { NoActiveTurn, TurnActive, TurnJustEnded } — the caller-supplied truth about the session's current turn (from MT-001 TurnState).\n- pub struct SteerQueue { session_id: SessionId, cap: usize, mode: DrainMode, entries: VecDeque<QueuedSteerMessage>, seen_ids: HashSet<SteerMessageId>, closed: bool } — seen_ids covers pending AND drained ids for the queue lifetime so re-delivery after drain is also suppressed; bounded memory is guaranteed because seen_ids only grows with UNIQUE messages which are themselves cap-gated per pending window plus drained history bounded by session lifetime (document this; if unbounded growth is a review concern, an LRU cap of 4096 ids with typed eviction note is the approved fallback).\n- impl SteerQueue: pub fn new(session_id: SessionId, cap: usize, mode: DrainMode) -> Self; pub fn enqueue(&mut self, msg: QueuedSteerMessage) -> Result<EnqueueOutcome, SteerQueueError>; pub fn drain_ready(&mut self, boundary: TurnBoundary) -> Vec<QueuedSteerMessage> — returns ALL currently drainable messages in strict FIFO enqueue order: MidTurn mode drains on every call regardless of boundary; TurnBoundaryOnly drains only on NoActiveTurn|TurnJustEnded, returns empty Vec on TurnActive; pub fn close(&mut self) -> Vec<QueuedSteerMessage> — marks closed, returns the still-pending messages so the caller (session teardown / MT-005, and MT-008 ack states) can mark them Cancelled instead of losing them; subsequent enqueue -> Err(QueueClosed); pub fn depth(&self) -> usize; pub fn is_closed(&self) -> bool.\n- Ordering guarantee (normative): for any two messages a,b with enqueue(a) happening before enqueue(b), every drain sequence yields a before b. No priority lanes in this MT (roles overlay MT-081+ may add them behind the same seam).\n- Concurrency wrapper: pub struct SharedSteerQueue(Arc<Mutex<SteerQueue>>) with the same API surface returning the same typed results — this is what MT-005/MT-007 hold; the Mutex is std::sync (short critical sections, no await inside).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-001's types.rs (SessionId, SteerMessageId, TurnState) and swarm_orchestration/coordinator.rs lines 116-270 (ClaimLease, SessionHandle with cancel token, state accessors) to mirror the lifecycle discipline.\n2. Implement steer_queue.rs exactly per the catalog. enqueue checks closed first (QueueClosed), then seen_ids (DuplicateSuppressed), then cap (CapacityExceeded — the message is NOT admitted and NOT recorded in seen_ids so a later retry after drain succeeds), then pushes and records.\n3. Implement drain_ready and close per the drain rules; document with a rustdoc table.\n4. Implement SharedSteerQueue delegating under one lock; no async in the core type.\n5. Author tests/agent_sessions_steer_queue_tests.rs covering: FIFO ordering (enqueue 10, drain, assert order); duplicate suppression pending AND after drain; cap rejection is typed and non-destructive (queue unchanged, retry after drain succeeds); TurnBoundaryOnly returns empty on TurnActive and drains on TurnJustEnded; MidTurn drains during TurnActive; close returns pending messages and later enqueue is QueueClosed; a 2-thread SharedSteerQueue race test (one thread enqueues 100 unique messages, one drains in a loop; assert total drained + pending-at-close == 100, no duplicates, order preserved per producer).\n6. cargo build + clippy clean; wire pub use in mod.rs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/steer_queue.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/tests/agent_sessions_steer_queue_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/agent_sessions/types.rs (MT-001 owns; additive re-export only via mod.rs)",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/backend/handshake_core/src/model_runtime/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "SteerQueue implements bounded FIFO with DEFAULT_STEER_QUEUE_CAP=64, constructor-overridable cap, and strict FIFO ordering proven by test.",
+      "Duplicate enqueue by message_id (pending or already drained) returns EnqueueOutcome::DuplicateSuppressed, never a second queue entry — proven by test.",
+      "Enqueue at cap returns SteerQueueError::CapacityExceeded carrying session_id, cap, and rejected_message_id; the queue state is unchanged and the same message can be enqueued after a drain frees space — proven by test.",
+      "DrainMode::TurnBoundaryOnly yields zero messages while TurnBoundary::TurnActive and drains on NoActiveTurn/TurnJustEnded; DrainMode::MidTurn drains regardless — proven by test.",
+      "close() returns all pending messages for Cancelled-marking and later enqueue returns QueueClosed — no message is ever silently dropped on teardown (HBR-SWARM-002).",
+      "SharedSteerQueue 2-thread race test passes: no loss, no duplication, FIFO preserved.",
+      "cargo build -p handshake_core green; clippy clean on new files."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_steer_queue --nocapture 2>&1 | tee /tmp/mt002_run.txt && grep -E 'test result: ok' /tmp/mt002_run.txt",
+      "cargo test -p handshake_core steer_queue --nocapture 2>&1 | grep -q 'capacity_exceeded_is_typed'",
+      "cargo test -p handshake_core steer_queue --nocapture 2>&1 | grep -q 'race'",
+      "grep -n 'CapacityExceeded' src/backend/handshake_core/src/agent_sessions/steer_queue.rs",
+      "grep -rn 'unwrap()' src/backend/handshake_core/src/agent_sessions/steer_queue.rs | grep -v test | wc -l | grep -q '^0'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/steer_queue.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (re-exports)",
+      "src/backend/handshake_core/tests/agent_sessions_steer_queue_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "FIFO order proof; duplicate suppression pending+drained; typed cap rejection non-destructive",
+      "drain-rule matrix over DrainMode x TurnBoundary",
+      "close() pending-return + QueueClosed proof",
+      "2-thread SharedSteerQueue no-loss/no-dup race test"
+    ],
+    "implementation_notes": [
+      "Capability linkage: DrainMode is DATA passed in by the session runtime after the MT-003 capability probe; the queue itself never inspects a transport. ACP's no-mid-turn-steer limitation therefore costs nothing here — the identical queue simply drains at boundaries.",
+      "Cancellation linkage: the queue does not own a CancellationToken; MT-005's supervisor calls close() during teardown on the same paths where SwarmCoordinator cancels a SessionHandle (coordinator.rs L130-140), so cancelled sessions surface their pending steers instead of leaking them.",
+      "CapacityExceeded deliberately does NOT poison seen_ids: a rejected message was never accepted, so an identical retry later must be a fresh admission, matching at-least-once resend (MT-008).",
+      "Keep the core type sync (std Mutex, no async): MT-009's bus and MT-005's supervisor call it from tokio contexts with short critical sections; an async Mutex here would invite lock-across-await bugs."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend queue semantics MT; queue depth/ack visibility reaches operator surfaces via MT-008 receipts and MT-009 bus events consumed by the GUI family."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal queue primitive; operator-facing steer behavior is documented by MT-007's UserManual entry which describes steer semantics including queueing and backpressure."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-002",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "Steering becomes ad-hoc per adapter: messages lost mid-turn, duplicated on resend, or delivered out of order; no typed backpressure means unbounded memory under a chatty operator; ACP sessions would need a forked code path.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent drop on teardown — pending steers vanish when a session dies, and the operator believes an instruction was delivered that never was.",
+      "RISK-2: Duplicate execution — at-least-once resend (MT-008) plus a queue without id suppression double-delivers a steer, causing the agent to run an instruction twice.",
+      "RISK-3: Unbounded growth — no cap or a cap that drops OLD messages (ring semantics) either exhausts memory or silently discards the operator's earliest instruction.",
+      "RISK-4: Lock-across-await deadlock — an async mutex held across an await in a tokio context stalls the drain path and the session appears hung.",
+      "RISK-5: Mid-turn drain on a transport without SteerMidTurn — steers written to a transport that ignores them (ACP) are reported as delivered but never took effect."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): close() returns pending messages and the contract requires callers to mark them Cancelled (MT-008 ack state); test pins the return.",
+      "CTRL-2 (RISK-2): lifetime seen_ids suppression covering drained ids; duplicate test covers pending AND post-drain re-enqueue.",
+      "CTRL-3 (RISK-3): cap rejects the NEW message with a typed error (never evicts old); race test proves no-loss accounting under load.",
+      "CTRL-4 (RISK-4): std::sync::Mutex with no await inside critical sections; clippy + review gate; core type has no async fn.",
+      "CTRL-5 (RISK-5): DrainMode is derived exclusively from MT-003 capabilities; TurnBoundaryOnly test proves zero mid-turn drain; MT-008 pins Unknown ack for capability-degraded transports."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: swarm_orchestration/coordinator.rs (SessionHandle.cancel CancellationToken L130-140, cancel semantics in mod.rs L27-34), swarm_orchestration/mod.rs hardening-primitive docs (bounded fan-out, HBR_SWARM_002_LOOP_CAP reuse L15-18). Research digest: Claude Code v2.1.205+ queues mid-turn user messages on stream-json stdin; Codex app-server turn/steer; ACP session/prompt has no mid-turn steer (sequential turns).",
+    "corrections": []
+  }
+}

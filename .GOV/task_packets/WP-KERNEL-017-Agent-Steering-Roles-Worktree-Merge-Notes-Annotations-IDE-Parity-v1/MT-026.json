@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-026",
+  "title": "CS-MT026-ClaudeRoleOverlayBinding",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-026.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-021",
+      "MT-081",
+      "MT-082"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Bind Handshake Roles (machine-readable role definitions from the roles MT group: MT-081 role schema, MT-082 role injection engine) to Claude sessions at launch: the role's system-prompt overlay is injected via `--append-system-prompt-file <path>` (APPEND, preserving the CLI's own agentic scaffolding), optional subagent role definitions via `--agents '<json>'`, and every role injection is durably recorded with the FR event kinds defined by MT-161. Full replacement via `--system-prompt` is FORBIDDEN — it destroys the CLI's built-in scaffolding and is validator-rejected (MT-021 gate).\n\nEXPECTED DIFF SHAPE: new file src/backend/handshake_core/src/model_runtime/cloud/claude_role_overlay.rs (overlay materializer + argv extension + recording calls); tests; no changes to the role schema/engine themselves (MT-081/082 own those).\n\nSPEC:\n1. `ClaudeRoleBinding { role: HandshakeRoleDefinition (MT-081 type), agents: Vec<HandshakeSubagentRoleDefinition> (MT-081 type, may be empty) }`.\n2. Overlay materialization: `materialize_overlay_file(role, session_scratch_dir) -> PathBuf` writes the role's system-prompt overlay text to a session-scoped file (UTF-8, no BOM) under the session's scratch/artifacts directory (MT-001 session model provides the per-session dir), named `role-overlay-<role_id>-<session_id>.md`, and returns the absolute path passed to `--append-system-prompt-file`. File is written BEFORE spawn, fsynced, and its sha256 recorded (the recorded hash is what makes the injection auditable — the FR event carries role_id + overlay sha256, never the full text inline).\n3. Argv extension: `extend_launch_args(preset_args, binding) -> Vec<String>` appends `--append-system-prompt-file <abs_path>` and, when `binding.agents` is non-empty, `--agents <json>` where the JSON is serde-serialized from the MT-081 subagent definitions (single argv element; the CLI parses it as one JSON document). If a specific named agent should be active from the start, `--agent <name>` is appended only when the binding requests it. The result must still pass the MT-021 validator (`validate_claude_interactive_args`), which continues to reject `--system-prompt`.\n4. Recording: every injection emits the MT-161-defined FR event kind for role injection (fields: session_id, role_id, role_version, overlay_sha256, agents_count, injected_at_utc) via the MT-029/MT-161 recording seam; the same record lands in the session persistence record (MT-006 seam already stores launch metadata — extend via its API only, not by schema edits here).\n5. Failure posture: overlay file write failure, role schema validation failure (MT-081 validator), or oversized overlay (config cap, default 256 KiB — CLI argv/file limits are real) are typed `RoleBindingError` variants that FAIL the launch closed: a worker MUST NOT start without its role when a role was requested. There is no launch-without-role fallback.\n6. Cleanup: overlay files are session artifacts; they are removed by the session teardown path (MT-005 supervisor owns teardown; register the path with its cleanup registry) — never left accumulating in scratch.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-081 role schema types, MT-082 injection engine seam, MT-161 event-kind definitions, MT-021 preset gate.\n2. Implement materialize_overlay_file (session dir, deterministic name, fsync, sha256).\n3. Implement extend_launch_args + serde --agents JSON; re-run the MT-021 validator on the extended argv.\n4. Wire the FR/persistence recording via the MT-161 kinds.\n5. Tests: overlay materialization (content byte-exact, sha256 stable); argv extension snapshot with/without agents/--agent; extended argv passes MT-021 validation; --system-prompt still rejected; oversized overlay fails closed; write-failure fails closed; teardown removes the overlay file; recording event carries role_id + sha256 (mock recorder assertion).\n6. Live proof (typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent): launch a session with a distinctive role overlay (e.g. a sentinel instruction to always prefix replies with a marker token) and assert the first assistant turn exhibits the role behavior, proving the overlay actually reached the model.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_role_overlay.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_role_overlay_tests.rs",
+      "src/backend/handshake_core/src/user_manual/** (HBR-MAN same-change entry only)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "materialize_overlay_file writes the role overlay to a session-scoped file, fsyncs, and returns the absolute path; content is byte-exact against the MT-081 role definition and sha256-recorded.",
+      "extend_launch_args appends --append-system-prompt-file <abs_path>, optional --agents '<json>' (serde-serialized MT-081 subagent definitions, one argv element), optional --agent <name>; the extended argv passes validate_claude_interactive_args.",
+      "--system-prompt full replacement is impossible: no constructor emits it and the MT-021 validator rejection is re-proven from this MT's tests.",
+      "Role-requested launches fail closed on overlay write failure, role validation failure, or oversized overlay (typed RoleBindingError); no worker starts role-less when a role was requested.",
+      "Every injection emits the MT-161 role-injection FR event (session_id, role_id, role_version, overlay_sha256, agents_count) and lands in session persistence.",
+      "Overlay files are registered for supervisor teardown cleanup and are absent after session end (test-proven).",
+      "Live proof (or typed NEEDS_MANAGED_RESOURCE_PROOF): a sentinel role overlay observably shapes the first assistant turn of a real session."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_role_overlay -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_role_overlay_fails_closed -- --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rn -- '--system-prompt' src/backend/handshake_core/src/model_runtime/cloud/claude_role_overlay.rs | grep -v 'append-system-prompt' | grep -v 'REJECT\\|forbid\\|//' | wc -l | grep -q '^0'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): sentinel-role launch; assert marker token in first assistant turn + role-injection FR event recorded with matching overlay_sha256"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_role_overlay.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (wiring)"
+    ],
+    "expected_tests": [
+      "claude_role_overlay::overlay_file_byte_exact_and_hashed",
+      "claude_role_overlay::argv_extension_snapshot_variants",
+      "claude_role_overlay::extended_argv_passes_mt021_validation",
+      "claude_role_overlay::system_prompt_replacement_rejected",
+      "claude_role_overlay::fails_closed_on_write_error_and_oversize",
+      "claude_role_overlay::teardown_removes_overlay_file",
+      "claude_role_overlay::injection_event_recorded"
+    ],
+    "implementation_notes": [
+      "Roles are the productized successors of the .GOV/roles/* startup inject-prompts (stub Pillar A item 2). This MT is ONLY the Claude-lane binding: role schema (MT-081), injection engine (MT-082), and event kinds (MT-161) are consumed, never redefined here. Any of those seams missing = dependency-blocked (HBR-STOP-004).",
+      "APPEND-not-replace is a hard research-based rule: full --system-prompt replacement destroys the CLI's agentic scaffolding (stub rejected-options list). The only sanctioned flags are --append-system-prompt-file, --agents, --agent. --append-system-prompt (inline string form) is deliberately NOT used: file form avoids argv length limits and quoting hazards on Windows.",
+      "--agents JSON: serialize compactly (no pretty-printing) into a single argv element; Windows CreateProcess argv quoting is handled by the process-spawn layer (MT-004/sandbox), not by pre-quoting here.",
+      "Session scratch dir comes from the MT-001 session model; overlay files must live under the session's artifacts root (external artifacts discipline), never in the repo worktree.",
+      "The sentinel live test is the Spec-Realism control: argv containing the flag is NOT proof the role reached the model; observed role behavior is."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend role-binding transport; role selection GUI is part of the roles/GUI MT groups."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Handshake Roles on the Claude lane: how a role overlay is injected (append-only), what is recorded (role_id, overlay hash), and the no-role-no-launch fail-closed rule",
+      "Subagent role definitions via --agents: format source (MT-081 schema) and when --agent activates one by name"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-006",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED — MT-161 role-injection event kind emitted per launch with role_id + overlay_sha256.",
+    "internal_diagnostics: WIRED — typed RoleBindingError fail-closed outcomes inspectable per session.",
+    "Palmistry: NOT_APPLICABLE-with-reason — injection is a launch-time act, not a persistent runtime; session posture is MT-005/MT-029 territory."
+  ],
+  "risk_if_missed": "Workers launch role-less or with hand-pasted prompts: no reusable Handshake Roles on the flagship lane, no audit trail of what governed a worker's behavior, and the .GOV role-protocol migration path (self-hosting roadmap) has no product landing zone.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A role binding silently degrades to a role-less launch on file-write failure, and the worker executes an MT without its governing constraints while records claim it was role-bound.",
+      "RISK-2: Full --system-prompt replacement sneaks in as a 'simpler' path and strips the CLI's agentic scaffolding, degrading worker capability in hard-to-diagnose ways.",
+      "RISK-3: Overlay content and the recorded hash diverge (file mutated between hash and spawn), breaking the audit chain that says which instructions governed the session.",
+      "RISK-4: Malformed --agents JSON (quoting/size) crashes or misconfigures the CLI at launch on Windows argv boundaries.",
+      "RISK-5: Overlay files accumulate in scratch across thousands of sessions, leaking role text and disk."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): fail-closed typed RoleBindingError; no launch-without-role code path when a role was requested; test-proven.",
+      "CTRL-2 (RISK-2): no constructor emits --system-prompt; MT-021 validator rejection re-proven here; grep proof target.",
+      "CTRL-3 (RISK-3): write -> fsync -> hash -> spawn ordering in one function; the launch uses the same path object; live test matches recorded sha256 against the file the CLI read.",
+      "CTRL-4 (RISK-4): serde-serialized single argv element, size-capped, spawn-layer quoting; malformed-definition rejection test.",
+      "CTRL-5 (RISK-5): teardown-registered cleanup with a test proving absence after session end."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (--system-prompt replace vs --append-system-prompt / --append-system-prompt-file append; --agents '<json>' subagent definitions; --agent <name>; full-replacement rejected in the WP-017 stub research basis as scaffolding-destroying) + WP-017 stub draft_scope (roles as productized successors of .GOV/roles/* inject-prompts; append-overlay layer selected approach) + grounding audit of wtc-multi-model-orchestration-v1 (launch argv flows through CliBridgeConfig args_template 92-100 and LiveCliSpawner::spawn 2425; session artifacts/external-artifacts discipline per WP-KERNEL-012 precedent).",
+    "corrections": [
+      "The task brief names --append-system-prompt-file as the overlay vehicle; the inline --append-system-prompt string form exists too but is deliberately excluded here (argv-length + Windows quoting hazards) — file form only."
+    ]
+  }
+}

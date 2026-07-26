@@ -1,0 +1,197 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-047",
+  "title": "CX-MT047-CodexContractTestSuite",
+  "group": "CX Codex app-server transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-047.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-041",
+      "MT-042",
+      "MT-043",
+      "MT-044",
+      "MT-045",
+      "MT-046"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Live codex CLI contract suite: method probe, steer/interrupt/resume/fork/approval live tests, generate-json-schema drift check, version-range pin",
+  "scope": {
+    "summary": "GOAL: Prove the whole CX adapter against the REAL codex CLI with a dedicated contract-test suite: app-server method availability probe, live steer-mid-turn test, live interrupt test, live resume + fork test, live approval-request test, a schema-drift check comparing `codex app-server generate-json-schema` output against the hand-authored MT-041 bindings, and a CLI version-range pin. Every live scenario that cannot run because the codex CLI or its login is absent produces a typed NEEDS_MANAGED_RESOURCE_PROOF record - a silent skip is a contract violation.\n\nEXPECTED DIFF SHAPE: New integration-test target src/backend/handshake_core/tests/codex_app_server_contract.rs (plus a support module tests/codex_contract_support/ for probe helpers, version parsing, schema comparison, and the typed-blocker manifest writer) and a machine-readable result manifest written to the external artifacts root (HANDSHAKE_ARTIFACTS_ROOT; never inside the repo worktree). A [[test]] registration in handshake_core's Cargo.toml if required by the workspace layout. No product-module changes: defects found here are routed back to the owning MT (041..046), not patched in tests.\n\nDETAILED SPEC:\n1. PRECONDITION PROBE. Before any scenario: locate the codex CLI (Windows: the verified codex.cmd npm shim, resolved through the SAME identity checks as the product path - a tampered/unresolvable shim is a typed blocker, not a skip); run `codex --version` and parse it; verify login/auth state via the documented CLI surface (an unauthenticated CLI is NEEDS_MANAGED_RESOURCE_PROOF with reason login_absent). Probe results are the first rows of the result manifest.\n2. VERSION-RANGE PIN. The suite declares SUPPORTED_CODEX_VERSION_RANGE (semver range constant, single source in the support module, aligned with MT-041's BINDINGS_AUTHORED_AGAINST_CODEX_VERSION). In-range -> scenarios run. Out-of-range -> scenarios still run but every result row is stamped out_of_pinned_range=true AND the drift check becomes mandatory-fail-on-any-diff; a version parse failure is a typed blocker. The pin exists so a green run cannot be silently claimed against an unvetted CLI.\n3. METHOD AVAILABILITY PROBE. Over a live app-server child: initialize handshake, then probe each method the adapter uses (thread/start, thread/resume, thread/fork, thread/list, thread/read, thread/rollback, turn/start, turn/steer, turn/interrupt) - a method missing from the server (JSON-RPC method-not-found) is a FAIL row naming the method, because the MT-042 capability snapshot advertises all of them.\n4. LIVE SCENARIOS (each one asserting through the REAL adapter stack MT-041..046, not raw JSON): (a) STEER-MID-TURN: start a turn with a long-running instruction, deliver a steer mid-turn via the MT-002-bridge path, assert the SAME turn_id continues streaming items after steer delivery and completes without interrupt - the definitive proof that steering does not relaunch; (b) INTERRUPT: start a turn, interrupt it, assert Interrupted state, truncated-partial items, undelivered-steer return, and that a NEW turn on the same thread then succeeds; (c) RESUME: start thread, complete a turn, drop the client, reconnect, thread/resume with the persisted id, assert history-aware continuation (thread/read shows prior items); (d) FORK: fork the resumed thread, assert distinct thread_id and shared history prefix; (e) APPROVAL: run a turn whose instruction provokes a command-execution approval request, assert the MT-044 bridge receives it, answer DENY, assert the turn surfaces the denial and the ledger row exists with latency; (f) EXEC COMPAT: one `codex exec --json` run through the frozen exec lane incl. `codex exec resume <SESSION_ID>` continuation and an `--output-schema` hsk.mt_signal@1 structured exit (MT-046 surface).\n5. SCHEMA-DRIFT CHECK. Run `codex app-server generate-json-schema`, normalize the output (stable key ordering), and compare the subset of definitions the MT-041 bindings cover against a checked-in expectation snapshot: (a) definitions used by the bindings that changed shape -> FAIL with a structural diff naming each changed path; (b) new upstream definitions/fields NOT used by the bindings -> WARN rows (recorded, non-failing, in-range); (c) the comparison tool + snapshot live in the support module so CI reruns it on every suite run. This is the CI guard the MT-041 contract names as the schema source of truth.\n6. TYPED BLOCKERS + MANIFEST. Every scenario emits exactly one manifest row: {scenario_id, status: PASS|FAIL|NEEDS_MANAGED_RESOURCE_PROOF, reason?, measured?, codex_version, out_of_pinned_range, started_at, duration_ms}. NEEDS_MANAGED_RESOURCE_PROOF rows carry a machine-readable reason (cli_absent | login_absent | shim_identity_failed | version_unparseable). The manifest is written atomically (temp+rename) to the external artifacts root. A run where every row is NEEDS_MANAGED_RESOURCE_PROOF exits zero (environment honestly absent) but the manifest proves nothing was silently skipped; asserting PASS language without PASS rows is prohibited.\n7. HYGIENE. The suite is quiet (no foreground windows; HBR-QUIET-001), reclaims every spawned child (no orphan codex processes after pass, fail, or panic - drop guards; HBR-QUIET-003), never writes inside the repo worktree, and bounds every scenario with a hard deadline so a wedged CLI cannot hang CI (deadline expiry = FAIL with reason timeout, child killed).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the delivered MT-041..046 public surfaces and their live-gated smoke tests (this suite supersedes-and-absorbs their per-MT live smokes as the consolidated live gate; the per-MT smokes remain as fast checks).\n2. Author tests/codex_contract_support/: CLI locator (reusing product identity checks via the MT-041 public surface), version parse + range pin, manifest writer (atomic, external root), schema normalizer + comparator, scenario deadline harness with child-reclamation drop guards.\n3. Author codex_app_server_contract.rs with the precondition probe and scenarios (a)-(f) + the method availability probe, each through the real adapter stack.\n4. Author the schema-drift expectation snapshot from the current pinned CLI version and check it in beside the support module.\n5. Run the suite live where the CLI is present; verify manifest rows; run it with the CLI absent (or PATH-masked) to prove the typed-blocker path and zero-orphan teardown.\n6. Run proof targets; record outputs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/codex_app_server_contract.rs",
+      "src/backend/handshake_core/tests/codex_contract_support/**",
+      "src/backend/handshake_core/Cargo.toml ([[test]] registration only, if required)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI work in this MT)",
+      "src/backend/handshake_core/src/** (product modules: defects route back to the owning MT-041..046, never patched from the test suite)"
+    ],
+    "acceptance_criteria": [
+      "Precondition probe locates the CLI through the identity-verified path, parses `codex --version`, and detects auth state; each degraded precondition yields the correct typed NEEDS_MANAGED_RESOURCE_PROOF reason (tested via PATH-masked/absent-CLI run).",
+      "SUPPORTED_CODEX_VERSION_RANGE is declared once, aligned with MT-041's authored-against constant; out-of-range runs stamp every row and harden the drift check to fail-on-any-diff (test).",
+      "Method availability probe covers all nine adapter-used methods and FAILs naming any missing method (live).",
+      "Live steer-mid-turn scenario proves the same turn_id continues streaming and completes after steer delivery - no interrupt, no relaunch (live).",
+      "Live interrupt scenario proves Interrupted state, truncated partials, undelivered-steer return, and a subsequent successful turn on the same thread (live).",
+      "Live resume and fork scenarios prove history-aware continuation and distinct-fork-with-shared-prefix (live).",
+      "Live approval scenario proves the MT-044 bridge round-trip with a DENY answer, turn-visible denial, and a ledger row with latency (live).",
+      "Exec-compat scenario proves the frozen exec lane, exec resume continuation, and an hsk.mt_signal@1 structured exit (live).",
+      "Schema-drift check: binding-covered definition changes FAIL with structural diffs; unused upstream additions WARN; expectation snapshot checked in (test + live).",
+      "Result manifest: exactly one row per scenario, atomic write to the external artifacts root, machine-readable typed-blocker reasons; an all-blocked run exits zero with a fully-typed manifest - no silent skip path exists (tests).",
+      "Zero orphan codex processes after pass, fail, panic, and deadline-kill paths; every scenario deadline-bounded (tests).",
+      "No product-module edits (mechanical diff criterion)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test codex_app_server_contract -- --nocapture  # full suite; absent CLI/login => typed NEEDS_MANAGED_RESOURCE_PROOF rows, exit zero, manifest written",
+      "cargo clippy -p handshake_core --tests -- -D warnings",
+      "cargo test -p handshake_core --test codex_app_server_contract schema_drift -- --nocapture  # drift check runnable standalone for CI"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/codex_app_server_contract.rs",
+      "src/backend/handshake_core/tests/codex_contract_support/",
+      "MT-041 AppServerClient + BINDINGS_AUTHORED_AGAINST_CODEX_VERSION (consumed)",
+      "MT-042 CodexThreadAdapter + capability snapshot (consumed)",
+      "MT-043 CodexTurnDriver + steer bridge (consumed)",
+      "MT-044 CodexApprovalBridge + ledger (consumed)",
+      "MT-045 recording rows (consumed for scenario assertions)",
+      "MT-046 routing + exec resume + output-schema binding (consumed)"
+    ],
+    "expected_tests": [
+      "precondition_probe_typed_blockers_cli_absent_login_absent_shim_failed",
+      "version_range_pin_and_out_of_range_hardening",
+      "method_availability_probe_all_nine",
+      "live_steer_mid_turn_same_turn_continues",
+      "live_interrupt_then_new_turn_same_thread",
+      "live_resume_history_aware",
+      "live_fork_distinct_thread_shared_prefix",
+      "live_approval_deny_round_trip_ledgered",
+      "live_exec_compat_resume_and_mt_signal_exit",
+      "schema_drift_fail_on_binding_covered_change_warn_on_unused_addition",
+      "manifest_one_row_per_scenario_atomic_external",
+      "all_blocked_run_exits_zero_fully_typed",
+      "no_orphan_children_after_all_exit_paths"
+    ],
+    "implementation_notes": [
+      "This suite is the WP's Spec-Realism Gate for the CX group: MT-042's capability snapshot values (Resume/ForkSession/SteerMidTurn/InterruptMidTurn all true) are only as honest as these live tests - the snapshot and this suite must never diverge.",
+      "Steer-mid-turn live assertion needs a turn long enough to steer: use an instruction with a deliberate multi-step plan (e.g. enumerate then transform) and deliver the steer after the first item arrives; assert at least one post-steer item shares the turn_id.",
+      "The approval scenario must run with an approval-forcing configuration (operator-gated policy, no auto-approve classes) so the request is deterministic; answer DENY so the live run never executes an agent-chosen command on the host.",
+      "Schema normalization: sort object keys recursively and strip description-only churn before comparing, so cosmetic upstream doc edits do not fail CI; shape changes always fail.",
+      "Keep the manifest schema aligned with the mechanically-readable proof conventions used by prior WPs (scenario_id/status/measured pattern, cf. WP-KERNEL-012 perf_manifest.json precedent) so validators parse it without bespoke tooling.",
+      "PATH-masking for the absent-CLI test must not mutate user environment; use a scoped child environment.",
+      "Live scenarios consume real Codex quota; keep prompts minimal and bound turn counts (<= 2 turns per scenario)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless contract-test MT: no operator-visible surface changed; the result manifest + recorded FR rows are the TraceProjection evidence per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Test-surface MT: no product behavior change; lane documentation is owned by MT-043/MT-044/MT-046. If the UserManual artifact is absent in the implementation worktree, record DEFERRED-with-reason per HBR-MAN-001."
+  },
+  "hbr_obligations": [
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "Scenario assertions read the FR rows recorded by MT-045; the suite itself proves the FR wiring live."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "Recorded DEFERRED-with-reason if internal_diagnostics is not present in the implementation worktree at claim time; never silently skipped."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "Suite children are deadline-bounded and drop-guard reclaimed; external-watcher registration deferred to the MT-005 supervisor integration; recorded, never silently skipped."
+    }
+  ],
+  "risk_if_missed": "The CX adapter ships proven only against fakes: capability over-claims (steer/resume/fork/approvals) surface in production sessions, upstream codex schema drift lands as runtime parse failures, and silent skips masquerade as green - the exact deflection class this WP's gates exist to prevent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent skip laundering - absent CLI/login turning live scenarios into quiet no-ops that read as green.",
+      "RISK-2: Drift blindness - upstream codex schema changes to binding-covered definitions landing unnoticed until production parse failures.",
+      "RISK-3: Steer-proof fake - a steer test that would also pass under interrupt+relaunch semantics proves nothing about mid-turn injection.",
+      "RISK-4: Version laundering - a green run against an unvetted CLI version claimed as contract proof.",
+      "RISK-5: Suite-induced host damage or litter - live approval scenarios executing agent-chosen commands, or wedged/orphaned codex children after failures."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): One-row-per-scenario manifest with typed NEEDS_MANAGED_RESOURCE_PROOF reasons; all-blocked run test proves no silent path; PASS language without PASS rows prohibited.",
+      "CTRL-2 (RISK-2): generate-json-schema comparison with checked-in expectation snapshot; binding-covered changes FAIL with structural diffs; standalone CI proof target.",
+      "CTRL-3 (RISK-3): Assertion requires post-steer items on the SAME turn_id with no intervening turn.started/interrupt - relaunch semantics cannot satisfy it.",
+      "CTRL-4 (RISK-4): Version-range pin stamped on every row; out-of-range hardens drift to fail-on-any-diff.",
+      "CTRL-5 (RISK-5): Approval scenario answers DENY only; every scenario deadline-bounded with kill + drop-guard reclamation; zero-orphan test across pass/fail/panic/deadline paths (HBR-QUIET-003)."
+    ]
+  },
+  "research_provenance": {
+    "source": "OpenAI Codex CLI official docs (developers.openai.com/codex): app-server methods thread/start|resume|fork|list|read|rollback, turn/start|steer|interrupt; server->client approval requests item/commandExecution/requestApproval + item/fileChange/requestApproval; typed schema export via `codex app-server generate-json-schema` / `generate-ts`; exec lane `codex exec --json`, `codex exec resume <SESSION_ID>` / `--last`, `--output-schema`, `--output-last-message`.",
+    "grounding_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
+    "verified_code_refs": [
+      "official_cli_bridge.rs resolve_codex_npm_shim line 1263 + manifest identity 1317-1332 (the identity checks the CLI locator reuses)",
+      "official_cli_bridge.rs codex-home/auth precondition pattern lines 938-961 (authenticated-CLI-before-lane-enable precedent)",
+      "official_cli_bridge.rs live preset fixtures ~3342-3468 (find_windows_executable_on_path(\"codex.cmd\") live-test pattern at 3392)",
+      "WP-KERNEL-012 MT-045 perf_manifest.json precedent (.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json) - scenario manifest + typed REQUIRES_*/NEEDS_MANAGED_RESOURCE_PROOF discipline and atomic temp+rename write"
+    ],
+    "rejected_options": [
+      "#[ignore]-only live tests with no typed-blocker manifest (silent skip laundering)",
+      "Raw-JSON scenario scripts bypassing the adapter stack (would prove the CLI, not the adapter)",
+      "Approving live approval requests (host-execution risk in CI)",
+      "Failing the drift check on unused upstream additions (noise; WARN instead)"
+    ],
+    "selected_approach": "Consolidated live contract gate through the real MT-041..046 stack: precondition probe with typed blockers, version-range pin, nine-method availability probe, six live scenarios (steer/interrupt/resume/fork/approval-deny/exec-compat), normalized generate-json-schema drift check with checked-in snapshot, and an atomic external result manifest that makes silent skipping structurally impossible."
+  }
+}

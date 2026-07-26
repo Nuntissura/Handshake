@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-124",
+  "title": "ML-MT124-ValidationHandoff",
+  "group": "ML MT dispatch lifecycle",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-124.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-123",
+      "MT-105",
+      "MT-101"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the validation handoff — what Handshake does mechanically when an MT run enters VALIDATION_HANDOFF (worker signaled READY_FOR_VALIDATION / MT_IMPLEMENTED / PARTIAL_WITH_DISCLOSURE). This productizes the operator's per-MT validator step: today the orchestrator relays 'coder done' to a validator session by hand; here Handshake either notifies the orchestrator model or auto-spawns a validator worker, per policy, and the validator's own structured exit closes the run.\n\nEXPECTED DIFF SHAPE: One new backend module src/backend/handshake_core/src/swarm_orchestration/mt_validation_handoff.rs (policy type, hook subscription to state-change events, orchestrator notification path, validator auto-spawn path, closure application, receipts), wired into swarm_orchestration/mod.rs; tests.\n\nDETAILED SPEC:\n1. Policy — pub enum ValidationHandoffPolicy { NotifyOrchestrator, AutoSpawnValidator { validator_role_id: String, lane_pin: Option<String> } } carried per-dispatch (from MtDispatchPolicy in MT-122) with a coordinator-level default. Policy is data, not code: both paths always record receipts.\n2. Trigger — subscribe to MT-123 state-change events on the MT-009 bus; on transition INTO ValidationHandoff for run R: load the run + the implementer's full MtSignal (from session transcript/FR by signal_payload_sha256) + the original MicrotaskContractDoc (from the dispatch record's payload provenance).\n3. Path A: NotifyOrchestrator — deliver a typed validation-request notification through the MT-105 notification surface to the orchestrator session that owns the dispatch (parent attribution from MT-101 spawn lineage). Notification payload: run_id, wp_id, mt_id, implementer session_id, signal kind, evidence summary, changed_paths, disclosure notes if PARTIAL_WITH_DISCLOSURE. NO POLLING: this is push through the existing mechanical notification path; the orchestrator model then drives validation itself (e.g. via the MT-101 spawn tool) and reports closure through the closure API below.\n4. Path B: AutoSpawnValidator — spawn a validator worker via the MT-101 governed spawn path (which itself routes through SwarmCoordinator — no new spawn path), role_id = validator_role_id (validator child-role per MT-086), input payload composed via MT-083 with sections: (a) validator role overlay; (b) the ORIGINAL MT contract (verbatim scope/acceptance_criteria/proof_targets); (c) the implementer's MtSignal verbatim (evidence, changed_paths, notes); (d) OUTPUT FORMAT = hsk.mt_signal@1 (validator's required structured exit); (e) instruction that the validator verdict semantics are role-contextual: signal MT_IMPLEMENTED = VALIDATION_PASSED, FAILED = VALIDATION_REJECTED, BLOCKED/NEEDS_MANAGED_RESOURCE_PROOF = validation impossible (typed blocker). This role-contextual mapping is a DECLARED convention of this MT (hsk.mt_signal@1 deliberately has no separate validator vocabulary in v1) and MUST be written into the validator role overlay and the receipts.\n5. Closure — pub fn apply_validation_closure(run_id, validator_signal: MtSignal, closer: ClosureActor) applying: PASSED -> MT-123 transition VALIDATION_HANDOFF->VALIDATED; REJECTED -> ->FAILED{ValidatorRejected} (validator's evidence/notes stored as rejection detail); blocker signals -> ->FAILED{ValidatorRejected} is WRONG — they map to run staying resolvable: apply ->BLOCKED{blocker} so an operator/orchestrator re-decision is possible. ClosureActor records WHO closed (validator session_id or orchestrator report) for attribution. Closure is idempotent via MT-123's idempotency keys.\n6. Receipts BOTH directions — (a) handoff receipt at dispatch of the validation request: { receipt_id, run_id, policy, target (orchestrator session or validator session_id), issued_at_utc, implementer_signal_sha256 }; (b) closure receipt at verdict application: { receipt_id, run_id, verdict, validator_signal_sha256, closer, closed_at_utc }. Both persisted per the crate's receipt conventions and emitted as events (MT-009 bus + FR kinds reserved by MT-161).\n\nSTEP-BY-STEP:\n1. Read the MT-105 notification surface, MT-101 spawn-tool surface, MT-086 role definitions, and MT-123's event payloads in the product worktree; match conventions.\n2. Implement ValidationHandoffPolicy + the event subscription trigger (dedupe on run_id: at-most-one handoff per run, guarded by MT-123's single-entry VALIDATION_HANDOFF invariant plus a local receipt-existence check).\n3. Implement Path A notification with full typed payload; test with a recording notification sink.\n4. Implement Path B auto-spawn via MT-101/MT-083; test with the fake-lane pattern; assert the composed validator payload contains contract + implementer signal verbatim and the verdict-semantics instruction.\n5. Implement apply_validation_closure with the verdict mapping above + both receipts; assert receipts and events with RecordingSwarmSink.\n6. Negative tests: duplicate handoff trigger (second event for same run) produces no second spawn/notification; validator emitting a malformed signal -> SignalParseFailure recorded, run NOT closed, handoff receipt remains open (surfaced for MT-125/operator); closure for a run not in VALIDATION_HANDOFF -> IllegalTransition surfaced.\n7. Run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_validation_handoff.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React; GUI surface exception exists only on the board MT MT-125)",
+      ".GOV/** (the product READS MT contracts; it never writes .GOV)",
+      ".GOV/tools/handshake-acp-bridge/** (repo-gov broker stays as-is)",
+      "src/frontend/** (no GUI in this MT)"
+    ],
+    "acceptance_criteria": [
+      "Entering VALIDATION_HANDOFF triggers exactly ONE handoff action per run (dedupe proven by duplicate-event test).",
+      "NotifyOrchestrator path delivers a typed validation-request notification through the MT-105 surface to the attributed parent orchestrator session, carrying run_id/wp_id/mt_id/implementer signal summary — push, zero polling.",
+      "AutoSpawnValidator path spawns ONLY via the MT-101 governed spawn path with the validator role; the composed payload contains the original MT contract and the implementer's signal verbatim plus the hsk.mt_signal@1 output requirement and the declared verdict-semantics mapping — asserted by test.",
+      "Validator closure applies the mapping: MT_IMPLEMENTED->VALIDATED, FAILED->FAILED{ValidatorRejected} with stored rejection detail, BLOCKED/NEEDS_MANAGED_RESOURCE_PROOF->BLOCKED{blocker}; PARTIAL_WITH_DISCLOSURE from a validator is rejected as an invalid verdict (typed error) — all covered by tests.",
+      "Receipts recorded BOTH directions (handoff receipt + closure receipt) with payload hashes and actors, and each emits an event on the swarm bus/FR path.",
+      "Malformed validator signal NEVER closes a run: SignalParseFailure recorded, run state unchanged, receipt remains open — negative test.",
+      "cargo build -p handshake_core green; new tests green."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core mt_validation_handoff -- --nocapture",
+      "rg -n \"Command::new|tokio::process\" src/backend/handshake_core/src/swarm_orchestration/mt_validation_handoff.rs | wc -l | grep -q '^0'",
+      "cargo build -p handshake_core"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_validation_handoff.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wiring)",
+      "src/backend/handshake_core/src/swarm_orchestration/mt_run_state.rs (closure transitions — call-only)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (emission via existing sinks)"
+    ],
+    "expected_tests": [
+      "single-handoff dedupe on duplicate trigger events",
+      "Path A notification payload completeness via recording sink",
+      "Path B validator payload verbatim-content + governed-spawn-only assertions",
+      "verdict mapping matrix incl. invalid validator verdicts",
+      "receipts + events both directions",
+      "malformed validator signal leaves run open with typed failure recorded"
+    ],
+    "implementation_notes": [
+      "The verdict-semantics mapping (validator MT_IMPLEMENTED == VALIDATION_PASSED) is a v1 economy decision: one signal schema for all workers keeps transports (MT-027/046/ACP) single-schema. If refinement later adds hsk.validation_verdict@1, this module is the only place the mapping lives — keep it in one function.",
+      "PARTIAL_WITH_DISCLOSURE hands off WITH the disclosure attached (MT-123 edge); the validator payload must surface the disclosure prominently so partial work cannot masquerade as complete.",
+      "The closure API is also the entry point for orchestrator-driven validation (Path A): the orchestrator's spawn-tool-launched validator ultimately reports through the same apply_validation_closure, so both paths converge on identical receipts and state transitions.",
+      "Injection posture: the implementer's signal text (notes, evidence summaries) is worker-generated content entering a validator prompt — compose it in delimited data sections after role/output-format sections (same discipline as MT-122 CTRL-5), and run it through the WP's injection-scan seam before ingestion where that seam exists.",
+      "Do not block the event-bus thread: handoff work (spawn/notify) runs async off the subscription, with failure of the handoff action itself recorded as an event + open receipt (never silently dropped)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless handoff plumbing; validation status becomes operator-visible on the board MT MT-125."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal lifecycle stage; UserManual coverage lands with MT-125 (board) and MT-126 (end-to-end loop behavior)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-STOP-001",
+    "HBR-QUIET-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "TIER_1_STRUCTURED_STATE",
+      "obligation": "Handoff + closure receipts (ids, hashes, actors, timestamps) are queryable machine state; open-receipt = handoff in flight."
+    },
+    {
+      "tier": "TIER_2_TRACE",
+      "obligation": "Events on the swarm bus/FR path for handoff issued, validator spawned/notified, closure applied, and handoff-action failure."
+    },
+    {
+      "tier": "TIER_3_OPERATOR_SURFACE",
+      "obligation": "Deferred to MT-125 (validation status column + open-receipt indicator); recorded here as the consuming surface."
+    }
+  ],
+  "risk_if_missed": "The loop dead-ends at READY_FOR_VALIDATION — implemented work piles up unvalidated or the operator hand-relays verdicts, exactly the routing/verdict/closeout friction WP-017 exists to remove.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The implementer's own signal closes the run (self-validation) — a worker could VALIDATE its own work by emitting a second signal.",
+      "RISK-2: Duplicate handoff triggers spawn two validators or double-notify, wasting lanes and producing conflicting verdicts.",
+      "RISK-3: Auto-spawned validator loops: validator run itself enters the MT lifecycle and spawns another validator, recursing.",
+      "RISK-4: Worker-authored signal text injected into the validator prompt steers the validator to PASS (prompt-injection via evidence/notes).",
+      "RISK-5: A handoff action failure (notification undeliverable, spawn refused by caps) is swallowed — run sits in VALIDATION_HANDOFF invisibly forever."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): apply_validation_closure rejects a closure whose actor session_id equals the implementer session_id (typed SelfValidationRefused) — tested.",
+      "CTRL-2 (RISK-2): at-most-one handoff per run via MT-123 single-entry invariant + receipt-existence dedupe — duplicate-event test.",
+      "CTRL-3 (RISK-3): validator spawns are tagged validation_of=run_id and are NOT MT dispatches — they never open an mt_runs row; asserted by test.",
+      "CTRL-4 (RISK-4): worker content confined to delimited data sections after composer-owned role/output sections; injection-scan seam invoked where present; validator role overlay instructs verdict-from-evidence, not from implementer claims.",
+      "CTRL-5 (RISK-5): handoff-action failures emit a typed failure event + leave an open receipt surfaced to MT-125; no silent drop — negative test with a failing sink."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-017 stub research basis (Claude Code TaskCompleted/SubagentStop hook-notification pattern; Anthropic multi-agent orchestrator-worker + LLM-as-judge evaluator pattern) + operator repo-gov workflow (per-MT WP_VALIDATOR step, receipts both directions per governance receipt discipline) + verified product code: coordinator spawn path, events.rs sinks.",
+    "corrections": [
+      "Validator verdict rides the same hsk.mt_signal@1 schema with a DECLARED role-contextual mapping (no separate verdict schema in v1) — recorded explicitly so a future hsk.validation_verdict@1 upgrade has one seam to replace.",
+      "Validator blocker signals map the run to BLOCKED (resolvable), not FAILED — validation-impossible is not validation-rejected."
+    ]
+  }
+}

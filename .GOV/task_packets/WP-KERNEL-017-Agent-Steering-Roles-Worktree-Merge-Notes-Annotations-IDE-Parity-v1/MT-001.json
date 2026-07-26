@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-001",
+  "title": "SC-MT001-SessionModelTypes",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-001.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Create the transport-agnostic typed session model for long-lived steerable agent-CLI sessions: a new module src/backend/handshake_core/src/agent_sessions/ with the Thread/Turn/Item shape (Codex app-server shape, also mappable onto Claude stream-json and ACP), serde round-trip guarantees, a typed turn state machine, and PostgreSQL persistence rows following the existing ModelLaneStore patterns. Today every agent-CLI run is one-shot (prompt as argv, stdin NULL — see official_cli_bridge.rs AttachedStdioContract::null_stdin_piped_output() call at src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs line 2303 inside spawn_attached_child, used by LiveCliSpawner::spawn at line 2425). This MT defines the durable model those sessions will populate; the Claude/Codex/ACP adapter families (MT-021+/MT-041+/MT-061+) and the transport/runtime MTs (MT-002..MT-010) all build on these types, so the seams must be crisp and additive-only.\n\nEXPECTED DIFF SHAPE: (a) new directory src/backend/handshake_core/src/agent_sessions/ with mod.rs, types.rs, store.rs; (b) one-line module registration `pub mod agent_sessions;` in src/backend/handshake_core/src/lib.rs (alphabetical position near `pub mod ace;`); (c) new integration test file src/backend/handshake_core/tests/agent_sessions_model_tests.rs. No changes to swarm_orchestration, model_runtime, sandbox, or process_ledger in this MT.\n\nTYPE CATALOG (types.rs — all types serde Serialize+Deserialize, Debug, Clone, PartialEq; enums serde rename_all snake_case; TurnItem externally tagged with tag=\"kind\"):\n\n- pub struct SessionId(uuid::Uuid) — newtype, harness-pinned: the HARNESS mints the UUID and later pins it onto the transport (e.g. `claude --session-id <uuid>`), so provide BOTH `SessionId::new_v7()` (Uuid::now_v7 per HBR-INT-008) and `SessionId::from_uuid(Uuid)`. impl Display (plain hyphenated uuid), FromStr with typed parse error. Never accept transport-minted ids as primary identity.\n- pub struct TurnId(uuid::Uuid) — same newtype discipline, new_v7().\n- pub struct SteerMessageId(uuid::Uuid) — minted here (used by MT-002/MT-008), new_v7().\n- pub enum AgentAdapterKind { ClaudeCode, CodexAppServer, AcpBridge, FakeEcho } — FakeEcho is the test-only counterparty kind used by MT-010; label() -> &'static str (\"claude_code\", \"codex_app_server\", \"acp_bridge\", \"fake_echo\") mirroring CliKind::label at official_cli_bridge.rs line 70.\n- pub enum ThreadState { Idle, TurnActive, Closed, Failed } with is_terminal().\n- pub enum TurnState { Queued, Generating, AwaitingApproval, Steered, Interrupted, Completed, Failed, Cancelled } with fn is_terminal(self) -> bool (Completed|Failed|Cancelled|Interrupted are terminal; Interrupted is terminal for the TURN, the THREAD stays resumable) and fn can_transition_to(self, next: TurnState) -> bool encoding the legal machine: Queued->Generating|Cancelled; Generating->AwaitingApproval|Steered|Interrupted|Completed|Failed|Cancelled; AwaitingApproval->Generating|Interrupted|Cancelled|Failed; Steered->Generating (steer applied, generation continues); every terminal state -> nothing.\n- pub struct AgentThread { pub session_id: SessionId, pub adapter_kind: AgentAdapterKind, pub state: ThreadState, pub cwd: Option<String>, pub worktree_id: Option<String>, pub swarm_id: Option<String>, pub parent_session_id: Option<String>, pub created_at_utc: chrono::DateTime<Utc>, pub updated_at_utc: chrono::DateTime<Utc> } — cwd/worktree_id/swarm_id mirror the attribution fields already carried by CliInvocationContext (official_cli_bridge.rs lines 161-189: session_id, parent_session_id, swarm_id, worktree_id, working_dir) so ledger rows and threads join naturally.\n- pub struct AgentTurn { pub turn_id: TurnId, pub session_id: SessionId, pub seq: u32, pub state: TurnState, pub items: Vec<TurnItem>, pub started_at_utc: DateTime<Utc>, pub ended_at_utc: Option<DateTime<Utc>>, pub exit: Option<StructuredTurnExit> }.\n- pub enum TurnItem { AssistantText { text: String }, Reasoning { text: String }, ToolCall { name: String, input: serde_json::Value, call_id: Option<String> }, ToolResult { call_id: Option<String>, body: String }, SteerMessage { message_id: SteerMessageId, text: String, queued_at_utc: DateTime<Utc> }, InterruptRequest { message_id: SteerMessageId, requested_at_utc: DateTime<Utc> }, StructuredExit { exit_code: Option<i32>, reason: String } } — the first four variants deliberately mirror the already-shipped AgentActivity parser variants (src/backend/handshake_core/src/model_runtime/cloud/agent_activity.rs enum AgentActivity at line 68: ToolCall/Thinking/Text/Other; parse_line at line 125). Provide pub fn turn_item_from_activity(a: &AgentActivity) -> TurnItem mapping Text->AssistantText, Thinking->Reasoning, ToolCall->ToolCall, Other->AssistantText with a raw passthrough marker in text — lossless, never dropped, matching agent_activity.rs's defensive contract.\n- pub struct StructuredTurnExit { pub exit_code: Option<i32>, pub reason: String, pub mapped_state: TurnState }.\n- pub enum AgentSessionError (thiserror): InvalidTransition { session_id: SessionId, turn_id: TurnId, from: String, to: String }, ThreadNotFound(SessionId), TurnNotFound(TurnId), IdParse(String), Store(#[from] sqlx::Error), Serde(#[from] serde_json::Error), CapabilityMissing { session_id: SessionId, capability: String, adapter_kind: String } (variant reserved here so MT-003 extends without a breaking enum change).\n\nPERSISTENCE (store.rs — follow ModelLaneStore at src/backend/handshake_core/src/swarm_orchestration/model_lane.rs lines 60-118 exactly: PgPool field, sqlx::query with ON CONFLICT revision-bump upsert, record_json JSONB column stamped with a schema_id, updated_at_unix_ms):\n- pub struct AgentSessionStore { pool: sqlx::PgPool } with pub fn new(pool: PgPool) -> Self.\n- Tables (CREATE TABLE IF NOT EXISTS issued by pub async fn ensure_schema(&self)): agent_session_threads (session_id TEXT PRIMARY KEY, revision BIGINT NOT NULL, state TEXT NOT NULL, adapter_kind TEXT NOT NULL, worktree_id TEXT NULL, swarm_id TEXT NULL, record_json JSONB NOT NULL, updated_at_unix_ms BIGINT NOT NULL); agent_session_turns (turn_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, seq BIGINT NOT NULL, state TEXT NOT NULL, record_json JSONB NOT NULL, updated_at_unix_ms BIGINT NOT NULL, UNIQUE (session_id, seq)).\n- record_json stamps: {\"schema_id\":\"hsk.agent_thread_record@1\", ...} and {\"schema_id\":\"hsk.agent_turn_record@1\", ...} following the model_lane.rs record_session_cleanup_receipt schema_id pattern (line 82: \"hsk.swarm_session_cleanup_receipt@1\").\n- API: pub async fn upsert_thread(&self, thread: &AgentThread) -> Result<(), AgentSessionError> (INSERT ... ON CONFLICT (session_id) DO UPDATE SET revision = agent_session_threads.revision + 1, ...); pub async fn load_thread(&self, id: &SessionId) -> Result<Option<AgentThread>, AgentSessionError>; pub async fn upsert_turn(&self, turn: &AgentTurn) -> Result<(), AgentSessionError> — upsert_turn MUST enforce the state machine: read current persisted state, reject illegal transition with AgentSessionError::InvalidTransition (fail closed, never silently overwrite); pub async fn list_turns(&self, id: &SessionId) -> Result<Vec<AgentTurn>, AgentSessionError> ordered by seq; pub async fn list_threads_for_worktree(&self, worktree_id: &str) -> Result<Vec<AgentThread>, AgentSessionError>.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the grounding files first: official_cli_bridge.rs lines 60-320 (CliKind, CliInvocationContext, CliInvocationReceipt), agent_activity.rs lines 58-135 (AgentActivity, parse_line), model_lane.rs lines 17-130 (ModelLaneStore + upsert pattern), process_ledger/mod.rs lines 62-114 (ProcessOwnershipRecordId new_v7, SpawnMeta session fields).\n2. Create src/backend/handshake_core/src/agent_sessions/mod.rs with module docs stating the transport-agnostic contract (this module NEVER imports claude/codex/acp-specific code; adapters translate INTO these types) and pub use re-exports of every public type above.\n3. Implement types.rs. All UUID mint sites use Uuid::now_v7() (HBR-INT-008); derive Serialize/Deserialize with explicit serde attrs; write the TurnState transition table as a match, not a HashSet, so the compiler forces exhaustiveness.\n4. Implement turn_item_from_activity with the lossless mapping described above; unit tests in types.rs cover every AgentActivity variant.\n5. Implement store.rs per the catalog; every write path is PostgreSQL-only (no sqlite — no_sqlite tripwire applies to authority writes).\n6. Author tests/agent_sessions_model_tests.rs: (a) serde round-trip for AgentThread/AgentTurn/every TurnItem variant (serialize -> deserialize -> assert_eq); (b) TurnItem JSON tag stability test pinning the exact wire strings (\"assistant_text\", \"reasoning\", \"tool_call\", \"tool_result\", \"steer_message\", \"interrupt_request\", \"structured_exit\"); (c) full transition-matrix test: for all 8x8 (from,to) pairs assert can_transition_to matches the documented machine; (d) illegal-transition persistence test and PG round-trip tests gated on a managed-PG env (HANDSHAKE_TEST_DATABASE_URL or the packet's managed-PG harness); when the env is absent the PG tests record a typed NEEDS_MANAGED_RESOURCE_PROOF skip message, never a fake PASS.\n7. Register `pub mod agent_sessions;` in lib.rs. cargo build -p handshake_core green; clippy clean on the new module.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/**",
+      "src/backend/handshake_core/src/lib.rs",
+      "src/backend/handshake_core/tests/agent_sessions_model_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/backend/handshake_core/src/model_runtime/**",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/frontend/** (native UI arrives in the GUI family, not this MT)"
+    ],
+    "acceptance_criteria": [
+      "src/backend/handshake_core/src/agent_sessions/{mod.rs,types.rs,store.rs} exist and `pub mod agent_sessions;` is registered in lib.rs; cargo build -p handshake_core is green.",
+      "SessionId/TurnId/SteerMessageId are Uuid newtypes with new_v7() (Uuid::now_v7, HBR-INT-008) and SessionId additionally has from_uuid for harness pinning; Display/FromStr round-trip.",
+      "TurnState has exactly the 8 states Queued/Generating/AwaitingApproval/Steered/Interrupted/Completed/Failed/Cancelled and can_transition_to matches the documented machine (proven by the exhaustive 8x8 matrix test).",
+      "TurnItem has exactly the 7 variants AssistantText/Reasoning/ToolCall/ToolResult/SteerMessage/InterruptRequest/StructuredExit with pinned snake_case wire tags; serde round-trip passes for every variant.",
+      "turn_item_from_activity maps all 4 AgentActivity variants losslessly (agent_activity.rs enum at line 68); no variant is dropped.",
+      "AgentSessionStore::upsert_turn rejects an illegal persisted state transition with AgentSessionError::InvalidTransition (fail closed); legal transitions bump revision via ON CONFLICT upsert following the model_lane.rs pattern.",
+      "PG tests run green against a managed PostgreSQL when HANDSHAKE_TEST_DATABASE_URL (or packet managed-PG harness) is present; absent -> typed NEEDS_MANAGED_RESOURCE_PROOF skip, never fabricated PASS.",
+      "record_json rows carry schema_id hsk.agent_thread_record@1 / hsk.agent_turn_record@1.",
+      "No sqlite on any agent_sessions write path; no claude/codex/acp-specific import inside agent_sessions/."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_model --nocapture 2>&1 | tee /tmp/mt001_run.txt && grep -E 'test result: ok' /tmp/mt001_run.txt",
+      "cargo test -p handshake_core agent_sessions --nocapture 2>&1 | grep -q 'transition_matrix'",
+      "grep -n 'Uuid::now_v7' src/backend/handshake_core/src/agent_sessions/types.rs",
+      "grep -rn 'sqlite' src/backend/handshake_core/src/agent_sessions/ | wc -l | grep -q '^0'",
+      "grep -rn 'claude\\|codex\\|acp' src/backend/handshake_core/src/agent_sessions/types.rs | grep -v '//' | wc -l | grep -q '^0'",
+      "grep -n 'hsk.agent_thread_record@1' src/backend/handshake_core/src/agent_sessions/store.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/types.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/store.rs (new)",
+      "src/backend/handshake_core/src/lib.rs (one-line module registration)",
+      "src/backend/handshake_core/tests/agent_sessions_model_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "serde round-trip per TurnItem variant + wire-tag pin test",
+      "exhaustive 8x8 TurnState transition matrix test",
+      "turn_item_from_activity lossless mapping test (all AgentActivity variants)",
+      "AgentSessionStore PG upsert/load/list + illegal-transition fail-closed test (managed-PG gated, typed skip otherwise)"
+    ],
+    "implementation_notes": [
+      "Transport shape provenance: Codex app-server exposes Thread/Turn/Item with turn/steer + turn/interrupt; Claude stream-json exposes system/init + assistant/user message envelopes (agent_activity.rs module docs lines 33-56 record both dialects as researched 2026-05-31); ACP session/prompt is sequential-turn only. The model must express all three, which is why SteerMessage/InterruptRequest are TURN ITEMS (history is append-only, transport-agnostic) rather than transport frames.",
+      "Interrupted is turn-terminal but NOT thread-terminal: Claude SIGTERM aborts the turn and exits 143 while the session remains resumable via --resume from the same cwd; the ThreadState stays Idle-resumable. MT-005 encodes the exit-code mapping; MT-006 encodes the cwd-scoped resume rule.",
+      "Do NOT add capability flags, steer-queue logic, stdio plumbing, or HTTP surfaces here — those are MT-003, MT-002, MT-004, MT-007 respectively. This MT is types + persistence only, so downstream MTs never rebase on churned types.",
+      "AwaitingApproval exists because both Claude (permission prompts in non-bypass modes) and Codex app-server (approval requests) can park a turn on operator consent; the consent decision itself flows through the existing ConsentGate (model_runtime/cloud/consent_gate.rs) wired in MT-007.",
+      "seq on AgentTurn is the per-session monotonic turn ordinal; UNIQUE (session_id, seq) makes concurrent double-append a typed conflict instead of silent reorder (HBR-SWARM-001 groundwork for MT-010's race proofs)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend type-model + persistence MT; no operator-visible surface changes. HBR-VIS-004 satisfied by durable rows (agent_session_threads/turns) reconstructable as a TraceProjection."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal type/persistence scaffold with no operator-usable command yet; the UserManual entry lands with MT-007 (session API surface) which exposes the first operator-callable behavior."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "No shared session model: every adapter family invents its own thread/turn shape, steering and resume become transport-coupled, and the WP-017 session runtime cannot be built without rework across MT-002..MT-010 and MT-021+/041+/061+.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Transport bleed — Claude/Codex-specific fields or imports leak into the core types, silently coupling the transport-agnostic seam and forcing adapter families to fork the model.",
+      "RISK-2: State-machine drift — can_transition_to and the store's persisted-transition guard disagree (or the guard is skipped on upsert), letting an illegal Generating->Queued style regression be silently persisted.",
+      "RISK-3: Wire-tag churn — serde tags change later and previously persisted record_json rows stop deserializing, corrupting session history.",
+      "RISK-4: UUID v4 creep — a convenience Uuid::new_v4() mint site violates HBR-INT-008 and breaks time-ordered id joins with ProcessOwnershipLedger rows.",
+      "RISK-5: PG tests silently skipped forever — the managed-PG gate hides the persistence proof and the store ships unproven."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): grep proof target asserts zero claude/codex/acp tokens in types.rs; adapters translate INTO the model, module docs state the rule.",
+      "CTRL-2 (RISK-2): single source of truth — the store guard calls the same can_transition_to; the 8x8 exhaustive matrix test plus an illegal-persist test pin both sides.",
+      "CTRL-3 (RISK-3): wire-tag pin test asserts the exact serde tag strings; changing a tag fails the build and forces a schema_id bump (hsk.agent_turn_record@2) instead of silent drift.",
+      "CTRL-4 (RISK-4): grep proof target for Uuid::now_v7 in types.rs; code review rejects new_v4 outside test fixtures.",
+      "CTRL-5 (RISK-5): the skip path prints a typed NEEDS_MANAGED_RESOURCE_PROOF marker that the validator greps for; a run with managed PG present must show the PG tests executed (test count assertion), and the WP validator runs them against the packet's managed PostgreSQL."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: official_cli_bridge.rs (CliKind L63, CliInvocationContext L161-189, null-stdin one-shot L2303/L2425), agent_activity.rs (AgentActivity L68, parse_line L125, dialect research notes L33-56), model_lane.rs (ModelLaneStore L60, revision upsert + schema_id pattern L82-118), process_ledger/mod.rs (SpawnMeta session/trace fields L76-114, ProcessOwnershipRecordId::new_v7 L66). Research digest: Codex app-server Thread/Turn/Item + turn/steer + turn/interrupt; Claude Code stream-json (--session-id pinning, SIGTERM aborts turn + exits 143); ACP session/prompt sequential turns.",
+    "corrections": [
+      "Brief line refs verified: AttachedStdioContract::null_stdin_piped_output call is at official_cli_bridge.rs:2303 (definition lives in sandbox/adapter.rs:76-101); LiveCliSpawner struct at L590, impl CliSubprocessSpawner at L2403, spawn at L2425 — all as briefed.",
+      "agent_activity.rs parse_line confirmed at line 125 exactly."
+    ]
+  }
+}

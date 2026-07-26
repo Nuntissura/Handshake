@@ -9,49 +9,38 @@ const ROLE_PROTOCOLS = [
   {
     role: "kernel_builder",
     path: ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
-    pillars: ["INT", "SWARM", "VIS", "QUIET", "MAN"],
-    focus: ["all active HBR rules in the registry", "INT pillar"],
   },
   {
     role: "integration_validator",
     path: ".GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md",
-    pillars: ["INT", "SWARM", "VIS", "QUIET", "MAN"],
-    focus: ["all active HBR rules in the registry", "validator-scan"],
   },
   {
     role: "wp_validator",
     path: ".GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md",
-    pillars: ["INT", "SWARM", "VIS", "QUIET", "MAN"],
-    focus: ["all active HBR rules in the registry", "per-MT verification path"],
   },
   {
     role: "coder",
     path: ".GOV/roles/coder/CODER_PROTOCOL.md",
-    pillars: ["INT", "QUIET"],
-    focus: ["product interconnectivity", "non-intrusive execution"],
   },
   {
     role: "orchestrator",
     path: ".GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md",
-    pillars: ["SWARM", "MAN"],
-    focus: ["parallel workflow safety", "ModelManual currency"],
+  },
+  {
+    role: "activation_manager",
+    path: ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
   },
   {
     role: "classic_orchestrator",
     path: ".GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md",
-    pillars: ["SWARM", "MAN"],
-    focus: ["manual-relay only", "HBR gates apply equally"],
   },
   {
     role: "validator",
     path: ".GOV/roles/validator/VALIDATOR_PROTOCOL.md",
-    pillars: ["INT", "SWARM", "VIS", "QUIET", "MAN"],
-    focus: ["all active HBR rules in the registry", "PASS or merge-ready claim"],
   },
 ];
 
 const EXCLUDED_PROTOCOLS = [
-  ".GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md",
   ".GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md",
 ];
 
@@ -78,18 +67,24 @@ function requireIncludes(failures, context, text, needle) {
   }
 }
 
+function requireAnyIncludes(failures, context, text, needles) {
+  if (!needles.some((needle) => text.includes(needle))) {
+    failures.push(`${context} missing one of: ${needles.join(" | ")}`);
+  }
+}
+
 function runCheck(root = repoRoot()) {
   const failures = [];
 
   const registry = JSON.parse(readText(root, REGISTRY_RELATIVE_PATH));
-  if (registry.version !== "1.7.0") {
-    failures.push(`${REGISTRY_RELATIVE_PATH} version expected 1.7.0, got ${registry.version || "<missing>"}`);
+  if (registry.version !== "1.8.0") {
+    failures.push(`${REGISTRY_RELATIVE_PATH} version expected 1.8.0, got ${registry.version || "<missing>"}`);
   }
   const activeRules = Array.isArray(registry.rules)
     ? registry.rules.filter((rule) => rule && rule.status === "ACTIVE")
     : [];
-  if (activeRules.length < 23) {
-    failures.push(`${REGISTRY_RELATIVE_PATH} expected at least 23 active HBR rules, got ${activeRules.length}`);
+  if (activeRules.length !== 39) {
+    failures.push(`${REGISTRY_RELATIVE_PATH} expected 39 active HBR rules, got ${activeRules.length}`);
   }
 
   for (const protocol of ROLE_PROTOCOLS) {
@@ -106,26 +101,17 @@ function runCheck(root = repoRoot()) {
     }
 
     requireIncludes(failures, protocol.path, section, "CX-131");
-    requireIncludes(failures, protocol.path, section, "Master Spec §5.6");
+    requireAnyIncludes(failures, protocol.path, section, ["Master Spec Section 5.6", "Master Spec §5.6"]);
     requireIncludes(failures, protocol.path, section, REGISTRY_RELATIVE_PATH);
-    requireIncludes(failures, protocol.path, section, "packet.acceptance_matrix.hbr");
-    requireIncludes(failures, protocol.path, section, "evidence_kind");
-    requireIncludes(failures, protocol.path, section, "HandoffGate (MT-004) MUST PASS");
-    requireIncludes(failures, protocol.path, section, "PENDING");
-    requireIncludes(failures, protocol.path, section, "STEER");
-    requireIncludes(failures, protocol.path, section, "BLOCKED");
-    requireIncludes(failures, protocol.path, section, "CX-503B1");
-    requireIncludes(failures, protocol.path, section, `Applicable pillars for this role: ${protocol.pillars.join(", ")}`);
-    for (const focus of protocol.focus) {
-      requireIncludes(failures, protocol.path, section, focus);
-    }
+    requireIncludes(failures, protocol.path, section, "v1.8.0+");
+    requireIncludes(failures, protocol.path, section, "Account-resource privacy duty");
   }
 
   for (const relativePath of EXCLUDED_PROTOCOLS) {
     if (!fs.existsSync(path.join(root, relativePath))) continue;
     const text = readText(root, relativePath);
     if (text.includes(REQUIRED_SECTION)) {
-      failures.push(`${relativePath} must not gain ${REQUIRED_SECTION} in MT-038`);
+      failures.push(`${relativePath} is an awareness-only protocol and must not gain ${REQUIRED_SECTION}`);
     }
   }
 

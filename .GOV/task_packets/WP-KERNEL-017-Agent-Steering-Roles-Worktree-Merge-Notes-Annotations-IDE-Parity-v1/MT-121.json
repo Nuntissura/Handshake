@@ -1,0 +1,145 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-121",
+  "title": "ML-MT121-MtSignalContract",
+  "group": "ML MT dispatch lifecycle",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-121.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define hsk.mt_signal@1 — the single mechanical completion-signal contract every MT-dispatched worker MUST emit as its structured exit. This is the mechanism that replaces polling (polling is FORBIDDEN by operator rule): the worker's final structured output IS the signal; Handshake parses it, advances the MT run, and notifies the orchestrator. The schema is handed to workers at launch as their required output shape via the structured-exit transports: MT-027 Claude `--json-schema`, MT-046 Codex `--output-schema`, and final-message parse on the ACP lane.\n\nEXPECTED DIFF SHAPE: One new backend module src/backend/handshake_core/src/swarm_orchestration/mt_signal.rs (Rust types + serde + validation + exported JSON Schema document + typed parse errors), wired into swarm_orchestration/mod.rs, plus unit tests. No GUI, no routes, no PG in this MT.\n\nDETAILED SPEC — hsk.mt_signal@1 fields:\n- schema_id: string, MUST equal \"hsk.mt_signal@1\" (versioning anchor; parser rejects any other value with a typed error, so a v2 can be introduced without silent misparse).\n- signal: enum, exactly one of: MT_IMPLEMENTED | READY_FOR_VALIDATION | BLOCKED | NEEDS_MANAGED_RESOURCE_PROOF | FAILED | PARTIAL_WITH_DISCLOSURE.\n- wp_id: non-empty string (echo of the dispatched work packet id).\n- mt_id: non-empty string matching ^MT-\\d+$ (echo of the dispatched microtask id).\n- session_id: non-empty string (the worker's Handshake session id, injected at launch by the dispatcher MT-122; used for attribution and receipt correlation).\n- evidence: array of objects { command: string, exit_code: integer, summary: string } — one entry per executed proof target from the MT contract's scope.proof_targets. REQUIRED non-empty when signal is MT_IMPLEMENTED or READY_FOR_VALIDATION.\n- changed_paths: array of strings (repo-relative paths the worker touched; empty array allowed for BLOCKED/FAILED).\n- blocker: nullable object { kind: enum MISSING_DEPENDENCY | MANAGED_RESOURCE_UNAVAILABLE | SCOPE_CONFLICT | TOOL_FAILURE | PERMISSION_DENIED | OTHER_DISCLOSED, detail: non-empty string }. REQUIRED non-null when signal is BLOCKED or NEEDS_MANAGED_RESOURCE_PROOF; MUST be null when signal is MT_IMPLEMENTED or READY_FOR_VALIDATION.\n- notes: nullable string. REQUIRED non-empty when signal is PARTIAL_WITH_DISCLOSURE (the disclosure itself).\n\nRUST TYPES (src/backend/handshake_core/src/swarm_orchestration/mt_signal.rs):\n- pub enum MtSignalKind { MtImplemented, ReadyForValidation, Blocked, NeedsManagedResourceProof, Failed, PartialWithDisclosure } with serde rename to the SCREAMING_SNAKE wire names above.\n- pub struct MtSignal { schema_id, signal: MtSignalKind, wp_id, mt_id, session_id, evidence: Vec<MtSignalEvidence>, changed_paths: Vec<String>, blocker: Option<MtSignalBlocker>, notes: Option<String> }.\n- pub struct MtSignalEvidence { command: String, exit_code: i32, summary: String }.\n- pub struct MtSignalBlocker { kind: MtSignalBlockerKind, detail: String } and pub enum MtSignalBlockerKind (six kinds above).\n- pub enum SignalParseFailure (thiserror): UnsupportedSchema { found: String }, MalformedJson { reason: String, raw_excerpt: String }, UnknownSignalKind { found: String }, CrossFieldViolation { rule: String } — malformed or rule-violating signals ALWAYS surface as this typed error carrying a bounded raw excerpt (first 512 chars) for diagnostics; NEVER a silent None/default.\n- pub fn parse_mt_signal(raw: &str) -> Result<MtSignal, SignalParseFailure> — parses, checks schema_id, then runs validate_mt_signal.\n- pub fn validate_mt_signal(sig: &MtSignal) -> Result<(), SignalParseFailure> — enforces the cross-field rules (evidence/blocker/notes requirements per signal kind, id shape rules).\n- pub fn mt_signal_json_schema() -> serde_json::Value — the canonical JSON Schema (draft 2020-12) document handed verbatim to workers as the --json-schema / --output-schema payload; MUST declare required fields, the closed signal enum, and additionalProperties true at the top level (forward-compat: v1 consumers tolerate unknown EXTRA fields but reject unknown signal kinds and wrong schema_id).\n\nSTEP-BY-STEP:\n1. Read swarm_orchestration/mod.rs and events.rs in the product worktree to match existing module conventions (thiserror errors, serde derives, SCREAMING_SNAKE wire enums).\n2. Create mt_signal.rs with the types, parse/validate functions, and mt_signal_json_schema() exactly as specced above.\n3. Wire `pub mod mt_signal;` into swarm_orchestration/mod.rs with re-exports matching the module's existing export style.\n4. Unit tests (same file or swarm_orchestration/tests.rs per crate convention): happy-path parse for each of the six signal kinds; schema_id \"hsk.mt_signal@2\" -> UnsupportedSchema; garbage JSON -> MalformedJson with raw excerpt; signal READY_FOR_VALIDATION with empty evidence -> CrossFieldViolation; signal BLOCKED with null blocker -> CrossFieldViolation; unknown extra top-level field -> parses OK; unknown signal kind -> UnknownSignalKind; round-trip serialize/deserialize equality; mt_signal_json_schema() output itself parses as JSON and contains all six enum values.\n5. Run proof targets; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_signal.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React; GUI surface exception exists only on the board MT MT-125)",
+      ".GOV/** (the product READS MT contracts; it never writes .GOV)",
+      ".GOV/tools/handshake-acp-bridge/** (repo-gov broker stays as-is; product takeover is a separate cutover)",
+      "src/frontend/** (no GUI in this MT)"
+    ],
+    "acceptance_criteria": [
+      "mt_signal.rs exists, is wired into swarm_orchestration/mod.rs, and `cargo build -p handshake_core` is green.",
+      "All six signal kinds parse and round-trip; wire names are exactly MT_IMPLEMENTED, READY_FOR_VALIDATION, BLOCKED, NEEDS_MANAGED_RESOURCE_PROOF, FAILED, PARTIAL_WITH_DISCLOSURE.",
+      "Cross-field validation enforced: READY_FOR_VALIDATION/MT_IMPLEMENTED require non-empty evidence and null blocker; BLOCKED/NEEDS_MANAGED_RESOURCE_PROOF require a typed non-null blocker; PARTIAL_WITH_DISCLOSURE requires non-empty notes.",
+      "Malformed input NEVER degrades silently: every failure path returns a typed SignalParseFailure variant carrying a reason and a bounded raw excerpt.",
+      "Wrong schema_id is rejected with UnsupportedSchema (versioning gate proven by test).",
+      "mt_signal_json_schema() returns a valid JSON document declaring the closed signal enum and required fields, suitable to hand to MT-027 (--json-schema), MT-046 (--output-schema), and the ACP final-message parser.",
+      "Unknown extra top-level fields are tolerated (forward-compat) while unknown signal kinds are rejected."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core mt_signal -- --nocapture",
+      "cargo build -p handshake_core"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_signal.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wiring)"
+    ],
+    "expected_tests": [
+      "parse happy path for all six MtSignalKind values",
+      "UnsupportedSchema on schema_id != hsk.mt_signal@1",
+      "MalformedJson with raw excerpt on garbage input",
+      "CrossFieldViolation: empty evidence on READY_FOR_VALIDATION; null blocker on BLOCKED; empty notes on PARTIAL_WITH_DISCLOSURE",
+      "UnknownSignalKind rejection; unknown extra field tolerance",
+      "mt_signal_json_schema() document validity + enum completeness"
+    ],
+    "implementation_notes": [
+      "This schema is the worker-facing half of the no-polling contract: the worker emits it ONCE as structured exit; MT-123 consumes it as the state-machine input; MT-122 embeds mt_signal_json_schema() in the launch payload. Keep it dependency-light (serde + thiserror only) so transports can reuse it without pulling coordinator internals.",
+      "Do NOT hand-write the JSON Schema string by concatenation; build it as a serde_json::json! literal (or schemars if already a workspace dep — check Cargo.toml first, do not add new deps without need) so tests can assert structure, not string equality.",
+      "The bounded raw excerpt in SignalParseFailure exists because FR/ledger recording (MT-123/MT-161) must be able to show WHAT the worker actually emitted; truncate at a fixed 512-char constant to keep events bounded.",
+      "Blocker kinds mirror the typed-blocker discipline already used in governance (NEEDS_MANAGED_RESOURCE_PROOF precedent in WP-KERNEL-012 MT lifecycle): a worker that cannot prove against a managed resource signals NEEDS_MANAGED_RESOURCE_PROOF with kind MANAGED_RESOURCE_UNAVAILABLE rather than fabricating PASS language."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless schema/types MT; operator-visible MT-run state ships on the board MT MT-125."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal contract module; the UserManual entry for the MT dispatch loop lands with MT-126 (end-to-end behavior) and MT-125 (operator surface)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "TIER_1_STRUCTURED_STATE",
+      "obligation": "SignalParseFailure variants expose machine-readable reason + bounded raw excerpt for no-context diagnosis."
+    },
+    {
+      "tier": "TIER_2_TRACE",
+      "obligation": "Parse failures are constructed so MT-123 can record them to FR/ledger verbatim; no failure path returns an untyped error string."
+    },
+    {
+      "tier": "TIER_3_OPERATOR_SURFACE",
+      "obligation": "Deferred to MT-125 (board shows last signal + parse-failure state); recorded here as the consuming surface."
+    }
+  ],
+  "risk_if_missed": "No mechanical completion signal exists; workers can only be polled or free-text-parsed, which the operator has forbidden — the entire ML dispatch lifecycle (MT-122..126) is blocked.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A worker emits plausible free text instead of the schema and a lenient parser 'best-efforts' it into a success signal — fabricated completion enters the lifecycle.",
+      "RISK-2: Schema evolution breaks silently — a future v2 field change is parsed by v1 consumers as defaults, mis-advancing runs.",
+      "RISK-3: A worker signals READY_FOR_VALIDATION with empty evidence (no proof targets actually run), laundering an unproven claim into validation handoff.",
+      "RISK-4: Unbounded raw payload embedded in errors/events lets a malicious or broken worker bloat the FR/ledger (resource abuse via error path)."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): parse_mt_signal is strict — schema_id gate + closed signal enum + typed failures; there is no lenient/heuristic fallback path in the codebase.",
+      "CTRL-2 (RISK-2): schema_id equality check with UnsupportedSchema rejection proven by test; unknown EXTRA fields tolerated, unknown signal kinds rejected — explicit, tested version posture.",
+      "CTRL-3 (RISK-3): cross-field rule 'success signals require non-empty evidence' enforced in validate_mt_signal and covered by a negative test.",
+      "CTRL-4 (RISK-4): raw excerpt truncated at a fixed 512-char constant; asserted by test."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-017 stub research basis (2026-07-21 dossiers: Claude --json-schema structured exit, Codex --output-schema, ACP final-message parse; Anthropic multi-agent worker prompts carry objective/output-format/boundaries) + verified product code: swarm_orchestration/{mod,events,coordinator}.rs conventions in wtc-multi-model-orchestration-v1.",
+    "corrections": [
+      "Signal vocabulary extends the governance typed-blocker precedent (NEEDS_MANAGED_RESOURCE_PROOF / BLOCKED / PARTIAL_WITH_DISCLOSURE seen in WP-KERNEL-012 MT lifecycle) rather than inventing a new blocker taxonomy.",
+      "Polling is forbidden by operator rule; the structured exit IS the completion mechanism — schema designed to be self-sufficient for run advancement without any status query."
+    ]
+  }
+}

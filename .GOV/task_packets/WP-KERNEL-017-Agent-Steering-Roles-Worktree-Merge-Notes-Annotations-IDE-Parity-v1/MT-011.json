@@ -1,0 +1,133 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-011",
+  "title": "SC-MT011-SessionToolGate",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-22T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-011.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-003", "MT-007"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the SessionToolGate - Handshake's OWN vendor-agnostic tool-call interception point for agent sessions. OPERATOR FRAMING (2026-07-22): Handshake is a model/vendor-agnostic engine that WRAPS whatever runs the model (today: vendor CLIs, chosen only because Anthropic subscription plans block direct API use); the wrapper - not the vendor harness - must be able to see, allow, deny, and STOP any tool call a session's model attempts. Today that power is fragmented per transport: the Claude lane trusts the vendor's own permission flags (allowedTools/permission-mode mapping, CS MT-021), the Codex lane bridges app-server approval requests (CX MT-044), and the ACP lane bridges session/request_permission (AP MT-063). This MT creates the single Handshake-owned policy point all three (and every future vendor lane) route through, so tool-call governance is a Dexterity capability, not a vendor feature.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/tool_gate.rs (plus a policy submodule if size warrants): typed ToolCallRequest { session_id, parent_session_id, lane_kind, tool_name, tool_class (FileRead|FileWrite|Exec|Network|HandshakePrimitive|Unknown), args_digest (hash, never raw secrets), workspace_scope, requested_at }; typed ToolGateDecision { Allow, Deny(reason), AskOperator(prompt_ref), StopSession(reason) }; a SessionToolGate service evaluating ordered policy rules (per-role tool_policy from RO MT-081, per-session overrides, model-to-model policy MM MT-106 for child sessions, global denylist) with DENY-BY-DEFAULT for Unknown tool classes; decision + latency ledgered and FR-evented per RD MT-161 kinds; AskOperator wired through the existing consent surface (ConsentGate pattern, model_runtime/cloud/consent_gate.rs) with deny-on-timeout.\n\nTRANSPORT BINDING SPEC (integration obligations - the adapters bind to this gate; this MT delivers the gate + the binding seams + at least the Claude binding live): (1) CLAUDE LANE: serve the gate as the CLI's permission prompt tool - launch preset gains --permission-prompt-tool pointing at a Handshake-served MCP tool (mcp/gate.rs GatedMcpClient server-side pattern) so EVERY gated tool call in the Claude CLI asks Handshake for permission; denial returns the vendor-native refusal shape; this supersedes flag-only trust from CS MT-021 (allowedTools remains a coarse pre-filter only). (2) CODEX LANE: CX MT-044's approval bridge routes item/commandExecution/requestApproval + item/fileChange/requestApproval through SessionToolGate instead of a bespoke path. (3) ACP LANE: AP MT-063's session/request_permission handler routes through SessionToolGate. (4) FUTURE LANES: the gate trait is the documented seam a new vendor adapter must implement to be admitted to production_factory.\n\nSTOP SEMANTICS: StopSession triggers the supervisor's graceful-stop ladder (SC MT-005) and records a typed terminal reason; Deny never kills the session (model continues, tool refused).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read agent_sessions module state from MT-001..010 (session model, capabilities, supervisor, API) and mcp/gate.rs + consent_gate.rs for the incumbent gating patterns.\n2. Define ToolCallRequest/ToolGateDecision/ToolClass types + serde; classification table mapping known vendor tool names (Bash/Read/Write/Edit etc. for Claude; command_execution/file_change for Codex; ACP terminal/fs services) to ToolClass - table is data, not code, so new vendors extend without recompiling classification logic.\n3. Implement SessionToolGate policy evaluation: ordered sources (global denylist > MM MT-106 child policy > role tool_policy RO MT-081 > session overrides > class defaults), deny-by-default for Unknown; every decision writes a ledger row + FR event (RD MT-161/162 seams) with request digest and rule that fired.\n4. Implement AskOperator: consent prompt surfaced via the existing consent flow; configurable timeout; timeout=Deny; decision cached per (session, tool_name, args_digest) when the operator marks 'remember for this session'.\n5. Implement StopSession wiring to SC MT-005 supervisor graceful stop with typed reason.\n6. Bind the Claude lane live: extend the interactive launch preset with --permission-prompt-tool served by a Handshake MCP endpoint backed by SessionToolGate; prove a gated Bash call is denied by Handshake policy while an allowed Read passes.\n7. Expose the binding trait + docs for CX MT-044 / AP MT-063 to consume (their contracts already bridge approvals; this MT provides the shared evaluator they call).\n8. Unit + integration tests incl. deny-by-default, precedence order, timeout-deny, stop ladder, ledger completeness.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/tool_gate.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/src/agent_sessions/launch_presets/**",
+      "src/backend/handshake_core/src/mcp/**",
+      "src/backend/handshake_core/tests/session_tool_gate_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI in this MT; consent surfaces reuse existing flows)"
+    ],
+    "acceptance_criteria": [
+      "SessionToolGate evaluates ToolCallRequest to Allow/Deny/AskOperator/StopSession with deny-by-default for Unknown tool classes; precedence order (global denylist > child policy > role policy > session overrides > class defaults) is proven by tests.",
+      "Every decision produces a ledger row and FR event with the rule that fired; a missing ledger write fails the decision closed (Deny).",
+      "Claude lane binding live: a session launched with the interactive preset routes gated tool calls through --permission-prompt-tool to Handshake; a policy-denied Bash call is refused inside the live CLI session while an allowed Read proceeds.",
+      "AskOperator times out to Deny; 'remember for session' caching works and is ledgered.",
+      "StopSession invokes the SC MT-005 graceful-stop ladder and records a typed terminal reason.",
+      "The gate trait + classification table are documented as the mandatory seam for future vendor lanes; CX MT-044 and AP MT-063 integration points compile against the shared evaluator.",
+      "No vendor name appears in gate types, schema ids, or policy vocabulary (vendor names live only in the per-lane classification table data)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core session_tool_gate --nocapture 2>&1 | grep -E 'test result: ok'",
+      "cargo test -p handshake_core tool_gate_deny_by_default --nocapture 2>&1 | grep -q 'DENY_BY_DEFAULT_PROVEN'",
+      "cargo test -p handshake_core tool_gate_claude_live_binding -- --ignored --nocapture 2>&1 | grep -E 'GATED_DENY_PROVEN|NEEDS_MANAGED_RESOURCE_PROOF'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/tool_gate.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs (reused pattern)",
+      "src/backend/handshake_core/src/mcp/gate.rs (server-side pattern reused)"
+    ],
+    "expected_tests": [
+      "precedence + deny-by-default matrix",
+      "timeout-deny + remember-for-session cache",
+      "stop-ladder integration",
+      "ledger fail-closed",
+      "live Claude permission-prompt-tool round trip (ignored/typed-blocker when CLI absent)"
+    ],
+    "implementation_notes": [
+      "OPERATOR FRAMING 2026-07-22: Handshake is the vendor-agnostic engine wrapping the model transport; vendor harness permission systems are pre-filters at most - the Handshake gate is authoritative. This MT exists because the earlier per-transport MTs (CS MT-021 flag mapping, CX MT-044 approval bridge, AP MT-063 permission bridge) each leaned on the vendor surface; they now converge on this shared evaluator.",
+      "Claude --permission-prompt-tool is the documented mechanism for delegating permission decisions to the controller (verified in the 2026-07-21 research pass); the Handshake-served MCP tool returns the CLI's expected allow/deny payload shape.",
+      "args_digest: hash + bounded redacted preview only; never persist raw tool arguments that may carry secrets (typed-allowlist discipline).",
+      "Classification table ships as data (const table or config) keyed by (lane_kind, tool_name) so adding GPT/open-source lanes is a data change.",
+      "Do not edit MT-021/044/063 contracts; their integration duty is expressed here and in the index; implementers of those MTs read this contract via depends_on direction at activation (packet-level ordering note in _MT_INDEX.json)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend policy engine; operator consent prompts reuse the existing consent surface, and gate decisions surface in the RD MT-166 audit pane."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Dexterity tool gate: how Handshake allows/denies/stops model tool calls across all lanes",
+      "AskOperator consent flow + remember-for-session semantics"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-003", "HBR-INT-009", "HBR-SWARM-001", "HBR-SWARM-004", "HBR-QUIET-002", "HBR-STOP-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": ["flight_recorder", "internal_diagnostics", "palmistry"],
+  "risk_if_missed": "Tool-call governance stays fragmented per vendor; Handshake cannot claim to sandbox/stop model actions independently of vendor harness behavior - the core engine promise of the wrapper is unmet.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A vendor lane bypasses the gate (tool calls execute vendor-side without asking Handshake), making the gate decorative.",
+      "RISK-2: Unknown/new vendor tool names default to Allow, silently widening the sandbox.",
+      "RISK-3: Raw tool arguments (secrets, file contents) get persisted in ledger rows.",
+      "RISK-4: AskOperator prompts block sessions indefinitely or fail open on timeout.",
+      "RISK-5: StopSession leaves the child process or its tool subprocesses alive."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Per-lane binding proof required (Claude live in this MT; CX/AP assert shared-evaluator usage in their contract suites); a lane without a gate binding is not admitted to production_factory.",
+      "CTRL-2 (RISK-2): Deny-by-default for Unknown tool classes, proven by test; classification table changes require a test row.",
+      "CTRL-3 (RISK-3): args_digest = hash + bounded redacted preview; ledger schema has no raw-args column; test asserts absence.",
+      "CTRL-4 (RISK-4): Consent timeout is mandatory config with deny-on-timeout; proven by test.",
+      "CTRL-5 (RISK-5): StopSession routes through the SC MT-005 tree-kill ladder with ledger STOP row; proof asserts no surviving descendants."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator vendor-agnostic-engine directive 2026-07-22; verified per-transport gating state (CS MT-021 flag mapping, CX MT-044 approvals, AP MT-063 permissions); Claude --permission-prompt-tool mechanism from 2026-07-21 research pass; mcp/gate.rs + consent_gate.rs incumbent patterns.",
+    "corrections": []
+  }
+}

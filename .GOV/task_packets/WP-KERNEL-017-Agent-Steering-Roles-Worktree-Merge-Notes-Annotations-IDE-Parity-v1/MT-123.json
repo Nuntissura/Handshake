@@ -1,0 +1,160 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-123",
+  "title": "ML-MT123-MtRunStateMachine",
+  "group": "ML MT dispatch lifecycle",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-123.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-121",
+      "MT-122"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the Handshake-side MT-run state machine — the durable record of one dispatched microtask execution, advanced ONLY by mechanical inputs (dispatch record, worker claim, worker hsk.mt_signal@1 exit, validator closure, supervisor crash report, lease expiry). This is the no-polling core: state advances on events, never on status queries.\n\nEXPECTED DIFF SHAPE: One new backend module src/backend/handshake_core/src/swarm_orchestration/mt_run_state.rs (typed states, transition guards, lease semantics, PG persistence, event emission), wired into swarm_orchestration/mod.rs; a PG migration/table per the crate's existing storage conventions; tests (unit + postgres-gated integration).\n\nDETAILED SPEC:\n1. States — pub enum MtRunState { Dispatched, Claimed, Implementing, Signaled { kind: MtSignalKind }, ValidationHandoff, Validated, Failed { reason: MtRunFailureReason }, Blocked { blocker: MtSignalBlocker } }. Terminal states: Validated, Failed, Blocked (Blocked is terminal for THIS run; a re-dispatch opens a NEW run — runs are append-only history, mirroring the repo-gov reopen discipline).\n2. Legal transitions (everything else is IllegalTransition):\n   - DISPATCHED -> CLAIMED (worker session acknowledges the injected contract; claim carries session_id and takes a lease).\n   - CLAIMED -> IMPLEMENTING (first work heartbeat/output item from the session runtime).\n   - DISPATCHED|CLAIMED|IMPLEMENTING -> SIGNALED{kind} (a parsed hsk.mt_signal@1 arrives from the worker's structured exit; DISPATCHED->SIGNALED is legal because a fast worker may exit before intermediate inputs land).\n   - SIGNALED{MT_IMPLEMENTED | READY_FOR_VALIDATION | PARTIAL_WITH_DISCLOSURE} -> VALIDATION_HANDOFF (MT-124 owns what happens next; PARTIAL_WITH_DISCLOSURE hands off WITH the disclosure attached).\n   - SIGNALED{BLOCKED | NEEDS_MANAGED_RESOURCE_PROOF} -> BLOCKED{blocker copied from the signal}.\n   - SIGNALED{FAILED} -> FAILED{reason: WorkerSignaledFailure}.\n   - VALIDATION_HANDOFF -> VALIDATED | FAILED{reason: ValidatorRejected} (closure input from MT-124).\n   - ANY non-terminal -> FAILED{reason: WorkerCrashed | LeaseExpired | SignalParseFailure} (supervisor terminal report, lease reaper, or a malformed structured exit; the SignalParseFailure detail — typed error + bounded raw excerpt from MT-121 — is stored on the run).\n3. Idempotency + guards — every transition call carries an idempotency key (input-derived: e.g. signal payload sha256, crash report id). Re-applying the SAME transition with the same key is Ok(NoOp); a DIFFERENT transition from a terminal state or an out-of-order transition returns typed MtRunTransitionError::IllegalTransition { run_id, from, attempted } — never silent mutation, never panic. Guards are enforced in one place (a pure fn legal(from, input) -> bool) so tests can table-drive the full matrix.\n4. Timeout/lease — reuse the coordinator's ClaimLease pattern (coordinator.rs: ClaimLease, with_lease_ttl, renew_lease, start_reaper/stop_reaper scan): CLAIMED and IMPLEMENTING hold a lease keyed by session_id; renewal rides existing session liveness inputs; expiry moves the run to FAILED{LeaseExpired} via the reaper scan. Do not build a second reaper — register MT-run leases with the existing scan mechanism or mirror its exact TTL/scan-interval configuration surface.\n5. Persistence — PG table mt_runs (run_id UUID PK, wp_id, mt_id, session_id, dispatch_id, state TEXT, signal_kind TEXT NULL, failure_reason TEXT NULL, blocker_kind TEXT NULL, blocker_detail TEXT NULL, signal_payload_sha256 TEXT NULL, lease_expires_at TIMESTAMPTZ NULL, created_at_utc, updated_at_utc) via the crate's existing PG storage layer and migration conventions; PG-primary, no SQLite on this write path. Every transition is one guarded UPDATE with optimistic state predicate (WHERE state = expected) so concurrent inputs cannot double-advance.\n6. Events — every accepted transition emits a state-change event on the MT-009 swarm event bus AND a Flight Recorder record via the additive FR kinds owned by MT-161 (this MT consumes those kinds; if MT-161 has not landed the exact kind ids yet, emit through the existing SwarmEvent/FlightRecorderSwarmSink seam in events.rs with the kind names reserved by MT-161 and record the coupling in the run notes). Event payload: run_id, wp_id, mt_id, session_id, from, to, idempotency key.\n\nSTEP-BY-STEP:\n1. Read coordinator.rs ClaimLease/renew_lease/start_reaper and events.rs sinks; read the storage layer's migration conventions in the product worktree.\n2. Implement MtRunState, MtRunFailureReason, transition inputs, the pure guard table, and MtRunTransitionError.\n3. Implement the PG store (open_run from MtDispatchRecord, apply_transition with optimistic predicate + idempotency key column or dedupe check, load_run, list_runs(filter by wp_id/mt_id/state)).\n4. Wire lease registration/expiry through the existing reaper pattern; expiry path lands FAILED{LeaseExpired} and emits its event.\n5. Emit events on every accepted transition; assert with RecordingSwarmSink.\n6. Tests: table-driven full transition matrix (legal + illegal); idempotent replay NoOp; optimistic-predicate concurrency (two racing transitions — exactly one wins, loser gets IllegalTransition); lease expiry -> FAILED; SignalParseFailure input -> FAILED with stored excerpt; postgres-gated round-trip (skip with typed reason when PG unavailable, following the crate's existing requires-PG test convention).\n7. Run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_run_state.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/migrations/** (or the crate's actual migration location if different — bind at implementation)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React; GUI surface exception exists only on the board MT MT-125)",
+      ".GOV/** (the product READS MT contracts; it never writes .GOV)",
+      ".GOV/tools/handshake-acp-bridge/** (repo-gov broker stays as-is)",
+      "src/frontend/** (no GUI in this MT)"
+    ],
+    "acceptance_criteria": [
+      "Full typed state set DISPATCHED / CLAIMED / IMPLEMENTING / SIGNALED{kind} / VALIDATION_HANDOFF / VALIDATED / FAILED{reason} / BLOCKED{blocker} exists with the exact legal-transition matrix specced above, table-driven-tested for both legal and illegal edges.",
+      "Idempotent replay of the same transition+key is a NoOp Ok; illegal transitions return MtRunTransitionError::IllegalTransition — proven by tests; no panic path.",
+      "Concurrent racing transitions cannot double-advance a run: optimistic state predicate proven by a two-writer test (exactly one accepted).",
+      "Lease semantics reuse the coordinator ClaimLease pattern; lease expiry mechanically lands FAILED{LeaseExpired} through the reaper scan — proven by test with a short TTL.",
+      "A SignalParseFailure input (malformed worker exit) lands FAILED{SignalParseFailure} storing the typed reason + bounded raw excerpt — never silent.",
+      "Every accepted transition emits exactly one state-change event observable on RecordingSwarmSink, and the FR bridge path is exercised.",
+      "mt_runs persistence is PG (no SQLite on the write path); postgres-gated round-trip test passes against managed PG or skips with the crate's typed requires-PG reason.",
+      "cargo build -p handshake_core green; new tests green."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core mt_run_state -- --nocapture",
+      "rg -n \"sqlite\" src/backend/handshake_core/src/swarm_orchestration/mt_run_state.rs -i | wc -l | grep -q '^0'",
+      "cargo build -p handshake_core"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_run_state.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wiring)",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (pattern reuse: ClaimLease/reaper — call-only or mirrored config surface)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (emission via existing sinks)"
+    ],
+    "expected_tests": [
+      "table-driven transition matrix (legal + illegal edges)",
+      "idempotent replay NoOp; terminal-state immutability",
+      "two-writer optimistic concurrency race",
+      "lease expiry -> FAILED{LeaseExpired} via reaper",
+      "SignalParseFailure -> FAILED with stored excerpt",
+      "event-per-transition via RecordingSwarmSink",
+      "postgres-gated persistence round-trip"
+    ],
+    "implementation_notes": [
+      "Runs are append-only history: BLOCKED/FAILED runs are never mutated back to life; MT-122 re-dispatch opens a new run_id for the same mt_id. list_runs therefore gives the board (MT-125) and the e2e proof (MT-126) an honest lineage, matching the repo-gov reopen discipline (see MT-045 state_correction_history precedent).",
+      "The guard table is a pure function so the full matrix is testable without PG; persistence applies the same guard plus the optimistic predicate — two layers, one source of truth for legality.",
+      "DISPATCHED->SIGNALED shortcut is deliberate: structured exits arrive via transport completion (MT-027/046/ACP), which can outrun claim/heartbeat inputs; requiring strict ordering would deadlock fast workers.",
+      "Store signal_payload_sha256, not the full payload, on the row; the full signal already lives in the session transcript/FR — avoid double-storing large payloads.",
+      "Coordinate with MT-161 on FR kind ids: consume its reserved kind names; do not mint ad-hoc kinds outside its additive-kind discipline."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless state-machine MT; the operator surface for run state is the board MT MT-125."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal lifecycle core; UserManual coverage lands with MT-125 (board) and MT-126 (end-to-end loop behavior)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-003",
+    "HBR-STOP-001",
+    "HBR-STOP-002"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "TIER_1_STRUCTURED_STATE",
+      "obligation": "mt_runs PG rows + list_runs API expose full typed run state (state, signal kind, failure reason, blocker, lease) to any no-context model."
+    },
+    {
+      "tier": "TIER_2_TRACE",
+      "obligation": "One swarm-bus event + FR record per accepted transition, correlatable by run_id/idempotency key; parse-failure inputs stored with typed reason + excerpt."
+    },
+    {
+      "tier": "TIER_3_OPERATOR_SURFACE",
+      "obligation": "Deferred to MT-125 board rows; recorded here as the consuming surface."
+    }
+  ],
+  "risk_if_missed": "Worker signals have nowhere durable to land — completion becomes chat-lore or polling, validation handoff (MT-124), the board (MT-125), and the e2e proof (MT-126) all lose their substrate.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Duplicate transport deliveries (retry of the same structured exit) double-advance a run or spawn two validation handoffs.",
+      "RISK-2: A crashed worker leaves a run stuck in IMPLEMENTING forever — invisible zombie work, exactly the state-drift the operator identified as the governance bottleneck.",
+      "RISK-3: A racing pair (late heartbeat vs. terminal signal) corrupts state without the optimistic predicate, silently losing the terminal signal.",
+      "RISK-4: Terminal states get mutated back to life 'to retry', destroying the audit lineage receipts depend on.",
+      "RISK-5: Malformed worker exit is swallowed as a generic error, so a broken worker looks IMPLEMENTING forever instead of FAILED{SignalParseFailure}."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): idempotency key on every transition; same-key replay is NoOp; VALIDATION_HANDOFF entered at most once per run — asserted by test.",
+      "CTRL-2 (RISK-2): ClaimLease TTL + reaper expiry lands FAILED{LeaseExpired} mechanically; short-TTL test proves it.",
+      "CTRL-3 (RISK-3): single-UPDATE optimistic state predicate; two-writer race test requires exactly one winner.",
+      "CTRL-4 (RISK-4): terminal states immutable; retry = new run_id (append-only); illegal-from-terminal test.",
+      "CTRL-5 (RISK-5): SignalParseFailure is a first-class FAILED reason storing the typed error + bounded excerpt; negative test feeds garbage and asserts the run lands FAILED with the excerpt present."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-017 stub research basis + verified product code: coordinator.rs ClaimLease (:116), with_lease_ttl (:92), renew_lease (:1550), start_reaper/stop_reaper (:518/:537), transition (:1508); events.rs SwarmEvent/RecordingSwarmSink/FlightRecorderSwarmSink/DurableSwarmFrBridge; operator governance-cost diagnosis (workflow-state drift is the bottleneck) motivating durable mechanical run state.",
+    "corrections": [
+      "Lease/reaper semantics are REUSED from the coordinator's existing claim-lease pattern, not reinvented — one reaper discipline in the crate.",
+      "BLOCKED is terminal-per-run with re-dispatch as a new run, mirroring the repo-gov reopen/append-only lifecycle discipline instead of in-place status flipping."
+    ]
+  }
+}

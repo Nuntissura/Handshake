@@ -1,0 +1,146 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-008",
+  "title": "SC-MT008-DeliveryReceipts",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-008.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-003"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give every steer message an honest delivery truth: an ack state machine (Sent -> Delivered -> Executed, with Unknown as the typed degraded floor), message-id correlation against transport echoes (e.g. Claude Code --replay-user-messages, which re-emits accepted user messages on the stream-json stdout so the harness can confirm the CLI actually received them), an at-least-once resend policy whose duplicate safety comes from MT-002's id-based suppression, and typed degradation when the transport lacks the DeliveryAck capability (MT-003) — the system must never claim Delivered on a transport that cannot prove it.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/receipts.rs; (b) store.rs append-only extension: agent_steer_receipts table + CRUD; (c) pub use in agent_sessions/mod.rs; (d) new test file src/backend/handshake_core/tests/agent_sessions_receipts_tests.rs. No transport code (adapter families own the echo parsing wire-up; this MT owns the correlation/state core and its seams).\n\nSPEC CATALOG:\n\n- pub enum AckState { Sent, Delivered, Executed, Unknown } — serde snake_case. Semantics: Sent = frame handed to the MT-004 stdin writer (write_frame returned Ok); Delivered = transport echoed/acknowledged receipt (replay correlation matched); Executed = the steer demonstrably influenced a turn (a TurnItem::SteerMessage with this message_id was appended to a turn by the runtime); Unknown = transport lacks DeliveryAck — the honest floor, never upgraded by guesswork.\n- MONOTONIC LADDER (normative): Sent -> Delivered -> Executed only; pub fn can_advance(from: AckState, to: AckState) -> bool; regression attempts return typed AckRegression error; Executed is terminal; Unknown is assigned AT CREATION for degraded transports and never transitions (a degraded receipt that later gets evidence is a NEW receipt generation — keeps the degradation truthful in history).\n- pub struct SteerDeliveryReceipt { pub message_id: SteerMessageId, pub session_id: SessionId, pub state: AckState, pub degraded: Option<AckDegradation>, pub transport_echo_id: Option<String>, pub sent_at_utc: Option<DateTime<Utc>>, pub delivered_at_utc: Option<DateTime<Utc>>, pub executed_at_utc: Option<DateTime<Utc>>, pub resend_count: u32, pub updated_at_utc: DateTime<Utc> }.\n- pub struct AckDegradation { pub reason: String (pinned constant REASON_TRANSPORT_LACKS_DELIVERY_ACK = \"transport_lacks_delivery_ack\"), pub adapter_kind: AgentAdapterKind, pub decided_at_utc: DateTime<Utc> }.\n- pub enum ReceiptError (thiserror): AckRegression { message_id, from: String, to: String }, ReceiptNotFound(SteerMessageId), Store(#[from] sqlx::Error).\n- pub struct ReceiptLedger { store-backed + in-memory index } : pub async fn open_receipt(&self, session_id, message_id, caps: &AdapterCapabilities) -> SteerDeliveryReceipt — checks caps.has(DeliveryAck): absent => state=Unknown + degraded=Some(..) immediately (typed degradation, test-pinned); present => state=Sent when the queue drain hands the frame to stdin; pub async fn mark_delivered(&self, message_id, transport_echo_id: Option<String>); pub async fn mark_executed(&self, message_id); both enforce can_advance and are idempotent for repeats of the SAME state (at-least-once echoes must not error).\n- CORRELATION: pub struct ReplayCorrelator { pending: VecDeque<(SteerMessageId, String)> } — pub fn note_sent(&mut self, message_id, text: &str); pub fn correlate(&mut self, echoed_user_text: &str) -> Option<SteerMessageId> — matches by exact text equality against the OLDEST pending entry first (FIFO — matches MT-002's ordering guarantee and Claude's in-order replay), removing on match; ambiguous duplicates of identical text resolve to the oldest unacked (documented; ordering makes this deterministic). The adapter family feeds correlate() from parsed replay lines — grounding: the structured stdout pipeline already parses claude user envelopes into typed activities (agent_activity.rs parse_line line 125, claude user message.content handling lines 154-172), so the echo hookup is a thin adapter-side call, not new parsing here.\n- RESEND POLICY: pub struct ResendPolicy { pub max_resends: u32 (default 2), pub resend_after: Duration (default 30s) } + pub fn resend_due(receipt: &SteerDeliveryReceipt, policy: &ResendPolicy, now) -> bool — true only when state==Sent (never Delivered/Executed/Unknown), elapsed>resend_after, resend_count<max_resends. Executing a resend = re-enqueue the SAME message_id through MT-002 (whose seen_ids suppression makes an actually-delivered duplicate a typed no-op) + increment resend_count on the receipt. Exhausted resends leave state=Sent with a pinned diagnostic marker resend_exhausted=true field — honest: NOT Unknown (transport claims acks), NOT Failed (delivery may still occur late).\n- store.rs append-only: table agent_steer_receipts (message_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, revision BIGINT NOT NULL, state TEXT NOT NULL, degraded BOOLEAN NOT NULL, resend_count BIGINT NOT NULL, record_json JSONB NOT NULL, updated_at_unix_ms BIGINT NOT NULL) — record_json schema_id \"hsk.agent_steer_receipt@1\", revision-bump upsert (model_lane.rs pattern L91-118); fns upsert_receipt/load_receipt/list_receipts_for_session.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-002 steer_queue.rs (EnqueueOutcome::DuplicateSuppressed, resend_of provenance), MT-003 capabilities.rs (DeliveryAck flag, has()), MT-004 write_frame Ok semantics, agent_activity.rs claude user-envelope parsing L154-172.\n2. Implement AckState + can_advance + the receipt/degradation/error types with serde wire pins.\n3. Implement ReceiptLedger over the appended store table; same-state idempotency; regression typed error.\n4. Implement ReplayCorrelator with FIFO text matching; document the oldest-first ambiguity rule.\n5. Implement ResendPolicy + resend_due + the re-enqueue helper pub async fn execute_resend(queue: &SharedSteerQueue, ledger: &ReceiptLedger, receipt: &SteerDeliveryReceipt) -> Result<EnqueueOutcome, ReceiptError> which increments resend_count regardless of Queued vs DuplicateSuppressed (both are correct at-least-once outcomes).\n6. Author tests/agent_sessions_receipts_tests.rs: (a) ladder tests — every legal advance, every illegal regression typed; same-state idempotent repeat OK; (b) degraded open on a DeliveryAck-less capability set => Unknown + reason pinned, and mark_delivered on it => AckRegression-class typed refusal (Unknown never transitions); (c) correlator: 3 sent, echoes arrive in order => FIFO match; duplicate identical texts => oldest first; unmatched echo => None; (d) resend_due matrix over state x elapsed x count; execute_resend on an already-delivered message => DuplicateSuppressed path with no receipt regression; (e) exhausted resends => resend_exhausted=true, state still Sent; (f) PG receipt round-trip (managed-PG gated, typed NEEDS_MANAGED_RESOURCE_PROOF skip); (g) Executed via a TurnItem::SteerMessage append driving mark_executed.\n7. cargo build + clippy green.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/receipts.rs",
+      "src/backend/handshake_core/src/agent_sessions/store.rs (append-only: receipts table + fns)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/tests/agent_sessions_receipts_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/** (echo parsing wire-up belongs to adapter families)",
+      "src/backend/handshake_core/src/agent_sessions/{types,steer_queue,capabilities,supervisor,resume}.rs (consume, never modify)",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "AckState ladder Sent->Delivered->Executed is monotonic with typed AckRegression on any regression; same-state repeats are idempotent — proven by ladder tests.",
+      "A transport without DeliveryAck yields state=Unknown with degradation reason transport_lacks_delivery_ack at receipt creation, and Unknown NEVER transitions — proven by test (b); the system can never claim Delivered without transport evidence.",
+      "ReplayCorrelator matches echoes FIFO oldest-first (deterministic under duplicate texts) and returns None for unmatched echoes — proven by test (c).",
+      "resend_due fires only for state==Sent within max_resends after resend_after; execute_resend re-uses the SAME message_id through MT-002 so a late-delivered original makes the resend a typed DuplicateSuppressed no-op — proven by tests (d).",
+      "Exhausted resends produce resend_exhausted=true while honestly remaining Sent — proven by test (e).",
+      "Receipts persist via revision-bump upsert with schema_id hsk.agent_steer_receipt@1; PG round-trip proven (managed-PG gated).",
+      "store.rs changes append-only; cargo build green; clippy clean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_receipts --nocapture 2>&1 | tee /tmp/mt008_run.txt && grep -E 'test result: ok' /tmp/mt008_run.txt",
+      "cargo test -p handshake_core receipts --nocapture 2>&1 | grep -q 'ack_regression_is_typed'",
+      "cargo test -p handshake_core receipts --nocapture 2>&1 | grep -q 'unknown_never_transitions'",
+      "grep -n 'transport_lacks_delivery_ack' src/backend/handshake_core/src/agent_sessions/receipts.rs",
+      "grep -n 'hsk.agent_steer_receipt@1' src/backend/handshake_core/src/agent_sessions/store.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/receipts.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/store.rs (append-only extension)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (re-exports)",
+      "src/backend/handshake_core/tests/agent_sessions_receipts_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "monotonic ladder + idempotent repeats + typed regressions",
+      "degraded Unknown floor (creation-time, non-transitioning)",
+      "FIFO replay correlation incl. duplicate-text determinism",
+      "resend_due matrix + same-id resend duplicate-safety + exhaustion honesty",
+      "PG receipt round-trip"
+    ],
+    "implementation_notes": [
+      "Why Executed is core-observable: the runtime appends TurnItem::SteerMessage{message_id,...} (MT-001) when a steer is consumed into a turn; mark_executed keys off that append, so Executed never depends on transport goodwill.",
+      "Claude correlation grounding: --replay-user-messages re-emits accepted user messages as user envelopes on stream-json stdout; the existing parser (agent_activity.rs L154-172) already surfaces them as typed activities — the MT-021+ adapter forwards the echoed text into ReplayCorrelator::correlate. Codex app-server acks turn/steer responses directly (RPC result = Delivered). ACP: no ack channel => DeliveryAck absent => Unknown floor.",
+      "Text-equality correlation is deliberate v1: message ids are NOT injected into the steer text (would pollute the model's context); FIFO order + exact text is deterministic given MT-002 ordering. If a transport later carries metadata ids, transport_echo_id upgrades the match precision without changing the state machine.",
+      "resend_exhausted stays Sent by design: claiming Failed would be unproven (delivery may complete late), claiming Unknown would misuse the degradation type; MT-009 emits the exhaustion event for operator visibility.",
+      "HBR-SWARM-004: message_id is the required correlation id on every receipt row and every MT-009 ack event; requires_ack semantics live in this MT's types."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless ack/receipt core; ack states surface to operators via MT-009 bus events and the GUI family's session pane."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal receipt mechanics; the operator-facing meaning of ack states (Sent/Delivered/Executed/Unknown badges) is documented when the GUI family surfaces them, building on MT-007's manual entry."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-004",
+    "HBR-INT-009",
+    "HBR-INT-008",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "Steering becomes faith-based: the operator cannot distinguish delivered from dropped instructions, resends double-execute without id suppression guarantees, and transports without acks silently masquerade as reliable — the exact trust failure that makes multi-agent steering unusable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fabricated Delivered — upgrading acks from timeouts or optimistic assumptions on transports that never echoed, lying to the operator.",
+      "RISK-2: Double execution via resend — resending with a NEW message id (or bypassing the queue) defeats duplicate suppression and the agent runs the instruction twice.",
+      "RISK-3: Mis-correlation — echo text matching pairs an echo with the wrong pending steer when texts collide, marking the wrong message Delivered.",
+      "RISK-4: State regression — a late Sent-write after Delivered (async race) silently downgrades the receipt.",
+      "RISK-5: Degradation erosion — code paths treating Unknown as 'probably fine' and building on it as if Delivered."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Delivered requires a correlate() match or an explicit transport RPC ack; no timer-based upgrades exist in the API; test (b) pins the Unknown floor.",
+      "CTRL-2 (RISK-2): execute_resend re-enqueues the SAME SteerMessageId through MT-002; test (d) proves DuplicateSuppressed on late delivery.",
+      "CTRL-3 (RISK-3): FIFO oldest-first deterministic rule, documented + test (c) with duplicate texts; transport_echo_id field ready for precision upgrades.",
+      "CTRL-4 (RISK-4): can_advance enforced inside the ledger (single write path) with typed AckRegression; ladder tests cover async-shaped repeats.",
+      "CTRL-5 (RISK-5): Unknown is a creation-time terminal with a pinned reason; mark_* on Unknown is a typed refusal; grep proof for the pinned reason constant."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: agent_activity.rs claude user-envelope parsing L154-172 + parse_line L125 (echo ingestion seam), model_lane.rs upsert/schema_id pattern L91-118, MT-002/MT-003 contract seams. Research digest: Claude Code --replay-user-messages echoes accepted user messages on stream-json stdout; queued mid-turn messages v2.1.205+; Codex app-server turn/steer RPC ack; ACP no ack channel.",
+    "corrections": []
+  }
+}

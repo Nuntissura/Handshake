@@ -848,22 +848,24 @@ Guardrails:
 - Do not import CKC SQLite, Electron IPC, localhost authority, CKC product namespace, machine-local paths, or direct LLM execution into Handshake.
 - Do not redo the old Atelier/Lens or Photo Studio consolidation work; use the three canonical CKC stubs and their `draft_microtasks` contract handoff.
 
-### Week 6: Principal Authority + Profile/CRM Layer
+### Week 6: Account, Principal, Resource Authority, Access Space, and Persona/CRM Layers
 
-Week 6 introduces the kernel-level subject of authority — the Principal primitive — plus visitor-pass + MCP scrutiny mechanics, plus the Profile/CRM facet that lets the Operator carry multiple personas (e.g., adult production vs SFW work) on top of a single Principal identity.
+Week 6 introduces separate concepts that must not be collapsed into one overloaded "profile": `LocalAccount` is the login and credential holder; `Principal` is the auditable actor; `AccountRole` is installation administration; `MembershipRole` is authority inside a project or other shared resource; `ResourceGrant` is authorization; `AccessSpace` is a selectable view over resources the account is already authorized to use; `Persona` is preferences and personalization only; and `ExternalIdentityBinding` is the future local-to-SaaS/MCP identity seam. Existing `WorkProfile` and `CapabilityProfile` keep their established meanings.
 
 Why this slot:
 
-- Principal is foundational schema (event ledger, write boxes, CRDT identity, sessions, sandboxes, capability grants all bind to a subject). Adding it later means migrating every existing event-ledger row, reshaping `KernelActor`, rewiring capability grants — exactly the "harness mirrors the product" debt the reset brief is escaping.
+- LocalAccount, AuthenticatedSession, and Principal are foundational schema (event ledger, write boxes, CRDT identity, sessions, sandboxes, capability grants, files, folders, database rows, projects, assets, artifacts, derived outputs, logs, and remote copies all bind to an accountable and authorized context). Adding them later means migrating every protected resource, existing event-ledger row, `KernelActor`, and capability grant — exactly the "harness mirrors the product" debt the reset brief is escaping.
 - The Operator's stated multi-user + agent/bot model maps to this primitive: Handshake-spawned agents inherit transparently from a parent Principal (no per-agent account), external agents get short-lived visitor-pass Principals with narrow caps, MCP clients get the highest-scrutiny Principal kind with default-deny scope and per-tool-call same-turn approval defaults.
+- Project membership is not blanket visibility. Two accounts may work in the same project while private resources remain undiscoverable to each other unless an explicit `ResourceGrant` authorizes access. This applies to names, paths, identifiers, counts, thumbnails, search results, logs, diagnostics, exports, backups, and model/tool context as well as content bytes.
+- SFW, client, and other focused working contexts are `AccessSpace` records, not alternate logins and not authorization sources. They select from already authorized resources and can never widen access. Preferences, memory ranking, and presentation belong to `Persona` and also can never grant authority.
 - Week 4 is already heavy with Local Model + Memory V0 + Build-Rules establishment. Week 5 is the massive three-WP Atelier-Lens-CKC fold-in. Slotting Principal Authority before Week 4 would inflate it; slotting it into Week 5 would compete with the production-feature work. Week 6 is the right home.
-- Postgres Row-Level Security is the cheap and bulletproof enforcement layer for "locked away by default" — this layer is much easier to add now than after the event ledger and CRDT identity tables grow.
+- PostgreSQL Row-Level Security with `FORCE ROW LEVEL SECURITY` is a primary defense-in-depth boundary for "locked away by default", but it is not sufficient by itself. Handshake must also enforce authorization at server APIs, filesystem and ArtifactStore brokers, search/index/memory/model/tool context assembly, previews, exports, diagnostics, and remote synchronization.
 
 Canonical Week 6 WP stubs:
 
-- `WP-KERNEL-006-Principal-Authority-Foundation-v1` — Phase A. Principal table + kind enum (Operator, Collaborator, HandshakeSpawnedAgent, ExternalAgent, McpClient), Postgres RLS, `KernelActor` → `PrincipalRef` migration, spawned-agent capability MIN inheritance, RootOperator break-glass recovery readable from local config. Stub authority lives in the `.contract.json`; no Markdown projection is generated.
-- `WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1` — Phase B. Per-MCP-server Principal allocated on connect with fingerprinted manifest, default-deny scope, per-tool-call same-turn approval default, visible audit badges in the operator-surface trace, short-lived visitor-pass for external agents, operator admin surface for create/list/scope/revoke. Reuses existing `ToolGate` + `approval_preview` machinery from KERNEL-001/002; no parallel approval system. Depends on KERNEL-006.
-- `WP-KERNEL-008-Principal-Profile-CRM-Layer-v1` — Phase C. `Profile` table linked to `Principal` (intentionally separate tables — auth and persona never share a row); multiple Profiles per Principal enables adult/SFW persona switching; FEMS memory scope, preferences, project binding, and operator suggestions all hang off the active Profile; persona switch is a typed event that never touches authority. Depends on KERNEL-006 and KERNEL-007.
+- `WP-KERNEL-006-Principal-Authority-Foundation-v1` — Phase A. `LocalAccount`, secure credentials, `AuthenticatedSession`, `Principal`, account administration, delegation, revocation, recovery, PostgreSQL RLS, protected-resource ownership/linkage, `KernelActor` migration, and attributed EventLedger/Flight Recorder foundations. It pre-creates 28 inactive MT contracts. Stub authority lives in the `.contract.json`; no Markdown projection is generated.
+- `WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1` — Phase B. `MembershipRole`, `ResourceGrant`, `AccessSpace`, ResourceBroker and ArtifactStore enforcement, same-project private-resource isolation, visitor passes, MCP scrutiny, metadata-side-channel controls, derived-scope non-widening, and the `ExternalIdentityBinding`/SaaS synchronization seam. It pre-creates 30 inactive MT contracts, reuses existing `ToolGate` + `approval_preview`, and depends on KERNEL-006.
+- `WP-KERNEL-008-Principal-Profile-CRM-Layer-v1` — Phase C. `Persona`, CRM/client context, FEMS personalization, moodboard and inspiration collections, and privacy-safe suggestions. Authorization and source filtering happen before Persona ranking or presentation; client context and Persona are never grants. It pre-creates 20 inactive MT contracts and depends on KERNEL-006 and KERNEL-007.
 
 Numbering note:
 
@@ -871,15 +873,17 @@ Numbering note:
 
 Stub-level only:
 
-- These are intentionally stub-shaped. Each carries `KEY_OPEN_QUESTIONS` that refinement must resolve before activation. The Operator wants room to explore the design further before the contracts are locked. Do not promote any of these to a signed packet until the corresponding refinement closes its open questions.
+- These remain `NON_EXECUTION_STUB` contracts. Their pre-created MT indexes and MT contracts are `PRECREATED_INACTIVE_NON_EXECUTABLE`; they do not authorize Coder or Validator work. At activation, refinement must preserve every original stub obligation, close the recorded open questions, reverify current source paths and research, and map every pre-created MT as adopted, split, merged, replaced, or explicitly superseded. A new WP activation signature is required; the Master Spec v02.202 signature is not reusable.
 
 Guardrails:
 
-- Principal is identity + access only. Profile is preference + memory scope only. Neither carries adult-production legal paperwork, consent records, or performer records — those remain Operator-owned per [CX-123A] / [CX-123B] / [GLOBAL-PRODUCTION-010..017].
-- KERNEL-008 must not modify the capability schema. Capability grants are KERNEL-006 territory exclusively.
+- `LocalAccount` authenticates, `Principal` acts, `ResourceGrant` authorizes, `AccessSpace` selects, and `Persona` personalizes. `AccountRole`, `MembershipRole`, and `CapabilityProfile` answer different questions and must not be used interchangeably.
+- Every protected resource and every derivative must carry stable ownership, account, Principal/session, AccessSpace/ResourceGrant, lineage, policy-version, and revocation linkage appropriate to its boundary. Derived visibility is the intersection of its source visibility and can never widen it.
+- KERNEL-008 must not create or modify authority from Persona, CRM client selection, FEMS preferences, moodboard membership, or inspiration ranking. Authority schema and enforcement belong to KERNEL-006/007.
 - ExternalAgent / McpClient Principals cannot spawn child Principals; only HandshakeSpawnedAgent inheritance from KERNEL-006 is allowed.
-- No SQLite anywhere in Principal/Profile authority storage. PostgreSQL/EventLedger per [CX-503R].
-- Stub contracts are `.contract.json` only; no Markdown projection is generated per the operator's no-`.md` directive. Discovery in `WP_TRACEABILITY_REGISTRY` / `TASK_BOARD` / `BUILD_ORDER` is deferred until those `.md`-primary surfaces are converted to JSON-primary (see `REFACTOR-MD-ELIMINATION-V1.json`).
+- Remote SaaS/MCP identity, token, collection, manifest, or ACL state never creates a local `ResourceGrant` implicitly. Imports arrive quarantined, preserve provenance and remote audience, and require explicit local authorization before becoming visible or executable.
+- No SQLite anywhere in account, Principal, ResourceGrant, AccessSpace, or Persona authority storage. PostgreSQL/EventLedger applies per [CX-503R], with Flight Recorder attribution and privacy-safe diagnostics.
+- Canonical product authority is Master Spec v02.202 Section 2.3.13.12 plus the machine-readable stub and MT contracts. `TASK_BOARD` and `BUILD_ORDER` remain discovery/status projections and are not authorization to execute.
 
 ## 8. What To Freeze From Current Governance
 

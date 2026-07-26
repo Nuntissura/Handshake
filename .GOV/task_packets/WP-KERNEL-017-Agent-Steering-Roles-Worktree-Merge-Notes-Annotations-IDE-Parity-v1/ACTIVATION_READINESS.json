@@ -1,0 +1,58 @@
+{
+ "schema_id": "hsk.activation_readiness@1",
+ "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+ "generated_at_utc": "2026-07-22T00:00:00Z",
+ "state_source": "RECOMPUTED_FROM_STUB_REFINEMENT_MT_CONTRACTS",
+ "verdict": "PREP_COMPLETE_AWAITING_UPSTREAM_MERGES",
+ "ready_for_downstream_launch": "NO",
+ "ready_for_downstream_launch_reason": "Operator decision 2026-07-21: WP-KERNEL-017 activates ONLY after WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1, WP-CKC-posekit-overhaul, and WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 are validated and merged. This session prepared stub + research + refinement + full MT set. Next-session activation completes: re-check MT grounding against post-merge main, resolve open contract points (OCP-017-001..006), author + merge the spec enrichment (GLOBAL-BUILD-083), obtain USER_SIGNATURE, promote stub -> official packet (just create-task-packet), move Task Board entry from STUB, create worktree + feat branch, launch implementation.",
+ "user_signature": null,
+ "prepared_artifacts": {
+  "wp_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
+  "refinement": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json",
+  "microtask_contracts": {
+   "count": 105,
+   "id_range": "MT-001..MT-290 (contiguous within domain ranges; headroom left below each domain ceiling)",
+   "gui_mt_count": 24,
+   "argus_mt_count": 24,
+   "index": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/_MT_INDEX.json",
+   "domains": {
+    "session_runtime_core": "MT-001..014 (14)",
+    "claude_stream_json_transport": "MT-021..029 (9)",
+    "codex_app_server_transport": "MT-041..047 (7)",
+    "acp_client_layer": "MT-061..066 (6)",
+    "handshake_roles": "MT-081..087 (7)",
+    "model_to_model_orchestration": "MT-101..108 (8)",
+    "mt_dispatch_lifecycle": "MT-121..126 (6)",
+    "worktree_merge_back": "MT-141..148 (8)",
+    "recording_diagnostics_manuals": "MT-161..166 (6)",
+    "annotation_core": "MT-201..209 (9)",
+    "notes_annotation_ui": "MT-221..226 (6)",
+    "native_prose_diff": "MT-241..245 (5)",
+    "ts_notes_editor_removal": "MT-261..264 (4)",
+    "ide_parity_gap_closure": "MT-281..290 (10)"
+   },
+   "validation_state_2026_07_22": "All 105 contracts parse; unique mt_ids; filenames match; schema/wp_id/lifecycle invariants hold; scope.summary/allowed_paths/acceptance_criteria/proof_targets non-empty; HBR ids within HANDSHAKE_BUILD_RULES vocabulary; red_team >=3 risks+controls per MT; all intra-WP depends_on references resolve."
+  }
+ },
+ "known_blockers_and_gates": [
+  "UPSTREAM: WP-1 / WP-CKC-posekit / WP-KERNEL-012 validation + merge (operator-ordered activation precondition).",
+  "TR-GATE-RED: TS-editor removal gate (MT-261) currently RED - WP-KERNEL-012 MT-045 perf evidence failing as of 2026-07-22; MT-262/263 unstartable until GREEN.",
+  "DIAG-DEFERRED: internal_diagnostics/Palmistry tier wiring types DEFERRED until WP-KERNEL-015 ships (RD MT-164 manifest records posture).",
+  "SPEC-ENRICHMENT-PENDING: master-spec sections for this WP authored+merged at activation (refinement OCP-017-006).",
+  "GROUNDING-RECHECK: all contracts grounded against wtc worktrees as of 2026-07-21/22; re-verify cited anchors against post-merge main at activation."
+ ],
+ "activation_steps": [
+  "verify_upstream_wps_validated_and_merged",
+  "recheck_mt_grounding_against_post_merge_main",
+  "resolve_open_contract_points_OCP-017-001..006",
+  "author_and_merge_spec_enrichment",
+  "obtain_user_signature",
+  "create_official_work_packet_contract (just create-task-packet)",
+  "move_task_board_entry_from_stub_to_ready_for_dev",
+  "create_worktree_and_feature_branch",
+  "launch_implementation_per_mt_dispatch_discipline"
+ ],
+ "naming_note": "Dexterity is the operator-facing name of the model-lane kernel Pillar A extends (model_lane.rs:1-5; DexterityNoOsLaunchCaller/DexterityNormalizedLaunch/dexterity_launch). Operator 2026-07-22: Dexterity is the ACP replacer. Pillar-A operator-facing surfaces use the Dexterity name; stable wire/schema ids keep their own names.",
+ "vendor_agnostic_engine_note": "VENDOR-AGNOSTIC ENGINE FRAMING (operator 2026-07-22): Handshake is a model/vendor-agnostic engine. Models are called through CLI/terminal today ONLY because Anthropic subscription plans block direct API use; Handshake is the wrapper/engine AROUND the CLI - it owns sandboxing, tool-call gating/stopping (SC MT-011), hooks (SC MT-012), cron/scheduling (SC MT-013), and exposing Handshake API/primitives to models (SC MT-014). Claude and GPT are the first two engines in the wrapper; open-source/other vendors follow. Vendor harness behaviors documented in the research basis were input, not the target; no vendor names in operator-facing surfaces, schemas, or policy vocabulary. If direct API access becomes viable, the CLI lane is swapped without touching the wrapper capabilities."
+}

@@ -1,0 +1,192 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-243",
+  "title": "PD-MT243-ProseMergeUi",
+  "group": "PD Native prose diff",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-243.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-241",
+      "MT-242"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Upgrade the rich-editor save-conflict resolution from a BINARY choice to a real block-level 3-way merge UI driven by MT-241's BlockMergeEngine. The current surface (src/frontend/handshake_native/src/rich_editor/save/conflict_ui.rs, verified 2026-07-21) is a modal offering only [Keep yours] [Keep server] [Open merge], with two read-only block lists rendered by `block_summaries` whose own doc-comment admits it walks 'only the top-level blocks (a deep diff is the future merge MT); this is enough to let the operator SEE which version is which'. THIS is that future merge MT. Build a per-conflict block merge that lets the operator (or an agent) resolve each conflicting block individually and auto-combines non-conflicting changes, while KEEPING the old binary choice as an escape hatch.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/rich_editor/save/merge_ui.rs (ProseMergeWindow + per-conflict resolution widgets + final-preview) — kept separate from conflict_ui.rs so the escape-hatch binary dialog is untouched; (b) edit conflict_ui.rs ONLY to add an 'Open merge' path that opens the new ProseMergeWindow in-app instead of (or alongside) the existing egui-memory Open-merge signal, and to add a ConflictOutcome variant for the merge result; (c) `pub mod merge_ui;` in rich_editor/save/mod.rs; (d) a GUI test file. NO backend edits, NO change to MT-241's engine, NO change to MT-242's read-only diff panel (reused).\n\nDETAILED SPEC:\n1. Three-way inputs: base (last common server version), local (operator's in-progress doc), remote (the newer server version that caused the conflict). The SaveManager conflict state (save_manager.rs SaveState::Conflict{server, local_content}) provides remote (server.content_json) and local (local_content); base is the doc version the local edit forked from (the SaveManager/draft base snapshot — read the incumbent base source; if no explicit base is retained, fall back to remote-as-base with a visible 'no common ancestor — showing 2-way' note rather than guessing). Feed base/local/remote to MT-241 BlockMergeEngine::three_way -> BlockMergePlan.\n2. Conflict list: render one row per BlockMergePlan block whose status is Conflict, each showing the local block and the remote block side by side (reuse MT-242's read-only block rendering for the two versions) with per-conflict actions: Accept Local, Accept Remote, Accept Both (local then remote), Edit Result (opens a small editable block field seeded with the local version; the edited block replaces that conflict's resolution). Mirror the code merge panel's accept-button author_id convention (diff_editor_panel.rs accept_local_author_id(n)=`diff_block_{n}_accept_local` etc.) as `prose_merge_conflict_{n}_accept_local` / `_accept_remote` / `_accept_both` / `_edit` (Role::Button, via scoped_author_id).\n3. Non-conflicting changes auto-combined: LocalOnly, RemoteOnly, and BothSame blocks are applied automatically per the merge plan (no operator action); show them in a collapsed 'Auto-merged changes (N)' summary so the operator can see what was combined without acting. This is the key upgrade over the binary dialog, which discarded one whole side.\n4. Final document preview: before saving, render the full merged document (BlockMergeEngine::apply over the resolved choices + any Edit Result overrides) read-only via MT-242's renderer, so the operator reviews the exact result. A Save button is DISABLED until every Conflict block has a resolution (apply returns ProseMergeError::UnresolvedConflict otherwise — surface it as a 'N conflicts unresolved' state, never a silent partial save).\n5. Escape hatch preserved: the original binary [Keep yours] [Keep server] choices remain reachable (a 'Resolve manually instead' affordance in the merge window and/or the untouched conflict_ui.rs binary dialog). Choosing Keep yours / Keep server behaves EXACTLY as today (no regression to those paths). The merge window is ADDITIVE.\n6. Save wiring: on Save, produce the merged content_json (apply -> Vec<BlockNode> -> re-wrap into the local doc envelope via document_model doc_json serializers) and hand it to the existing SaveManager save path (the same PUT the binary Keep-yours uses), so persistence, EventLedger receipts, and version bump reuse the incumbent flow — this MT adds NO new backend route.\n7. AccessKit: window root `prose_merge_window` (Role::Dialog, matching conflict_ui.rs's Role::Dialog conflict-dialog), per-conflict accept/edit buttons as named above, auto-merged summary `prose_merge_automerged_summary`, final preview `prose_merge_preview`, Save `prose_merge_save`, escape-hatch `prose_merge_manual_fallback`.\n\nSTEP-BY-STEP:\n1. Read MT-241 prose_diff.rs (BlockMergeEngine::three_way/apply, BlockMergePlan, BlockMergeStatus, MergeChoice, ProseMergeError), MT-242 prose_diff_ui (read-only block rendering + status tints, the aligned-block accessor), and the incumbent surfaces: rich_editor/save/conflict_ui.rs (ConflictOutcome enum, author_id consts lines ~45-63, show_conflict_window, block_summaries, the Open-merge egui-memory signal request_open_merge/take_open_merge_request), save_manager.rs (SaveManager, SaveState::Conflict/ConfirmKeepYours, the keep-yours/keep-server/save paths), draft_manager.rs (base/ancestor snapshot if retained).\n2. Create save/merge_ui.rs with ProseMergeWindow: build the plan, render the conflict list with per-conflict actions, the auto-merged summary, and the final preview; gate Save on full resolution.\n3. Wire Edit Result: a minimal editable block seeded from local; its output overrides that conflict's chosen node in apply.\n4. Edit conflict_ui.rs minimally to open ProseMergeWindow from 'Open merge' and to carry the merge result outcome back to the host; do NOT remove or alter the Keep-yours/Keep-server binary behaviour.\n5. Register merge_ui in save/mod.rs; wire Save to the existing SaveManager save path.\n6. GUI test file: a conflict resolved each way (local/remote/both/edit), auto-merge of non-conflicting blocks, Save disabled until resolved, the escape-hatch still reaches the binary behaviour, and a no-common-ancestor 2-way fallback note. Capture Argus evidence (screenshot + AccessKit tree) into HANDSHAKE_ARTIFACTS_ROOT.\n7. Update the UserManual in the same change (3-way prose merge: resolving conflicts, auto-merged changes, editing a result, previewing before save, the manual/binary escape hatch).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/save/merge_ui.rs",
+      "src/frontend/handshake_native/src/rich_editor/save/conflict_ui.rs (additive Open-merge wiring + merge-result outcome ONLY; binary paths untouched)",
+      "src/frontend/handshake_native/src/rich_editor/save/mod.rs (module registration)",
+      "src/frontend/handshake_native/tests/test_prose_merge_ui.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React; removed by TR MT-261..264)",
+      ".GOV/**",
+      "src/backend/** (reuse the existing SaveManager PUT path; no new route)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs (MT-241 engine; consume, do not edit)",
+      "src/frontend/handshake_native/src/rich_editor/prose_diff_ui/** (MT-242 read-only panel; reuse, do not edit)",
+      "src/frontend/handshake_native/src/rich_editor/save/save_manager.rs (reuse its save path; do not change its API)"
+    ],
+    "acceptance_criteria": [
+      "A new ProseMergeWindow resolves conflicts at BLOCK granularity from MT-241's BlockMergePlan, replacing the binary-only resolution while KEEPING [Keep yours]/[Keep server] reachable as an escape hatch with unchanged behaviour.",
+      "Each Conflict block shows local vs remote (MT-242 read-only rendering) with Accept Local / Accept Remote / Accept Both / Edit Result actions; Edit Result seeds an editable block whose output overrides that conflict's resolution.",
+      "Non-conflicting changes (LocalOnly/RemoteOnly/BothSame) are auto-combined per the merge plan and shown in a collapsed 'Auto-merged changes (N)' summary; no whole side is discarded (the binary-dialog defect).",
+      "A read-only final preview of the merged document (BlockMergeEngine::apply) renders before save; Save is DISABLED while any Conflict is unresolved and apply's ProseMergeError::UnresolvedConflict surfaces as an explicit 'N conflicts unresolved' state, never a silent partial save.",
+      "On Save the merged content_json is produced via document_model doc_json serializers and persisted through the EXISTING SaveManager save path (same PUT, EventLedger receipt, version bump) — no new backend route.",
+      "If no common-ancestor base is retained, the UI shows a visible 'no common ancestor — showing 2-way' note instead of silently guessing a base.",
+      "AccessKit: prose_merge_window (Dialog), prose_merge_conflict_{n}_accept_local/_accept_remote/_accept_both/_edit (Button), prose_merge_automerged_summary, prose_merge_preview, prose_merge_save, prose_merge_manual_fallback — all via scoped_author_id.",
+      "conflict_ui.rs binary Keep-yours/Keep-server/confirm paths are unchanged (regression-tested).",
+      "UserManual updated in the same change: 3-way prose merge workflow, auto-merged changes, edit-result, preview, escape hatch.",
+      "cargo test -p handshake-native prose_merge_ui passes; Argus screenshot + AccessKit tree captured for the conflict list, auto-merge summary, and final preview."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native prose_merge_ui -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "rg -n 'prose_merge_window|prose_merge_conflict_|prose_merge_save|prose_merge_manual_fallback' src/frontend/handshake_native/src/rich_editor/save/merge_ui.rs",
+      "rg -n 'CONFLICT_KEEP_YOURS_AUTHOR_ID|CONFLICT_KEEP_SERVER_AUTHOR_ID|RequestKeepYours|KeepServer' src/frontend/handshake_native/src/rich_editor/save/conflict_ui.rs (escape hatch preserved)",
+      "rg -n 'save_manager|SaveManager' src/frontend/handshake_native/src/rich_editor/save/merge_ui.rs && ! rg -n 'reqwest|axum|/knowledge/documents' src/frontend/handshake_native/src/rich_editor/save/merge_ui.rs (reuse save path, no new route)",
+      "Argus evidence: argus.screenshot + AccessKit tree dump of (a) conflict list with all four actions, (b) auto-merged summary, (c) final preview, (d) Save disabled with unresolved conflicts, (e) escape-hatch binary dialog reachable — stored under HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/rich_editor/save/merge_ui.rs (new, ProseMergeWindow)",
+      "src/frontend/handshake_native/src/rich_editor/save/conflict_ui.rs (additive Open-merge wiring + merge-result ConflictOutcome variant)",
+      "src/frontend/handshake_native/src/rich_editor/save/mod.rs (module registration)"
+    ],
+    "expected_tests": [
+      "integration: a Conflict resolved Accept Local / Accept Remote / Accept Both each yields the expected merged block",
+      "integration: Edit Result overrides a conflict's resolution with the edited block",
+      "integration: LocalOnly/RemoteOnly/BothSame blocks auto-combine and appear in the auto-merged summary",
+      "integration: Save disabled while a Conflict is unresolved; enabled once all resolved; apply UnresolvedConflict surfaced not swallowed",
+      "integration: no-common-ancestor input shows the 2-way fallback note",
+      "regression: conflict_ui.rs Keep-yours (+confirm) and Keep-server behave exactly as before",
+      "integration: Save persists through the existing SaveManager path (mock/seam) with no new route call"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): conflict_ui.rs is a modal with ConflictOutcome{None,RequestKeepYours,ConfirmKeepYours,CancelKeepYours,KeepServer}, author_id consts at lines ~45-63 (conflict-dialog, conflict-keep-yours, editor.rich.conflict.keep-server, conflict-open-merge, conflict-keep-yours-confirm), show_conflict_window rendering two read-only block lists via block_summaries (top-level only), and an Open-merge egui-memory one-shot (request_open_merge/take_open_merge_request) the shell drains to open the code DiffEditorPanel. block_summaries' own doc-comment names THIS as 'the future merge MT'.",
+      "Keep merge_ui.rs SEPARATE from conflict_ui.rs so the binary escape hatch is provably untouched; edit conflict_ui.rs only to route Open-merge into ProseMergeWindow and to carry back a merge-result outcome. Mirror diff_editor_panel.rs's accept-button author_id shape (accept_local_author_id(n)) for the per-conflict buttons.",
+      "Reuse the EXISTING SaveManager save path (same PUT the binary Keep-yours uses) for persistence; this MT adds no backend route. The merged Vec<BlockNode> is re-wrapped into the local doc envelope via document_model doc_json (to_content_json_value) before handing to SaveManager.",
+      "Base/ancestor: read save_manager.rs / draft_manager.rs for a retained base snapshot; if none exists, degrade to a visible 2-way (remote-as-base) note rather than fabricating an ancestor — never silently guess, matching MT-241's no-guess merge discipline.",
+      "Cross-family seams (reference only): MT-241 BlockMergeEngine (consumed), MT-242 read-only renderer (reused for local/remote/preview), MT-244 annotations may attach to merge-conflict blocks later, MT-245 parity/perf proofs cover the 3-way plan classification."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "ProseMergeWindow per-conflict resolution list",
+      "per-conflict Accept Local / Accept Remote / Accept Both / Edit Result",
+      "auto-merged changes summary",
+      "final merged-document preview",
+      "escape-hatch binary Keep yours / Keep server"
+    ],
+    "argus_targets": [
+      "prose_merge_window",
+      "prose_merge_conflict_{n}_accept_local",
+      "prose_merge_automerged_summary",
+      "prose_merge_preview",
+      "prose_merge_save"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "save_gate_state_check_unresolved_vs_resolved",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Three-way prose merge: resolving conflicts per block (accept local/remote/both/edit), auto-merged non-conflicting changes, previewing the merged document before save, and the manual/binary escape hatch"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "A merge resolution that overwrites a server version is a consequential save; the existing SaveManager save path already emits the EventLedger receipt this MT reuses — the merge outcome (per-conflict choices) is recorded on that consequential-save event."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The resolution state (per-conflict choice, unresolved count, auto-merged set, apply error) is structured/inspectable so a no-context model can see why Save is gated or which conflict is unresolved."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Modal UI plus a reused synchronous save path; no new long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "Prose save conflicts stay binary: the operator must discard an entire side (theirs or the server's) to resolve a conflict, silently losing block-level edits from one author. In a multi-agent swarm where a model and the operator edit the same note, every conflict becomes a lossy all-or-nothing choice, and the block-level merge MT-241 built has no way to be applied.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent data loss — a partial/unresolved merge saves anyway, dropping an unresolved conflict's content, so an operator or agent edit vanishes without warning.",
+      "RISK-2: Escape-hatch regression — wiring the new merge window breaks or removes the binary Keep-yours/Keep-server behaviour, so the proven fallback no longer works.",
+      "RISK-3: Wrong base — the three-way is fed remote as base (or a guessed ancestor) with no disclosure, so genuine conflicts are hidden as one-sided changes and auto-applied incorrectly.",
+      "RISK-4: Auto-merge over-reach — a block classified LocalOnly/RemoteOnly is actually a conflict (a base misread), so it is silently auto-combined and overwrites the other side without an operator decision.",
+      "RISK-5: New backend coupling — the merge window invents its own save/route instead of the existing SaveManager path, diverging persistence/version/receipt semantics from every other save."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Save is disabled until every Conflict is resolved; apply returns ProseMergeError::UnresolvedConflict which the UI surfaces as an explicit unresolved-count state; a test proves no save fires while unresolved.",
+      "CTRL-2 (RISK-2): merge_ui.rs is a separate module; conflict_ui.rs binary paths are edited only additively and covered by a regression test asserting Keep-yours/confirm/Keep-server behave as before.",
+      "CTRL-3 (RISK-3): when no retained base exists the UI shows a visible 2-way fallback note; the base source is read from save_manager/draft_manager, never fabricated.",
+      "CTRL-4 (RISK-4): auto-merged blocks are surfaced in the 'Auto-merged changes (N)' summary so the operator can see every auto-applied change; the classification comes straight from MT-241's plan (parity-tested in MT-245), not a UI re-derivation.",
+      "CTRL-5 (RISK-5): Save routes through the existing SaveManager path; a grep proof asserts no reqwest/route literal in merge_ui.rs and a test asserts the incumbent save seam is used."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 rich_editor/save/: conflict_ui.rs (ConflictOutcome enum, author_id consts lines ~45-63, show_conflict_window binary [Keep yours][Keep server][Open merge], block_summaries top-level-only with 'a deep diff is the future merge MT' doc-comment, request_open_merge/take_open_merge_request egui-memory Open-merge signal, Role::Dialog conflict-dialog), save_manager.rs (SaveManager, SaveState::Conflict{server, local_content}/ConfirmKeepYours, keep-yours/keep-server/save paths), draft_manager.rs (draft/base snapshot). Consumes MT-241 BlockMergeEngine/BlockMergePlan/MergeChoice/ProseMergeError and MT-242 read-only renderer. Accept-button author_id convention mirrored from code_editor/diff_editor_panel.rs accept_local_author_id(n).",
+    "corrections": [
+      "block_summaries in conflict_ui.rs explicitly defers the deep block merge to 'the future merge MT' — this MT-243 is that MT; the binary dialog stays as an untouched escape hatch rather than being replaced.",
+      "No new backend route: persistence reuses the existing SaveManager PUT path (EventLedger receipt + version bump) that the binary Keep-yours already uses, so merge saves are indistinguishable to the backend from ordinary saves."
+    ]
+  }
+}

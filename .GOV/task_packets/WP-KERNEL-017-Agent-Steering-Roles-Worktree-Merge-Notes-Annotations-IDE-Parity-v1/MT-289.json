@@ -1,0 +1,180 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-289",
+  "title": "IP-MT289-EditorSaveActions",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-289.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add VS Code 'on save' editor actions to the native code editor — format-on-save (editor.formatOnSave), trim-trailing-whitespace-on-save (files.trimTrailingWhitespace), insert-final-newline (files.insertFinalNewline), and trim-final-newlines (files.trimFinalNewlines) — as a single per-editor save-hook pipeline with per-language enable/disable settings. The MT-281 matrix marks 'format-on-save-actions' MISSING: formatting.rs is manual Format Document / Format Selection (MT-050) only; there is no save trigger and no whitespace/newline save cleanup. This MT is mostly a pure transform pipeline over the MT-001 TextBuffer plus a small settings surface; it REUSES the existing formatting.rs applier (apply_format_edits_to_string / resolve_format_outcome) and file_meta.rs (Eol / trailing-whitespace notions) — it adds NO new formatter and NO new LSP transport.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/code_editor/save_actions.rs (SaveAction enum + SaveActionConfig + the ordered save pipeline SaveActionPipeline::run(buffer, language_id) -> single WorkspaceEdit-style change set + the applied-summary); (b) `pub mod save_actions;` + re-exports in code_editor/mod.rs; (c) a save-hook call in the code editor's save path (panel.rs / the editor save site) that runs the pipeline BEFORE the bytes are written, applied as ONE undo entry combined with the save; (d) a settings section wiring in code_editor settings (the MT-072 EditorSettingsSections surface) exposing the four toggles + per-language overrides; (e) one integration test file. Pure transforms + settings; reuses formatting.rs + file_meta.rs; NO backend; NO new formatter.\n\nDETAILED SPEC:\n1. save_actions.rs: `pub enum SaveAction { FormatDocument, TrimTrailingWhitespace, InsertFinalNewline, TrimFinalNewlines }`; `pub struct SaveActionConfig { format_on_save: bool, trim_trailing_whitespace: bool, insert_final_newline: bool, trim_final_newlines: bool, per_language: HashMap<LanguageId, SaveActionOverrides> }` (MT-071 LanguageId). Defaults: all OFF (VS Code default is off; opt-in), matching VS Code's conservative default so a save never silently rewrites a file until the operator enables it.\n2. Pipeline order (normative, VS Code parity): (1) FormatDocument (if enabled AND a formatter is available for the language — reuse formatting.rs formatter_available + apply_format_edits_to_string; if no formatter, skip silently, do NOT block the save), then (2) TrimTrailingWhitespace (strip trailing spaces/tabs per line, preserving the line's EOL — reuse file_meta Eol detection so CRLF vs LF is respected), then (3) InsertFinalNewline / TrimFinalNewlines (ensure exactly one trailing newline, or trim extras, using the buffer's detected EOL). The whole pipeline produces ONE combined edit applied as a single change so save = one undo entry.\n3. Cursor/selection preservation (binding): running save actions must NOT jump the caret or lose the selection unexpectedly — trailing-whitespace trim on the caret's own line must keep the caret at a sensible position (VS Code keeps the caret; it does not delete whitespace the operator is actively typing before the cursor on the current line — match that 'skip the active line's trailing edit if the caret is at end of that line' nuance, or document the chosen behavior).\n4. Format-on-save safety: format-on-save reuses the MT-050 formatter path; if the formatter errors or times out, the save STILL proceeds with the un-formatted (but whitespace/newline-cleaned) content and a non-blocking status note — a save must never be lost because a formatter failed (HBR-QUIET/HBR-STOP: never hang the save on the formatter). Large-file guard: format-on-save is skipped (with a note) above a configurable size threshold, matching VS Code's editor.formatOnSaveTimeout behavior.\n5. Settings surface: expose the four toggles + a per-language override table in the code-editor settings section (MT-072). The settings persist through the existing settings mechanism (no new persistence system). A status-bar / save-toast note shows what actions ran on the last save ('Formatted, trimmed whitespace').\n6. Scope edges: this MT owns the save-action PIPELINE + settings + the save-hook call. It REUSES formatting.rs (formatter) and file_meta.rs (EOL/whitespace); it does NOT add a formatter, does NOT modify the LSP transport, and it applies to the CODE editor (the rich editor save/draft path MT-020 has its own normalization and is out of scope here).\n\nSTEP-BY-STEP:\n1. Read code_editor/formatting.rs (formatter_available, apply_format_edits_to_string, resolve_format_outcome, FormatOutcome — the reuse surface), file_meta.rs (Eol, detect_indent, RenderWhitespace — EOL + whitespace notions), panel.rs (the save site + the single-undo boundary + status note mechanism), language_mode.rs (LanguageId), the MT-072 EditorSettingsSections surface (where the toggles mount).\n2. Create save_actions.rs with SaveAction/SaveActionConfig + SaveActionPipeline::run producing one combined edit + an AppliedSummary; unit-test each action in isolation and the ordered pipeline (format then trim then final-newline), EOL preservation (CRLF + LF), and all-off = no-op.\n3. Wire the save-hook: run the pipeline before write, applied as one undo entry with the save; formatter failure/large-file -> skip-with-note, save proceeds.\n4. Wire the settings section (four toggles + per-language overrides) into MT-072; persist via the existing settings mechanism.\n5. Register `pub mod save_actions;` + re-exports in code_editor/mod.rs.\n6. Integration test: enable all four; save a file with trailing whitespace, no final newline, and unformatted code -> one save produces formatted + trimmed + final-newline content in ONE undo; a formatter error still saves the whitespace-cleaned content with a note; CRLF file keeps CRLF; all-off saves byte-identical content. Capture Argus evidence of the settings section toggles + the post-save status note.\n7. Update the UserManual (same change): save actions — the four toggles, per-language overrides, order of operations, format-on-save formatter/large-file behavior, and that defaults are off.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/save_actions.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/tests/test_save_actions.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (no backend; pure transforms + settings)",
+      "src/frontend/handshake_native/src/code_editor/formatting.rs (reuse the formatter applier; do not fork or modify it)",
+      "src/frontend/handshake_native/src/rich_editor/save/** (the rich-editor save path is MT-020; out of scope)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/save_actions.rs exists with SaveAction{FormatDocument,TrimTrailingWhitespace,InsertFinalNewline,TrimFinalNewlines} + SaveActionConfig (four toggles + per-language overrides, MT-071 LanguageId) defaulting ALL OFF, and SaveActionPipeline::run producing ONE combined edit + an applied summary.",
+      "Pipeline order is Format -> TrimTrailingWhitespace -> InsertFinalNewline/TrimFinalNewlines; format-on-save reuses formatting.rs (formatter_available / apply_format_edits_to_string) and skips silently when no formatter exists (grep-provable: no new formatter).",
+      "The whole save is ONE undo entry; EOL is preserved (a CRLF file stays CRLF, an LF file stays LF) via file_meta Eol detection; all-off saves byte-identical content (no-op).",
+      "A formatter error/timeout or an over-threshold large file skips FORMAT with a non-blocking note but the save STILL proceeds with whitespace/newline-cleaned content (the save is never lost or hung on the formatter).",
+      "Trailing-whitespace trim preserves a sensible caret position and documents the active-line nuance (do not delete whitespace the operator is actively typing at the caret on the current line, or document the chosen behavior).",
+      "A settings section exposes the four toggles + per-language overrides (mounted in the MT-072 editor settings surface) and persists via the existing settings mechanism; a post-save status note reports what ran.",
+      "UserManual updated in the same change: the four toggles, per-language overrides, operation order, formatter/large-file behavior, defaults-off."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native save_actions -- --nocapture 2>&1 | grep -E 'test result: ok'",
+      "rg -n 'SaveAction|SaveActionPipeline' src/frontend/handshake_native/src/code_editor/save_actions.rs",
+      "rg -n 'formatter_available|apply_format_edits_to_string' src/frontend/handshake_native/src/code_editor/save_actions.rs && rg -n 'tree_sitter_fmt|new_formatter|rustfmt::' src/frontend/handshake_native/src/code_editor/save_actions.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot of the save-actions settings section (four toggles) + the post-save status note after a save that formatted + trimmed, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/save_actions.rs (pipeline + config)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (save-hook call + single-undo + status note)",
+      "src/frontend/handshake_native/src/settings_dialog.rs (save-actions settings section)"
+    ],
+    "expected_tests": [
+      "unit: TrimTrailingWhitespace strips per-line trailing spaces/tabs preserving EOL (CRLF + LF)",
+      "unit: InsertFinalNewline adds exactly one; TrimFinalNewlines collapses extras",
+      "unit: FormatDocument reuses formatting.rs and is skipped when no formatter is available",
+      "unit: ordered pipeline (format -> trim -> final-newline) produces one combined edit",
+      "unit: all-off config is a byte-identical no-op",
+      "integration: enable all four -> one save produces cleaned+formatted content in ONE undo",
+      "integration: formatter error still saves whitespace-cleaned content with a note (save not lost)",
+      "integration: over-threshold large file skips format with a note but still saves"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: code_editor/formatting.rs (MT-050) exports formatter_available, apply_format_edits_to_string (apply_format_edits_to_string), resolve_format_outcome, FormatOutcome — the reuse surface for format-on-save; file_meta.rs exports Eol, detect_indent, RenderWhitespace — EOL + whitespace notions; language_mode.rs LanguageId (MT-071); panel.rs owns the save site + single-undo boundary + status note; settings_dialog.rs / MT-072 EditorSettingsSections is where the toggles mount. No save-action pipeline or format-on-save trigger exists today.",
+      "Design basis (cite in code docs): VS Code editor.formatOnSave, files.trimTrailingWhitespace, files.insertFinalNewline, files.trimFinalNewlines, editor.formatOnSaveTimeout, editor.codeActionsOnSave order — all default off / opt-in.",
+      "SAVE-IS-SACRED (HBR-STOP/HBR-QUIET): a save must never be lost or hung because a formatter failed or ran long. Format is best-effort; whitespace/newline cleanup is deterministic; the write always happens.",
+      "Defaults are OFF to match VS Code and to avoid silently rewriting files the operator did not opt into cleaning — a save must be predictable.",
+      "Cross-family seams (reference only): MT-050 formatting (reused formatter), MT-072 settings surface (host), MT-020 rich-editor save (distinct path, out of scope). codeActionsOnSave (organize-imports-on-save) is intentionally NOT in this MT's scope beyond the four listed actions; it can be a later addition once code_actions-on-save is prioritized."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "save-actions settings section (four toggles + per-language overrides)",
+      "post-save status note ('Formatted, trimmed whitespace')",
+      "formatter-skipped / large-file-skipped note"
+    ],
+    "argus_targets": [
+      "settings_save_actions_section",
+      "settings_save_action_format_on_save_toggle",
+      "editor_save_status_note"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "single_undo_behavior_check",
+      "save_not_lost_on_formatter_error_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Save actions: format-on-save, trim trailing whitespace, insert/trim final newline, per-language overrides, order of operations, formatter/large-file behavior, and that defaults are off"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Save-time transforms are recorded by the existing save/undo path; this MT emits no new business events beyond the applied-summary note."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The applied-action summary and any skip reason (no formatter / formatter error / large file) are exposed as structured state so a no-context model can see exactly what a save did."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Synchronous transform pipeline; the formatter runs on the existing bounded formatter path, not a new supervised child."
+    }
+  ],
+  "risk_if_missed": "Without save actions the native editor cannot keep files clean on save the way every professional IDE does: operators must manually format and hand-trim whitespace/newlines, producing noisy diffs (trailing-whitespace and missing-final-newline churn) that pollute the very worktree-merge review this WP is about.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Lost save — a formatter error, timeout, or exception aborts the whole save, so the operator's edits are not written to disk.",
+      "RISK-2: EOL corruption — trailing-whitespace/final-newline actions rewrite CRLF as LF (or vice versa), producing a whole-file diff and breaking line endings.",
+      "RISK-3: Undo fragmentation — save actions record separate undo entries, so Ctrl+Z after save only partially reverts, leaving inconsistent content.",
+      "RISK-4: Silent default rewrite — actions default ON and silently reformat/clean a file the operator did not opt into, corrupting an unexpected diff.",
+      "RISK-5: Caret jump / active-line clobber — trailing-whitespace trim deletes whitespace the operator is typing at the caret or jumps the caret, disrupting editing."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The write always proceeds; format is best-effort and any failure downgrades to whitespace/newline-clean-only with a note. A test injects a formatter error and asserts the file is still saved.",
+      "CTRL-2 (RISK-2): EOL is detected via file_meta Eol and preserved by every action; CRLF and LF tests assert byte-correct endings after save.",
+      "CTRL-3 (RISK-3): The pipeline emits ONE combined edit applied as a single undo entry with the save; a test asserts one Ctrl+Z reverts the whole save.",
+      "CTRL-4 (RISK-4): All four actions default OFF; a test asserts an unconfigured editor saves byte-identical content.",
+      "CTRL-5 (RISK-5): The trim action preserves caret position and skips (or documents) the active line's trailing edit at the caret; a test asserts the caret is not disrupted."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: code_editor/formatting.rs (MT-050 Format Document/Selection, formatter_available/apply_format_edits_to_string/resolve_format_outcome) is manual-only with NO save trigger; file_meta.rs (Eol/RenderWhitespace) has EOL/whitespace notions but no on-save cleanup; grep for 'format_on_save' found nothing. Confirmed 'format-on-save-actions' is not covered by WP-012 (MT-001..108), WP-013/014 stubs, STUDIO, or WP-011. External design basis: VS Code editor.formatOnSave + files.trim*/insertFinalNewline settings.",
+    "corrections": [
+      "Format Document/Selection (MT-050) exists but is manual; there is no save hook and no whitespace/newline-on-save cleanup. This MT adds the on-save pipeline + settings, reusing the MT-050 formatter and file_meta EOL — not a new formatter. codeActionsOnSave (organize imports) is deliberately out of scope beyond the four listed actions."
+    ]
+  }
+}

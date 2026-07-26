@@ -170,6 +170,7 @@ Requirements (HARD):
   - PILLAR: Skill distillation / LoRA | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: ACE | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
   - PILLAR: RAG | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
+  - PILLAR: Account-bound resource privacy | STATUS: <TOUCHED|NOT_TOUCHED|UNKNOWN> | NOTES: <fill> | STUB_WP_IDS: <comma-separated WP-... | NONE>
 - PILLAR_ALIGNMENT_VERDICT: PENDING (OK | NEEDS_SPEC_UPDATE | NEEDS_STUBS)
 
 ### HBR_PILLAR_REVIEW (HANDSHAKE_BUILD_RULES applicability review)
@@ -180,7 +181,30 @@ Requirements (HARD):
   - VIS: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
   - QUIET: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
   - MAN: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
+  - PRIV: applicable: <YES|NO|UNKNOWN> | evidence_path: <path/receipt or NONE> | notes: <fill>
 - HBR_PILLAR_REVIEW_VERDICT: PENDING (OK | NEEDS_PACKET_HBR_ROWS | NEEDS_NOT_APPLICABLE_RATIONALE)
+
+### ACCOUNT_RESOURCE_PRIVACY_REVIEW (permanent pillar; required for every product refinement)
+- Rule: inventory every primary and derived resource the WP creates, reads, mutates, lists, searches, previews, imports, exports, downloads, synchronizes, shares, archives, or deletes. A missing row is a refinement defect; `NOT_APPLICABLE` is permitted only for pure repo-governance work with a concrete reason.
+- Identity separation:
+  - LocalAccount: <login identities touched or NONE>
+  - Principal: <auditable actors touched or NONE>
+  - AccountRole: <installation authority touched or NONE>
+  - MembershipRole: <Space/project/resource collaboration roles touched or NONE>
+  - AccessSpace: <selectable work contexts touched or NONE>
+  - ResourceGrant: <resource authorization relationships touched or NONE>
+  - Persona: <preference/behavior contexts touched or NONE>
+  - RESERVED_PROFILE_TERMS_CHECKED: <YES|NO>; `WorkProfile` and `CapabilityProfile` keep their existing meanings; a bare Profile cannot grant access.
+- Resource inventory rows:
+  - RESOURCE_KIND: <folder|file|database_row_or_namespace|project|asset|artifact|memory|model_context|workflow_record|log|trace|index|thumbnail|cache|derivative|export|remote_object|other> | PRODUCER: <fill> | CONSUMER: <fill> | STABLE_RESOURCE_ID: <fill> | OWNER_ACCOUNT_OR_PRINCIPAL: <fill> | ACCESS_SPACE_OR_VISIBILITY_SCOPE: <fill> | STORAGE_BOUNDARY: <fill> | DERIVED_FROM: <ids or NONE> | DEFAULT_DENY_ENFORCEMENT_POINTS: <PostgreSQL_RLS|ResourceBroker|API|search|model_retrieval|tool|preview|export|sync|UI_query|other> | REVOCATION_BEHAVIOR: <fill> | PROOF_TARGET: <fill>
+- Required scenario rows:
+  - SAME_PROJECT_PRIVACY: <owner plus coworker in same project plus unrelated account; private and explicitly shared resources>
+  - METADATA_SIDE_CHANNEL: <names/counts/thumbnails/search/activity/logs/traces cannot reveal restricted resources>
+  - DERIVED_RESOURCE_NON_WIDENING: <mixed-scope source inputs and inherited intersection>
+  - SESSION_SWITCH_AND_REVOCATION: <logout/disable/role change/Space switch/project removal/grant revoke/pass expiry/token rotation>
+  - REMOTE_SAAS_MCP_SYNC: <tenant/resource audience, delegated scope, provenance/hash, resulting local owner/Space or NOT_APPLICABLE>
+- Required HBR rows: HBR-PRIV-001 through HBR-PRIV-008 as applicable.
+- ACCOUNT_RESOURCE_PRIVACY_VERDICT: PENDING (OK | NEEDS_RESOURCE_INVENTORY | NEEDS_NEGATIVE_SCENARIOS | NEEDS_SPEC_UPDATE | NOT_APPLICABLE_WITH_REASON)
 
 ### PILLAR_DECOMPOSITION (deeper pillar -> subfeature/capability slice mapping)
 - Rule: for `REFINEMENT_FORMAT_VERSION >= 2026-03-08`, decompose touched or adjacent pillars into concrete capability slices so Appendix 12 can grow beyond coarse pillar rows. This is where Calendar/Loom/Locus/Stage/Studio/Atelier-Lens/Command Center/Flight Recorder/RAG mixes become explicit. Derive pillar slices and subfeatures from the current Master Spec; do not invent pillar semantics from memory. Silent omission is forbidden; every row must resolve through `IN_THIS_WP`, `NEW_STUB`, or `SPEC_UPDATE_NOW`.

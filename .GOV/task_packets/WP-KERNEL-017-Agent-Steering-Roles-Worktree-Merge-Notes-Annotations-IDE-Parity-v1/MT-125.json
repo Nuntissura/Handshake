@@ -1,0 +1,191 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-125",
+  "title": "ML-MT125-MtLifecycleBoardGui",
+  "group": "ML MT dispatch lifecycle",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-125.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-123",
+      "MT-124"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give the operator (and observing models) a live MT lifecycle board — the visual surface over the MT-123 run state machine and MT-124 validation handoff. Two surfaces: (1) a native egui pane in handshake_native alongside the existing swarm lane diagnostics; (2) an extension of the legacy-React SwarmBoard/SessionWorkbench (the currently-shipping swarm operator surface) so the board is usable before native parity closure. Per-MT-run rows with drill-down into the owning session, steer/interrupt entry, and validation status. AccessKit semantics + Argus verification are mandatory (GUI MT).\n\nEXPECTED DIFF SHAPE: New native pane src/frontend/handshake_native/src/mt_lifecycle_board.rs registered next to swarm_lane_diagnostics.rs; extensions to app/src/components/swarm/SwarmBoard.tsx and app/src/components/swarm/SessionWorkbench.tsx (named GUI-surface exception to the app/src/** freeze); thin read API/IPC binding if the MT-123 list_runs surface is not yet exposed over the session API (MT-007). No new backend business logic.\n\nDETAILED SPEC:\n1. Data source — MT-run rows come from MT-123 list_runs (via the MT-007 session API route surface) and update EVENT-DRIVEN from the MT-009 bus state-change events (native: existing event subscription seam; React: the existing swarm event push channel used by SwarmBoard). NO periodic refresh timer polling the backend: updates arrive on events; a manual refresh button is allowed.\n2. Row model (both surfaces render the same typed row): mt_id, wp_id, run state (typed badge: DISPATCHED/CLAIMED/IMPLEMENTING/SIGNALED{kind}/VALIDATION_HANDOFF/VALIDATED/FAILED/BLOCKED), worker session_id + model lane, workspace (session worktree path and, when VM-bound, the worktree_vm binding indicator), last signal kind + received-at, blocker kind + detail when BLOCKED, failure reason when FAILED (incl. SignalParseFailure indicator), validation status (open handoff receipt / closure verdict / closer attribution from MT-124 receipts), and run lineage (prior run_ids for the same mt_id, append-only history).\n3. Drill-down — activating a row opens the owning session in the session tree / SessionWorkbench (existing session-detail surface); from there the operator reaches transcript, FR records, and the workspace path. The board does NOT duplicate the workbench; it links.\n4. Steer/interrupt entry — each non-terminal row exposes Steer and Interrupt actions routed through the EXISTING steer-queue/session-control surfaces (MT-002 steer queue via MT-007 session API). The board is an entry point only: it submits to those surfaces and renders their acknowledgement; it owns no steering logic.\n5. States of the board itself — empty state ('no MT runs'), backend-unreachable state (typed error banner, no silent blank), and stale-event state (last-event timestamp shown so the operator can judge freshness without the app polling).\n6. Accessibility/automation — native pane: AccessKit node per row and per action button with stable ids (mt-run-row-{run_id}, mt-run-steer-{run_id}, mt-run-interrupt-{run_id}, mt-run-open-session-{run_id}); React: data-testid with the same id scheme. These stable ids are the parallel-model interaction contract (GLOBAL-BUILD-040).\n7. Argus — native pane verified via the canonical Argus flow: AccessKit tree inspection (rows + actions present), screenshot/snapshot reference, layout-overlap check, console/renderer error scan. React extension verified via the project's existing web GUI check path for SwarmBoard.\n\nSTEP-BY-STEP:\n1. Read swarm_lane_diagnostics.rs (pane registration, event subscription, AccessKit id conventions) and SwarmBoard.tsx/SessionWorkbench.tsx (row rendering, push-channel subscription, drill-down wiring) in the product worktree.\n2. Expose list_runs + receipts over the MT-007 route surface if not already exposed (thin read-only route; no new business logic) and add the matching typed frontend client calls.\n3. Implement the native pane: row table, badges, drill-down link, steer/interrupt entry, empty/unreachable/stale states, AccessKit ids.\n4. Extend SwarmBoard.tsx with the MT-run section + SessionWorkbench.tsx with the per-run detail block (last signal, receipts, lineage); reuse existing components/styles; data-testids.\n5. Native tests (egui harness per crate convention) for row rendering per state, action-event emission, and AccessKit id stability; React tests per app test convention for row rendering + drill-down.\n6. Run Argus verification on the native pane and record evidence; run the React GUI check; run proof targets.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/mt_lifecycle_board.rs",
+      "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs (integration/registration touches only)",
+      "src/frontend/handshake_native/src/** (pane registration seams only — shell/menu wiring)",
+      "src/frontend/handshake_native/tests/**",
+      "app/src/components/swarm/SwarmBoard.tsx (named GUI-surface exception)",
+      "app/src/components/swarm/SessionWorkbench.tsx (named GUI-surface exception)",
+      "src/backend/handshake_core/src/** (thin read-only route exposure for list_runs/receipts ONLY if MT-007/MT-123 did not already expose it)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except the two named GUI surfaces above — no other legacy React edits)",
+      ".GOV/** (the product READS MT contracts; it never writes .GOV)",
+      ".GOV/tools/handshake-acp-bridge/** (repo-gov broker stays as-is)",
+      "src/backend/handshake_core/src/swarm_orchestration/mt_run_state.rs (business logic frozen; read via API only)"
+    ],
+    "acceptance_criteria": [
+      "Native egui MT lifecycle board pane exists, registered alongside swarm lane diagnostics, rendering per-run rows with state badge, worker session, workspace (worktree/VM indicator), last signal, blocker/failure detail, validation status, and lineage.",
+      "React SwarmBoard shows the MT-run section and SessionWorkbench shows the per-run detail block, rendering the same typed row model.",
+      "Board updates are event-driven from the MT-009 bus push channels; grep-level proof that the board code contains no periodic backend-status polling timer; manual refresh only.",
+      "Row drill-down opens the owning session in the existing session tree/workbench surface (link, not duplication).",
+      "Steer and Interrupt actions on non-terminal rows submit through the existing steer-queue/session-control surfaces and render acknowledgement; terminal rows offer no such actions.",
+      "Empty, backend-unreachable, and stale-event states render explicitly — no silent blank pane.",
+      "AccessKit nodes (native) and data-testids (React) use the stable id scheme mt-run-row-{run_id} / mt-run-steer-{run_id} / mt-run-interrupt-{run_id} / mt-run-open-session-{run_id} — asserted by test.",
+      "Argus evidence recorded for the native pane: AccessKit tree with rows+actions, screenshot/snapshot reference, layout-overlap check, renderer/console error scan; React GUI check evidence recorded.",
+      "cargo build (native) and app build green; new tests green."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native mt_lifecycle_board -- --nocapture",
+      "rg -n \"set_interval|setInterval|poll\" src/frontend/handshake_native/src/mt_lifecycle_board.rs app/src/components/swarm/SwarmBoard.tsx -i | rg -v \"// no-poll\" | wc -l | grep -q '^0'",
+      "cargo build -p handshake-native",
+      "argus inspect --target mt_lifecycle_board (per the canonical Argus invocation in the product worktree; record tree + snapshot evidence)"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/mt_lifecycle_board.rs (new)",
+      "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs (registration integration)",
+      "app/src/components/swarm/SwarmBoard.tsx (MT-run section)",
+      "app/src/components/swarm/SessionWorkbench.tsx (per-run detail block)"
+    ],
+    "expected_tests": [
+      "native row rendering across all run states incl. blocker/failure/parse-failure detail",
+      "steer/interrupt action emission + absence on terminal rows",
+      "AccessKit/data-testid stable-id assertions",
+      "empty/unreachable/stale board states",
+      "React row + drill-down rendering tests",
+      "no-polling grep proof"
+    ],
+    "implementation_notes": [
+      "This is the productized successor of the operator's terminal-window juggling: the board is training ground for in-app session display (operator feedback: terminal hygiene / future in-app session display). Keep the row model in one shared typed definition per surface so native and React cannot drift silently.",
+      "The stale-event indicator exists BECAUSE polling is forbidden: freshness is communicated by showing when the last event arrived, not by re-querying on a timer.",
+      "SwarmBoard/SessionWorkbench are the ONLY legacy-React files touchable here (named exception); if the extension pressures other app/src files, stop and surface it rather than widening scope — the legacy notes-editor removal discipline elsewhere in WP-017 depends on app/src staying frozen.",
+      "Reuse swarm_lane_diagnostics.rs event-subscription and pane conventions verbatim; the board is a sibling pane, not a fork of the diagnostics pane.",
+      "Steer entry submits to the MT-002 steer queue exactly as the workbench does — if the workbench steer control is componentized, reuse that component."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native egui: mt_lifecycle_board pane (new, registered alongside swarm_lane_diagnostics)",
+      "React: SwarmBoard.tsx MT-run section",
+      "React: SessionWorkbench.tsx per-run detail block"
+    ],
+    "argus_targets": [
+      "mt_lifecycle_board pane AccessKit tree (rows + steer/interrupt/open-session actions)",
+      "mt_lifecycle_board screenshot/snapshot reference",
+      "layout-overlap + renderer error scan on the pane"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "MT lifecycle board: reading run states, blockers, validation status",
+      "Steering/interrupting a dispatched MT worker from the board",
+      "Drilling into a worker session from an MT run row"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-SWARM-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "TIER_1_STRUCTURED_STATE",
+      "obligation": "The board renders the mt_runs structured state verbatim (states, blockers, receipts) — no board-local derived truth."
+    },
+    {
+      "tier": "TIER_2_TRACE",
+      "obligation": "Drill-down reaches transcript/FR trace surfaces for every run; stale-event timestamp exposes event-flow health."
+    },
+    {
+      "tier": "TIER_3_OPERATOR_SURFACE",
+      "obligation": "This MT IS the operator surface for the ML family; Argus + UserManual evidence required in the same change."
+    }
+  ],
+  "risk_if_missed": "The MT loop runs headless: the operator cannot see run states, blockers, or validation status without reading PG/logs — UI confusion and invisible stuck runs, violating the observable/attributable/recoverable bar.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The board quietly reintroduces polling (refresh timer) to feel live, violating the operator's no-polling rule at the GUI layer.",
+      "RISK-2: Board-local state derivation (computing 'done' from signals client-side) drifts from mt_runs canonical state — UI count vs backend truth divergence (GLOBAL-SOT-026 class).",
+      "RISK-3: Steer/interrupt from the board bypasses the sanctioned steer-queue/session-control path and mutates sessions directly.",
+      "RISK-4: Unstable row/action identifiers break parallel-model automation and Argus regression comparisons across runs.",
+      "RISK-5: Backend-unreachable or event-channel-dead renders as an empty board, indistinguishable from 'no runs' — operator misreads system health."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): event-driven updates + manual refresh only; no-polling grep proof target; stale-event timestamp is the freshness mechanism.",
+      "CTRL-2 (RISK-2): rows render backend-typed state verbatim; no client-side state inference; test asserts badge==backend state for every state kind.",
+      "CTRL-3 (RISK-3): board actions submit through the existing steer-queue/session-control surfaces only; no direct session mutation API in board code — asserted by review + test.",
+      "CTRL-4 (RISK-4): stable id scheme keyed by run_id, asserted by AccessKit/data-testid tests.",
+      "CTRL-5 (RISK-5): distinct typed empty vs unreachable vs stale states, each with its own rendering test."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-017 stub research basis (SwarmControlRoom/SessionWorkbench GUI extension direction; VS Code Comment/board UI contracts as reference) + verified product code: src/frontend/handshake_native/src/swarm_lane_diagnostics.rs, app/src/components/swarm/SwarmBoard.tsx, app/src/components/swarm/SessionWorkbench.tsx + HBR visual-debug obligations (Argus/AccessKit conventions in the product worktree).",
+    "corrections": [
+      "Both surfaces (native pane + legacy React swarm board) are in scope because SwarmBoard is the shipping operator surface while native parity is still closing; the React touch is confined to the two named files as an explicit exception.",
+      "Freshness is event-timestamp-based, not poll-based — the no-polling operator rule applies to the GUI, not just the backend."
+    ]
+  }
+}

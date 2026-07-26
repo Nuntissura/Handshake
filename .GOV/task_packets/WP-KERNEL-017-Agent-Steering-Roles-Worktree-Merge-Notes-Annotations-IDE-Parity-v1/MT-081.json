@@ -1,0 +1,153 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-081",
+  "title": "RO-MT081-RoleSchemaAndRegistry",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-081.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Create the hsk.handshake_role@1 typed schema and the PostgreSQL-backed Handshake Role registry — the foundation of the RO family. A Handshake Role is the productized successor of the repo-gov startup inject-prompts (.GOV/roles/* protocols): a versioned, operator-owned overlay definition that Handshake (and future projects built by Handshake) attach to agent sessions at launch. This MT delivers the data model, persistence, CRUD Rust API, HTTP routes, and a read-only IPC surface; injection mechanics (MT-082), composition (MT-083), importer (MT-084), GUI (MT-085), and child assignment (MT-086) all build on this registry.\n\nEXPECTED DIFF SHAPE: New backend module src/backend/handshake_core/src/swarm_orchestration/handshake_roles.rs (schema types + HandshakeRoleStore), one new numbered migration under src/backend/handshake_core/migrations/ (handshake_roles tables), new HTTP route module src/backend/handshake_core/src/api/handshake_roles.rs registered in src/backend/handshake_core/src/api/mod.rs, swarm_orchestration/mod.rs re-export, plus backend tests. No frontend edits in this MT (GUI is MT-085).\n\nDETAILED SPEC — hsk.handshake_role@1 record fields:\n- id: kebab-case stable identifier (e.g. \"orchestrator\", \"wp-validator\"); regex ^[a-z][a-z0-9]*(-[a-z0-9]+)*$; unique.\n- version: monotonic integer starting at 1. Role versions are IMMUTABLE once written; an edit creates version N+1. The registry answers \"current version\" and \"specific version\" lookups.\n- title: short operator-facing display name.\n- description: what the role is for, one paragraph.\n- overlay_prompt: markdown text. This is the role body that will be OVERLAYED on top of harness defaults (Claude --append-system-prompt-file pattern), never a full system-prompt replacement.\n- tool_policy: { allow: [tool-class strings], deny: [tool-class strings], transport_hints: { claude: {allowed_tools: [], disallowed_tools: []}, codex: {notes: string}, acp: {notes: string} } } — per-transport mapping hints because each transport expresses tool restriction differently.\n- model_profile: { preferred_lane: string|null, preferred_model: string|null, effort: \"low\"|\"medium\"|\"high\"|null } — advisory routing profile consumed by the composition engine (MT-083) and spawn flow (MT-086).\n- transport_bindings: { claude: \"APPEND_SYSTEM_PROMPT_FILE\"|\"AGENTS_JSON\", codex: \"FIRST_TURN_PREFIX\", acp: \"FIRST_PROMPT_SEGMENT\" } — strategy enums per transport; defaults claude=APPEND_SYSTEM_PROMPT_FILE, codex=FIRST_TURN_PREFIX, acp=FIRST_PROMPT_SEGMENT. Enum variants are closed; FULL_SYSTEM_PROMPT_REPLACEMENT deliberately does not exist.\n- provenance: { source: \"operator\"|\"imported\", source_ref: string|null } — imported roles (MT-084) carry the source protocol path + content hash in source_ref.\n- status: \"draft\"|\"active\"|\"retired\". Only active roles are injectable. draft->active requires an explicit approve transition (operator surface in MT-085); active->retired is terminal for that version lineage.\n\nRust surface in handshake_roles.rs: pub struct HandshakeRole (serde, mirrors schema), pub enum RoleStatus, pub enum ClaudeRoleBinding/CodexRoleBinding/AcpRoleBinding, pub struct HandshakeRoleStore { pool: PgPool } following the ModelLaneStore persistence pattern in src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (sqlx typed queries, EventLedger append per mutation, FlightRecorder wiring). Store methods: create_role, new_version, get_role (id + optional version, default current), list_roles (status filter), activate_role, retire_role. Every mutation appends a typed ledger event (handshake_role_created / handshake_role_version_added / handshake_role_activated / handshake_role_retired) with role id + version + overlay sha256, so role changes are ledgered and replayable.\n\nMigration: next free NNNN number under src/backend/handshake_core/migrations/, table handshake_roles (id text, version int, title, description, overlay_prompt text, tool_policy jsonb, model_profile jsonb, transport_bindings jsonb, provenance jsonb, status text CHECK constraint, overlay_sha256 text, created_at timestamptz, PRIMARY KEY (id, version)) + partial unique index enforcing at most one active version per id; paired .down.sql per existing convention.\n\nHTTP routes in src/api/handshake_roles.rs, registered in src/api/mod.rs: GET /api/roles (list, ?status= filter), GET /api/roles/{id} (current), GET /api/roles/{id}/versions/{version}, POST /api/roles (create draft), PUT /api/roles/{id} (new draft version), POST /api/roles/{id}/activate, POST /api/roles/{id}/retire. JSON bodies validate against hsk.handshake_role@1; malformed kebab id or unknown status is a 422 typed error.\n\nIPC read surface: expose list_handshake_roles / get_handshake_role read-only commands through the same app bridge the swarm React components (app/src/components/swarm/) already consume, mirroring GET semantics only; write paths stay HTTP + native GUI. The React consumer itself lands in MT-085.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read src/backend/handshake_core/src/swarm_orchestration/model_lane.rs to copy the store/persistence/event pattern (PgPool, sqlx::query, typed event append, SOURCE_COMPONENT const).\n2. Author the migration pair (up/down) with the table + CHECK + one-active-version partial unique index; verify against the numbering convention in src/backend/handshake_core/migrations/.\n3. Implement handshake_roles.rs types + HandshakeRoleStore with the six store methods; enforce kebab-case id and immutability (UPDATE of an existing (id,version) row is not exposed; new_version inserts).\n4. Wire EventLedger append + FlightRecorder record for each mutation, including overlay_sha256 so downstream injection events (MT-082) can prove which bytes were approved.\n5. Register the module in swarm_orchestration/mod.rs.\n6. Implement src/api/handshake_roles.rs route handlers over the store; register the router in src/api/mod.rs next to the existing operator_chat routes.\n7. Expose the two read-only IPC commands over the existing app bridge.\n8. Tests: store CRUD round-trip against managed PostgreSQL; immutability negative test (second create of same (id,version) fails); one-active-version constraint test; status-transition matrix test (draft->active->retired legal; retired->active illegal); HTTP 422 on malformed id; ledger-event presence assertion per mutation.\n9. Update the in-product UserManual with the roles-registry entry (purpose, routes, fields, failure modes) in the same change.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/handshake_roles.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/api/handshake_roles.rs",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/src/user_manual/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/frontend/handshake_native/** (GUI lands in MT-085)"
+    ],
+    "acceptance_criteria": [
+      "hsk.handshake_role@1 Rust types exist with all nine field groups (id, version, title, description, overlay_prompt, tool_policy, model_profile, transport_bindings, provenance, status) and serde round-trip.",
+      "Migration applies and reverses cleanly on managed PostgreSQL; handshake_roles table enforces (id,version) PK, status CHECK, and at-most-one-active-version-per-id.",
+      "HandshakeRoleStore create/new_version/get/list/activate/retire all pass against live PostgreSQL; role versions are immutable (negative test proves overwrite fails).",
+      "Every store mutation appends a typed EventLedger event carrying role id, version, and overlay_sha256; replay reconstructs registry state.",
+      "HTTP routes GET/POST/PUT /api/roles* respond with typed JSON; malformed kebab id and illegal status transition return typed 4xx errors, not 500s.",
+      "transport_bindings enum has no full-system-prompt-replacement variant (compile-time closed enum; test asserts serialization surface).",
+      "Read-only IPC list/get commands return the same rows as the HTTP list/get routes.",
+      "In-product UserManual gains the handshake-roles-registry entry in the same change."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core handshake_roles -- --nocapture",
+      "cargo sqlx migrate run && cargo sqlx migrate revert (or the project's managed-PG migration harness) applied against a live managed PostgreSQL",
+      "cargo test -p handshake_core handshake_roles_http -- --nocapture (route tests incl. 422 negatives)",
+      "grep -n \"FULL_SYSTEM_PROMPT\" src/backend/handshake_core/src/swarm_orchestration/handshake_roles.rs | wc -l  # expect 0"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/handshake_roles.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wire)",
+      "src/backend/handshake_core/src/api/handshake_roles.rs (new) + src/api/mod.rs (router)",
+      "src/backend/handshake_core/migrations/NNNN_handshake_roles.sql (+ .down.sql)"
+    ],
+    "expected_tests": [
+      "store CRUD round-trip on live PG",
+      "immutability + one-active-version negative tests",
+      "status transition matrix test",
+      "HTTP route + 422 negative tests",
+      "ledger event presence + replay test"
+    ],
+    "implementation_notes": [
+      "Persistence pattern to copy: ModelLaneStore in swarm_orchestration/model_lane.rs (PgPool + sqlx + typed event constants + SOURCE_COMPONENT).",
+      "Do NOT store overlay files on disk in this MT; overlay_prompt lives in PG. Temp-file materialization for Claude injection is MT-082's job.",
+      "Roles are operator-authored/approved, model-consumed: no API path may silently auto-activate a draft; activation is always an explicit transition.",
+      "Verified field basis: Claude Code supports --append-system-prompt/--append-system-prompt-file and --agents '<json>' (named agent definitions with description/tools/model/permissionMode); Codex has no append flag (AGENTS.md + config.toml profiles + first-turn input); ACP has no system-prompt primitive. transport_bindings encodes exactly these three strategies.",
+      "Portability: no hardcoded absolute paths anywhere; DB access via existing pool config."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend schema/registry MT; the operator-facing Role Manager GUI is MT-085. Ledger events + HTTP routes provide the non-UI trace projection."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "handshake-roles-registry: purpose, hsk.handshake_role@1 fields, /api/roles* routes, IPC read commands, draft/active/retired lifecycle, failure/recovery (typed 4xx, migration rollback)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-MAN-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "role registry mutations (create/version/activate/retire)",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1; record DEFERRED with integration follow-up per HBR-INT-009."
+    }
+  ],
+  "risk_if_missed": "No typed role authority exists; every downstream RO MT (injection, composition, importer, GUI, child assignment, proofs) is blocked, and role text stays as unversioned repo-gov prose that cannot be productized or ledgered.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Mutable role versions — an in-place UPDATE path lets an approved overlay silently change after activation, so injected sessions run text the operator never approved.",
+      "RISK-2: Shadow activation — a create/import path that defaults status to active bypasses operator approval and makes unreviewed prompts injectable.",
+      "RISK-3: Full-replacement creep — a transport_bindings variant or API field that permits whole-system-prompt replacement destroys harness agentic scaffolding (rejected by research).",
+      "RISK-4: Concurrent activation race — two parallel sessions activating different versions of the same role leave two active versions and nondeterministic injection."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): (id,version) primary key with insert-only store API; negative test proves overwrite of an existing version fails; overlay_sha256 recorded per version.",
+      "CTRL-2 (RISK-2): status defaults to draft on every create path; activate is a distinct route/store method; test asserts POST /api/roles never yields active.",
+      "CTRL-3 (RISK-3): closed Rust enums for transport_bindings with no replacement variant; grep proof target over the module.",
+      "CTRL-4 (RISK-4): partial unique index (one active version per id) + transactional activate that demotes the prior active row; concurrency test with two parallel activates."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified role-injection field research (Claude Code --append-system-prompt/--append-system-prompt-file/--agents/--agent, full --system-prompt replacement rejected; Codex AGENTS.md/config.toml profiles/first-turn input; ACP no system-prompt primitive) + inspected product code: swarm_orchestration/model_lane.rs ModelLaneStore persistence pattern, swarm_orchestration/operator_chat.rs OperatorChatLaunchService, migrations/ numbering convention + inspected .GOV/roles/* protocol structure (identity, duties, HBR gates, forbidden actions) as the source material Handshake Roles streamline.",
+    "corrections": [
+      "Roles are overlays, never full system-prompt replacements — transport_bindings enum is closed by design.",
+      "Operator authors/approves roles, models consume them: draft-by-default + explicit activate transition is contract-level, not GUI courtesy.",
+      "Registry is provider-agnostic: per-transport strategy lives in transport_bindings/tool_policy.transport_hints, not in forked per-provider role records."
+    ]
+  }
+}

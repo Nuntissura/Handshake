@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-006",
+  "title": "SC-MT006-SessionPersistenceResume",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-006.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-005"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make agent sessions durable and resumable: a DurableSessionRecord persisted through the MT-001 AgentSessionStore (adapter kind, MT-003 capabilities snapshot, cwd/worktree binding, transcript reference, resumable flag, last exit), plus a resume API that re-launches through an adapter-implemented seam and HARD-ENFORCES reuse of the recorded cwd/worktree. The cwd rule is load-bearing: Claude Code stores session transcripts keyed by working directory, so `claude --resume <session-id>` from a different directory silently fails to find the session (no error, fresh empty session) — the core must make that failure IMPOSSIBLE by construction, not documented-and-hoped.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/resume.rs; (b) store.rs additive extension: agent_session_records table + record CRUD (MT-001 owns store.rs — this MT may ONLY append new fns/table, never modify existing fns); (c) pub use additions in agent_sessions/mod.rs; (d) new test file src/backend/handshake_core/tests/agent_sessions_resume_tests.rs.\n\nSPEC CATALOG:\n\n- pub struct TranscriptRef { pub kind: TranscriptRefKind, pub value: String } with pub enum TranscriptRefKind { FlightRecorderTrace, AdapterNativePath, None } — FlightRecorderTrace carries the trace/correlation id joining FR events (the CLI runtime already stamps trace ids per invocation: cli_bridge_runtime.rs lines 663-674 set invocation.trace_id/span_id); AdapterNativePath carries the transport's own transcript locator (e.g. Claude's per-cwd session store path) as an OPAQUE string the core never parses.\n- pub struct DurableSessionRecord { pub session_id: SessionId, pub adapter_kind: AgentAdapterKind, pub capabilities_snapshot: serde_json::Value (MT-003 snapshot_json output), pub cwd: String (ABSOLUTE path recorded at launch — mandatory, no Option: a session without a recorded cwd is not resumable and must be persisted resumable=false), pub worktree_id: Option<String>, pub swarm_id: Option<String>, pub transcript_ref: TranscriptRef, pub resumable: bool, pub last_exit: Option<SessionExitSummary>, pub created_at_utc: DateTime<Utc>, pub updated_at_utc: DateTime<Utc> }.\n- pub struct SessionExitSummary { pub exit_code: Option<i32>, pub stop_reason: Option<String>, pub mapped_turn_state: String, pub mapped_thread_state: String, pub exited_at_utc: DateTime<Utc> } — built from MT-005's SessionExitReport; resumable recomputed on exit: mapped_thread_state Idle => resumable=true (Completed/Interrupted turns), Closed|Failed => resumable=false.\n- store.rs additions (append-only): table agent_session_records (session_id TEXT PRIMARY KEY, revision BIGINT NOT NULL, adapter_kind TEXT NOT NULL, cwd TEXT NOT NULL, worktree_id TEXT NULL, resumable BOOLEAN NOT NULL, record_json JSONB NOT NULL, updated_at_unix_ms BIGINT NOT NULL) with record_json stamped {\"schema_id\":\"hsk.agent_session_record@1\",...} and the same ON CONFLICT revision-bump upsert as the MT-001 tables (model_lane.rs pattern L91-118); fns: pub async fn upsert_session_record(&self, rec: &DurableSessionRecord); pub async fn load_session_record(&self, id: &SessionId) -> Result<Option<DurableSessionRecord>, AgentSessionError>; pub async fn list_resumable(&self, worktree_id: Option<&str>) -> Result<Vec<DurableSessionRecord>, AgentSessionError>; pub async fn mark_exited(&self, id: &SessionId, exit: &SessionExitSummary) -> Result<(), AgentSessionError>.\n- pub trait SessionResumeLauncher: Send + Sync { fn relaunch(&self, record: &DurableSessionRecord) -> Result<ResumedLaunch, AgentSessionError>; } — the ADAPTER seam: Claude family (MT-021+) implements it as `claude --resume <session-id>` spawned with CliBridgeConfig.working_dir = record.cwd; Codex family (MT-041+) as thread/resume; ACP (MT-061+) returns CapabilityMissing. This MT ships only a test-fake implementation.\n- pub struct ResumedLaunch { pub child_pid: u32, pub effective_cwd: String } — relaunch reports the cwd it ACTUALLY used so the core can verify, not trust.\n- pub struct ResumeCoordinator<'a> { store: &'a AgentSessionStore, registry: &'a CapabilityRegistry }: pub async fn resume(&self, session_id: &SessionId, requested_cwd: Option<&str>, launcher: &dyn SessionResumeLauncher) -> Result<ResumedLaunch, AgentSessionError> with the NORMATIVE sequence: (1) load record; ThreadNotFound if absent; (2) typed NotResumable { session_id, reason } error (new AgentSessionError variant, additive) if resumable=false; (3) capability gate: registry.require(session_id, AdapterCapability::Resume) — with the launch-time snapshot re-registered from the record if the in-memory registry has no entry (process restarted); (4) CWD RULE: if requested_cwd is Some and != record.cwd -> Err(ResumeCwdMismatch { session_id, recorded_cwd, requested_cwd }) (new additive error variant) — the caller may NEVER override; requested_cwd exists only so API callers can assert their expectation; (5) call launcher.relaunch(record); (6) verify ResumedLaunch.effective_cwd == record.cwd else ResumeCwdMismatch (launcher lied — fail closed, and the caller must terminate the mislaunched child); (7) MT-003 rule: capabilities MUST be re-probed by the adapter after relaunch and re-registered (document; enforced by adapter families).\n- Launch-side helper: pub fn build_session_record_at_launch(session_id, adapter_kind, caps: &AdapterCapabilities, cwd: &std::path::Path, worktree_id, swarm_id, transcript_ref) -> DurableSessionRecord — canonicalizes cwd (dunce-style canonicalization consistent with how CliBridgeConfig.working_dir is used at official_cli_bridge.rs AttachedProcessSpec.cwd L2274) and sets resumable=false initially (a session becomes resumable only after a clean turn boundary is persisted — flipped by mark_exited or by the runtime at first Completed turn).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-001 store.rs/types.rs, MT-003 capabilities.rs (snapshot_json, CapabilityRegistry::require/register), MT-005 SessionExitReport, cli_bridge_runtime.rs L663-674 (trace id stamping), official_cli_bridge.rs L2270-2299 (AttachedProcessSpec cwd/worktree binding fields).\n2. Implement TranscriptRef/DurableSessionRecord/SessionExitSummary in resume.rs with serde round-trip.\n3. Append the agent_session_records table + CRUD to store.rs (append-only discipline).\n4. Add the two additive AgentSessionError variants (NotResumable, ResumeCwdMismatch) to types.rs.\n5. Implement ResumeCoordinator::resume with the 7-step normative sequence; implement build_session_record_at_launch.\n6. Author tests/agent_sessions_resume_tests.rs with a FakeResumeLauncher (records calls, configurable effective_cwd): (a) happy path resume reuses record.cwd and passes verification; (b) requested_cwd mismatch -> ResumeCwdMismatch, launcher NEVER called; (c) lying launcher (wrong effective_cwd) -> ResumeCwdMismatch after call; (d) resumable=false -> NotResumable; (e) missing Resume capability -> CapabilityMissing; (f) mark_exited flips resumable per thread-state mapping (Idle->true, Closed/Failed->false); (g) PG round-trip for the record (managed-PG gated with typed NEEDS_MANAGED_RESOURCE_PROOF skip, matching MT-001's gate); (h) serde snapshot determinism of record_json.\n7. cargo build + clippy green.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/resume.rs",
+      "src/backend/handshake_core/src/agent_sessions/store.rs (append-only: new table + new fns)",
+      "src/backend/handshake_core/src/agent_sessions/types.rs (additive error variants only)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/tests/agent_sessions_resume_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/** (adapter families implement SessionResumeLauncher)",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "DurableSessionRecord persists adapter_kind, capabilities snapshot, MANDATORY absolute cwd, worktree binding, transcript_ref, resumable flag, last_exit — PG round-trip proven (managed-PG gated, typed skip otherwise).",
+      "record_json stamped hsk.agent_session_record@1 with revision-bump upsert following the model_lane pattern.",
+      "resume() enforces the 7-step sequence; requested_cwd differing from record.cwd yields typed ResumeCwdMismatch WITHOUT calling the launcher — proven by test (b).",
+      "A launcher reporting a different effective_cwd fails closed with ResumeCwdMismatch — proven by test (c).",
+      "resumable=false yields typed NotResumable; absent Resume capability yields CapabilityMissing via CapabilityRegistry::require — proven by tests (d),(e).",
+      "mark_exited recomputes resumable from MT-005 thread-state mapping (Idle=>true, Closed/Failed=>false) — proven by test (f).",
+      "store.rs changes are append-only (no existing fn modified) — validator diff check.",
+      "cargo build -p handshake_core green; clippy clean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_resume --nocapture 2>&1 | tee /tmp/mt006_run.txt && grep -E 'test result: ok' /tmp/mt006_run.txt",
+      "cargo test -p handshake_core resume --nocapture 2>&1 | grep -q 'cwd_mismatch'",
+      "cargo test -p handshake_core resume --nocapture 2>&1 | grep -q 'launcher_never_called'",
+      "grep -n 'ResumeCwdMismatch' src/backend/handshake_core/src/agent_sessions/types.rs",
+      "grep -n 'hsk.agent_session_record@1' src/backend/handshake_core/src/agent_sessions/store.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/resume.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/store.rs (append-only extension)",
+      "src/backend/handshake_core/src/agent_sessions/types.rs (2 additive error variants)",
+      "src/backend/handshake_core/tests/agent_sessions_resume_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "7-step resume sequence happy path + all 4 typed failure paths",
+      "lying-launcher effective_cwd verification",
+      "mark_exited resumable recomputation",
+      "PG record round-trip (managed-PG gated)"
+    ],
+    "implementation_notes": [
+      "Why cwd is non-optional: Claude session lookup is scoped to the working directory's transcript store; resuming from the wrong dir does NOT error — it silently creates an empty session, which is the worst failure mode (looks alive, lost all context). Making cwd mandatory at record build time plus double-verifying effective_cwd converts a silent data loss into two typed errors.",
+      "Worktree binding: worktree_id joins the WorktreeVmRegistry world (swarm_orchestration/worktree_vm_registry.rs) and the checkout-lease fields already carried at the process boundary (AttachedProcessSpec.checkout_lease_* L2294-2298); resume into a RECLAIMED worktree is the adapter family's concern but list_resumable(worktree_id) gives MT-007 the filter to hide dead-worktree sessions.",
+      "transcript_ref.FlightRecorderTrace joins MT-009 correlation ids and the FR trace stamped per invocation (cli_bridge_runtime.rs L663-674), so a resumed session's history can be reconstructed as a TraceProjection (HBR-INT-007) without transport cooperation.",
+      "resumable starts FALSE at launch and is flipped on evidence (clean boundary / Idle exit): prevents offering resume on a session that never completed init.",
+      "Re-probe-on-resume (MT-003 CTRL-3) is deliberately restated here: the persisted snapshot is for AUDIT and pre-launch gating; post-relaunch truth comes from a fresh probe."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless persistence/resume core; resumable-session lists and resume actions surface via MT-007 API consumed by the GUI family."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal persistence/resume mechanics; the operator-facing resume command + cwd rule explanation land in MT-007's UserManual entry."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "Sessions die with the process: no continuity across harness restarts, and naive resume attempts silently spawn empty Claude sessions from wrong directories — invisible context loss that poisons every downstream role/steering workflow.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent wrong-cwd resume — the exact known Claude failure mode: resume from another dir yields a fresh empty session that LOOKS successful.",
+      "RISK-2: Resume of a dead/closed session — offering resume on Failed/Closed threads spawns confused agents against stale state.",
+      "RISK-3: Snapshot trust — acting on launch-time capabilities after a CLI upgrade (resume path skips re-probe) sends unsupported control frames.",
+      "RISK-4: Store fn drift — this MT rewriting MT-001 store internals under the same filename, breaking MT-001's proven guarantees.",
+      "RISK-5: Transcript-ref parsing — the core starts interpreting adapter-native transcript paths and couples itself to a transport's storage layout."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): mandatory cwd on the record + double verification (pre-call requested_cwd check AND post-call effective_cwd check), both typed ResumeCwdMismatch; tests (b),(c).",
+      "CTRL-2 (RISK-2): resumable flag recomputed from exit evidence; NotResumable typed error; test (d),(f).",
+      "CTRL-3 (RISK-3): re-probe-on-resume restated as contract; snapshot documented audit-only; MT-003 replace-register test covers the mechanism.",
+      "CTRL-4 (RISK-4): append-only rule on store.rs is an acceptance criterion the validator checks by diff.",
+      "CTRL-5 (RISK-5): TranscriptRef.value is opaque by contract; grep-level review that resume.rs never path-parses AdapterNativePath values."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: model_lane.rs upsert/schema_id pattern L91-118, cli_bridge_runtime.rs trace-id stamping L663-674, official_cli_bridge.rs AttachedProcessSpec cwd/worktree/checkout-lease binding L2270-2299, swarm_orchestration/worktree_vm_registry.rs registry surface. Research digest: Claude --resume <session-id> with cwd-scoped session lookup (wrong dir silently yields empty session); --session-id pinning at launch; Codex app-server thread/resume; ACP no resume.",
+    "corrections": []
+  }
+}

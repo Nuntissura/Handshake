@@ -1,0 +1,140 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-104",
+  "title": "MM-MT104-InjectionScanPipeline",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-104.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: A reusable injection-scan pipeline for ALL inter-model content: worker final reports before orchestrator ingestion, steer messages (MT-102), spawn task payloads (MT-101), and annotation bodies authored by models (annotation family; MT-206 consumes this pipeline). Copies the Claude Code precedent: subagent final reports are scanned for instruction-shaped injection patterns and neutralized with a marker-line defense before the orchestrator reads them.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/injection_scan/ (mod.rs + patterns.rs + scanner.rs + quarantine.rs) exporting a transport-agnostic `InjectionScanner` with a single entry point `scan(content, context) -> ScanOutcome`; a quarantine store; scan-event recording; tests including a corpus of crafted attack strings. No frontend changes, no GUI.\n\nDETAILED SPEC:\n1. API: `InjectionScanner::scan(content: &str, ctx: ScanContext) -> ScanOutcome`. ScanContext carries: content_kind (`worker_final_report` | `steer_message` | `spawn_task_payload` | `annotation_body` | `other`), producer_session_id, consumer_session_id (optional), lane/transport hint. ScanOutcome is one of: `Clean(content)`, `Neutralized { content, findings }` (content delivered with defenses applied), `Quarantined { quarantine_id, findings }` (content NOT delivered).\n2. Pattern detection (patterns.rs), each pattern producing a typed `ScanFinding { finding_id, pattern_id, severity, span, excerpt }`: (a) instruction-shaped imperatives targeting the consumer model (e.g. system-prompt mimicry, 'ignore previous instructions', role-reassignment claims, fake operator/authority voice); (b) tool-call bait (content that mimics the tool-result or tool-schema framing of the session transport); (c) marker/delimiter forgery (content containing the pipeline's own marker lines or transport frame delimiters); (d) credential/secret-exfiltration asks; (e) governance-surface targeting (content instructing edits to .GOV, CLAUDE.md, policy or config surfaces). Pattern table is data-driven (const table + config-extendable), versioned with a `pattern_set_version` recorded on every scan.\n3. Marker-line neutralization (Claude Code precedent): content delivered to a consumer model is wrapped between generated single-use marker lines with an integrity notice, so downstream prompt assembly can render the block as untrusted data; any pre-existing occurrence of the marker inside the content is itself a finding (defeats marker forgery). Neutralization escapes/flags matched spans rather than deleting them (the consumer sees honest content, defanged).\n4. Quarantine: `Quarantined` outcomes persist the raw content + findings to a quarantine store (PG table via the MT-001 session model's storage conventions or an internal store table; quarantine_id returned to the caller). Quarantined content is NEVER delivered to the consumer session; release requires an operator action (surfaced later via MT-107/operator surfaces — out of scope here beyond the store API `release(quarantine_id)` + `list()`).\n5. Severity policy: findings carry severity `info | suspect | block`. Only `block` severities quarantine; `suspect` neutralizes and delivers; policy thresholds config-tunable (`model_to_model.injection_scan.block_threshold`). Deny-by-default posture: scanner failure (panic/timeout) = quarantine outcome, never fail-open delivery.\n6. Every scan records a scan event (process_ledger row: producer, consumer, content_kind, pattern_set_version, outcome, finding count) — clean scans included, so absence of scanning is detectable (no-silent-loss of the security control).\n7. Reusability contract: zero dependencies on model_tools so the annotation family (MT-206) and steer path can consume it without cycles; consumers pass content + context and honor the outcome.\n\nSECURITY FRAME (binding): inter-model content is the primary injection surface of model-to-model orchestration. This pipeline is mandatory on every inter-model path; consuming MTs (101/102/105) are contract-bound to call it before delivery, and MT-108 proves a crafted instruction-shaped report is quarantined end-to-end.\n\nSTEP-BY-STEP:\n1. Read the MT-001 session-model storage conventions and process_ledger writer API.\n2. Implement types (ScanContext, ScanFinding, ScanOutcome) and the data-driven pattern table with pattern_set_version.\n3. Implement scanner.rs: linear scan applying patterns, span collection, severity aggregation, marker-line wrap, escape-based neutralization; hard timeout (config, default 250ms) with quarantine-on-timeout.\n4. Implement quarantine.rs store: persist/release/list; PG-backed; no direct model-facing API.\n5. Record scan events on every outcome.\n6. Author the attack corpus tests per expected_tests (corpus lives with the tests, clearly labeled as test fixtures).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/injection_scan/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/migrations/** (next free numeric prefix only; paired .down.sql; quarantine table)",
+      "src/backend/handshake_core/tests/injection_scan/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/** (consumers integrate in their own MTs; keep the pipeline dependency-free)"
+    ],
+    "acceptance_criteria": [
+      "InjectionScanner::scan exists with the specced ScanContext/ScanFinding/ScanOutcome types and a data-driven, versioned pattern table covering at least the five specced pattern classes.",
+      "Marker-line neutralization wraps delivered content in generated single-use markers; content pre-containing the marker is flagged and the marker regenerated (forgery test passes).",
+      "block-severity findings quarantine: content is persisted with findings, a quarantine_id is returned, and nothing is delivered to the consumer; suspect-severity neutralizes and delivers.",
+      "Scanner failure and timeout fail CLOSED: outcome is Quarantined, never raw delivery (fault-injection test).",
+      "Every scan (including Clean) writes a ledger scan event with producer/consumer attribution, content_kind, pattern_set_version, and outcome.",
+      "Quarantine release requires the store API (operator-side); no model-facing tool can release quarantined content.",
+      "The attack corpus (>= 12 crafted strings spanning all five pattern classes) is fully detected: each corpus entry yields the expected finding class and outcome.",
+      "Module has no dependency on model_tools (compile-level check), keeping it reusable by the annotation family (MT-206)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core injection_scan -- --nocapture",
+      "cargo test -p handshake_core injection_scan_attack_corpus -- --nocapture",
+      "cargo test -p handshake_core injection_scan_fail_closed -- --nocapture",
+      "! rg -n \"model_tools\" src/backend/handshake_core/src/swarm_orchestration/injection_scan/"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/injection_scan/mod.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/injection_scan/patterns.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/injection_scan/scanner.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/injection_scan/quarantine.rs (new)",
+      "src/backend/handshake_core/src/process_ledger/ (reference: writer API for scan events)"
+    ],
+    "expected_tests": [
+      "unit: each pattern class detects its corpus entries with correct severity and span",
+      "unit: marker forgery — content containing the current marker string is flagged and re-markered",
+      "unit: neutralization preserves non-matched content byte-for-byte outside escaped spans",
+      "integration (managed PG): quarantine persist/release/list round-trip",
+      "fault: scanner timeout and induced panic both produce Quarantined (fail-closed)",
+      "ledger: clean scan still writes a scan event"
+    ],
+    "implementation_notes": [
+      "Pattern detection is heuristic by design — the goal is raising the bar plus attribution, not a perfect classifier; severity thresholds are config so the operator tunes false-positive tolerance. Record pattern_set_version so scan verdicts are reproducible after pattern updates.",
+      "Neutralization must not alter content semantics for legitimate reports: escape/flag matched spans, never rewrite prose. The consumer-side prompt assembly (per-transport MTs) renders the marker block as untrusted data — that rendering is the consuming MT's obligation, named here as a contract note.",
+      "Quarantine raw content may itself contain secrets/attacks: the store is operator-access only, and list() returns excerpts + findings, not full bodies, by default.",
+      "Claude Code precedent copied: marker-line defense around subagent final reports before orchestrator ingestion; Handshake generalizes it to steer messages, spawn payloads, and annotation bodies.",
+      "Cross-family seams (reference only): MT-001 session model storage, MT-206 annotation-family consumer, MT-101/102/105 consumer integration points."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless security pipeline; quarantine visibility for the operator arrives with MT-107/operator surfaces consuming the store API."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal security control with no operator-visible behavior of its own; MT-107 and MT-108 document quarantine handling where it becomes operator-visible."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-002",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "Inter-model content flows unscanned: one manipulated worker report or steer message can inject instructions into the orchestrator or workers, converting the whole model-to-model layer into an unattributed privilege-escalation chain.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fail-open on error — a scanner panic, timeout, or misconfiguration delivers raw content, silently disabling the control exactly when under attack.",
+      "RISK-2: Marker forgery — attacker content includes the marker line itself, prematurely 'closing' the untrusted block and smuggling instructions outside it.",
+      "RISK-3: Bypass by consumers — a consuming path (steer, report ingestion, annotations) forgets or skips the scan and nothing detects the omission.",
+      "RISK-4: Quarantine as injection store — operators (or models via a leaky API) read raw quarantined content and get injected anyway.",
+      "RISK-5: Over-blocking — aggressive patterns quarantine legitimate worker reports (which routinely contain words like 'instructions'), silently stalling orchestration."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Fail-closed contract: timeout and panic paths produce Quarantined; fault-injection test proves it.",
+      "CTRL-2 (RISK-2): Single-use generated markers; pre-existing marker occurrence is itself a block finding with regeneration; forgery test in corpus.",
+      "CTRL-3 (RISK-3): Every scan writes a ledger event, and MT-108's end-to-end proof asserts scan events exist for every inter-model delivery — a missing scan event is a detectable audit gap; consuming MT contracts name the scan as an acceptance criterion.",
+      "CTRL-4 (RISK-4): Quarantine store is operator-access only; list() defaults to excerpts+findings; no model-facing release/read tool exists (negative test).",
+      "CTRL-5 (RISK-5): Severity tiers with config thresholds; suspect neutralizes-and-delivers instead of blocking; corpus includes benign look-alike strings asserted NOT to quarantine."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: mcp/security.rs and mcp/gate.rs (existing gate/security posture patterns), process_ledger/ (event recording), migrations/ conventions. External precedent: Claude Code subagent-report marker-line injection defense (copied as the neutralization mechanic); Anthropic multi-agent research system structured result reporting; published prompt-injection taxonomies (instruction-mimicry, tool-result spoofing, delimiter escape) as the pattern-class basis.",
+    "corrections": []
+  }
+}

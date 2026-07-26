@@ -1,0 +1,183 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-286",
+  "title": "IP-MT286-EditorInlineGitBlame",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-286.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add VS Code / GitLens-class inline git blame to the native code editor — a dim end-of-line annotation on the CURRENT caret line showing 'Author, N time ago • commit summary', plus a hover card with the full commit (author, date, sha, message) and a per-file 'toggle blame' mode that annotates every visible line. The MT-281 matrix marks 'inline-git-blame' MISSING: source_control.rs dispatches a blame DISPLAY event to a panel but there is NO end-of-line inline blame annotation in the editor body. Blame data is fetched via the EXISTING SourceControlClient blame seam (backend_client, the same /source-control blame path source_control.rs already uses) — this MT adds NO new git blame implementation; it adds the inline annotation renderer + hover card + toggle over that existing data.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/code_editor/inline_blame.rs (BlameLine, BlameSet, InlineBlameState, the blame client seam consumption, the end-of-line annotation renderer, the hover commit card, AccessKit author_ids); (b) `pub mod inline_blame;` + re-exports in code_editor/mod.rs; (c) wiring in code_editor/panel.rs: fetch blame off-thread on open (and invalidate on save/edit of a line), render the current-line annotation after the line's text glyphs, a hover card on the annotation, a 'Toggle File Blame' chord/command that annotates all visible lines, and the caret-line-follows behavior; (d) one integration test file. NO backend edits (consumes the existing blame route); NO new git blame logic.\n\nDETAILED SPEC:\n1. inline_blame.rs: `pub struct BlameLine { line: usize, author: String, author_time_utc: i64, commit_sha: String, summary: String, is_uncommitted: bool }`; `pub struct BlameSet { lines: Vec<BlameLine>, loaded: bool, error: Option<String> }`; `pub struct InlineBlameState { set: BlameSet, file_blame_visible: bool }`. Data comes from the SourceControlClient blame seam, not recomputed.\n2. Current-line annotation: after the caret line's text, render a dim (theme-token muted color, no hardcoded hex) inline annotation 'Author, relative-time • summary' (relative time formatted from author_time_utc via chrono — 'You, uncommitted' when is_uncommitted). It sits to the RIGHT of the line content, never overlapping the code, and is non-selectable decoration text (not part of the buffer). It updates as the caret moves between lines. A line with no blame (newly added, uncommitted) shows 'You, uncommitted changes' rather than a fabricated commit.\n3. Hover card: hovering the annotation (or the line, in file-blame mode) opens a small card with author, full date, short sha, and the commit summary/first body line. The card reuses the existing hover-tooltip mechanism (editor_view HoverTooltip / gutter diagnostic hover precedent). A 'copy sha' affordance is optional but the sha must be visible.\n4. Toggle file blame: a 'Toggle File Blame' command/chord annotates EVERY visible line with a compact author+time gutter-adjacent column (VS Code 'Toggle Line Blame' / GitLens file blame). This mode uses the virtualized visible-row set (MT-002) so only visible lines are annotated; scrolling reveals more without recomputing blame (blame is per-file, fetched once).\n5. Fetch + invalidation: blame is fetched once per file open, off-thread (HBR-QUIET), drained next frame. Editing a line marks that line's blame stale (annotation switches to 'uncommitted') without re-fetching on every keystroke; an explicit refresh re-fetches. An unavailable blame seam / untracked file leaves BlameSet.loaded=false with a typed reason and renders NO annotation (never guesses authorship — authorship is a correctness-sensitive claim).\n6. AccessKit: the current-line annotation is a Role::Label `code_editor_blame_current` (instance-suffixed per panel.rs RISK-004); the hover card `code_editor_blame_card`; in file-blame mode, per-line labels `code_editor_blame_line_{line}`.\n7. Scope edge: REUSES the SourceControlClient blame seam + the existing hover mechanism + MT-002 virtualization; does NOT implement blame, does NOT modify source_control.rs, and does NOT own the SCM change bars (those are MT-285).\n\nSTEP-BY-STEP:\n1. Read source_control.rs (the Blame display event + how it calls the SourceControlClient blame path) and backend_client.rs (the blame request/response shape — REUSE it), editor_view.rs (HoverTooltip / hover state) + gutter.rs diagnostic-hover precedent, panel.rs (off-thread dispatch + next-frame drain, virtualized visible rows, caret line, RISK-004 instance-suffix ids, per-line paint after text glyphs), virtual_lines.rs (visible row set), keymap.rs (add ToggleFileBlame chord).\n2. Create inline_blame.rs with BlameLine/BlameSet/InlineBlameState + the blame client seam consumption + the relative-time formatter (chrono) + the end-of-line annotation renderer + the hover card + AccessKit nodes; unit-test the relative-time format and the uncommitted-line fallback.\n3. Wire panel.rs: blame fetch off-thread on open, current-line annotation after the caret line's text, hover card, Toggle File Blame over the visible-row set, caret-follow, edit->stale.\n4. Register the module + re-exports in code_editor/mod.rs.\n5. Integration test: a file with known blame shows 'Author, time • summary' on the caret line; caret move updates it; hover opens the card with the sha; an edited/uncommitted line shows 'You, uncommitted'; Toggle File Blame annotates all visible lines; an untracked file shows NO annotation with a typed reason. Capture Argus screenshot + AccessKit tree of the current-line annotation, the hover card, and file-blame mode.\n6. Update the UserManual (same change): inline blame — the current-line annotation, hover card, Toggle File Blame, uncommitted-line meaning, and untracked-file behavior.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/inline_blame.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/tests/test_inline_blame.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (consumes the existing source-control blame route; no backend git changes)",
+      "src/frontend/handshake_native/src/source_control.rs (the SCM change-list panel is a distinct surface; reuse its blame client path, do not modify it)",
+      "src/frontend/handshake_native/src/code_editor/scm_gutter.rs (the change bars are MT-285; blame is a separate decoration)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/inline_blame.rs exists with BlameLine/BlameSet/InlineBlameState, an end-of-line current-line annotation renderer, a hover commit card, and Toggle File Blame over the MT-002 visible-row set; AccessKit author_ids code_editor_blame_current / code_editor_blame_card / code_editor_blame_line_{line}, instance-suffixed on multi-pane mount.",
+      "Blame data comes from the EXISTING SourceControlClient blame seam (grep-provable: no new blame/git implementation in inline_blame.rs); the annotation renders as non-selectable decoration text to the right of the line, never overlapping code, colored from theme tokens (no hardcoded hex).",
+      "The current-line annotation shows 'Author, relative-time • summary' and updates as the caret moves; an uncommitted/edited line shows 'You, uncommitted changes' rather than a fabricated commit; the hover card shows author, full date, short sha, and summary.",
+      "Blame is fetched off-thread once per file open (HBR-QUIET, no render-thread block); editing a line marks it stale without per-keystroke refetch; an untracked file / unavailable seam renders NO annotation with a typed reason (never guesses authorship).",
+      "Toggle File Blame annotates every VISIBLE line using the virtualized row set; scrolling reveals more without re-fetching.",
+      "UserManual updated in the same change: current-line annotation, hover card, Toggle File Blame, uncommitted-line meaning, untracked-file behavior."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native inline_blame -- --nocapture",
+      "rg -n 'BlameLine|code_editor_blame' src/frontend/handshake_native/src/code_editor/inline_blame.rs",
+      "rg -n 'git2::|libgit2|blame_incremental|run_git_blame' src/frontend/handshake_native/src/code_editor/inline_blame.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of (a) the current-line annotation, (b) the open hover commit card, (c) Toggle File Blame mode, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/inline_blame.rs (new annotation renderer + hover card + toggle)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (off-thread fetch + current-line annotation + hover + toggle + caret-follow + edit->stale)",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs (ToggleFileBlame chord)",
+      "src/frontend/handshake_native/src/code_editor/mod.rs (module wiring + re-exports)"
+    ],
+    "expected_tests": [
+      "unit: relative-time formatting from author_time_utc (chrono); 'You, uncommitted' fallback for is_uncommitted",
+      "unit: annotation renders to the right of line content and is non-selectable decoration (not buffer text)",
+      "unit: AccessKit node tree (current annotation + hover card + per-line labels, stable suffixed ids)",
+      "integration: caret move updates the current-line annotation to the correct BlameLine",
+      "integration: hover opens the card with author/date/sha/summary",
+      "integration: edited line switches to 'uncommitted' without a refetch; explicit refresh re-fetches",
+      "integration: untracked file / unavailable seam renders no annotation with a typed reason",
+      "integration: Toggle File Blame annotates all visible lines; scroll reveals more without refetch"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: source_control.rs already models a Blame DISPLAY event and calls the SourceControlClient blame path via backend_client (verified /source-control/* routes); editor_view HoverTooltip + gutter diagnostic-hover give the hover-card mechanism; panel.rs paints per-line after text glyphs, owns the caret line + off-thread drain + RISK-004 instance-suffix ids; virtual_lines.rs (MT-002) gives the visible-row set for file-blame mode; chrono is a workspace dep for relative time.",
+      "Design basis (cite in code docs): VS Code inline blame (git.blame / 'Toggle Line Blame') + GitLens current-line blame — dim end-of-line 'Author, time ago • summary', a hover with the full commit, and a whole-file blame toggle.",
+      "Authorship is a correctness-sensitive claim: NEVER show a guessed author. Uncommitted/edited/untracked lines show an explicit uncommitted/absent state; only real blame-seam data yields an author + sha.",
+      "This MT is a SEPARATE decoration from MT-285's change bars: blame is an end-of-line annotation, change bars are gutter markers. They share the SourceControlClient but not the render surface; keep their AccessKit namespaces distinct.",
+      "Cross-family seams (reference only): MT-290 timeline consumes the same commit history but as a panel; MT-285 change bars are the gutter dirty-diff."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "current-line end-of-line blame annotation",
+      "blame hover commit card",
+      "Toggle File Blame full-file annotation mode",
+      "uncommitted / untracked empty states"
+    ],
+    "argus_targets": [
+      "code_editor_blame_current",
+      "code_editor_blame_card",
+      "code_editor_blame_line_0"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "empty_and_uncommitted_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Inline git blame: the current-line author/time/summary annotation, the hover commit card, Toggle File Blame, what 'uncommitted' means, and behavior for untracked files"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Read-only decoration over blame data; emits no new business events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Blame-load status, per-line staleness, and fetch outcome (loaded / untracked / error) are exposed as structured state so a no-context model can see why an annotation did or did not render."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Render/decoration surface; the off-thread blame fetch is a bounded task, not a supervised child process."
+    }
+  ],
+  "risk_if_missed": "Without inline blame an operator or reviewing agent cannot see, at the caret, who last changed a line and why — a core professional-IDE / GitLens affordance that is especially valuable when reviewing agent-authored edits in a worktree session (was this line mine, HEAD's, or the agent's?).",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fabricated authorship — a line with no real blame data shows a guessed author/commit, making a false provenance claim about who wrote code (authority laundering).",
+      "RISK-2: Overlap/obscuring — the end-of-line annotation overlaps code, wraps oddly, or (in file-blame mode) obscures the gutter/SCM bars, degrading readability.",
+      "RISK-3: Render-thread block — the blame fetch runs synchronously, freezing the editor on a large-history file.",
+      "RISK-4: Stale blame after edits — an edited line keeps its old committed author annotation, implying the current text is that commit's when it is not.",
+      "RISK-5: AccessKit collision on dual mount — blame annotation ids collide across panes, breaking the Argus/keyboard path."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Annotation renders ONLY from real blame-seam data; untracked/unavailable -> no annotation + typed reason; uncommitted/edited -> explicit 'You, uncommitted'. A test asserts no author string appears without backing blame data.",
+      "CTRL-2 (RISK-2): The annotation is right-aligned non-selectable decoration that never overlaps line glyphs; an Argus overlap check + a test on a long line confirm no collision and no clash with MT-285 bars.",
+      "CTRL-3 (RISK-3): Blame fetch is off-thread + drained next frame; grep proves no block_on/join on the render path.",
+      "CTRL-4 (RISK-4): Editing a line marks its blame stale and switches the annotation to 'uncommitted'; a test edits a blamed line and asserts the committed author annotation is replaced.",
+      "CTRL-5 (RISK-5): Reuse the panel.rs RISK-004 instance-suffix scheme; a dual-mount test asserts non-colliding blame author_ids."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: source_control.rs models a Blame display event routed through backend_client SourceControlClient (/source-control/* verified read-only) but there is NO end-of-line inline blame in the editor body; editor_view HoverTooltip + gutter diagnostic hover give the hover mechanism; panel.rs per-line paint + off-thread drain + RISK-004 ids; virtual_lines.rs visible-row set. Confirmed 'inline-git-blame' is not covered by WP-012 (MT-001..108), WP-013/014 stubs, STUDIO, or WP-011. External design basis: VS Code inline blame / GitLens current-line blame.",
+    "corrections": [
+      "Blame exists only as a panel DISPLAY event today; the inline end-of-line annotation + hover card + file-blame toggle are confirmed MISSING and are what this MT adds, reusing the existing blame client seam rather than implementing git blame."
+    ]
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-223",
+  "title": "NA-MT223-AnnotationPanel",
+  "group": "NA Notes annotation UI",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-223.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-221",
+      "MT-222"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add a dedicated ANNOTATION SIDE PANEL to the native shell — a real registered pane (not an ad-hoc egui window) that lists annotations for a chosen scope (current file / current document / whole workspace) with author/state/kind/path filters, sort, jump-to-anchor, inline resolve/reopen/reply, per-state badge counts, and explicit empty/error states. This is the cross-file triage surface for the annotation system: MT-221 renders markers in the code editor and MT-222 in Notes; this panel is the single place an operator reviews every annotation regardless of which file it lives in. Interaction pattern reference: the VS Code Comments panel (the tree-view companion to inline CommentThreads) — a grouped list that mirrors and navigates to the inline threads. The panel REUSES the shared AnnotationThreadWidget (MT-221 annotations/thread_widget.rs) for inline reply/resolve; it does NOT fork a second thread renderer or a second badge component.\n\nEXPECTED DIFF SHAPE: New annotations/panel.rs (AnnotationPanel + filter/sort/scope state) registered as a pane through the REAL shell trio, grounding-verified 2026-07-21: (1) a `pub const ANNOTATION_PANEL_PANE_ID: &str` + `pub fn register_annotation_panel_pane(...)` in pane_registry.rs mirroring register_outline_pane / OUTLINE_PANE_ID = \"rich.outline\" (pane_registry.rs:483-506); (2) an AnnotationPanelPaneFactory (impl PaneFactory) + ANNOTATION_PANEL_PANE_LABEL const in editor_pane_factories.rs, returning PaneType::Placeholder(label) exactly like the outline/tags/sidebar factories; (3) a mount line in app.rs in the install-side-panels block (near app.rs:3503, where placeholder-keyed factories are inserted via editor_pane_factories::placeholder_pane_type(LABEL)). `pub mod panel;` added to annotations/mod.rs; one integration test file. No NEW PaneType enum variant is added — native side panels use PaneType::Placeholder(String), matching every existing side pane. No backend edits; no legacy React edits; no fork of the shared thread widget.\n\nDETAILED SPEC (pane wiring, structs, filters, flows):\n1. PANE REGISTRATION (real mechanism): ANNOTATION_PANEL_PANE_ID = \"annotations.panel\" (dotted stable key; PaneId = Arc<str>). register_annotation_panel_pane(registry, project_id, scope) inserts PaneRecord::new(pane_id, PaneType::Placeholder(ANNOTATION_PANEL_PANE_LABEL.to_owned()), ...) — insert() preserves any already-assigned AccessKit NodeId on re-registration (pane_registry.rs:247). AnnotationPanelPaneFactory implements PaneFactory { pane_type(), render(ui, ctx: &PaneRenderContext), accesskit_role() => Role::Group } and renders AnnotationPanel. The pane hosts through PaneHostWidget + split_layout.rs like every other side pane; it MUST NOT use raw egui::SidePanel (the shell has no SidePanel-based pane path).\n2. SCOPE SELECTOR: `pub enum AnnotationScope { CurrentFile, CurrentDocument, Workspace }`. The panel reads the active editor/document context from interop/interaction_bus.rs InteractionBus (SharedSelection / active-document key, INTERACTION_BUS_KEY = \"handshake_interaction_bus\"), NEVER by reaching into editor internals. A scope switch re-queries annotations/client.rs (AC list/query route); the panel holds no anchor math.\n3. FILTERS: author kind (operator | model), robot_id (options populated from the model-authored annotations actually present), state (open | resolved | orphaned | outdated — the exact MT-221 AnnotationMarkerState vocabulary), kind, and path substring. Filters are PURE over the fetched set (client-side narrowing, no re-query). Each filter control is an AccessKit node with a stable author_id; toggle controls use Role::CheckBox (accesskit 0.21.1 has NO Role::ToggleButton — see code_editor/panel.rs:231), and any search/filter text field uses Role::SearchInput (no Role::SearchBox in 0.21.1).\n4. SORT: by path, by state, by author kind, by updated_at; sort is a pure reordering of the filtered set.\n5. ROW RENDERING: each row shows the provenance badge (operator vs model — the SAME badge component MT-221 uses; model badge shows robot_id + session id), a one-line head preview, the path + anchor location, and the state chip. Row AccessKit id: annotation_panel_row_{annotation_id}. Clicking/activating a row expands the shared AnnotationThreadWidget inline (read + interact per MT-221; the create/update mutations land in MT-224).\n6. JUMP-TO-ANCHOR: a per-row jump control opens the target file/document, scrolls to the MT-221/MT-222 rendered placement, and briefly FLASHES that marker. Navigation goes through the real seam — navigation_bus.rs NavigationTarget + ShellNavigator (HandshakeApp::open_navigator_tab) and/or InteractionBus — NOT a bespoke opener. Jump moves focus ONLY when the operator activated it (HBR-QUIET-003): operator activation intentionally moves focus to the opened editor; a passive list refresh or badge update NEVER moves focus or raises a window.\n7. INLINE RESOLVE / REOPEN / REPLY: rendered via the shared thread widget; the panel exposes the controls and calls the client seam. The actual mutation implementation (AC MT-205 tools) is MT-224 — this MT wires the controls and the read path only.\n8. BADGE COUNTS: a header shows counts per state (open/resolved/orphaned/outdated) and per author kind for the current scope+filter. Counts are DERIVED FROM THE FETCHED BACKEND SET for the scope, never from a cached UI number or the rendered/paginated subset (SOT discipline: panel count must equal the backend set for the scope).\n9. EMPTY + ERROR STATES: an explicit 'No annotations in {scope}' empty state and a DISTINCT error state (client/route failure) with a retry affordance — never a blank pane, never a silent failure.\n\nSTEP-BY-STEP:\n1. Read pane_registry.rs (PaneId/PaneType/PaneRecord/PaneRegistry/trait PaneFactory/PaneRenderContext/PaneHostWidget, register_outline_pane pattern :483-506), editor_pane_factories.rs (label consts :2225-2235 + placeholder_pane_type + install label consts), app.rs (build_default_factories :3074, install side-panels block :3503+), interop/interaction_bus.rs (SharedSelection/active document), navigation_bus.rs (NavigationTarget, ShellNavigator, NavError), annotations/client.rs + thread_widget.rs (MT-221 seams), manual_pane.rs + manual_content_editors.rs (manual entry mechanism).\n2. Add ANNOTATION_PANEL_PANE_ID + register_annotation_panel_pane to pane_registry.rs; AnnotationPanelPaneFactory + ANNOTATION_PANEL_PANE_LABEL to editor_pane_factories.rs; mount in app.rs.\n3. Build AnnotationPanel: scope selector, filter + sort state, row list reusing the shared thread widget + shared badge component.\n4. Wire jump-to-anchor through navigation_bus/InteractionBus with the flash effect and the operator-only focus-move rule.\n5. Add badge counts, empty/error states, AccessKit ids; add the manual topic; write the integration test and capture Argus evidence for every panel surface and state.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/annotations/panel.rs",
+      "src/frontend/handshake_native/src/annotations/mod.rs",
+      "src/frontend/handshake_native/src/annotations/client.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_annotation_panel.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by MT-261..264 — never extend it)",
+      ".GOV/**",
+      "src/backend/** (annotation core is AC MT-201..209; consume via routes only)",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (REUSE the shared widget; do not fork or add a panel-only thread renderer)",
+      "src/frontend/handshake_native/src/code_editor/** (marker rendering is MT-221)",
+      "src/frontend/handshake_native/src/rich_editor/** (rich rendering is MT-222)"
+    ],
+    "acceptance_criteria": [
+      "A new annotation side pane is registered through the real shell trio: ANNOTATION_PANEL_PANE_ID + register_annotation_panel_pane in pane_registry.rs, AnnotationPanelPaneFactory + ANNOTATION_PANEL_PANE_LABEL in editor_pane_factories.rs, and a mount in app.rs install-side-panels; it hosts via PaneHostWidget/split_layout with PaneType::Placeholder (no new PaneType variant, no raw egui::SidePanel).",
+      "The panel lists annotations for AnnotationScope { CurrentFile, CurrentDocument, Workspace }, reading active context from InteractionBus (no reaching into editor internals); switching scope re-queries the client seam.",
+      "Filters (author kind operator|model, robot_id, state open|resolved|orphaned|outdated, kind, path) and sort (path/state/author/updated_at) narrow purely over the fetched set; toggle controls use Role::CheckBox and any filter text field uses Role::SearchInput (accesskit 0.21.1 constraints honored).",
+      "Each row shows the SAME provenance badge component as MT-221 (operator vs model; model badge shows robot_id + session id), a head preview, path/anchor, and state chip; row AccessKit id is annotation_panel_row_{annotation_id}; activating a row expands the SHARED AnnotationThreadWidget inline.",
+      "Jump-to-anchor opens the target file/document via navigation_bus/ShellNavigator/InteractionBus, scrolls to the MT-221/MT-222 placement, and flashes the marker; focus moves ONLY on operator activation, never on passive refresh (HBR-QUIET-003).",
+      "Badge counts per state and per author kind are derived from the fetched backend set for the scope (equal to the backend set, not the rendered/paginated subset) — SOT-verified in a test.",
+      "Explicit empty state ('No annotations in {scope}') and a distinct error state with retry exist; the pane is never blank and never fails silently.",
+      "annotations/client.rs additions (if any) contain no anchor/reanchor math (grep-provable); the panel reuses thread_widget.rs unchanged (no fork).",
+      "UserManual updated in the same change: the Annotations panel — scope, filters, sort, jump-to-anchor, resolve/reopen/reply, badge counts, empty/error states."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native annotation_panel -- --nocapture",
+      "rg -n \"ANNOTATION_PANEL_PANE_ID|register_annotation_panel_pane\" src/frontend/handshake_native/src/pane_registry.rs && rg -n \"AnnotationPanelPaneFactory|ANNOTATION_PANEL_PANE_LABEL\" src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "! rg -n \"egui::SidePanel\" src/frontend/handshake_native/src/annotations/panel.rs && ! rg -n \"struct .*ThreadWidget\" src/frontend/handshake_native/src/annotations/panel.rs && ! rg -n \"reanchor|anchor_resolve|levenshtein|similarity\" src/frontend/handshake_native/src/annotations/client.rs",
+      "Argus evidence: argus.inspect (AccessKit tree) + argus.screenshot of (a) panel with mixed operator+model rows, (b) each filter/sort applied, (c) all four state badge counts, (d) an expanded shared thread widget in-panel, (e) empty state, (f) error+retry state — stored under the external HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/annotations/panel.rs (new, AnnotationPanel + AnnotationScope + filter/sort state)",
+      "src/frontend/handshake_native/src/annotations/mod.rs (pub mod panel;)",
+      "src/frontend/handshake_native/src/annotations/client.rs (list/query consumption for the panel scope; no anchor math)",
+      "src/frontend/handshake_native/src/pane_registry.rs (ANNOTATION_PANEL_PANE_ID + register_annotation_panel_pane)",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs (AnnotationPanelPaneFactory + ANNOTATION_PANEL_PANE_LABEL)",
+      "src/frontend/handshake_native/src/app.rs (install-side-panels mount)",
+      "src/frontend/handshake_native/src/manual_content_editors.rs (editors_manual_section topic for the panel)"
+    ],
+    "expected_tests": [
+      "unit: filter predicate narrows the fetched set correctly for each filter axis (author kind, robot_id, state, kind, path)",
+      "unit: sort orders by path/state/author/updated_at deterministically",
+      "unit: badge counts equal the fetched backend set per state and author kind (SOT: not the rendered subset)",
+      "integration: scope switch (CurrentFile -> CurrentDocument -> Workspace) re-queries the client seam and updates the list",
+      "integration: pane registers through the trio and is discoverable in the PaneRegistry with PaneType::Placeholder(ANNOTATION_PANEL_PANE_LABEL)",
+      "integration: activating a row expands the shared AnnotationThreadWidget (same struct as MT-221) with correct AccessKit ids",
+      "negative: empty scope renders the empty state; a client error renders the error+retry state (never blank)"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): the shell is a single HandshakeApp in app.rs (no shell.rs); side panels register via the pane_registry.rs trio (PaneId=Arc<str>, enum PaneType with Placeholder(String), PaneRecord, PaneRegistry, trait PaneFactory, PaneRenderContext, PaneHostWidget) mounted in app.rs (build_default_factories :3074, install side-panels :3503+ using editor_pane_factories::placeholder_pane_type). Copy the register_outline_pane / OUTLINE_PANE_ID = \"rich.outline\" pattern (pane_registry.rs:483-506) exactly.",
+      "accesskit is transitively pinned 0.21.1 (eframe 0.33 accesskit feature): no Role::ToggleButton (use Role::CheckBox), no Role::SearchBox (use Role::SearchInput), no Role::TextCursor — see the documented constraints in code_editor/panel.rs:150-236. Role::Group/Label/Button/ScrollView exist.",
+      "Active-context reads go through interop/interaction_bus.rs InteractionBus (Arc<Mutex<InteractionBus>> in ctx.data, key \"handshake_interaction_bus\", interaction_bus_id()); navigation/jump goes through navigation_bus.rs NavigationTarget + ShellNavigator (HandshakeApp::open_navigator_tab). Do NOT open documents by any bespoke path.",
+      "Reuse the shared AnnotationThreadWidget and the operator/model badge from annotations/thread_widget.rs unchanged; adding authoring buttons is MT-224's job (this MT renders read + exposes control intents only).",
+      "Manual: add a ManualTopic to editors_manual_section() in manual_content_editors.rs; every documented author_id must be a live registered id (an id-audit test cross-checks this) — use annotation_panel_row_{annotation_id}, the panel container id, and the filter control ids.",
+      "Design basis (cite in code docs): VS Code Comments panel (tree-view companion to inline CommentThreads) as the list/triage pattern; the panel mirrors, never replaces, the inline threads of MT-221/MT-222.",
+      "Cross-family seams (reference only, not authored here): MT-221 markers + shared widget + strip + client seam, MT-222 rich placements the jump lands on, MT-224 authoring mutations, MT-225 live arrival badge increment + quarantine section, AC MT-203/207 list/query routes, MM MT-104 quarantine flag (surfaced by MT-225)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "annotation side panel (registered pane, PaneType::Placeholder)",
+      "scope selector (CurrentFile/CurrentDocument/Workspace)",
+      "filter controls (author kind, robot_id, state, kind, path)",
+      "sort control",
+      "annotation row list with provenance badges + state chips",
+      "in-panel expanded shared AnnotationThreadWidget",
+      "per-state / per-author badge counts header",
+      "empty state and error+retry state"
+    ],
+    "argus_targets": [
+      "annotations.panel",
+      "annotation_panel_row_{annotation_id}",
+      "annotation_panel_filter_author",
+      "annotation_panel_filter_state",
+      "annotation_panel_sort",
+      "annotation_panel_badgecounts",
+      "annotation_thread_{annotation_id}"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "readability_check_all_states",
+      "empty_and_error_state_capture",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Annotations panel: scope (current file/document/workspace), filters, sort, jump-to-anchor, inline resolve/reopen/reply, badge counts, empty/error states"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "The panel emits no new business events; annotation lifecycle FR events are the AC/MT-161 seam and mutations are MT-224."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Scope/filter state, fetched-vs-rendered counts, and jump-target resolution are exposed as structured state readable by the visual_debugger surface for no-context diagnosis of a wrong count or a failed jump."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure render/list surface; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "There is no cross-file review surface for annotations: operators can only find model feedback by opening each file and hunting gutter/margin markers, orphaned and file-level annotations (which never render at a body line) have no home, and MT-225 has no panel to increment or quarantine section to fill.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Count lie — the header badge counts reflect only the loaded/filtered/paginated rows, not the backend set for the scope, so an operator believes review is complete when unshown annotations remain (SOT violation).",
+      "RISK-2: Focus theft on refresh — a passive list refresh, badge increment, or scope repopulate steals keyboard focus or raises the pane while the operator is typing in an editor (HBR-QUIET-003 regression).",
+      "RISK-3: Provenance divergence — the panel renders its own row badge instead of the shared MT-221 component, so operator vs model distinction (or robot_id/session display) drifts between the panel and the inline threads.",
+      "RISK-4: Widget/pane fork — the panel builds a private thread renderer or uses raw egui::SidePanel instead of the shared widget and the real pane registry, breaking Argus addressing and the shell layout contract.",
+      "RISK-5: Orphaned/file-level invisibility — annotations with no body-line placement (orphaned or rangeless) are dropped from the list, leaving them with no surface anywhere."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Counts computed from the fetched backend set for the scope; a test asserts count == backend set size, distinct from the rendered-row count; error/partial-fetch states never report a full count.",
+      "CTRL-2 (RISK-2): Focus moves only on explicit operator activation (row/jump); passive refresh never calls request_focus or window raise; a QUIET test asserts no focus change on a background repopulate.",
+      "CTRL-3 (RISK-3): Panel rows import the shared operator/model badge from thread_widget.rs; a test asserts the same badge kind + robot_id/session fields as the inline widget.",
+      "CTRL-4 (RISK-4): Grep proof — no egui::SidePanel and no second ThreadWidget struct in panel.rs; the pane is discoverable in the PaneRegistry via the trio; PaneFactory/PaneHostWidget path used.",
+      "CTRL-5 (RISK-5): Workspace scope includes orphaned and file-level annotations with an explicit location label ('unanchored' / 'file-level'); a test asserts they appear in the panel even when they render nowhere in the editors."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/src/: pane_registry.rs (PaneId=Arc<str>, enum PaneType incl. Placeholder(String), PaneRecord, PaneRegistry, trait PaneFactory, PaneRenderContext, PaneHostWidget; register_outline_pane/OUTLINE_PANE_ID :483-506; register_relevant_memory/stage/daily_journal/outgoing_links patterns), editor_pane_factories.rs (label consts :2225-2235 + placeholder_pane_type), app.rs (HandshakeApp shell, build_default_factories :3074, install side-panels :3503+), interop/interaction_bus.rs (InteractionBus, SharedSelection, INTERACTION_BUS_KEY), navigation_bus.rs (NavigationTarget, ShellNavigator, NavError), mcp/argus.rs (argus.inspect/click/set_value/screenshot) + mcp/action.rs (author_id -> NodeId resolve_target), code_editor/panel.rs (accesskit 0.21.1 role constraints), manual_pane.rs + manual_content_editors.rs (ManualSection/ManualTopic/register_section, editors_manual_section). External design basis: VS Code Comments panel (tree-view companion to inline CommentThreads).",
+    "corrections": [
+      "Native side panels do NOT get a dedicated PaneType enum variant — they mount as PaneType::Placeholder(label) via the pane_registry.rs register_* trio + editor_pane_factories.rs + app.rs install block; the WP stub sketch's 'add an AnnotationPanel pane type' would be wrong.",
+      "The shell exposes NO raw egui::SidePanel pane path and NO websocket/SSE; panes host through PaneHostWidget + split_layout and context flows through InteractionBus/ShellEventBus.",
+      "Jump-to-anchor must route through navigation_bus.rs/ShellNavigator (HandshakeApp::open_navigator_tab), not a bespoke document opener."
+    ]
+  }
+}

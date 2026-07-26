@@ -1,0 +1,156 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-023",
+  "title": "CS-MT023-ClaudeSteerInjection",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-023.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-002",
+      "MT-004",
+      "MT-008",
+      "MT-021",
+      "MT-022"
+    ],
+    "blocks": [
+      "MT-024",
+      "MT-028",
+      "MT-029"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Mid-run steering of a RUNNING Claude Code session: drain queued steer messages from the MT-002 steer queue, serialize each as one complete stream-json user-message line, write it to the live child's stdin through the MT-004 bidirectional stdio writer, and close the loop by correlating the --replay-user-messages stdout echo to an MT-008 delivery receipt. This is the core remediation of the audited one-shot null-stdin architecture (prompt passed once as argv, official_cli_bridge.rs line 2303 null_stdin_piped_output): after this MT a worker session accepts injected prompts WITHOUT relaunch.\n\nEXPECTED DIFF SHAPE: new file src/backend/handshake_core/src/model_runtime/cloud/claude_steer.rs (serializer + injector + echo correlator); consumption wiring in cli_bridge_runtime.rs alongside the existing streaming loop (spawn_streaming_cancellable call at lines 721-728); tests with a scripted fake child process (real OS pipes, no CLI) plus a live-CLI proof.\n\nSPEC:\n1. Wire format: each steer message serializes to EXACTLY ONE line of JSON + trailing newline: {\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"<steer text>\"}]}}. Serde-serialized (no string templating), so embedded newlines/quotes in steer text are escaped and the one-complete-JSON-message-per-stdin-line contract of --input-format stream-json can never be violated. Builder fn: `steer_user_message_line(text: &str) -> String` (pure, unit-tested, snapshot-pinned).\n2. `ClaudeSteerInjector` consumes the MT-002 steer queue for a session: pops queued SteerMessages in FIFO order, assigns each a `steer_seq: u64` (monotonic per session) and a `content_sha256`, writes the serialized line via the MT-004 stdin writer handle, flushes, and registers a pending-delivery entry with MT-008 (receipt kind: steer-delivery). Write errors (broken pipe / child exited) produce a typed `SteerInjectionError::ChildGone` and the message is returned to the queue as UNDELIVERED — never silently dropped.\n3. Echo correlation: with --replay-user-messages active (mandatory in the MT-021 preset), the CLI re-emits each accepted stdin user message on stdout. The MT-022 envelope parser surfaces these (ReplayedUserMessage or Activity — see MT-022 note); the correlator matches an echo to the oldest pending delivery whose content_sha256 matches, then marks the MT-008 receipt DELIVERED_ACK with the echo timestamp. An unmatched pending delivery older than a configurable ack timeout degrades to typed DELIVERY_UNCONFIRMED (receipt state, not an exception) — honest, never assumed-delivered.\n4. Queued-mid-turn semantics (v2.1.205+): a user message sent while a turn is in flight is QUEUED by the CLI and runs as ITS OWN TURN after the current turn completes. Encode this in the type system and docs: the injector's result is `SteerAccepted { steer_seq, expected_execution: OwnTurnAfterCurrent }` — steering is NOT an in-place mutation of the current turn. Older CLIs (< 2.1.205) DISCARDED mid-turn stdin messages; the injector therefore refuses to run unless the MT-003 capability posture for the session confirms queued-steer support (probe result from MT-028's capability assertions or an explicit operator override flag `claude_steer_force_enabled`), and refusal is the typed error `SteerUnsupportedByCli`.\n5. Bounded queue discipline (HBR-SWARM-002): the injector never buffers unboundedly — it relies on the MT-002 queue's bounds; in-flight pending-delivery tracking is capped (default 64) and overflow surfaces as typed backpressure to the caller, never an unbounded Vec.\n6. Every injection and every ack/timeout emits the MT-029 recording seam events (this MT calls the seam; MT-029 defines the event kinds — if MT-029 is not yet landed, leave a single narrow `SteerRecordingSink` trait with a no-op default so wiring is one line later, and note it in the implementation result).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-002 (steer queue), MT-004 (stdio writer), MT-008 (receipts) delivered seams and MT-021/MT-022 outputs in the implementation worktree.\n2. Implement steer_user_message_line with serde types (UserMessageLine { type, message { role, content: [TextBlock] } }).\n3. Implement ClaudeSteerInjector: FIFO drain, seq + sha256 stamping, MT-004 write+flush, MT-008 pending registration, typed errors, bounded pending map.\n4. Implement the echo correlator over the MT-022 parsed-line stream: sha256 match against pending, ack receipts, timeout sweep to DELIVERY_UNCONFIRMED.\n5. Tests (no live CLI needed): scripted child via real OS pipes (spawn a tiny helper process or use os_pipe) that echoes accepted lines back — prove write->echo->ack; broken-pipe -> ChildGone + message back on queue; ack-timeout -> DELIVERY_UNCONFIRMED; escaping test with newline/quote/unicode steer text; pending-cap backpressure test; FIFO order test.\n6. Live proof target against the real CLI (typed NEEDS_MANAGED_RESOURCE_PROOF when absent).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_steer.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_steer_injection_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "steer_user_message_line produces exactly one serde-serialized JSON line {type:user, message:{role:user, content:[{type:text,text}]}} + newline; snapshot test pins the shape; newline/quote/unicode steer text cannot break the one-message-per-line contract.",
+      "ClaudeSteerInjector drains the MT-002 queue FIFO, stamps steer_seq + content_sha256, writes via the MT-004 stdin writer, and registers an MT-008 pending delivery per message.",
+      "Echo correlation marks receipts DELIVERED_ACK on sha256 match with the --replay-user-messages stdout echo; unmatched deliveries degrade to typed DELIVERY_UNCONFIRMED after the ack timeout — proven by scripted-child tests.",
+      "Broken pipe / exited child yields typed ChildGone and the undelivered message is returned to the queue (proven by test); no silent drop path exists.",
+      "Queued-mid-turn semantics are encoded: injection result states OwnTurnAfterCurrent; sessions without confirmed queued-steer capability get typed SteerUnsupportedByCli (no blind write to an old CLI).",
+      "In-flight pending tracking is bounded (default 64) with typed backpressure on overflow.",
+      "Live CLI round-trip (or typed NEEDS_MANAGED_RESOURCE_PROOF): a steer injected mid-turn is echoed, acked, and executes as its own turn."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_steer -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_steer_broken_pipe_returns_message_to_queue -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_steer_escaping_cannot_split_line -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): start an interactive session via the MT-021 preset, send an initial task over stdin, inject a steer mid-turn, and assert (a) the echo arrives and acks the receipt, (b) the steer content executes as its own subsequent turn in the stream-json output"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_steer.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (injector wiring next to the streaming loop)"
+    ],
+    "expected_tests": [
+      "claude_steer::user_message_line_snapshot",
+      "claude_steer::escaping_cannot_split_line",
+      "claude_steer::fifo_drain_and_seq_stamping",
+      "claude_steer::echo_ack_marks_receipt_delivered",
+      "claude_steer::ack_timeout_degrades_to_delivery_unconfirmed",
+      "claude_steer::broken_pipe_returns_message_to_queue",
+      "claude_steer::pending_cap_backpressure",
+      "claude_steer::unsupported_cli_refusal"
+    ],
+    "implementation_notes": [
+      "GROUNDING FACT: today's spawn path is strictly one-shot null-stdin (AttachedStdioContract::null_stdin_piped_output at official_cli_bridge.rs 2303; sandbox validate() rejects piped stdin, sandbox/adapter.rs 91-101). This MT writes ONLY through the MT-004 writer seam; it must not open its own pipe to the child.",
+      "Version sensitivity is real and load-bearing: pre-2.1.205 CLIs DISCARD mid-turn stdin messages (verified research). The SteerUnsupportedByCli refusal is what turns that from silent data loss into a typed outcome. Capability confirmation comes from MT-003/MT-028 probes, never a version string parse.",
+      "sha256 correlation instead of full-body compare keeps the pending map small and avoids retaining steer text twice; the CLI echoes the message verbatim so the hash matches. If live testing reveals the echo is NOT verbatim (e.g. normalized whitespace), fall back to comparing the extracted content text and record the finding in the implementation result + MT-028 drift notes.",
+      "steer_seq is per-session monotonic (u64 from the session state, MT-001); receipts and FR events use it for total ordering of the steering exchange (MT-029 transcript).",
+      "New UUID mint sites (receipt ids) must use Uuid::now_v7() per HBR-INT-008 (pattern: ProcessOwnershipRecordId::new_v7 at official_cli_bridge.rs 2449).",
+      "MT-002/MT-004/MT-008 are session-core seams: consume them; if a seam is missing at implementation time the MT is dependency-blocked (HBR-STOP-004) — do not stub, except the explicitly-allowed no-op SteerRecordingSink for the not-yet-landed MT-029 event kinds."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Transport-layer injection mechanics; the operator steering GUI consumes this in the WP-017 GUI MT group."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Model/operator-facing steering workflow documentation lands with the governed steer tool-surface MT that exposes this transport; this MT is the internal transport only."
+  },
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED via the MT-029 recording seam (steer-injected / steer-acked / steer-unconfirmed events); no-op sink allowed only until MT-029 lands and must be flagged in the implementation result.",
+    "internal_diagnostics: WIRED — typed SteerInjectionError outcomes and DELIVERY_UNCONFIRMED receipt states are inspectable.",
+    "Palmistry: DEFERRED-with-reason — session-level runtime posture is recorded by MT-029; this MT contributes the typed states it will surface."
+  ],
+  "risk_if_missed": "No mid-run steering: the orchestrator-worker pattern degrades back to kill-and-relaunch per instruction, the WP's central capability (persistent steerable worker sessions) does not exist, and MT-024 interrupt correlation has no delivery substrate.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A steer message written to a pre-2.1.205 CLI (or a CLI in a non-queueing state) is silently discarded and the harness believes the worker was instructed — divergent worker behavior with a clean-looking ledger.",
+      "RISK-2: String-templated JSON with un-escaped steer text splits into multiple stdin lines, injecting a malformed message and desynchronizing the whole stream-json channel.",
+      "RISK-3: Echo correlation matches the wrong pending delivery when two identical steer texts are in flight, acking the wrong receipt and corrupting the steering transcript ordering.",
+      "RISK-4: Broken-pipe during write drops the steer message on the floor while the session supervisor restarts the child, losing an operator instruction without trace.",
+      "RISK-5: Unbounded pending-delivery growth when a wedged CLI stops echoing, leaking memory across long sessions."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): capability-gated injection (SteerUnsupportedByCli refusal) + ack-timeout DELIVERY_UNCONFIRMED degradation — delivery is never assumed.",
+      "CTRL-2 (RISK-2): serde-only serialization; escaping test proves newline/quote/unicode text cannot split a line.",
+      "CTRL-3 (RISK-3): FIFO oldest-match on sha256 PLUS steer_seq total order recorded on both receipt and echo; duplicate-text test pins deterministic oldest-first matching.",
+      "CTRL-4 (RISK-4): ChildGone returns the message to the MT-002 queue as UNDELIVERED (test-proven); the supervisor relaunch path re-drains the queue.",
+      "CTRL-5 (RISK-5): bounded pending map (default 64) with typed backpressure; timeout sweep evicts to DELIVERY_UNCONFIRMED."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (bidirectional JSONL: -p + --input-format stream-json + --output-format stream-json; each stdin line = complete JSON user message; mid-turn messages QUEUED and run as their own turn on v2.1.205+, DISCARDED earlier — version sensitivity; --replay-user-messages re-emits stdin user messages on stdout as acks) + grounding audit of wtc-multi-model-orchestration-v1: one-shot null-stdin contract at official_cli_bridge.rs 2303 / sandbox/adapter.rs 83-101, streaming loop cli_bridge_runtime.rs 721-728, CliSubprocessSpawner trait 243-307, ledger v7 id pattern 2449.",
+    "corrections": [
+      "The exact stdout discriminator for --replay-user-messages echoes (dedicated marker vs plain user-type message) is not pinned by public docs; the contract mandates sha256-based correlation that works in either case and requires the implementer to record the observed live shape in MT-028 drift notes."
+    ]
+  }
+}

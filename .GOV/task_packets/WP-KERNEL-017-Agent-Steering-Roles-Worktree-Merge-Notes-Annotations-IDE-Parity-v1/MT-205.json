@@ -1,0 +1,162 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-205",
+  "title": "AC-MT205-AnnotationRoutesApi",
+  "group": "AC Annotation core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-205.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-203",
+      "MT-204"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Expose the annotation core over HTTP + IPC so the operator GUI (NA family) and clients can create/read/update/resolve/reply to annotations and preview fix applications, wiring MT-203 persistence and MT-204 re-anchoring behind axum routes that follow the incumbent workspace-scoped, identity-header, fail-closed permission pattern with typed errors. Includes the reviewdog-style out-of-visible-diff filter policy parameter (added | diff_context | file | nofilter) so a client controls which annotations surface for a given diff view.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/api/annotations.rs exporting `pub fn routes(state: AppState) -> Router` (axum 0.7), mirroring api/knowledge_documents.rs / api/knowledge_memory.rs conventions; (b) the one line mounting that router into the existing workspace API tree (in the incumbent router-composition site — find it: the module that nests knowledge_documents routes under /workspaces/{id}); (c) request/response DTOs; (d) integration tests. NO storage logic (call the MT-203 AnnotationStore), NO re-anchor math (call the MT-204 engine), NO model-tool governance (MT-206), NO GUI.\n\nDETAILED SPEC — routes under /workspaces/{workspace_id}/annotations (exact base path follows the incumbent workspace route prefix):\n1. POST /annotations — create (operator author from identity headers; body validated through the MT-201 constructor; 201 + the created record). POST /annotations/{id}/replies — thread reply (inherits subject/anchor from root via Annotation::reply_to). \n2. GET /annotations/{id} — load one. GET /annotations — list with query filters (path, author_kind, state, kind, created/updated window, thread) mapped to the MT-203 AnnotationFilter, keyset-paginated (cursor + bounded limit); the response echoes the cursor for the next page.\n3. PATCH /annotations/{id} — update body (optimistic; If-Match / version guard surfaced as a typed 409 on stale). POST /annotations/{id}/resolve and POST /annotations/{id}/reopen — state transitions calling MT-203 transition_state (typed 409 on StaleState).\n4. POST /annotations/{id}/reanchor — given caller-supplied current file/side text (or a server-resolved workspace path), run the MT-204 engine, persist via MT-203 reanchor_persist, emit the MT-161 FR event kind, and return the outcome (REANCHORED{confidence}|OUTDATED|ORPHANED). \n5. GET /annotations/{id}/apply-fix/preview — compute a fix-suggestion apply PREVIEW diff (via `similar`) WITHOUT mutating anything; refuses with a typed reason when the anchor is OUTDATED/ORPHANED. Actual application is MT-207; this route is preview-only.\n6. VISIBILITY FILTER: GET /annotations accepts `visibility` = added | diff_context | file | nofilter (reviewdog filter-mode semantics) plus the diff coordinates when needed; the server filters which annotations are returned for the given diff/file view. Default = file (all annotations for the file). Document the mode meanings.\n7. AUTH + identity: EVERY route requires the incumbent identity headers (x-hsk-actor-id, x-hsk-kernel-task-run-id, x-hsk-session-run-id; optional x-hsk-actor-kind, x-hsk-correlation-id) and FAILS CLOSED exactly like knowledge_documents.rs — missing actor-kind = least-privileged read-only, unknown token = 400, writes require explicitly asserted privilege validated server-side. Workspace scoping is enforced on every query (no cross-workspace read/write).\n8. Typed errors: a single AnnotationApiError -> StatusCode mapping (400 validation/unknown-actor, 401/403 permission, 404 not-found, 409 stale-state/version, 422 anchor OUTDATED/ORPHANED for preview, 503 PG-unavailable fail-closed) — no stringly 500s for expected conditions.\n9. IPC parity: expose the same operations over the in-process IPC surface the NA GUI uses (mirror how knowledge_documents is reached in-process), so the native app does not need the HTTP loopback for annotations.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read api/knowledge_documents.rs (routes() shape, identity headers, fail-closed actor-kind, append receipt pattern) and api/knowledge_memory.rs (the conventions knowledge_documents mirrors), and find the router-composition site that nests the workspace sub-routers.\n2. Implement api/annotations.rs routes calling ONLY the MT-203 store and MT-204 engine; no direct SQL, no re-anchor math inline.\n3. Add the reviewdog visibility filter parameter + the typed error enum + the IPC parity surface.\n4. Mount the router with the single composition-site line.\n5. Author integration tests (required-features test-utils) against managed PostgreSQL; register [[test]] in Cargo.toml.\n6. Add the UserManual entries for the operator-visible annotation operations (HBR-MAN same-change) and run proof targets; if PG is unavailable, record a typed NEEDS_MANAGED_RESOURCE_PROOF blocker.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/annotations.rs",
+      "src/backend/handshake_core/src/api/mod.rs (module wiring only)",
+      "<router-composition-site>.rs (single mount line nesting the annotations router under the workspace prefix; identify the incumbent site that nests knowledge_documents)",
+      "src/backend/handshake_core/Cargo.toml ([[test]] registration for annotation_routes_tests only)",
+      "src/backend/handshake_core/tests/annotation_routes_tests.rs",
+      "UserManual authority rows for the annotation operations (via the incumbent UserManual authoring surface; HBR-MAN same-change)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (GUI owned by NA family MT-221+)",
+      "src/backend/handshake_core/src/storage/** (persistence is MT-203; call the trait, no inline SQL)",
+      "src/backend/handshake_core/src/annotations/reanchor.rs (call the MT-204 engine; do not reimplement re-anchor math)",
+      "src/backend/handshake_core/src/mcp/** (model-facing governed tools are MT-206)"
+    ],
+    "acceptance_criteria": [
+      "api/annotations.rs exports `pub fn routes(state: AppState) -> Router` and is mounted once under the workspace prefix; CRUD, list/filter, resolve/reopen, thread replies, reanchor, and apply-fix preview are all reachable.",
+      "Every route requires the incumbent identity headers and fails closed exactly like knowledge_documents.rs: missing actor-kind = least-privileged read-only, unknown token = 400, writes require explicitly asserted server-validated privilege; workspace scoping blocks cross-workspace access.",
+      "list maps query params to the MT-203 AnnotationFilter with keyset pagination (cursor + bounded limit) and echoes the next cursor; the route never loads-all-then-filters.",
+      "The visibility parameter implements reviewdog filter modes added|diff_context|file|nofilter with documented semantics and a default of file.",
+      "POST reanchor calls the MT-204 engine, persists via MT-203 reanchor_persist, emits the MT-161 FR event, and returns the explicit REANCHORED{confidence}|OUTDATED|ORPHANED outcome; apply-fix preview is non-mutating and refuses with a typed 422 when the anchor is OUTDATED/ORPHANED.",
+      "A single typed AnnotationApiError->StatusCode mapping covers 400/401/403/404/409/422/503 with no stringly 500 for expected conditions; a stale state/version returns 409.",
+      "The same operations are reachable over the in-process IPC surface the NA GUI uses (HTTP loopback not required for the native app).",
+      "UserManual entries for the operator-visible annotation operations are added in the SAME change (HBR-MAN); cargo build + clippy clean; api/annotations.rs contains no inline SQL and no re-anchor math."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils annotation_routes -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo build --manifest-path src/backend/handshake_core/Cargo.toml 2>&1 | tail -1",
+      "grep -rn 'sqlx::query\\|FROM annotation' src/backend/handshake_core/src/api/annotations.rs | wc -l | grep -q '^0$' (no inline SQL; calls the MT-203 store)",
+      "grep -rn 'x-hsk-actor-id\\|x-hsk-session-run-id' src/backend/handshake_core/src/api/annotations.rs | grep -c 'x-hsk' | grep -qE '^[1-9]' (identity headers enforced)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/api/annotations.rs (new routes + DTOs + typed errors)",
+      "src/backend/handshake_core/src/api/mod.rs + router-composition site (mount)",
+      "UserManual authority rows (annotation operations)"
+    ],
+    "expected_tests": [
+      "annotation_routes::crud_create_get_patch_reply_happy_path",
+      "annotation_routes::identity_headers_fail_closed_missing_and_unknown_actor",
+      "annotation_routes::list_filters_and_keyset_pagination_cursor",
+      "annotation_routes::visibility_modes_added_diff_context_file_nofilter",
+      "annotation_routes::resolve_reopen_optimistic_stale_returns_409",
+      "annotation_routes::reanchor_returns_explicit_outcome_and_emits_event",
+      "annotation_routes::apply_fix_preview_nonmutating_refuses_outdated_orphaned_422",
+      "annotation_routes::workspace_scoping_blocks_cross_workspace_access"
+    ],
+    "implementation_notes": [
+      "The routes() -> Router shape, identity headers, and fail-closed actor-kind ladder are copied field-for-field from api/knowledge_documents.rs (which mirrors api/knowledge_memory.rs); do NOT invent a new auth convention for annotations.",
+      "reviewdog filter modes (added|diff_context|file|nofilter) are the field-standard vocabulary for 'which comments show for this diff view'; adopting the exact names keeps the NA GUI and any CI integration legible. Default `file` is the least-surprising (show all annotations for the file).",
+      "apply-fix PREVIEW here is deliberately non-mutating and separate from MT-207's actual apply so a client can show the diff before committing; the preview reuses `similar` for the diff render (the MT-204 dependency, already present).",
+      "The reanchor route is where MT-204's I/O-free outcome meets I/O: the route supplies current text, calls the engine, persists via MT-203 reanchor_persist, and emits the MT-161 FR event — the single place those three seams join.",
+      "IPC parity matters because the NA GUI runs in-process; forcing annotations through an HTTP loopback would regress the native-app path. Mirror the in-process reach knowledge_documents already has.",
+      "HBR-MAN: annotation create/reply/resolve/reanchor are operator-visible operations, so the UserManual gains entries IN THIS change; this is the MT where the deferred MT-201/MT-202 manual obligation is discharged for the HTTP/IPC surface."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend HTTP/IPC surface MT; the rendered annotation UI (gutter markers, thread panel, stale/orphan affordances) is owned by the NA family (MT-221+). This MT's observable surface is the route/IPC responses and EventLedger receipts, not a GUI."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Annotation create / reply operation and required identity headers",
+      "Annotation list + reviewdog visibility filter modes (added|diff_context|file|nofilter)",
+      "Resolve / reopen state transitions and the optimistic 409 behavior",
+      "Re-anchor operation and the REANCHORED/OUTDATED/ORPHANED outcomes; apply-fix preview (non-mutating)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-MAN-001",
+    "HBR-SWARM-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED — write/transition/reanchor routes leave EventLedger receipts (via the MT-203 store) and the reanchor route emits the MT-161 FR outcome event; a read is attributable but leaves no receipt.",
+    "internal_diagnostics: WIRED — a single typed AnnotationApiError->StatusCode mapping covers every expected condition (400/401/403/404/409/422/503); no expected condition returns a stringly 500.",
+    "Palmistry: NOT_APPLICABLE-with-reason — request-scoped axum handlers over managed PostgreSQL; no long-running loop posture owned here."
+  ],
+  "risk_if_missed": "Without the route/IPC surface the annotation core is unreachable by the GUI and clients: operators cannot create, resolve, or reply to annotations, re-anchoring never runs on real edits, cross-workspace scoping and fail-closed auth are re-invented per caller (a security regression), and stale-state writes clobber concurrent edits with no typed 409.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: An annotation route omits the fail-closed identity/permission ladder (or infers privilege from a missing header), so an under-authenticated caller reads or writes annotations across workspaces — a cross-tenant leak.",
+      "RISK-2: list ignores the AnnotationFilter's keyset bound and returns an unbounded or OFFSET-paginated set, so the GUI shows a stale/partial subset and a bulk action targets the rendered rows, not the canonical set.",
+      "RISK-3: The apply-fix preview route accidentally mutates (persists the fix or the anchor) instead of being read-only, or does not refuse an OUTDATED/ORPHANED anchor, applying a fix to the wrong code.",
+      "RISK-4: A stale-state resolve/reopen or body PATCH silently overwrites a concurrent change because the route drops the MT-203 optimistic guard instead of surfacing a typed 409.",
+      "RISK-5: The route embeds inline SQL or re-anchor math instead of calling MT-203/MT-204, forking the authority path and defeating the MT-208 seam."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Every route enforces the incumbent identity headers and fail-closed actor-kind ladder (missing = read-only, unknown = 400, write = explicitly asserted + server-validated) and workspace scoping; a test asserts missing/unknown-actor and cross-workspace access are rejected.",
+      "CTRL-2 (RISK-2): list delegates to the MT-203 keyset AnnotationFilter with a mandatory bounded limit and echoes the next cursor; a grep proof asserts no inline SQL and a test proves stable paginated continuation.",
+      "CTRL-3 (RISK-3): apply-fix preview is proven non-mutating (a test asserts no row/anchor change after the call) and returns a typed 422 for OUTDATED/ORPHANED anchors.",
+      "CTRL-4 (RISK-4): resolve/reopen/PATCH pass the client's expected state/version to MT-203 transition_state/update_body and surface StaleState as a 409; a concurrency test asserts exactly one of two conflicting writes wins.",
+      "CTRL-5 (RISK-5): grep proof targets assert api/annotations.rs contains no `sqlx::query`/`FROM annotation` and no re-anchor algorithm; all persistence goes through the MT-203 trait and all re-anchoring through the MT-204 engine."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified annotation research 2026-07-21: reviewdog filter modes (added|diff_context|file|nofilter) adopted verbatim as the out-of-visible-diff visibility parameter; Gerrit review API shape (create/reply/resolve over a workspace/change scope) informs the CRUD + thread-reply surface. Grounding audit of wtc-native-editors-v1: src/backend/handshake_core/src/api/knowledge_documents.rs (`pub fn routes(state: AppState) -> Router`, axum 0.7, identity headers x-hsk-actor-id/-kernel-task-run-id/-session-run-id/-actor-kind/-correlation-id, fail-closed least-privilege actor-kind, append_kernel_event receipt law, mirrors api/knowledge_memory.rs) and the workspace router-composition site that nests the knowledge sub-routers; `similar` (added in MT-204) reused for the apply-fix preview diff.",
+    "corrections": [
+      "Apply-fix here is PREVIEW-only and non-mutating; the actual single-undo-unit application is MT-207 — the split exists so a client can show the diff before committing.",
+      "Model-facing tool access is NOT these HTTP routes: MT-206 wraps annotation_create/list/reply as governed mcp tools with mandatory session-stamped provenance and injection scanning; these routes are the operator/client surface.",
+      "Re-anchor event emission (MT-161 FR kinds) happens at THIS route boundary because the MT-204 engine is I/O-free; the route is where the engine outcome is persisted and observed."
+    ]
+  }
+}

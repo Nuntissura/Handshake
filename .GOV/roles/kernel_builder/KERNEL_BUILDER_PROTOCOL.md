@@ -122,13 +122,14 @@ A no-context `KERNEL_BUILDER` MUST author and implement against these canonical 
 
 ## HBR Gate Obligations
 
-This role must honor `HANDSHAKE_BUILD_RULES.json` v1.3.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Kernel Builder is both a planning role in Activation Mode and an implementer role in Product Implementation Mode, so it must account for all active HBR pillars: INT, SWARM, VIS, QUIET, MAN, and STOP.
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Master Spec Section 5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`). Kernel Builder is both a planning role in Activation Mode and an implementer role in Product Implementation Mode, so it must account for all active HBR pillars: INT, SWARM, VIS, QUIET, MAN, STOP, and PRIV.
 
 - Activation Mode duty: map every touched feature, primitive, tool, model lane, storage path, sandbox/workspace/worktree surface, UI surface, automation surface, UserManual surface, and backend navigation path to applicable HBR rows before readiness.
 - Implementation duty: for each claimed MT, produce evidence per `evidence_kind` for every applicable HBR row. Test-only or fixture-only proof cannot satisfy rows that require runtime behavior, PostgreSQL/EventLedger durability, CRDT replay, visual capture, UserManual currency, process ownership, or parallel-agent behavior.
 - Swarm duty: build for parallel local and cloud model lanes plus Operator co-work. Typed events, backend navigation, leases, cancellation, runtime state, artifact promotion, conflict handling, and recovery must be observable, attributable, restartable, and safe under concurrent model/operator activity.
 - Native-runtime duty: core Handshake behavior must be Handshake-native. Do not use Docker Desktop, Docker Compose, third-party daemons, manually launched support apps, SQLite, SQL-portability shims, or mock-only resources as default proof or fallbacks. Built-in sandbox/VM/workspace/worktree features must be product-managed surfaces, not outside-app prerequisites.
 - PostgreSQL/EventLedger duty: durable authority work must use Handshake-managed PostgreSQL/EventLedger paths or an explicit real PostgreSQL URL. No SQLite authority, cache, fixture, compatibility, fallback, import, example, harness, or temporary adapter is acceptable.
+- Account-resource privacy duty: Activation Mode must inventory every primary and derived product resource and assign stable resource identity, owner account/Principal, AccessSpace/ResourceGrant visibility, enforcement boundaries, attribution, revocation semantics, and negative proof. Product Implementation Mode must prove default deny at the real PostgreSQL RLS, ResourceBroker/filesystem, API, search/index, model/tool retrieval, preview/export/sync, and UI-query boundaries touched by the MT. Include same-project private-resource isolation, metadata-side-channel denial, derived-scope non-widening, immutable session context, and SaaS/MCP delegation tests when applicable.
 - CRDT duty: collaborative state work must prove CRDT persistence, reconnect/replay, conflict visibility, and promotion into EventLedger authority where in scope.
 - Argus visual duty: GUI/operator-surface, diagnostic-surface, frontend navigation, layout, style, panel, tab, button, input, or visible-state work must use Argus per `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md` when observable UI behavior is touched. If Argus cannot see, identify by stable `author_id`, steer, or re-observe the changed surface, remediate the missing Argus hook as allowed same-MT/WP scope expansion when it blocks proof; otherwise record a blocking HBR-VIS gap.
 - GUI creation duty: any claimed MT that creates or changes operator-visible, model-navigable, diagnostic-visible, or frontend behavior must create or wire the corresponding GUI/operator path in the same MT unless the MT carries a typed `NOT_APPLICABLE` reason proving the behavior is intentionally headless. Creating the GUI includes reachable navigation, stable `author_id` targets for applicable controls, inspectable rendered or AccessKit-visible state, safe Argus steering for applicable controls, and before/after observation evidence.
@@ -400,6 +401,7 @@ Each kernel-build WP must include:
 - relevant Master Spec or reset-brief anchors;
 - exact in-scope and out-of-scope paths;
 - data contracts, schemas, events, IDs, and state transitions affected;
+- an account-resource privacy contract that inventories every primary and derived resource, identity/scope context, ResourceGrant/AccessSpace linkage, PostgreSQL/filesystem enforcement boundary, same-project privacy scenario, metadata side channel, revocation/switch path, and remote SaaS/MCP boundary;
 - GUI/operator surfaces to create or update, Argus targets, visual proof path, or typed headless `NOT_APPLICABLE` reason;
 - per-MT UserManual obligations, target entries, version policy, manual test/inspection path, or typed pure-governance `NOT_APPLICABLE` reason;
 - execution order and dependency notes;
@@ -415,6 +417,7 @@ Each microtask must include:
 - goal and expected diff shape;
 - owned files or modules;
 - dependencies and unblock conditions;
+- a `resource_privacy_obligation` covering touched resources, account/Principal/session/AccessSpace context, enforcement boundaries, positive and negative access cases, derived-resource inheritance, revocation/switch behavior, remote delegation when applicable, expected evidence, or a concrete pure-governance `NOT_APPLICABLE` reason;
 - implementation notes sufficient for a no-context model;
 - proof command or inspection evidence;
 - GUI/Argus obligation with surfaces, `author_id` targets, screenshot/tree evidence, action sequence, or typed `NOT_APPLICABLE` reason;
@@ -430,7 +433,7 @@ Parallel sub-agents are the `KERNEL_BUILDER` speed-build default (see Build Rese
 
 - BEFORE implementation: spawn parallel sub-agents, each assigned a DIFFERENT lens, to adversarially review the planned MT (scope, skeleton/interface, approach) before product code is written.
 - AFTER implementation: spawn parallel sub-agents, each with a different lens, to adversarially review the implemented diff.
-- Canonical lenses (non-exhaustive): correctness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof (Spec-Realism Gate); security & trust-boundary; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR coverage (VIS/MAN/INT/QUIET/SWARM/STOP); Argus visual & UserManual evidence; edge cases.
+- Canonical lenses (non-exhaustive): correctness; spec-conformance against the `SPEC_CURRENT`-resolved Master Spec; anti-scaffold / runtime-proof (Spec-Realism Gate); security & trust-boundary; account/resource privacy and cross-scope leakage; concurrency & swarm-safety; data-loss & recovery; interconnectivity with other pillars/primitives (force-multiplier discovery); HBR coverage (VIS/MAN/INT/QUIET/SWARM/STOP/PRIV); Argus visual & UserManual evidence; edge cases.
 - Purpose: harden the MT and surface findings, gaps, risks, concerns, and useful linked features/primitives across other pillars.
 - Disposition every finding: `FIXED` (in the current MT when in-scope) · `PROVEN_SAFE` · `OUT_OF_SCOPE` → create a NEW MT in the SAME WP to remediate, but ONLY when the finding is genuinely outside the current MT's scope · `OPEN_BLOCKER`.
 - `KERNEL_BUILDER` MUST review and is responsible for all sub-agent output; sub-agents do not self-certify. Record the lenses run and each disposition (this extends the `SELF_VALIDATOR_ATTACKS` handoff field).

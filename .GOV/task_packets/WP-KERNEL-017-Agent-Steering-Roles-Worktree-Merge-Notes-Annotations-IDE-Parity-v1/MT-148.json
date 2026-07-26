@@ -1,0 +1,179 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-148",
+  "title": "WM-MT148-MergeRuntimeProofs",
+  "group": "WM Worktree merge-back",
+  "clause": "Live end-to-end proofs: clean/conflict/patch/abort merge-back through the real APIs + negative proofs (no force-push, protected denied, dirty blocked) + Windows longpaths regression",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-148.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-141",
+      "MT-142",
+      "MT-143",
+      "MT-144",
+      "MT-145",
+      "MT-146",
+      "MT-147"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Prove the whole WM Worktree merge-back family LIVE, end to end, exercising the real MT-141..147 APIs (not mocks of them) in a scratch git repo and real session worktrees, and lock the family's hard rules with executable NEGATIVE proofs. This MT ships NO new product behavior — it is the runtime acceptance surface that makes the family's guarantees externally verifiable and re-runnable by a no-context model.\n\nEXPECTED DIFF SHAPE: New integration tests under src/backend/handshake_core/tests/ (a wm_merge_back_e2e suite) plus, where the conflict-resolution equivalence is proven through the UI bridge, a headless handshake_native integration test reusing the MT-143 bridge API. A small shared test-harness helper (scratch repo + real session worktree provisioning via MT-141) may be added under tests/ only. No src/ product code changes; if a proof cannot pass without a product change, that is a defect to route back to the owning MT (141..147), NOT patched here.\n\nDETAILED SPEC — POSITIVE PROOFS (through the real APIs):\n1. Clean merge (ff): provision a session branch (MT-141 ensure_session_worktree_allocation_with_mode SessionBranch), advance it ahead of target, MergeSession::begin with allow_fast_forward => MergeOutcome::CleanMerged{fast_forward:true}, target ref advances; then MT-147 reclaim_after_merge with DeleteOnReclaim => worktree removed + branch deleted + RECLAIMED emitted.\n2. Clean merge (no-ff 3-way): divergent-but-non-conflicting edits => CleanMerged{fast_forward:false} with the attribution trailer; MT-145 governance emits Proposed+Approved+Executed audit rows + MT-161 FR kinds.\n3. Conflict scenario resolved through the SAME bridge API the UI uses: overlapping edits => MergeOutcome::Conflicts; drive conflict_file_versions -> programmatic Accept choices through the MT-143 merge_conflict_bridge (the exact API MT-146's pane calls) -> resolve_conflict -> complete() => merge commit with resolved contents + trailers. This proves the governed-session path and the operator-UI path are ONE path.\n4. Patch fallback (MT-144): from a DETACHED/legacy worktree (MT-141 DetachedHead compat mode) extract_session_patch_bundle => apply_session_patch_bundle onto target => Applied with commit count == bundle patch count; and a conflicting patch apply resolved through the SAME MT-143 bridge -> `git am --continue`.\n5. Abort path: a conflicted MergeSession aborted (or dropped) => no MERGE_HEAD, target checkout pristine, target ref unchanged; MT-145 emits an Aborted audit row.\n\nDETAILED SPEC — NEGATIVE PROOFS (the hard rules, proven by failure/denial):\n6. Force-push impossibility: (a) static — assert ZERO force/push tokens across the family's command-constructing modules: `grep -rnE '(--force|--force-with-lease|\\\"-D\\\"|[^a-z]push[^a-z])' src/backend/handshake_core/src/source_control_merge.rs src/backend/handshake_core/src/source_control_merge_policy.rs` returns nothing; (b) runtime — assert no `git push` process is ever spawned during the entire e2e suite (the family is merge-back-LOCAL only; a push happens only if the operator explicitly configures publishing OUTSIDE this family) and that merge/patch command construction contains no force flag.\n7. Protected-branch merge denied without approval: MT-145 ProtectedBranchPolicy marks the target protected; MergeSession::begin with NO MergeApprovalGrant => MergeOutcome::Blocked{TargetProtectedApprovalRequired}, NO merge commit, Proposed+Blocked audit rows; then WITH a valid operator grant => Executed. Proves the consent gate is real, not advisory.\n8. Dirty-tree blocked: a dirty target checkout and (separately) a dirty source worktree each => MergeOutcome::Blocked{DirtyTargetTree|DirtySourceTree}, no MERGE_HEAD created, no partial merge.\n9. Windows longpaths regression: create a tracked path deep enough to exceed the 260-char legacy limit under the session worktree, run the clean-merge and patch-apply flows, and assert they SUCCEED (core.longpaths=true is honored); additionally assert every git invocation the family constructs includes `-c core.longpaths=true` (scan the command-builder call sites / captured command lines).\n\nSTEP-BY-STEP:\n1. Read the MT-141..147 module surfaces (workspace_safety.rs session provisioning + reclaim, source_control_merge.rs engine, source_control_merge_policy.rs gate, merge_conflict_bridge.rs, MT-144 patch functions) so the tests call the REAL entry points.\n2. Build the shared scratch-repo + real-session-worktree harness (temp dir, `git init`, seed commits, provision session worktrees via MT-141) under tests/.\n3. Implement positive proofs 1-5 driving the real APIs; assert git-observable state (rev-parse, ls-files -u, MERGE_HEAD absence, worktree list) and MT-145 audit rows / FR events via a RecordingSwarmSink.\n4. Implement negative proofs 6-9, including the static greps as proof targets and the runtime no-push / longpaths assertions.\n5. Ensure the conflict proof (3) and the patch-conflict proof (4) both go through the MT-143 bridge API — the same API MT-146's pane calls — so UI/governed-session equivalence is demonstrated, not assumed.\n6. Run the full suite; record measured output (pass/fail per scenario) and the grep proof-target results.\n\nHARD RULES: this MT PROVES the family's rules, it does not re-implement or weaken them; NEVER force-push and NEVER auto-resolve inside the proofs (the conflict proofs resolve only via explicit bridge Accept choices); protected merges are exercised through the real MT-145 gate; git worktree CODE merge stays separate from CRDT document merging (no CRDT state in these proofs); every git call in the harness uses -c core.longpaths=true and holds SESSION_WORKTREE_GIT_LOCK where it mutates worktrees.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/handshake_native/tests/** (headless bridge-equivalence proof only)",
+      "src/backend/handshake_core/Cargo.toml (dev-dependencies only, if a test needs one)"
+    ],
+    "forbidden_paths": [
+      "src/backend/handshake_core/src/** (proofs must not modify product code; a failing proof is a defect routed back to MT-141..147, never patched here)",
+      "src/frontend/handshake_native/src/** (reuse MT-143/146 surfaces as-is)",
+      "app/src/**",
+      ".GOV/**",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain)"
+    ],
+    "acceptance_criteria": [
+      "A live e2e suite provisions a scratch git repo and REAL session worktrees (MT-141) and drives the real MT-142/143/144/145/147 entry points — not reimplemented merge logic.",
+      "Positive: clean ff merge, clean no-ff 3-way merge (with attribution trailer), and a conflict resolved through the MT-143 bridge API all produce the expected git-observable commit + target-ref state, with MT-145 audit rows and MT-161 FR kinds recorded via a RecordingSwarmSink.",
+      "Positive: patch fallback (MT-144) from a DetachedHead legacy worktree applies onto target with commit count == bundle patch count, and a conflicting patch is resolved through the SAME MT-143 bridge -> `git am --continue`.",
+      "Positive: an aborted/dropped conflicted merge leaves no MERGE_HEAD, a pristine target checkout, and an unchanged target ref, with an Aborted audit row.",
+      "Negative (force-push impossibility): static grep across source_control_merge.rs + source_control_merge_policy.rs finds zero force/push tokens, AND the runtime suite spawns no `git push` and constructs no force flag.",
+      "Negative (protected denied): a protected target with no operator grant returns Blocked{TargetProtectedApprovalRequired} with no merge commit; the same merge with a valid grant Executes — proving the MT-145 consent gate is enforced, not advisory.",
+      "Negative (dirty blocked): dirty target and dirty source each return Blocked{DirtyTargetTree|DirtySourceTree} with no MERGE_HEAD and no partial merge.",
+      "Windows longpaths regression: a >260-char tracked path merges and patch-applies successfully, and every family git invocation is shown to include -c core.longpaths=true.",
+      "The conflict and patch-conflict proofs both resolve exclusively via explicit MT-143 bridge Accept choices (no auto-resolution), demonstrating operator-UI and governed-session equivalence."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test wm_merge_back_e2e -- --nocapture",
+      "cargo test -p handshake_core wm_merge_back_conflict_via_bridge -- --nocapture",
+      "cargo test -p handshake_core wm_merge_back_patch_fallback -- --nocapture",
+      "cargo test -p handshake_core wm_merge_back_protected_denied_without_approval -- --nocapture",
+      "cargo test -p handshake_core wm_merge_back_dirty_blocked -- --nocapture",
+      "cargo test -p handshake_core wm_merge_back_longpaths_regression -- --nocapture",
+      "bash -lc \"! grep -rnE '(--force|--force-with-lease|\\\"-D\\\"|[^a-z]push[^a-z])' src/backend/handshake_core/src/source_control_merge.rs src/backend/handshake_core/src/source_control_merge_policy.rs && echo FAMILY_NO_FORCE_NO_PUSH\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/wm_merge_back_e2e.rs (NEW: scratch-repo + real-session-worktree harness driving the whole family)",
+      "src/backend/handshake_core/src/workspace_safety.rs (REUSE: MT-141 provisioning + MT-147 reclaim entry points)",
+      "src/backend/handshake_core/src/source_control_merge.rs (REUSE: MT-142 MergeSession + MT-144 apply_session_patch_bundle)",
+      "src/backend/handshake_core/src/source_control_merge_policy.rs (REUSE: MT-145 MergeGovernanceGate + ProtectedBranchPolicy + MergeApprovalStore)",
+      "src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs (REUSE: MT-143 bridge API the conflict proofs drive)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (REUSE: RecordingSwarmSink for FR/audit assertions)"
+    ],
+    "expected_tests": [
+      "e2e: clean ff merge -> CleanMerged{ff:true}, target advances, MT-147 reclaim removes worktree + deletes merged branch",
+      "e2e: no-ff 3-way -> CleanMerged{ff:false} + attribution trailer + Proposed/Approved/Executed audit rows",
+      "e2e: overlapping edits -> Conflicts -> resolved via MT-143 bridge Accept choices -> complete() commit with resolved contents",
+      "e2e: DetachedHead worktree -> patch bundle -> apply onto target (commit count == patch count); conflicting patch -> bridge -> am --continue",
+      "e2e: abort/drop conflicted merge -> no MERGE_HEAD, pristine checkout, unchanged ref, Aborted audit row",
+      "negative: protected target no grant -> Blocked{TargetProtectedApprovalRequired}; with grant -> Executed",
+      "negative: dirty target / dirty source -> Blocked{DirtyTargetTree|DirtySourceTree}, no MERGE_HEAD",
+      "negative: >260-char path merges + patch-applies OK; every git invocation carries -c core.longpaths=true; no git push spawned; static grep = zero force/push tokens"
+    ],
+    "implementation_notes": [
+      "These are proofs, not features: forbidden_paths block src/ edits precisely so a proof that fails becomes a defect ticket against the owning MT (141..147), never a quiet patch that hides the gap.",
+      "Drive the REAL entry points: import MT-141 provisioning, the MT-142 engine, the MT-143 bridge, the MT-144 patch functions, and the MT-145 gate directly; a proof that mocks the thing it claims to prove is worthless.",
+      "The conflict proof MUST use the MT-143 bridge API (the same one MT-146's pane calls) so the test demonstrates that the operator UI and the governed/programmatic resolution session are literally the same code path (the equivalence MT-143/146 asserted but deferred proving live).",
+      "no-push runtime proof: since std::process::Command spawns `git`, assert no invocation's args begin with `push`; combine with the static grep so both construction and execution are covered.",
+      "longpaths regression: on non-Windows CI the >260-char path still exercises the flag plumbing; the assertion that every command carries -c core.longpaths=true is the portable part and must pass on every platform.",
+      "Reclaim (MT-147) is included in the positive flow so the family is proven from provisioning through merge through resource reclaim in one arc, matching the real session lifecycle.",
+      "Keep the harness deterministic (fixed author/committer env, --no-gpg-sign already in the engine) so the proofs are reproducible by a no-context model."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless runtime-proof suite; the operator surface itself is proven in MT-146 (Argus). This MT's evidence is deterministic test output + git-observable state + grep proof targets, reconstructable without a UI (HBR-VIS-004)."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Proof-only MT: it ships no new user-facing behavior. The merge-back behaviors it verifies are documented by the manual updates in MT-141..147; this MT adds no manual entry of its own."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "The positive proofs assert MT-145 audit rows + MT-161 merge FR kinds and MT-147 RECLAIMED/CLEANUP-FAILED events via a RecordingSwarmSink, so the family's Flight-Recorder wiring is proven live, not assumed."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "A test suite does not itself emit product diagnostics; it verifies the diagnostics the implementing MTs emit. Any test-harness failure surfaces through the normal cargo-test failure channel."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Deterministic bounded test processes; no long-lived runtime whose freeze/crash needs external liveness capture."
+    }
+  ],
+  "risk_if_missed": "The family's guarantees stay claims: no force-push, protected-branch consent, dirty-tree blocking, UI/governed-session equivalence, and Windows longpaths safety are asserted in prose but never proven together at runtime, so a regression in any one ships silently and merge-back can corrupt or lose work.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The proofs mock the very APIs they claim to verify (a fake merge engine / fake gate), so the suite is green while the real path is broken — proof theater.",
+      "RISK-2: The conflict proof resolves via a shortcut instead of the MT-143 bridge, so operator-UI vs governed-session equivalence is asserted but not actually exercised.",
+      "RISK-3: A proof silently patches product code (edits src/) to make itself pass, hiding a real defect in MT-141..147 instead of surfacing it.",
+      "RISK-4: The negative proofs are too weak — a grep that misses a force/push token, or a protected-denied test that never checks a merge commit was NOT created — passing without proving the rule.",
+      "RISK-5: The longpaths proof only runs on Windows and is skipped elsewhere, so the -c core.longpaths=true plumbing regresses undetected on the CI platform."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Tests import and call the real MT-141..147 entry points; a reviewer checklist item (and code_surfaces list) confirms no in-test reimplementation of merge/gate logic; assertions are on git-observable state, not on mock return values.",
+      "CTRL-2 (RISK-2): The conflict and patch-conflict proofs call the exact MT-143 merge_conflict_bridge functions MT-146's pane calls; the test names and code_surfaces pin this, and the resolved-buffer-equals-committed assertion is shared with MT-146's CTRL-3.",
+      "CTRL-3 (RISK-3): forbidden_paths block src/ edits; any proof that cannot pass without a product change is reported as a defect against the owning MT, not fixed here — stated as a hard rule in scope.",
+      "CTRL-4 (RISK-4): Negative proofs assert the ABSENCE of the forbidden outcome explicitly (no merge commit / no MERGE_HEAD / no push process) in addition to the typed Blocked reason; the force/push grep pattern covers --force, --force-with-lease, -D, and word-boundary push, and is a standalone proof target.",
+      "CTRL-5 (RISK-5): The longpaths proof splits into a portable part (every git invocation carries -c core.longpaths=true — runs on all platforms) and the >260-char path exercise; the portable assertion must pass on the CI platform so the flag plumbing cannot regress undetected."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code across the family's grounding: wtc-multi-model-orchestration-v1 source_control.rs (status/diff/stage/commit/branch, NO merge — the gap MT-142 fills), workspace_safety.rs (session worktree provisioning + cleanup + SESSION_WORKTREE_GIT_LOCK + -c core.longpaths=true, collect_merge_back_artifact ~331), swarm_orchestration/events.rs (RecordingSwarmSink + SwarmFrEventId table lines 33-109 for FR assertions), swarm_orchestration/worktree_vm_registry.rs (snapshot/teardown for MT-147 reclaim). The MT-141..147 contracts define the entry points this suite drives; the MT-143 bridge is the shared UI/governed-session resolution path. Field practice: end-to-end scratch-repo integration tests over the real CLI-git command layer (rather than libgit2 unit mocks) are the standard way to prove a merge subsystem's safety invariants, and negative/denial proofs (no force-push, protected-branch denial, dirty-tree block) are the field pattern for locking a merge tool's hard rules against regression.",
+    "corrections": [
+      "This MT proves the operator/red-team hard rules of the whole family rather than re-implementing them: never force-push, no auto-resolution (bridge Accept choices only), protected-branch consent enforced by the real MT-145 gate, dirty-tree blocked, Windows longpaths honored.",
+      "Proof-only discipline: forbidden_paths block src/ so a failing proof is a defect against the owning MT, keeping the acceptance surface honest.",
+      "Git worktree CODE merge is exercised strictly separately from CRDT document merging (no CRDT state in these proofs); the conflict proofs demonstrate operator-UI and governed-session equivalence through the single MT-143 bridge API."
+    ]
+  }
+}

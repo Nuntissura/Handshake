@@ -2,41 +2,35 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1",
+  "base_wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate",
+  "created_at_utc": "2026-05-17T00:00:00Z",
+  "updated_at_utc": "2026-07-26T04:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
     "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
     "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false,
-    "allowed_markdown_exceptions": [
-      "operator_created_notes",
-      "operator_created_research",
-      "operator_created_audits",
-      "explicit_on_demand_projection",
-      "explicit_report_projection_contract",
-      "frozen_legacy_migration_reference"
-    ]
+    "model_created_markdown_authority_allowed": false
   },
-  "execution_authority": "NON_EXECUTION_STUB",
-  "wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1",
-  "base_wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate",
-  "created_at_utc": "2026-05-17T00:00:00Z",
   "source_files": {
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json",
     "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.md"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.md",
-    "status": "PENDING_GENERATION",
-    "projection_sha256": "PENDING_GENERATION",
+    "status": "NOT_MATERIALIZED",
+    "projection_sha256": "NOT_MATERIALIZED",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
     "status": "STUB (NOT READY FOR DEV)",
-    "format_version": "2026-04-06",
+    "format_version": "2026-07-26",
     "activation_required": true,
-    "user_signature_required": false,
-    "refinement_required_before_execution": true
+    "user_signature_required": true,
+    "refinement_required_before_execution": true,
+    "precreated_microtasks_are_executable": false
   },
   "build_order": {
     "domain": "CROSS_BOUNDARY",
@@ -52,8 +46,190 @@
   },
   "spec_trace": {
     "spec_target": ".GOV/spec/SPEC_CURRENT.md",
-    "roadmap_pointer": "Kernel reset brief Week 6 Principal Authority + Profile Layer; Phase B — Visitor Pass + MCP Gate (external agent visitor pass with TTL + narrow caps, MCP per-tool-call scrutiny, operator admin surface for Principal management).",
-    "roadmap_add_coverage": "Kernel V1 external-agent authority: per-MCP-server Principal allocation on connect with fingerprinted server manifest, default-deny capability ceiling, per-tool-call same-turn approval default for MCP Principals, visible audit badges in the operator surface trace for every MCP action, short-lived visitor-pass Principals for non-Handshake-spawned external agents, and an operator admin surface for create/list/scope/revoke."
+    "spec_version_at_revision": "v02.202",
+    "primary_anchor": "2.3.13.12 Local Account, Principal, Access Space, and Protected Resource Authority",
+    "supporting_anchors": [
+      "3.7 Account-Isolated Local and Remote Infrastructure",
+      "5.9 Authentication, Authorization, and Privacy Evidence",
+      "10.18 Account and Resource Privacy Surfaces",
+      "11.20 Shared Workspace, SaaS, and MCP Authorization Foundation"
+    ],
+    "roadmap_pointer": "Kernel reset brief Week 6 Account, Principal, Resource Authority, Access Space, and Persona/CRM Layers; Phase B."
+  },
+  "preservation_contract": {
+    "stable_name_and_id": true,
+    "original_intent_carried_forward": [
+      "External agents, visitor passes, and MCP clients are first-class Principals with higher scrutiny.",
+      "MCP server manifests are fingerprinted and material changes trigger re-consent.",
+      "New MCP and visitor Principals are default-deny and ToolGate controls each tool action.",
+      "Visitor passes are short-lived, narrow, non-spawning, and revocable.",
+      "Operator surfaces list, scope, revoke, and visibly attribute MCP/visitor actions.",
+      "Concurrent operator/MCP isolation and immediate revocation remain required."
+    ],
+    "new_scope_added": [
+      "AccessSpace, ProtectedResource, ResourceLink, ResourceGrant, MembershipRole, and ResourceBroker.",
+      "Per-resource privacy inside shared projects and explicit client/SFW/master Spaces.",
+      "Filesystem, ArtifactStore, search/index, derivative, export, backup, archive, and restore authorization.",
+      "ExternalIdentityBinding and RemoteServiceConnection seam for future Handshake SaaS/MCP.",
+      "Remote moodboard/project-starter/inspiration manifests, quarantine, local-scope selection, and provenance."
+    ],
+    "superseded_draft_assumptions": [
+      "AccessSpace is not a Profile and never grants access.",
+      "Project membership is not blanket visibility.",
+      "Read-only MCP tools are not automatically safe; they can exfiltrate private data.",
+      "MCP fingerprints cover the full security-relevant surface, not only transient tool-list text.",
+      "Revocation semantics include in-flight cancellation/containment and derived/cache/context invalidation."
+    ]
+  },
+  "naming_contract": {
+    "AccessSpace": "named selectable context over resources already authorized by ResourceGrant",
+    "ProtectedResource": "any primary or derived object with visibility consequences",
+    "ResourceLink": "durable association between resource and project/workspace/client/Space without itself granting access",
+    "ResourceGrant": "durable action authorization for a Principal/account/group/role/service/pass over an exact resource or bounded set",
+    "MembershipRole": "project/workspace collaboration role used by policy but not blanket resource authority",
+    "ResourceBroker": "executable filesystem and ArtifactStore authorization boundary",
+    "ExternalIdentityBinding": "revocable local-account to remote-identity link",
+    "RemoteServiceConnection": "audience-bound SaaS/MCP connection"
+  },
+  "scope": {
+    "intent": "Implement exact resource visibility and sharing across accounts, Spaces, projects, files, database-backed objects, assets, artifacts, models/tools, visitors, MCP clients, and future remote services without losing the original visitor-pass and MCP scrutiny role.",
+    "in_scope": [
+      "ProtectedResource kinds and stable ResourceRef taxonomy for every primary/derived boundary.",
+      "AccessSpace schema, lifecycle, membership, resource links, defaults, master/SFW/client use cases, and explicit rule that Space does not grant.",
+      "ProtectedResource registry and ownership/lineage/storage-locator envelope.",
+      "ResourceGrant schema with subject, resource/set, actions, conditions, inheritance, issue/expiry/revocation, provenance, and policy version.",
+      "Central authorization evaluator combining Principal/session, ResourceGrant, MembershipRole, AccessSpace, capability, action, policy, and revocation.",
+      "Project/workspace membership and exact resource linking without blanket project visibility.",
+      "Generalized RLS policies for resource, grant, Space, project, collaboration, index, log, and projection tables.",
+      "Authorization-query and explain APIs that do not reveal restricted existence.",
+      "ResourceBroker for registered external roots, canonical paths, symlink/junction/traversal defense, ArtifactStore handles, and post-revocation denial.",
+      "Derived resources, mixed-scope source intersection, previews/thumbnails/caches/indexes/embeddings/search/model contexts/logs/exports/backups/archive/restore.",
+      "Same-project private resources and concurrent grant/revoke/use behavior.",
+      "Authenticated-session AccessSpace pinning and atomic switching.",
+      "Collaborator invite, membership role, exact grants, revoke, and bounded recovery.",
+      "Visitor-pass issue/use/expiry/revoke, no spawn, action/resource ceiling, audit, and in-flight policy.",
+      "MCP Principal allocation, full security-surface fingerprint, re-consent, ToolGate, per-action approval, badges, and admin UI.",
+      "MCP tools/resources/prompts/sampling/elicitation/callback authorization and audience-bound token posture.",
+      "ExternalIdentityBinding and RemoteServiceConnection contract.",
+      "RemoteResourceManifest for moodboards, project starters, inspiration items, provenance/hash/deletion/visibility, quarantine, inspection, import, and local linking.",
+      "Native Space/resource/share/visitor/MCP/service UI, privacy inspector, UserManual, Argus, EventLedger, and Flight Recorder.",
+      "Real PostgreSQL, filesystem, concurrency, side-channel, revocation, export/restore, MCP, and remote-import end-to-end proof."
+    ],
+    "out_of_scope": [
+      "Password/login implementation and Principal foundation owned by WP-KERNEL-006.",
+      "Persona, preferences, CRM, and FEMS personalization owned by WP-KERNEL-008.",
+      "Production SaaS backend, billing, public federation, generalized SSO, and public marketplace.",
+      "Provider-specific browser automation.",
+      "Product-code implementation during stub revision."
+    ]
+  },
+  "resource_privacy_contract": {
+    "required_hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "enforcement_boundaries": [
+      "authorization evaluator",
+      "PostgreSQL RLS/FORCE RLS",
+      "ResourceBroker/ArtifactStore",
+      "API and backend navigation",
+      "search/index/model context/tool retrieval",
+      "UI queries/previews/exports/backups",
+      "EventLedger/Flight Recorder/diagnostics",
+      "MCP and RemoteServiceConnection"
+    ],
+    "mandatory_negative_scenarios": [
+      "same project but private resource",
+      "wrong account or Space",
+      "membership without resource grant",
+      "revoked grant with open file/model/tool context",
+      "path traversal, symlink, or junction escape",
+      "restricted name/count/thumbnail/search/error/log inference",
+      "mixed-scope derivation attempts broader output",
+      "backup or export restored under unauthorized account",
+      "visitor pass expiry during action",
+      "MCP manifest/fingerprint drift",
+      "remote token wrong audience/expiry/revocation",
+      "remote import attempts automatic local publication"
+    ]
+  },
+  "research_basis": {
+    "status": "RECORDED_FOR_REFINEMENT",
+    "sources": [
+      "https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
+      "https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/",
+      "https://docs.aws.amazon.com/prescriptive-guidance/latest/saas-multitenant-api-access-authorization/introduction.html",
+      "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
+      "https://github.com/openfga/openfga",
+      "https://huggingface.co/docs/hub/en/organizations-security",
+      "https://huggingface.co/docs/hub/security-tokens",
+      "https://huggingface.co/docs/hub/en/collections",
+      "https://github.com/civitai/civitai/wiki/REST-API-Reference/de63434512878133a5788a25f4b94af0c06de4bc"
+    ],
+    "selected_patterns": [
+      "relationship/resource tuple authorization",
+      "tenant/resource isolation at every request",
+      "audience-bound OAuth-style remote tokens",
+      "least-privilege fine-grained service tokens",
+      "collection/moodboard manifests separated from local authorization",
+      "server-side expiry/revocation and default deny"
+    ],
+    "rejected_patterns": [
+      "project membership as blanket read",
+      "UI-only Space filtering",
+      "path-based authorization without stable ResourceRef",
+      "remote ACL automatically becoming local grant",
+      "MCP connection inheriting logged-in human authority",
+      "read-only tool automatically pre-approved"
+    ]
+  },
+  "activation_acceptance": [
+    "WP-KERNEL-006 is implemented and Integration Validator-verified.",
+    "Refinement locks all resource kinds, grant semantics, Space behavior, membership interaction, RLS, ResourceBroker, revocation, side-channel, MCP, visitor, and remote-manifest contracts.",
+    "Refinement includes complete primary/derived resource inventory and every producer/consumer boundary.",
+    "Official packet adopts the complete pre-created MT index without silent deletion.",
+    "A new WP activation signature is obtained."
+  ],
+  "risks_and_hardening": [
+    {
+      "risk": "visible filtering mistaken for security",
+      "failure_scenario": "restricted rows are hidden in UI but retrievable through API/search/model/tool/export",
+      "hardening": "central evaluator plus RLS/Broker enforcement and negative tests at every consumer"
+    },
+    {
+      "risk": "same-project privacy collapse",
+      "failure_scenario": "coworker joins a project and sees private porn-production files or artifacts",
+      "hardening": "membership is policy input only; exact ResourceGrant required; same-project-private E2E fixture"
+    },
+    {
+      "risk": "derivative leak",
+      "failure_scenario": "thumbnail, embedding, summary, log, or export has broader visibility than source",
+      "hardening": "source-scope intersection, split/redact/refuse policy, lineage and mixed-scope tests"
+    },
+    {
+      "risk": "filesystem escape",
+      "failure_scenario": "tool supplies path outside granted root through traversal/junction/symlink",
+      "hardening": "registered roots, canonical handles, revalidation, OS-specific escape tests"
+    },
+    {
+      "risk": "MCP or SaaS authority confusion",
+      "failure_scenario": "service token or remote collection grants local content access",
+      "hardening": "separate Principal/audience/grant, quarantine imports, explicit local destination and publication grants"
+    }
+  ],
+  "microtasks": {
+    "status": "PRECREATED_INACTIVE_NON_EXECUTABLE",
+    "directory": ".GOV/task_packets/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1",
+    "index_path": ".GOV/task_packets/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1/_MT_INDEX.json",
+    "id_range": "MT-001..MT-030",
+    "total": 30,
+    "adoption_rule": "Activation Manager must compare refinement/packet scope to every pre-created MT, preserve each original visitor/MCP and resource-privacy obligation, record any split/merge/supersession, validate the DAG, and activate no more than one MT at a time."
   },
   "session_policy": {
     "session_start_authority": "ORCHESTRATOR_ONLY",
@@ -62,41 +238,27 @@
     "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
     "planned_execution_owner_range": "Coder-A..Coder-Z"
   },
-  "draft_scope": {
-    "intent": "- What: Make non-Handshake-spawned principals (visitor agents, MCP clients) first-class but heavily scrutinized — distinct from the operator-owned Principals KERNEL-006 introduced, governed by the same primitive but with default-deny ceilings, visible audit badges, and per-tool-call approval defaults.\n- Why: MCP and external CLIs are the most likely vector for unintended authority escalation. The operator wants MCP at the highest scrutiny tier, while still being able to use it productively. Visitor-pass mechanics let external CLIs connect without forging operator identity.\n- Product goal: Handshake (Product) gains a per-MCP-server Principal allocated on connect, a fingerprinted server manifest, a default-deny scope, per-tool-call same-turn approval defaults that the operator can lower per-server, and a visible audit badge in every operator-surface trace row for MCP-initiated actions.\n- Operator goal: The operator can grant a narrow visitor-pass to an external Codex/Claude CLI for a single project without exposing other projects, and can see at a glance which trace rows came from an MCP client vs operator vs spawned agent.\n- No-context goal: Stub-level only; refinement before activation is required to lock the MCP fingerprinting algorithm, the visitor-pass TTL contract, the per-tool-call approval default escalation policy, and the badge UX.",
-    "scope_sketch": "- IN_SCOPE:\n  - Per-MCP-server Principal: allocated on `mcp/connect`, fingerprinted by sha256 of the server's tool manifest; a swapped server (fingerprint mismatch) triggers re-consent.\n  - Default-deny capability scope for new MCP Principals; operator must explicitly grant per-tool capabilities before the MCP client can call them.\n  - Per-tool-call same-turn approval default for `McpClient` Principals, reusing the existing `requires_same_turn_approval` + `approval_preview` machinery from KERNEL-001/002.\n  - Visitor-pass Principal: short-lived `ExternalAgent` Principal with TTL, narrow capability ceiling, no spawn rights, no carry-over across sessions.\n  - Operator admin surface (CLI or DCC panel): list Principals, view scope, narrow scope, revoke, see audit summary.\n  - Audit badge mechanic: every trace row carries a Principal-kind badge; MCP/Visitor actions are visually distinct in the operator surface.\n  - Reuse ToolGate for all per-tool decisions; do not invent a parallel approval system.\n  - Tests: MCP fingerprint swap triggers re-consent; visitor-pass TTL expiry denies further actions; per-tool approval requirement enforced; revoke takes effect immediately; cross-Principal scope isolation holds under concurrent MCP and operator activity.\n- OUT_OF_SCOPE:\n  - Profile / persona switching, preference tracking, CRM (KERNEL-008 owns these).\n  - Handshake-spawned agent inheritance (KERNEL-006 already owns this).\n  - Multi-Handshake federation across instances.\n  - Provider-specific automation of external chat UIs (rejected by reset brief §6.11).\n  - Operator-facing billing or quota; budget tracking lives in the future managed-cloud lane, not this stub.\n- KEY_OPEN_QUESTIONS (deferred to refinement):\n  - Q1: MCP server manifest fingerprint — sha256 of the canonical-serialized tool list, or include sampling/prompt/resource manifests too?\n  - Q2: Visitor-pass TTL default — minutes, hours, session-lifetime, or operator-chosen at issue time?\n  - Q3: Per-tool same-turn approval ceiling: which MCP tool classes can the operator pre-approve in bulk (`read-only` vs `mutating`), and how is the classification authored?\n  - Q4: Where does the operator admin surface live in Week 6 — DCC panel extension, separate CLI subcommand, or both?\n  - Q5: How does badge rendering survive trace projection across restart / replay (is the Principal kind a denormalized field on the trace row, or always re-resolved)?\n  - Q6: Revoke semantics — does revoke kill in-flight MCP tool calls or only deny future ones?",
-    "acceptance_criteria": "- AC-001: Stub-level only — full AC list deferred to refinement.\n- ACTIVATION-AC-001: Refinement locks the MCP fingerprint algorithm and re-consent trigger.\n- ACTIVATION-AC-002: Refinement specifies the visitor-pass TTL contract (default, ceiling, operator override).\n- ACTIVATION-AC-003: Refinement specifies the per-tool-call approval default policy with a worked example for at least one read-only tool and one mutating tool.\n- ACTIVATION-AC-004: Refinement specifies the audit badge UX contract (visible in DCC, included in trace projections, denormalization vs resolution decision recorded).\n- ACTIVATION-AC-005: Refinement records explicit answers (or scoped deferrals) to KEY_OPEN_QUESTIONS Q1–Q6.\n- ACTIVATION-AC-006: KERNEL-006 must be activated and validated before this stub can be promoted to a signed packet (build-order dependency is hard).",
-    "risks_unknowns": "- Risk: Default per-tool-call approval becomes operator-hostile (too many prompts). Mitigation: refinement must define a per-server bulk-approval ceiling for read-only tools with explicit operator control; mutating tools always confirm.\n- Risk: MCP fingerprint drift triggers re-consent constantly under normal manifest tweaks. Mitigation: fingerprint canonical-serialized tool surface only, not transient fields; include version anchor; document allowed drift.\n- Risk: Visitor-pass TTL leaks if external agent caches credentials. Mitigation: TTL is enforced server-side at every Principal scope check, not client-side.\n- Risk: Audit badge UX overload — every trace row carrying a badge becomes visual noise. Mitigation: badge only when Principal kind ≠ Operator (default Operator hidden), MCP+Visitor surface clearly.\n- Risk: ToolGate becomes a bottleneck for high-throughput MCP servers. Mitigation: cache per-(Principal, tool_id) approval decisions within session bounds; cache invalidates on scope change or revoke.\n- Risk: Revoke leaves orphan in-flight tool calls. Mitigation: refinement must specify abort vs let-finish semantics with operator visibility.\n- Risk: Adult-production workflows using MCP for prompt/asset tooling get blocked by overly strict defaults. Mitigation: operator can lower scrutiny per-server explicitly; default-deny is the floor not the ceiling; document the per-server tuning path.\n- Risk: External-agent chain attacks — Visitor-pass A spawns Visitor-pass B with wider scope. Mitigation: ExternalAgent Principals cannot spawn child Principals (no spawn capability granted by default); only HandshakeSpawnedAgent inheritance from KERNEL-006 is allowed.",
-    "governance_artifact_stance": "- Machine-readable governance contracts are primary.\n- Markdown is a synchronized projection and planning surface for operator/model inspection.\n- This stub must produce a `.contract.json` projection before it is treated as registered governance inventory.\n- This stub is not executable until it becomes an official signed packet with refinement, packet contract, microtask contracts, and activation approval.\n- KERNEL-006 must be activated, implemented, and Integration Validator-verified before this stub is activated."
-  },
   "activation_contract": {
     "may_start_coder": false,
     "may_start_validator": false,
     "required_activation_steps": [
-      "verify_kernel006_activated_and_validated",
+      "verify_kernel006_implemented_and_validated",
       "create_or_refresh_refinement",
-      "answer_or_defer_key_open_questions",
-      "obtain_user_signature",
+      "validate_research_basis_and_red_team",
+      "adopt_and_validate_precreated_microtasks",
+      "obtain_new_wp_activation_signature",
       "create_official_work_packet_contract",
       "move_task_board_entry_from_stub_to_ready_for_dev"
     ]
   },
   "red_team": {
     "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "assumptions_to_attack": [
-      "A stub is planning metadata, not execution authority.",
-      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
-      "MCP scrutiny defaults are operator-tunable but never below the default-deny floor.",
-      "Visitor-pass Principals cannot spawn children or escalate scope.",
-      "Audit badges are denormalized on trace rows for replay survival.",
-      "MCP fingerprint swap triggers re-consent and is not bypassable by client-side caching."
-    ],
+    "profile": "RESOURCE_GRANT_VISITOR_MCP_REMOTE_V1",
     "minimum_controls": [
       "Keep execution_authority=NON_EXECUTION_STUB.",
-      "Require official packet contract before Coder or Validator launch.",
-      "Fail drift checks when stub Markdown changes without contract regeneration.",
-      "Refinement must surface per-server bulk-approval semantics for read-only tools, revoke abort vs let-finish semantics, and TTL enforcement points."
+      "No product implementation may begin from this stub or its inactive MTs.",
+      "Refinement must prove backend enforcement for every resource boundary, not only UI visibility.",
+      "Same-project private resources, concurrent revocation, side-channel denial, and remote import quarantine are mandatory scenarios."
     ]
   }
 }

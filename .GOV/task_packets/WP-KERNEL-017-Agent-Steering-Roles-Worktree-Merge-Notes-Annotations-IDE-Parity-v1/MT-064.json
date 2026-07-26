@@ -1,0 +1,169 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-064",
+  "title": "AP-MT064-AcpAgentRegistryLane",
+  "group": "AP ACP client layer",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-064.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-061"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the registry of ACP-launchable agents and wire the ACP lane into the production factory so an ACP agent spawn is a first-class, governed Handshake lane. Three known agents seed the registry: (1) claude-agent-acp — the Claude Code ACP adapter, npm package @agentclientprotocol/claude-agent-acp (RENAMED from @zed-industries/claude-code-acp; the registry must recognize the legacy name as a typed migration alias, never silently), launched via node/npx with EXECUTABLE IDENTITY VERIFICATION mirroring the resolve_codex_npm_shim discipline in official_cli_bridge.rs; (2) gemini — Gemini CLI speaks ACP natively (experimental ACP flag; CliKind::GeminiCli already exists for the executable class); (3) codex — via the Zed-maintained codex ACP adapter package. Plus a config surface for OPERATOR-ADDED ACP agents (arbitrary conforming agents; 40+ exist in the July-2026 ecosystem).\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/agent_sessions/acp/agent_registry.rs (registry types, identity resolution/verification, config surface); a lane-wiring change in src/backend/handshake_core/src/swarm_orchestration/production_factory.rs (extend the cloud-lane config the way it already wires the official-CLI lane, see with-official-cli builder around line ~378); a MINIMAL enum extension where the code dictates: inspect ProviderKind (src/backend/handshake_core/src/model_runtime/types.rs line ~62: Local, ExternalCompat, ByokCloud, OfficialCli) and CliKind (src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs line ~63: ClaudeCode, CodexCli, GeminiCli, Other) and every exhaustive match on them, then choose and record ONE of: (a) new ProviderKind::AcpAgent variant, or (b) reuse ProviderKind::OfficialCli with an ACP transport discriminator on the lane config — the decision rule is MINIMAL DIFF ACROSS EXHAUSTIVE MATCHES while keeping FR/ledger lane labels distinguishable (an ACP spawn must never be indistinguishable from a plain official-CLI spawn in the ledger). Integration tests under src/backend/handshake_core/tests/acp_agent_registry.rs.\n\nDETAILED SPEC:\n- REGISTRY RECORD (machine-readable, serde): { agent_id (stable, kebab-case), display_name, launch: { kind: NpmShim | NativeExecutable | NodeScript, executable_or_shim_path, args, env_allowlist }, acp: { expected_capabilities, version_range }, identity: { verification_policy, pinned_sha256s? }, origin: BuiltIn | OperatorAdded, aliases: [legacy package names] }. Registry ids are referenced by MT-065/066 and by session-launch callers.\n- IDENTITY VERIFICATION (claude-agent-acp exemplar, mirroring resolve_codex_npm_shim at official_cli_bridge.rs line ~1263): for an npm-shim launch on Windows, validate the shim (.cmd) by name and bounded size; parse it to confirm it dispatches to node_modules/@agentclientprotocol/claude-agent-acp/<bin entry> with %* passthrough; resolve the package's package.json and require name == @agentclientprotocol/claude-agent-acp (or a registered alias with a typed AliasResolved event) and a non-empty version; resolve the actual node entry script; capture locked FileIdentity (canonical path + sha256, via the locked_file_identity pattern line ~1084) for shim, script, manifest, and the node executable; pin identities on first registration and revalidate on every launch (mismatch => typed ExecutableIdentity error, no spawn). For NativeExecutable launches (gemini), pin the executable FileIdentity directly.\n- LANE WIRING: extend the production factory cloud-lane config with an ACP lane analogous to the official-CLI lane: not configured => an ACP spawn returns the factory's honest ProviderNotConfigured error (never a silent fallback to another lane); configured => the lane builds an ACP session via the MT-061 adapter. SwarmCoordinator remains the ONLY sanctioned spawn path (WP-017 stub control): the registry/lane provides no bypass constructor that skips coordinator governance (caps, ceilings, consent, leases).\n- CONFIG SURFACE: operator-added agents are declared through the same configuration mechanism the existing lanes use (inspect how the official-CLI lane receives CliBridgeConfig from operator config and mirror it); adding an agent requires launch spec + identity policy; agents with verification_policy=Pinned cannot launch unverified. Config parse errors are typed, named, and never default to a permissive launch.\n- LEDGER/FR: agent registration, alias resolution, identity pin, revalidation failure, lane spawn, and lane not-configured are all typed EventLedger events with the ACP lane label; FR kinds per MT-161 when landed else DEFERRED-with-reason.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Inspect ProviderKind and CliKind plus EVERY exhaustive match on them (grep the workspace) and write the enum-extension decision (option a or b, with the match-site list) into the code as a doc comment and into the MT lifecycle on completion.\n2. Implement the registry record types + serde + stable-id validation (kebab-case, unique).\n3. Implement NpmShim identity resolution for claude-agent-acp mirroring resolve_codex_npm_shim (shim parse, package manifest name/version check, entry-script resolution, node resolution) with locked FileIdentity capture and pin/revalidate lifecycle; wire the @zed-industries/claude-code-acp legacy alias with a typed AliasResolved event.\n4. Implement NativeExecutable identity for gemini (direct FileIdentity pin) and NodeScript/NpmShim identity for the codex ACP adapter package.\n5. Seed the three built-in registry entries with expected_capabilities (claude-agent-acp: loadSession=true expected, usage events ABSENT — known gap; gemini: native ACP; codex: adapter) and conservative version_range values; these are DECLARATIONS here — live verification is MT-066.\n6. Extend the production factory cloud-lane config with the ACP lane (mirror the official-CLI lane builder pattern ~line 378) including the honest not-configured error path.\n7. Implement the operator config surface for added agents, mirroring the existing lane-config ingestion path.\n8. Emit the typed ledger events; wire HBR-INT-009 tier evidence.\n9. Author tests per expected_tests: registry + identity verification against synthetic npm-shim fixture trees on disk (a fake shim + package layout in a temp dir — REAL file parsing/hashing, no mocked filesystem), lane not-configured honesty, no-bypass-spawn assertion.\n10. Run proof targets; live-agent launches are explicitly OUT of scope here (MT-066 owns them) — do not fabricate live proof.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/acp/agent_registry.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/mod.rs (wiring lines only)",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs (ACP lane wiring only)",
+      "src/backend/handshake_core/src/model_runtime/types.rs (ProviderKind extension ONLY if decision (a) is taken)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (CliKind extension ONLY if the decision requires it; no other edits)",
+      "src/backend/handshake_core/tests/acp_agent_registry.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (the bridge is READ-ONLY reference for parity; never edited by this WP)",
+      "src/frontend/** (no GUI surface in this MT)"
+    ],
+    "acceptance_criteria": [
+      "The registry holds the three built-in agents (claude-agent-acp, gemini, codex-acp-adapter) with stable ids, launch specs, expected capabilities, and identity policies; serde round-trip proven.",
+      "NpmShim identity verification for claude-agent-acp mirrors resolve_codex_npm_shim: shim parse + manifest name check (@agentclientprotocol/claude-agent-acp) + entry-script + node resolution, all captured as locked FileIdentity (canonical path + sha256) — proven against a synthetic on-disk shim/package fixture; a tampered script or wrong manifest name yields a typed identity error and NO launch plan.",
+      "Identity pin-then-revalidate lifecycle proven: first registration pins; a subsequent resolution with changed bytes fails typed (mirror the pinned-identity revalidation in official_cli_bridge.rs ~line 2082).",
+      "The legacy package name @zed-industries/claude-code-acp resolves via a typed AliasResolved event to the renamed package — proven by test; no silent acceptance.",
+      "The enum-extension decision (ProviderKind::AcpAgent vs OfficialCli+transport discriminator) is recorded in a doc comment listing every inspected exhaustive match site, and the build stays green across the workspace (no missed match arm).",
+      "An ACP spawn on an unconfigured lane returns the factory's honest ProviderNotConfigured-class error — proven by test; no fallback to another lane.",
+      "A configured ACP lane spawn constructs the MT-061 adapter session and its ledger events carry an ACP-distinguishable lane label (never indistinguishable from plain OfficialCli) — proven by test.",
+      "No public constructor or function allows an ACP agent spawn that bypasses SwarmCoordinator governance — proven by API-surface test/review note.",
+      "Operator-added agent config: a valid declaration registers and resolves; an invalid one (bad id, missing identity policy, unparseable) fails typed — both proven.",
+      "cargo build -p handshake_core green; all listed tests pass headless."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core",
+      "cargo test -p handshake_core --test acp_agent_registry -- --nocapture",
+      "cargo test -p handshake_core --test acp_agent_registry acp_npm_shim_identity_verification -- --nocapture",
+      "cargo test -p handshake_core --test acp_agent_registry acp_identity_pin_revalidate_tamper_fails -- --nocapture",
+      "cargo test -p handshake_core --test acp_agent_registry acp_lane_not_configured_is_honest -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/acp/agent_registry.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "src/backend/handshake_core/src/model_runtime/types.rs (conditional)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (conditional)"
+    ],
+    "expected_tests": [
+      "acp_registry_serde_round_trip_and_stable_ids",
+      "acp_npm_shim_identity_verification (synthetic on-disk fixture, real parse + sha256)",
+      "acp_npm_shim_wrong_manifest_name_fails_typed",
+      "acp_identity_pin_revalidate_tamper_fails",
+      "acp_legacy_alias_resolves_with_typed_event",
+      "acp_native_executable_identity_pin (gemini shape)",
+      "acp_lane_not_configured_is_honest",
+      "acp_lane_configured_spawn_builds_adapter_with_distinct_lane_label",
+      "acp_no_bypass_spawn_surface",
+      "acp_operator_added_agent_config_valid_and_invalid"
+    ],
+    "implementation_notes": [
+      "resolve_codex_npm_shim (official_cli_bridge.rs ~1263-1400) is the verified in-repo exemplar: shim filename check, bounded size, content dispatch check with %*, package.json name/bin verification, version extraction, platform-dependency validation, node resolution. Mirror the DISCIPLINE for @agentclientprotocol/claude-agent-acp; the package layout differs (inspect the actual installed package at implementation time — bin entry name and platform handling are package-specific).",
+      "locked_file_identity (~1084) holds an OS file lock while hashing so the verified bytes cannot be swapped before spawn; reuse or mirror that primitive, do not downgrade to unlocked hashing.",
+      "ENUM DECISION GUARD: do NOT extend both ProviderKind and CliKind speculatively. Inspect first; extend only what the chosen option requires; the allowed_paths entries for types.rs/official_cli_bridge.rs are conditional on that recorded decision.",
+      "Gemini CLI ACP flag: research says native ACP behind an experimental flag; verify the exact flag against the installed CLI at implementation time (registry stores it as launch args data, so a flag rename is config, not code).",
+      "Expected capabilities per agent are declarations consumed by MT-066's contract tests and MT-065's parity report; keep them honest (claude-agent-acp: NO usage/cost events as of July 2026 — declare the absence, do not paper over it).",
+      "SwarmCoordinator remains the single sanctioned spawn path (WP-017 stub minimum control); the lane is plumbing UNDER the coordinator, exactly like the official-CLI lane."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend MT: registry + lane wiring. Operator GUI for lane management is an existing/other-family surface; this MT's config surface is file/config-based and proven via tests + TraceProjection per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "Agent sessions: ACP agent registry — built-in agents, how to add an operator-defined ACP agent, identity verification requirements, lane configuration"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FLIGHT_RECORDER: agent registration, identity pin/revalidation failure, and lane spawn are business events — FR emit per MT-161 kinds when landed, else DEFERRED-with-reason.",
+    "INTERNAL_DIAGNOSTICS: expose registry state (agent count, identity pin status per agent, lane configured/unconfigured) to the open diagnostic-event API — WIRED or DEFERRED-with-reason.",
+    "PALMISTRY: not directly applicable (no long-lived process owned by this MT; sessions are MT-061's) — record NOT_APPLICABLE-with-reason unless the implementation adds a resident watcher."
+  ],
+  "risk_if_missed": "No governed way to launch real ACP agents: MT-065/066 have nothing to launch, operator-added agents are impossible, and any ad-hoc launch path would skip executable identity verification and SwarmCoordinator governance.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Executable identity spoofing — an unverified npm shim or swapped entry script runs arbitrary code under Handshake's governed-agent identity (supply-chain class).",
+      "RISK-2: Silent legacy-alias acceptance — treating @zed-industries/claude-code-acp as interchangeable without a typed event hides which package actually ran.",
+      "RISK-3: Ungoverned spawn bypass — a registry/lane convenience constructor that spawns without SwarmCoordinator breaks the single-sanctioned-spawn-path invariant (privilege escalation surface named in the WP stub).",
+      "RISK-4: Enum-extension breakage — adding a ProviderKind/CliKind variant without sweeping every exhaustive match silently changes behavior at unvisited match sites, or the ACP lane masquerades as OfficialCli in the ledger making spawns unattributable to transport.",
+      "RISK-5: Permissive config fallback — a malformed operator agent declaration that defaults to launch-anyway converts a typo into an unverified agent launch."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): resolve_codex_npm_shim-grade verification + locked FileIdentity sha256 pin + revalidate-on-launch; tamper test is a named proof target.",
+      "CTRL-2 (RISK-2): alias resolution is a typed AliasResolved ledger event; test asserts its presence.",
+      "CTRL-3 (RISK-3): no-bypass API-surface test; lane plumbing sits strictly under SwarmCoordinator like the official-CLI lane.",
+      "CTRL-4 (RISK-4): recorded enum decision with the full match-site inventory; workspace build green is an acceptance criterion; ledger lane label distinctness is a tested criterion.",
+      "CTRL-5 (RISK-5): config parse errors are typed and fail registration; invalid-config test is mandatory; verification_policy=Pinned agents cannot launch unverified."
+    ]
+  },
+  "research_provenance": {
+    "source": "Inspected product code: official_cli_bridge.rs (CliKind ~63, resolve_codex_npm_shim ~1263, locked_file_identity ~1084, pinned-identity revalidation ~2082), model_runtime/types.rs (ProviderKind ~62), swarm_orchestration/production_factory.rs (cloud-lane config + with-official-cli builder ~378, honest ProviderNotConfigured pattern) + ACP ecosystem July 2026 (40+ agents; @zed-industries/claude-code-acp renamed to @agentclientprotocol/claude-agent-acp; Gemini CLI native ACP; Codex via Zed adapter) per WP-017 stub research basis.",
+    "corrections": [
+      "The exact ProviderKind/CliKind extension is deliberately NOT pre-decided: the code (exhaustive match inventory) dictates it; the contract binds the decision rule (minimal diff + ledger-distinguishable lane) and requires the decision be recorded.",
+      "claude-agent-acp package internals (bin entry, platform layout) must be inspected at implementation time; the codex shim exemplar transfers as discipline, not as literal paths.",
+      "Live-agent launches are excluded here (MT-066); identity verification tests run against synthetic on-disk fixtures with real parsing and hashing."
+    ]
+  }
+}

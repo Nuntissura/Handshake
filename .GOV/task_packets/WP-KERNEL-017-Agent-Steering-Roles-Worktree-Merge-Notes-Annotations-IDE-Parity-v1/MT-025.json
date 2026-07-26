@@ -1,0 +1,146 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-025",
+  "title": "CS-MT025-ClaudeResumeFork",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-025.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-006",
+      "MT-021"
+    ],
+    "blocks": [
+      "MT-028"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Session resume and fork for the Claude lane, bound to the MT-006 session-persistence seam: relaunch a previously recorded session with `-r/--resume <session_id>` (continuing its history), optionally `--fork-session` (new session id branched from the recorded history), with the recorded-cwd resume rule ENFORCED — Claude session lookup is scoped to the cwd and its git worktrees, so resuming from the wrong directory silently finds nothing (or the wrong store); Handshake must pin the resume launch cwd to the session's recorded canonical working directory and refuse otherwise. `-c/--continue` is explicitly FORBIDDEN harness-wide (picks the most recent session in cwd — nondeterministic under parallel lanes).\n\nEXPECTED DIFF SHAPE: new file src/backend/handshake_core/src/model_runtime/cloud/claude_resume.rs (resume/fork preset builder + cwd rule + typed errors) extending the MT-021 preset; integration tests including the resume-from-wrong-cwd negative test.\n\nSPEC:\n1. `ClaudeResumeSpec { record: SessionPersistenceRecord (MT-006 type: session_id, canonical_working_dir, model, consent policy snapshot, ...), fork: bool }`.\n2. `ClaudeResumeSpec::render_args()` = the FULL MT-021 canonical interactive argv (all required flags: -p, --input-format/--output-format stream-json, --verbose, --replay-user-messages, --model) with `-r <session_id>` REPLACING `--session-id <uuid>` for a plain resume; when `fork == true`, additionally `--fork-session` AND a fresh pre-pinned `--session-id <new v7-derived uuid>` for the fork (so the forked session's id is harness-chosen, not parsed back; the new id is recorded to MT-006 BEFORE launch). Validation delegates to the MT-021 validator plus resume-specific rules.\n3. Recorded-cwd rule: `enforce_recorded_cwd(record, launch_working_dir) -> Result<(), ClaudeResumeError>` — the launch working_dir MUST match record.canonical_working_dir under Windows-aware path identity (reuse the existing `paths_match_checkout_identity` helper, official_cli_bridge.rs lines 53-60: case-insensitive on Windows). Mismatch -> typed `ClaudeResumeError::WrongWorkingDirectory { expected, actual }` and NO launch. The session-persistence record is the source of truth; the caller may not override except via an explicit operator `relocate_session` flow (OUT OF SCOPE here — reject with the typed error and name that flow in the message).\n4. `-c/--continue` ban: the MT-021 validator already rejects `-c`/`--continue` in argv; this MT adds the resume-layer guarantee that no code path constructs them, plus a doc-comment stating WHY (most-recent-session-in-cwd is nondeterministic when multiple Handshake lanes share a worktree; a harness must always address sessions by id).\n5. Post-resume verification: after launch, the first system/init envelope (MT-022) must carry the EXPECTED session_id (the resumed id, or the fork's new id — verify which id init reports for forks against the live CLI and pin the observed behavior in a test + MT-028 drift note). Mismatch -> typed `ResumedWrongSession` outcome, supervisor stops the child (MT-005), and the failure is recorded. This turns the silent-wrong-session failure mode into a hard typed failure.\n6. Resume outcomes recorded via the MT-029 seam (no-op sink allowed until MT-029 lands): resume-launched, resume-verified, fork-created (with parent session_id correlation), resume-refused-wrong-cwd, resumed-wrong-session.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-006 persistence seam (record shape, canonical_working_dir semantics) and the MT-021 preset/validator.\n2. Implement ClaudeResumeSpec + render_args (delegating validation to MT-021's gate) + enforce_recorded_cwd via paths_match_checkout_identity.\n3. Implement post-resume init verification against the MT-022 ClaudeSessionInit.session_id.\n4. Tests: render snapshot for resume + fork; wrong-cwd refusal (negative, Windows case-variant path equality both ways); no -c/--continue construction (grep + validator test); fork pre-pins fresh v7-derived id and records it before launch (mock persistence seam assertion); init-id mismatch -> ResumedWrongSession.\n5. Live integration (typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent): create session in worktree A, close, resume from A (succeeds, history intact — model recalls a fact from the pre-resume turn), attempt resume from directory B (refused BEFORE launch by the cwd rule; additionally document the raw CLI behavior when forced, as MT-028 evidence), fork from A and prove the parent session remains resumable.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_resume.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_resume_fork_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "ClaudeResumeSpec::render_args yields the full MT-021 canonical interactive argv with -r <session_id> (resume) and additionally --fork-session + fresh pre-pinned --session-id (fork); snapshot tests pin both shapes.",
+      "enforce_recorded_cwd refuses launch on working-dir mismatch with typed WrongWorkingDirectory, using paths_match_checkout_identity (Windows case-insensitive) — proven by a negative test with case-variant Windows paths.",
+      "No code path constructs -c/--continue; validator + grep test prove it.",
+      "Fork ids are minted v7 and written to the MT-006 persistence seam BEFORE launch; parent/child correlation is recorded.",
+      "Post-resume init verification: session_id mismatch yields typed ResumedWrongSession and supervisor stop — no silent wrong-session continuation.",
+      "Live proof (or typed NEEDS_MANAGED_RESOURCE_PROOF): resume continues real history in the recorded worktree; wrong-cwd resume is refused before launch; fork leaves the parent session resumable.",
+      "All resume/fork/refusal outcomes reach the MT-029 recording seam."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_resume -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_resume_wrong_cwd_refused -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rn -- '--continue' src/backend/handshake_core/src/model_runtime/cloud/ | grep -v 'REJECT\\|forbid\\|ban\\|//!' | wc -l | grep -q '^0'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): worktree-A create/close/resume with history recall assertion; wrong-cwd negative; fork + parent-still-resumable assertion"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_resume.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (wiring)"
+    ],
+    "expected_tests": [
+      "claude_resume::resume_args_snapshot",
+      "claude_resume::fork_args_snapshot_with_prepinned_id",
+      "claude_resume::wrong_cwd_refused_windows_case_insensitive",
+      "claude_resume::no_continue_flag_constructible",
+      "claude_resume::fork_id_recorded_before_launch",
+      "claude_resume::init_session_id_mismatch_is_typed_failure"
+    ],
+    "implementation_notes": [
+      "GROUNDING FACT: Claude session lookup is scoped to the cwd + its git worktrees (verified research, July 2026 docs). Handshake runs many parallel worktrees (session_worktrees / worktree_vm_registry), which is exactly the environment where --continue and wrong-cwd resumes mis-select sessions — hence the hard refusal rule.",
+      "paths_match_checkout_identity (official_cli_bridge.rs 53-60) is the existing Windows-aware path comparator; reuse it rather than re-implementing case-folding.",
+      "Which session_id the fork's system/init reports (parent's or the pre-pinned new one) must be pinned by the live test, not assumed; record the observed behavior in the MT-028 drift notes and encode it in the verification logic.",
+      "The persistence record (MT-006) owns canonical_working_dir; when a worktree has been moved/deleted the WrongWorkingDirectory error message must name the operator relocate flow rather than inviting a bypass.",
+      "Windows path-encoding breakage in ACP-adapter resume was a named stub risk; the negative tests must include a path with mixed separators (D:/... vs D:\\...) — canonicalize before compare.",
+      "MT-006 seam absent at implementation time = dependency-blocked (HBR-STOP-004); do not stub persistence."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend resume/fork mechanics; session-list GUI resume actions bind to this in the WP-017 GUI MT group."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Operator-facing resume/fork workflow docs land with the session-management surface MT; this MT ships the internal rule set (cwd pinning, --continue ban) consumed there."
+  },
+  "hbr_obligations": [
+    "HBR-INT-005",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED via MT-029 seam — resume/fork/refusal outcomes with parent-child correlation.",
+    "internal_diagnostics: WIRED — typed WrongWorkingDirectory / ResumedWrongSession failures inspectable.",
+    "Palmistry: DEFERRED-with-reason — long-session posture owned by MT-005/MT-029; this MT contributes typed lifecycle transitions."
+  ],
+  "risk_if_missed": "Interrupted or crashed worker sessions are unrecoverable (every failure restarts the MT from zero context), and any resume attempted ad-hoc from the wrong worktree silently continues the WRONG session — the worst possible failure under parallel lanes.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Resume from the wrong cwd silently resumes a different session or starts fresh, and the worker continues with wrong/missing context while the ledger claims continuity.",
+      "RISK-2: -c/--continue sneaks in via a convenience path and picks the most recent session nondeterministically under parallel worktrees.",
+      "RISK-3: Fork id handling desyncs persistence: the fork's real session id differs from the recorded one, so the fork is never resumable and its transcript is orphaned.",
+      "RISK-4: Windows path-identity mismatches (case, separators, junctions) make the cwd rule refuse VALID resumes, bricking recovery on the operator's actual OS."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): enforce_recorded_cwd hard refusal BEFORE launch + post-resume init session_id verification -> ResumedWrongSession typed failure with supervisor stop.",
+      "CTRL-2 (RISK-2): validator rejection + grep proof target + no constructor for -c/--continue.",
+      "CTRL-3 (RISK-3): fork id pre-pinned v7, persisted BEFORE launch, then verified against init; live test proves parent remains resumable.",
+      "CTRL-4 (RISK-4): canonicalize + paths_match_checkout_identity; negative tests cover case-variant and separator-variant Windows paths both directions."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (-r/--resume <id>, -c/--continue, --fork-session, --session-id pre-pinning; session lookup scoped to cwd + its git worktrees — Windows worktree sensitivity) + grounding audit of wtc-multi-model-orchestration-v1 official_cli_bridge.rs (paths_match_checkout_identity 53-60 Windows case-insensitive path identity; checkout-lease canonical_working_dir fields threaded through spawn meta 2293-2299, 2348-2353).",
+    "corrections": [
+      "The task brief's 'continue (-c) explicitly NOT used by harness (nondeterministic)' is strengthened to a validated ban: MT-021's validator rejects it and this MT adds grep-level proof that no resume path constructs it.",
+      "Which session_id the forked session's system/init reports is not pinned by public docs; the contract requires the live test to pin observed behavior rather than assuming, with the finding recorded in MT-028 drift notes."
+    ]
+  }
+}

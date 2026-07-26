@@ -1,0 +1,191 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-287",
+  "title": "IP-MT287-InlineAiEditGhostTextSeam",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-287.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-007",
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the Antigravity / Cursor-class inline AI-edit EDITOR SEAM in the native code editor — the ghost-text preview of a proposed AI edit shown inline (as dim virtual text for an insertion, or a red-strike/green-insert inline diff for a replacement) with Tab-to-accept, Esc-to-reject, and Alt-] / Alt-[ to cycle alternatives. PARITY HERE IS THE EDITOR SEAM, NOT THE MODEL: this MT owns the render + accept/reject + apply-as-one-undo, and consumes AI-proposed edits as typed EditProposals delivered through the WP-017 Pillar-A session API (MT-007 AgentSessionService: launch/steer/status). The MT-281 matrix marks 'ai-inline-edit-ghost-text' MISSING: editor_view has LSP CompletionPopup only; there is no ghost-text inline-edit overlay and no proposal accept/reject path wired to the agent session runtime. This MT does NOT call a model directly, does NOT own prompting, and does NOT implement completion inference — it defines the typed EditProposal seam and the editor UI that renders and applies it; the producer is an agent session via MT-007.\n\nEXPECTED DIFF SHAPE: (a) NEW module dir src/frontend/handshake_native/src/code_editor/inline_ai/ with mod.rs, proposal.rs (typed EditProposal + EditProposalStream client seam consuming MT-007 session output; NO model call), ghost_render.rs (the ghost-text / inline-diff renderer over the virtualized layout), session.rs (InlineAiState: pending proposal, alternatives, accept/reject/cycle state machine); (b) `pub mod inline_ai;` + re-exports in code_editor/mod.rs; (c) wiring in code_editor/panel.rs: a 'Request Inline Edit' trigger (default Ctrl+K, Antigravity/Cursor parity) that sends the current selection/context to the bound agent session and enters proposal-preview mode, Tab-accept / Esc-reject / Alt-]-Alt-[ cycle, and apply-as-one-undo; (d) one integration test file driving the seam with a FAKE proposal stream (no live model). Consumes MT-007 (SC-MT007-SessionApiSurface); NO backend model code; NO new inference.\n\nDETAILED SPEC:\n1. proposal.rs: `pub struct EditProposal { proposal_id: Uuid, session_id: String, kind: EditProposalKind, range: (usize,usize) (byte range in the current buffer the edit replaces; empty range = pure insertion at a point), new_text: String, rationale: Option<String>, alternative_index: usize, alternative_count: usize }`; `pub enum EditProposalKind { Insertion, Replacement, MultiRangeReplacement(Vec<(usize,usize,String)>) }`. `pub trait EditProposalStream { fn poll(&mut self) -> ProposalPoll; }` where ProposalPoll = Pending | Ready(Vec<EditProposal>) | Error(String) | Done. The PRODUCTION stream adapts MT-007 session output (the agent proposes edits as structured session messages); this MT ships the trait + a test fake. NO model call, NO prompt construction here — the seam is transport-only.\n2. ghost_render.rs: for an Insertion, render new_text as dim virtual (ghost) text at the point (not in the buffer), theme-token muted color, wrapping across lines correctly in the virtualized layout (MT-002 show_rows). For a Replacement, render an inline diff: the replaced range shown with a strike/removed style and the new_text shown with an added style directly adjacent (VS Code inline-suggestion + Cursor inline-diff visual), so the operator sees exactly what changes. MultiRange shows each changed span with the same treatment. Ghost text is NEVER in the buffer until accepted and is non-selectable decoration.\n3. session.rs: InlineAiState { pending: Option<EditProposal>, alternatives: Vec<EditProposal>, active: usize, phase: Idle|Requested|Previewing|Applying|Error }. Ctrl+K -> Requested (send selection + surrounding context to the bound agent session via MT-007 steer/launch; the CONTEXT PAYLOAD build reuses MT-288's context-attach if present, else a minimal selection+file payload) -> on proposals arriving -> Previewing (render the active alternative as ghost/inline-diff). Tab accepts the active proposal: apply new_text to range as ONE undo entry (MT-035/051 single-undo boundary) and clear the state. Esc rejects: discard all proposals, restore the pristine view, and emit a typed 'rejected' outcome back to the session (so the agent knows). Alt-] / Alt-[ cycle alternative_index and re-render. A proposal whose range no longer matches the buffer (the buffer changed since the proposal was made) is INVALIDATED, not applied to a shifted range — it is dropped with a visible 'edit no longer applies' note (never silently applied to the wrong place).\n4. Provenance + safety (binding): an accepted inline AI edit is attributed as model-authored in the same edit ledger the rest of the editor uses (the edit description carries the session_id / robot id) so accepted AI edits are auditable, matching the WP-017 provenance discipline (operator vs model authorship must never blur). The seam NEVER auto-accepts: acceptance is always an explicit operator Tab (or a governed auto-accept flag that defaults OFF and is out of scope here).\n5. AccessKit: the ghost overlay is a Role::Group `code_editor_inline_ai` (instance-suffixed per panel.rs RISK-004) with a Role::Label `code_editor_inline_ai_preview` carrying the proposal text for the a11y tree, and an accept/reject hint `code_editor_inline_ai_hint`. Ghost text must be exposed to AccessKit as a distinct proposed-edit node, not as buffer content, so a screen reader / agent never mistakes a preview for committed text.\n6. Scope edges: this MT is the EDITOR SEAM only. It does NOT implement the model, the prompt, or inference; it does NOT own the agent chat dock (MT-098) or the multi-file review flow (WP-017 WM/NA). It consumes EditProposals from an agent session (MT-007) and renders/accepts/rejects them.\n\nSTEP-BY-STEP:\n1. Read the WP-017 MT-007 contract (AgentSessionService launch/steer/status DTOs, the /agent-sessions routes, session output shape) as the proposal producer; code_editor/editor_view.rs (CompletionPopup — the ghost overlay must be DISTINCT from LSP completions and not fight them); panel.rs (virtualized per-line paint, single-undo boundary, off-thread drain, RISK-004 instance-suffix ids, edit description/ledger); buffer.rs/cursor.rs (byte-range apply); keymap.rs (add RequestInlineEdit Ctrl+K, AcceptInlineEdit=Tab-in-preview, RejectInlineEdit=Esc, CycleAlt chords).\n2. Create inline_ai/proposal.rs (EditProposal types + EditProposalStream trait + a test fake); NO model/prompt code.\n3. Create inline_ai/ghost_render.rs (ghost text for insertion, inline diff for replacement, over the virtualized layout, theme tokens) + inline_ai/session.rs (the Idle..Error state machine + accept-as-one-undo + reject-emits-outcome + cycle + range-invalidation).\n4. Wire panel.rs: Ctrl+K enters Requested and sends context to the bound session (MT-007); render the active proposal; Tab/Esc/Alt-]/Alt-[ handling; accepted edit carries model provenance in its ledger description.\n5. Register `pub mod inline_ai;` + re-exports in code_editor/mod.rs.\n6. Integration test (FAKE stream, no live model): request -> single insertion proposal renders as ghost text -> Tab accepts as one undo; a replacement proposal renders as inline diff -> Esc rejects and restores + emits 'rejected'; two alternatives cycle with Alt-]/Alt-[; a proposal whose range drifted (buffer edited mid-preview) is invalidated with the note, not misapplied; accepted edit's ledger description contains the session/model id. Capture Argus screenshot + AccessKit tree of a ghost insertion, an inline-diff replacement, and the accept/reject hint.\n7. Update the UserManual (same change): inline AI edit — Ctrl+K to request, ghost/inline-diff preview, Tab accept / Esc reject / Alt-] Alt-[ cycle, that previews are never in the file until accepted, and that accepted AI edits are recorded as model-authored.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/inline_ai/**",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/tests/test_inline_ai_seam.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (the agent session runtime is MT-007 / Pillar-A; this MT consumes it, never edits it or adds model/inference code)",
+      "src/frontend/handshake_native/src/code_editor/editor_view.rs (LSP completions stay separate; the ghost overlay must not modify the completion popup)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/inline_ai/ exists with proposal.rs (typed EditProposal{proposal_id,session_id,kind,range,new_text,rationale,alt index/count} + EditProposalKind Insertion/Replacement/MultiRangeReplacement + EditProposalStream trait + a test fake), ghost_render.rs (ghost text for insertion, inline diff for replacement over the virtualized layout), session.rs (Idle..Error state machine).",
+      "The seam consumes EditProposals produced by a WP-017 agent session (MT-007) and contains NO model call, NO prompt construction, and NO inference (grep-provable: no reqwest to a model endpoint, no completion inference in inline_ai/**).",
+      "Ctrl+K requests an inline edit (sends selection + context to the bound session); the active proposal renders as ghost text (insertion) or inline diff (replacement) that is NEVER in the buffer and is non-selectable decoration (theme-token colors, no hardcoded hex).",
+      "Tab accepts the active proposal as ONE undo entry; Esc rejects, restores the pristine view, and emits a typed 'rejected' outcome to the session; Alt-] / Alt-[ cycle alternatives.",
+      "A proposal whose byte range no longer matches the buffer (edited mid-preview) is INVALIDATED with a visible 'edit no longer applies' note and never applied to a shifted range.",
+      "An accepted inline AI edit is recorded as model-authored (its edit-ledger description carries the session/robot id); the seam never auto-accepts (acceptance is an explicit operator action).",
+      "AccessKit exposes the ghost overlay as a distinct proposed-edit node (code_editor_inline_ai / _preview / _hint), instance-suffixed, so a preview is never mistaken for committed buffer text.",
+      "UserManual updated in the same change: Ctrl+K request, ghost/inline-diff preview, Tab/Esc/Alt-] Alt-[ semantics, previews-not-in-file, AI edits recorded as model-authored."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native inline_ai_seam -- --nocapture",
+      "rg -n 'EditProposal|code_editor_inline_ai' src/frontend/handshake_native/src/code_editor/inline_ai/",
+      "rg -n 'openai|anthropic|completions|inference|model_endpoint|prompt_template' src/frontend/handshake_native/src/code_editor/inline_ai/ | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of (a) a ghost-text insertion preview, (b) an inline-diff replacement preview, (c) the accept/reject hint, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/inline_ai/proposal.rs (typed EditProposal + stream seam over MT-007)",
+      "src/frontend/handshake_native/src/code_editor/inline_ai/ghost_render.rs (ghost text + inline diff renderer)",
+      "src/frontend/handshake_native/src/code_editor/inline_ai/session.rs (accept/reject/cycle/invalidate state machine)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (Ctrl+K request + preview + Tab/Esc/Alt cycle + one-undo apply + model provenance)",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs (RequestInlineEdit/Accept/Reject/CycleAlt chords)"
+    ],
+    "expected_tests": [
+      "unit: EditProposal apply — insertion at a point vs replacement of a range produces the correct buffer text",
+      "unit: ghost/inline-diff render model for insertion, replacement, and multi-range",
+      "unit: AccessKit exposes the preview as a proposed-edit node distinct from buffer text",
+      "integration: Ctrl+K request -> fake stream single insertion -> Tab accept as one undo",
+      "integration: replacement proposal -> Esc reject restores view + emits 'rejected' outcome",
+      "integration: two alternatives cycle with Alt-]/Alt-[",
+      "integration: range-drift proposal invalidated with the note, not misapplied",
+      "integration: accepted edit's ledger description carries the session/model id (model provenance)"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: WP-017 MT-007 (SC-MT007-SessionApiSurface) defines AgentSessionService with launch/steer/interrupt/status and /agent-sessions routes + typed DTOs — the proposal producer. code_editor/editor_view.rs has CompletionPopup (LSP) which the ghost overlay must stay distinct from (both can be visible; Tab semantics must not collide — inline-AI Tab-accept only in Previewing phase). panel.rs owns the virtualized per-line paint, single-undo boundary (MT-035/051), off-thread drain, RISK-004 instance-suffix ids, and the edit-ledger description (for model provenance). MT-284 snippets also uses Tab; the two must arbitrate Tab by active phase.",
+      "Design basis (cite in code docs): Antigravity / Cursor / GitHub Copilot inline suggestion + inline edit (Ctrl+K) — ghost text for a completion, an inline red/green diff for an edit, Tab accept, Esc reject, Alt-] cycle. PARITY IS THE SEAM: the render + accept/reject + apply, not the model.",
+      "PROVENANCE IS LOAD-BEARING (WP-017 discipline): an accepted AI edit must be recorded as model-authored so operator vs model authorship never blurs — reuse the same edit-ledger description path the rest of the editor uses, tagging the session/robot id.",
+      "The context payload sent on Ctrl+K reuses MT-288 (agent-editor-context-attach) when available; if MT-288 has not landed, send a minimal selection+file+language payload through the MT-007 steer path. Do NOT build a prompt here — the agent session owns prompting.",
+      "Cross-family seams (reference only): MT-288 supplies richer context; MT-098 chat dock is the conversational surface; WP-017 WM/NA own multi-file agent-edit review; AC/NA annotations are a distinct feedback (not-an-edit) channel."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "ghost-text insertion preview",
+      "inline-diff replacement preview",
+      "accept/reject hint overlay",
+      "alternative-cycling",
+      "range-drift 'edit no longer applies' state"
+    ],
+    "argus_targets": [
+      "code_editor_inline_ai",
+      "code_editor_inline_ai_preview",
+      "code_editor_inline_ai_hint"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "preview_not_in_buffer_check",
+      "provenance_attribution_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Inline AI edit: Ctrl+K to request, ghost-text / inline-diff preview, Tab accept / Esc reject / Alt-] Alt-[ cycle, previews are never in the file until accepted, and accepted AI edits are recorded as model-authored"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "Proposal accept/reject outcomes and the model-authored apply are recorded as auditable events (session/robot id) so the provenance of an AI edit is traceable; the reject outcome is emitted back to the session."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The InlineAiState phase, active alternative, and invalidation reason are exposed as structured state for the visual_debugger so a no-context model can trace why a proposal was previewed, applied, rejected, or invalidated."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "The seam consumes an agent session (MT-007 owns supervision/liveness of the producing session); this editor overlay spawns no child process of its own."
+    }
+  ],
+  "risk_if_missed": "The native editor has no AI-inline-edit seam, so the Antigravity/Cursor headline affordance — preview an AI change in place and accept or reject it with one keystroke, with the model kept separate from the editor — is impossible, and there is no auditable, provenance-tagged path for an agent to propose an edit the operator reviews inline.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent auto-apply — a proposal is applied to the buffer without an explicit operator accept, letting model text enter the file unreviewed.",
+      "RISK-2: Provenance laundering — an accepted AI edit is recorded as operator-authored (or unattributed), blurring operator vs model authorship in the edit ledger.",
+      "RISK-3: Range drift misapplication — the buffer changes after the proposal was made and the edit applies to a shifted range, corrupting unrelated code.",
+      "RISK-4: Preview mistaken for buffer — ghost text is exposed as real buffer content to AccessKit / copy, so a screen reader or an agent reads a not-yet-accepted preview as committed code.",
+      "RISK-5: Tab collision — inline-AI Tab-accept fights LSP completion Tab or snippet Tab, so Tab does the wrong thing.",
+      "RISK-6: Scope creep into the model — the seam starts constructing prompts / calling a model directly, violating the model/editor separation and the orchestrator-no-inference boundary."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Acceptance requires an explicit operator action; there is no auto-accept path in this MT. A test asserts a proposal never mutates the buffer until Tab.",
+      "CTRL-2 (RISK-2): Accepted edits carry the session/robot id in their ledger description; a test asserts the model-authored attribution on an accepted proposal.",
+      "CTRL-3 (RISK-3): A proposal whose range no longer matches is invalidated (not re-anchored/misapplied); a test edits mid-preview and asserts the proposal is dropped with the note.",
+      "CTRL-4 (RISK-4): Ghost text is non-selectable decoration exposed to AccessKit as a distinct proposed-edit node; a test asserts it is not in the buffer text and copy does not include it.",
+      "CTRL-5 (RISK-5): Tab-accept is active only in the Previewing phase; a test with an open LSP completion and with an active snippet asserts Tab arbitration is correct.",
+      "CTRL-6 (RISK-6): The seam is transport-only (EditProposalStream); a grep proof asserts no model endpoint / prompt-template / inference code in inline_ai/**; proposals come only from the MT-007 session."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: code_editor/editor_view.rs has only the LSP CompletionPopup (no ghost-text inline-edit overlay); no inline_ai module; interop/interaction_bus.rs carries clipboard/selection, not agent proposals. WP-017 MT-007 (SC-MT007-SessionApiSurface, read in this packet) defines the AgentSessionService launch/steer/status seam that produces proposals. Confirmed 'ai-inline-edit-ghost-text' is not covered by WP-012 (MT-001..108, incl. MT-098 chat dock which is conversational, not inline-edit), WP-013/014 stubs, STUDIO, or WP-011. External design basis: Antigravity / Cursor / Copilot inline suggestion + Ctrl+K inline edit.",
+    "corrections": [
+      "Parity here is explicitly the EDITOR SEAM, not the model: the gap is the ghost-text/inline-diff preview + accept/reject + provenance-tagged apply wired to the WP-017 session API (MT-007), NOT model inference (which the agent session owns). The chat dock (MT-098) is a distinct conversational surface and does not close this gap."
+    ]
+  }
+}

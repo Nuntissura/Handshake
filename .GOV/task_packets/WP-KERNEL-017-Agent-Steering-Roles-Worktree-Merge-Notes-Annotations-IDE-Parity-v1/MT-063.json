@@ -1,0 +1,170 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-063",
+  "title": "AP-MT063-AcpClientServices",
+  "group": "AP ACP client layer",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-063.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-061"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the CLIENT-side services of ACP — the JSON-RPC methods the AGENT calls back INTO Handshake during a turn. Under ACP the client (Handshake) is the agent's execution environment: permission arbitration, filesystem access, and terminal execution are all client-implemented services. This MT delivers: (1) session/request_permission routed through the Handshake ConsentGate with DENY-BY-DEFAULT on timeout; (2) fs/read_text_file plus the fs write counterpart (fs/write_text_file) scoped STRICTLY to the session worktree; (3) terminal/create (and its companion terminal methods when the capability is advertised) routed through the sandbox adapter policy; (4) EVERY service call ledgered as a typed event — the agent's actions inside Handshake must be fully attributable and reconstructable.\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/agent_sessions/acp/client_services.rs (service handler implementations + worktree scope guard + capability advertisement wiring) plus small wiring lines in acp/mod.rs and acp/client_core.rs (register handlers on the crate's client connection; advertise fs/terminal capabilities in initialize). Integration tests in src/backend/handshake_core/tests/acp_client_services.rs against the MT-061 fixture agent extended to issue scripted service calls.\n\nDETAILED SPEC:\n- PERMISSIONS (session/request_permission): the agent sends a permission request with a set of options (allow/reject variants, once/always kinds per the ACP schema). Route the request to the Handshake ConsentGate (src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs — reuse via its public API, do not fork). Mapping rules: a ConsentGate approval selects the agent-offered allow option (prefer the once-scoped option unless the gate verdict is an always-scope grant); a denial selects the reject option; a TIMEOUT or unavailable gate DENIES (deny-by-default, selecting the reject option) — never auto-allow. If the turn was cancelled while the permission request was pending, respond with the ACP cancelled outcome for the request. Every request/verdict pair is ledgered with option ids and latency.\n- FILESYSTEM (fs/read_text_file, fs/write_text_file): only when the session capability was advertised. Path scope guard: canonicalize the requested path and require it to be inside the session worktree root (the MT-001 session model binding) — reject absolute paths outside the root, .. traversal, symlink/junction escapes (canonicalize BEFORE the prefix check), and non-worktree drives. Windows specifics are first-class: case-insensitive comparison, drive-letter normalization, verbatim (\\\\?\\) prefix tolerance, and paths containing spaces (the operator's real worktree roots contain spaces). Honor the ACP line/limit read parameters; writes create parent directories only inside the scope. Out-of-scope requests return a typed JSON-RPC error to the agent AND a ledgered scope-violation event — the turn continues (the agent is told no; Handshake does not crash the session).\n- TERMINAL (terminal/create + terminal/output, terminal/wait_for_exit, terminal/kill, terminal/release): advertised ONLY when the sandbox adapter policy for the session permits terminal execution. terminal/create routes through the sandbox adapter layer (src/backend/handshake_core/src/sandbox/ — adapter.rs trait + registry.rs/selection.rs choose the concrete adapter; reuse via API, do not fork) with cwd pinned inside the session worktree and the process registered with ownership metadata per HBR-QUIET-003 (owner_session, owner_wp, owner_role, started_at) and reclaimed at session close. Hidden window, no focus steal (HBR-QUIET-001/002). terminal/kill maps to supervised termination; terminal/release detaches per ACP semantics but ownership/reclamation remains with the session.\n- CAPABILITY ADVERTISEMENT: initialize (MT-061) must advertise exactly what this MT implements: fs.readTextFile=true, fs.writeTextFile=true, terminal=true only when sandbox policy allows for the session; never advertise a service that would fail.\n- LEDGER: every service call (method, params digest, verdict/result class, duration, session id, turn id) emits a typed EventLedger event; a TraceProjection over the ledger answers 'what did the agent touch and who allowed it' with zero chat history (HBR-INT-007).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the agent-client-protocol crate's Client trait surface for the service handler signatures, the ConsentGate public API, and the sandbox adapter.rs/registry.rs/selection.rs API before writing code.\n2. Implement the worktree scope guard as a small pure function (canonicalize + normalized prefix check) with exhaustive Windows unit tests (traversal, symlink escape, case, drive letter, verbatim prefix, spaces).\n3. Implement fs/read_text_file (line/limit honored) and fs/write_text_file behind the scope guard; typed errors for out-of-scope.\n4. Implement session/request_permission -> ConsentGate routing with the option-mapping rules and the deny-by-default timeout arm (tokio timeout around the gate future; timeout duration configurable with a conservative default).\n5. Implement terminal/create + companions through the sandbox adapter policy with HBR-QUIET-003 ownership registration and session-close reclamation.\n6. Wire capability advertisement in initialize to reflect the implemented services and the per-session sandbox policy verdict.\n7. Emit typed EventLedger events for every service call; wire HBR-INT-009 tier evidence.\n8. Extend the fixture agent with scripted service-call sequences: permission (each outcome), in-scope and out-of-scope fs reads/writes, terminal create/wait/kill.\n9. Author the integration tests listed in expected_tests and run the proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/acp/client_services.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/mod.rs (wiring lines only)",
+      "src/backend/handshake_core/src/agent_sessions/acp/client_core.rs (handler registration + capability advertisement only)",
+      "src/backend/handshake_core/tests/acp_client_services.rs",
+      "src/backend/handshake_core/tests/acp_fixture_agent/** (extend scripted service calls)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (the bridge is READ-ONLY reference for parity; never edited by this WP)",
+      "src/frontend/** (no GUI surface in this MT)",
+      "src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs (reuse via API only)",
+      "src/backend/handshake_core/src/sandbox/** (reuse via API only)"
+    ],
+    "acceptance_criteria": [
+      "session/request_permission routes to ConsentGate: approval selects the agent-offered allow option, denial selects reject, and a gate TIMEOUT selects reject (deny-by-default) — all three proven by tests with the fixture agent asserting which option id it received.",
+      "A permission request pending when the turn is cancelled resolves with the ACP cancelled outcome — proven by test.",
+      "fs/read_text_file returns worktree file content honoring line/limit parameters; fs/write_text_file writes inside the worktree — proven by tests.",
+      "The scope guard rejects: absolute path outside the worktree, .. traversal, symlink/junction escape (canonicalized before check), other-drive paths — each rejection is a typed JSON-RPC error to the agent plus a ledgered scope-violation event, and the session survives — proven by parameterized tests.",
+      "Windows path handling proven: case-insensitive match, drive-letter normalization, verbatim prefix tolerance, and a worktree root containing spaces — unit tests on the scope guard.",
+      "terminal/create only succeeds when sandbox policy allows; the spawned process carries HBR-QUIET-003 ownership metadata and is reclaimed at session close (no leaked pid) — proven by test; when policy forbids, the terminal capability is NOT advertised at initialize and a direct call returns a typed error.",
+      "Capability advertisement matches implementation exactly (fs true/true; terminal reflects policy) — proven by initialize negotiation test.",
+      "Every service call emits a typed EventLedger event (method, result class, duration, session/turn ids); a test reconstructs the agent's full service-call history from the ledger alone.",
+      "cargo build -p handshake_core green; all listed tests pass headless with zero visible windows (HBR-QUIET-001/002)."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core",
+      "cargo test -p handshake_core --test acp_client_services -- --nocapture",
+      "cargo test -p handshake_core --test acp_client_services acp_permission_timeout_denies_by_default -- --nocapture",
+      "cargo test -p handshake_core --test acp_client_services acp_fs_scope_guard_rejects_escapes -- --nocapture",
+      "cargo test -p handshake_core --test acp_client_services acp_terminal_ownership_reclaimed_on_close -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/acp/client_services.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/client_core.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/mod.rs"
+    ],
+    "expected_tests": [
+      "acp_permission_approval_selects_allow_option",
+      "acp_permission_denial_selects_reject_option",
+      "acp_permission_timeout_denies_by_default",
+      "acp_permission_cancelled_turn_resolves_cancelled",
+      "acp_fs_read_honors_line_limit",
+      "acp_fs_write_inside_worktree",
+      "acp_fs_scope_guard_rejects_escapes (parameterized: outside-root, dot-dot, symlink, other-drive)",
+      "acp_fs_scope_guard_windows_normalization (case, drive letter, verbatim prefix, spaces in root)",
+      "acp_terminal_create_routes_sandbox_policy",
+      "acp_terminal_ownership_reclaimed_on_close",
+      "acp_terminal_capability_not_advertised_when_policy_forbids",
+      "acp_service_calls_reconstructable_from_ledger"
+    ],
+    "implementation_notes": [
+      "ConsentGate already exists at src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs (WP-1 lineage) — this MT consumes its public API. If its API cannot express a bounded-timeout arbitration, record a typed dependency blocker per HBR-STOP-004 rather than forking a second consent surface.",
+      "Deny-by-default is the WP-017 stub red-team stance (consent gates always enforced): a permission timeout, a crashed gate, or an unroutable request all resolve to the agent's reject option. There is no allow fallback anywhere in this MT.",
+      "The scope guard canonicalizes BEFORE prefix-checking; on Windows use std::fs::canonicalize semantics (returns verbatim paths) and normalize both sides identically. The operator's real roots look like 'D:/Projects/LLM projects/Handshake/Handshake Worktrees/<wt>' — spaces are the norm, not the edge case.",
+      "The governed-broker precedent (.GOV/tools/handshake-acp-bridge/agent.mjs) validates worktree identity/drift before every request (validateGovernedRequest: local_worktree_dir drift, worktree existence) — the product analogue is the MT-001 session worktree binding this MT scopes against; parity is measured in MT-065.",
+      "terminal/release semantics: ACP lets the agent release a terminal it no longer waits on; Handshake ownership does NOT transfer — the session still owns and reclaims the process at close (HBR-QUIET-003).",
+      "fs write counterpart method name: the ACP schema names it fs/write_text_file; verify the exact method constant against the pinned agent-client-protocol crate version at implementation time and follow the crate, not this prose, if they differ (record the correction in lifecycle)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend MT: client services are agent-facing JSON-RPC handlers; the operator-facing consent UI is the existing ConsentGate surface (reused, not created here). Proof via ledger/TraceProjection per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "Agent sessions: what an ACP agent may touch — worktree-scoped filesystem, consent-gated permissions (deny-by-default on timeout), sandbox-policied terminals"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FLIGHT_RECORDER: permission verdicts, scope violations, and terminal lifecycle are business events — FR emit per MT-161 kinds when landed, else DEFERRED-with-reason.",
+    "INTERNAL_DIAGNOSTICS: expose pending-permission count/age and live agent-terminal count to the open diagnostic-event API — WIRED or DEFERRED-with-reason.",
+    "PALMISTRY: agent-created terminal processes are freeze/leak candidates that outlive UI health — register them with the external watcher's process tracking, or DEFERRED-with-reason."
+  ],
+  "risk_if_missed": "ACP agents cannot request permissions, read/write files, or run commands through Handshake — real agents (claude-agent-acp) stall on their first service call, MT-065's end-to-end repo-gov workflow is impossible, and any interim workaround would hand agents unscoped host access.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Sandbox escape via fs services — a traversal/symlink/junction or Windows-normalization gap in the scope guard hands the agent arbitrary host filesystem access under Handshake's identity.",
+      "RISK-2: Permission auto-allow — a timeout/crash path that resolves to allow (or that answers before the operator) silently converts the ConsentGate into a rubber stamp.",
+      "RISK-3: Orphaned agent terminals — terminal/create processes without ownership metadata or close-time reclamation accumulate as unattributable background processes (the exact class HBR-QUIET-003 and the bridge's terminal-reclaim duty exist to prevent).",
+      "RISK-4: Capability lie — advertising terminal or fs capabilities that the policy then rejects makes conforming agents fail mid-turn in confusing ways; the inverse (silent extra services) widens the attack surface unannounced.",
+      "RISK-5: Unattributed agent actions — service calls that bypass the ledger leave no answer to 'what did the agent do', breaking the WP-017 injection/attribution stance."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): canonicalize-then-prefix-check scope guard as a pure function with parameterized escape tests including Windows-specific cases; out-of-scope is a typed error, never a fallback path.",
+      "CTRL-2 (RISK-2): deny-by-default is structural — the timeout arm and every error arm select the reject option; a dedicated test kills the gate future and asserts rejection.",
+      "CTRL-3 (RISK-3): HBR-QUIET-003 ownership metadata on every terminal spawn + session-close reclamation test asserting zero surviving pids.",
+      "CTRL-4 (RISK-4): capability advertisement is derived from the same policy objects that gate the handlers (single source); negotiation test asserts advertisement==enforcement.",
+      "CTRL-5 (RISK-5): ledger emit is inside each handler's single exit path; reconstruction test proves completeness against the fixture agent's scripted call list."
+    ]
+  },
+  "research_provenance": {
+    "source": "agentclientprotocol.com (client-implemented services: session/request_permission with option selection incl. cancelled outcome, fs/read_text_file with line/limit, fs/write_text_file, terminal/create + output/wait_for_exit/kill/release, capability advertisement at initialize) + inspected product code: model_runtime/cloud/consent_gate.rs (existing consent surface), sandbox/adapter.rs + registry.rs + selection.rs (adapter policy layer) + .GOV/tools/handshake-acp-bridge/agent.mjs (worktree identity validation + terminal reclamation duties as parity reference).",
+    "corrections": [
+      "Deny-by-default on permission timeout is stricter than the ACP spec requires (spec leaves arbitration to the client) — Handshake policy per the WP-017 stub red-team controls.",
+      "Terminal capability is per-session policy-derived, not global: sandbox adapter selection decides, and advertisement must match enforcement.",
+      "Exact fs write method constant to be verified against the pinned crate version at implementation time; crate wins over contract prose with a recorded correction."
+    ]
+  }
+}

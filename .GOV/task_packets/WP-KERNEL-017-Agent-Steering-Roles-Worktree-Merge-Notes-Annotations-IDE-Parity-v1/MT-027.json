@@ -1,0 +1,139 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-027",
+  "title": "CS-MT027-ClaudeStructuredExitBinding",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-027.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-022",
+      "MT-121"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Mechanical, prose-free MT lifecycle signaling from Claude worker sessions: launch workers with `--json-schema` bound to the hsk.mt_signal@1 schema (defined by MT-121) so the CLI's terminal `result` message carries a VALIDATED `structured_output`, then parse that structured_output into the MT lifecycle engine (MT-121 seam) — the worker's MT_IMPLEMENTED / READY_FOR_VALIDATION / BLOCKED signal is a typed artifact, never regex-scraped from assistant prose. This is the 'worker signals Handshake mechanically, zero polling' leg of the stub's MT dispatch lifecycle.\n\nEXPECTED DIFF SHAPE: new file src/backend/handshake_core/src/model_runtime/cloud/claude_structured_exit.rs (schema argv binding + structured_output extraction + lifecycle dispatch); tests; no schema definition here (MT-121 owns hsk.mt_signal@1).\n\nSPEC:\n1. Schema binding at launch: `extend_launch_args_with_mt_signal_schema(preset_args, schema_json: &str) -> Vec<String>` appends `--json-schema <schema_json>` as a single argv element, where schema_json is the canonical serialized hsk.mt_signal@1 JSON Schema obtained FROM THE MT-121 seam (function/constant export — never a copy pasted into this module; one source of truth). The extended argv must still pass the MT-021 validator. Applied ONLY to worker-mode launches dispatched with an MT contract (the session launch API takes an `mt_signal_binding: Option<MtSignalBinding>`); interactive operator sessions launch without it.\n2. Extraction: consume the MT-022 `ClaudeTurnResult` envelope for the session's FINAL turn; `extract_mt_signal(result: &ClaudeTurnResult) -> Result<MtSignal, StructuredExitError>` where `MtSignal` is the MT-121 typed deserialization of hsk.mt_signal@1 (expected fields per MT-121, minimally: mt_id, wp_id, status in {MT_IMPLEMENTED, READY_FOR_VALIDATION, BLOCKED, FAILED}, evidence/blocker payloads — consume MT-121's serde types, do not redefine).\n3. Validation posture: even though the CLI validates against the schema before emitting structured_output, Handshake RE-VALIDATES on receipt with the MT-121 deserializer (defense in depth: CLI drift, truncation, or a mid-flight schema mismatch must not inject an unvalidated object into the lifecycle engine). Deserialization failure -> typed `StructuredExitError::InvalidSignal { raw }` (raw preserved for diagnosis).\n4. Missing-signal posture: a worker session that terminates WITHOUT a parseable structured_output (result absent, structured_output null, or invalid) produces `StructuredExitError::StructuredExitMissing` and the MT lifecycle engine receives a typed SIGNAL_MISSING outcome for that dispatch — it NEVER infers status from prose, exit codes alone, or silence, and the MT stays in its pre-terminal lifecycle state pending supervision/retry policy (owned by MT-121/MT-005). mt_id/wp_id mismatch between the signal and the dispatched contract -> `SignalContractMismatch { expected, got }` — a worker cannot complete a different MT than the one dispatched.\n5. Dispatch into the lifecycle engine: on valid signal, call the MT-121 lifecycle intake API with (session_id, MtSignal, ClaudeTurnResult metadata: total_cost_usd, session_id) so lifecycle transitions and cost attribution happen in one intake. Intake outcomes (accepted / rejected-by-gate) are surfaced back as typed results; this MT does NOT itself transition MT state — HBR-INT-003: lane output reaches authority only through the sanctioned gate, which is the MT-121 engine.\n6. Every extraction outcome (valid signal, missing, invalid, mismatch) is recorded via the MT-029 recording seam (no-op sink allowed until MT-029 lands, flagged in implementation result).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-121 seam: hsk.mt_signal@1 schema export, MtSignal serde types, lifecycle intake API; read MT-022's ClaudeTurnResult.\n2. Implement the argv extension (single element, canonical schema from MT-121 export) + MT-021 revalidation.\n3. Implement extract_mt_signal with re-validation and the typed error set; implement contract-match checking against the dispatched MT id.\n4. Wire the lifecycle intake call + recording seam.\n5. Tests: argv extension snapshot + validator pass; valid-signal fixture -> MtSignal + intake called with cost metadata (mock intake assertion); structured_output null/absent -> StructuredExitMissing; invalid-shape fixture -> InvalidSignal with raw preserved; mismatched mt_id fixture -> SignalContractMismatch; prose-only final message (no structured_output) -> StructuredExitMissing (the no-prose-parsing proof).\n6. Live proof (typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent): dispatch a trivial task with the real schema and assert the result message's structured_output round-trips into a valid MtSignal.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_structured_exit.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_structured_exit_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "Worker-mode launches carry --json-schema with the canonical hsk.mt_signal@1 JSON sourced from the MT-121 export (no local schema copy; grep-provable single source); extended argv passes the MT-021 validator; non-worker sessions launch without the flag.",
+      "extract_mt_signal re-validates structured_output through the MT-121 deserializer; valid signals dispatch to the MT-121 lifecycle intake with cost/session metadata.",
+      "Missing/null/invalid structured_output yields typed StructuredExitMissing/InvalidSignal (raw preserved); no code path infers MT status from prose, exit code alone, or silence (fixture-proven).",
+      "mt_id/wp_id mismatch between signal and dispatched contract yields SignalContractMismatch; the lifecycle engine never receives a cross-MT signal.",
+      "This module performs no MT state transition itself — intake is the only authority path (HBR-INT-003).",
+      "All extraction outcomes recorded via the MT-029 seam.",
+      "Live proof (or typed NEEDS_MANAGED_RESOURCE_PROOF): real worker run round-trips a valid MtSignal through structured_output."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_structured_exit -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_structured_exit_missing_signal_is_typed -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rn 'mt_signal' src/backend/handshake_core/src/model_runtime/cloud/claude_structured_exit.rs | grep -c 'schema' | head -1 (manual check: schema referenced only via the MT-121 export, no inline schema literal)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): dispatch trivial worker task; assert result.structured_output deserializes to MtSignal with the dispatched mt_id and the intake records the transition"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_structured_exit.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (wiring)"
+    ],
+    "expected_tests": [
+      "claude_structured_exit::schema_argv_extension_snapshot_and_validation",
+      "claude_structured_exit::valid_signal_dispatches_to_intake_with_cost",
+      "claude_structured_exit::missing_signal_is_typed",
+      "claude_structured_exit::invalid_signal_preserves_raw",
+      "claude_structured_exit::contract_mismatch_rejected",
+      "claude_structured_exit::prose_final_message_never_parsed_as_status"
+    ],
+    "implementation_notes": [
+      "hsk.mt_signal@1 is DEFINED by MT-121 (mt-lifecycle group). This MT binds and transports it on the Claude lane only. MT-121 seam absent = dependency-blocked (HBR-STOP-004); do not invent the schema.",
+      "GROUNDING FACT (MT-022): ClaudeTurnResult.structured_output is Option<serde_json::Value> passed through verbatim, absent -> None never fabricated — that None is what maps to StructuredExitMissing here.",
+      "The zero-polling requirement (stub acceptance: 'structured output + completion event, never polling') is satisfied by consuming the result envelope from the already-streaming MT-022 line flow; this MT must not add any polling loop.",
+      "HBR-SWARM-004 rationale: the MtSignal is the typed routing artifact that lets the orchestrator act without prose parsing; the prose-final-message fixture test is the load-bearing negative proof.",
+      "Cost attribution: total_cost_usd from the result flows into intake so per-MT cost lands on the MT record (operator cost-sensitivity); absent cost stays None, never zero."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend signal transport into the MT lifecycle engine; lifecycle GUI state is owned by the MT-121 group and WP-017 GUI MTs."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Worker-facing signaling contract documentation (how a worker must emit its final structured signal) is owned by MT-121's manual entry; this MT is lane transport."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED via MT-029 seam — signal-received / signal-missing / signal-invalid / contract-mismatch events per dispatch.",
+    "internal_diagnostics: WIRED — typed StructuredExitError set with preserved raw payloads.",
+    "Palmistry: NOT_APPLICABLE-with-reason — single-shot extraction at session end; ongoing posture owned by the MT-121 lifecycle engine."
+  ],
+  "risk_if_missed": "MT completion returns to prose-scraping or human relay: the orchestrator cannot mechanically trust MT_IMPLEMENTED/READY_FOR_VALIDATION, the zero-polling dispatch loop breaks at its terminal edge, and per-MT cost attribution is lost.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A worker ends with plausible prose ('done, ready for validation') but no structured_output, and a lenient path promotes the MT anyway — fabricated completion, the exact deflection class WP validators exist to catch.",
+      "RISK-2: Schema copy drift — a local copy of hsk.mt_signal@1 diverges from MT-121's canonical schema and workers validate against a stale contract.",
+      "RISK-3: A confused/adversarial worker emits a signal for a DIFFERENT mt_id (or replays another worker's signal), corrupting cross-MT lifecycle state.",
+      "RISK-4: CLI truncates or malforms structured_output under token pressure and the raw evidence is discarded, making the failure undiagnosable."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): StructuredExitMissing is terminal-typed; no prose fallback exists; the prose-final-message fixture is a mandatory negative test.",
+      "CTRL-2 (RISK-2): schema JSON obtained exclusively from the MT-121 export; no inline literal (reviewed via proof target).",
+      "CTRL-3 (RISK-3): SignalContractMismatch check binds signal.mt_id/wp_id to the dispatched contract before intake.",
+      "CTRL-4 (RISK-4): InvalidSignal preserves the raw payload verbatim in the typed error and the recorded event."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (--json-schema flag -> validated structured_output field on the terminal result message; result also carries cost + session_id) + MT-022 contract (ClaudeTurnResult passes structured_output through verbatim, Option-typed) + WP-017 stub MT dispatch lifecycle requirement (mechanical MT_IMPLEMENTED / READY_FOR_VALIDATION signaling, zero polling) + grounding audit of wtc-multi-model-orchestration-v1 agent_activity.rs (result envelope currently skipped at line 159 — capture introduced by MT-022, consumed here).",
+    "corrections": []
+  }
+}

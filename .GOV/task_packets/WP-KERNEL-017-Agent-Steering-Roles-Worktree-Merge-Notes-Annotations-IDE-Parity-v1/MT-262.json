@@ -1,0 +1,170 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-262",
+  "title": "TR-MT262-FeatureFlagOffThenDelete",
+  "group": "TR Legacy TS notes editor removal",
+  "clause": "Two-phase removal of the legacy TS/React notes editor: phase 1 feature-flags the DocumentView mount OFF with native-notes routing confirmed + soak checkpoint; phase 2 deletes the enumerated app/src/lib/editor + app/src/lib/tiptap + notes-component + harness inventory (document_diff_merge.ts kept while MT-245 still references it), build green after each phase. Hard-depends on MT-261 gate GREEN.",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-262.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-261"
+    ],
+    "blocks": [
+      "MT-263",
+      "MT-264"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Remove the legacy TypeScript/React notes editor in TWO phases so nothing new can build on it and the native Rust editors (WP-KERNEL-012) become the only notes surface — WITHOUT a flag-day big-bang. PRECONDITION (hard): the MT-261 removal gate MUST read GREEN (all four rows: WP-012 native parity+perf evidence recorded, PD MT-245 prose-diff parity PASS, NA MT-222/223 annotation UI shipped, operator sign-off). This MT MUST re-run `npm run check:tr-removal-gate` (or verify latest.json head_sha matches HEAD) as step 0 and ABORT if RED. Because MT-045 is FAIL_V2 today, this MT cannot start until WP-012 records passing evidence and the gate flips GREEN.\n\nEXPECTED DIFF SHAPE: PHASE 1 (reversible): a new feature flag module app/src/lib/feature_flags/legacy_notes_editor.ts (single exported const LEGACY_TS_NOTES_EDITOR_ENABLED, default false, overridable by an env/build define) gates the ONLY runtime mount of the React notes editor at App.tsx (import line 14, `<DocumentView ... />` at ~line 1682); when the flag is false the notes-open path routes to the native editor and DocumentView is not mounted. No files are deleted in phase 1. PHASE 2 (destructive): after the soak checkpoint passes, delete the enumerated legacy inventory below, remove the now-dead App.tsx import/mount and its App.test.tsx mock, sever the residual type edge in AtelierCollaborationPanel.tsx, and delete the phase-1 flag module (the branch it guarded is gone). document_diff_merge.ts + its test are kept iff any consumer still references them (see spec). Build + tests green after EACH phase.\n\nDETAILED SPEC — PHASE-2 DELETE INVENTORY (REAL, enumerated from wtc-native-editors-v1):\nA) app/src/lib/editor/ — delete ALL 40 files EXCEPT document_diff_merge.ts and document_diff_merge.test.ts: auto_code_block.ts, backend_error.ts, backend_error.test.ts, build_editor_extensions.ts, code_block_find_registry.ts, code_block_serialization.ts, code_block_serialization.test.ts, doc_equality.ts, doc_equality.test.ts, editor_chrome.ts, editor_chrome.test.ts, editor_commands.ts, editor_commands.test.ts, editor_command_palette_request.ts, editor_component_commands.ts, editor_find_request.ts, editor_keymap.ts, editor_keymap.test.ts, editor_note_templates.ts, editor_note_templates.test.ts, editor_snippets.ts, editor_snippets.test.ts, embed_assets.ts, embed_assets.test.ts, export_formats.ts, export_formats.test.ts, extension_inventory.ts, extension_inventory.test.ts, find_replace.ts, find_replace.test.ts, link_navigation.ts, link_navigation.test.ts, prose_multi_range_selection.test.ts, save_to_file.ts, schema_versioning.ts, schema_versioning.test.ts, selection_state.ts, selection_state.test.ts, visual_debug.ts, visual_debug.test.ts, wikilink.ts.\nB) app/src/lib/tiptap/ — delete ALL 14 files: auto_code_block_rules.ts, auto_code_block_rules.test.ts, code_block_keystroke_guard.ts, extension_set.ts, extension_set.test.ts, extension_set_collaboration.test.ts, find_decorations.ts, hs_link_node.ts, hs_link_node.test.ts, loom_transclusion_node.ts, loom_transclusion_node.test.ts, monaco_code_block_node.ts, monaco_code_block_node.test.ts, prose_multi_range_selection.ts.\nC) Notes React components (app/src/components/) — delete: TiptapEditor.tsx; RichTextEditor.tsx, RichTextEditor.test.tsx, RichTextEditor.typing.test.tsx, RichTextEditor.a11y.test.tsx; RichDocumentView.tsx, RichDocumentView.test.tsx; MonacoCodeBlockView.tsx, MonacoCodeBlockView.test.tsx, MonacoCodeBlockView.language.test.tsx; FindReplacePanel.tsx, FindReplacePanel.test.tsx; HsLinkView.tsx, HsLinkView.test.tsx; LoomTransclusionView.tsx, LoomTransclusionView.test.tsx; DocumentView.tsx, DocumentView.test.tsx. (MonacoCodeBlockView is the tiptap code-block NodeView and is notes-only — the monaco-editor dependency itself STAYS for the code surfaces and is out of scope here; dep purge is MT-263.)\nD) Notes editor harnesses (app/src/harness/) — delete: rich_editor_harness.tsx, rich_editor_collaboration_harness.tsx, rich_editor_embeds_harness.tsx, tiptap_harness_mount.ts, editor_visual_regression_harness.tsx, editor_workbench_chrome_harness.tsx, loom_hover_preview_harness.tsx, loom_transclusion_harness.tsx, editor_draft_recovery_harness.tsx, rich_document_diff_harness.tsx.\nE) EDGE FIXUPS: App.tsx remove the `import { DocumentView }` (line 14) and its mount (~line 1682) and any now-unused props/state feeding only it; App.test.tsx remove the `vi.mock('./components/DocumentView', ...)`; AtelierCollaborationPanel.tsx currently does `import type { TiptapSelectionInfo } from './TiptapEditor'` — relocate that type (inline a minimal local type or move it to a surviving shared types file) so the panel compiles without the deleted component; DependencyFailureBanner.tsx/.test reference TiptapEditor only in comments/tests — update the test that mounts TiptapEditor (it proves the dependency-failure banner; re-point it at a surviving editor surface or remove the notes-specific case with a note).\nF) document_diff_merge.ts KEEP RULE: after deleting C+D (which removes RichDocumentView.tsx and rich_document_diff_harness.tsx, its React consumers), run a repo-wide reference scan. If the native prose-diff suite or any surviving file still references document_diff_merge.* (e.g. src/frontend/handshake_native/src/code_editor/diff_engine.rs tests read it as the parity reference), KEEP both files as an isolated orphan and record why. If MT-245 is fully self-contained and nothing references them, they may be deleted here; otherwise their deletion is deferred to the PD family / MT-264 sweep.\n\nSOAK CHECKPOINT (between phases): with the flag OFF, launch the app shell, open a notes document, and confirm it opens in the NATIVE editor (not the React DocumentView); capture the routing confirmation (which code path handled the open) and record it. Only after the soak confirmation is recorded does phase 2 begin.\n\nSTEP-BY-STEP:\n0. Run `npm run check:tr-removal-gate`; if verdict != GREEN, STOP and report the RED rows (do not delete anything).\n1. PHASE 1: add app/src/lib/feature_flags/legacy_notes_editor.ts (const default false); gate the App.tsx DocumentView mount behind it and route the notes-open action to the native editor when false.\n2. Build + test: `cd app && npm run build` and `npm test` green with the flag OFF.\n3. SOAK: launch the shell, open a note, confirm native routing, record the confirmation. (Non-intrusive: use the app's existing headless/backend launch path; do not pop foreground windows during automated verification.)\n4. PHASE 2: delete inventory A+B+C+D; apply edge fixups E; apply the document_diff_merge keep rule F; delete the phase-1 flag module now that the guarded branch is gone.\n5. Build + test after deletion: `cd app && npm run build` (tsc + vite) and `npm test` green; `npm run lint`; `npm run depcruise` shows no dangling edges to deleted modules.\n6. Leave deps and IPC untouched (MT-263) and the final repo-wide sweep/CI guard/manuals/visual smoke to MT-264. Record measured output.",
+    "allowed_paths": [
+      "app/src/lib/feature_flags/legacy_notes_editor.ts (phase 1 add; phase 2 delete)",
+      "app/src/lib/editor/** (phase 2 delete; document_diff_merge.* per keep rule)",
+      "app/src/lib/tiptap/** (phase 2 delete)",
+      "app/src/components/TiptapEditor.tsx, app/src/components/RichTextEditor*.tsx, app/src/components/RichDocumentView*.tsx, app/src/components/MonacoCodeBlockView*.tsx, app/src/components/FindReplacePanel*.tsx, app/src/components/HsLinkView*.tsx, app/src/components/LoomTransclusionView*.tsx, app/src/components/DocumentView*.tsx (phase 2 delete)",
+      "app/src/harness/rich_editor_harness.tsx, app/src/harness/rich_editor_collaboration_harness.tsx, app/src/harness/rich_editor_embeds_harness.tsx, app/src/harness/tiptap_harness_mount.ts, app/src/harness/editor_visual_regression_harness.tsx, app/src/harness/editor_workbench_chrome_harness.tsx, app/src/harness/loom_hover_preview_harness.tsx, app/src/harness/loom_transclusion_harness.tsx, app/src/harness/editor_draft_recovery_harness.tsx, app/src/harness/rich_document_diff_harness.tsx (phase 2 delete)",
+      "app/src/App.tsx (remove DocumentView import + mount)",
+      "app/src/App.test.tsx (remove DocumentView mock)",
+      "app/src/components/AtelierCollaborationPanel.tsx (sever TiptapSelectionInfo type edge)",
+      "app/src/components/DependencyFailureBanner.tsx, app/src/components/DependencyFailureBanner.test.tsx (re-point the notes-editor dependency-failure case)"
+    ],
+    "forbidden_paths": [
+      "app/package.json (dependency removal is MT-263)",
+      "app/package-lock.json (lockfile regen is MT-263)",
+      "app/src/lib/ipc/** (IPC purge is MT-263)",
+      "app/src/lib/monaco/** (monaco stays for code surfaces)",
+      "src/** (native/backend product code; not part of TS removal)",
+      ".GOV/** (this is product-code work)"
+    ],
+    "acceptance_criteria": [
+      "Step 0 gate check is enforced: the MT records that MT-261 check:tr-removal-gate returned GREEN (with head_sha) before any deletion; if RED, no files are deleted.",
+      "PHASE 1: a feature flag defaulting to legacy-OFF gates the sole App.tsx DocumentView mount; with the flag OFF the app builds and tests pass and opening a note routes to the native editor.",
+      "SOAK: a recorded confirmation shows a notes document opening through the native editor path (not React DocumentView) with the flag OFF.",
+      "PHASE 2: every file in delete inventory A (app/src/lib/editor except document_diff_merge.*), B (app/src/lib/tiptap all 14), C (18 notes component files), and D (10 notes harness files) is removed.",
+      "The App.tsx DocumentView import + mount, the App.test.tsx DocumentView mock, and the AtelierCollaborationPanel TiptapSelectionInfo type edge are all resolved so the app compiles with zero references to deleted modules.",
+      "document_diff_merge.ts and its test are handled per the keep rule: kept (as isolated orphan with recorded reason) if any surviving consumer — including the native prose-diff parity suite — still references them, else deletable.",
+      "The phase-1 feature flag module is deleted in phase 2 (the branch it guarded no longer exists).",
+      "`cd app && npm run build` and `npm test` are green after phase 1 AND again after phase 2; `npm run lint` and `npm run depcruise` report no dangling edges to deleted modules.",
+      "No app/package.json dependency, no lockfile, no app/src/lib/ipc/ file, and no app/src/lib/monaco/ file is modified by this MT.",
+      "No src/ (native/backend) file is modified."
+    ],
+    "proof_targets": [
+      "cd app && node scripts/tr_removal_gate_check.mjs && echo GATE_GREEN_PROCEED || (echo GATE_RED_ABORT && exit 1)",
+      "cd app && npm run build 2>&1 | tail -3",
+      "cd app && npm test 2>&1 | grep -E 'Test Files.*passed|passed \\('",
+      "bash -lc \"ls app/src/lib/tiptap 2>/dev/null | wc -l | grep -q '^0$' && echo TIPTAP_DIR_EMPTY_OR_GONE\"",
+      "bash -lc \"grep -rnE \\\"from ['\\\\\\\"].*/(tiptap|components/(TiptapEditor|RichTextEditor|RichDocumentView|DocumentView|FindReplacePanel|HsLinkView|LoomTransclusionView|MonacoCodeBlockView))\\\" app/src --include=*.ts --include=*.tsx | grep -v node_modules | wc -l | grep -q '^0$' && echo NO_DANGLING_NOTES_IMPORTS\"",
+      "cd app && npm run depcruise 2>&1 | grep -iE 'error|orphan' | grep -iE 'editor|tiptap' || echo DEPCRUISE_CLEAN"
+    ],
+    "code_surfaces": [
+      "app/src/App.tsx (DocumentView mount seam: import line 14, <DocumentView> ~line 1682)",
+      "app/src/components/DocumentView.tsx (dispatch: RichDocumentView vs LegacyDocumentView -> TiptapEditor; entire file removed in phase 2)",
+      "app/src/lib/editor/ (40 files; document_diff_merge.* kept per rule)",
+      "app/src/lib/tiptap/ (14 files)",
+      "app/src/components/ (notes cluster: 18 files across 8 components)",
+      "app/src/harness/ (10 notes-editor harnesses)",
+      "app/src/components/AtelierCollaborationPanel.tsx (residual TiptapSelectionInfo type consumer)"
+    ],
+    "expected_tests": [
+      "phase1: app builds and existing non-notes suite passes with legacy flag OFF",
+      "phase1 soak: notes-open routes to native editor (recorded routing confirmation)",
+      "phase2: full app build (tsc + vite) green with all notes modules deleted",
+      "phase2: vitest suite green with notes test files removed and no broken imports remain",
+      "phase2: depcruise reports no orphaned or dangling edges into deleted editor/tiptap modules"
+    ],
+    "implementation_notes": [
+      "Hard interlock: this MT reads MT-261's gate. Do not begin deletion on a stale latest.json — re-run the checker so evaluated head_sha matches current HEAD (MT-261 CTRL-4). MT-045 is FAIL_V2 as of 2026-07-22, so the gate is RED today and this MT is not yet startable.",
+      "Two-phase on purpose: phase 1 (flag OFF) is reversible and de-risks the routing switch; only after the soak confirmation is native routing proven do the irreversible deletions land. Do not collapse the phases.",
+      "document_diff_merge.ts is the PD MT-245 parity reference and is read by the native src/frontend/handshake_native/src/code_editor/diff_engine.rs tests; its ONLY React consumers (RichDocumentView.tsx, rich_document_diff_harness.tsx) are deleted here. Keep it as an isolated orphan unless the reference scan proves zero remaining consumers — MT-261 ROW(b) guarantees MT-245 has already passed, but 'passed' does not automatically mean 'no longer imports the reference'. Verify, do not assume.",
+      "MonacoCodeBlockView.tsx is notes-only (the tiptap code-block NodeView) and is deleted, but the monaco-editor package stays because app/src/lib/monaco/* powers the code surfaces (CodeSymbolPanel, SourceControlPanel, code_intelligence, breakpoint_gutter, language_registry). Do not touch the monaco dep here.",
+      "FindReplacePanel is notes-scoped in this codebase (consumed by RichTextEditor, lib/tiptap/find_decorations, lib/editor/code_block_find_registry) — verify via grep before deleting that no code surface imports it; if a code surface does, keep it and record the exception.",
+      "Notes persistence is HTTP via app/src/lib/api.ts (/knowledge/documents), NOT Tauri invoke; the api.ts client functions are handled in MT-263, not here. Do not delete api.ts functions in this MT.",
+      "Non-intrusive verification (HBR-QUIET): run the soak/build/test checks through the app's existing headless/backend launch path; do not pop or focus-steal foreground windows during automated runs."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "This MT removes a GUI surface rather than creating one; the operator-visible notes experience is delivered by the native editor. The definitive post-removal visual smoke of the app shell + native notes flow (Argus) is MT-264. This MT records the phase-1 native-routing confirmation as its runtime evidence (TraceProjection per HBR-VIS-004)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "The user manual + built-in model manual update declaring the native editor as the sole notes surface lands in MT-264 once removal, dep purge, and the final proof are complete; splitting the manual edit across MT-262/263 would risk a manual that describes a half-removed state."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-QUIET-002",
+    "HBR-VIS-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — a build/delete refactor emits no new long-running runtime event kinds; the phase-1 native-routing confirmation is captured as recorded evidence.",
+    "internal_diagnostics: WIRED — the phase-0 gate check surfaces typed RED reasons that block deletion; build/lint/depcruise failures surface as typed compiler/tool diagnostics after each phase.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no persistent runtime posture is introduced or removed by a source deletion."
+  ],
+  "risk_if_missed": "A big-bang delete without the flag-off soak could remove the only working notes surface before native routing is confirmed, or delete document_diff_merge.ts while the native prose-diff parity suite still references it, breaking the app and the PD family with no reversible checkpoint.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Deletion proceeds on a stale/GREEN-cached gate while the real evidence is RED (MT-045 still FAIL_V2), removing the notes editor before native parity/perf is genuinely proven.",
+      "RISK-2: document_diff_merge.ts is deleted along with its directory while the native prose-diff suite still references it, breaking the PD parity reference and the native diff_engine tests.",
+      "RISK-3: A residual import to a deleted module (e.g. AtelierCollaborationPanel's TiptapSelectionInfo type, or an App.tsx prop) survives, so tsc/vite build breaks or — worse — a lingering dynamic import fails only at runtime.",
+      "RISK-4: A shared component assumed notes-only (e.g. FindReplacePanel) is actually imported by a surviving code surface, so its deletion regresses a non-notes feature.",
+      "RISK-5: The phases are collapsed into one commit, so there is no reversible checkpoint and the native-routing soak is never actually observed."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Step 0 re-runs check:tr-removal-gate and aborts on RED; the MT records the GREEN verdict + head_sha; a proof target shows the gate call gating the build.",
+      "CTRL-2 (RISK-2): The document_diff_merge keep rule runs a repo-wide reference scan (including src/frontend Rust tests) before deciding; default is KEEP-as-orphan, deletion only on a proven-zero-consumer scan.",
+      "CTRL-3 (RISK-3): A grep proof target asserts zero surviving imports of any deleted tiptap/editor/component module; the build (tsc strict + vite) and depcruise must be green after phase 2.",
+      "CTRL-4 (RISK-4): Before deleting each shared-looking component (FindReplacePanel especially), grep all of app/src for non-notes consumers; keep and record any component with a surviving code-surface consumer.",
+      "CTRL-5 (RISK-5): Phase 1 and phase 2 are distinct steps with build+test green and a recorded soak confirmation between them; the phase-1 flag existing in history is the reversible checkpoint."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounding audit 2026-07-21/22 of wtc-native-editors-v1: app/src/lib/editor/ (40 files, Glob), app/src/lib/tiptap/ (14 files, Glob), notes components + harnesses (Grep '@tiptap'/'RichTextEditor'), mount seam confirmed at app/src/App.tsx line 14 import + line 1682 <DocumentView> and app/src/components/DocumentView.tsx dispatch (RichDocumentView vs LegacyDocumentView->TiptapEditor). document_diff_merge.* consumers: RichDocumentView.tsx, rich_document_diff_harness.tsx, and native src/frontend/handshake_native/src/code_editor/diff_engine.rs tests (Grep 'document_diff_merge'). Residual type edge: AtelierCollaborationPanel.tsx imports TiptapSelectionInfo from ./TiptapEditor. monaco-editor confirmed shared with code surfaces (app/src/lib/monaco/* used by CodeSymbolPanel/SourceControlPanel) so the dep stays. Build/test commands from app/package.json scripts (build='tsc && vite build', test='vitest run', lint, depcruise). Field practice: staged feature-flag-off-then-delete (dark-launch/kill-switch) is the standard reversible large-surface removal pattern.",
+    "corrections": [
+      "Both DocumentView branches (RichDocumentView and LegacyDocumentView->TiptapEditor) are legacy TS/React; the native notes surface is the separate handshake_native rich_editor, so the flag routes AWAY from React DocumentView entirely rather than toggling between two React views.",
+      "Notes persistence is HTTP (/knowledge/documents via api.ts), not Tauri IPC; no IPC command is deleted in this MT (that scan is MT-263).",
+      "document_diff_merge.ts survival is verification-gated, not automatic: MT-261 ROW(b) proving MT-245 PASS does not by itself prove the native suite stopped importing the TS reference; the reference scan decides."
+    ]
+  }
+}

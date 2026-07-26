@@ -1,0 +1,154 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-241",
+  "title": "PD-MT241-NativeBlockDiffEngine",
+  "group": "PD Native prose diff",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-241.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the block-level native prose diff + three-way prose merge that WP-KERNEL-012 MT-009 DEFERRED. The MT-009 header (src/frontend/handshake_native/src/code_editor/diff_engine.rs lines ~5-19, verified 2026-07-21) states the block-level prose diff over the native rich-document format was deferred because that format 'DOES NOT EXIST yet'; it left [`diff_json_blocks`] (lines ~496-526) as an unwired SEAM doing a naive index-only alignment. That format now EXISTS: the typed block tree in src/frontend/handshake_native/src/rich_editor/document_model/ (NodeKind = Doc, Paragraph, Heading(1..3), Blockquote, CodeBlock, OrderedList, BulletList, ListItem, Table, TableRow, TableCell, TableHeader, TaskItem, HardBreak, HorizontalRule; inline atoms via Child::{Block, Text(TextLeaf), HsLink(HsLinkNode), Transclusion(TransclusionNode)}; BlockNode{kind, attrs: HashMap<String,serde_json::Value>, children: Vec<Child>}). This MT ports the React reference app/src/lib/editor/document_diff_merge.ts EXACTLY (it is the parity target and is DELETED afterward by the TR family MT-261..264; parity fixtures must be authored while it still exists — see MT-245), then hardens it with stable-block-id matching + a content-similarity fallback for moved/edited blocks. Pure-function core, NO UI (UI is MT-242/243/244).\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs holding the typed BlockDiff + BlockMergePlan types and the pure engine; (b) one `pub mod prose_diff;` line + re-exports added to src/frontend/handshake_native/src/rich_editor/document_model/mod.rs; (c) REWIRE the deferred seam in code_editor/diff_engine.rs: `diff_json_blocks(&[serde_json::Value], &[serde_json::Value])` stops doing the placeholder index alignment and delegates to the new LCS/identity block aligner (keeping its existing `Vec<DiffBlock>` signature and the existing `json_block_diff_classifies_by_index` test still passing on non-moved inputs, or updating that test in-place to the LCS behaviour with a comment); (d) unit tests. NO egui, NO tokio, NO backend, NO route calls.\n\nDETAILED SPEC — the parity rule set ported from document_diff_merge.ts (enumerated after reading the whole file 2026-07-21):\n\nBLOCK EXTRACTION: documentBlocks(doc) = doc.content array when present else []. Native equivalent: the ordered top-level `Child::Block` children of a `RichDocument`/doc `BlockNode` (a document is a flat list of top-level blocks; nested block children stay INSIDE their block node and are compared as part of that node's value).\n\nDIFF (buildRichDocumentDiff): align leftBlocks vs rightBlocks by `longestCommonBlockSubsequence` — a classic LCS DP over block EQUALITY (jsonDeepEquals in TS; native: structural BlockNode PartialEq, which the model already derives). Walk the LCS matches; between consecutive matches, `alignGap` pairs the first min(leftGap,rightGap) unmatched blocks positionally (these become `modified`/`unchanged` pairs) and emits the leftover left blocks as left-only, leftover right blocks as right-only. For each aligned pair build a BlockDiff:\n  - leftNode == None  -> status `Added` (React `added`).\n  - rightNode == None -> status `Removed` (React `removed`).\n  - both present and equal -> status `Unchanged` (React `unchanged`; native enum name `Unchanged`, aliased to code_editor DiffStatus::Equal at the boundary).\n  - both present and unequal -> status `Modified`.\n  Each BlockDiff carries: block_index (position in the aligned sequence), status, kind (Prose | Code | Unknown per diffKind: Code if either side isCodeBlock i.e. NodeKind::CodeBlock / Tiptap type 'monacoCodeBlock' on the JSON path, Prose if either side is any other typed block, else Unknown), left_node/right_node (Option clones), and left_text/right_text (nodeText: recursive plain-text extraction — a text leaf's text, a code block's code, else the concatenation of children's text; matches TS nodeText).\n\nMODIFIED-BLOCK INTRA-BLOCK TEXT DIFF: for a `Modified` pair, additionally compute an inline text diff of left_text vs right_text using the `similar` crate (already a workspace dep, used by code_editor/diff_engine.rs), exposed as an Option<Vec<InlineTextSpan>> where InlineTextSpan{ tag: Equal|Insert|Delete, text: String } (from similar::TextDiff::from_words or from_chars — use words to match how a reader perceives prose edits; document the choice). This is the native ENHANCEMENT the React file lacks; it must NOT change block-level status classification.\n\nSTABLE-ID + SIMILARITY HARDENING (native superset, must be parity-neutral on the MT-245 fixtures): before falling back to pure LCS-by-equality, match blocks by a stable id when present — read `attrs.get(\"id\")` or `attrs.get(\"blockId\")` (BlockNode has no dedicated id field; ids ride in the free-form `attrs` map). Two blocks with the same non-empty stable id are treated as the SAME block (a `Modified` if their content differs, `Unchanged` if equal) even if they moved. For blocks WITHOUT ids, after LCS, run a content-similarity pass (similar::TextDiff ratio over nodeText) to pair a leftover left-only block with a leftover right-only block when their similarity ratio exceeds a threshold (default 0.5, `PROSE_DIFF_SIMILARITY_THRESHOLD` const) — turning a false Added+Removed pair into one Modified for a heavily edited or moved block. GUARANTEE: on inputs where no block carries an id and no cross-gap move exists (the parity-fixture shape MT-245 authors), this hardening is inert and the output equals the pure TS LCS result. Document this invariant in the module docs.\n\n3-WAY MERGE (planRichDocumentMerge): count = max(base,local,remote block counts). For each index 0..count: baseNode/localNode/remoteNode = that index's block on each side (None past the end). localChanged = base != local; remoteChanged = base != remote. If NOT localChanged AND NOT remoteChanged -> emit NO block (React `continue`). Else classify BlockMergeStatus:\n  - localChanged && remoteChanged -> (local == remote) ? `BothSame` : `Conflict`.\n  - localChanged only -> `LocalOnly`.\n  - remoteChanged only -> `RemoteOnly`.\n  Each BlockMergeBlock carries: block_index, status, base_node/local_node/remote_node (Option clones), local_text/remote_text (nodeText). NOTE THE ASYMMETRY (verified in the TS): the DIFF path uses LCS alignment, but the MERGE path uses positional INDEX alignment (max length, per-index compare) — port both exactly as written; do NOT LCS-align the merge.\n\nAPPLY (applyRichDocumentMergePlan): max = max(base,local,remote counts). Build a by-index map of the plan blocks. For each index 0..max: if a plan block exists, selected = selectedMergeNode(block, choices): `LocalOnly`/`BothSame` -> local_node; `RemoteOnly` -> remote_node; `Conflict` -> the operator/agent choice for that index (Local->local_node, Remote->remote_node, Both->[local_node, remote_node]); an UNRESOLVED conflict is a typed error (React throws). If no plan block exists at an index, selected = local_node else remote_node (the React `?? `). Flatten array selections. Return a merged block list (native: Vec<BlockNode>); the caller re-wraps it into a doc (React returns `{...local, content: merged}` — native preserves the local doc envelope and swaps its top-level block children).\n\nENGINE SHAPE: mirror code_editor/diff_engine.rs conventions — a stateless `ProseDiffEngine` with `diff(left:&RichDocument, right:&RichDocument) -> ProseDiff` and a `BlockMergeEngine` with `three_way(base,local,remote) -> BlockMergePlan` + `apply(plan, choices) -> Result<Vec<BlockNode>, ProseMergeError>`. Reuse `MergeChoice{Local,Remote,Both}` from code_editor::diff_engine (re-export, do not fork). Typed errors: `ProseMergeError::UnresolvedConflict{block_index}`.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read app/src/lib/editor/document_diff_merge.ts IN FULL (the parity target; RichDocumentDiffBlock status unchanged|modified|added|removed ~lines 10-23; RichDocumentMergePlan local_only|remote_only|both_same|conflict ~lines 29-49) and code_editor/diff_engine.rs (DiffStatus/DiffBlock/MergeStatus/MergeChoice/MergeBlock, and the deferred diff_json_blocks seam + its module header) before writing any code.\n2. Read rich_editor/document_model/node.rs (BlockNode/Child/NodeKind/TextLeaf — note there is NO id field; attrs is the free-form id carrier) and doc_json.rs (RichDocument envelope, block_to_json, to_content_json_value, RICH_DOCUMENT_SCHEMA_VERSION) so the JSON<->typed boundary reuses the existing serializers.\n3. Create prose_diff.rs with the BlockDiff/ProseDiff/BlockMergeBlock/BlockMergePlan/InlineTextSpan types + ProseDiffStatus{Unchanged,Added,Removed,Modified} + BlockMergeStatus{LocalOnly,RemoteOnly,BothSame,Conflict} + ProseMergeError. Implement LCS alignment (DP identical in shape to longestCommonBlockSubsequence), gap alignment (identical to alignGap), diffKind/nodeText, the stable-id + similarity hardening, the intra-block similar text diff, the index-aligned three_way, and apply.\n4. Rewire code_editor/diff_engine.rs::diff_json_blocks to delegate to the new aligner (serialize each Value pair to the classification the LCS aligner produces, returning the same Vec<DiffBlock> with block-INDEX ranges); keep or update-in-place the json_block_diff_classifies_by_index test with a comment noting the LCS upgrade.\n5. Add `pub mod prose_diff;` and re-exports to document_model/mod.rs.\n6. Unit tests (see expected_tests): every status, the LCS move case, stable-id match across a move, similarity fallback turning Added+Removed into Modified, the merge classifications, both_same vs conflict, apply with each MergeChoice, unresolved-conflict typed error, and a battery of small fixtures whose classifications are asserted IDENTICAL to hand-computed document_diff_merge.ts output (the seed of the MT-245 parity corpus).\n7. cargo build + clippy clean; run the tests.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_model/mod.rs (mod line + re-exports)",
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs (rewire diff_json_blocks seam only)",
+      "src/frontend/handshake_native/tests/test_prose_block_diff.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React reference ONLY; the parity target document_diff_merge.ts is read, never edited here — its removal is TR MT-261..264)",
+      ".GOV/**",
+      "src/backend/** (no backend; pure client-side diff)",
+      "src/frontend/handshake_native/src/rich_editor/save/** (merge UI is MT-243)",
+      "src/frontend/handshake_native/src/annotations/** (annotations are the AC/NA/MT-244 families)"
+    ],
+    "acceptance_criteria": [
+      "prose_diff.rs exists with ProseDiffEngine::diff over document_model RichDocument/BlockNode producing BlockDiff{block_index, status(Unchanged|Added|Removed|Modified), kind(Prose|Code|Unknown), left_node, right_node, left_text, right_text} via LCS block alignment.",
+      "Block alignment uses LCS over structural block equality with gap pairing that reproduces document_diff_merge.ts alignDiffBlocks/longestCommonBlockSubsequence classifications on parity fixtures.",
+      "A Modified block carries an intra-block inline text diff (Vec<InlineTextSpan> tagged Equal/Insert/Delete) computed via the similar crate; the inline diff never alters the block-level status.",
+      "Stable-id matching keys off attrs['id']/attrs['blockId'] (BlockNode has no id field) and treats same-id blocks as the same block across moves; the similarity fallback (default threshold 0.5, PROSE_DIFF_SIMILARITY_THRESHOLD) fuses a leftover Added+Removed into one Modified for a moved/heavily-edited block.",
+      "The hardening is parity-neutral: on id-free, no-move inputs the diff output equals the pure LCS/TS result (asserted by a fixture test).",
+      "BlockMergeEngine::three_way ports planRichDocumentMerge EXACTLY: max-length INDEX alignment (not LCS), per-index localChanged/remoteChanged, no block emitted when neither side changed, BothSame vs Conflict when both changed, LocalOnly/RemoteOnly otherwise.",
+      "BlockMergeEngine::apply ports applyRichDocumentMergePlan: selectedMergeNode rules for each status, Both -> local then remote, missing-plan-index falls back to local else remote, and an unresolved Conflict returns ProseMergeError::UnresolvedConflict (React throws) rather than silently dropping a side.",
+      "MergeChoice{Local,Remote,Both} is re-exported from code_editor::diff_engine, not re-defined.",
+      "The deferred code_editor/diff_engine.rs::diff_json_blocks seam is rewired to delegate to the LCS/identity aligner (no longer the placeholder index-only alignment) and keeps its Vec<DiffBlock> signature.",
+      "The core is pure: no egui, no tokio, no backend/api/storage import (grep-provable); cargo build -p handshake-native and clippy -D warnings pass."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native prose_block_diff -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo build -p handshake-native 2>&1 | tail -1",
+      "rg -n 'egui|tokio::|reqwest|backend_client|crate::mcp' src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs | wc -l | grep -q '^0$'",
+      "rg -n 'fn diff_json_blocks' src/frontend/handshake_native/src/code_editor/diff_engine.rs && rg -n 'longest_common|lcs|prose_diff' src/frontend/handshake_native/src/code_editor/diff_engine.rs",
+      "cargo clippy -p handshake-native -- -D warnings 2>&1 | tail -1"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/rich_editor/document_model/prose_diff.rs (new pure-function core)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/mod.rs (module wiring + re-exports)",
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs (diff_json_blocks seam rewire)"
+    ],
+    "expected_tests": [
+      "prose_block_diff::identical_docs_all_unchanged",
+      "prose_block_diff::added_block_yields_added_status",
+      "prose_block_diff::removed_block_yields_removed_status",
+      "prose_block_diff::edited_block_yields_modified_with_inline_text_spans",
+      "prose_block_diff::moved_block_matched_by_stable_id_not_add_remove",
+      "prose_block_diff::similarity_fallback_fuses_added_removed_into_modified",
+      "prose_block_diff::hardening_is_parity_neutral_on_idless_nomove_fixtures",
+      "prose_block_diff::three_way_local_only_and_remote_only_non_overlapping",
+      "prose_block_diff::three_way_both_same_vs_conflict",
+      "prose_block_diff::apply_local_remote_both_and_unresolved_conflict_errors",
+      "prose_block_diff::diff_json_blocks_seam_uses_lcs_alignment"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): code_editor/diff_engine.rs header lines ~5-19 declare the block-level prose diff DEFERRED and diff_json_blocks (lines ~496-526) a placeholder index-only alignment 'intentionally a simple index alignment (not the React LCS block alignment) because the native rich-document format is not yet defined; when E2 lands, this is the hook to replace with the format-aware alignment ported from buildRichDocumentDiff'. This MT is that replacement.",
+      "document_diff_merge.ts is the PARITY TARGET and will be DELETED by TR MT-261..264. All classification behaviour must be locked by fixtures in THIS MT (seed corpus) and the full parity suite in MT-245 WHILE the TS file still exists. Do not defer parity capture.",
+      "BlockNode has NO id field; stable ids live in the free-form attrs map (attrs['id'] / attrs['blockId']). Do not add an id field to BlockNode in this MT (that is a model change outside prose-diff scope); read ids out of attrs.",
+      "The DIFF uses LCS alignment; the MERGE uses positional index alignment. This asymmetry is faithful to the TS reference — do not 'fix' it by aligning the merge with LCS; MT-243's UI and MT-245's parity both assume the TS behaviour.",
+      "similar is already a workspace dependency (code_editor/diff_engine.rs uses TextDiff::from_lines). Reuse it for both the intra-block inline diff and the similarity-ratio fallback; do not add a new diff crate.",
+      "Reuse code_editor::diff_engine::{MergeChoice} and align the native ProseDiffStatus to DiffStatus at the code_editor boundary (Unchanged<->Equal) so MT-242's renderer can share one status vocabulary across code and prose diffs.",
+      "Cross-family seams (reference only, not authored here): MT-242 prose diff UI consumes ProseDiff; MT-243 prose merge UI consumes BlockMergePlan/apply; MT-244 annotations target contiguous changed-block runs; MT-245 parity+perf proofs BLOCK the TR MT-261 removal gate."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Pure-function diff/merge core over the typed document model; the operator-facing prose diff surface is MT-242, the merge UI is MT-243."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal engine MT with no operator-visible behaviour on its own; the UserManual entries land with the MT-242 prose diff view and MT-243 merge UI."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — pure synchronous diff/merge functions emit no runtime events; diff/merge lifecycle events (if any) belong to the MT-242/243 UI surfaces.",
+    "internal_diagnostics: WIRED — alignment decisions (LCS match vs gap pairing vs stable-id match vs similarity-fallback fuse) and unresolved-conflict errors are typed/inspectable, not stringly, so a no-context model can trace why a block classified as it did.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no long-running process or child; synchronous pure functions."
+  ],
+  "risk_if_missed": "The MT-009 deferred prose diff stays unwired: worktree-merge and notes conflict review keep falling back to line-level text diff over serialized JSON (noisy, block-blind) or the legacy React document_diff_merge.ts that TR MT-261..264 is about to delete, leaving the native editor with NO block-aware prose diff or 3-way merge and no parity anchor before the reference is removed.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The native block diff SILENTLY diverges from document_diff_merge.ts (different alignment, different modified/added split), so once TR MT-261..264 deletes the TS reference there is no way to detect the regression and operators see wrong prose diffs.",
+      "RISK-2: The stable-id + similarity hardening changes classifications the TS never produced, breaking parity: a moved block that the TS reported as Removed+Added is fused into Modified and the parity fixtures disagree.",
+      "RISK-3: The three-way merge is wrongly LCS-aligned (copying the diff path) instead of index-aligned, producing different conflict sets than planRichDocumentMerge and silently mis-merging documents.",
+      "RISK-4: An unresolved conflict is silently resolved to one side (or drops a side) instead of erroring, so a merge 'succeeds' while discarding operator or agent edits.",
+      "RISK-5: nodeText / diffKind mis-handle code blocks (monacoCodeBlock / NodeKind::CodeBlock) or inline atoms (hsLink, loomTransclusion), so code-block and wikilink edits are misclassified or their text is lost from the diff."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Fixture tests assert native classifications equal hand-computed document_diff_merge.ts output; MT-245 promotes these into the full parity suite that BLOCKS the TR MT-261 removal gate.",
+      "CTRL-2 (RISK-2): A parity-neutrality invariant test proves that on id-free, no-move inputs the hardened diff equals the pure LCS/TS result; the hardening only refines cases the TS could not express, never the fixtures.",
+      "CTRL-3 (RISK-3): three_way is implemented as a max-length per-index compare with a dedicated test on inputs where LCS alignment WOULD give a different answer, asserting the index-aligned (TS) result.",
+      "CTRL-4 (RISK-4): apply returns ProseMergeError::UnresolvedConflict for a Conflict with no choice; a negative test asserts the error and that no side is dropped; Both preserves local-then-remote order.",
+      "CTRL-5 (RISK-5): nodeText/diffKind tests cover a code block (Code kind, code text extracted), an hsLink atom, and a loomTransclusion atom, asserting no text is lost and kind is correct."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: code_editor/diff_engine.rs (deferred-prose-diff header lines ~5-19, diff_json_blocks seam lines ~496-526, DiffStatus/DiffBlock/MergeStatus{LocalOnly,RemoteOnly,BothSame,Conflict}/MergeChoice/MergeBlock, similar crate usage); rich_editor/document_model/node.rs (NodeKind full variant set, Child::{Block,Text,HsLink,Transclusion}, BlockNode{kind,attrs,children} with NO id field) and doc_json.rs (RichDocument envelope, block_to_json/to_content_json_value, RICH_DOCUMENT_SCHEMA_VERSION rich_document_v1). PARITY TARGET read in full: app/src/lib/editor/document_diff_merge.ts (RichDocumentDiffBlock status unchanged|modified|added|removed lines ~10-23; buildRichDocumentDiff -> alignDiffBlocks -> longestCommonBlockSubsequence + alignGap; diffStatus/diffKind/nodeText; RichDocumentMergePlan local_only|remote_only|both_same|conflict lines ~29-49; planRichDocumentMerge max-length index alignment + continue-when-unchanged; applyRichDocumentMergePlan + selectedMergeNode throw-on-unresolved).",
+    "corrections": [
+      "The native rich-document format that MT-009 said 'DOES NOT EXIST yet' now EXISTS as rich_editor/document_model (delivered under WP-KERNEL-012 E2); this MT is the sanctioned replacement of the deferred diff_json_blocks seam, not new speculative work.",
+      "document_diff_merge.ts uses LCS for the DIFF but positional index alignment for the MERGE; both are ported verbatim. The stable-id + similarity matching is a native superset explicitly constrained to be parity-neutral on the MT-245 fixture corpus so it cannot invalidate the parity gate."
+    ]
+  }
+}

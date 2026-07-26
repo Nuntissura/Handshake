@@ -1,0 +1,202 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-221",
+  "title": "NA-MT221-CodeEditorAnnotationMarkers",
+  "group": "NA Notes annotation UI",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-221.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-201",
+      "MT-202",
+      "MT-203",
+      "MT-204",
+      "MT-205"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Render annotation gutter markers and inline thread widgets in the NATIVE code editor across every view the editor has: plain (non-diff) file view, DiffMode::SideBySide (both panes), DiffMode::Inline, and DiffMode::Merge (all three panes). This is the first visible surface of the annotation system: the AC family (MT-201..209) owns schema/anchor/reanchor/store/routes; this MT is pure native egui UI consuming those contracts. Interaction pattern reference: the VS Code Comment API UI contract (CommentController + CommentThread(uri, range) rendered at the anchored range in the editor; range=None means file-level). Visual concept reference: hunk's noteBorder-styled inline agent annotations placed beside the exact diff lines they refer to.\n\nEXPECTED DIFF SHAPE: New frontend module src/frontend/handshake_native/src/annotations/ (mod.rs + marker_state.rs + thread_widget.rs + code_markers.rs + client.rs thin typed consumption seam) registered from lib.rs; a new GutterMarkerKind::Annotation variant in code_editor/gutter.rs; marker wiring in code_editor/panel.rs, diff_editor_panel.rs, and minimap.rs; one integration test file. No backend edits; no legacy React edits.\n\nDETAILED SPEC (widget structs, pane names, interaction flows):\n1. annotations/marker_state.rs: `pub enum AnnotationMarkerState { Open, Resolved, Orphaned, Outdated }` mapped 1:1 from the AC MT-201 annotation lifecycle states. Each state has a DISTINCT glyph + color pair (distinct shape, not color-only, for colorblind readability): Open = filled comment bubble, Resolved = check-bubble, Orphaned = broken-link bubble, Outdated = clock-bubble. Colors come from the existing theme token surface (same pattern as gutter.rs `HsDiagnosticTokens` / `diagnostic_tokens_for(visuals)`), never hardcoded hex constants.\n2. code_editor/gutter.rs: extend the REAL existing marker enum `GutterMarkerKind` (variants today: Diagnostic(DiagnosticSeverity), Breakpoint, FoldTriangle(bool)) with `Annotation(AnnotationMarkerState)`. `GutterMarker.message` carries the hover-preview head text (thread head author + first line, same mechanism the Diagnostic hover uses). `Gutter::render` paints the annotation glyph in the existing marker column; `GutterResponse` gains the clicked-annotation line so the panel can open the thread widget.\n3. annotations/thread_widget.rs: `pub struct AnnotationThreadWidget` — the SHARED inline thread widget (MT-222 reuses this exact struct for the rich editor; do not fork). Anchored under the clicked line as an inline expanded region (VS Code comment-thread pattern), styled with a left accent border beside the exact anchored lines (hunk noteBorder visual concept). Shows: provenance badge per comment (operator badge vs model badge — model badge MUST show robot_id and session id per the WP design basis), comment body (read-only rendering here; authoring is MT-224), reply list, state chip, and a collapse control. Every widget instance emits AccessKit nodes with stable author_ids: `annotation_thread_{annotation_id}` (container), `annotation_thread_{annotation_id}_comment_{n}`, `annotation_thread_{annotation_id}_collapse`, using the panel.rs instance-suffix scheme (RISK-004 in panel.rs) so multi-pane mounts never collide.\n4. code_editor/panel.rs (plain file view): CodeEditorPanel accepts an annotation marker set for the open file (fed from annotations/client.rs which consumes the AC MT-203 routes through the existing backend_client pattern — the client seam holds NO anchor math; anchor/reanchor resolution is AC MT-202/MT-204 server-side). Markers render in the gutter; hovering shows the preview tooltip; clicking opens/toggles the AnnotationThreadWidget inline under the anchored line. Marker AccessKit node: `annotation_marker_{line}_{annotation_id}` (Role::Button, instance-suffixed).\n5. diff_editor_panel.rs: DiffMode::SideBySide — each of the two mounted CodeEditorPanel instances shows the markers for ITS side (anchors resolved against old content on the left pane, new content on the right pane; the instance-suffixed author_id scheme already exists for exactly this dual-mount case). DiffMode::Inline — markers map through the unified DiffBlock row mapping to the correct unified row (a marker on a removed line sits on the `- ` row, on an added line on the `+ ` row). DiffMode::Merge — three panes (local/base/remote): a marker renders in the pane whose content its anchor targets; merge-conflict controls (Accept Local/Remote/Both) must remain fully visible and clickable with markers present (no overlap).\n6. ORPHANED/OUTDATED HANDLING (binding): an annotation whose anchor did not re-resolve (AC MT-204 reanchor verdict orphaned) is NEVER silently placed at a guessed line. Orphaned annotations render in a dedicated collapsed 'Unanchored annotations (N)' strip at the top of the editor viewport with the Orphaned glyph and an explicit reason line. Outdated (anchor resolved but content drifted) renders AT the resolved line with the Outdated glyph and a visible 'content changed since annotated' hover note.\n7. minimap.rs: annotated lines get a tick mark channel in the minimap — extend `Minimap::compute_row_colors`/`render` with an annotation tick overlay (thin right-edge tick per annotated row, state-colored). Ticks must not obscure the existing per-row content colors.\n8. Live vs static: this MT renders whatever annotation set the client seam returns on open/refresh; live event-driven arrival is MT-225; authoring is MT-224; the side panel is MT-223.\n\nSTEP-BY-STEP:\n1. Read AC MT-201..205 contracts (schema, anchor subjects, routes, lifecycle states) and the real surfaces: code_editor/gutter.rs (GutterMarkerKind/GutterMarker/Gutter::render/GutterResponse), code_editor/panel.rs (author_id + instance-suffix scheme), code_editor/diff_editor_panel.rs (DiffMode, DiffBlock/MergeBlock, show()), code_editor/minimap.rs (compute_row_colors/render), rich_editor/mod.rs scoped_author_id (for the shared-widget namespace discipline).\n2. Create annotations/mod.rs + marker_state.rs + client.rs (typed consumption of AC routes; no schema forking — reference AC types or mirror them behind a single conversion boundary with a compile-time note naming the AC MT).\n3. Extend GutterMarkerKind with Annotation(AnnotationMarkerState) + glyph/color painting + hover preview + click-through in GutterResponse.\n4. Build AnnotationThreadWidget with AccessKit nodes and the noteBorder-style left accent; unit-test its node tree shape.\n5. Wire plain file view (panel.rs), then diff modes (diff_editor_panel.rs) including the side-mapping and Inline row mapping, then Merge three-pane placement.\n6. Add the orphaned strip + outdated styling; add minimap ticks.\n7. Register `pub mod annotations;` in lib.rs; write the integration test file covering every DiffMode and every marker state; capture Argus evidence for each surface.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/annotations/**",
+      "src/frontend/handshake_native/src/code_editor/gutter.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs",
+      "src/frontend/handshake_native/src/code_editor/minimap.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_annotation_code_markers.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by MT-261..264 — never extend it)",
+      ".GOV/**",
+      "src/backend/** (annotation core is AC MT-201..209; consume via routes only)",
+      "src/frontend/handshake_native/src/rich_editor/** (rich-editor rendering is MT-222)"
+    ],
+    "acceptance_criteria": [
+      "GutterMarkerKind::Annotation(AnnotationMarkerState) exists in code_editor/gutter.rs with distinct glyph+color per state (Open/Resolved/Orphaned/Outdated), colors sourced from theme tokens (no hardcoded hex).",
+      "Plain file view: annotated lines show gutter markers; hover shows a preview (author + head line); click opens the inline AnnotationThreadWidget anchored under that line; a second click collapses it.",
+      "AnnotationThreadWidget renders provenance badges that visually distinguish operator-authored from model-authored comments, and every model badge displays robot_id and session id.",
+      "DiffMode::SideBySide shows side-correct markers in BOTH panes with non-colliding instance-suffixed AccessKit author_ids; DiffMode::Inline maps markers to the correct unified rows; DiffMode::Merge places markers in the correct pane of three and leaves Accept Local/Remote/Both controls unobstructed.",
+      "Orphaned annotations NEVER render at a guessed line: they appear only in the 'Unanchored annotations (N)' strip with the Orphaned glyph and a reason; Outdated annotations render at the resolved line with the Outdated glyph and a drift note.",
+      "Minimap shows a state-colored tick for every annotated line without obscuring existing row colors.",
+      "Every marker, strip, and thread widget emits AccessKit nodes with the stable author_ids named in the spec (annotation_marker_{line}_{annotation_id}, annotation_thread_{annotation_id}, unanchored strip container), instance-suffixed on multi-pane mounts.",
+      "annotations/client.rs contains no anchor/reanchor math (grep-provable): resolution verdicts come exclusively from the AC MT-202/MT-204 surfaces.",
+      "UserManual updated in the same change: annotation markers, states, hover/click behavior, orphaned/outdated meaning."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native annotation_code_markers -- --nocapture",
+      "cargo test -p handshake-native annotation_thread_widget -- --nocapture",
+      "rg -n \"Annotation\\(\" src/frontend/handshake_native/src/code_editor/gutter.rs && ! rg -n \"reanchor|anchor_resolve|levenshtein|similarity\" src/frontend/handshake_native/src/annotations/client.rs",
+      "Argus evidence: argus.screenshot + AccessKit tree dump of (a) plain view with all four marker states, (b) SideBySide both panes, (c) Inline, (d) Merge three panes, (e) open thread widget with operator+model badges — stored under the external HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/annotations/mod.rs (new)",
+      "src/frontend/handshake_native/src/annotations/marker_state.rs (new)",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (new, shared with MT-222)",
+      "src/frontend/handshake_native/src/annotations/code_markers.rs (new)",
+      "src/frontend/handshake_native/src/annotations/client.rs (new, thin typed route consumption)",
+      "src/frontend/handshake_native/src/code_editor/gutter.rs (extend GutterMarkerKind)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (marker wiring)",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (DiffMode wiring)",
+      "src/frontend/handshake_native/src/code_editor/minimap.rs (annotation ticks)"
+    ],
+    "expected_tests": [
+      "unit: AnnotationMarkerState -> glyph/color mapping distinct per state (shape-distinct, not color-only)",
+      "unit: AnnotationThreadWidget AccessKit node tree (container + comments + collapse, stable author_ids, instance suffix)",
+      "unit: Inline diff row mapping places old-line and new-line anchors on the correct unified rows",
+      "integration: SideBySide dual mount produces non-colliding suffixed author_ids for the same annotation id",
+      "integration: orphaned annotation appears ONLY in the unanchored strip, never at a body line",
+      "integration: minimap tick rows equal the annotated line set",
+      "negative: empty annotation set renders zero markers, zero ticks, no strip"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): gutter.rs has GutterMarkerKind { Diagnostic(DiagnosticSeverity), Breakpoint, FoldTriangle(bool) }, GutterMarker{line,message}, GutterConfig, GutterResponse, Gutter::render, diagnostic_tokens_for(visuals); diff_editor_panel.rs has pub enum DiffMode { SideBySide, Inline, Merge }, DiffEditorPanel::show(&self, ui), MergeState/MergeBlock/MergeChoice with Accept buttons, and a documented accesskit 0.21.1 constraint (no Role::ToggleButton — reuse their workaround pattern for any toggle); minimap.rs has Minimap::compute_row_colors + render + compression_ratio; panel.rs documents the fixed author_ids (code_editor_panel, code_editor_scroll_area, editor.code.text, code_editor_gutter, code_editor_minimap) and the RISK-004 instance-suffix scheme for dual-mount diff panes — reuse that exact scheme.",
+      "Design basis (cite in code docs): VS Code Comment API (CommentController + CommentThread(uri, range); range=None => file-level — file-level annotations surface in the MT-223 panel and the unanchored strip, not at a body line); hunk noteBorder inline annotation styling beside the exact diff lines.",
+      "The AC family owns anchoring: this MT consumes resolved placements + verdicts. If AC client types are not yet exported to this crate when this MT starts, define them once in annotations/client.rs behind a conversion boundary with a comment naming the AC MT that owns each shape.",
+      "Marker glyphs must be shape-distinct (bubble/check/broken-link/clock) so state is readable without color; this is also the readability check Argus evidence must show.",
+      "Merge-pane placement: an anchor targets local, base, or remote content per the AC anchor subject; if the AC subject cannot name the merge side, place on base and mark Outdated — never guess silently (log the placement decision).",
+      "Cross-family seams (reference only, not authored here): MT-222 rich rendering, MT-223 panel, MT-224 authoring, MT-225 live arrival, MT-226 evidence suite, MT-161 annotation FR events."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "code_editor gutter annotation markers (plain file view)",
+      "diff_editor_panel SideBySide both panes",
+      "diff_editor_panel Inline unified view",
+      "diff_editor_panel Merge three panes",
+      "AnnotationThreadWidget inline thread",
+      "unanchored-annotations strip",
+      "minimap annotation ticks"
+    ],
+    "argus_targets": [
+      "annotation_marker_{line}_{annotation_id}",
+      "annotation_thread_{annotation_id}",
+      "annotation_unanchored_strip",
+      "code_editor_gutter",
+      "code_editor_minimap"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "readability_check_all_marker_states",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Annotations in the code editor: marker states (open/resolved/orphaned/outdated), hover preview, opening threads, diff-mode behavior, minimap ticks, what orphaned/outdated mean"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Annotation lifecycle FR events are the AC/MT-161 seam; this UI MT renders state and emits no new business events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Marker placement decisions (side mapping, orphan verdict, merge-pane fallback) are exposed as structured state readable by the visual_debugger surface for no-context diagnosis."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure render surface; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "The annotation core (AC MT-201..209) has no visible surface in the primary editing context: operators cannot see model feedback where it applies, MT-222..226 have no shared thread widget to reuse, and annotation review falls back to the legacy React editor that MT-261..264 removes.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent misplacement — an orphaned or drifted anchor is rendered at a guessed line, attaching model commentary to the wrong code and corrupting operator review decisions.",
+      "RISK-2: Provenance confusion — operator and model comments render visually alike, letting model-authored text read as operator-authored (authority laundering through the UI).",
+      "RISK-3: Diff-side mix-up — a marker anchored to old content renders on the new pane (or wrong unified row), showing feedback beside code it does not describe.",
+      "RISK-4: AccessKit id collision on dual mount — SideBySide mounts two panels; unsuffixed marker ids collide, breaking the Argus/AccessKit evidence path and keyboard access.",
+      "RISK-5: Gutter/minimap overload — annotation glyphs obscure diagnostics/breakpoints/fold triangles or minimap content, degrading existing readability (HBR-VIS regression)."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Orphaned renders ONLY in the unanchored strip with reason; Outdated is visibly badged at its resolved line; both behaviors integration-tested and screenshot-evidenced.",
+      "CTRL-2 (RISK-2): Distinct operator vs model badge components; model badge always shows robot_id + session id; a unit test asserts the badge kind differs per author kind.",
+      "CTRL-3 (RISK-3): Inline row-mapping and SideBySide side-mapping unit tests with anchors on removed, added, and unchanged lines; Merge pane-placement test.",
+      "CTRL-4 (RISK-4): Reuse the panel.rs RISK-004 instance-suffix scheme; dual-mount test asserts non-colliding author_ids.",
+      "CTRL-5 (RISK-5): Annotation glyph occupies the existing marker column slot without displacing diagnostics/breakpoints (co-occupancy rule documented + tested); minimap ticks are edge-overlay only; overlap check in Argus evidence."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/src/: code_editor/gutter.rs (GutterMarkerKind Diagnostic/Breakpoint/FoldTriangle, GutterMarker, Gutter::render, diagnostic_tokens_for), code_editor/diff_editor_panel.rs (DiffMode SideBySide/Inline/Merge, MergeBlock/MergeChoice, accesskit 0.21.1 toggle workaround note), code_editor/minimap.rs (compute_row_colors, render), code_editor/panel.rs (author_id constants + RISK-004 instance-suffix scheme), mcp/argus.rs (argus.screenshot). External design basis: VS Code Comment API UI contract (CommentController + CommentThread(uri, range), range=None file-level); hunk noteBorder-styled inline diff annotations.",
+    "corrections": [
+      "The gutter marker module is code_editor/gutter.rs with enum GutterMarkerKind (not a separate 'gutter_markers' module as the WP stub sketch guessed); diagnostics arrive via push_diagnostics per gutter.rs docs.",
+      "Minimap already centralizes row coloring in Minimap::compute_row_colors — annotation ticks extend that path instead of adding a second painter."
+    ]
+  }
+}

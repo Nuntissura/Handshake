@@ -1,0 +1,151 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-161",
+  "title": "RD-MT161-NewFrEventKinds",
+  "group": "RD Recording + diagnostics + manuals",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-161.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define the complete ADDITIVE Flight Recorder event-kind catalogue for WP-017 (agent steering, roles, model-to-model, MT lifecycle, worktree merge, annotations) plus typed emit helpers, so every other WP-017 family has one canonical place to record business events. The Flight Recorder itself is KEPT AS-IS per the master-spec three-tier diagnostic model: this MT adds NEW event kinds and helper builders only — no change to existing tables, existing event kinds, retention, or query semantics. This is the foundation MT the whole RD group and all Pillar-A families cite as 'FR kinds'.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/flight_recorder/events_agent_steering.rs containing the WP-017 event-id table + typed emit helper functions; (b) one-line `pub mod events_agent_steering;` registration + re-exports in src/backend/handshake_core/src/flight_recorder/mod.rs; (c) IF any new queryable column is genuinely required, an additive-only DuckDB statement (CREATE TABLE IF NOT EXISTS / ALTER TABLE ... ADD COLUMN IF NOT EXISTS) in duckdb.rs init_schema — existing tables (events, fr_events, diagnostics, terminal_output, tool_payloads; duckdb.rs init_schema lines 235-370) are NEVER rewritten, dropped, or re-keyed; (d) new test file src/backend/handshake_core/tests/agent_steering_fr_events_tests.rs. No emit CALL SITES are wired here — the owning family MTs (sessions MT-001..010, Claude MT-021..029, Codex MT-041..047, ACP MT-061..066, roles MT-081..087, model-to-model MT-101..108, MT lifecycle MT-121..126, merge MT-141..148, annotations MT-201+) call these helpers from their own surfaces.\n\nDETAILED SPEC — EVENT ID CATALOGUE (canonical UPPER-KEBAB-CASE after the FR-EVT- prefix, exactly matching the governance registry convention; follow the SwarmFrEventId self-contained round-trippable constant-table discipline at swarm_orchestration/events.rs lines 36-109, which exists precisely because product waves must not edit .GOV):\n\nSESSION STEERING (subsystem agent_sessions):\n  1. FR-EVT-SESSION-STEER-QUEUED      — steer message accepted into the session queue (fields: session_id, message_id, payload_sha256, queued_depth).\n  2. FR-EVT-SESSION-STEER-DELIVERED   — steer message written to the live transport (fields: session_id, message_id, transport, latency_ms).\n  3. FR-EVT-SESSION-STEER-ACKED       — counterparty acknowledged the steer (fields: session_id, message_id, ack_kind).\n  4. FR-EVT-SESSION-STEER-REJECTED    — steer refused (session terminal, capability missing, queue overflow) (fields: session_id, message_id, reason).\n  5. FR-EVT-SESSION-INTERRUPT-REQUESTED — interrupt requested (fields: session_id, message_id, requested_by).\n  6. FR-EVT-SESSION-INTERRUPT-CONFIRMED — interrupt observed effective (turn terminal) (fields: session_id, message_id, exit_code, turn_id).\n  7. FR-EVT-SESSION-RESUMED           — thread resumed after interrupt/restart (fields: session_id, resume_kind, prior_turn_count).\n\nROLES (subsystem agent_roles):\n  8. FR-EVT-ROLE-INJECTED             — role protocol/persona injected into a session (fields: session_id, role_id, injection_kind, content_sha256).\n  9. FR-EVT-ROLE-INJECTION-REJECTED   — role injection refused (fields: session_id, role_id, reason).\n\nMODEL-TO-MODEL (subsystem m2m):\n  10. FR-EVT-M2M-SPAWN-REQUESTED      — a model asked to spawn a child session (fields: session_id [requester], parent_session_id, requested_adapter, wp_id, mt_id).\n  11. FR-EVT-M2M-SPAWN-DENIED         — spawn denied by policy/capacity/injection scan (MT-104) (fields: session_id, parent_session_id, reason).\n  12. FR-EVT-M2M-STEER                — model steered another model's session (fields: session_id [target], parent_session_id [steerer], message_id, payload_sha256).\n  13. FR-EVT-M2M-NOTIFY               — model-to-model structured notification (fields: session_id [target], parent_session_id [sender], message_id, notify_kind).\n\nMT LIFECYCLE (subsystem mt_executor — additive next to existing FR-EVT-MT-CANCEL-*/FR-EVT-MT-STARVED/FR-EVT-MT-EXEC-ERROR already registered by WP-KERNEL-004; new ids must not collide with any existing registry id):\n  14. FR-EVT-MT-DISPATCHED            — MT dispatched to an implementing session (fields: wp_id, mt_id, session_id, worktree_id).\n  15. FR-EVT-MT-SIGNALED              — structured MT signal (progress/blocker/ready) from the session (fields: wp_id, mt_id, session_id, signal_kind, message_id).\n  16. FR-EVT-MT-HANDOFF               — MT handed off between sessions/roles (fields: wp_id, mt_id, session_id [from], to_session_id, role_id).\n\nWORKTREE MERGE (subsystem worktree_merge):\n  17. FR-EVT-MERGE-PROPOSED           — merge-back proposed (fields: merge_id, worktree_id, session_id, source_branch, target_branch).\n  18. FR-EVT-MERGE-APPROVED           — merge approved (operator or policy) (fields: merge_id, approved_by, session_id).\n  19. FR-EVT-MERGE-EXECUTED           — merge executed (fields: merge_id, worktree_id, merged_sha, files_changed).\n  20. FR-EVT-MERGE-CONFLICTED         — merge hit conflicts (fields: merge_id, worktree_id, conflict_count, conflict_paths_sha256).\n  21. FR-EVT-MERGE-ABORTED            — merge aborted/rolled back (fields: merge_id, worktree_id, reason).\n\nANNOTATIONS (subsystem annotations):\n  22. FR-EVT-ANNOTATION-CREATED       — annotation/note created (fields: annotation_id, session_id, anchor_kind, target_sha256).\n  23. FR-EVT-ANNOTATION-REANCHORED    — annotation re-anchored after target edit (fields: annotation_id, from_anchor_sha256, to_anchor_sha256).\n  24. FR-EVT-ANNOTATION-ORPHANED      — annotation anchor lost (fields: annotation_id, reason).\n  25. FR-EVT-ANNOTATION-DELETED       — annotation deleted (extension beyond the stub list, justified: delete is an auditable destructive action and the audit surface MT-166 must show it) (fields: annotation_id, deleted_by).\n\nThe implementing session MAY extend this catalogue if the family MTs' code dictates additional states, but only additively, only in the same UPPER-KEBAB-CASE namespaces above, and every extension must be recorded in the enum + tests + the governance closeout list.\n\nMANDATORY CORRELATION FIELDS: every payload built by the typed helpers carries a common correlation block modeled on events_llm_infer.rs (schema_version + event_id + trace_id discipline, lines 9-60): { schema_version: \"hsk.fr.agent_steering@0.1\", event_id: <FR-EVT-...>, trace_id, session_id, parent_session_id (nullable), wp_id (nullable), mt_id (nullable), role_id (nullable), message_id (nullable) } plus the per-event fields listed above. All ids minted here use Uuid::now_v7 (HBR-INT-008). Payload text bodies are NEVER embedded raw — hash (sha256) or preview-redact, following the store_tool_payload_redacted precedent in duckdb.rs.\n\nGOVERNANCE REGISTRY NOTE (explicit closeout obligation, NOT code): the canonical FR event registry lives at .GOV/roles_shared/records/FR_EVENT_REGISTRY.json (schema handshake.fr_event_registry@1; entries carry id/kind/subsystem/added_in_wp/schema_fields). Product code NEVER writes .GOV. Registry sync for all ids added by this MT is performed as part of the WP-KERNEL-017 governance closeout, by the implementing session, in the governance worktree, with an operator-visible diff (added_in_wp = \"WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1\"). This MT's code makes that sync mechanical by exposing a machine-readable dump (see step 6). The same fold-later discipline is already documented for FR-EVT-SWARM-* in swarm_orchestration/events.rs lines 9-20.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the grounding files first: flight_recorder/events_llm_infer.rs (const-table + typed builder pattern, correlation/schema_version discipline), flight_recorder/events_agent_activity.rs (FR-EVT-AGENT-* precedent), swarm_orchestration/events.rs lines 36-109 (SwarmFrEventId as_str/all/from_str_id round-trip table + .GOV fold note), flight_recorder/duckdb.rs init_schema lines 235-370 (existing tables) and insert_event line 528, flight_recorder/fr_event_registry.rs and fr_emitter.rs (existing registry/emitter seams), llm/local_router.rs line 560 emit_llm_inference_event (how a subsystem consumes typed helpers).\n2. Create events_agent_steering.rs with pub enum AgentSteeringFrEventId (25 variants above) implementing as_str() -> &'static str, all() -> &'static [Self], from_str_id(&str) -> Option<Self> — exact SwarmFrEventId shape so a future governance fold into the master FrEventId enum is mechanical.\n3. Implement one typed emit-helper constructor per event id (steer_queued_event(...), merge_executed_event(...), etc.) returning FlightRecorderEvent, each stamping the mandatory correlation block + per-event fields via serde_json::json!, mirroring infer_start_event/infer_token_event. Helpers take typed arguments (uuid ids, u64 counters), never pre-built json blobs, so call sites cannot omit correlation fields.\n4. Register the module in flight_recorder/mod.rs (pub mod + re-export of the enum and helpers).\n5. DuckDB: confirm the generic events/fr_events tables already accept the new kinds (payload-carried event_id, insert_event line 528). Only if a genuinely queryable new column is required, add it via ALTER TABLE ... ADD COLUMN IF NOT EXISTS inside init_schema with a comment marking it WP-017-additive. Do NOT modify existing columns, keys, or retention (purge_retention line 596 untouched).\n6. Add pub fn registry_sync_dump() -> serde_json::Value producing, for every id, the { id, kind: \"emission\", subsystem, added_in_wp, schema_fields } shape of handshake.fr_event_registry@1 — this is the machine-readable input the governance closeout uses to sync FR_EVENT_REGISTRY.json with an operator-visible diff.\n7. Author tests/agent_steering_fr_events_tests.rs: (a) round-trip all()/as_str/from_str_id for every variant; (b) uniqueness: no duplicate id strings, and no id string equal to any FR-EVT-SWARM-* (SwarmFrEventId::all), FR-EVT-LLM-INFER-* const, or FR-EVT-AGENT-* const compiled into the crate; (c) every helper's payload contains schema_version, event_id, trace_id, session_id keys; (d) an in-memory DuckDB recorder (DuckDbFlightRecorder::new_in_memory, duckdb.rs line 225) accepts a sample of each event kind via record_event and returns it via list_events — proving KEPT-AS-IS storage needs no schema break; (e) registry_sync_dump() emits exactly one entry per enum variant with non-empty schema_fields.\n8. cargo build -p handshake_core green; clippy clean on the new module.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/flight_recorder/events_agent_steering.rs",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs",
+      "src/backend/handshake_core/src/flight_recorder/duckdb.rs (additive-only: CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS)",
+      "src/backend/handshake_core/tests/agent_steering_fr_events_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named surfaces; this MT names none — no React changes)",
+      ".GOV/** (registry sync = governance closeout step, documented not coded; product code never writes .GOV)",
+      "src/backend/handshake_core/src/flight_recorder/event_ledger.rs (existing ledger semantics KEPT AS-IS)",
+      "src/backend/handshake_core/src/flight_recorder/span_repo.rs (KEPT AS-IS)",
+      "src/backend/handshake_core/src/swarm_orchestration/** (call-site wiring belongs to the owning family MTs)",
+      "src/backend/handshake_core/src/process_ledger/** (PG ledger rows are MT-162)",
+      "src/frontend/** (no native UI in this MT)"
+    ],
+    "acceptance_criteria": [
+      "events_agent_steering.rs exists, is registered in flight_recorder/mod.rs, and cargo build -p handshake_core is green.",
+      "AgentSteeringFrEventId covers exactly the 25 catalogued ids (plus any additively documented extensions) with as_str/all/from_str_id round-trip proven by test.",
+      "No new id collides with any existing compiled FR-EVT-* id (SwarmFrEventId table, FR-EVT-LLM-INFER-* consts, FR-EVT-AGENT-* consts) — proven by a uniqueness test.",
+      "Every typed helper payload carries the mandatory correlation block (schema_version hsk.fr.agent_steering@0.1, event_id, trace_id, session_id, parent_session_id, wp_id, mt_id, role_id, message_id where applicable) — proven by payload-key tests.",
+      "Raw steer/notification text never appears in an FR payload: only sha256 hashes or redacted previews (duckdb.rs redaction precedent) — proven by test on a helper fed a marker string.",
+      "An in-memory DuckDB recorder round-trips a sample event of every new kind through record_event/list_events with NO destructive schema change: existing tables, keys, and retention untouched (git diff on duckdb.rs shows additive statements only, if any).",
+      "registry_sync_dump() emits one handshake.fr_event_registry@1-shaped entry per variant with added_in_wp = this WP id — the governance-closeout sync input.",
+      "Contract-documented governance obligation: FR_EVENT_REGISTRY.json sync recorded as a WP closeout step performed by the implementing session with operator-visible diff — this MT is not DONE-DONE at WP level until that closeout lands.",
+      "No emit call sites added outside tests (family MTs own their call sites); clippy clean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_steering_fr_events --nocapture 2>&1 | tee /tmp/mt161_run.txt && grep -E 'test result: ok' /tmp/mt161_run.txt",
+      "cargo test -p handshake_core agent_steering_fr_events --nocapture 2>&1 | grep -q 'round_trip'",
+      "grep -c 'FR-EVT-' src/backend/handshake_core/src/flight_recorder/events_agent_steering.rs | awk '{ if ($1 >= 25) print \"CATALOGUE_OK\" }' | grep -q CATALOGUE_OK",
+      "grep -n 'registry_sync_dump' src/backend/handshake_core/src/flight_recorder/events_agent_steering.rs",
+      "git diff --unified=0 -- src/backend/handshake_core/src/flight_recorder/duckdb.rs | grep -E '^-' | grep -vE '^---' | wc -l | grep -q '^0'",
+      "grep -n 'now_v7' src/backend/handshake_core/src/flight_recorder/events_agent_steering.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/flight_recorder/events_agent_steering.rs (new)",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs (module registration + re-exports)",
+      "src/backend/handshake_core/src/flight_recorder/duckdb.rs (additive statements only, if required at all)",
+      "src/backend/handshake_core/tests/agent_steering_fr_events_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "enum round-trip (all/as_str/from_str_id) + uniqueness vs existing FR-EVT-* ids",
+      "payload correlation-block key assertions per helper",
+      "no-raw-payload redaction test (marker string never appears in payload)",
+      "in-memory DuckDB record_event/list_events round-trip per new kind",
+      "registry_sync_dump shape test (one entry per variant, handshake.fr_event_registry@1 fields)"
+    ],
+    "implementation_notes": [
+      "KEPT AS-IS is a hard constraint from the master-spec three-tier diagnostic model: Flight Recorder = business-event ledger; internal_diagnostics = in-app self-diagnostics (WP-KERNEL-015, retrofit 016 — may not exist yet); Palmistry = external out-of-process watcher. This MT touches ONLY the first tier and only additively; tier wiring/deferral bookkeeping is MT-164.",
+      "The SwarmFrEventId precedent (events.rs lines 9-20) is the authoritative answer to 'why not edit the .GOV registry from product code': define a self-contained round-trippable table now, fold into the master registry at governance closeout. Follow it exactly.",
+      "Do not build a parallel emitter: helpers return FlightRecorderEvent and call sites use the existing FlightRecorderActor / fr_emitter seams, the same way local_router.rs emit_llm_inference_event (line 560) consumes events_llm_infer helpers.",
+      "The existing registry already contains FR-EVT-MT-CANCEL-REQUESTED/FORCED/CLEANUP-FAILED, FR-EVT-MT-STARVED, FR-EVT-MT-EXEC-ERROR and FR-EVT-MT-015 (subsystem mt_executor, added_in_wp WP-KERNEL-004). The new FR-EVT-MT-DISPATCHED/SIGNALED/HANDOFF ids are additive siblings; verify no string collision at closeout sync time as well.",
+      "Downstream consumers (fix their contracts against these names): MT-162 ledger rows reference message_id/merge_id; MT-163 transcript mapping consumes ids 1-16; MT-164 wiring manifest enumerates all 25; MT-166 audit joins on session_id/parent_session_id/wp_id/mt_id/message_id."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless event-catalogue + emit-helper MT; no operator-visible surface changes. Events become operator-visible via the MT-166 audit pane and existing FR query routes (api/flight_recorder.rs); durable DuckDB rows satisfy trace-projection reconstructability."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "No operator-usable behavior ships here; the event vocabulary is documented for operators/models in the MT-165 manual entries (agent-harness observability section) under the same-change discipline of the feature MTs that wire the emit call sites."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder: WIRED here (this MT IS the flight-recorder tier foundation for all WP-017 behaviors — additive event kinds only)",
+    "internal_diagnostics: NOT wired here — typed DEFERRED(reason=WP-KERNEL-015-not-shipped) unless the internal_diagnostics tier exists at implementation time; disposition recorded by MT-164",
+    "palmistry: NOT wired here — typed DEFERRED(reason=WP-KERNEL-015-not-shipped) unless Palmistry exists at implementation time; disposition recorded by MT-164"
+  ],
+  "risk_if_missed": "No canonical event vocabulary: every WP-017 family invents ad-hoc FR payloads, correlation joins (session/parent/wp/mt/message) become impossible, the MT-166 audit surface has nothing coherent to query, and the governance registry drifts from product truth.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Registry drift — the product enum and .GOV/roles_shared/records/FR_EVENT_REGISTRY.json diverge because the governance closeout sync is skipped or partial, breaking the alignment discipline the fr_event_registry tests exist for.",
+      "RISK-2: Silent schema break — a 'small' DuckDB change rewrites or re-keys an existing table, violating the KEPT-AS-IS constraint and corrupting replay of pre-WP-017 events.",
+      "RISK-3: Payload leakage — raw steer/notification text (potentially containing secrets or injection content, cf. MT-104) is embedded verbatim in FR payloads instead of hashed/redacted.",
+      "RISK-4: Correlation holes — helpers accept pre-built JSON or optional correlation args, letting call sites emit events that cannot be joined by session/parent/wp/mt, hollowing out MT-166.",
+      "RISK-5: Id collision — a new FR-EVT-MT-* id collides with the WP-KERNEL-004 mt_executor ids already in the registry, making historical queries ambiguous."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): registry_sync_dump() makes the closeout mechanical; the acceptance criteria pin the closeout obligation into WP DONE-DONE; the dump shape test locks handshake.fr_event_registry@1 compatibility.",
+      "CTRL-2 (RISK-2): proof target asserts git diff on duckdb.rs contains zero removed lines; tests round-trip new kinds through an unchanged in-memory schema.",
+      "CTRL-3 (RISK-3): redaction test feeds a marker string through every text-bearing helper and asserts it never appears in the payload — only its sha256; duckdb.rs redaction helpers are the precedent.",
+      "CTRL-4 (RISK-4): helpers take typed mandatory arguments (no Option on session_id/trace_id, no raw serde_json::Value passthrough); payload-key tests assert the correlation block per helper.",
+      "CTRL-5 (RISK-5): uniqueness test compares every new id string against all compiled FR-EVT-* tables/consts; the closeout sync re-checks against the full on-disk registry."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: flight_recorder/events_llm_infer.rs (FR-EVT-LLM-INFER-* const table + typed builders + schema_version/trace_id correlation, lines 9-120), flight_recorder/events_agent_activity.rs (FR-EVT-AGENT-TOOLCALL/THINKING/TEXT/OTHER, line 50-53), swarm_orchestration/events.rs (SwarmFrEventId self-contained table lines 36-109 + .GOV fold-later note lines 9-20), flight_recorder/duckdb.rs (init_schema tables lines 235-370, insert_event 528, purge_retention 596, new_in_memory 225, redaction helpers 30-89), llm/local_router.rs emit_llm_inference_event line 560, .GOV/roles_shared/records/FR_EVENT_REGISTRY.json (handshake.fr_event_registry@1; existing FR-EVT-MT-* mt_executor ids from WP-KERNEL-004).",
+    "corrections": [
+      "Verified the FR registry already holds FR-EVT-MT-CANCEL-REQUESTED/FORCED/CLEANUP-FAILED, FR-EVT-MT-STARVED, FR-EVT-MT-EXEC-ERROR, FR-EVT-MT-015 — the stub's FR-EVT-MT-{DISPATCHED,SIGNALED,HANDOFF} do not collide but land in the same mt_executor namespace; uniqueness control extended accordingly.",
+      "Stub catalogue refined: added FR-EVT-SESSION-STEER-REJECTED, FR-EVT-ROLE-INJECTION-REJECTED, FR-EVT-M2M variants as listed, and FR-EVT-ANNOTATION-DELETED (auditable destructive action); all additive and documented in-contract.",
+      "Confirmed registry sync must be a governance-closeout step: swarm_orchestration/events.rs lines 9-20 document the exact same product-wave constraint and fold-later discipline for FR-EVT-SWARM-*."
+    ]
+  }
+}

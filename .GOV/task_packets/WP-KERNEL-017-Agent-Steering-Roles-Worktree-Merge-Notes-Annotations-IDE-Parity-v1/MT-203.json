@@ -1,0 +1,159 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-203",
+  "title": "AC-MT203-AnnotationStore",
+  "group": "AC Annotation core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-203.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-201",
+      "MT-202"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give the MT-201 `hsk.annotation@1` record durable PostgreSQL persistence behind an `AnnotationStore` trait, with an EventLedger receipt on every state-changing operation (create/update/resolve/reopen/orphan/outdated), workspace-scoped isolation, a rich filtered list query, retention + a portable export bundle (including a hunk-compatible sidecar shape MT-206 can round-trip), and forward-only additive migrations. This is the authority surface the whole AC family reads and writes; MT-205 routes and MT-206 tools call it, MT-204 re-anchor outcomes persist through it.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/storage/annotations.rs holding the row types, the `AnnotationStore` trait, its `PostgresDatabase` impl, and the filter/retention/export helpers (one-file-per-family convention, matching storage/knowledge.rs and storage/kb003_storage.rs); (b) storage/mod.rs wiring (`pub mod annotations;` + re-export of the trait + row types); (c) a new forward-only additive migration pair migrations/NNNN_annotation_core.sql + .down.sql creating the `annotation_` tables (NNNN = next sequential number after the incumbent max; do NOT edit any existing migration); (d) if `crate::kernel` KernelEventType is a closed enum, ADDITIVE annotation receipt variants only (no edits to existing variants); (e) a [[test]] registration in Cargo.toml (required-features=[\"test-utils\"]) and tests/annotation_store_tests.rs. NO routes (MT-205), NO tool surface (MT-206), NO changes to annotations/record.rs or anchor.rs.\n\nDETAILED SPEC:\n1. Tables (migration): `annotation` (id uuid PK, workspace_id uuid NOT NULL, subject_json jsonb, anchor_json jsonb, body text, kind text, thread uuid NULL, state text, author_json jsonb, fix_suggestions_json jsonb, created_at_utc timestamptz, updated_at_utc timestamptz, content_hash text) + supporting indexes on (workspace_id), (workspace_id, subject path expression), (workspace_id, state), (thread). Store the full serialized `hsk.annotation@1` record as authority; the flat columns are query keys, NOT a second authority (spec 2.3.13.11: projections are never authority). Follow the storage/knowledge.rs id/timestamp conventions exactly — no new datetime convention.\n2. `AnnotationStore` trait (async_trait) methods, every one returning `StorageResult<T>` and failing closed with a typed `StorageError` when PostgreSQL is unavailable (NO in-memory/SQLite/fixture fallback — MT-064 law): `create(&self, workspace_id, Annotation) -> StorageResult<Annotation>`; `update_body(&self, workspace_id, id, new_body, editor: AnnotationAuthor) -> StorageResult<Annotation>` (re-validates body caps via the MT-201 constructor path, never raw-writes); `transition_state(&self, workspace_id, id, from: AnnotationState, to: AnnotationState, actor) -> StorageResult<Annotation>` (optimistic guard: the `from` must match current state or a typed StaleState error — mirrors MT-059 optimistic-concurrency save); `get(&self, workspace_id, id)`; `list(&self, workspace_id, AnnotationFilter)`; `list_thread(&self, workspace_id, root_id)`; `reanchor_persist(&self, workspace_id, id, new_anchor: AnnotationAnchor, outcome) -> StorageResult<Annotation>` (the MT-204 write-back seam: updates anchor_json + state, leaves a receipt); `export_bundle(&self, workspace_id, AnnotationExportScope)`; `apply_retention(&self, workspace_id, RetentionPolicy)`.\n3. EventLedger receipts: every state-changing method appends a kernel event via the incumbent `crate::storage::postgres::append_kernel_event_with_executor` inside the SAME transaction as the row write (write + receipt are atomic — the backend-navigation receipt law, spec 2.3.13.11). Receipt kinds: ANNOTATION_CREATED, ANNOTATION_UPDATED, ANNOTATION_STATE_CHANGED, ANNOTATION_REANCHORED, ANNOTATION_RETAINED_PRUNED. Each receipt carries workspace_id, annotation id, actor (kind + provenance for model authors), and the from/to state where applicable. A read is attributable but leaves no receipt.\n4. `AnnotationFilter`: optional path (exact + prefix), author kind (operator|model), state, kind, created/updated time window (RFC3339 half-open), thread root, and a bounded limit + keyset cursor (created_at_utc, id) — never an unbounded scan; a missing limit defaults to a documented cap. Filtering is SQL-side over the index columns, not a load-all-then-filter (spec: query the canonical set, not a rendered subset).\n5. Export bundle: `export_bundle` returns a portable JSON document {schema:\"hsk.annotation_bundle@1\", workspace_id, exported_at_utc, annotations:[full hsk.annotation@1 records]} AND a `hunk_sidecar` projection {version, files:[{path, annotations:[{newRange, summary, rationale, author}]}]} derived from the records so external hunk-style agent-context consumers can read it; the hunk sidecar is a lossy PROJECTION (documented), the full records are authority. Reuse the bundles/exporter.rs + zip conventions if a zipped bundle is wanted; JSON-in-memory is the required minimum.\n6. Retention: `apply_retention` prunes resolved+orphaned annotations older than a policy window, leaving an ANNOTATION_RETAINED_PRUNED receipt per pruned row (never a silent delete); thread roots with live replies are never pruned. Retention is opt-in per workspace, default off.\n7. Determinism + idempotency: create is idempotent on annotation id (a duplicate id create returns the existing row, never a second receipt — mirrors the knowledge idempotency-key pattern); list ordering is total and stable (created_at_utc, id).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read storage/knowledge.rs (KnowledgeStore trait shape, StorageResult/StorageError, PostgresDatabase impl), storage/retention.rs (incumbent retention shape), api/knowledge_documents.rs (append_kernel_event_with_executor + KernelEventType usage), and one recent migration pair for the additive SQL style BEFORE writing.\n2. Write the migration pair (up + down); pick NNNN as max(existing)+1; NEVER alter an existing migration.\n3. Implement storage/annotations.rs: row types, the trait, the Postgres impl with transactional row+receipt writes, the filter/keyset query, export bundle, retention.\n4. If KernelEventType is a closed enum, add the five annotation receipt variants additively; otherwise use the incumbent string-kind event path.\n5. Wire storage/mod.rs; register the [[test]] block; author tests/annotation_store_tests.rs.\n6. Run proof targets against managed PostgreSQL; if PG is unavailable in the authoring environment, record a typed NEEDS_MANAGED_RESOURCE_PROOF blocker rather than a green claim.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/annotations.rs",
+      "src/backend/handshake_core/src/storage/mod.rs (module wiring + re-export only)",
+      "src/backend/handshake_core/migrations/NNNN_annotation_core.sql (new additive up)",
+      "src/backend/handshake_core/migrations/NNNN_annotation_core.down.sql (new additive down)",
+      "src/backend/handshake_core/src/kernel/ (annotation receipt event-type variants only, additive; no edits to existing variants)",
+      "src/backend/handshake_core/Cargo.toml ([[test]] registration for annotation_store_tests only)",
+      "src/backend/handshake_core/tests/annotation_store_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (GUI owned by NA family MT-221+)",
+      "src/backend/handshake_core/src/annotations/** (record + anchor owned by MT-201/MT-202; store consumes them, does not edit them)",
+      "src/backend/handshake_core/src/api/** (HTTP routes are MT-205)",
+      "src/backend/handshake_core/src/mcp/** (model tool surface is MT-206)",
+      "any existing migrations/*.sql (additive-only; never edit a shipped migration)"
+    ],
+    "acceptance_criteria": [
+      "AnnotationStore trait exists in storage/annotations.rs with create/update_body/transition_state/get/list/list_thread/reanchor_persist/export_bundle/apply_retention, each returning StorageResult<T> and failing closed with a typed StorageError when PostgreSQL is unavailable (no in-memory/SQLite/fixture fallback anywhere in the module).",
+      "The full serialized hsk.annotation@1 record is the stored authority; flat columns are query keys only (grep-provable: body/state/kind/author round-trip through the serialized record, not reconstructed from columns).",
+      "Every state-changing method writes the row AND its EventLedger receipt in ONE transaction; a create receipt (ANNOTATION_CREATED), state change (ANNOTATION_STATE_CHANGED), re-anchor (ANNOTATION_REANCHORED) and retention prune (ANNOTATION_RETAINED_PRUNED) are each proven against the ledger; a read leaves no receipt.",
+      "transition_state enforces the optimistic from->to guard and returns a typed StaleState error when the current state differs; a model author's receipt carries robot_id/session_id/run_id provenance.",
+      "list applies path/author-kind/state/kind/time-window/thread filters SQL-side with a bounded keyset limit and total-stable (created_at_utc, id) ordering; no unbounded load-all-then-filter path exists.",
+      "export_bundle returns the hsk.annotation_bundle@1 full-record authority plus a lossy hunk_sidecar projection; create is idempotent on annotation id (duplicate id create returns the existing row, no second receipt).",
+      "The migration is a NEW forward-only additive pair; no existing migration file is modified; the down migration cleanly drops the annotation_ tables.",
+      "cargo build -p handshake_core succeeds; storage/annotations.rs imports nothing from api/, mcp/, knowledge_document/, loom/, or atelier/ (seam law pre-check ahead of MT-208)."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils annotation_store -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo build --manifest-path src/backend/handshake_core/Cargo.toml 2>&1 | tail -1",
+      "grep -rn 'sqlite\\|InMemory\\|mock' src/backend/handshake_core/src/storage/annotations.rs | wc -l | grep -q '^0$' (fail-closed, no fallback store)",
+      "grep -rn 'use crate::\\(api\\|mcp\\|knowledge_document\\|loom\\|atelier\\)' src/backend/handshake_core/src/storage/annotations.rs | wc -l | grep -q '^0$' (seam law pre-check)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/storage/annotations.rs (new AnnotationStore + Postgres impl)",
+      "src/backend/handshake_core/src/storage/mod.rs (module wiring)",
+      "src/backend/handshake_core/migrations/NNNN_annotation_core.sql + .down.sql (new additive)",
+      "src/backend/handshake_core/src/kernel/ (annotation receipt variants, additive)"
+    ],
+    "expected_tests": [
+      "annotation_store::create_persists_record_and_emits_created_receipt_atomically",
+      "annotation_store::transition_state_optimistic_guard_and_stale_state_typed_error",
+      "annotation_store::list_filters_sql_side_with_keyset_bound_and_stable_order",
+      "annotation_store::reanchor_persist_writes_anchor_and_reanchored_receipt",
+      "annotation_store::export_bundle_full_records_plus_hunk_sidecar_projection",
+      "annotation_store::retention_prunes_with_receipt_never_silent_and_spares_live_threads",
+      "annotation_store::create_idempotent_on_id_no_duplicate_receipt",
+      "annotation_store::fail_closed_typed_error_when_postgres_unavailable"
+    ],
+    "implementation_notes": [
+      "One-file-per-family is the incumbent convention (storage/knowledge.rs, storage/kb003_storage.rs); do NOT extend the ~8.7k-line legacy storage/postgres.rs. Keep the annotation row types, SQL, trait, and impl in the single reviewable annotations.rs unit.",
+      "Write + receipt MUST share one sqlx transaction (append_kernel_event_with_executor takes an executor for exactly this): a committed row without its receipt, or a receipt without its row, is a correctness defect, not an acceptable partial.",
+      "The hunk_sidecar export exists to interoperate with modem-dev/hunk-style agent-context consumers; it is a lossy projection (no anchor selectors, no provenance depth) and is explicitly NOT re-importable as authority — MT-206 owns the hardened import path that stamps provenance.",
+      "Retention default-off + receipt-per-prune is the umputun/revdiff explicit-orphan discipline applied to deletion: state changes and prunes are always observable, never silent.",
+      "Keyset (created_at_utc, id) pagination avoids the OFFSET drift class and matches the incumbent bounded-query rule; a missing caller limit must clamp to a documented default, never an unbounded scan.",
+      "Datetime + uuid + StorageResult/StorageError conventions are copied from storage/knowledge.rs; a mismatch here forces MT-205/206 into conversion shims."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend/core persistence MT; operator GUI surfaces for annotations are owned by the NA family (MT-221+). Runtime observability is met by EventLedger receipts, not a GUI."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal persistence MT with no operator-visible surface yet; the UserManual entries land with the MT-205 routes and MT-206 tool surface that expose annotation behavior to operators and models."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-SWARM-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED — every state-changing store method emits an EventLedger receipt (ANNOTATION_CREATED/UPDATED/STATE_CHANGED/REANCHORED/RETAINED_PRUNED) in-transaction; these are the annotation authority's runtime observability spine.",
+    "internal_diagnostics: WIRED — all failure paths are typed StorageError variants (StaleState, workspace mismatch, PG-unavailable fail-closed); no stringly errors, no silent coercion.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no long-running loop posture; the store is request-scoped over managed PostgreSQL."
+  ],
+  "risk_if_missed": "Without a single hardened store, each surface (routes, tools, re-anchor engine) invents its own persistence: model provenance is dropped on write, state transitions race without an optimistic guard, deletes go silent (no retention receipt), list queries load-all-then-filter and return stale rendered subsets, and worktree-merge review annotations cannot be exported or attributed in a multi-agent swarm.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Row write and EventLedger receipt land in separate transactions; a crash between them leaves an annotation with no receipt (or a receipt with no row), breaking the attributable-write law and any later audit or export.",
+      "RISK-2: The flat query columns drift from the serialized record (a body edit updates the column but not the stored record, or vice versa), so list results and the authority record disagree.",
+      "RISK-3: list has an unbounded or OFFSET-based path that returns a stale/partial rendered subset, and a caller (retention, export, MT-205) acts on it as the full canonical set — the classic UI-count-vs-backend-count bug.",
+      "RISK-4: transition_state overwrites concurrent changes without an optimistic from->to guard, so two agents resolving/reopening the same annotation silently clobber each other in a swarm.",
+      "RISK-5: retention deletes rows silently (no receipt) or prunes a thread root that still has live replies, destroying attribution and orphaning replies."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Row write and receipt append share ONE sqlx transaction via append_kernel_event_with_executor; a dedicated test asserts both the row and its receipt exist after commit and neither exists after a rolled-back failure injection.",
+      "CTRL-2 (RISK-2): The serialized hsk.annotation@1 record is the sole authority; flat columns are derived on write from that record in the same statement; a round-trip test proves column values always equal the record fields.",
+      "CTRL-3 (RISK-3): list is keyset-bounded with a mandatory clamp; a grep proof target asserts no unbounded SELECT and no OFFSET; a test proves a second page continues the total-stable order without gaps or repeats.",
+      "CTRL-4 (RISK-4): transition_state requires a matching `from` state and returns a typed StaleState error otherwise; a concurrency test issues two conflicting transitions and asserts exactly one wins with the loser typed-rejected.",
+      "CTRL-5 (RISK-5): apply_retention emits an ANNOTATION_RETAINED_PRUNED receipt per pruned row and skips any thread root with live replies; a test asserts prune-with-receipt and live-thread-spared."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified annotation research 2026-07-21: Gerrit robot-comment persistence (comments are durable, attributable, receipt-bearing records) + umputun/revdiff explicit-orphan policy (state changes and deletions are observable, never silent) inform the receipt-per-transition and retention-with-receipt design; the hunk agent-context sidecar (modem-dev/hunk {version,files:[{path,annotations:[{newRange,summary,rationale,author}]}]}) is adopted only as a LOSSY export projection, never as re-importable authority. Grounding audit of wtc-native-editors-v1: storage/knowledge.rs (KnowledgeStore trait, StorageResult/StorageError fail-closed MT-064 law, one-file-per-family), storage/kb003_storage.rs (single-unit family precedent over the legacy 8.7k-line postgres.rs), storage/retention.rs (incumbent retention shape), api/knowledge_documents.rs (append_kernel_event_with_executor + NewKernelEvent/KernelEventType receipt pattern, in-transaction write+receipt, KNOWLEDGE_RICH_DOCUMENT_SAVED precedent), migrations/NNNN_*.sql additive convention, bundles/exporter.rs + zip for portable export.",
+    "corrections": [
+      "REJECTED git-notes storage (from the MT-201 research) is re-confirmed here: annotations persist as first-class PostgreSQL rows with EventLedger receipts, not as commit-attached notes — commit granularity and orphaning make notes unfit for live-file/diff/prose subjects.",
+      "The hunk sidecar is export-only; MT-206 owns the hardened IMPORT that stamps provenance and runs the injection scan — the store never trusts a sidecar as authority.",
+      "Receipt kinds are additive to the kernel event-type surface; no existing KernelEventType variant is altered, preserving the append-only ledger contract."
+    ]
+  }
+}

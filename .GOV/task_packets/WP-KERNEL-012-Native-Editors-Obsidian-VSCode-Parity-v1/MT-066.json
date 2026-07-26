@@ -14,7 +14,7 @@
   "title": "E10-MT-066-StageRouteAndCaptureInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-18T09:24:47.3335852Z",
+  "updated_at_utc": "2026-07-26T03:26:11.4932909Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-066.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-014",
@@ -35,7 +35,7 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -77,11 +77,37 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260707-224033",
-    "claimed_at_utc": "2026-07-08T05:37:24.001Z",
+    "claimed_by": "KERNEL_BUILDER-20260725-202657",
+    "claimed_at_utc": "2026-07-26T01:25:14.9807295Z",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "remediation_v3_review_hardening_completed_at_utc": "2026-07-26T03:26:11.4932909Z",
+    "ready_for_validation_at_utc": "2026-07-26T03:26:11.4932909Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260725-202657",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-18T09:24:47.3335852Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-09)",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_FINAL_REVIEWS_NO_PRODUCT_BLOCKER",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-26T03:25:09.799Z",
+      "actor_session": "KERNEL_BUILDER-20260725-202657",
+      "overall_verdict": "PASS"
+    },
+    "ready_for_validation_summary": "MT-066 V3: product commits da8f99c3 through 0de3534c implement and prove the mounted Stage route/capture/embed-back recovery path against real PostgreSQL/EventLedger. The exact-source live proof exercises occupied-route retention and retry, immutable causal and producer-event identity, dead binding-owner recovery, same-listener backend restart with retained Flight Recorder storage, exact artifact bytes and SHA-256 readback, typed EndpointAbsent without fabrication, successful HsLink embed-back, canonical Argus busy/error/recovered observations, cleanup-before-evidence, and full committed-runtime-tree provenance. The targeted manual and negative tests, project-tree regressions, compile gate, direct post-proof PostgreSQL zero checks, exact PNG inspection, and three independent final reviews pass. validator_verdict remains FAIL_V2 and completed_by remains null pending official validation.",
+    "remediation_v3_scope_authority": {
+      "kind": "OPERATOR_DIRECTIVE_CORRELATED_GAPS_INSIDE_SAME_MT",
+      "source": "Operator remediation directive active for WP-KERNEL-012",
+      "directive": "Address unexpected gaps inside the same MT when they correlate with the current MT; when remediation is implemented change status to READY_FOR_VALIDATION_V3; continue until the full WP is implemented.",
+      "reason": "The validation_v2 canonical-Argus and recovery requirement exposed mounted-shell rebinding, manual, and live-proof-fixture defects that directly prevented a truthful recovered-state proof. The five paths beyond the original allowed list were the minimum changes required to close those exact defects; no backend product source was changed.",
+      "paths": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/src/project_tree.rs",
+        "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs",
+        "src/frontend/handshake_native/tests/test_stage_interop.rs"
+      ]
+    },
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
       "mode": "GAP-FIX (coder wired reopen-item-4 embed-back leg; library layer was verify-and-prove) + NEEDS_MANAGED_RESOURCE_PROOF",
@@ -423,5 +449,76 @@
       ],
       "no_context_instruction": "Read MT-066.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
-  }
+  },
+  "implementation_evidence_v3": {
+    "schema_id": "hsk.mt_remediation_handoff@1",
+    "by": "KERNEL_BUILDER-20260725-202657",
+    "at_utc": "2026-07-26T03:26:11.4932909Z",
+    "source_verdict_preserved": "FAIL_V2",
+    "status_transition": "FAIL_V2 -> CLAIMED -> READY_FOR_VALIDATION_V3",
+    "product_head_sha": "0de3534c3af1a7023aaca83722a534491bb5830a",
+    "product_source_tree": "520dff3b9b8fc33462f260a7732088b10f044321",
+    "product_commit_range": "da8f99c3..0de3534c",
+    "changed_product_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/src/project_tree.rs",
+      "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs",
+      "src/frontend/handshake_native/tests/test_stage_interop.rs"
+    ],
+    "remediation_summary": "Closed the FAIL_V2 canonical-Argus gap with an exact-source, mounted production Stage proof. Busy route admission retains the exact producer event and immutable causal identity; retry follows dead-owner recovery; restart preserves the listener and on-disk recorder; project-tree and mounted clients rebind; capture persists exact bytes/SHA, reads back, embeds with provenance, and emits a correlated Flight Recorder row; typed endpoint absence fabricates neither artifact nor HsLink; proof output is written only after cleanup and runtime quiescence.",
+    "runtime_proofs": [
+      "live_route_round_trip_real_pg: 1 passed, 0 failed, 17 filtered, against real PostgreSQL/EventLedger and current-source handshake_core; exact artifact run-0de3534c3af1-48583ff1732843e5965cd017bf193c84",
+      "backend compile/no-run gate: exit 0",
+      "MT-066 UserManual contract: 1 passed, 0 failed",
+      "embed_back_refuses_dangling_target_pane plus embed_back_refuses_unverifiable_capture: 2 passed, 0 failed",
+      "project-tree library regressions: 9 passed, 0 failed",
+      "direct post-proof PostgreSQL checks: workspace=0, stage_artifacts=0, scoped ai_jobs=0, payload-matched kernel_event_ledger=0"
+    ],
+    "canonical_argus_evidence": {
+      "json": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-066/canonical-argus/run-0de3534c3af1-48583ff1732843e5965cd017bf193c84/mt066-stage-canonical-argus.json",
+      "busy_png_sha256": "b6d540f04c5d078c938c9dded4d2136c1ef1ffe9cc6c7b95bccb897ed4b16d97",
+      "recovered_png_sha256": "fd723b23daa56d0f9173d9d6f945de0f90449a38ffd3be2e70277d7b2dacd9b2",
+      "source_tree_gate": "git status --porcelain=v1 --untracked-files=all rejects all dirty/untracked runtime-source paths except the two pre-existing authority files AGENTS.md and CLAUDE.md, then records exact HEAD^{tree}",
+      "visual_inspection": "Busy render visibly shows retained route and retry with capture disabled; recovered render visibly shows exact routed content and successful embed-back without stale project-tree Load failed or Retry Load state."
+    },
+    "adversarial_reviews": [
+      "correctness/recovery final exact-head verdict ACCEPT: retained route identity, restart persistence, project-tree recovery, visuals, cleanup ordering, and full-tree provenance pass",
+      "spec/UserManual final exact-head verdict ACCEPT: canonical Argus, HBR-INT-009 posture, typed absence, cleanup, and manual contract pass",
+      "Argus/provenance final exact-head verdict ACCEPT: transitive runtime provenance, stable author ids, fresh post-action observations, rendered busy/recovered states, and cleanup ordering pass"
+    ],
+    "review_findings_hardened": [
+      "Fixed stale project-tree Load failed state after backend restart by rebinding and reloading the mounted project tree.",
+      "Bound the retained route receipt to the exact EventLedger/Flight Recorder producer event and required exactly one row across restart.",
+      "Preserved the recorder storage directory across backend restart so durable proof survives process replacement.",
+      "Expanded cleanup to all workspace-scoped EventLedger rows and required cleanup before PASS evidence creation.",
+      "Expanded explicit source blobs, then bound the proof to the entire clean committed runtime source tree to close transitive MCP/binding provenance."
+    ],
+    "residual_uncertainty": "The official validator verdict remains FAIL_V2 until an independently assigned validator reruns or accepts V3. Two unrelated pre-existing MT-108 manual-suite failures remain outside MT-066.",
+    "validation_instruction": "Independent validator must inspect and rerun from current product HEAD; this implementer handoff does not self-issue PASS."
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-066 FAIL V2. Stage route/capture may have live route tests, but the mounted editor-to-Stage flow has no current canonical Argus inspect/steer/re-observe evidence covering route, busy/retry, capture, error, and recovered states.",
+  "remediation_plan": [
+    "Re-prove Stage route and capture against real PostgreSQL/EventLedger with immutable correlation, busy retry, dead-owner recovery, restart, and cleanup assertions.",
+    "Drive the mounted Stage controls through canonical Argus with stable author_ids and fresh post-action observations; update the canonical UserManual three-tier posture."
+  ],
+  "no_context_instruction": "Read MT-066.json, packet, and current spec. Complete the live receipt and canonical Argus matrix before returning READY_FOR_VALIDATION_V3."
+}
 }

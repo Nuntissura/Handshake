@@ -2,47 +2,41 @@
   "schema_id": "hsk.work_packet_stub_contract@1",
   "schema_version": "work_packet_stub_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE_STUB",
+  "execution_authority": "NON_EXECUTION_STUB",
+  "wp_id": "WP-KERNEL-008-Principal-Profile-CRM-Layer-v1",
+  "base_wp_id": "WP-KERNEL-008-Principal-Profile-CRM-Layer",
+  "created_at_utc": "2026-05-17T00:00:00Z",
+  "updated_at_utc": "2026-07-26T04:35:00Z",
   "artifact_policy": {
     "authority_surface": "MACHINE_CONTRACT",
     "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
     "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
     "operator_facing_authority": false,
-    "model_created_markdown_authority_allowed": false,
-    "allowed_markdown_exceptions": [
-      "operator_created_notes",
-      "operator_created_research",
-      "operator_created_audits",
-      "explicit_on_demand_projection",
-      "explicit_report_projection_contract",
-      "frozen_legacy_migration_reference"
-    ]
+    "model_created_markdown_authority_allowed": false
   },
-  "execution_authority": "NON_EXECUTION_STUB",
-  "wp_id": "WP-KERNEL-008-Principal-Profile-CRM-Layer-v1",
-  "base_wp_id": "WP-KERNEL-008-Principal-Profile-CRM-Layer",
-  "created_at_utc": "2026-05-17T00:00:00Z",
   "source_files": {
     "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.contract.json",
     "markdown_projection": ".GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.md"
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1.md",
-    "status": "PENDING_GENERATION",
-    "projection_sha256": "PENDING_GENERATION",
+    "status": "NOT_MATERIALIZED",
+    "projection_sha256": "NOT_MATERIALIZED",
     "generated_by": "task-packet-stub-contracts.mjs"
   },
   "lifecycle": {
     "status": "STUB (NOT READY FOR DEV)",
-    "format_version": "2026-04-06",
+    "format_version": "2026-07-26",
     "activation_required": true,
-    "user_signature_required": false,
-    "refinement_required_before_execution": true
+    "user_signature_required": true,
+    "refinement_required_before_execution": true,
+    "precreated_microtasks_are_executable": false
   },
   "build_order": {
     "domain": "CROSS_BOUNDARY",
     "tech_blocker": "NO",
     "value_tier": "HIGH",
-    "risk_tier": "MEDIUM",
+    "risk_tier": "HIGH",
     "depends_on": [
       "WP-KERNEL-006-Principal-Authority-Foundation",
       "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate"
@@ -51,8 +45,172 @@
   },
   "spec_trace": {
     "spec_target": ".GOV/spec/SPEC_CURRENT.md",
-    "roadmap_pointer": "Kernel reset brief Week 6 Principal Authority + Profile Layer; Phase C — Profile / CRM layer (Profile-as-separate-table linked to Principal, persona switching (adult/SFW), preference tracking, project binding, FEMS memory scoping by active profile).",
-    "roadmap_add_coverage": "Product-layer profile and CRM facet that sits above the KERNEL-006 Principal primitive: Profile is a separate table linked to Principal (auth and persona are not the same row), multiple Profiles per Principal enable adult/SFW persona switching, preferences and project bindings and FEMS memory scope all hang off Profile, and the operator surface gains a persona switcher that scopes memory retrieval and suggestion behavior to the active Profile."
+    "spec_version_at_revision": "v02.202",
+    "primary_anchor": "2.3.13.12 Local Account, Principal, Access Space, and Protected Resource Authority",
+    "supporting_anchors": [
+      "4.9 Role Execution Identity and Profile Naming",
+      "7.13 Account, Space, Persona, and Sharing UX",
+      "8.8 Account-Resource Privacy Gap Resolution and Glossary",
+      "10.18 Account and Resource Privacy Surfaces"
+    ],
+    "roadmap_pointer": "Kernel reset brief Week 6 Account, Principal, Resource Authority, Access Space, and Persona/CRM Layers; Phase C."
+  },
+  "preservation_contract": {
+    "stable_name_and_id": true,
+    "product_concept_rename": "The existing product Profile/persona concept is canonically named Persona. The WP filename and stable ID remain unchanged.",
+    "original_intent_carried_forward": [
+      "Multiple preference/personality contexts can exist under one authenticated identity.",
+      "Switching the context changes memory retrieval, suggestions, preferences, and project/client presentation without changing authority.",
+      "FEMS memory is scoped to the active personalization context and cross-context retrieval is explicit.",
+      "CRM preferences, repeated patterns, recent activity, and project/client associations remain local-first and operator-reviewable.",
+      "Native switcher/admin UI and typed switch events remain required."
+    ],
+    "new_scope_added": [
+      "Persona belongs to LocalAccount and is independent of AccessSpace.",
+      "Client/contact/project/resource associations always pass through WP-KERNEL-007 ResourceGrant authorization.",
+      "FEMS, CRM, suggestions, moodboards, inspiration, and imported SaaS provenance are ProtectedResources.",
+      "Visible account + Space + Persona context prevents operator confusion.",
+      "Local moodboard/project-starter/inspiration features provide a future remote-service landing seam."
+    ],
+    "superseded_draft_assumptions": [
+      "Persona is not a content visibility boundary.",
+      "Projects/resources are not owned by Persona and are not authorized by Persona.",
+      "Adult/SFW isolation that must be secure is implemented by separate ResourceGrants/AccessSpaces; Persona only personalizes authorized content.",
+      "The design is not limited to single-digit Personas or a solo operator.",
+      "CRM and FEMS stores require account/Space/resource scope even when the Persona matches."
+    ]
+  },
+  "naming_contract": {
+    "Persona": "account-owned preferences, behavior, presentation, and memory-personalization bundle",
+    "AccessSpace": "resource-visibility context owned by WP-KERNEL-007",
+    "Client": "CRM entity associated with authorized projects/resources but not an authorization subject by itself",
+    "WorkProfile": "model execution policy, not Persona",
+    "CapabilityProfile": "tool/capability bundle, not Persona",
+    "ProjectProfile": "existing project-type/workflow extension concept, not Persona"
+  },
+  "scope": {
+    "intent": "Implement Persona, CRM, preference learning, FEMS personalization, and client/project/inspiration workflows on top of the account/resource authorization foundation without ever using personalization as access control.",
+    "in_scope": [
+      "Persona UUID v7 schema, ownership by LocalAccount, lifecycle, label/kind/presentation/preferences/memory-policy fields, archive/delete, and deterministic bootstrap.",
+      "Persona preference categories, consent/enablement per category, provenance, review/edit/purge, retention, and disable behavior.",
+      "Authenticated-session active_persona_id pinned separately from access_space_id.",
+      "Atomic Persona switch event and behavior for open surfaces, queued work, cached suggestions, and in-flight model sessions.",
+      "Explicit invariant that Persona associations do not create ResourceGrants or widen query scope.",
+      "CRM Client and Contact schemas scoped to account and AccessSpace with ProtectedResource identity.",
+      "Client-to-project/resource associations that resolve only authorized ResourceRefs.",
+      "CRM activity/preference/recent-pattern capture with operator review, category controls, retention, purge, and EventLedger attribution.",
+      "FEMS memory rows gain LocalAccount, AccessSpace, Persona, source-resource, grant/policy version, and provenance scope.",
+      "FEMS retrieval first authorizes account/Space/source resources, then applies Persona ranking/filtering.",
+      "Cross-Persona memory retrieval only by explicit operator action and only within already-authorized resources.",
+      "Suggestion engine and preference learning with strict account/Space query scope and Persona personalization.",
+      "Local moodboard, inspiration collection, and project-starter records with ProtectedResource/lineage integration.",
+      "Imported Handshake SaaS/MCP moodboard/inspiration/project-starter provenance and quarantine-to-Persona association after WP-KERNEL-007 authorization.",
+      "Backend APIs and native Persona/CRM/client/moodboard/inspiration UI.",
+      "Persistent visible account + AccessSpace + Persona context and warnings when a switch leaves work pinned to the prior context.",
+      "Real PostgreSQL, FEMS, model-context, search, CRM, switch-race, deletion, import, UserManual, EventLedger/Flight Recorder, and Argus proof."
+    ],
+    "out_of_scope": [
+      "Credentials, account lifecycle, Principal, AccountRole, and foundational RLS owned by WP-KERNEL-006.",
+      "AccessSpace, ResourceGrant, MembershipRole, ResourceBroker, visitor, MCP, and remote connection authorization owned by WP-KERNEL-007.",
+      "Persona-based authorization or Persona-owned projects/resources.",
+      "Production SaaS backend, external CRM providers, billing, or federation.",
+      "Product-code implementation during stub revision."
+    ]
+  },
+  "resource_privacy_contract": {
+    "required_hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "enforcement_order": [
+      "authenticate LocalAccount/Principal/session",
+      "authorize AccessSpace/ResourceGrant/source resources",
+      "apply Persona personalization",
+      "emit derived resource with non-widened scope and lineage"
+    ],
+    "mandatory_negative_scenarios": [
+      "same Persona label under different accounts",
+      "Persona switch attempts to reveal another Space",
+      "same project/client but no grant to a private resource",
+      "FEMS row matches Persona but source resource is revoked",
+      "suggestion/search count leaks unauthorized project existence",
+      "cross-Persona retrieval without explicit action",
+      "Persona deletion leaves orphaned memory or widens fallback scope",
+      "in-flight model session crosses Persona/Space switch silently",
+      "remote inspiration import bypasses quarantine or local grant"
+    ]
+  },
+  "research_basis": {
+    "status": "RECORDED_FOR_REFINEMENT",
+    "sources": [
+      "https://www.postgresql.org/docs/17/ddl-rowsecurity.html",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html",
+      "https://huggingface.co/docs/hub/en/collections",
+      "https://huggingface.co/docs/hub/en/organizations-security",
+      "https://github.com/civitai/civitai/wiki/REST-API-Reference/de63434512878133a5788a25f4b94af0c06de4bc"
+    ],
+    "selected_patterns": [
+      "separate identity, authorization context, and personalization context",
+      "collection/moodboard objects with stable provenance",
+      "operator-reviewable preference categories",
+      "resource authorization before memory retrieval/ranking",
+      "local protected-resource landing for later remote sync"
+    ],
+    "rejected_patterns": [
+      "Profile/Persona as grant boundary",
+      "owned_by_persona project schema",
+      "Persona-only FEMS filter without account/Space/source authorization",
+      "hidden behavioral tracking without review/purge",
+      "remote collection automatically visible locally"
+    ]
+  },
+  "activation_acceptance": [
+    "WP-KERNEL-006 and WP-KERNEL-007 are implemented and Integration Validator-verified.",
+    "Refinement locks Persona, CRM, FEMS, client/project associations, switch atomicity, deletion, tracking categories, moodboard/inspiration, and imported-provenance contracts.",
+    "Refinement proves Persona never grants and maps every query to account/Space/source-resource authorization first.",
+    "Official packet adopts the complete pre-created MT index without silent deletion.",
+    "A new WP activation signature is obtained."
+  ],
+  "risks_and_hardening": [
+    {
+      "risk": "Persona confused with access profile",
+      "failure_scenario": "switching to SFW/adult/client Persona changes visible resources or grants",
+      "hardening": "separate columns/APIs/UI, authorization-first query order, invariance tests"
+    },
+    {
+      "risk": "FEMS or suggestions leak private work",
+      "failure_scenario": "matching preference retrieves restricted memory/source",
+      "hardening": "account+Space+ResourceGrant+source authorization before Persona ranking; revoked-source test"
+    },
+    {
+      "risk": "hidden CRM surveillance",
+      "failure_scenario": "behavior categories accumulate without awareness or purge",
+      "hardening": "opt-in categories, provenance, review/edit/purge, retention controls, visible status"
+    },
+    {
+      "risk": "switch race",
+      "failure_scenario": "open model/editor uses mixed old/new Persona or Space context",
+      "hardening": "pinned immutable run context, explicit continue/restart decision, cache invalidation, typed event"
+    },
+    {
+      "risk": "remote inspiration scope confusion",
+      "failure_scenario": "SaaS moodboard import becomes visible across accounts/clients",
+      "hardening": "WP-KERNEL-007 quarantine and ResourceGrant first, then optional Persona association"
+    }
+  ],
+  "microtasks": {
+    "status": "PRECREATED_INACTIVE_NON_EXECUTABLE",
+    "directory": ".GOV/task_packets/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1",
+    "index_path": ".GOV/task_packets/WP-KERNEL-008-Principal-Profile-CRM-Layer-v1/_MT_INDEX.json",
+    "id_range": "MT-001..MT-020",
+    "total": 20,
+    "adoption_rule": "Activation Manager must compare refinement/packet scope to every pre-created MT, preserve each original Persona/CRM/FEMS obligation, record any split/merge/supersession, validate the DAG, and activate no more than one MT at a time."
   },
   "session_policy": {
     "session_start_authority": "ORCHESTRATOR_ONLY",
@@ -61,43 +219,27 @@
     "role_model_profile_policy": "ROLE_MODEL_PROFILE_CATALOG_V1",
     "planned_execution_owner_range": "Coder-A..Coder-Z"
   },
-  "draft_scope": {
-    "intent": "- What: Add the Profile/CRM facet that lets the operator carry multiple personas (e.g., adult production vs SFW work) on top of a single Principal identity, with persona-scoped memory, preferences, and project bindings.\n- Why: The operator wants Handshake to track what they like, what projects they work on, and to separate adult-production work from SFW work without forging two operator identities. Profile is the product-feature facet; Principal is the kernel identity. Conflating them in schema breaks both auth and persona-switching.\n- Product goal: Handshake (Product) gains a Profile table linked to Principal, with multiple Profiles per Principal. Memory retrieval (FEMS), preference tracking, project binding, and operator-surface suggestions are all scoped by `active_profile_id`. Switching profile re-scopes the operator surface without touching authority.\n- Operator goal: One click switches between adult and SFW personas; memory + suggestions + project list re-scope; authority stays intact and consistent across switches.\n- No-context goal: Stub-level only; refinement before activation is required to lock the Profile shape, the persona-switch contract, the memory-scope binding, the project-binding model, and the CRM tracking surface.",
-    "scope_sketch": "- IN_SCOPE:\n  - Profile table: linked to Principal via principal_id, with profile_id, label, kind enum (adult_production | sfw | mixed | custom), preferences blob, default_project_id, memory_scope_policy.\n  - Many Profiles per Principal; one `active_profile_id` per operator session at a time.\n  - Persona switch contract: operator action, recorded as a typed event, re-scopes memory retrieval and suggestion engine; does not affect Principal authority or capability_grants.\n  - FEMS memory scoping by Profile: memory entries carry profile_id; retrieval defaults to active Profile but can opt-in to cross-profile retrieval with operator consent.\n  - Project binding: Project records gain `owned_by_profile_id` (or stay Principal-scoped depending on refinement Q1); operator surface shows project list filtered by active Profile.\n  - CRM tracking surface: operator preferences (likes, recent actions, repeating patterns) accumulate per Profile.\n  - Operator surface: persona switcher UI, profile admin (create, label, delete, default), memory-scope visibility.\n  - Tests: persona switch does not change authority; cross-Profile memory leakage denied by default; project list filters by active Profile; preferences accumulate per Profile not per Principal.\n- OUT_OF_SCOPE:\n  - Principal kind changes; capability_grants changes (KERNEL-006 owns authority; KERNEL-008 must not touch).\n  - MCP scrutiny / visitor-pass mechanics (KERNEL-007 owns these).\n  - Adult-production legal paperwork, consent records, performer records (operator-owned per [CX-123A], [CX-123B]; the Profile CRM may carry operator-facing hooks but does not enforce or track legal obligations).\n  - Multi-Principal cross-Profile sharing (later, if at all).\n  - External CRM integration (e.g., HubSpot, Salesforce); this is a local-first product feature.\n  - Performance optimization for very large Profile counts (single-digit Profiles is the design target).\n- KEY_OPEN_QUESTIONS (deferred to refinement):\n  - Q1: Project binding — owned_by_profile_id, or owned_by_principal_id with profile-scoped visibility filter? (Affects whether projects move between profiles or stay fixed.)\n  - Q2: Memory scope policy enum: strict (no cross-profile retrieval), opt-in (operator explicit allow per retrieval), shared (cross-profile by default with profile-aware ranking)?\n  - Q3: Persona switch atomicity — instant, or with a confirmation step for high-context surfaces (live editor, in-flight model session)?\n  - Q4: Suggestions / CRM tracking — what gets tracked (action history, file likes, search history, model preferences), and where does the operator review/edit it?\n  - Q5: Profile deletion — soft (archive memory, keep project history) or hard (cascade delete)?\n  - Q6: Default Profile bootstrap on first run — auto-create one labeled `default`, or require operator setup before any work?\n  - Q7: Persona switch effect on in-flight model sessions — pause, continue with old profile context, or terminate with operator confirmation?",
-    "acceptance_criteria": "- AC-001: Stub-level only — full AC list deferred to refinement.\n- ACTIVATION-AC-001: Refinement locks the Profile table shape and confirms Profile is a separate table from Principal.\n- ACTIVATION-AC-002: Refinement specifies the persona switch contract and the typed event shape.\n- ACTIVATION-AC-003: Refinement specifies the FEMS memory scope policy (Q2) with worked examples.\n- ACTIVATION-AC-004: Refinement specifies project binding semantics (Q1).\n- ACTIVATION-AC-005: Refinement specifies the CRM tracking surface contract (what is tracked, where it is reviewed, how it is purged).\n- ACTIVATION-AC-006: Refinement records explicit answers (or scoped deferrals) to KEY_OPEN_QUESTIONS Q1–Q7.\n- ACTIVATION-AC-007: KERNEL-006 and KERNEL-007 must be activated and Integration Validator-verified before this stub is promoted to a signed packet.",
-    "risks_unknowns": "- Risk: Schema couples Profile to Principal (one row, one persona) and forces auth schema churn for persona changes. Mitigation: refinement must keep Profile as a separate joined table; activation gate rejects single-row coupling.\n- Risk: Cross-profile memory leakage if FEMS retrieval defaults are too permissive. Mitigation: default to strict scope; opt-in cross-profile retrieval requires operator action per call.\n- Risk: Adult vs SFW separation becomes a compliance enforcement surface. Mitigation: Profile is preference and memory scope only; consent paperwork stays operator-owned per [CX-123A], [CX-123B]; the assistant does not adjudicate adult-content legality.\n- Risk: Persona switch races with in-flight model sessions and produces inconsistent context capsules. Mitigation: refinement Q7 must lock switch behavior; default is operator-confirmed switch when in-flight sessions exist.\n- Risk: CRM tracking becomes a hidden surveillance surface the operator forgets exists. Mitigation: CRM tracking is opt-in per category; operator can review/edit/purge anytime; all tracking is local-first and never leaves the workspace.\n- Risk: Project binding rewrite is expensive if Q1 flips after activation. Mitigation: lock Q1 in refinement; do not start implementation until decision is recorded.\n- Risk: Profile sprawl (operator creates 30 profiles) degrades suggestion ranking. Mitigation: design target is single-digit profiles; operator surface warns above N.\n- Risk: Profile deletion loses memory the operator cared about. Mitigation: soft-delete default; operator confirms hard delete with summary of what will cascade.\n- Risk: Profile scope leaks into Principal authority surface (e.g., capability grants accidentally hung off Profile). Mitigation: KERNEL-006 owns capability_grants exclusively; KERNEL-008 must not modify the capability schema.\n- Risk: Self-hosting convergence — Profile design here drifts from where it lands in the eventual self-hosted Handshake-governs-Handshake architecture. Mitigation: refinement should explicitly check the design against the self-hosting target before activation.",
-    "governance_artifact_stance": "- Machine-readable governance contracts are primary.\n- Markdown is a synchronized projection and planning surface for operator/model inspection.\n- This stub must produce a `.contract.json` projection before it is treated as registered governance inventory.\n- This stub is not executable until it becomes an official signed packet with refinement, packet contract, microtask contracts, and activation approval.\n- KERNEL-006 and KERNEL-007 must be activated, implemented, and Integration Validator-verified before this stub is activated."
-  },
   "activation_contract": {
     "may_start_coder": false,
     "may_start_validator": false,
     "required_activation_steps": [
-      "verify_kernel006_activated_and_validated",
-      "verify_kernel007_activated_and_validated",
+      "verify_kernel006_and_kernel007_implemented_and_validated",
       "create_or_refresh_refinement",
-      "answer_or_defer_key_open_questions",
-      "obtain_user_signature",
+      "validate_research_basis_and_red_team",
+      "adopt_and_validate_precreated_microtasks",
+      "obtain_new_wp_activation_signature",
       "create_official_work_packet_contract",
       "move_task_board_entry_from_stub_to_ready_for_dev"
     ]
   },
   "red_team": {
     "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
-    "assumptions_to_attack": [
-      "A stub is planning metadata, not execution authority.",
-      "Stub Markdown may contain stale draft scope until activated through a signed packet.",
-      "Profile is a separate table from Principal; auth and persona never share a row.",
-      "Persona switch never affects authority or capability_grants.",
-      "Cross-Profile memory retrieval is opt-in, not default.",
-      "CRM tracking is opt-in per category and operator-reviewable.",
-      "Adult/SFW persona separation is a preference and memory feature, not a legal compliance surface."
-    ],
+    "profile": "PERSONA_CRM_FEMS_PRIVACY_V1",
     "minimum_controls": [
       "Keep execution_authority=NON_EXECUTION_STUB.",
-      "Require official packet contract before Coder or Validator launch.",
-      "Fail drift checks when stub Markdown changes without contract regeneration.",
-      "Refinement must surface project-binding semantics, memory scope policy, and persona-switch effect on in-flight sessions before activation."
+      "No product implementation may begin from this stub or its inactive MTs.",
+      "Refinement must prove authorization occurs before Persona personalization.",
+      "Different-account same-label Personas, revoked-source memory, switch races, and remote-import quarantine are mandatory scenarios."
     ]
   }
 }

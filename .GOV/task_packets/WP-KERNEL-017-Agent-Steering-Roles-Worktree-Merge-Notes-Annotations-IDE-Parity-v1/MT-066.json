@@ -1,0 +1,169 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-066",
+  "title": "AP-MT066-AcpContractTestsWindowsHardening",
+  "group": "AP ACP client layer",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-066.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Contract-test the ACP lane against LIVE third-party ACP agents (claude-agent-acp at minimum; gemini and the codex adapter when installed) and harden the Windows-specific failure modes, so adapter drift, capability gaps, and version bumps surface as typed evidence instead of silent lane breakage. Deliverables: (1) a live contract-test suite covering initialize/capability negotiation, a real prompt turn, cancel, and session/load resume — INCLUDING a Windows path-encoding resume regression test (the claude adapter historically had a Windows path-encoding resume blocker; Handshake runs on Windows, so this is a first-class regression, not an edge case); (2) an ADAPTER-GAP LEDGER: expected-vs-observed capability matrix per agent where every miss is a typed known-gap row (e.g. claude-agent-acp missing usage/cost events), never silence; (3) VERSION-RANGE PIN per registry agent with capability feature-detection preferred over version comparison; (4) typed NEEDS_MANAGED_RESOURCE_PROOF settlement when a live agent is absent from the host — the suite must never fake a live PASS and never hard-fail the whole build because an external CLI is missing.\n\nEXPECTED DIFF SHAPE: New test file src/backend/handshake_core/tests/acp_live_contract.rs + support module tests/acp_contract_support/ (gap-ledger writer, agent availability probe, resume-path fixtures). Product-code touch limited to the MT-064 registry: recording observed capability/version evidence and the version_range pin enforcement hook (agent_registry.rs only). Gap-ledger artifact written to the external artifacts root (Handshake_Artifacts), not the repo worktree.\n\nDETAILED SPEC:\n- AVAILABILITY PROBE: for each registry agent, resolve + identity-verify via MT-064. Unresolvable or unverifiable => every live test for that agent settles as a typed NEEDS_MANAGED_RESOURCE_PROOF outcome (recorded in the gap ledger with the probe failure), the suite still exits green with the blocker rows visible in output. Installed-but-tampered is NOT a blocker: identity verification failure is a hard typed FAIL (supply-chain signal).\n- CONTRACT TESTS (per available agent, claude-agent-acp mandatory when installed):\n  1. initialize: protocol version accepted; capability negotiation completes; observed capabilities recorded verbatim into the gap ledger; MT-061 capability mapping asserted (steer_mid_turn=false; resume mirrors observed loadSession).\n  2. prompt turn: session/new in a temp worktree (path WITH spaces), send a trivial deterministic prompt, receive streamed agent_message_chunk updates and a terminal stop reason; TurnItem stream asserted non-empty and ordered; stop reason in the known set (or typed unknown row).\n  3. cancel: start a long-running prompt, send session/cancel, assert the in-flight prompt settles with stop reason cancelled within the bounded deadline (protocol MUST); a violation is a typed contract-violation row + test failure for that agent.\n  4. resume (capability-gated): create session, complete a turn, drop the connection/process, relaunch, session/load the same session id, assert history/context loads and a follow-up turn works. WINDOWS PATH-ENCODING REGRESSION: run the resume matrix over cwd variants — path with spaces, mixed-separator path, drive-letter casing variant, and a non-ASCII segment — the historical claude adapter blocker class; each variant is its own assertion row.\n  5. client-services smoke: a prompt that induces a permission request and an fs read (agents differ in inducibility — when an agent cannot be deterministically induced, record the row as NOT_INDUCIBLE with reason instead of skipping silently).\n- ADAPTER-GAP LEDGER (schema hsk.acp_adapter_gap_ledger@1): per agent: { agent_id, adapter_version_observed, probe_status, rows: [{ capability_or_behavior, expected (from MT-064 registry declaration), observed, status: OK | KNOWN_GAP | CONTRACT_VIOLATION | NOT_INDUCIBLE | NEEDS_MANAGED_RESOURCE_PROOF, reason }] }. Mandatory seeded expectations: claude-agent-acp usage/cost events => expected ABSENT (known gap July 2026) — if the adapter STARTS emitting usage events, the ledger flags the improvement as a row (status OK with 'gap closed' reason) so MT-065's D18 parity row can be upgraded; loadSession presence; permission-request flow presence.\n- VERSION-RANGE PIN: each registry agent carries a tested version_range (MT-064 field). The contract suite records the observed adapter version; outside-range => typed VERSION_OUT_OF_RANGE row and the registry launch path emits a typed warning event (not a hard block by default — capability feature-detection is authoritative per the WP stub research; version pin is the tripwire, capabilities are the contract).\n- NO PANIC HARDENING: all live-agent interaction runs under the MT-061 typed-error surface; a misbehaving agent (garbage JSON, early exit, never-ending stream) must settle typed within bounded deadlines — one chaos-ish test per failure class using the fixture agent in misbehave mode (garbage frame, mid-turn exit, cancel-ignore) to prove the harness itself cannot hang.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Implement the availability probe over the MT-064 registry (resolve + verify, typed outcomes).\n2. Implement the gap-ledger writer (schema above, serde, atomic write to external artifacts root).\n3. Author contract tests 1-5 parameterized per agent; wire the NEEDS_MANAGED_RESOURCE_PROOF settlement path.\n4. Author the Windows resume matrix (4 path variants) as separate named assertions.\n5. Add the version-observation + VERSION_OUT_OF_RANGE tripwire into agent_registry.rs (minimal hook; feature-detection remains authoritative).\n6. Author the fixture-agent misbehave-mode chaos tests (garbage frame, mid-turn exit, cancel-ignore) proving bounded typed settlement.\n7. Run the full suite on the Windows host with claude-agent-acp installed; capture the gap ledger; verify green-with-typed-blockers behavior by also running with an agent deliberately absent from PATH.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/acp_live_contract.rs",
+      "src/backend/handshake_core/tests/acp_contract_support/**",
+      "src/backend/handshake_core/tests/acp_fixture_agent/** (misbehave modes)",
+      "src/backend/handshake_core/src/agent_sessions/acp/agent_registry.rs (version-observation + out-of-range tripwire hook only)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (the bridge is READ-ONLY reference for parity; never edited by this WP)",
+      "src/frontend/** (no GUI surface in this MT)",
+      "src/backend/handshake_core/src/agent_sessions/acp/client_core.rs (behavior owned by MT-061; contract tests consume, do not patch)"
+    ],
+    "acceptance_criteria": [
+      "With claude-agent-acp installed and identity-verified, contract tests 1-4 pass live: initialize negotiation, real prompt turn with streamed updates and known stop reason, cancel settling cancelled within deadline, and capability-gated resume via session/load.",
+      "The Windows resume matrix runs all 4 path variants (spaces, mixed separators, drive-letter casing, non-ASCII segment) as separately named assertions; any failure reproduces the historical path-encoding blocker class as a typed CONTRACT_VIOLATION row, not a vague suite failure.",
+      "The adapter-gap ledger is written to the external artifacts root, parses against hsk.acp_adapter_gap_ledger@1, and contains the seeded claude-agent-acp expectation rows including usage/cost events expected-ABSENT; a missing capability is a typed KNOWN_GAP row, never a silent skip.",
+      "When a registry agent is absent from the host, its live tests settle as typed NEEDS_MANAGED_RESOURCE_PROOF rows and the suite exits green with the blockers visible — proven by running with an agent deliberately unresolvable; an installed-but-tampered agent is a hard typed FAIL instead.",
+      "Observed adapter version is recorded per agent; an out-of-range version yields a typed VERSION_OUT_OF_RANGE row and a typed registry warning event; capability feature-detection remains the authoritative gate (asserted: no test passes/fails on version compare alone).",
+      "Fixture-agent misbehave modes (garbage frame, mid-turn exit, cancel-ignore) each settle typed within bounded deadlines — the harness cannot hang (the >5-minute-hang failure class from prior WP validation history is explicitly guarded against).",
+      "Client-services smoke rows exist per agent with OK or NOT_INDUCIBLE-with-reason status; nothing silently skipped.",
+      "cargo build -p handshake_core green; suite passes headless; zero visible windows (HBR-QUIET-001); no repo-worktree artifact writes."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core",
+      "cargo test -p handshake_core --test acp_live_contract -- --nocapture",
+      "cargo test -p handshake_core --test acp_live_contract acp_live_claude_initialize_prompt_cancel_resume -- --nocapture",
+      "cargo test -p handshake_core --test acp_live_contract acp_windows_resume_path_matrix -- --nocapture",
+      "cargo test -p handshake_core --test acp_live_contract acp_absent_agent_settles_typed_blocker -- --nocapture",
+      "cargo test -p handshake_core --test acp_live_contract acp_misbehaving_agent_bounded_settlement -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/acp_live_contract.rs",
+      "src/backend/handshake_core/tests/acp_contract_support/ (gap ledger + probe)",
+      "src/backend/handshake_core/src/agent_sessions/acp/agent_registry.rs (version tripwire hook)"
+    ],
+    "expected_tests": [
+      "acp_live_claude_initialize_prompt_cancel_resume (gated on availability probe)",
+      "acp_live_capability_negotiation_recorded_verbatim",
+      "acp_windows_resume_path_matrix (4 named variants)",
+      "acp_gap_ledger_seeded_expectations_claude (usage events expected-ABSENT)",
+      "acp_absent_agent_settles_typed_blocker (suite green, blocker visible)",
+      "acp_tampered_agent_hard_fails_identity",
+      "acp_version_out_of_range_tripwire_not_authoritative",
+      "acp_services_smoke_ok_or_not_inducible",
+      "acp_misbehaving_agent_bounded_settlement (garbage frame, mid-turn exit, cancel-ignore)"
+    ],
+    "implementation_notes": [
+      "LIVE-AGENT REALITY: this host is Windows and the operator uses claude-agent-acp-class tooling; the live claude leg is expected to actually run here. gemini/codex legs settle as typed blockers when not installed — that is the designed honest outcome, not a failure.",
+      "The Windows path-encoding resume blocker is a documented historical claude-adapter defect class (WP-017 stub risks_unknowns); even if fixed upstream, the regression matrix stays — it guards Handshake's own cwd/session-id handling too (MT-061 binds cwd; MT-063 scope guard normalizes the same paths).",
+      "Version pin philosophy (WP stub research): feature-detect capabilities at initialize instead of comparing versions; the version_range is a tripwire that makes drift visible, not a gate that blocks a working adapter.",
+      "Gap-ledger rows feed MT-065's parity report (D18 token-usage GAP_TYPED cites the claude usage-events row) — keep row ids stable so the parity report can reference them.",
+      "Deterministic prompts: use a fixed instruction with a fixed expected-shape reply check that tolerates model nondeterminism (assert structure/stop-reason, not exact text).",
+      "Live tests must bound EVERY await (initialize, turn, cancel, resume) with explicit deadlines and typed timeout settlement — the prior-WP validator history shows unbounded external-process waits are the most expensive failure mode in this repo.",
+      "npx-launched adapters may incur first-run download latency; the probe should pre-warm or use a generous first-launch deadline, recorded in output."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend MT: live protocol contract tests and typed gap ledgering; no operator-visible surface. TraceProjection/ledger reconstruction per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "Agent sessions: ACP adapter support status — tested agents, version ranges, known adapter gaps (where the gap ledger lives and how to read it)"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FLIGHT_RECORDER: contract-violation, known-gap, and version-out-of-range findings are business events — FR emit per MT-161 kinds when landed, else DEFERRED-with-reason.",
+    "INTERNAL_DIAGNOSTICS: expose per-agent probe status and last contract-run verdict to the open diagnostic-event API — WIRED or DEFERRED-with-reason.",
+    "PALMISTRY: live third-party agent runs are the highest freeze/hang risk in the ACP family — register live contract runs under the external watcher when available, else DEFERRED-with-reason."
+  ],
+  "risk_if_missed": "Adapter drift lands silently: an adapter rename/version bump or a Windows path regression breaks the ACP lane in production with no typed evidence, the known usage-events gap stays undocumented (corrupting MT-065 parity claims), and misbehaving agents can hang governed sessions unboundedly.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fabricated live evidence — an absent agent whose tests report PASS (or are skipped invisibly) converts missing proof into false confidence (the exact class the typed NEEDS_MANAGED_RESOURCE_PROOF discipline exists to prevent).",
+      "RISK-2: Silent capability gaps — a missing adapter behavior that produces no ledger row (e.g. usage events) lets downstream parity/billing claims rest on nothing.",
+      "RISK-3: Unbounded live waits — a hung adapter turn or ignored cancel stalls the suite >5 minutes (repo-documented validator failure class) and, worse, would stall production sessions the same way.",
+      "RISK-4: Version-pin theater — gating on version strings while capabilities drift within a version (or pass across versions) gives false security in both directions.",
+      "RISK-5: Windows regression blind spot — testing only ASCII no-space paths misses the exact encoding class that already broke the claude adapter on Windows."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): availability probe with typed NEEDS_MANAGED_RESOURCE_PROOF settlement; deliberate-absence test proves the path; tampered-agent hard-fail keeps the blocker honest.",
+      "CTRL-2 (RISK-2): expected-vs-observed matrix seeded from MT-064 registry declarations; every expectation MUST produce a row; ledger completeness asserted.",
+      "CTRL-3 (RISK-3): every live await carries an explicit bounded deadline with typed timeout settlement; misbehave-mode chaos tests prove the harness settles.",
+      "CTRL-4 (RISK-4): capability feature-detection is authoritative; version range is a tripwire row only; a test asserts no pass/fail decision rests on version compare alone.",
+      "CTRL-5 (RISK-5): the 4-variant Windows path matrix (spaces, separators, drive casing, non-ASCII) is contract-pinned as separately named assertions."
+    ]
+  },
+  "research_provenance": {
+    "source": "agentclientprotocol.com (initialize/capability negotiation, session/load capability gating, cancel MUST-settle-cancelled semantics) + July-2026 adapter ecosystem facts from the WP-017 stub research basis (claude adapter renamed @zed-industries/claude-code-acp -> @agentclientprotocol/claude-agent-acp; known gaps: no usage/cost events, historical Windows path-encoding resume blocker; Gemini CLI native ACP; Codex via Zed adapter) + repo precedent: WP-KERNEL-012 MT-045 validation history (unbounded external-process waits as the most expensive failure class) + MT-064 registry declarations as the expected-capability source.",
+    "corrections": [
+      "Absent live agents produce typed blockers with a green suite — the repo's NEEDS_MANAGED_RESOURCE_PROOF convention — instead of red builds or fake passes.",
+      "Feature-detection over version comparison is the authoritative gate (WP stub research decision); the version pin is retained only as a drift tripwire.",
+      "The Windows resume matrix is kept permanently even if the upstream adapter bug is fixed, because it also covers Handshake's own path normalization surfaces (MT-061/MT-063)."
+    ]
+  }
+}

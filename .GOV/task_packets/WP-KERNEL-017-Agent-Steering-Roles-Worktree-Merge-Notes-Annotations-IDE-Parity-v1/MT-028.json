@@ -1,0 +1,150 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-028",
+  "title": "CS-MT028-ClaudeContractTestSuite",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-028.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-021",
+      "MT-022",
+      "MT-023",
+      "MT-024",
+      "MT-025"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: A CI-runnable CONTRACT test suite against the LIVE claude CLI that pins the behavioral assumptions MT-021..025 depend on, so an upstream CLI release that changes stream-json behavior is caught by a red contract test (with a typed drift report), not by a broken production session. This is the stub's mandated mitigation for the under-documented, version-moving stream-json contract.\n\nEXPECTED DIFF SHAPE: new integration test file src/backend/handshake_core/tests/claude_cli_contract_tests.rs + support module tests/claude_contract_support/ (probe runner, version-range pin config, drift collector); a machine-readable pin config file src/backend/handshake_core/tests/claude_contract_support/claude_cli_pin.json. No production-code changes except, if strictly needed, pub(crate)->pub test exposure in the cloud module (record any such change in the implementation result).\n\nSPEC:\n1. Environment gate (typed, never silent): a `probe_claude_cli()` helper checks (a) the claude binary resolves and `claude --version` exits 0, (b) an auth-requiring no-op run succeeds (cheapest way to detect missing login). If either fails, EVERY live test in the suite reports the typed blocker NEEDS_MANAGED_RESOURCE_PROOF { missing: ClaudeCli | ClaudeLogin } — implemented so the suite FAILS with that typed message in CI-required mode (HSK_CLAUDE_CONTRACT_REQUIRED=1) and SKIPS with the same typed message printed in local-dev mode. Silent skip is forbidden; the blocker text must appear in test output either way.\n2. Version-range pin config (claude_cli_pin.json): { schema_id: \"hsk.claude_cli_pin@1\", tested_min: \"<semver>\", tested_max: \"<semver>\", last_verified_utc, notes[] }. The suite records the probed CLI version into its report; a version OUTSIDE the pinned range does NOT fail by itself (behavior, not version, is the contract — feature detection posture) but IS stamped on every drift report so the operator sees untested-territory evidence. Updating the pin file is part of this suite's maintenance loop.\n3. Capability probe assertions: launch via the MT-021 preset; assert the first event is system/init; assert MT-022 captures model, tools, and the capabilities array; record the full capabilities list in the report artifact; assert feature-detection lookups work (presence/absence of interrupt_receipt_v1 is REPORTED, not asserted true — older/newer CLIs may legitimately differ).\n4. Queued-steer behavior test: start a turn that runs long enough to steer into (a prompt instructing multi-step output), inject a steer mid-turn via MT-023; assert the steer executes as ITS OWN TURN after the current turn (v2.1.205+ queued semantics) and NOT discarded — this is the single most version-sensitive behavior; on failure emit drift report kind QUEUED_STEER_DRIFT.\n5. Replay-ack test: with --replay-user-messages, assert every stdin user message is re-emitted on stdout and MT-023's correlator acks it (content_sha256 match); record the OBSERVED echo shape (the discriminator question left open by MT-022/MT-023) into the drift notes artifact.\n6. Interrupt test: only when interrupt_receipt_v1 is advertised AND the MT-024 flag is enabled for the test session: interrupt a long turn, assert turn abort + session survival + follow-up steer works; when the capability is absent, assert the typed CapabilityMissing path instead (both branches are contract assertions).\n7. Resume test: create session, end process, resume via MT-025 in the same cwd, assert history continuity (model recalls a sentinel fact); negative: resume from a different cwd is refused by Handshake's rule BEFORE launch.\n8. Drift alarm: a `DriftCollector` aggregates every Unknown envelope the MT-022 parser produced across all suite runs plus every failed contract assertion into a typed machine-readable report artifact (JSON: { schema_id: \"hsk.claude_contract_drift_report@1\", cli_version, pin_range, unknown_event_types[], failed_contracts[], observed_notes[] }) written to the external artifacts root. A non-empty unknown_event_types list makes a dedicated `claude_contract_no_unknown_events` test FAIL, listing the unknown types verbatim in the failure message — the typed drift alarm the task demands.\n9. Cost discipline: every live test uses minimal prompts (sentinel one-liners), a strict per-test timeout, and the whole suite is serial (no parallel CLI sessions from the suite) to keep operator spend and machine load bounded; suite runs headless (no terminal windows, HBR-QUIET-001).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Implement probe_claude_cli + the required/skip typed-blocker plumbing and the pin-config loader.\n2. Implement DriftCollector + report artifact writer (atomic write, external artifacts root, path from env HANDSHAKE_ARTIFACTS_ROOT with a documented default).\n3. Implement the six contract test families (capability, queued-steer, replay-ack, interrupt-both-branches, resume+negative, no-unknown-events) on top of MT-021..025 public APIs.\n4. Mark the suite #[ignore]-free but env-gated (the probe gate is the runtime switch); wire a serial harness (e.g. serial_test or a single #[test] orchestrating sub-steps) so no two CLI sessions overlap.\n5. Run locally against the real CLI where available; otherwise deliver with the typed NEEDS_MANAGED_RESOURCE_PROOF evidence and the suite green in probe-skip mode.",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/claude_cli_contract_tests.rs",
+      "src/backend/handshake_core/tests/claude_contract_support/**",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs (test-exposure visibility changes only)",
+      "src/backend/handshake_core/Cargo.toml (dev-dependency for serial test execution only)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "probe_claude_cli gates every live test: missing CLI/login yields the typed NEEDS_MANAGED_RESOURCE_PROOF blocker — failing in HSK_CLAUDE_CONTRACT_REQUIRED=1 mode, skipping WITH the printed typed blocker otherwise; no silent skip path exists.",
+      "claude_cli_pin.json exists with schema_id hsk.claude_cli_pin@1 and tested min/max; the probed version is stamped into every drift report; out-of-range versions warn, they do not auto-fail (feature-detection posture).",
+      "Capability probe test asserts init-first ordering and MT-022 capture of model/tools/capabilities; capability presence is reported, only behavior is asserted.",
+      "Queued-steer test proves a mid-turn steer executes as its own subsequent turn (not discarded); failure emits QUEUED_STEER_DRIFT.",
+      "Replay-ack test proves every stdin user message is echoed and acked via the MT-023 correlator; the observed echo shape is recorded in drift notes.",
+      "Interrupt test covers BOTH branches: capability-present (abort + survival + follow-up steer) and capability-absent (typed CapabilityMissing).",
+      "Resume test proves same-cwd history continuity and wrong-cwd pre-launch refusal.",
+      "claude_contract_no_unknown_events fails listing unknown event types verbatim whenever the MT-022 parser saw any Unknown envelope during the suite; the hsk.claude_contract_drift_report@1 artifact is written atomically to the external artifacts root on every suite run.",
+      "Suite is serial, headless, minimal-prompt, per-test-timeout bounded."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test claude_cli_contract_tests -- --nocapture 2>&1 | tee claude_contract_run.txt | grep -E 'test result: (ok|FAILED)' (live host: all green; CLI-less host: typed NEEDS_MANAGED_RESOURCE_PROOF visible in output, suite green in skip mode)",
+      "python -c \"import json;d=json.load(open('src/backend/handshake_core/tests/claude_contract_support/claude_cli_pin.json'));assert d['schema_id']=='hsk.claude_cli_pin@1' and d['tested_min'] and d['tested_max']\"",
+      "grep -q 'NEEDS_MANAGED_RESOURCE_PROOF' claude_contract_run.txt || grep -qE 'contract_(capability|queued_steer|replay_ack|interrupt|resume)' claude_contract_run.txt (typed blocker or real runs — never neither)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml --tests -- -D warnings",
+      "LIVE (this WHOLE MT is the live proof; type NEEDS_MANAGED_RESOURCE_PROOF for the full suite when the claude CLI or operator login is absent on the proof host): drift-report artifact exists post-run and validates against hsk.claude_contract_drift_report@1 shape"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/claude_cli_contract_tests.rs (new)",
+      "src/backend/handshake_core/tests/claude_contract_support/ (probe, pin config, drift collector; new)"
+    ],
+    "expected_tests": [
+      "claude_contract::capability_probe_init_first_and_captured",
+      "claude_contract::queued_steer_executes_as_own_turn",
+      "claude_contract::replay_ack_round_trip",
+      "claude_contract::interrupt_capability_present_branch",
+      "claude_contract::interrupt_capability_absent_branch",
+      "claude_contract::resume_same_cwd_history_continuity",
+      "claude_contract::resume_wrong_cwd_refused",
+      "claude_contract::no_unknown_events_drift_alarm"
+    ],
+    "implementation_notes": [
+      "This suite is the ONLY WP-017 place allowed to depend on live-CLI behavior details beyond the documented flags; production adapters (MT-021..025) stay capability-gated and tolerant. When this suite and production disagree about an observed shape, the suite's drift note is the evidence that drives the production fix.",
+      "The queued-steer and echo-shape observations feed back into the open questions explicitly left by MT-023 (echo discriminator) and MT-025 (fork init session_id) — record both in drift notes even when tests pass.",
+      "Serial execution matters doubly on Windows: parallel claude sessions in one cwd would poison the resume/lookup tests (session lookup is cwd-scoped).",
+      "Artifacts go to the external artifacts root (HANDSHAKE_ARTIFACTS_ROOT pattern per WP-KERNEL-012 MT-045 precedent), never into the repo worktree; atomic temp+rename writes.",
+      "Keep per-test wall-clock budgets explicit (default 120s/test) so a wedged CLI cannot hang CI; a timeout is a contract FAILURE with its own drift kind (HANG_DRIFT), not a skip.",
+      "Do not weaken production visibility for testability without recording it: any pub(crate)->pub change is listed in the implementation result."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless CI contract suite; its output artifact is the machine-readable drift report."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Test infrastructure; operator docs for running the contract suite belong to the CI/runbook surface owned by the packet-level manual MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — test suite consumes the recording seams under test rather than adding runtime behavior; drift reports are its durable output.",
+    "internal_diagnostics: WIRED — typed NEEDS_MANAGED_RESOURCE_PROOF blockers and hsk.claude_contract_drift_report@1 artifacts.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no persistent runtime; bounded serial test process."
+  ],
+  "risk_if_missed": "CLI upgrades break steering/interrupt/resume in production with zero early warning; the reverse-engineered interrupt shape and version-sensitive queued-steer semantics have no tripwire; unknown-event drift accumulates silently until a live session fails.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The suite silently skips on CLI-less CI forever and everyone believes the contract is verified while nothing has ever run — the classic green-but-hollow suite.",
+      "RISK-2: Contract tests assert exact undocumented shapes so hard that every benign CLI release goes red, and the suite gets ignored or deleted (alarm fatigue).",
+      "RISK-3: Live tests leak CLI child processes or parallel sessions that poison cwd-scoped session state and produce flaky cross-test failures.",
+      "RISK-4: Unbounded live runs burn operator subscription budget (long prompts, retry loops, hangs)."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): typed NEEDS_MANAGED_RESOURCE_PROOF is printed in BOTH modes and HSK_CLAUDE_CONTRACT_REQUIRED=1 turns it into failure; the proof-target grep proves 'typed blocker or real run — never neither'.",
+      "CTRL-2 (RISK-2): assert documented behavior + feature-detected branches; report (don't assert) capability lists and out-of-range versions; only genuine behavioral breaks (steer discarded, no echo, no init) go red.",
+      "CTRL-3 (RISK-3): serial harness, per-test timeouts, kill-on-drop child guards, and a post-suite zero-orphan check (HBR-QUIET-003).",
+      "CTRL-4 (RISK-4): sentinel one-liner prompts, hard wall-clock budgets, HANG_DRIFT on timeout instead of retries."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (version sensitivity: queued mid-turn steer v2.1.205+ vs discarded earlier; capabilities array for feature detection NEVER version compare; interrupt undocumented/reverse-engineered — hence behavior-pinning contract tests as the stub's named mitigation 'CI contract tests against the live CLIs') + MT-021..025 contract surfaces authored in this packet + WP-KERNEL-012 MT-045 precedent for external artifacts root + typed managed-resource blockers.",
+    "corrections": [
+      "The pin config is deliberately advisory (report-stamping) rather than a hard version gate: a hard gate would reintroduce version-compare semantics the research forbids; drift detection stays behavioral."
+    ]
+  }
+}

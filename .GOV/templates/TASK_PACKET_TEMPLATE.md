@@ -473,6 +473,36 @@ Next: N/A
   - <fill>
 - Rule: when the WP creates or changes product behavior that is operator-visible, model-navigable, diagnostic-visible, or otherwise needs an operator/model entry path, the packet must include GUI creation or GUI wiring scope for that behavior. Backend-only implementation is insufficient unless a signed packet row explicitly records why no GUI/operator/model surface is required.
 
+## ACCOUNT_RESOURCE_PRIVACY_CONTRACT (AUTHORITATIVE SNAPSHOT; REQUIRED FOR EVERY PRODUCT WP)
+- REQUIRED_FOR_EVERY_PRODUCT_WP: YES
+- Rule: every primary and derived resource touched by this WP must carry stable identity, owner account/Principal, AccessSpace/ResourceGrant visibility, default-deny enforcement points, attribution, revocation behavior, and proof. Project membership or UI filtering never substitutes for resource authorization.
+- IDENTITY_AND_SCOPE_CONTEXTS:
+  - LocalAccount: <fill or NONE>
+  - Principal: <fill or NONE>
+  - AccountRole: <fill or NONE>
+  - MembershipRole: <fill or NONE>
+  - AccessSpace: <fill or NONE>
+  - ResourceGrant: <fill or NONE>
+  - Persona: <fill or NONE>
+- RESOURCE_INVENTORY:
+  - RESOURCE_KIND: <fill> | PRODUCER: <fill> | CONSUMER: <fill> | STABLE_RESOURCE_ID: <fill> | OWNER_ACCOUNT_OR_PRINCIPAL: <fill> | ACCESS_SPACE_OR_VISIBILITY_SCOPE: <fill> | STORAGE_BOUNDARY: <fill> | DERIVED_FROM: <ids or NONE> | ENFORCEMENT_BOUNDARIES: <fill> | REVOCATION_BEHAVIOR: <fill> | PROOF_TARGET: <fill>
+- SAME_PROJECT_PRIVATE_RESOURCE_CASES:
+  - <owner plus coworker in same project plus unrelated account>
+- CROSS_ACCOUNT_NEGATIVE_CASES:
+  - <missing/mismatched/stale/revoked account, Principal, session, Space, project, resource, tenant, or delegation context>
+- DERIVED_RESOURCE_NON_WIDENING_CASES:
+  - <cache/index/thumbnail/embedding/summary/context/memory/log/trace/export/sync scope inheritance>
+- REVOCATION_AND_CONTEXT_SWITCH_CASES:
+  - <logout/disable/role or membership change/Space switch/project removal/grant revoke/pass expiry/token rotation/disconnect>
+- REMOTE_SAAS_MCP_SYNC_CASES:
+  - <remote tenant/resource/audience/delegation/provenance/local-result scope or NOT_APPLICABLE>
+- METADATA_SIDE_CHANNEL_CASES:
+  - <existence/name/count/thumbnail/search/activity/log/trace denial>
+- RUNTIME_ENFORCEMENT_BOUNDARIES:
+  - <PostgreSQL_RLS|ResourceBroker|filesystem_broker|API|search|model_retrieval|tool|preview|export|sync|UI_query>
+- REQUIRED_HBR_ROWS: HBR-PRIV-001, HBR-PRIV-002, HBR-PRIV-003, HBR-PRIV-004, HBR-PRIV-005, HBR-PRIV-006, HBR-PRIV-007, HBR-PRIV-008
+- NOT_APPLICABLE_REASON: <concrete pure-governance reason or NONE>
+
 ## GUI_AND_USER_MANUAL_OBLIGATIONS (AUTHORITATIVE SNAPSHOT; HYDRATED FROM CONTRACT)
 - GUI_OPERATOR_SURFACE_REQUIRED: <fill> (YES | NO)
 - GUI_CREATION_REQUIRED_WHEN_OPERATOR_VISIBLE: YES

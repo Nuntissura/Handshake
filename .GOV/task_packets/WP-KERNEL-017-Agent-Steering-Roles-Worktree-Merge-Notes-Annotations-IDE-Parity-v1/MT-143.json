@@ -1,0 +1,172 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-143",
+  "title": "WM-MT143-ConflictBridgeToMergeUi",
+  "group": "WM Worktree merge-back",
+  "clause": "Bridge git conflict stages (:1:/:2:/:3:) into DiffEditorPanel Merge mode; write-back via git add; commit or clean abort",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-143.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-142"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Bridge MergeOutcome::Conflicts (MT-142) into the EXISTING native 3-pane merge UI so a conflicted merge is resolved through DiffEditorPanel Merge mode and written back to the git index — no auto-resolution, no half-committed exits. The UI already exists and is reused, not rebuilt: src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs has DiffMode { SideBySide, Inline, Merge } (~lines 73-81), DiffEditorPanel::merge constructing 3 panes local/base/remote with per-conflict Accept Local / Accept Remote / Accept Both, and MergeState { base, local, remote, blocks, merged } (~lines 244-252); diff_engine.rs (same crate) supplies the Myers diff. This MT supplies the missing data path in and the resolution path out.\n\nEXPECTED DIFF SHAPE: (a) Backend: conflict-version extraction + resolution write-back functions added to src/backend/handshake_core/src/source_control_merge.rs (module from MT-142). (b) Frontend: a NEW thin bridge module src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs that maps ConflictFileVersions -> DiffEditorPanel::merge inputs and maps the resolved merged buffer -> the backend write-back call; diff_editor_panel.rs itself is touched only if a minimal accessor for the merged output buffer is missing. (c) Tests both sides.\n\nDETAILED SPEC:\n1. Backend types + signatures (source_control_merge.rs):\n   pub struct ConflictFileVersions { pub path: String, pub base: Option<String>, pub local: Option<String>, pub remote: Option<String>, pub extension: String }\n   impl MergeSession {\n     pub fn conflict_file_versions(&self, conflict: &MergeConflict) -> Result<ConflictFileVersions, SourceControlError>\n       // stage contents from the controlled checkout: `git -C <checkout> -c core.longpaths=true show :1:<path>` (base), `show :2:<path>` (local/ours = target), `show :3:<path>` (remote/theirs = source branch); a missing stage (add/add, delete/modify) => None and the UI pane renders empty-with-reason\n     pub fn resolve_conflict(&self, path: &str, merged_contents: &str) -> Result<(), SourceControlError>\n       // writes merged_contents to <checkout>/<path> then `git -C <checkout> -c core.longpaths=true add -- <literal_pathspec(path)>`\n     pub fn unresolved_paths(&self) -> Result<Vec<String>, SourceControlError>   // `ls-files -u -z`, distinct paths still conflicted\n     pub fn complete(&self, message: &str) -> Result<MergeOutcome, SourceControlError>\n       // ONLY when unresolved_paths() is empty: `git -C <checkout> -c core.longpaths=true commit --no-gpg-sign -m <attributed message>` -> MergeOutcome::CleanMerged{fast_forward:false}; otherwise typed error MergeIncomplete { remaining: Vec<String> }\n   }\n2. Attribution: the completion commit message carries the merge attribution block: source branch, target branch, resolution session id, and per-file resolution origin (ui_operator | governed_session) as trailer lines (e.g. Merged-By-Session:, Resolved-Files:). The resolution session is recorded so audit (MT-145) can bind who resolved what.\n3. Frontend bridge (merge_conflict_bridge.rs):\n   pub struct MergeUiRequest { pub conflict: ConflictFileVersions }\n   pub fn open_merge_panel(req: &MergeUiRequest) -> DiffEditorPanel   // DiffEditorPanel::merge(base, local, remote, &req.conflict.extension); empty string for a None stage plus a visible pane label ('(no base: add/add conflict)')\n   pub fn take_resolution(panel: &DiffEditorPanel) -> Option<String> // the MergeState.merged output buffer once every MergeBlock has a chosen side; None while any block is unchosen\n   The bridge NEVER chooses a side itself: chosen state comes only from the panel's Accept Local/Accept Remote/Accept Both interactions (operator or governed resolution session driving the same API).\n4. Unresolved exit: if the resolution flow ends (panel closed, session ends, error) with unresolved_paths() non-empty and complete() not called, the caller MUST call MergeSession::abort(); MergeSession Drop (MT-142) guarantees it. The merge is left fully aborted — NEVER half-committed, no MERGE_HEAD, no partial index.\n5. HARD RULES: no auto-resolution anywhere (bridge and backend refuse to fabricate a merged buffer); no force flags; no push; CRDT boundary — this bridge handles git CODE conflicts only, never kernel/crdt document state.\n\nSTEP-BY-STEP:\n1. Read diff_editor_panel.rs (DiffMode ~73-81, MergeState ~244-252, DiffEditorPanel::merge constructor, accept-button block handling) and diff_engine.rs public functions.\n2. Implement conflict_file_versions with `git show :N:<path>`, mapping missing stages to None; extension derived from the path (fallback 'txt').\n3. Implement resolve_conflict (write file + `git add --`), unresolved_paths, complete with MergeIncomplete guard and attribution trailers.\n4. Implement merge_conflict_bridge.rs mapping versions -> DiffEditorPanel::merge and merged-output extraction; add a minimal merged-buffer accessor to diff_editor_panel.rs only if none exists.\n5. Backend tests: conflicted scratch repo -> versions match `git rev-parse` stage oids; resolve_conflict clears the path from ls-files -u; complete() refuses while conflicts remain (MergeIncomplete), commits when clear; abort-on-unresolved leaves pristine state.\n6. Frontend tests (egui_kittest/AccessKit headless, same style as existing diff panel tests): 3 panes populated from a ConflictFileVersions fixture; choosing Accept Local/Remote/Both per block yields the expected merged buffer; take_resolution None while a block is unchosen.\n7. End-to-end test (backend-driven, headless): real conflicted merge -> versions -> programmatic accept choices through the SAME bridge API -> resolve_conflict -> complete -> merge commit exists with attribution trailers; and the negative twin: close-without-resolve -> aborted, no MERGE_HEAD.\n8. Run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/source_control_merge.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (minimal merged-output accessor only; no pane/interaction redesign)",
+      "src/frontend/handshake_native/src/code_editor/mod.rs (module registration only)",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI IPC allowed only on the GUI MT, MT-146)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain; do not conflate with git worktree code merge)",
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs (reuse as-is)"
+    ],
+    "acceptance_criteria": [
+      "conflict_file_versions returns base/local/remote contents matching `git show :1:/:2:/:3:` for a real conflicted path, with None for missing stages (add/add case proven).",
+      "resolve_conflict writes the merged buffer and stages it via `git add --` with literal pathspec; the path disappears from `ls-files -u`.",
+      "complete() commits ONLY when zero unresolved paths remain, with --no-gpg-sign and attribution trailers naming source, target, and resolution session; MergeIncomplete typed error otherwise.",
+      "Unresolved exit is provably safe: ending the flow without complete() leaves the merge aborted — no MERGE_HEAD, pristine target checkout, target ref unchanged (never half-committed).",
+      "merge_conflict_bridge feeds DiffEditorPanel::merge (existing DiffMode::Merge, MergeState) without duplicating any diff/merge UI logic; take_resolution returns None until every MergeBlock has a chosen side.",
+      "No auto-resolution: neither backend nor bridge fabricates or defaults a chosen side; end-to-end test drives choices exclusively through the bridge API the UI uses.",
+      "Zero occurrences of '--force', 'push', '-X', '--ours', '--theirs' in source_control_merge.rs and merge_conflict_bridge.rs.",
+      "All new git invocations include -c core.longpaths=true.",
+      "A resolution-session record (session id + resolved paths) is produced for audit consumption (typed struct returned from complete(), persisted by MT-145 wiring)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core merge_conflict_versions -- --nocapture",
+      "cargo test -p handshake_core merge_resolution_writeback -- --nocapture",
+      "cargo test -p handshake_core merge_complete_incomplete_guard -- --nocapture",
+      "cargo test -p handshake-native merge_conflict_bridge -- --nocapture",
+      "cargo test -p handshake_core merge_unresolved_exit_aborts -- --nocapture",
+      "bash -lc \"! grep -nE '(--force|push|\\\"-X\\\"|--ours|--theirs)' src/backend/handshake_core/src/source_control_merge.rs src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs && echo NO_FORCE_NO_PUSH_NO_AUTORESOLVE\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/source_control_merge.rs (extends MT-142 MergeSession: conflict_file_versions, resolve_conflict, unresolved_paths, complete)",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (REUSE: DiffMode::Merge ~73-81, DiffEditorPanel::merge, MergeState ~244-252, Accept Local/Accept Remote/Accept Both)",
+      "src/frontend/handshake_native/src/code_editor/merge_conflict_bridge.rs (NEW thin bridge)",
+      "src/frontend/handshake_native/src/code_editor/diff_engine.rs (REUSE: Myers diff; read-only)"
+    ],
+    "expected_tests": [
+      "backend: stage extraction equals git rev-parse :1/:2/:3 blob contents; add/add yields base=None",
+      "backend: resolve+complete produces a merge commit whose tree contains the resolved contents; trailers present",
+      "backend: complete() with remaining conflicts => MergeIncomplete{remaining} and no commit",
+      "backend: drop-without-complete => aborted, no MERGE_HEAD, ref unchanged",
+      "frontend (headless egui_kittest/AccessKit): 3 panes populated; per-block Accept choices produce expected merged buffer; unchosen block => take_resolution None",
+      "end-to-end: real conflict resolved programmatically through the bridge API -> committed merge; twin negative: closed unresolved -> aborted"
+    ],
+    "implementation_notes": [
+      "Stage semantics in a merge run from the TARGET checkout: :2: (ours) = target/local pane, :3: (theirs) = source-branch/remote pane, :1: = common base pane — label panes exactly this way so the UI's local/base/remote wording matches git reality.",
+      "Binary conflicts: `git show :N:` returns bytes; if content is not valid UTF-8, return a typed NotTextResolvable error — binary conflict resolution is out of scope and must surface as a blocked conflict, never a mangled lossy-UTF8 auto-write.",
+      "Path safety: reuse literal_pathspec/normalize_repo_path from source_control.rs so paths with spaces/globs cannot escape the pathspec.",
+      "The governed-resolution-session path drives the SAME bridge API as the operator UI (programmatic Accept choices); MT-148 proves this equivalence live — keep the API side-effect-free until resolve_conflict.",
+      "Merge-review annotations on resolved files are an OPTIONAL later layer (MT-201+ annotations family); do not build annotation storage here.",
+      "MT-146 mounts this bridge in the operator flow; keep merge_conflict_bridge free of pane-registry/shell wiring so MT-146 can mount it as a pane without rework."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Data/logic bridge into the EXISTING DiffEditorPanel Merge mode; no new operator surface is mounted here. The operator-facing merge-review flow with Argus evidence is MT-146. Frontend proof here is headless egui_kittest/AccessKit."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Source Control > Resolving merge conflicts (3-pane local/base/remote, Accept Local/Remote/Both, write-back, completion commit)",
+      "Source Control > Conflict safety (unresolved exit always aborts; binary conflicts surface as blocked; no auto-resolution)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-VIS-004",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "Conflicted/resolved/aborted FR kinds are MT-161 seam wired by MT-145; this MT returns the typed resolution-session record MT-145 persists."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Diagnostic event on stage-extraction failure or non-UTF8 conflict surfacing, if the open diagnostic-event API exists in the implementing worktree."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "No long-lived process introduced; UI liveness is covered by the app-level watchers, not per-bridge."
+    }
+  ],
+  "risk_if_missed": "Conflicted merges dead-end: MT-142 can detect conflicts but nobody can resolve them inside Handshake, so operators drop to raw git (unaudited, error-prone) and MT-146/148 cannot ship.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Pane mislabeling (ours/theirs swapped) makes the operator confidently accept the WRONG side — a silent data-destroying resolution that all tests pass if they share the same swap.",
+      "RISK-2: complete() commits while unresolved paths remain (or a partial `git add` marks a conflict resolved with markers still in the file), producing a merge commit containing '<<<<<<<' garbage.",
+      "RISK-3: A default/fallback chosen side in the bridge quietly auto-resolves blocks the operator never looked at, violating the no-auto-resolution hard rule.",
+      "RISK-4: Unresolved exit leaks MERGE_HEAD/staged state (half-committed), permanently blocking later merges with MergeAlreadyInProgress.",
+      "RISK-5: Non-UTF8/binary conflict content is lossily converted and written back, corrupting binary assets."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Stage-mapping test asserts against independently-computed git rev-parse blob contents with DIFFERENT distinctive markers per side (base/local/remote sentinel strings), so a swap cannot cancel out; pane labels come from one shared const mapping.",
+      "CTRL-2 (RISK-2): complete() re-runs ls-files -u at commit time (not cached state) and additionally greps the staged resolved files for conflict-marker lines ('<<<<<<<'/'>>>>>>>') as a tripwire, refusing with a typed error.",
+      "CTRL-3 (RISK-3): take_resolution returns None unless EVERY MergeBlock has an explicit chosen side; test asserts an untouched panel never yields a resolution.",
+      "CTRL-4 (RISK-4): Drop/abort guarantee inherited from MT-142 is re-proven at this layer: kill-mid-resolution test asserts no MERGE_HEAD, empty status, unchanged target ref.",
+      "CTRL-5 (RISK-5): Non-UTF8 stage content => typed NotTextResolvable, no write-back path exists for it; test uses a real binary blob conflict."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-native-editors-v1 src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs — DiffMode { SideBySide, Inline, Merge } lines 73-81, Merge = 3 panes local/base/remote with per-conflict accept buttons, MergeState { base, local, remote, blocks, merged } lines 244-252, DiffEditorPanel::merge constructor; diff_engine.rs Myers diff in the same crate. wtc-multi-model-orchestration-v1 source_control.rs literal_pathspec/normalize_repo_path + commit --no-gpg-sign ~275. Field practice: git mergetool's :1:/:2:/:3: stage-extraction + `git add` write-back is the canonical external-mergetool contract (git-scm mergetool docs); this bridge reimplements that contract against the in-app panel instead of an external tool.",
+    "corrections": [
+      "Reuse decision: the existing DiffEditorPanel Merge mode is the UI — this MT is data-in/resolution-out only; building a second merge view was rejected.",
+      "Hard rules baked in: no auto-resolution (explicit per-block choices only), unresolved exit aborts (never half-committed), no force/push, git code-merge vs CRDT document-merge boundary stated.",
+      "Merge-review annotations deferred to the MT-201+ annotations family (optional mention only, per family seam map)."
+    ]
+  }
+}

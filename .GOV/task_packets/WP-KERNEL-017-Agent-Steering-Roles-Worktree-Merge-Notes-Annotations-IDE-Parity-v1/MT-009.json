@@ -1,0 +1,143 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-009",
+  "title": "SC-MT009-SessionEventBus",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-009.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the in-process session event bus: a tokio::sync::broadcast fan-out publishing lifecycle/turn/steer/ack events for concurrent consumers (GUI panes, orchestrator notification, recording), with persisted-event correlation ids so any bus consumer can join durable rows (ProcessOwnershipLedger process_uuid, agent_session_* revisions, FR trace ids), bounded buffers, and EXPLICIT lag handling — a slow subscriber must observe a typed gap marker, never silent loss (HBR-SWARM-002). Pattern precedent: BroadcastSwarmSink already does broadcast fan-out for SwarmEvent (src/backend/handshake_core/src/swarm_orchestration/events.rs lines 452-486: tokio broadcast sender, new(capacity.max(1)), subscribe()); this bus is its session-domain sibling with a stronger no-silent-loss contract and correlation-id payloads.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/bus.rs; (b) pub use in agent_sessions/mod.rs; (c) new test file src/backend/handshake_core/tests/agent_sessions_bus_tests.rs. No changes to swarm_orchestration/events.rs (the SwarmEvent sink stays untouched; a bridging consumer can be added by later families).\n\nSPEC CATALOG:\n\n- pub struct EventCorrelation { pub session_id: SessionId, pub turn_id: Option<TurnId>, pub message_id: Option<SteerMessageId>, pub process_record_id: Option<uuid::Uuid> (the ProcessOwnershipRecordId uuid from the ledger START row — official_cli_bridge.rs mints it at spawn, line 2449), pub fr_trace_id: Option<String> (joins the FR trace stamped per invocation, cli_bridge_runtime.rs lines 663-674), pub store_revision: Option<i64> (the agent_session_* revision the event corresponds to, when the event mirrors a durable write) } — serde; every event carries one; this is the join key surface that makes bus consumers able to reconstruct truth from durable state (HBR-INT-007).\n- pub enum SessionBusEvent (serde tag=\"kind\" snake_case, each variant carrying correlation: EventCorrelation + at_utc: DateTime<Utc>):\n  ThreadStarted { adapter_kind: AgentAdapterKind, cwd: String, worktree_id: Option<String> };\n  TurnStateChanged { from: TurnState, to: TurnState, seq: u32 };\n  TurnItemAppended { item_kind: String (the TurnItem serde tag), preview: String (first 200 chars, redaction-safe: previews of ToolCall inputs pass through the existing redactor seam used by the CLI runtime capture path — cli_bridge_runtime.rs AgentCaptureState.redactor lines 755-767 — the bus takes an optional Arc<dyn Fn(&str)->String + Send + Sync> redactor at construction) };\n  SteerQueued { depth: usize };\n  SteerAckChanged { ack_state: String };\n  ResendExhausted {};\n  InterruptRequested {};\n  SessionHealthChanged { health: String };\n  SessionClosed { mapped_thread_state: String, exit_code: Option<i32> };\n  SubscriberLagged { missed: u64 } — SYNTHESIZED per-subscriber (see lag rule), never published by producers.\n- pub struct SessionEventBus { tx: tokio::sync::broadcast::Sender<SessionBusEvent>, lag_counter: Arc<AtomicU64>, capacity: usize } : pub fn new(capacity: usize) -> Self (default pub const SESSION_BUS_CAPACITY: usize = 1024; capacity.max(1) like BroadcastSwarmSink); pub fn publish(&self, event: SessionBusEvent) -> usize (returns receiver count; a publish with zero receivers is fine — durable state is the source of truth, the bus is a live-delta channel); pub fn subscribe(&self) -> SessionBusSubscriber.\n- pub struct SessionBusSubscriber { rx: broadcast::Receiver<SessionBusEvent>, bus_lag_counter: Arc<AtomicU64> } : pub async fn recv(&mut self) -> Option<SessionBusEvent> — LAG RULE (normative): on RecvError::Lagged(n), increment the shared lag counter AND return Some(SessionBusEvent::SubscriberLagged { missed: n }) with a correlation carrying only session-less bus identity — the consumer SEES the gap as a typed event and can re-sync from durable state; on RecvError::Closed return None. Silent skip is forbidden.\n- pub fn lag_total(&self) -> u64 on SessionEventBus — diagnostic counter surfaced to the HBR-INT-009 tiers (flight_recorder event on first lag per subscriber window; internal_diagnostics/palmistry wiring may be typed DEFERRED).\n- Supervisor/queue/receipt hookup seams (implemented here, consumed by MT-005/MT-007/MT-010): pub struct BusSupervisorHook(Arc<SessionEventBus>) implementing MT-005's SupervisorEventHook by mapping on_health_changed -> SessionHealthChanged and on_exit -> SessionClosed with NON-BLOCKING publish only (broadcast::send never awaits — safe from the supervisor poll thread); helper constructors for SteerQueued/SteerAckChanged events from MT-002/MT-008 outcomes.\n- FR bridging: pub struct FlightRecorderBusConsumer — a spawned task subscribing and forwarding SessionClosed/ThreadStarted/SubscriberLagged (and only those three — TurnItemAppended volume is capped out) to the FlightRecorder as events stamping fr_event_id strings \"FR-EVT-ASESS-THREAD-STARTED\", \"FR-EVT-ASESS-SESSION-CLOSED\", \"FR-EVT-ASESS-SUBSCRIBER-LAGGED\" into the payload, following the SELF-CONTAINED constant-table discipline SwarmFrEventId documents (events.rs lines 9-20: FR-EVT-* ids defined product-side as a round-trippable table because .GOV registry folding is a governance-wave concern; MT-161 folds them) — pub enum AgentSessionFrEventId { ThreadStarted, SessionClosed, SubscriberLagged } with as_str()/all()/from_str_id() exactly mirroring SwarmFrEventId (events.rs lines 36-109).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read swarm_orchestration/events.rs L452-520 (BroadcastSwarmSink + FanoutSwarmSink + FlightRecorderSwarmSink patterns and tests L691-725), cli_bridge_runtime.rs L663-674 (trace ids) and L755-767 (redactor seam), MT-001 types, MT-005 SupervisorEventHook signature, MT-008 AckState labels.\n2. Implement EventCorrelation + SessionBusEvent with serde wire-tag pins.\n3. Implement SessionEventBus/SessionBusSubscriber with the normative lag rule; unit-test the Lagged synthesis with a capacity-2 bus and a slow consumer.\n4. Implement BusSupervisorHook + the ack/queue event helper constructors; document non-blocking-only publishing.\n5. Implement AgentSessionFrEventId + FlightRecorderBusConsumer forwarding the three chosen kinds; validate emitted events with FlightRecorderEvent::validate() like the swarm sink test does (events.rs L562-580).\n6. Author tests/agent_sessions_bus_tests.rs: (a) multi-subscriber fan-out — 3 subscribers each receive all events in publish order; (b) lag proof — capacity 2, publish 10, slow subscriber receives SubscriberLagged{missed>=1} then subsequent events, lag_total()>0, and the missed count reconciles (received + missed == published); (c) publish with zero subscribers does not error; (d) correlation joins — an event constructed from a fake ledger START row + store revision carries process_record_id + store_revision that match the source rows; (e) FR consumer — the three kinds arrive at a CollectingRecorder-style fake with valid events and pinned fr_event_id strings; TurnItemAppended does NOT arrive; (f) wire-tag pin test for every SessionBusEvent variant; (g) redactor application on TurnItemAppended preview.\n7. cargo build + clippy green.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/bus.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/tests/agent_sessions_bus_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/swarm_orchestration/** (BroadcastSwarmSink is precedent, not a surface to modify)",
+      "src/backend/handshake_core/src/flight_recorder/** (consume the FlightRecorder trait, never modify)",
+      "src/backend/handshake_core/src/model_runtime/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "SessionEventBus publishes all SessionBusEvent kinds to every subscriber in publish order with bounded capacity (default 1024) — proven by fan-out test.",
+      "Lag is NEVER silent: a lagged subscriber receives a typed SubscriberLagged{missed} event, the shared lag counter increments, and received+missed reconciles with published — proven by test (b) (HBR-SWARM-002).",
+      "Every event carries EventCorrelation with joinable ids (process_record_id from ledger START rows, fr_trace_id, store_revision) — proven by test (d).",
+      "BusSupervisorHook maps MT-005 hook callbacks to bus events with non-blocking sends only (no await, no lock across publish).",
+      "FlightRecorderBusConsumer forwards exactly ThreadStarted/SessionClosed/SubscriberLagged with pinned FR-EVT-ASESS-* ids mirroring the SwarmFrEventId self-contained-table discipline; forwarded events pass FlightRecorderEvent::validate() — proven by test (e).",
+      "TurnItemAppended previews pass through the constructor-injected redactor — proven by test (g).",
+      "Wire tags pinned for every variant; cargo build green; clippy clean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_bus --nocapture 2>&1 | tee /tmp/mt009_run.txt && grep -E 'test result: ok' /tmp/mt009_run.txt",
+      "cargo test -p handshake_core bus --nocapture 2>&1 | grep -q 'lag_is_typed_not_silent'",
+      "cargo test -p handshake_core bus --nocapture 2>&1 | grep -q 'reconcile'",
+      "grep -n 'SubscriberLagged' src/backend/handshake_core/src/agent_sessions/bus.rs",
+      "grep -n 'FR-EVT-ASESS-' src/backend/handshake_core/src/agent_sessions/bus.rs"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/bus.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (re-exports)",
+      "src/backend/handshake_core/tests/agent_sessions_bus_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "3-subscriber ordered fan-out",
+      "capacity-2 lag synthesis + counter + reconciliation accounting",
+      "correlation-id join proof against fake ledger/store rows",
+      "FR consumer forwarding whitelist + validate() + id pins",
+      "redacted preview proof; wire-tag pins"
+    ],
+    "implementation_notes": [
+      "tokio::broadcast drops OLDEST on overflow and reports Lagged(n) — that is exactly the honest primitive: consumers learn how many they missed and re-sync from durable state (store revisions in EventCorrelation are the re-sync cursor). The bus is a live-delta channel, never the source of truth.",
+      "The three-kind FR whitelist keeps recorder volume sane: TurnItemAppended can be hundreds/turn and already reaches the recorder via the existing FR-EVT-AGENT-* capture path in the CLI runtime (cli_bridge_runtime.rs emit_agent_line) — double-recording it here would duplicate the timeline, the same reason agent_activity.rs skips lifecycle envelopes (its module docs L20-25).",
+      "FR-EVT-ASESS-* ids follow the events.rs governance note verbatim: product-side self-contained constant table, UPPER-KEBAB-CASE, ready for mechanical folding into the master FrEventId + .GOV manifest by MT-161 (FR event kinds MT) — do NOT edit .GOV or the fr_event_registry here.",
+      "SubscriberLagged carries a bus-identity correlation (no session_id) because a lag gap spans sessions; consumers needing per-session truth re-query the store.",
+      "GUI/orchestrator consumers subscribe via MT-007's service (which owns the bus instance); MT-010 proves end-to-end ordering under concurrency."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless event fan-out; the GUI family's session panes are the visible consumers and carry their own Argus obligations."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal event bus; not an operator-callable surface. Live-update behavior is documented with the GUI panes that render it."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-002",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "Consumers poll or scrape: GUI panes go stale, the orchestrator misses turn boundaries (breaking the no-polling notification requirement), slow consumers silently lose events and render false session state, and nothing joins live deltas back to durable rows for audit.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent lag loss — a slow GUI pane misses events without knowing, rendering a stale session as live (the exact HBR-SWARM-002 no-silent-loss violation).",
+      "RISK-2: Bus-as-truth — consumers treat the bus as authoritative and never re-sync from durable state, so any gap becomes permanent divergence.",
+      "RISK-3: Blocking publish — a publisher awaiting or locking inside the supervisor poll thread stalls child supervision.",
+      "RISK-4: Recorder flood — forwarding every TurnItemAppended doubles the FR timeline and drowns real events (the documented double-timeline failure agent_activity.rs guards against).",
+      "RISK-5: Secret leakage — tool-call input previews carry credentials into every subscriber and the recorder."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): normative lag rule with typed SubscriberLagged + reconciliation test; recv() cannot skip silently by construction.",
+      "CTRL-2 (RISK-2): EventCorrelation.store_revision as the re-sync cursor; module docs declare the bus non-authoritative; SubscriberLagged docs instruct re-query.",
+      "CTRL-3 (RISK-3): broadcast::send is sync/non-blocking; BusSupervisorHook contract forbids awaits/locks; review + hook unit test from a plain thread.",
+      "CTRL-4 (RISK-4): three-kind FR whitelist with a test asserting TurnItemAppended is NOT forwarded.",
+      "CTRL-5 (RISK-5): constructor-injected redactor applied to previews + 200-char cap; redaction test pins it."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: swarm_orchestration/events.rs (BroadcastSwarmSink L452-486, FanoutSwarmSink, FlightRecorderSwarmSink + validate() tests L562-580/L691-725, SwarmFrEventId self-contained-table governance note L9-20 and table L36-109), cli_bridge_runtime.rs (trace ids L663-674, redactor seam L755-767), process_ledger/mod.rs ProcessOwnershipRecordId. Cross-family anchor: MT-161 folds FR-EVT-ASESS-* into the canonical FrEventId registry.",
+    "corrections": []
+  }
+}

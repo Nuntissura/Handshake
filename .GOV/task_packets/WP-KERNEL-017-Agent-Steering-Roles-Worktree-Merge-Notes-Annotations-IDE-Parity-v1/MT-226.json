@@ -1,0 +1,196 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-226",
+  "title": "NA-MT226-AnnotationGuiEvidenceSuite",
+  "group": "NA Notes annotation UI",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-226.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-221",
+      "MT-222",
+      "MT-223",
+      "MT-224",
+      "MT-225"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Produce ONE consolidated, reproducible GUI evidence + regression suite covering every annotation surface built by MT-221..225, so a no-context model (or the WP validator) can prove the annotation UI works, is readable, is non-intrusive, and is keyboard-accessible — WITHOUT re-deriving how each surface behaves. Deliverables: Argus/AccessKit tree dumps for every new surface; a screenshot/snapshot baseline set spanning all annotation states, both editors, the panel, and the quarantine section; a renderer console/error scan; overlap + readability checks; a keyboard-only walkthrough script; all evidence written under the external artifacts root; and a regression harness runnable HEADLESS. This MT adds NO product surface — it exercises the surfaces MT-221..225 built. Interaction pattern reference: the existing native GUI proof harnesses (tests/native_gui_support/screenshot_harness.rs + argus_surface_proof.rs) and the focus-audit tests — extend those, do not invent a parallel evidence framework.\n\nEXPECTED DIFF SHAPE: New tests/test_annotation_gui_evidence.rs (the headless-runnable regression entrypoint) + a tests/native_gui_support/annotation_evidence.rs helper module (capture matrix builder, AccessKit-tree dumper, overlap/readability asserts, keyboard-walkthrough driver), registered in tests/native_gui_support/mod.rs. Evidence outputs (PNG snapshots, AccessKit JSON dumps, a capture-matrix manifest) are written under the resolved HANDSHAKE_ARTIFACTS_ROOT via the existing visual_debugger/screenshot path — NOT committed into the repo. No product src/ edits; no backend; no legacy React.\n\nDETAILED SPEC (evidence matrix, harness, checks):\n1. CAPTURE MATRIX (binding coverage): the suite enumerates and captures every (surface x state x variant) cell — code-editor markers in plain view + SideBySide (both panes) + Inline + Merge (three panes) with all four AnnotationMarkerState values (Open/Resolved/Orphaned/Outdated); the unanchored strip; Notes highlights + margin markers in edit AND reading mode; the shared thread widget with operator + model badges (robot_id/session shown); the MT-223 panel with filters/sort/badge counts/empty/error states; the MT-224 authoring flows (create/edit/delete-confirm) and a keyboard-only walkthrough; the MT-225 live-arrival 'N new' + quarantine section. A manifest lists each cell and its evidence path; any deliberately-skipped cell records a not_applicable_reason (no silent gaps).\n2. ARGUS / ACCESSKIT DUMPS: for each surface, call argus.inspect (mcp/argus.rs) to dump the live AccessKit tree and assert the stable author_ids named by MT-221..225 exist and are non-colliding (including SideBySide/split-pane instance-suffixed and scoped_author_id cases). argus.screenshot (focus-safe Win32 PrintWindow, mcp/screenshot.rs) captures pixels without stealing focus.\n3. RENDERER CONSOLE / ERROR SCAN: capture and assert the egui/wgpu renderer produced no error/warn lines while rendering each surface (no panics, no missing-glyph/texture warnings) — a clean render log per cell.\n4. OVERLAP + READABILITY: assert annotation glyphs do not obscure diagnostics/breakpoints/fold triangles (code editor) and margin markers do not collide with wikilink/inline-tag/transclusion geometry (Notes); assert marker states are shape-distinct (readable without color) and text-over-tint contrast holds in BOTH light and dark themes.\n5. KEYBOARD-ONLY WALKTHROUGH: a scripted driver performs the full MT-224 authoring flow (create -> reply -> resolve -> delete-with-confirm) using only keyboard/AccessKit default-actions (no argus.click mouse path) and records the transcript as evidence; failure = any step unreachable without a mouse.\n6. QUIET / NO-FOCUS-STEAL: a simulated MT-225 live arrival asserts focus, active window, and caret are unchanged, and that no popup/toast/modal appeared (reuse the focus-audit precedent).\n7. HEADLESS + REPRODUCIBLE: the harness runs headless (offscreen render target) so CI / a no-context validator can run it without a visible desktop session; evidence paths are deterministic under HANDSHAKE_ARTIFACTS_ROOT and the manifest is machine-readable.\n\nSTEP-BY-STEP:\n1. Read tests/native_gui_support/ (screenshot_harness.rs, argus_surface_proof.rs), mcp/argus.rs (argus.inspect/screenshot) + mcp/screenshot.rs (capture_handshake_window), visual_debugger/mod.rs (default_artifact_root / HANDSHAKE_ARTIFACTS_ROOT resolution + validate_external_artifact_root), tests/test_focus_audit_quiet.rs, and the author_id inventories declared by MT-221..225.\n2. Build tests/native_gui_support/annotation_evidence.rs: capture-matrix enumerator, AccessKit-tree dumper + author_id assertions, overlap/readability asserts, renderer-log scan, keyboard-walkthrough driver, QUIET arrival check.\n3. Write tests/test_annotation_gui_evidence.rs as the headless entrypoint that drives the matrix, writes the manifest + evidence under the artifacts root, and fails on any missing/regressed cell.\n4. Register the helper in tests/native_gui_support/mod.rs; run headless; confirm the manifest + baseline set + dumps land under HANDSHAKE_ARTIFACTS_ROOT.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/test_annotation_gui_evidence.rs",
+      "src/frontend/handshake_native/tests/native_gui_support/annotation_evidence.rs",
+      "src/frontend/handshake_native/tests/native_gui_support/mod.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by MT-261..264 — never test/extend it)",
+      ".GOV/**",
+      "src/backend/**",
+      "src/frontend/handshake_native/src/** (evidence-only MT: NO product code edits; if a surface is unprovable, raise it as a defect against MT-221..225, do not patch product code here)",
+      "any path that writes evidence INTO the repo (evidence must land under the external HANDSHAKE_ARTIFACTS_ROOT, never committed)"
+    ],
+    "acceptance_criteria": [
+      "A single headless-runnable regression entrypoint (tests/test_annotation_gui_evidence.rs) drives a capture matrix covering every annotation surface x state x variant from MT-221..225; a machine-readable manifest lists each cell and its evidence path, with a recorded not_applicable_reason for any skipped cell (no silent gaps).",
+      "For every surface an argus.inspect AccessKit-tree dump is captured and asserts the stable author_ids from MT-221..225 exist and are non-colliding (instance-suffixed and scoped_author_id cases included).",
+      "A screenshot/snapshot baseline set is captured via argus.screenshot / the visual_debugger path for: code markers (plain/SideBySide/Inline/Merge x Open/Resolved/Orphaned/Outdated), unanchored strip, Notes highlights+markers (edit + reading), shared thread widget (operator+model badges), MT-223 panel (filters/sort/counts/empty/error), MT-224 authoring (create/edit/delete-confirm), MT-225 'N new' + quarantine.",
+      "A renderer console/error scan asserts no error/warn/panic lines per rendered cell.",
+      "Overlap + readability checks pass: annotation glyphs do not obscure diagnostics/breakpoints/fold triangles; margin markers do not collide with wikilink/inline-tag/transclusion geometry; states are shape-distinct; text-over-tint contrast holds in light AND dark themes.",
+      "A keyboard-only walkthrough completes the full MT-224 authoring flow with zero mouse (no argus.click) and records a transcript; any mouse-only step fails the suite.",
+      "A simulated MT-225 live arrival asserts unchanged focus/active-window/caret and no popup/toast/modal (QUIET).",
+      "The harness runs headless (offscreen render) and writes all evidence + the manifest under the resolved HANDSHAKE_ARTIFACTS_ROOT (validate_external_artifact_root: outside the repo); nothing is committed into the repo.",
+      "No product src/ files are modified (evidence-only); UserManual is not applicable to this MT."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native annotation_gui_evidence -- --nocapture",
+      "test asserts the evidence manifest enumerates every MT-221..225 surface cell (or records not_applicable_reason) and every referenced evidence file exists under HANDSHAKE_ARTIFACTS_ROOT",
+      "! rg -n \"src/frontend/handshake_native/src/\" <this MT's changed file list> (grep-proof: no product src edits in the diff)",
+      "Argus evidence: the suite IS the Argus evidence — argus.inspect AccessKit dumps + argus.screenshot baselines + renderer-log scans + keyboard-walkthrough transcript + QUIET arrival check, all under the external HANDSHAKE_ARTIFACTS_ROOT with a machine-readable capture-matrix manifest"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/tests/test_annotation_gui_evidence.rs (new, headless regression entrypoint)",
+      "src/frontend/handshake_native/tests/native_gui_support/annotation_evidence.rs (new, capture-matrix + dumper + checks + keyboard driver)",
+      "src/frontend/handshake_native/tests/native_gui_support/mod.rs (register the helper module)"
+    ],
+    "expected_tests": [
+      "harness: capture-matrix enumerator yields one cell per (surface, state, variant) across MT-221..225 with no missing surface",
+      "harness: AccessKit author_id assertions pass for every surface incl. SideBySide instance-suffix + rich scoped_author_id",
+      "harness: renderer-log scan finds zero error/warn/panic per cell",
+      "harness: overlap/readability asserts (glyph co-occupancy, margin non-collision, shape-distinct states, light+dark contrast)",
+      "harness: keyboard-only authoring walkthrough completes with zero mouse events",
+      "harness: QUIET live-arrival check (focus/window/caret unchanged, no popup)",
+      "harness: manifest + evidence files exist under HANDSHAKE_ARTIFACTS_ROOT and the run is headless-clean"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): native GUI proof harnesses live in tests/native_gui_support/ (screenshot_harness.rs, argus_surface_proof.rs); Argus methods are argus.inspect/argus.click/argus.set_value/argus.screenshot (mcp/argus.rs) with author_id -> NodeId resolution via mcp/action.rs resolve_target (UiTreeSnapshot, MT-026); focus-safe capture is mcp/screenshot.rs capture_handshake_window (Win32 PrintWindow). HANDSHAKE_ARTIFACTS_ROOT resolves via visual_debugger/mod.rs default_artifact_root() (:480-499) with validate_external_artifact_root guarding it stays outside the repo; many tests already read it (test_focus_audit_quiet.rs:48, test_fems_interop_proofs.rs:93 asserts absolute).",
+      "This MT writes ONLY tests + evidence; it must NOT edit product src. If any surface cannot be proven, that is a DEFECT against the owning MT (221..225) to be raised, not patched here.",
+      "Reuse the existing focus-audit precedent (tests/test_focus_audit_quiet.rs) for the QUIET no-focus-steal arrival check rather than writing a new focus model.",
+      "accesskit 0.21.1 role vocabulary (from code_editor/panel.rs) bounds the author_id assertions: expect Role::Group/Button/CheckBox/TextInput/SearchInput/Label/ScrollView, never ToggleButton/SearchBox/TextCursor.",
+      "Headless: use the offscreen render target the existing screenshot_harness uses so a no-context validator/CI can run without a visible desktop; keep evidence paths deterministic under the artifacts root and the manifest machine-readable.",
+      "Cross-family seams (reference only): every author_id/surface inventory declared by MT-221 (markers/strip/thread), MT-222 (rich highlights/markers), MT-223 (panel), MT-224 (authoring), MT-225 (live/quarantine)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "code-editor markers (plain/SideBySide/Inline/Merge, all four states) under test",
+      "unanchored strip under test",
+      "Notes highlights + margin markers (edit + reading) under test",
+      "shared thread widget (operator + model badges) under test",
+      "MT-223 panel (filters/sort/counts/empty/error) under test",
+      "MT-224 authoring flows + keyboard walkthrough under test",
+      "MT-225 live 'N new' + quarantine section under test"
+    ],
+    "argus_targets": [
+      "annotation_marker_{line}_{annotation_id}",
+      "annotation_thread_{annotation_id}",
+      "annotation_unanchored_strip",
+      "annotation_rich_marker_{annotation_id}",
+      "annotations.panel",
+      "annotation_panel_quarantine_section"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "readability_contrast_check_light_and_dark",
+      "keyboard_only_walkthrough_capture",
+      "focus_no_steal_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Evidence + regression suite only; it adds no operator-facing feature. The annotation manual entries are owned and updated by MT-223/MT-224/MT-225; this MT may assert those manual author_ids are live but authors no manual content."
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Evidence/regression harness; it records GUI proof artifacts, not business FR events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The suite consumes the visual_debugger structured state and the MT-221..225 diagnostics tiers as its assertion inputs, and emits a machine-readable capture-matrix manifest for no-context diagnosis of any regressed cell."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Headless test harness; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "The annotation UI ships without consolidated, reproducible proof: no-context validators must hand-verify each surface, readability/overlap/QUIET/keyboard regressions slip in silently, and there is no headless baseline to catch a future break — exactly the visual-regression gap the build rules require GUI MTs to close.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Coverage illusion — the suite passes but silently omits surfaces/states (e.g. Merge three-pane, Orphaned, dark theme, quarantine), giving false confidence that everything is proven.",
+      "RISK-2: Evidence leaks into the repo — snapshots/dumps get written into the repo tree instead of the external artifacts root, bloating the repo and breaking portability.",
+      "RISK-3: Product-code patching — to make a surface 'pass', the evidence MT edits product src, hiding a real defect that belongs to MT-221..225.",
+      "RISK-4: Non-headless dependence — the harness needs a visible desktop/focus, so CI or a no-context validator cannot run it, defeating the reproducibility goal.",
+      "RISK-5: Stale author_id assertions — the suite asserts author_ids that drifted from the real MT-221..225 ids, so it passes against a fiction and misses actual breakage."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The capture matrix is enumerated from an explicit surface x state x variant list; every cell is captured or records a not_applicable_reason; a manifest completeness assert fails on any missing cell.",
+      "CTRL-2 (RISK-2): All evidence paths resolve under HANDSHAKE_ARTIFACTS_ROOT via validate_external_artifact_root (outside the repo); a test asserts no evidence path is inside the repo root.",
+      "CTRL-3 (RISK-3): src/frontend/handshake_native/src/** is a forbidden path; the diff contains only tests; unprovable surfaces are raised as defects against the owning MT, not patched.",
+      "CTRL-4 (RISK-4): The harness uses the offscreen/headless render target from screenshot_harness; a headless CI-mode run is part of the proof.",
+      "CTRL-5 (RISK-5): author_id assertions are cross-checked against the live AccessKit tree via argus.inspect (resolve_target), so an assertion only passes if the id actually exists in the running UI."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/: tests/native_gui_support/ (screenshot_harness.rs, argus_surface_proof.rs), mcp/argus.rs (argus.inspect/click/set_value/screenshot) + mcp/action.rs (resolve_target author_id->NodeId via UiTreeSnapshot) + mcp/screenshot.rs (Win32 PrintWindow capture_handshake_window), visual_debugger/mod.rs (default_artifact_root :480-499, validate_external_artifact_root, HANDSHAKE_ARTIFACTS_ROOT precedence), tests/test_focus_audit_quiet.rs (focus-audit precedent), code_editor/panel.rs (accesskit 0.21.1 role vocabulary). Evidence-target inventories come from MT-221..225 author_id/surface declarations.",
+    "corrections": [
+      "Evidence must be written under the EXTERNAL HANDSHAKE_ARTIFACTS_ROOT (validate_external_artifact_root guarantees it is outside the repo), never committed — matching how the existing GUI proof harnesses and focus-audit tests write their artifacts.",
+      "This MT is tests-only: it must not touch product src; an unprovable surface is a defect against MT-221..225, not something to fix inside the evidence suite.",
+      "author_id assertions must be validated against the live AccessKit tree (argus.inspect/resolve_target), not against a hardcoded list that could drift from the real MT-221..225 ids."
+    ]
+  }
+}

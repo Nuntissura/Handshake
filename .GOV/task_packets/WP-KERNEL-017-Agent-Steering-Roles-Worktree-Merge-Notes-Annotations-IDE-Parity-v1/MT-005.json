@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-005",
+  "title": "SC-MT005-SessionSupervisor",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-005.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-004"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement long-lived child supervision for interactive agent-CLI sessions: liveness/health tracking (stdout heartbeat + process-alive checks), graceful stop (stdin EOF, then POSIX-SIGTERM-semantics / Windows process-tree kill), deterministic exit-code mapping onto MT-001 Turn/Thread terminal states, teardown that ALWAYS kills the process tree and records the ledger STOP row, and a hard no-auto-restart rule (restart only under an explicit policy object; contrast with SwarmCoordinator's reaper which has bounded per-instance respawns — swarm_orchestration/mod.rs lines 19-25 — the session supervisor is stricter because a steerable session has irreplaceable conversational state).\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/agent_sessions/supervisor.rs; (b) pub use additions in agent_sessions/mod.rs; (c) new test file src/backend/handshake_core/tests/agent_sessions_supervisor_tests.rs. Consumes MT-004's InteractiveCliChild; touches no sandbox/bridge/coordinator source.\n\nSPEC CATALOG:\n\n- pub struct SupervisorConfig { pub poll_interval: Duration (default 250ms), pub heartbeat_stale_after: Duration (default 300s — a session with no stdout for this long is flagged Stale, NOT killed; agent turns can legitimately be long), pub graceful_stop_timeout: Duration (default 10s — stdin-EOF-to-exit budget before tree kill), pub restart_policy: RestartPolicy (default Never) } with Default impl and with_* builders.\n- pub enum RestartPolicy { Never, ExplicitOperator } — Never: supervisor NEVER respawns; ExplicitOperator: supervisor still never respawns by itself, but marks the terminal SessionHealthReport restart_allowed=true so MT-007's API may offer an operator-initiated relaunch (via MT-006 resume). There is NO automatic restart variant by design.\n- pub enum SessionHealth { Starting, Live, Stale { last_stdout_at_utc: DateTime<Utc> }, Stopping, Exited { exit_code: Option<i32> } }.\n- pub enum StopReason { OperatorStop, Interrupt, Teardown, HeartbeatPolicy, HarnessShutdown } with label() -> &'static str used as the terminate_and_collect reason string (pattern: the one-shot path passes reasons like \"official_cli_bridge_timeout_kill\" at official_cli_bridge.rs line 2483; supervisor reasons are \"agent_session_operator_stop\", \"agent_session_interrupt\", \"agent_session_teardown\", \"agent_session_heartbeat_policy\", \"agent_session_harness_shutdown\").\n- pub enum StopOutcome { GracefulExit { exit_code: i32, elapsed: Duration }, TreeKilled { elapsed: Duration }, AlreadyExited { exit_code: Option<i32> } }.\n- pub fn map_exit_to_turn_state(exit_code: Option<i32>, stop_requested: Option<StopReason>) -> TurnState — the normative mapping: Some(0) => Completed; Some(143) OR (any exit while stop_requested==Some(Interrupt)) => Interrupted (research: Claude Code on SIGTERM aborts the in-flight turn and exits 143; Windows tree kill yields no meaningful code, so the stop_requested side of the disjunction carries the truth there); any exit while stop_requested==Some(OperatorStop|Teardown|HarnessShutdown|HeartbeatPolicy) => Cancelled; Some(nonzero) with no stop requested => Failed; None with no stop requested => Failed.\n- pub fn map_exit_to_thread_state(turn_terminal: TurnState) -> ThreadState — Completed|Interrupted|Cancelled => Idle-resumable is WRONG for Cancelled-by-teardown: mapping is Completed => Idle, Interrupted => Idle (resumable — the thread survives an aborted turn), Cancelled => Closed, Failed => Failed.\n- pub struct SessionSupervisor { child: InteractiveCliChild, config: SupervisorConfig, health: watch::Sender<SessionHealth>, stop_requested: Arc<Mutex<Option<StopReason>>>, hooks: Vec<Arc<dyn SupervisorEventHook>> }.\n- pub trait SupervisorEventHook: Send + Sync { fn on_health_changed(&self, session_id: &SessionId, health: &SessionHealth); fn on_exit(&self, session_id: &SessionId, report: &SessionExitReport); } — the seam MT-009 subscribes through (the supervisor does NOT depend on the bus; the bus registers a hook), and MT-002's queue close is driven from on_exit by the composing runtime.\n- pub struct SessionExitReport { pub session_id: SessionId, pub exit_code: Option<i32>, pub stop_reason: Option<StopReason>, pub mapped_turn_state: TurnState, pub mapped_thread_state: ThreadState, pub frames_written: u64, pub restart_allowed: bool, pub ledger_stop_recorded: bool }.\n- impl SessionSupervisor:\n  - pub fn spawn_supervision(session_id: SessionId, child: InteractiveCliChild, config: SupervisorConfig, hooks: Vec<Arc<dyn SupervisorEventHook>>) -> SupervisedSession — starts one dedicated std::thread running the poll loop (same no-blocking-on-tokio discipline as the CLI bridge: cli_bridge_runtime.rs lines 676-679): each tick (poll_interval) does try_wait-style alive check via the child plus reads the stdout-reader's last-activity timestamp (StreamingPipeReader delivers chunks; the supervisor records last_chunk_at on every delivery via a shared AtomicI64 millis cell exposed by MT-004's InteractiveCliChild — if MT-004 did not expose it, add it THERE is forbidden; instead wrap the reader's chunk channel here with a timestamping tee). Health transitions Starting->Live on first chunk; Live->Stale when now-last_chunk > heartbeat_stale_after (emits hook, no kill — HeartbeatPolicy kills only when the composing runtime explicitly calls stop(HeartbeatPolicy)); any->Exited on child exit.\n  - pub struct SupervisedSession { pub session_id: SessionId, health_rx: watch::Receiver<SessionHealth>, stop_tx: (internal), join: JoinHandle<SessionExitReport> } with pub fn health(&self) -> SessionHealth; pub async fn stop(&self, reason: StopReason) -> StopOutcome; pub fn join_exit(self, deadline: Duration) -> Result<SessionExitReport, AgentSessionError>.\n  - stop(reason) sequence (GRACEFUL STOP, normative): (1) record stop_requested=Some(reason); (2) send StdinFrame::Close via the MT-004 writer (EOF is the polite shutdown signal; on POSIX adapters the adapter MAY also deliver SIGTERM — encode as a seam comment, the sandbox adapter owns signal delivery); (3) wait up to graceful_stop_timeout for child exit; (4) on timeout call child.terminate_and_collect(reason.label()) — the MT-004/GuardedCliChild path that performs process-TREE termination via the sandbox adapter (Job Object on Windows — equivalent of taskkill /T semantics) AND records the ledger STOP row; (5) return the typed StopOutcome.\n  - TEARDOWN INVARIANT (normative): the supervision thread's exit path — normal exit, stop(), panic-catch, or supervisor drop — ALWAYS ends with terminate_and_collect having run (idempotent: AlreadyExited when the child already exited and was reaped, which itself recorded STOP), so no path leaks a live process tree or an open ledger lifecycle. SessionExitReport.ledger_stop_recorded must be true on every path.\n  - NO AUTO-RESTART (normative): the supervisor NEVER calls spawn_interactive. restart_allowed on the exit report is the ONLY restart signal, and only MT-007 (operator-initiated) may act on it through MT-006 resume.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-004's InteractiveCliChild/StdinWriterHandle surface, official_cli_bridge.rs terminate_and_collect (L1928) + timeout-kill reason strings (L2462-2520), swarm_orchestration/mod.rs reaper/respawn docs (L19-25) to contrast the stricter no-restart rule, and MT-001 TurnState/ThreadState.\n2. Implement config/enums/mapping functions first with exhaustive unit tests for map_exit_to_turn_state (all combinations of {0,143,1,None} x {None, each StopReason}).\n3. Implement the supervision thread + watch-channel health + timestamping tee for stdout activity.\n4. Implement stop() with the 5-step graceful sequence and join_exit with deadline.\n5. Wire panic-catch (std::panic::catch_unwind around the loop body) so a supervisor bug still reaches terminate_and_collect.\n6. Author tests/agent_sessions_supervisor_tests.rs using a real child process counterparty (small script/bin that echoes stdin and exits 0 on EOF; plus a variant that ignores EOF to force the tree-kill path): (a) Starting->Live on first output; (b) Stale flag after a short configured heartbeat_stale_after with NO kill; (c) graceful stop: EOF -> exit 0 within budget -> StopOutcome::GracefulExit, mapped Completed/Cancelled per reason; (d) stubborn child: stop() escalates to TreeKilled within graceful_stop_timeout + bounded margin, ledger STOP recorded; (e) exit-code mapping matrix unit tests incl. the 143/Interrupt disjunction; (f) no-auto-restart: after exit, assert no second spawn occurred (process counter in the fake factory stays 1); (g) drop-teardown: dropping SupervisedSession without stop() still reaps the child (poll until gone, bounded).\n7. cargo build + clippy green.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/supervisor.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/tests/agent_sessions_supervisor_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/** (MT-004 owns the bridge surface)",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/swarm_orchestration/**",
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "SessionSupervisor tracks health Starting/Live/Stale/Stopping/Exited from real child observation (stdout activity + alive checks) on a dedicated thread with poll_interval cadence — proven by tests (a),(b).",
+      "Stale is a FLAG not a kill: heartbeat staleness alone never terminates the child — proven by test (b).",
+      "stop() performs the normative 5-step graceful sequence: stdin EOF first, tree kill only after graceful_stop_timeout — proven by tests (c),(d) with a cooperative and a stubborn child.",
+      "map_exit_to_turn_state implements the pinned matrix (0=>Completed; 143 or Interrupt-requested=>Interrupted; stop-requested=>Cancelled; other/None=>Failed) — proven by exhaustive unit tests.",
+      "map_exit_to_thread_state: Completed=>Idle, Interrupted=>Idle (resumable), Cancelled=>Closed, Failed=>Failed — proven by unit test.",
+      "Teardown invariant holds on ALL paths (stop, normal exit, panic, drop): process tree reaped + ledger STOP recorded; SessionExitReport.ledger_stop_recorded==true — proven by tests (d),(g).",
+      "No auto-restart under any policy; restart_allowed is a report field only — proven by test (f).",
+      "cargo build -p handshake_core green; clippy clean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_supervisor --nocapture 2>&1 | tee /tmp/mt005_run.txt && grep -E 'test result: ok' /tmp/mt005_run.txt",
+      "cargo test -p handshake_core supervisor --nocapture 2>&1 | grep -q 'graceful_stop'",
+      "cargo test -p handshake_core supervisor --nocapture 2>&1 | grep -q 'tree_kill'",
+      "cargo test -p handshake_core supervisor --nocapture 2>&1 | grep -q 'no_auto_restart'",
+      "grep -n 'map_exit_to_turn_state' src/backend/handshake_core/src/agent_sessions/supervisor.rs",
+      "grep -rn 'spawn_interactive' src/backend/handshake_core/src/agent_sessions/supervisor.rs | wc -l | grep -q '^0'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/supervisor.rs (new)",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (re-exports)",
+      "src/backend/handshake_core/tests/agent_sessions_supervisor_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "health transitions from a real child (Starting/Live/Stale)",
+      "graceful stop (EOF->exit0) and stubborn-child tree-kill escalation with ledger STOP",
+      "exhaustive exit-code mapping matrix incl. 143/Interrupt",
+      "no-auto-restart proof; drop-teardown reap proof"
+    ],
+    "implementation_notes": [
+      "The 300s stale default is deliberately long: agent turns with heavy tool use can be silent on stdout for minutes; staleness feeds operator visibility (MT-009 event + MT-007 status), and any kill decision stays with policy above the supervisor.",
+      "Exit code 143 = 128+15 (SIGTERM) is POSIX-side truth; on Windows the sandbox adapter's Job-Object tree kill produces an arbitrary code, so stop_requested carries the intent — this is why the mapping takes the disjunction and why tests must not assert raw 143 on Windows.",
+      "The supervisor deliberately does not talk to the ProcessOwnershipLedger directly: terminate_and_collect (GuardedCliChild, official_cli_bridge.rs L1928) already owns STOP-row recording; duplicating it here would double-record.",
+      "SupervisorEventHook is sync + fast by contract (called from the poll thread); MT-009's bus hook must only do a non-blocking broadcast send.",
+      "Contrast pinned in docs: SwarmCoordinator's reaper (bounded respawns, mod.rs L19-25) manages stateless generate workers; agent sessions carry conversation state, so respawn without operator intent (or MT-006 resume semantics) would silently lose context — hence Never/ExplicitOperator only."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless supervision runtime; health/exit visibility reaches operator surfaces via MT-009 bus events and MT-007 status API consumed by the GUI family."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal supervision runtime; operator-facing stop/interrupt semantics are documented by MT-007's UserManual entry."
+  },
+  "hbr_obligations": [
+    "HBR-QUIET-003",
+    "HBR-SWARM-002",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "Long-lived agent children leak: no health truth, no graceful stop (only hard kills that lose in-flight turns), wrong terminal states poison session history, and orphaned process trees accumulate — the exact failure class the process ledger + reclaim system exists to prevent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Zombie leak on panic/drop — a supervisor bug or an un-stopped drop path leaves the agent process tree alive and the ledger lifecycle open.",
+      "RISK-2: Heartbeat false kill — treating a long silent tool-running turn as dead and killing a healthy session mid-work.",
+      "RISK-3: Wrong terminal state — mapping a stop-requested kill to Failed (or an interrupt to Completed) corrupts history and misleads resume/roles logic downstream.",
+      "RISK-4: Hidden auto-restart — a convenience respawn path silently discards conversational state and doubles cloud spend.",
+      "RISK-5: Graceful-stop hang — waiting forever on a child that ignores EOF, wedging teardown and harness shutdown."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): teardown invariant with panic-catch + drop guard; tests (d),(g) prove reap + STOP on kill and drop paths.",
+      "CTRL-2 (RISK-2): Stale is flag-only (no kill authority in the supervisor); test (b) pins no-kill; kill requires an explicit stop(HeartbeatPolicy) from policy code above.",
+      "CTRL-3 (RISK-3): pinned mapping matrix with exhaustive unit tests; stop_requested recorded BEFORE any signal is sent so the mapping input cannot race the exit.",
+      "CTRL-4 (RISK-4): grep proof target asserts supervisor.rs never references spawn_interactive; no-auto-restart test counts spawns.",
+      "CTRL-5 (RISK-5): graceful_stop_timeout bounds step (3); stubborn-child test proves escalation completes within budget + margin."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: official_cli_bridge.rs (terminate_and_collect L1928, timeout/try_wait kill paths + reason strings L2462-2520, ledger fail-closed block L2439-2453), cli_bridge_runtime.rs no-blocking-on-tokio rule L676-679, swarm_orchestration/mod.rs reaper/bounded-respawn contrast L19-25. Research digest: Claude Code SIGTERM aborts in-flight turn and exits 143; session remains resumable afterwards (MT-006).",
+    "corrections": [
+      "Windows note: raw taskkill /T is NOT used — process-tree termination goes through the sandbox adapter's Job-Object containment surfaced by GuardedCliChild::terminate_and_collect, which also records the ledger STOP row; contracts must not spawn taskkill directly."
+    ]
+  }
+}

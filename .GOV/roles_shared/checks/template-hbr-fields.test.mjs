@@ -41,6 +41,8 @@ function validTaskPacketMarkdown() {
     - acceptance_matrix.schema_version: 1
     - acceptance_matrix.hbr: []
     - acceptance_matrix.hbr_not_applicable: []
+    ## ACCOUNT_RESOURCE_PRIVACY_CONTRACT
+    - required_hbr_rows: HBR-PRIV-001 through HBR-PRIV-008
   `;
 }
 
@@ -53,6 +55,8 @@ function validRefinementMarkdown() {
       - VIS: applicable: <YES|NO|UNKNOWN> | evidence_path: <path or NONE>
       - QUIET: applicable: <YES|NO|UNKNOWN> | evidence_path: <path or NONE>
       - MAN: applicable: <YES|NO|UNKNOWN> | evidence_path: <path or NONE>
+      - PRIV: applicable: <YES|NO|UNKNOWN> | evidence_path: <path or NONE>
+    ### ACCOUNT_RESOURCE_PRIVACY_REVIEW
   `;
 }
 
@@ -67,11 +71,15 @@ function validWorkPacketContract() {
       hbr: [],
       hbr_not_applicable: [],
     },
+    resource_privacy_contract: {
+      required_for_every_product_wp: true,
+      resource_inventory: [],
+    },
   };
 }
 
 function validPillarReview() {
-  return Object.fromEntries(["INT", "SWARM", "VIS", "QUIET", "MAN"].map((pillar) => [
+  return Object.fromEntries(["INT", "SWARM", "VIS", "QUIET", "MAN", "PRIV"].map((pillar) => [
     pillar,
     {
       applicable: null,
@@ -87,6 +95,13 @@ function validRefinementContract() {
       microtask_plan: [],
       microtask_plan_item_defaults: {
         hbr_obligations: [],
+        resource_privacy_obligation: {
+          status: "REQUIRED_WHEN_RESOURCE_OR_CONTEXT_IS_TOUCHED",
+        },
+      },
+      resource_privacy_review: {
+        required_for_every_product_refinement: true,
+        resource_inventory: [],
       },
     },
   };
@@ -95,6 +110,10 @@ function validRefinementContract() {
 function validMicrotaskContract() {
   return {
     hbr_obligations: [],
+    resource_privacy_obligation: {
+      required: true,
+      resources_touched: [],
+    },
     scope: {
       summary: "{{MT_SUMMARY}}",
     },

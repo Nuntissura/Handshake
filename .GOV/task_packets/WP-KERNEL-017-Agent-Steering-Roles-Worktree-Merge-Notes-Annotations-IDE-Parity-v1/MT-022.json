@@ -1,0 +1,154 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-022",
+  "title": "CS-MT022-ClaudeStreamEventParserUpgrade",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-022.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-003"
+    ],
+    "blocks": [
+      "MT-023",
+      "MT-024",
+      "MT-027",
+      "MT-028",
+      "MT-029"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Upgrade the Claude stream-json parsing in src/backend/handshake_core/src/model_runtime/cloud/agent_activity.rs from an activity-only extractor to the FULL session envelope the WP-017 steering stack needs: system/init (model, tools, capabilities array -> MT-003 capability registry), stream_event partial deltas, result (cost, session_id, structured_output), parent_tool_use_id subagent attribution, and system/api_retry — all unknown-event-tolerant (log + continue, never crash, never drop), mapped onto the MT-001 session model's TurnItem stream.\n\nCURRENT STATE (verified): parse_line (agent_activity.rs lines 125-134) dispatches to parse_claude_line (148-168) which handles type=assistant/user via claude_message_blocks (172-231: text/thinking/tool_use/tool_result blocks), SKIPS type=system and type=result entirely (line 159, deliberate FR-timeline dedup), and coalesces stream_event via claude_stream_event (250-281) for text_delta/thinking_delta only. There is NO capture of init capabilities, result cost/session_id/structured_output, parent_tool_use_id, or api_retry anywhere.\n\nEXPECTED DIFF SHAPE: additive new envelope layer in agent_activity.rs (or sibling file claude_envelope.rs) + consumption wiring in cli_bridge_runtime.rs; the existing AgentActivity enum, parse_line contract, and FR-EVT-AGENT-* emission stay byte-compatible (the defensive lossless contract in the mod docs, lines 13-31, is preserved).\n\nSPEC:\n1. New pub enum `ClaudeEnvelope` with variants: `Init(ClaudeSessionInit)`, `TurnResult(ClaudeTurnResult)`, `ApiRetry(ClaudeApiRetry)`, `Activity(Vec<AgentActivity>)`, `StreamDelta(Vec<AgentActivity>)`, `ReplayedUserMessage(serde_json::Value)` (stdin echo when --replay-user-messages is active; MT-023 correlates these), `Lifecycle(serde_json::Value)` (recognized-but-unmodeled system subtypes), `Unknown { raw: String }`.\n2. New pub struct `ClaudeParsedLine { parent_tool_use_id: Option<String>, envelope: ClaudeEnvelope }` and pub fn `parse_claude_envelope(line: &str) -> ClaudeParsedLine`. NEVER returns Err, NEVER panics; malformed JSON -> Unknown carrying the raw line verbatim (same lossless rule as parse_line).\n3. `ClaudeSessionInit { session_id: Option<String>, model: Option<String>, tools: Vec<String>, capabilities: Vec<String>, raw: serde_json::Value }` parsed from type=system subtype=init. The capabilities Vec feeds the MT-003 capability registry (e.g. contains \"interrupt_receipt_v1\"); consumers do FEATURE DETECTION on named capability strings and NEVER version comparison. Missing capabilities array -> empty Vec (older CLI), not an error.\n4. `ClaudeTurnResult { session_id: Option<String>, total_cost_usd: Option<f64>, structured_output: Option<serde_json::Value>, is_error: Option<bool>, raw: serde_json::Value }` parsed from type=result. structured_output is passed through verbatim for MT-027; cost fields absent -> None, never fabricated.\n5. `ClaudeApiRetry { raw: serde_json::Value }` from type=system subtype=api_retry, so supervisor/backoff logic (MT-005) can observe provider retries instead of misreading silence as a hang.\n6. parent_tool_use_id: read the top-level `parent_tool_use_id` field present on subagent-attributed assistant/user messages; stamp it on ClaudeParsedLine so MT-029 recording and the MT-001 TurnItem mapping can attribute subagent output to the spawning tool call. Absent -> None.\n7. TurnItem mapping: pub fn `envelope_to_turn_items(parsed: &ClaudeParsedLine) -> Vec<TurnItem>` translating envelopes into the MT-001 session model's TurnItem stream (init -> session-start item; Activity blocks -> content items with parent attribution; TurnResult -> turn-completion item carrying cost + structured_output; ApiRetry -> diagnostic item). The exact TurnItem type comes from the MT-001 seam — consume it, do not redefine it.\n8. Unknown-event tolerance is a hard contract: any unrecognized top-level type, unrecognized system subtype, or shape mismatch degrades to Unknown/Lifecycle with a tracing::debug log; a dedicated fuzz-ish test feeds truncated/garbage/huge lines and asserts no panic and no drop. Unknown raw lines are ALSO surfaced to the MT-028 drift-alarm collector (expose an iterator/callback seam so the contract suite can list unknown event types seen).\n9. cli_bridge_runtime.rs consumption: the JSON-stream line loop (agent capture state built at lines 752-767; is_json_stream_mode 286-288) additionally routes each complete line through parse_claude_envelope when cli_kind == ClaudeCode, forwarding ClaudeParsedLine to the session layer channel (MT-001 seam). The EXISTING parse_line -> FR-EVT-AGENT-* path (emit_agent_line, lines 290-320) is left in place unchanged; envelope parsing is a second consumer of the same line, not a replacement (system/result stay SKIPPED in the FR activity timeline to avoid double rows — the session layer, not the FR activity stream, owns init/result).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read agent_activity.rs fully (mod docs 1-57 document the defensive contract and the researched event shapes) and the MT-001/MT-003 delivered seams.\n2. Add the envelope types + parse_claude_envelope with exhaustive serde_json::Value field extraction (get/and_then, no unwrap).\n3. Add envelope_to_turn_items against the MT-001 TurnItem type.\n4. Wire the second consumer in cli_bridge_runtime.rs behind cli_kind == ClaudeCode + is_json_stream_mode.\n5. Tests: fixture lines for init-with-capabilities, init-without-capabilities, result-with-cost+structured_output, result-minimal, api_retry, assistant-with-parent_tool_use_id, replayed user echo, stream_event text_delta/thinking_delta, unknown type, malformed JSON, empty line; regression test that parse_line outputs are byte-identical to before for the full fixture corpus.\n6. Run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/agent_activity.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_envelope.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_envelope_parser_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "parse_claude_envelope exists, never returns Err/panics, and classifies: system/init -> Init with model/tools/capabilities captured; result -> TurnResult with cost/session_id/structured_output; system/api_retry -> ApiRetry; assistant/user -> Activity via the existing block walker; stream_event -> StreamDelta; replayed user echo -> ReplayedUserMessage; anything else -> Unknown/Lifecycle with the raw line preserved verbatim.",
+      "capabilities array parses into Vec<String> and reaches the MT-003 capability registry; absence yields an empty Vec, and no code path compares CLI version strings.",
+      "parent_tool_use_id is extracted when present and carried on ClaudeParsedLine; fixture test proves subagent attribution.",
+      "envelope_to_turn_items maps Init/Activity/TurnResult/ApiRetry into the MT-001 TurnItem stream (consuming the MT-001 type, not redefining it).",
+      "Unknown-event tolerance proven by a garbage/truncated/huge-line test: zero panics, zero dropped lines, unknown types surfaced to the drift-alarm seam.",
+      "Existing parse_line behavior is regression-pinned: identical outputs for the full existing fixture corpus; FR-EVT-AGENT-* emission code (emit_agent_line) untouched.",
+      "cli_bridge_runtime.rs routes Claude JSON-stream lines through the envelope parser as a second consumer without altering the raw GeneratedToken stdout path (mod-doc contract lines 28-31 preserved)."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_envelope -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml agent_activity -- --nocapture 2>&1 | grep -E 'test result: ok' (regression: existing parser tests all pass unchanged)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_envelope_unknown_event_tolerance -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): pipe one real `claude -p --output-format stream-json --verbose` run through parse_claude_envelope and assert exactly one Init and one TurnResult are produced with non-empty model and session_id"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/agent_activity.rs (envelope layer; existing parse_line untouched in behavior)",
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_envelope.rs (new, if split out)",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (second line consumer)"
+    ],
+    "expected_tests": [
+      "claude_envelope::init_with_capabilities_parses_model_tools_capabilities",
+      "claude_envelope::init_without_capabilities_yields_empty_vec",
+      "claude_envelope::result_carries_cost_session_id_structured_output",
+      "claude_envelope::api_retry_classified",
+      "claude_envelope::parent_tool_use_id_attribution",
+      "claude_envelope::replay_echo_classified",
+      "claude_envelope::unknown_event_tolerance_no_panic_no_drop",
+      "claude_envelope::envelope_to_turn_items_mapping",
+      "agent_activity::parse_line_regression_corpus_unchanged"
+    ],
+    "implementation_notes": [
+      "GROUNDING FACT: system and result are currently SKIPPED at agent_activity.rs line 159 with an explicit dedup comment. Keep that skip in the FR activity path; the envelope layer is where init/result become visible. Do not emit FR-EVT-AGENT rows for init/result (would double the timeline, the exact defect the skip prevents).",
+      "claude_stream_event (250-281) only handles text_delta/thinking_delta; StreamDelta may reuse it. input_json_delta and other delta kinds arrive as Unknown — acceptable, tolerated, surfaced to drift alarm.",
+      "Honesty caveat already documented in mod docs (lines 44-46): since v2.1.8 stream-json may omit thinking blocks; never fabricate Thinking rows.",
+      "Name collision warning: crate::sandbox::AdapterCapabilities already exists (imported in official_cli_bridge.rs line 46). The MT-003 capability registry type owns session capabilities; do not create a second AdapterCapabilities in this module.",
+      "The --replay-user-messages echo appears on stdout as a user-type message that is an ack of harness stdin, not new model output; classify via the MT-023-agreed marker (echoes match previously-sent stdin lines). If no reliable discriminator exists in the fixture corpus, classify as Activity and let MT-023 correlate by content hash — document whichever branch reality supports and cover it with a fixture test.",
+      "MT-001 (session model), MT-003 (capabilities): consume delivered seams; if absent, dependency-blocked (HBR-STOP-004), do not stub."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Pure parser/typing layer; operator-visible session surfaces consume it in later GUI MTs."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal parsing layer with no new operator/model-callable surface; the manual entry lands with the consuming session-lifecycle MTs (MT-023/MT-029)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED — existing FR-EVT-AGENT-* activity emission preserved; init/result reach the session layer which records via MT-029 event kinds.",
+    "internal_diagnostics: WIRED — unknown-event occurrences logged via tracing and surfaced to the MT-028 drift-alarm seam.",
+    "Palmistry: DEFERRED-with-reason — parser has no independent runtime posture; covered by the session-recording MT-029 wiring."
+  ],
+  "risk_if_missed": "Handshake stays blind to the session envelope: no capability feature-detection (interrupt gating impossible), no cost/session_id capture, no structured exit for the MT lifecycle, no subagent attribution — steering, interrupt, resume, and recording MTs all lose their data source.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A CLI patch release adds/renames event subtypes and the parser crashes or silently drops lines, killing live sessions on upgrade.",
+      "RISK-2: Envelope parsing double-emits init/result into the FR activity timeline, corrupting the transcript ordering the WP-1 lane already ships.",
+      "RISK-3: structured_output or cost fields are fabricated (defaulted to zero/empty objects) when absent, poisoning MT-027 lifecycle decisions and cost accounting.",
+      "RISK-4: Capability detection degenerates into CLI version comparison, breaking on every release and violating the stub's feature-detection control."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): lossless Unknown fallback + garbage-line tolerance test + drift-alarm surfacing of unknown types (consumed by MT-028).",
+      "CTRL-2 (RISK-2): regression test pins parse_line outputs over the existing fixture corpus; envelope layer is a second consumer, FR emission untouched.",
+      "CTRL-3 (RISK-3): all optional fields are Option<...>; tests assert None (never defaults) for minimal fixtures.",
+      "CTRL-4 (RISK-4): capabilities are matched as named strings from system/init only; grep/clippy proof shows no version parsing in the module."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (stream-json envelope: system/init with model/tools/optional capabilities array for feature detection incl. interrupt_receipt_v1; result terminal message with cost + session_id + structured_output when --json-schema; parent_tool_use_id subagent attribution; system/api_retry; --include-partial-messages stream_event deltas; --verbose required for full turn-by-turn) + grounding audit of wtc-multi-model-orchestration-v1 agent_activity.rs (parse_line 125-134, parse_claude_line 148-168 with system/result skip at 159, claude_message_blocks 172-231, claude_tool_result_text 235-246, claude_stream_event 250-281) and cli_bridge_runtime.rs (is_json_stream_mode 286-288, emit_agent_line 290-320, agent capture construction 752-767).",
+    "corrections": [
+      "Task-brief said parse_claude_line ~153-200 'currently handles type:assistant/text/tool_use/thinking/tool_result': actual span is 148-168 with the content-block handling in claude_message_blocks 172-231; system/init and result are currently SKIPPED (line 159), not partially handled — this MT introduces their capture at the envelope layer.",
+      "stream_event delta coalescing already exists (claude_stream_event 250-281) but only for text_delta/thinking_delta; the upgrade tolerates other delta kinds as Unknown rather than extending block-type guessing."
+    ]
+  }
+}

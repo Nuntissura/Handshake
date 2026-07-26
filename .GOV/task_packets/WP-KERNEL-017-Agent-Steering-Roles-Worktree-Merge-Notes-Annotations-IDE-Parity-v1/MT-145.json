@@ -1,0 +1,175 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-145",
+  "title": "WM-MT145-MergeGovernanceGates",
+  "group": "WM Worktree merge-back",
+  "clause": "Merge governance: precondition gate (clean source + MT-run state/override), protected-branch consent gate, merge FR lifecycle events + full audit rows",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-145.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-142",
+      "MT-123",
+      "MT-161"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add the governance layer that wraps the MT-142 headless merge engine with real merge preconditions and a protected-branch consent gate, so a session-branch merge-back only EXECUTES when policy is satisfied, emits merge-lifecycle Flight-Recorder events, and leaves a full audit row (who/what/when/outcome) for every attempt. MT-142 shipped the engine with a `MergePolicyGate { fn check(&self, target: &str) -> Result<(), MergeBlockReason> }` hook whose default is allow-all, and a typed MergeBlockReason::TargetProtectedApprovalRequired arm that nothing yet returns; this MT supplies the REAL gate and the audit/event wiring that the pure engine deliberately omitted.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/source_control_merge_policy.rs (registered `pub mod source_control_merge_policy;` in lib.rs) implementing MergePolicyGate over (a) a protected-branch glob policy, (b) an MT-run validation source (the MT-123 cross-family seam), and (c) an approval store; plus a merge audit + FR event emission surface. The MT-142 engine is touched ONLY at its injection point (pass the real gate instead of allow-all) with no algorithm change. Merge-lifecycle FR event KINDS (proposed/approved/executed/conflicted/aborted) are DEFINED by the cross-family MT-161 seam and CONSUMED here: this MT adds NO new FrEventId/SwarmFrEventId strings and re-opens no locked `.GOV/` event manifest; it emits the MT-161 kinds through the existing SwarmEventSink / FlightRecorder EventLedger append path (swarm_orchestration/events.rs). New tests under the handshake_core test tree.\n\nDETAILED SPEC:\n1. Types (source_control_merge_policy.rs):\n   pub struct ProtectedBranchPolicy { pub protected_globs: Vec<String> }  // e.g. [\"main\",\"master\",\"release/*\"]; gitignore-style glob match on the TARGET branch name; empty list = nothing protected.\n   pub enum MtRunValidationVerdict { Satisfied, Unsatisfied { failing: Vec<String> }, Overridden { operator_id: String, reason: String } }\n   pub trait MtRunValidationSource: Send + Sync { fn validation_state(&self, source_branch: &str, session_id: &str) -> Result<MtRunValidationVerdict, SourceControlError>; }  // MT-123 supplies the real impl; a default AlwaysSatisfied impl is provided for callers with no MT-run coupling.\n   pub struct MergeApprovalGrant { pub target_branch: String, pub source_branch: String, pub operator_id: String, pub granted_at: DateTime<Utc>, pub approval_receipt_id: String, pub merge_intent_id: String }  // consent record binding an approval to ONE specific target+source+intent; NEVER a blanket approval.\n   pub trait MergeApprovalStore: Send + Sync { fn lookup(&self, merge_intent_id: &str) -> Option<MergeApprovalGrant>; }\n   pub enum MergeAuditAction { Proposed, Approved, Executed, Conflicted, Aborted, Blocked }\n   pub struct MergeAuditRow { pub merge_intent_id: String, pub actor: String, pub action: MergeAuditAction, pub target_branch: String, pub source_branch: String, pub outcome_summary: String, pub approval_receipt_id: Option<String>, pub at: DateTime<Utc> }  // serde-serializable; one row per lifecycle transition.\n   pub struct MergeGovernanceGate { protected: ProtectedBranchPolicy, validation: Arc<dyn MtRunValidationSource>, approvals: Arc<dyn MergeApprovalStore>, audit: Arc<dyn MergeAuditSink> }\n   pub trait MergeAuditSink: Send + Sync { fn record(&self, row: MergeAuditRow); fn emit_fr(&self, kind: &str, row: &MergeAuditRow); }  // emit_fr stamps the MT-161 FR-EVT kind string into the payload via the existing EventLedger/SwarmEventSink append; NO new kind minted here.\n2. Gate behavior — impl MergePolicyGate for MergeGovernanceGate::check(target):\n   a. Precondition: source tree clean is already enforced by the MT-142 engine (status --porcelain=v1 -z); this gate additionally requires MtRunValidationSource.validation_state == Satisfied OR Overridden. Unsatisfied => return MergeBlockReason (a new MergeBlockReason::MtRunValidationUnsatisfied { failing } arm ADDED to the MT-142 enum in this MT, or surfaced through the existing DirtySourceTree-adjacent path — prefer a dedicated typed arm). Overridden is allowed but the operator_id+reason are folded into the audit row.\n   b. Protected-branch consent: if ProtectedBranchPolicy matches the target, an approval MUST exist in MergeApprovalStore for THIS merge_intent_id, matching target AND source; absent/mismatched => MergeBlockReason::TargetProtectedApprovalRequired { target }. There is NO auto-approve and NO override of the protected gate other than a real operator MergeApprovalGrant (the consent-gate pattern).\n3. Lifecycle emission ordering (the engine drives these callbacks; the gate/sink records them): Proposed (before any git command) -> Approved (only when protected + grant found, or NotRequired) -> Executed (on CleanMerged) | Conflicted (on Conflicts) | Aborted (on abort()/Drop) | Blocked (on any Blocked reason). Each transition writes a MergeAuditRow AND emits the matching MT-161 FR kind. A merge that is Blocked emits Proposed+Blocked and NEVER Executed.\n4. Audit completeness: every terminal state (Executed/Conflicted/Aborted/Blocked) produces an audit row carrying actor (session/operator id), target, source, outcome, timestamp, and approval_receipt_id when a protected merge was approved. merge_intent_id is minted with Uuid::now_v7() at Proposed time and threads through every row so the full lifecycle of one merge is reconstructable.\n5. HARD RULES (operator + red-team): the protected-branch gate is a CONSENT gate — only an explicit operator MergeApprovalGrant unlocks a protected merge; no env flag, no default, no session self-approval. NEVER force-push and NO push at all is introduced here (this layer governs local merge-back only). No auto-resolution (unchanged from MT-142). Git worktree CODE merge stays strictly separate from CRDT document merging.\n6. BOUNDARY: this MT is policy + audit + event wiring ONLY; the merge mechanics stay in the MT-142 engine and the conflict UI in MT-143/146. It does not fetch, push, rebase, or touch CRDT state.\n\nSTEP-BY-STEP:\n1. Read source_control_merge.rs (MT-142: MergePolicyGate trait, MergeBlockReason, MergeOutcome, MergeSession::begin injection point) and swarm_orchestration/events.rs (SwarmFrEventId table lines 33-109 has NO merge-lifecycle kinds today; SwarmEventSink + FlightRecorder EventLedger append path). Read the MT-123 contract for the MT-run validation state shape and the MT-161 contract for the merge FR kind strings.\n2. Create source_control_merge_policy.rs with the types above; register in lib.rs.\n3. Implement ProtectedBranchPolicy glob matching (reuse the repo's existing glob/gitignore dependency; check Cargo.toml before adding one).\n4. Implement MergeGovernanceGate::check with the validation + protected-approval logic and the AlwaysSatisfied/allow default impls for MtRunValidationSource/MergeApprovalStore.\n5. Add the MtRunValidationUnsatisfied MergeBlockReason arm (MT-142 enum) and wire the gate into MergeSession::begin (replace the allow-all default at the call site; the engine API is unchanged).\n6. Implement MergeAuditSink emission of MergeAuditRow + the MT-161 FR kind strings through the existing EventLedger/SwarmEventSink append.\n7. Tests (scratch git repo + injected fakes): protected target with no grant => Blocked{TargetProtectedApprovalRequired}, Proposed+Blocked audit rows, NO merge commit; protected target WITH a matching grant => Executed, audit row carries approval_receipt_id; Mt-run Unsatisfied => Blocked, Overridden => Executed with operator_id+reason in the row; a clean unprotected merge => Proposed+Approved(NotRequired)+Executed rows and the matching FR kinds emitted; a stale grant for a DIFFERENT source/target/intent does NOT unlock the merge.\n8. Run proof targets; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/source_control_merge_policy.rs",
+      "src/backend/handshake_core/src/source_control_merge.rs (gate injection point + MtRunValidationUnsatisfied MergeBlockReason arm; no merge-algorithm change)",
+      "src/backend/handshake_core/src/lib.rs (module registration only)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (emit MT-161 merge FR kinds through the existing sink; NO new FrEventId strings)",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI IPC allowed only on the GUI MT, MT-146)",
+      ".GOV/** (the locked FR event manifest is NOT re-opened here; merge kinds come from MT-161)",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain; do not conflate with git worktree code merge)",
+      "src/frontend/** (operator merge-review UI is MT-146)"
+    ],
+    "acceptance_criteria": [
+      "ProtectedBranchPolicy, MtRunValidationVerdict, MergeApprovalGrant, MergeAuditRow, MergeGovernanceGate exist as typed, serde-serializable items in src/backend/handshake_core/src/source_control_merge_policy.rs.",
+      "MergeGovernanceGate implements the MT-142 MergePolicyGate trait and is injected into MergeSession::begin, replacing the allow-all default with no change to the merge algorithm.",
+      "Protected-branch consent gate: a merge whose target matches ProtectedBranchPolicy returns MergeBlockReason::TargetProtectedApprovalRequired unless a MergeApprovalStore grant matches this merge_intent_id AND target AND source; a live test proves no approval => no merge commit.",
+      "There is no auto-approve and no env/default override of the protected gate; only an explicit operator MergeApprovalGrant unlocks it (consent-gate pattern), proven by a stale/mismatched-grant negative test.",
+      "MT-run validation gate: Unsatisfied => Blocked{MtRunValidationUnsatisfied}; Overridden => proceeds with operator_id + reason recorded in the audit row; Satisfied => proceeds.",
+      "Every merge attempt writes a full MergeAuditRow set (Proposed plus a terminal Executed/Conflicted/Aborted/Blocked) carrying actor, target, source, outcome, timestamp, and approval_receipt_id when protected; merge_intent_id (Uuid::now_v7) threads every row.",
+      "Merge-lifecycle FR events use the MT-161 kind strings emitted through the existing SwarmEventSink/EventLedger append; zero new FrEventId/SwarmFrEventId strings are added and no .GOV manifest is edited.",
+      "A Blocked merge emits Proposed+Blocked and never Executed; no git merge command runs before the gate passes.",
+      "No push and no force flag of any kind is introduced by this module (grep-provable: zero '--force', 'push', '--force-with-lease' in source_control_merge_policy.rs)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core merge_governance_protected_requires_approval -- --nocapture",
+      "cargo test -p handshake_core merge_governance_stale_grant_rejected -- --nocapture",
+      "cargo test -p handshake_core merge_governance_mt_run_gate -- --nocapture",
+      "cargo test -p handshake_core merge_governance_audit_rows_complete -- --nocapture",
+      "cargo test -p handshake_core merge_governance_fr_lifecycle_emitted -- --nocapture",
+      "bash -lc \"! grep -nE '(--force|push|--force-with-lease)' src/backend/handshake_core/src/source_control_merge_policy.rs && echo NO_FORCE_NO_PUSH\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/source_control_merge_policy.rs (NEW: ProtectedBranchPolicy, MtRunValidationSource, MergeApprovalStore, MergeGovernanceGate, MergeAuditRow, MergeAuditSink)",
+      "src/backend/handshake_core/src/source_control_merge.rs (MT-142: MergePolicyGate hook, MergeBlockReason::TargetProtectedApprovalRequired arm, MergeSession::begin injection point; adds MtRunValidationUnsatisfied arm)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (SwarmFrEventId table lines 33-109 + SwarmEventSink/FlightRecorder append path; merge-lifecycle kinds consumed from MT-161, none added)"
+    ],
+    "expected_tests": [
+      "scratch-repo test: protected target, no grant => Blocked{TargetProtectedApprovalRequired}, no merge commit, Proposed+Blocked audit rows",
+      "scratch-repo test: protected target, matching grant => Executed, audit row carries approval_receipt_id",
+      "unit test: grant for a different source/target/merge_intent_id does NOT unlock the protected merge",
+      "scratch-repo test: MtRunValidationVerdict::Unsatisfied => Blocked; Overridden => Executed with operator_id+reason in the row",
+      "scratch-repo test: clean unprotected merge => Proposed+Approved(NotRequired)+Executed rows and matching MT-161 FR kinds emitted through the sink",
+      "unit test: audit row set is complete for every terminal outcome (Executed/Conflicted/Aborted/Blocked) with merge_intent_id threading"
+    ],
+    "implementation_notes": [
+      "The gate is pure policy: it decides allow/block and records audit/events; it must NOT run git commands itself — the MT-142 engine still owns every git invocation, keeping the no-force/no-push grep boundary precise.",
+      "MT-161 is the single source of the merge FR kind strings (proposed/approved/executed/conflicted/aborted); import/reference them, never re-declare, so the governance-owned .GOV manifest stays canonical.",
+      "MT-123 supplies the real MtRunValidationSource; until it lands in the implementing worktree, the AlwaysSatisfied default keeps the engine compiling and the seam is proven with an injected fake (same pattern MT-142 used for MergePolicyGate).",
+      "Approval binding is per merge_intent_id + target + source: a grant is single-use consent for one merge, never a standing permission — this is what makes protected-branch approval a true consent gate.",
+      "Overridden MT-run validation is allowed but always audited (operator_id + reason); a silent override is a governance defect.",
+      "FLIGHT_RECORDER wiring here is what MT-142/143/144 recorded as DEFERRED: this MT closes those deferrals by emitting the merge lifecycle events for the whole family."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend governance/policy/audit layer; the operator-facing approve/execute/abort surface is MT-146. Merge lifecycle is reconstructable from the MergeAuditRow set + MT-161 FR events (TraceProjection per HBR-VIS-004)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Source Control > Merge governance (preconditions: clean source, MT-run validation satisfied or operator override)",
+      "Source Control > Protected branches (protected list, per-merge operator approval/consent gate, no auto-approve)",
+      "Source Control > Merge audit (who/what/when/outcome rows; merge lifecycle Flight-Recorder events)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-SWARM-002",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "Emit the MT-161 merge-lifecycle FR kinds (proposed/approved/executed/conflicted/aborted) through the existing SwarmEventSink/EventLedger append plus the durable MergeAuditRow set; closes the FR deferrals recorded by MT-142/143/144."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit a diagnostic event when a gate check fails unexpectedly (validation source or approval store error, not a normal Blocked) via the open diagnostic-event API if present; else record DEFERRED-with-reason."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Synchronous policy evaluation with no long-lived runtime; liveness capture surviving a crash adds nothing beyond the audit/FR record."
+    }
+  ],
+  "risk_if_missed": "The merge engine stays allow-all: agents merge session branches into protected targets (main/release) with no operator consent, unvalidated MT-run work merges silently, and no audit trail exists for who merged what when — MT-146's review flow has no policy to enforce and MT-148 has no gate to prove.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The protected-branch gate is bypassed — a glob that fails to match (e.g. 'main' vs 'refs/heads/main', or a case/normalization mismatch) or a lingering allow-all default lets a session merge into main with no approval.",
+      "RISK-2: Approval replay/forgery — a stale or reused MergeApprovalGrant approves a DIFFERENT merge (different source/target/intent), so consent for one merge silently unlocks another.",
+      "RISK-3: MT-run validation is read as Satisfied when it is actually Unsatisfied (stale cache or wrong session key), merging unvalidated work; or an Overridden path is taken with no operator_id/reason recorded.",
+      "RISK-4: Audit gap — a merge executes (or is aborted) without a complete MergeAuditRow / FR event, so who/what/when/outcome is unrecoverable exactly when a bad merge needs tracing.",
+      "RISK-5: The governance layer starts running git itself (or introduces a push) to 'complete' a merge, breaking the MT-142 no-force/no-push grep boundary and the engine/policy separation."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Target name is normalized to the short branch form before matching; a test matrix asserts protected matches for main/master/release/* and non-matches for feature branches, and asserts the injected gate is the real gate (not allow-all) at the begin() call site.",
+      "CTRL-2 (RISK-2): MergeApprovalGrant lookup is keyed by merge_intent_id and re-verified against the live target AND source at check time; a negative test proves a grant minted for another intent/source/target does not unlock the merge.",
+      "CTRL-3 (RISK-3): validation_state is queried at check time (not cached) with the exact source_branch+session_id; Unsatisfied => Blocked proven live; Overridden path asserts operator_id+reason are non-empty and land in the audit row.",
+      "CTRL-4 (RISK-4): Every terminal transition writes an audit row AND emits the FR kind in the same code path; a test asserts the row set is complete and merge_intent_id-consistent for Executed/Conflicted/Aborted/Blocked, and that Blocked never emits Executed.",
+      "CTRL-5 (RISK-5): The gate contains zero git command construction; grep proof target asserts no '--force'/'push'/'--force-with-lease' in the module, and all merge git commands remain confined to MT-142's source_control_merge.rs (re-proven live in MT-148)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-multi-model-orchestration-v1 src/backend/handshake_core/src/swarm_orchestration/events.rs — SwarmFrEventId table (lines 33-109) carries WORKTREE-CREATED/MOUNTED/RECLAIMED/CLEANUP-FAILED but NO merge-lifecycle kinds; SwarmEventSink + FlightRecorderSwarmSink + DurableSwarmFrBridge give the append path this MT emits through. MT-142 contract defines the MergePolicyGate hook (default allow-all) and the MergeBlockReason::TargetProtectedApprovalRequired arm this MT fills. MT-123 (ML family) is the MT-run validation-state seam; MT-161 (RD family) is the merge FR event-kind seam. Field practice: protected-branch + required-status-checks (GitHub/GitLab branch protection) is the field-standard pre-merge consent gate; single-use per-merge approval mirrors signed merge-request approvals rather than standing write permission.",
+    "corrections": [
+      "Operator/red-team decisions baked in: protected-branch merges require an EXPLICIT per-merge operator approval (consent gate) — no auto-approve, no env override, no session self-approval; never force-push (no push at all in this layer).",
+      "No new FR event kinds minted here: merge-lifecycle kinds are owned by the MT-161 cross-family seam and only consumed, keeping the locked .GOV event manifest canonical (events.rs registry note lines 9-20).",
+      "Git worktree CODE merge governance is strictly separated from CRDT document merging (kernel/crdt); boundary stated in scope and forbidden_paths."
+    ]
+  }
+}

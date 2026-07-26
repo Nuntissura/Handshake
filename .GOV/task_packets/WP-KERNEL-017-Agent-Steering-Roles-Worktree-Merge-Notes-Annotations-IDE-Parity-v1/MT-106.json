@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-106",
+  "title": "MM-MT106-ModelToModelPolicy",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-106.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-101"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: The deny-by-default policy layer for model-to-model orchestration: WHICH parent roles/sessions may spawn WHICH lanes/roles, per-parent concurrent-children cap, per-parent budget ceiling, allowed workspace modes, and steer/interrupt capability flags. Policy rows are versioned and ledgered; the operator has an override surface (config + API). MT-101 defines the evaluator trait (co-designed); this MT ships the real config-backed, PG-versioned implementation that MT-101 (spawn) and MT-102 (steer/interrupt) handlers evaluate.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/m2m_policy/ (mod.rs + rules.rs + store.rs + evaluator.rs); one new numbered migration pair for `m2m_policy_rules` (versioned rows) and `m2m_policy_decisions` is NOT a table (decisions go to the process_ledger like every other action); config schema additions under `model_to_model.policy.*`; an operator-facing HTTP API surface (list/get/put rules) following the existing handshake_core API router conventions; registration of the evaluator into the MT-101 model_tools registry at startup. Tests.\n\nDETAILED SPEC:\n1. Rule shape (rules.rs): `M2mPolicyRule { rule_id, version, parent_selector (role_id | session_id | any), child_role_selector (role_id | any), allowed_lanes: [lane ids validated against ModelLaneStore], allowed_workspace_modes: [worktree|worktree_vm|none], max_concurrent_children: u32, budget_ceiling { max_child_tokens?, max_child_cost?, max_child_wall_secs? }, may_steer: bool, may_interrupt: bool, orphan_on_parent_termination_allowed: bool, enabled: bool, created_by, created_at_utc }`. Selectors resolve against the MT-081/MT-086 role registry.\n2. Deny-by-default: evaluation with zero matching enabled rules = DENY. Rule matching is most-specific-wins (session > role > any); ties broken by newest version; a matching rule with enabled=false is an explicit deny that shadows broader allows.\n3. Versioning + ledgering: rules are immutable rows — every change inserts a new version, never updates in place; the store answers `rules_as_of(timestamp)` so any past decision is re-derivable. Every rule change writes a process_ledger row (who, what changed, old/new version). Every EVALUATION (allow and deny) is ledgered by the calling handler with the rule_id+version that decided it (MT-101/102 obligation, restated here).\n4. Evaluator (evaluator.rs): implements the MT-101 trait: `evaluate_spawn(parent_ctx, SpawnWorkerInput) -> PolicyDecision`, `evaluate_steer(parent_ctx, child_ctx, kind: steer|interrupt) -> PolicyDecision`. PolicyDecision carries decision, rule_id, version, denial reason enum (NoMatchingRule, RoleNotAllowed, LaneNotAllowed, WorkspaceModeNotAllowed, ConcurrentChildrenCapReached, BudgetCeilingExceeded, SteerNotAllowed, InterruptNotAllowed, RuleDisabled). Concurrent-children counting reads MT-103 live lineage.\n5. Operator override surface: (a) config file layer — `model_to_model.policy.rules` seeds baseline rules at startup (seed = insert-if-absent by rule_id, versioned like any change); (b) HTTP API — GET /m2m/policy/rules, GET /m2m/policy/rules/{rule_id}, PUT /m2m/policy/rules/{rule_id} (inserts new version); API is operator-plane only (same auth posture as other operator config APIs), NEVER exposed as a model tool. A kill switch `model_to_model.policy.global_disable` forces DENY for all model-initiated spawn/steer instantly.\n6. Budget ceiling semantics: the ceiling CLAMPS requested budgets in MT-101 (grant = min(request, ceiling)); ConcurrentChildrenCapReached is evaluated against live children count at spawn time; the policy cap is per-parent and sits UNDER the coordinator's global semaphore/lifetime caps — policy can only narrow, never widen, coordinator enforcement.\n\nSECURITY FRAME (binding): this is the authorization brain of the privilege-escalation surface. No model-facing write path to rules may exist; the evaluator fails CLOSED (store error => DENY, ledgered); policy narrows but never bypasses SwarmCoordinator caps/ceilings/leases/consent gates.\n\nSTEP-BY-STEP:\n1. Read the MT-101 evaluator trait, MT-103 lineage queries, model_lane.rs lane ids, role registry seam (MT-081/086), existing API router + migration conventions.\n2. Author migration for m2m_policy_rules (immutable versioned rows, indexes on selectors + enabled).\n3. Implement rules.rs types + matching (most-specific-wins, explicit-deny shadowing) and store.rs (insert-new-version, rules_as_of, seed-from-config).\n4. Implement evaluator.rs with fail-closed store-error handling and live concurrent-children counting.\n5. Implement the operator HTTP API (list/get/put) + global_disable kill switch.\n6. Register evaluator at startup; tests per expected_tests.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/migrations/** (next free numeric prefix only; paired .down.sql)",
+      "src/backend/handshake_core/src/api/** (operator policy routes only, following existing router conventions)",
+      "src/backend/handshake_core/tests/m2m_policy/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (policy narrows under coordinator caps; coordinator is untouched)"
+    ],
+    "acceptance_criteria": [
+      "m2m_policy_rules migration (up+down) green on managed PostgreSQL; rows are immutable versions (no UPDATE path in the store).",
+      "Deny-by-default proven: zero matching rules => DENY(NoMatchingRule); disabled matching rule shadows broader allows.",
+      "Most-specific-wins matching (session > role > any, newest version tiebreak) covered by unit tests across the selector matrix.",
+      "Evaluator enforces: role/lane/workspace-mode allowlists, per-parent concurrent-children cap (counted from MT-103 live lineage), budget ceiling clamp, may_steer/may_interrupt flags — each with a typed denial reason.",
+      "Store/database error during evaluation fails CLOSED (DENY, ledgered with error class); fault-injection test proves no fail-open.",
+      "Every rule change is a new ledgered version; rules_as_of(t) reproduces historical rule sets.",
+      "Operator API list/get/put works, is operator-plane only, and is NOT registered on any model tool channel (negative test); PUT inserts a new version and takes effect on next evaluation without restart.",
+      "model_to_model.policy.global_disable kill switch forces DENY for all model-initiated spawn/steer immediately.",
+      "Policy caps sit under coordinator caps: a policy allowing more than the coordinator's global limits still hits coordinator rejection (integration test documents the layering)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core m2m_policy -- --nocapture",
+      "cargo test -p handshake_core m2m_policy_deny_by_default -- --nocapture",
+      "cargo test -p handshake_core m2m_policy_fail_closed_on_store_error -- --nocapture",
+      "cargo test -p handshake_core m2m_policy_api_not_on_model_channel -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/mod.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/rules.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/store.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/m2m_policy/evaluator.rs (new)",
+      "src/backend/handshake_core/migrations/<next>_m2m_policy_rules.sql (+ .down.sql) (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (reference: lane id validation)",
+      "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (reference: live children count)"
+    ],
+    "expected_tests": [
+      "unit: selector matrix (session/role/any x allow/deny/disabled) most-specific-wins outcomes",
+      "unit: budget clamp math and each typed denial reason",
+      "integration (managed PG): versioned insert, rules_as_of reproduction, seed-from-config idempotency",
+      "integration: evaluator wired into MT-101 spawn handler — allowed spawn passes, each denial reason reachable",
+      "fault: store error => DENY ledgered",
+      "negative: model tool channel does not expose policy read/write; kill switch forces DENY"
+    ],
+    "implementation_notes": [
+      "Policy decisions are ledger rows, not a decisions table: reuse the process_ledger like every other governed action to keep one audit spine.",
+      "Seeding from config must be idempotent and versioned so a config edit + restart produces exactly one new version per changed rule, not duplicates.",
+      "Selector resolution against the role registry (MT-081/086) should tolerate unknown role ids in rules with a typed validation warning at load (rule inert until the role exists) rather than crashing startup.",
+      "The layering statement matters for audits: coordinator caps are the hard outer wall (unchangeable by policy); m2m policy is the narrower inner wall an operator tunes.",
+      "Operator GUI for policy editing is future work (the API is the contract surface); MT-107 GUI shows decisions, not rule editing.",
+      "Cross-family seams (reference only): MT-081/086 role registry, MT-101/102 evaluation call sites, MT-103 lineage counting."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Policy engine + operator HTTP API only; no GUI in this MT (MT-107 renders decisions; rule-editing GUI is future scope)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Model-to-model orchestration: policy rules — deny-by-default, rule shape and selectors, per-parent caps and budget ceilings, operator API (list/get/put), config seeding, global_disable kill switch"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-INT-003",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "Spawn/steer tools ship with only a stub gate: either everything is denied (feature dead) or an improvised allow-all leaks in — model-initiated spawning without operator-tunable authorization, unbounded per-parent fan-out under the global caps, and no audit trail of who allowed what.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fail-open evaluation — a store error, unknown selector, or matching bug returns ALLOW, converting the authorization brain into a rubber stamp.",
+      "RISK-2: Model-reachable policy writes — a policy mutation surface leaks onto a model tool channel and a model rewrites its own permissions (self-escalation).",
+      "RISK-3: Rule-shadowing confusion — overlapping rules resolve differently than the operator expects (broad allow beats specific deny), granting unintended spawn authority.",
+      "RISK-4: Unauditable history — in-place rule updates destroy the record of what was allowed when, making past spawn decisions unexplainable.",
+      "RISK-5: TOCTOU on concurrent-children cap — two simultaneous spawns both read count=cap-1 and both pass, exceeding the per-parent cap."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Fail-closed contract on every error path (store error, unknown role, matcher panic => DENY ledgered); fault-injection test.",
+      "CTRL-2 (RISK-2): Policy API lives on the operator plane only; negative test asserts no policy tool on the model channel; MT-101/102 handlers hold only the read-side evaluator.",
+      "CTRL-3 (RISK-3): Deterministic most-specific-wins with explicit-deny shadowing, fully covered by a selector-matrix unit test; the manual documents the resolution order.",
+      "CTRL-4 (RISK-4): Immutable versioned rows + rules_as_of + ledgered changes; no UPDATE path exists in the store.",
+      "CTRL-5 (RISK-5): Cap check performed atomically (transactional count+reserve or serialized per-parent lock) with a concurrency test spawning in parallel at the cap boundary; coordinator global caps remain the hard outer bound either way."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: model_lane.rs (lane ids, ModelLaneAuthority/RoutingPolicy precedent for policy enums), mcp/gate.rs (deny-by-default gate decision precedent: evaluate_kernel_tool_gate_decision), migrations/ conventions, process_ledger/ (single audit spine). External precedent: RBAC most-specific-wins with explicit-deny (cloud IAM conventions), immutable versioned policy rows (policy-as-data audit practice), kill-switch pattern for agent authorization layers.",
+    "corrections": []
+  }
+}

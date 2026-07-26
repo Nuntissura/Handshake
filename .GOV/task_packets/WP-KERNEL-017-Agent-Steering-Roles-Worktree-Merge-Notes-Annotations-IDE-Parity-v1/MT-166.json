@@ -1,0 +1,180 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-166",
+  "title": "RD-MT166-OrchestrationAuditSurface",
+  "group": "RD Recording + diagnostics + manuals",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-166.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-161",
+      "MT-162"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the WP-017 ORCHESTRATION AUDIT SURFACE -- the one operator-facing place that answers 'who spawned / steered / interrupted whom, when, and with what outcome' by joining the Flight Recorder events (MT-161) with the durable PG ledgers (MT-162) into a filterable projection, exposed over an HTTP read route, rendered in a native diagnostics pane (swarm_lane_diagnostics pattern), mirrored in a React read surface, and exportable as a portable evidence bundle. This is the RD family's designated GUI MT: the other RD MTs are headless or read-only-lane extensions and explicitly defer the WP-017 new-operator-pane + Argus obligation to THIS MT.\n\nEXPECTED DIFF SHAPE: (a) new backend projection module src/backend/handshake_core/src/swarm_orchestration/orchestration_audit.rs building OrchestrationAuditProjection by joining the MT-162 AgentSteeringLedgerStore rows (steer messages, parent-child attribution, MT runs, merge actions) with correlated MT-161 FR events, filterable by session_id / parent_session_id / wp_id / mt_id / merge_id / time-range; (b) module registration in swarm_orchestration/mod.rs; (c) new HTTP route file src/backend/handshake_core/src/api/orchestration_audit.rs (pub fn routes(state: AppState) -> Router following api/flight_recorder.rs: GET query with an AuditFilter extractor + a GET export endpoint returning a portable evidence bundle) + registration in api/mod.rs; (d) native diagnostics pane src/frontend/handshake_native/src/orchestration_audit_diagnostics.rs implementing PaneFactory (PaneType::OrchestrationAudit) with stable author-id helpers, mirroring swarm_lane_diagnostics.rs; (e) React read surface app/src/components/session/OrchestrationAuditPanel.tsx (read-only) + its sibling test; (f) tests: backend join/filter/export tests, native pane projection-validation test, React component test.\n\nDETAILED SPEC -- AUDIT PROJECTION (orchestration_audit.rs): the projection is a JOIN, not a new source of truth. Inputs: AgentSteeringLedgerStore.list_* (MT-162: agent_steer_messages, agent_parent_child_attribution, agent_mt_runs, agent_merge_actions) as the durable spine, correlated to FR events by message_id / merge_id / run ids / session_id / parent_session_id (the correlation block MT-161 stamps on every payload). Output OrchestrationAuditProjection { rows: Vec<AuditRow>, filter_echo, generated_at_unix_ms } where AuditRow captures: actor (who: operator | session_id | role_id), action (spawn/steer/interrupt/resume/notify/mt-dispatch/mt-signal/mt-handoff/merge-*), subject (target session/merge/mt), at_unix_ms, outcome (queued/delivered/acked/rejected/denied/confirmed/executed/conflicted/aborted/...), correlation ids (session_id, parent_session_id, wp_id, mt_id, message_id, merge_id, run_id), and evidence refs (the FR event id + the ledger row key so a row is drillable to its durable source). FILTERS (AuditFilter): session_id, parent_session_id, wp_id, mt_id, merge_id, actor, action, since_unix_ms, until_unix_ms -- these are exactly the list_* filters MT-162 was built to serve; the route echoes the applied filter back so the projection is reproducible. The projection is READ-ONLY: it issues no writes, mutates no ledger, and holds no raw steer TEXT (it shows payload_sha256 + a link to the MT-163 transcript custody surface for full text).\n\nHTTP ROUTE (api/orchestration_audit.rs, api/flight_recorder.rs pattern -- Router::new().route(...).route(...), Query<AuditFilter> extractor, Json responses, AppState): GET /orchestration_audit -> OrchestrationAuditProjection (filtered); GET /orchestration_audit/export -> portable evidence bundle (a self-contained JSON document: schema_id 'hsk.orchestration_audit_bundle@1', filter_echo, generated_at, the audit rows, and the resolved evidence refs, hash-sealed so it can be shared as portable proof WITHOUT a redaction pass because it carries hashes not raw text -- the MT-162 custody split is what makes this safe). Register both under an /orchestration_audit namespace in api/mod.rs. Read-only verbs only (GET); no POST/mutation on this surface.\n\nNATIVE PANE (orchestration_audit_diagnostics.rs, swarm_lane_diagnostics.rs pattern): OrchestrationAuditDiagnosticsPaneFactory implementing PaneFactory with pane_type() -> PaneType::OrchestrationAudit, an offline()/with_projection()/with_transport() constructor set, and STABLE ELEMENT/AUTHOR IDS for parallel-model GUI testing (scoped_author_id + per-row author-id helpers modeled on swarm_lane_diagnostics.rs run_author_id/message_author_id/lane_author_id lines 1070-1141, e.g. audit_row_author_id(row_id), audit_filter_author_id(field)). The pane is READ-ONLY, must not steal focus or pop (HBR-QUIET), and exposes structured state a no-context model can read (Argus-visible). Add PaneType::OrchestrationAudit to the pane registry additively. Provide validate_projection_for_native_surface-style validation (swarm_lane_diagnostics.rs line 1141) so malformed projections cannot render.\n\nREACT SURFACE (app/src/components/session/OrchestrationAuditPanel.tsx, read-only): renders the audit rows as a filterable table (actor -> action -> subject -> outcome -> time) with stable data-testid attributes per row and per filter control, drill-down revealing correlation ids + evidence refs + a link to the transcript (MT-163) for full text, and an Export button that GETs the evidence bundle. NO write/steer/interrupt controls on this panel (interactive steering is the session/steering families' surface). Named allowed exception to the app/src/** freeze; no other app/src file changes beyond the panel + its wiring + test.\n\nARGUS: the native pane is an Argus target (HBR-VIS): its stable element ids (audit rows, filter controls, export trigger, empty-state) are the argus_targets a parallel model queries to verify the surface renders real joined PG+FR rows -- readable, discoverable, coherent, non-overlapping, responsive, important-state-visible (the GLOBAL-BUILD GUI verification checklist).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the grounding first: swarm_orchestration/agent_steering_ledger.rs (MT-162: the four stores + list_* filter methods this projection joins), flight_recorder/events_agent_steering.rs (MT-161: FR ids + correlation block) and api/flight_recorder.rs (routes() + Query<EventFilter> + list_events pattern -- the route template), swarm_orchestration/model_lane.rs (ModelLaneDiagnosticsProjection precedent), src/frontend/handshake_native/src/swarm_lane_diagnostics.rs IN FULL (SwarmLaneDiagnosticsProjection/PaneFactory/PaneType usage, scoped_author_id line 960, per-entity author-id helpers 1070-1141, validate_projection_for_native_surface 1141, pane_registry PaneType/PaneFactory), src/frontend/handshake_native/src/pane_registry.rs (PaneType enum + PaneFactory trait), app/src/components/session/SessionReplayPanel.tsx (React read-surface + data-testid convention), api/mod.rs (route registration).\n2. Backend projection: orchestration_audit.rs with AuditRow, AuditFilter, OrchestrationAuditProjection, build_orchestration_audit_projection(ledger, fr_source, filter) joining ledger rows to FR events by the correlation ids; ordered by at_unix_ms; read-only.\n3. Evidence bundle: OrchestrationAuditBundle (schema_id hsk.orchestration_audit_bundle@1) + to_bundle(projection) that seals the rows + filter_echo + generated_at with a content hash; carries hashes/evidence refs only (no raw text) so it is shareable without redaction.\n4. HTTP route: api/orchestration_audit.rs routes(state) with GET /orchestration_audit (Query<AuditFilter>) and GET /orchestration_audit/export; register in api/mod.rs. Managed-PG-gated tests like MT-162 (HANDSHAKE_TEST_DATABASE_URL present -> run; absent -> typed NEEDS_MANAGED_RESOURCE_PROOF skip, never fake PASS).\n5. Native pane: orchestration_audit_diagnostics.rs PaneFactory + PaneType::OrchestrationAudit (added to pane_registry additively) + stable author-id helpers + projection validation; non-focus-stealing (HBR-QUIET).\n6. React: OrchestrationAuditPanel.tsx read-only table + filters + drill-down + Export, stable data-testid per row/control; sibling component test rendering a fixture projection; assert NO button role that writes/steers.\n7. Tests: backend join correctness (a spawn+steer+ack+merge fixture produces the expected AuditRows with correct actor/subject/outcome + evidence refs), filter correctness (each AuditFilter field narrows as expected + filter_echo reproducible), export bundle shape + hash-seal + no-raw-text assertion; native pane projection-validation + stable-id smoke; React component read-only render + testid presence.\n8. cargo build -p handshake_core + handshake-native green; clippy clean; React build/tests green for the touched component; Argus render check on the native pane per the crate's GUI-test convention.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/orchestration_audit.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (one-line module registration)",
+      "src/backend/handshake_core/src/api/orchestration_audit.rs",
+      "src/backend/handshake_core/src/api/mod.rs (route registration)",
+      "src/frontend/handshake_native/src/orchestration_audit_diagnostics.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs (additive PaneType::OrchestrationAudit + factory wiring only)",
+      "src/backend/handshake_core/tests/orchestration_audit_tests.rs",
+      "app/src/components/session/OrchestrationAuditPanel.tsx (NAMED exception: read-only audit panel)",
+      "app/src/components/session/OrchestrationAuditPanel.test.tsx (component test, if repo convention uses sibling test files)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except the named OrchestrationAuditPanel surfaces above)",
+      ".GOV/** (product code never writes .GOV)",
+      "src/backend/handshake_core/src/swarm_orchestration/agent_steering_ledger.rs (MT-162 owns the ledger; this MT READS via list_*, never alters the schema or write paths)",
+      "src/backend/handshake_core/src/flight_recorder/** (MT-161 owns FR kinds; consume/correlate, do not redefine)",
+      "src/backend/handshake_core/src/process_ledger/** (KEPT AS-IS; join via existing keys only)",
+      "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs (pattern reference only; do not modify the existing swarm-lane pane)"
+    ],
+    "acceptance_criteria": [
+      "orchestration_audit.rs builds an OrchestrationAuditProjection by JOINING MT-162 ledger rows with correlated MT-161 FR events -- read-only, no writes, no ledger mutation, no raw steer text (payload_sha256 + transcript link only).",
+      "AuditRow answers who-spawned/steered/interrupted-whom, when, and with what outcome: actor, action, subject, at_unix_ms, outcome, full correlation ids, and evidence refs (FR event id + ledger row key) drillable to the durable source.",
+      "AuditFilter supports session_id / parent_session_id / wp_id / mt_id / merge_id / actor / action / since / until, and the route echoes the applied filter so the projection is reproducible.",
+      "GET /orchestration_audit returns the filtered projection; GET /orchestration_audit/export returns a portable evidence bundle (schema_id hsk.orchestration_audit_bundle@1) that is hash-sealed and carries hashes/evidence refs only -- shareable without a redaction pass; both registered in api/mod.rs; read-only verbs only.",
+      "Native OrchestrationAuditDiagnosticsPaneFactory implements PaneFactory with PaneType::OrchestrationAudit (added additively to the pane registry), stable author-id helpers per row/filter/control, projection validation, and is non-focus-stealing (HBR-QUIET).",
+      "React OrchestrationAuditPanel.tsx renders the rows read-only with stable data-testid per row and per filter control, drill-down to correlation ids + evidence refs + transcript link, and an Export action -- NO write/steer/interrupt controls (component test asserts absence of write button roles).",
+      "Argus targets (native pane element ids) are named and render real joined PG+FR rows: readable, discoverable, coherent, non-overlapping, responsive, important-state-visible (GLOBAL-BUILD GUI checklist).",
+      "PG-backed tests green when managed PostgreSQL is present; typed NEEDS_MANAGED_RESOURCE_PROOF skip otherwise -- never fabricated PASS.",
+      "cargo build -p handshake_core + handshake-native green; clippy clean; React build/tests green for the touched component."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core orchestration_audit --nocapture 2>&1 | tee /tmp/mt166_run.txt && grep -E 'test result: ok' /tmp/mt166_run.txt",
+      "grep -n 'pub fn routes' src/backend/handshake_core/src/api/orchestration_audit.rs",
+      "grep -n 'hsk.orchestration_audit_bundle@1' src/backend/handshake_core/src/api/orchestration_audit.rs src/backend/handshake_core/src/swarm_orchestration/orchestration_audit.rs",
+      "grep -n 'PaneType::OrchestrationAudit' src/frontend/handshake_native/src/orchestration_audit_diagnostics.rs src/frontend/handshake_native/src/pane_registry.rs",
+      "grep -n 'data-testid' app/src/components/session/OrchestrationAuditPanel.tsx | grep -i audit",
+      "cargo test -p handshake-native orchestration_audit 2>&1 | grep -E 'test result: ok'",
+      "cd app && npx vitest run src/components/session/OrchestrationAuditPanel.test.tsx 2>&1 | tail -5 (or the repo's equivalent React test runner; verify from app/package.json first)"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/orchestration_audit.rs (join projection + evidence bundle)",
+      "src/backend/handshake_core/src/api/orchestration_audit.rs (GET query + export routes)",
+      "src/backend/handshake_core/src/api/mod.rs (route registration)",
+      "src/frontend/handshake_native/src/orchestration_audit_diagnostics.rs (native pane)",
+      "src/frontend/handshake_native/src/pane_registry.rs (PaneType::OrchestrationAudit additive)",
+      "app/src/components/session/OrchestrationAuditPanel.tsx (React read surface)",
+      "src/backend/handshake_core/tests/orchestration_audit_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "backend join correctness (spawn+steer+ack+merge fixture -> expected AuditRows w/ actor/subject/outcome + evidence refs)",
+      "filter correctness per AuditFilter field + reproducible filter_echo",
+      "export bundle shape + hash-seal + no-raw-text assertion",
+      "native pane PaneFactory projection-validation + stable-id smoke (Argus)",
+      "React component read-only render + data-testid presence + absence of write controls",
+      "managed-PG gate (present -> run; absent -> typed NEEDS_MANAGED_RESOURCE_PROOF skip)"
+    ],
+    "implementation_notes": [
+      "This is the RD family's GUI carrier: MT-161/162/164 are headless and MT-163 only extends existing replay surfaces read-only -- all of them defer the WP-017 new-operator-pane + Argus obligation to this MT. Do not add a second audit pane elsewhere.",
+      "The projection is a JOIN over existing durable truth (MT-162 ledgers as the spine, MT-161 FR events for correlation) -- it is NOT a new source of truth and must never write. If a join key is missing, that is an MT-161/MT-162 contract bug to surface, not a reason to add a column here.",
+      "Portable-evidence-bundle safety rests on the MT-162 custody split: ledgers and FR payloads hold hashes/previews, never raw steer text (full text lives in the MT-163 transcript). Because the bundle carries only hashes + evidence refs, it is shareable as proof without a redaction pass -- assert no-raw-text in the export test.",
+      "Follow api/flight_recorder.rs exactly for the route shape (routes(state) -> Router, Query<Filter> extractor, Json) and swarm_lane_diagnostics.rs exactly for the native pane (PaneFactory, PaneType, stable author-id helpers, validate_projection_for_native_surface, non-focus-stealing) -- these are the proven parallel-model-friendly patterns (HBR-SWARM/HBR-VIS/HBR-QUIET).",
+      "READ-ONLY is a hard contract line for every surface here: GET-only routes, no PaneFactory write actions, no steer/interrupt buttons in the React panel. Interactive orchestration is owned by the session/steering families; this pane only observes.",
+      "Depends on MT-161 (FR ids/correlation) and MT-162 (ledger stores/list_* filters) but NOT MT-163 -- it links to the transcript surface by reference (message_id) rather than depending on the transcript entry types; if MT-163 has not landed, the transcript link degrades to the message_id + sha256 without breaking the audit surface."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "HTTP: GET /orchestration_audit (filtered projection) + GET /orchestration_audit/export (portable evidence bundle) -- api/orchestration_audit.rs",
+      "Native: OrchestrationAuditDiagnosticsPaneFactory / PaneType::OrchestrationAudit -- src/frontend/handshake_native/src/orchestration_audit_diagnostics.rs (swarm_lane_diagnostics pattern)",
+      "React: app/src/components/session/OrchestrationAuditPanel.tsx (read-only audit table + filters + drill-down + export)"
+    ],
+    "argus_targets": [
+      "orchestration-audit.pane (root pane render)",
+      "orchestration-audit.row.* (per audit-row author id via audit_row_author_id)",
+      "orchestration-audit.filter.* (per filter control: session/parent/wp/mt/merge/actor/action/since/until)",
+      "orchestration-audit.export (export-bundle trigger)",
+      "orchestration-audit.empty-state (no-rows visible state)"
+    ],
+    "not_applicable_reason": "N/A -- this MT IS the WP-017 operator audit pane: it creates a new operator-facing surface (native pane + React panel + HTTP routes) with named Argus targets, carrying the RD family's GUI + Argus obligation."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "usermanual/agent-harness/orchestration-audit"
+    ],
+    "not_applicable_reason": "N/A -- a new operator surface ships here, so a UserManual entry (purpose/workflow/routes/filters/export/failure/recovery) is authored in the SAME change per the MT-165 same-change conformance check; add the orchestration-audit page to the MT-165 harness corpus and bump USER_MANUAL_VERSION."
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-005",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-INT-001",
+    "HBR-INT-009"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder: WIRED -- the audit projection joins MT-161 FR events as the correlation layer; Tier-1 is the shipped evidence the pane surfaces",
+    "internal_diagnostics: typed DEFERRED(reason=WP-KERNEL-015-not-shipped) unless the internal_diagnostics tier exists at implementation time; disposition recorded by MT-164 (the audit pane MAY add an internal_diagnostics column that renders DEFERRED per the MT-164 manifest)",
+    "palmistry: typed DEFERRED(reason=WP-KERNEL-015-not-shipped) unless Palmistry exists at implementation time; disposition recorded by MT-164"
+  ],
+  "risk_if_missed": "No operator can answer who-spawned/steered/interrupted-whom: the MT-161 FR events and MT-162 ledger rows exist but are never joined into an inspectable, filterable, exportable surface; orchestration disputes are unauditable, the RD family ships no GUI + no Argus coverage, and there is no portable evidence bundle to share as proof.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Write creep -- the audit projection or pane grows a 'convenient' write/steer/resend action, creating an unowned orchestration write path that bypasses the session family's queue/ledger discipline.",
+      "RISK-2: Evidence-bundle leak -- the export bundle embeds raw steer text (secrets/injection content per MT-104) instead of hashes, turning every shared bundle into a leak surface.",
+      "RISK-3: Join fabrication -- missing correlation ids are papered over with guessed/fuzzy joins, so the audit shows a who-steered-whom relationship that the durable rows do not actually support.",
+      "RISK-4: UI incoherence -- the native pane pops/steals focus during parallel-model runs, lacks stable ids, or renders overlapping/unreadable rows, failing the GLOBAL-BUILD GUI checklist and Argus verification.",
+      "RISK-5: Filter/pagination lie -- the export or count reflects only the currently loaded/visible subset rather than the full filtered canonical set, so an operator exports partial evidence believing it is complete."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): every surface is GET-only/read-only; component test asserts absence of write button roles in the panel; the pane exposes no write action; contract names the session/steering families as the owners of interactive orchestration.",
+      "CTRL-2 (RISK-2): the projection and bundle carry payload_sha256 + evidence refs only (never raw text); the export test feeds a marker string through a fixture and asserts it never appears in the bundle -- full text is reachable only via the MT-163 transcript custody surface.",
+      "CTRL-3 (RISK-3): joins use only the exact correlation keys MT-161 stamps and MT-162 stores (message_id/merge_id/run_id/session_id/parent_session_id); a row with no durable correlation is shown as such (unjoined) rather than fabricated -- proven by a fixture with a deliberately dangling id.",
+      "CTRL-4 (RISK-4): the native pane follows swarm_lane_diagnostics.rs (stable author-id helpers, validate_projection_for_native_surface, non-focus-stealing HBR-QUIET); Argus targets are named and verified for readable/discoverable/coherent/non-overlapping/responsive/state-visible.",
+      "CTRL-5 (RISK-5): the projection/export operate on the full filtered canonical ledger set (MT-162 list_* over PG), never a UI-rendered subset; filter_echo makes the applied filter explicit and the export test asserts row count equals the canonical filtered count, not the rendered page."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: api/flight_recorder.rs (routes(state) -> Router with .route('/flight_recorder', get(list_events)) + Query<EventFilter> extractor + Json, lines 71-183 -- the read-route template), src/frontend/handshake_native/src/swarm_lane_diagnostics.rs (SwarmLaneDiagnosticsProjection/PaneFactory/PaneType::SwarmLaneDiagnostics, offline/with_projection/with_transport constructors lines 313-397, scoped_author_id line 960, per-entity author-id helpers run_author_id/message_author_id/lane_author_id lines 1070-1141, validate_projection_for_native_surface line 1141), src/frontend/handshake_native/src/pane_registry.rs (PaneType + PaneFactory trait), swarm_orchestration/model_lane.rs (ModelLaneDiagnosticsProjection precedent), app/src/components/session/SessionReplayPanel.tsx (React read-surface + data-testid convention), MT-161 contract (FR ids + correlation block), MT-162 contract (AgentSteeringLedgerStore + list_* filters this projection joins).",
+    "corrections": [
+      "Verified api/flight_recorder.rs uses pub fn routes(state: AppState) -> Router with a Query<EventFilter> extractor and Json responses -- the audit route mirrors it (Query<AuditFilter>, GET-only) rather than inventing a new HTTP style.",
+      "Confirmed swarm_lane_diagnostics.rs is a PaneFactory pane (PaneType::SwarmLaneDiagnostics) with stable per-entity author-id helpers (1070-1141) and validate_projection_for_native_surface (1141) -- the audit pane follows this exact parallel-model-friendly, non-focus-stealing pattern and adds PaneType::OrchestrationAudit additively.",
+      "Anchored the portable-evidence-bundle safety on the MT-162 custody split (ledgers hold payload_sha256, not raw text; full text is the MT-163 transcript surface), so the export is shareable without a redaction pass -- the export test asserts no raw marker text leaks into the bundle.",
+      "Scoped dependencies to MT-161 + MT-162 (FR ids + ledger stores) and made the MT-163 transcript link a by-reference degrade-gracefully feature, so the audit surface does not hard-block on the transcript MT landing first."
+    ]
+  }
+}

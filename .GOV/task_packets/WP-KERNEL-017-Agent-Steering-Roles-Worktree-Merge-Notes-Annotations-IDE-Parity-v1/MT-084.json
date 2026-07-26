@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-084",
+  "title": "RO-MT084-RoleMigrationImporter",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-084.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the Role Migration Importer: a read-only ingester that turns the existing repo-gov role protocols into DRAFT Handshake Roles (hsk.handshake_role@1, MT-081). The eight source protocols Handshake Roles streamline (verified in wt-gov-kernel): .GOV/roles/orchestrator/ORCHESTRATOR_PROTOCOL.md, .GOV/roles/coder/CODER_PROTOCOL.md, .GOV/roles/wp_validator/WP_VALIDATOR_PROTOCOL.md, .GOV/roles/integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md, .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md, .GOV/roles/classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md, .GOV/roles/activation_manager/ACTIVATION_MANAGER_PROTOCOL.md, .GOV/roles/memory_manager/MEMORY_MANAGER_PROTOCOL.md. These protocols share a recognizable structure: role identity/definition sections, duty lists (HBR gate obligations, planning/claim/handoff duties), gates (proof gates, checklists, repomem/receipt gates), and forbidden actions (e.g. Orchestrator 'Does NOT create refinements/worktrees', 'Does NOT validate or approve', Coder role-chain 'never skip a role / never assume another role's responsibilities'). The importer extracts identity/duties/gates/forbidden-actions into a STREAMLINED overlay_prompt plus a tool_policy proposal. Imported roles are PROPOSALS: status=draft, provenance.source=imported — operator approval (activate transition, exercised via MT-085 GUI) is required before any imported role can be injected. The importer runs read-only against a CONFIGURABLE roles-source directory (portability: no hardcoded .GOV path, no hardcoded drive letters).\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/role_importer.rs (RoleImporter + protocol parser + streamliner + draft writer via HandshakeRoleStore), config key for the source directory, an import HTTP route or CLI entry (POST /api/roles/import) returning a typed import report, plus tests with vendored protocol fixtures. No .GOV writes ever.\n\nDETAILED SPEC:\n- Config: roles_import_source resolved from (in order) explicit request parameter, HANDSHAKE_ROLES_IMPORT_SOURCE env var, config file key. No default pointing into any repo; unset + no parameter = typed RoleImportError::SourceNotConfigured.\n- pub struct RoleImporter { store: HandshakeRoleStore } with pub async fn import_dir(&self, source: &Path, options: ImportOptions) -> Result<ImportReport, RoleImportError>.\n- Discovery: scan source dir for */[A-Z_]+_PROTOCOL.md (one level of role subdirs, matching the .GOV/roles layout); role id derived from the subdirectory name kebab-cased (orchestrator -> orchestrator, wp_validator -> wp-validator, etc.).\n- Extraction per protocol (markdown heading-based, tolerant of missing sections):\n  * identity: role-definition / role-ecosystem sections -> title + description + opening identity block of overlay_prompt.\n  * duties: duty bullet lists (HBR gate obligations, claim/planning/handoff duties, closure discipline) -> condensed duty section.\n  * gates: proof/handoff/checklist gate statements -> 'gates you must honor' section.\n  * forbidden actions: 'Does NOT ...', 'never ...', 'Do not ...' normative bullets -> explicit forbidden-actions section.\n- Streamlining rules (this is migration, not copying): drop repo-local mechanics that do not survive productization (script paths, .mjs helper invocations, .GOV file paths, Just recipes); keep behavioral duties, gates, and forbidden actions; cap streamlined overlay_prompt at the MT-082 overlay size budget; every dropped-section decision listed in the ImportReport so the operator can audit the streamlining.\n- tool_policy proposal: conservative mapping from role nature (e.g. validator/orchestrator roles propose deny on file-edit tool classes; coder/builder roles propose allow) — explicitly marked proposal-quality in the report; operator edits via MT-085.\n- provenance: { source: \"imported\", source_ref: \"<relative protocol path>@sha256:<content hash>\" }.\n- Idempotency: re-import with unchanged source content is a no-op (dedupe by source content hash against existing versions' provenance); changed content creates a NEW draft version, never mutates an existing one.\n- ImportReport (typed JSON): per-role { role_id, action: created|new_version|unchanged|skipped, source_ref, dropped_sections: [], warnings: [] }.\n- Read-only guarantee: importer opens source files read-only and writes only to PostgreSQL via HandshakeRoleStore; no writes, renames, or lockfiles in the source tree.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Vendor two realistic fixture protocols (modeled on ORCHESTRATOR_PROTOCOL.md and CODER_PROTOCOL.md structure: identity, duties, gates, forbidden actions) under the crate's test fixtures — tests never read .GOV/.\n2. Implement source resolution + SourceNotConfigured typed error.\n3. Implement discovery walk + role-id derivation (snake_case dir -> kebab-case id) with collision detection.\n4. Implement heading/bullet extraction into the four buckets; missing bucket -> warning in report, not failure.\n5. Implement streamlining rules + size cap + dropped-section accounting.\n6. Implement tool_policy proposal mapping table.\n7. Write drafts through HandshakeRoleStore.create_role/new_version with imported provenance; never call activate (compile-visible: importer has no activate path).\n8. Implement content-hash idempotency + ImportReport assembly; wire the POST /api/roles/import route.\n9. Tests: fixture import creates drafts with correct ids/provenance; re-import unchanged = no-op; changed fixture = new draft version; importer-never-activates negative test; read-only guarantee test (source dir mtimes/contents unchanged); SourceNotConfigured test; forbidden-actions extraction test against fixture bullets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/role_importer.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/api/handshake_roles.rs (import route only)",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/frontend/handshake_native/**",
+      "src/backend/handshake_core/migrations/** (registry schema owned by MT-081)"
+    ],
+    "acceptance_criteria": [
+      "Importer resolves its source directory from parameter/env/config only; unset source yields typed SourceNotConfigured, never a hardcoded .GOV or drive-letter default.",
+      "Importing the fixture set produces DRAFT roles with status=draft, provenance.source=imported, and source_ref carrying relative path + content sha256.",
+      "Extraction populates identity, duties, gates, and forbidden-actions sections of overlay_prompt from fixture protocols; missing sections produce report warnings, not failures.",
+      "Streamlining drops repo-local mechanics (script paths, .GOV references, Just recipes) and lists every dropped section in the ImportReport.",
+      "Re-import of unchanged sources is a no-op (action=unchanged); changed source creates a new draft version; no existing version row is ever mutated.",
+      "The importer has no code path to activate a role (negative test: after import, zero active roles exist that were not active before).",
+      "Source tree is untouched after import (read-only guarantee test).",
+      "Import runs against the real .GOV/roles/ protocols only in MT-087's round-trip proof; this MT's tests are fixture-hermetic."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core role_importer -- --nocapture",
+      "cargo test -p handshake_core role_importer_idempotency -- --nocapture",
+      "cargo test -p handshake_core role_importer_never_activates -- --nocapture",
+      "cargo test -p handshake_core role_importer_source_readonly -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/role_importer.rs (new)",
+      "src/backend/handshake_core/src/api/handshake_roles.rs (POST /api/roles/import)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wire)"
+    ],
+    "expected_tests": [
+      "fixture import -> draft roles with imported provenance",
+      "idempotent re-import + changed-content new-version tests",
+      "never-activates negative test",
+      "read-only source guarantee test",
+      "extraction bucket tests (identity/duties/gates/forbidden-actions)",
+      "SourceNotConfigured typed-error test"
+    ],
+    "implementation_notes": [
+      "Verified source inventory (wt-gov-kernel .GOV/roles/): orchestrator/ORCHESTRATOR_PROTOCOL.md, coder/CODER_PROTOCOL.md, wp_validator/WP_VALIDATOR_PROTOCOL.md, integration_validator/INTEGRATION_VALIDATOR_PROTOCOL.md, kernel_builder/KERNEL_BUILDER_PROTOCOL.md, classic_orchestrator/CLASSIC_ORCHESTRATOR_PROTOCOL.md, activation_manager/ACTIVATION_MANAGER_PROTOCOL.md, memory_manager/MEMORY_MANAGER_PROTOCOL.md. A ninth legacy dir (roles/validator/) exists; discovery handles it like any other but nothing special-cases it.",
+      "Protocol structure observed: markdown H1/H2 sections mixing role definition (e.g. 'Orchestrator Role Definition (ORCHESTRATOR_MANAGED)'), duty lists ('HBR Gate Obligations', claim/handoff duties), gates, and normative 'Does NOT' / 'never' bullets — the extractor keys on these patterns, not on exact section titles.",
+      "Imported overlays are proposals for the operator to review/edit/approve in MT-085; fidelity matters less than honest dropped-section accounting.",
+      "Portability [GLOBAL-PORTABILITY]: the same importer must later ingest role sources from OTHER projects built by Handshake — nothing may assume the Handshake repo layout beyond the subdir/*_PROTOCOL.md convention, and that convention is a documented default, overridable via ImportOptions glob."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend importer MT; the operator reviews/approves imported drafts through the MT-085 Role Manager GUI. ImportReport JSON + registry ledger events are the trace projection."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Import workflow is operator-facing only through the MT-085 GUI and the /api/roles/import route documented in the MT-085 manual entry (draft-review-approve walkthrough)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-QUIET-002",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "protocol import producing draft role versions + ImportReport",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1; registry ledger events (MT-081) + ImportReport are the Tier-1 evidence surface."
+    }
+  ],
+  "risk_if_missed": "The eight proven repo-gov role protocols never migrate into the product; Handshake Roles start empty, operators hand-author overlays from scratch, and the repo-gov-to-product streamlining (the stated purpose of Handshake Roles) has no mechanical path.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent auto-activation — imported prompts going live without operator review would inject unreviewed, possibly repo-specific instructions into product sessions.",
+      "RISK-2: Lossy streamlining hides authority — dropping a forbidden-action or gate bullet without accounting turns a guarded role into an unguarded one, and nobody can tell what was lost.",
+      "RISK-3: Source-tree contamination — importer writes (lockfiles, normalized rewrites, temp files) into .GOV/ or another governance tree, corrupting read-only source material.",
+      "RISK-4: Duplicate-version churn — non-deterministic extraction (map ordering, whitespace) makes every re-import look 'changed', flooding the registry with junk draft versions."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): importer has no activate call path (compile-visible + negative test); drafts require the MT-081 explicit activate transition driven by the operator.",
+      "CTRL-2 (RISK-2): every dropped section/bullet class is enumerated in ImportReport.dropped_sections; forbidden-action bullets are never eligible for dropping (test asserts fixture 'Does NOT' bullets survive).",
+      "CTRL-3 (RISK-3): read-only file access + post-import source-tree integrity test (contents and mtimes unchanged).",
+      "CTRL-4 (RISK-4): content-hash idempotency computed over raw source bytes (not extracted output); unchanged-source re-import proven no-op."
+    ]
+  },
+  "research_provenance": {
+    "source": "Directly inspected .GOV/roles/* in wt-gov-kernel: all eight named *_PROTOCOL.md files verified present; ORCHESTRATOR_PROTOCOL.md and CODER_PROTOCOL.md read for structure (role definition sections, HBR gate obligation duty lists, handoff/claim gates, 'Does NOT'/'never' forbidden-action bullets). Operator context: Handshake Roles = streamlined productized successors of these startup inject-prompts, for Handshake AND future projects built by Handshake; operator authors/approves, models consume. MT-081 registry is the write target.",
+    "corrections": [
+      "Imported roles are proposals (draft + imported provenance), never directly injectable — approval is an operator act.",
+      "Configurable source directory, no hardcoded .GOV path: the importer must serve future Handshake-built projects, not just this repo [GLOBAL-PORTABILITY].",
+      "Streamlining is honest-lossy: repo mechanics dropped, behavioral duties/gates/forbidden actions kept, all drops accounted in the ImportReport."
+    ]
+  }
+}

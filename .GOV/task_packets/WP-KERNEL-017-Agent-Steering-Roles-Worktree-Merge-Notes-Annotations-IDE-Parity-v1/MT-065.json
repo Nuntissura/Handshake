@@ -1,0 +1,163 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-065",
+  "title": "AP-MT065-AcpRepoGovDutyParityProof",
+  "group": "AP ACP client layer",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-065.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-061",
+      "MT-062",
+      "MT-063",
+      "MT-064",
+      "MT-083",
+      "MT-121"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: End-to-end takeover-readiness proof that the Handshake ACP lane can run the repo-governance duty currently performed by the Node broker .GOV/tools/handshake-acp-bridge (agent.mjs) — the relay the operator's orchestrator uses to launch and steer coder/validator sessions per-MT. Two deliverables: (A) a LIVE end-to-end run of a repo-gov-shaped workflow through the ACP lane, and (B) a MACHINE-READABLE PARITY REPORT comparing the native lane capability-by-capability against the bridge's duties enumerated from its source. This MT does NOT cut over repo governance (.GOV keeps its bridge; cutover is a separate operator decision per the WP stub); it proves readiness.\n\nEXPECTED DIFF SHAPE: Proof-harness code and tests only: src/backend/handshake_core/tests/acp_repo_gov_parity.rs plus a small parity-report writer module inside the test tree (tests/acp_parity_support/). The parity report JSON is written to the external artifacts root (Handshake_Artifacts, HANDSHAKE_ARTIFACTS_ROOT overridable), never into the repo worktree. Minimal glue in product code only if a proof hook is genuinely missing (record any such touch for waiver per GLOBAL-SCOPE-005).\n\nDETAILED SPEC — (A) END-TO-END RUN (repo-gov-shaped workflow, real runtime, no mocks of spec-required behavior):\n1. Compose a session via MT-083 role composition: a role overlay (coder-shaped role definition) plus an MT contract payload (a fixture microtask contract JSON) injected at session start as the first session/prompt content.\n2. Launch through the governed path (SwarmCoordinator -> MT-064 ACP lane -> MT-061 adapter) in a dedicated session worktree whose path contains spaces and a drive letter (the operator's real layout), on Windows.\n3. Execute per-turn steering: while turn 1 runs, submit >=2 steer requests; assert both are QueuedNextTurn (MT-062), then delivered FIFO as turns 2 and 3 after settlement.\n4. Exercise one client service round-trip during the run (MT-063): the agent reads a file inside the session worktree (fs/read_text_file) and one permission arbitration resolves through the ConsentGate path.\n5. Receive a STRUCTURED COMPLETION SIGNAL: the agent's final message carries the MT-121 MT-signal payload (MT_IMPLEMENTED / READY_FOR_VALIDATION shape) over the final agent_message content; the MT-121 parser extracts it and the mechanical completion event fires (event-driven, zero polling — the RGF-93 duty class).\n6. EVERYTHING RECORDED: every lifecycle transition, steer queue event, service call, and the completion signal are typed EventLedger events; the whole run is reconstructable from durable state (HBR-INT-007); FR emits per MT-161 kinds.\n7. AGENT SELECTION: run against the real claude-agent-acp from the MT-064 registry when installed; the in-repo fixture agent (MT-061) scripted to the same workflow is the fallback ONLY for the mechanics, in which case the live-agent leg is recorded as a typed NEEDS_MANAGED_RESOURCE_PROOF blocker row — never a fabricated PASS.\n\nDETAILED SPEC — (B) PARITY REPORT (schema hsk.acp_repo_gov_parity_report@1): one row per bridge duty, enumerated from .GOV/tools/handshake-acp-bridge/agent.mjs (READ-ONLY reference; verified 2026-07-21). Row shape: { duty_id, bridge_source_anchor (function/line in agent.mjs), bridge_behavior, native_equivalent (module/MT), status: PARITY | EXCEEDS | GAP_TYPED | NOT_APPLICABLE_PRODUCT, reason }. The duty inventory the report MUST cover (from source):\n- D01 initialize gate: auth token + ORCHESTRATOR/gov_kernel authority claims + broker build-id/auth-mode staleness refusal (agent.mjs handleRequest initialize, ~1419-1472).\n- D02 session/new: governed session launch keyed role+WP with identity validation (runGovernedRequest START_SESSION; validateGovernedRequest ~638).\n- D03 session/load: session summary/resume surface (handleSessionLoad ~1218).\n- D04 session/prompt: steer-to-registered-thread with thread-id requirement (SEND_PROMPT path).\n- D05 session/cancel: active-run cancel with kill-tree + cancel result rows + not_running settlement (handleSessionCancel ~1250).\n- D06 session/close: clear steerable thread, auditable closed record, refusal while a run is active or prompts are queued (handleSessionClose ~1074).\n- D07 broker/shutdown: refuses while runs active unless forced (handleBrokerShutdown ~1394).\n- D08 session/update streaming: run.started, process.spawned, per-event stages, run.queued, terminal.reclaimed, control.cancel_requested (notify sites).\n- D09 single-active-run-per-session + busy queue: ENQUEUE_ON_BUSY -> ACCEPTED_QUEUED with queue_depth + blocking_run_id, FIFO drain with re-entrancy guard (queueGovernedRequestOnBusy ~947, drainQueuedRequestsForSession ~1014).\n- D10 timeout settlement: run timer -> kill process tree -> FAILED result (SESSION_CONTROL_RUN_TIMEOUT_SECONDS timer ~873).\n- D11 durable request/result ledgering with idempotent replay keyed command_id (SESSION_CONTROL_REQUESTS/RESULTS.jsonl, appendResultOnce ~235; duplicate command replays existing result).\n- D12 session registry mutation + thread-id observation from stream events (markSessionCommandRunning/Result, markSessionThreadObserved on thread.started/result ~909).\n- D13 broker state file + single-broker-instance enforcement (persistBrokerState ~195, prior-pid check ~1553).\n- D14 crash recovery: orphaned-run reconciliation after broker death + stale-active-run recovery (reconcileOrphanedRuns ~585, recoverActiveRun ~329, settleRecoverableSessionControlResults ~632).\n- D15 per-request identity/drift validation: session registered, role/wp match, local_branch + local_worktree_dir drift, worktree existence, governed model/profile policy (validateGovernedRequest ~638).\n- D16 mechanical completion notification to the orchestrator, zero polling (RGF-93; appendWpNotificationCore ~489).\n- D17 session terminal reclamation (RGF-95; reclaimOwnedSessionTerminals ~508, ~852).\n- D18 WP token-usage ledger sync (syncWpTokenUsageLedger ~408).\n- D19 auto-continue governed route on completion (maybeAutoContinueGovernedRoute ~432).\n- D20 model tool-call event extraction into the session event log (extractModelToolEvent ~104).\n- D21 broker diagnostics JSONL (appendBrokerDiagnostic ~73).\nStatus rules: rows proven live in (A) or by the MT-061..064/002/121 test suites are PARITY (cite the proof); capabilities the product intentionally does differently/better (e.g. EventLedger instead of JSONL sidecars) are EXCEEDS with reason; real gaps (e.g. D18 token usage when the live adapter emits no usage events) are GAP_TYPED with the blocking fact — NEVER omitted; duties that are repo-gov-process-specific with no product analogue by design are NOT_APPLICABLE_PRODUCT with reason. A completeness test asserts all 21 duty ids are present with non-empty status+reason.\n- WINDOWS PATH PROOF: the E2E run uses a worktree path with spaces; fs service calls and session/new cwd binding are asserted against that path; if the live claude-agent-acp resume leg runs, session/load on that path is exercised (full resume regression matrix is MT-066).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read agent.mjs end-to-end and confirm the 21-duty inventory against source at implementation time (the bridge may have moved; update anchors, add rows for any new duty — the inventory above is the 2026-07-21 floor, additions allowed, deletions not).\n2. Build the parity-report writer (schema above, serde, atomic write to the external artifacts root).\n3. Author the E2E test: role overlay + MT contract composition (MT-083), governed launch (MT-064 lane), queued steering (MT-062), one fs + one permission service round-trip (MT-063), MT-121 completion signal extraction, ledger reconstruction assertion.\n4. Wire agent selection: live claude-agent-acp when resolvable via the MT-064 registry; otherwise fixture agent + typed NEEDS_MANAGED_RESOURCE_PROOF row for the live leg.\n5. Populate every parity row with its proof citation (test name / ledger event ids / MT reference); implement the completeness test.\n6. Run the suite on Windows; write the report; verify zero repo-worktree artifact writes (external artifacts root only).",
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/acp_repo_gov_parity.rs",
+      "src/backend/handshake_core/tests/acp_parity_support/**",
+      "src/backend/handshake_core/tests/acp_fixture_agent/** (extend repo-gov-shaped script)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (the bridge is READ-ONLY reference for parity; never edited by this WP)",
+      "src/frontend/** (no GUI surface in this MT)",
+      "src/backend/handshake_core/src/** (proof-only MT; product-code touches require a recorded waiver request per GLOBAL-SCOPE-005)"
+    ],
+    "acceptance_criteria": [
+      "The E2E run completes through the governed path: MT-083-composed role overlay + MT contract payload delivered as the opening prompt; session runs in a Windows worktree path containing spaces; run recorded end-to-end in typed EventLedger events.",
+      ">=2 steers submitted mid-turn both return QueuedNextTurn and deliver FIFO as subsequent turns after settlement — asserted on the delivered turn order.",
+      "One fs/read_text_file round-trip inside the session worktree and one session/request_permission arbitration through the ConsentGate path occur during the run and appear in the ledger.",
+      "The agent's final message carries the MT-121 structured completion signal; the parser extracts MT_IMPLEMENTED/READY_FOR_VALIDATION and the mechanical completion event fires with ZERO polling (event-driven assertion, no sleep-and-check loop in the product path).",
+      "The full run is reconstructable from durable state alone: a test replays ledger/TraceProjection and re-derives the turn/steer/service/signal sequence (HBR-INT-007).",
+      "The parity report exists at the external artifacts root, parses against schema hsk.acp_repo_gov_parity_report@1, and contains ALL 21 duty rows (D01..D21) with non-empty status and reason — completeness test green.",
+      "Every PARITY/EXCEEDS row cites a concrete proof (test name, ledger events, or MT suite); every GAP_TYPED row names the blocking fact; no row is silently omitted or vaguely 'covered'.",
+      "Live-agent leg: run against real claude-agent-acp when installed; otherwise the live leg is a typed NEEDS_MANAGED_RESOURCE_PROOF row in the report and the test output — never a fabricated live PASS.",
+      "No artifact/report writes inside the repo worktree (external Handshake_Artifacts root only) and no .GOV writes — asserted by the test.",
+      "cargo build -p handshake_core green; the parity suite passes headless on Windows."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core",
+      "cargo test -p handshake_core --test acp_repo_gov_parity -- --nocapture",
+      "cargo test -p handshake_core --test acp_repo_gov_parity acp_e2e_role_mt_steer_signal_run -- --nocapture",
+      "cargo test -p handshake_core --test acp_repo_gov_parity acp_parity_report_completeness_21_duties -- --nocapture",
+      "cargo test -p handshake_core --test acp_repo_gov_parity acp_e2e_reconstructable_from_ledger -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/tests/acp_repo_gov_parity.rs",
+      "src/backend/handshake_core/tests/acp_parity_support/ (report writer + duty inventory)"
+    ],
+    "expected_tests": [
+      "acp_e2e_role_mt_steer_signal_run (full workflow, Windows spaced path)",
+      "acp_e2e_queued_steering_fifo_order",
+      "acp_e2e_service_round_trips_ledgered",
+      "acp_e2e_completion_signal_zero_polling",
+      "acp_e2e_reconstructable_from_ledger",
+      "acp_parity_report_completeness_21_duties",
+      "acp_parity_report_schema_and_external_root_only",
+      "acp_live_agent_leg_or_typed_blocker"
+    ],
+    "implementation_notes": [
+      "TAKEOVER SCOPE HONESTY: readiness proof, not cutover. The .GOV bridge remains authoritative for repo governance until a separate operator decision (WP stub OUT_OF_SCOPE clause). The report's purpose is to make that decision evidence-based.",
+      "Duty anchors cite agent.mjs as verified 2026-07-21 (1594 lines). Re-verify at implementation time; the inventory is a floor: new bridge duties get new rows, none may be dropped.",
+      "D01 (auth/authority gate): the product analogue is SwarmCoordinator governance + session identity — likely EXCEEDS or NOT_APPLICABLE_PRODUCT with reason (no loopback-token broker in-product); reason must spell out why the product trust boundary differs.",
+      "D18 (token usage): claude-agent-acp emits no usage events (July 2026) — expect GAP_TYPED citing the adapter gap and MT-066's known-gap ledger row; do not claim parity via estimation.",
+      "D19 (auto-continue): the product analogue is orchestrator-policy territory (MT-106 family); if not yet landed, GAP_TYPED with the MT reference is the honest row.",
+      "Zero-polling assertion: prove event-driven delivery (subscription/notification fires the assertion), and grep the proof-path code for sleep/poll loops as a negative check — the RGF-93/polling-waste stance is the duty being taken over.",
+      "Fixture-vs-live: the fixture agent proves Handshake-side mechanics; only a live adapter proves ecosystem interop. Keep the two legs separately labeled in test output and report rows so the validator sees exactly which leg ran."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend proof MT: the deliverables are a runtime E2E proof and a machine-readable parity report; TraceProjection reconstruction is the visual-verification analogue per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Proof-only MT: no new operator-facing behavior is created; the manual entries for the ACP lane surfaces are owned by MT-061..064 (each same-change)."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-004",
+    "HBR-VIS-004",
+    "HBR-QUIET-001",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FLIGHT_RECORDER: the E2E run must show the FR business events emitted by MT-061..064/121 surfaces actually firing in one coherent run — asserted, or DEFERRED-with-reason per missing upstream kind (MT-161).",
+    "INTERNAL_DIAGNOSTICS: the run's session/queue/service diagnostics must be observable via the open diagnostic-event API during the E2E — WIRED or DEFERRED-with-reason.",
+    "PALMISTRY: the live-agent E2E leg is a real freeze-risk window — register the run under the external watcher when available, else DEFERRED-with-reason."
+  ],
+  "risk_if_missed": "No evidence the product can assume the repo-gov ACP duty: the operator cannot make the takeover/cutover decision, the bridge remains a permanent parallel control plane, and untested duty gaps (queueing, recovery, notification) surface only during a live cutover.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Parity theater — a report whose rows say PARITY based on 'should work' reasoning instead of cited runtime/test proof would greenlight a cutover on fiction (the exact deflection class GLOBAL-TRUTH bans).",
+      "RISK-2: Duty under-enumeration — enumerating only the 7 RPC methods and missing the operational duties (queue, timeout, recovery, notification, reclamation, usage sync) yields a report that passes while the bridge's hardest-won behaviors go untested.",
+      "RISK-3: Fixture-only proof presented as ecosystem proof — proving mechanics against the in-repo fixture and implying live-adapter interop conflates the two legs.",
+      "RISK-4: Polling smuggled into the 'zero polling' path — a sleep-and-check loop in the completion-signal proof reintroduces the exact waste the duty takeover is meant to eliminate.",
+      "RISK-5: Repo contamination — parity artifacts or E2E worktree debris written into the repo/gov worktree instead of the external artifacts root."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): every non-GAP row requires a machine-checkable proof citation; the completeness test fails on empty reason/proof fields.",
+      "CTRL-2 (RISK-2): the 21-duty inventory is contract-pinned with source anchors; the completeness test asserts all ids present; implementation re-verifies against live agent.mjs and may only ADD rows.",
+      "CTRL-3 (RISK-3): separate labeled legs (fixture vs live) in tests and report; missing live agent produces typed NEEDS_MANAGED_RESOURCE_PROOF, never PASS.",
+      "CTRL-4 (RISK-4): event-driven assertion plus negative grep for sleep/poll in the proof path.",
+      "CTRL-5 (RISK-5): external-artifacts-root-only write assertion inside the suite; .GOV is in forbidden_paths and the bridge is read-only reference."
+    ]
+  },
+  "research_provenance": {
+    "source": ".GOV/tools/handshake-acp-bridge/agent.mjs (1594 lines) + README.md — read in full 2026-07-21; duty inventory D01..D21 enumerated from source with line anchors (initialize gate ~1419, validateGovernedRequest ~638, busy queue ~947, drain ~1014, timeout timer ~873, orphan reconcile ~585, RGF-93 notify ~489, RGF-95 reclaim ~508, token sync ~408, auto-continue ~432, tool-event extraction ~104, diagnostics ~73) + WP-017 stub acceptance criterion 'Handshake drives at least one real repo-gov-shaped session over ACP end-to-end' + repo memory: polling-waste and terminal-cleanup operator feedback (duties D16/D17 exist for cause).",
+    "corrections": [
+      "The bridge's duty set is far larger than its 7 RPC methods; the parity floor is the full 21-duty operational inventory, not the method list.",
+      "Bridge storage (JSONL sidecars, registry JSON) is precedent for behavior, not for product storage: EventLedger/TraceProjection equivalents count as EXCEEDS with reason, not GAP.",
+      "This MT proves readiness only; repo-gov cutover is an explicit separate operator decision (WP stub OUT_OF_SCOPE)."
+    ]
+  }
+}

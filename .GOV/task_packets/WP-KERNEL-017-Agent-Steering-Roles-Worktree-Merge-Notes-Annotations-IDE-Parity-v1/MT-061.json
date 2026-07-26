@@ -1,0 +1,175 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-061",
+  "title": "AP-MT061-AcpClientCore",
+  "group": "AP ACP client layer",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-061.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-003",
+      "MT-004",
+      "MT-005"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Integrate the official agent-client-protocol Rust crate (crates.io: agent-client-protocol, companion agent-client-protocol-schema) as a Handshake session adapter so any ACP-speaking agent (claude-agent-acp, Gemini CLI native ACP, Codex via the Zed adapter) becomes a drivable Handshake agent session: supervised child-process spawn, initialize capability negotiation, session/new, session/prompt, streamed session/update notifications translated into the Handshake TurnItem stream, and complete stop-reason mapping to turn terminal states. ACP (Agent Client Protocol, agentclientprotocol.com, JetBrains co-develops with Zed) is JSON-RPC 2.0 over stdio and reuses MCP JSON types; Handshake already carries JSON-RPC infrastructure under src/backend/handshake_core/src/mcp/ (jsonrpc.rs, transport/) whose framing/backpressure patterns are the reference, while the ACP wire implementation itself MUST come from the official crate, never hand-rolled.\n\nEXPECTED DIFF SHAPE: New submodule src/backend/handshake_core/src/agent_sessions/acp/ containing mod.rs (public adapter surface + AcpAdapterError), client_core.rs (spawn + connection + session lifecycle), capability_map.rs (ACP agent capabilities -> MT-003 AdapterCapabilities), turn_stream.rs (session/update -> TurnItem translation + stop-reason mapping). One dependency line added to src/backend/handshake_core/Cargo.toml (agent-client-protocol, pinned semver range). Integration test file(s) under src/backend/handshake_core/tests/ plus an in-repo conforming fake-agent test fixture binary built on the SAME crate's agent side, so tests exercise real ACP protocol bytes over real stdio, not mocked Handshake internals.\n\nDETAILED SPEC:\n- SPAWN (supervised): the ACP agent child process is spawned through the MT-005 session supervisor, never via a bare Command::spawn. Process attribution mirrors the hardened pattern in src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs: a call-boundary invocation identity (owner_role, model_identity, session attribution — see CliInvocation, line ~157) and ProcessOwnershipLedger registration that fails closed (mirror LedgerPreflight / LedgerRegistration error semantics: if the ledger cannot register the pid, the child is killed, never left unattributed). Child stdio runs over the MT-004 bidirectional stdio infrastructure. Windows: spawn with hidden window (no console flash), consistent with HBR-QUIET-001.\n- INITIALIZE: perform the ACP initialize handshake (protocol version + client capabilities + agent capabilities). Map the agent's advertised capabilities into the MT-003 AdapterCapabilities surface with these hard rules: SteerMidTurn=false ALWAYS (ACP turns are strictly sequential; the protocol has NO mid-turn steer primitive — only cancel-then-reprompt, which MT-062 owns), Resume=true ONLY when the agent advertises the session-load capability (loadSession); never assume resume.\n- SESSION LIFECYCLE: session/new with cwd bound to the assigned session worktree directory (MT-001 session model owns worktree binding); session/load only when the negotiated capability allows (full resume discipline and Windows regression coverage are MT-066; this MT wires the call path and the capability gate). The ACP SessionId is recorded on the MT-001 session record as the external thread identity.\n- PROMPT TURN: session/prompt starts a turn; while the turn runs, consume streamed session/update notifications and translate each to a typed TurnItem published on the MT-009 session event bus. Minimum update kinds handled: agent_message_chunk, agent_thought_chunk, tool_call, tool_call_update, plan, usage_update. Unknown/unrecognized update kinds MUST be tolerated and preserved as a typed UnknownUpdate TurnItem carrying the raw JSON — never dropped silently, never a panic (adapters add kinds across versions).\n- STOP-REASON MAPPING (exhaustive, no catch-all silently swallowing): end_turn -> TurnCompleted; max_tokens -> TurnTruncated(MaxTokens); max_turn_requests -> TurnTruncated(MaxTurnRequests); refusal -> TurnRefused; cancelled -> TurnCancelled. An unexpected/unknown stop reason maps to a typed TurnEndedUnknown carrying the raw value. The turn terminal state is written to the MT-001 session model and emitted as typed EventLedger events; FR event kinds per MT-161 when that MT has landed, else record the FR emit as DEFERRED-with-reason in the HBR-INT-009 evidence (never silently skipped).\n- ERROR DISCIPLINE: agent process death mid-turn, malformed JSON-RPC, and initialize failure each settle the turn/session into a typed failure state with the child reaped by the MT-005 supervisor; no orphan processes, no hung futures.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-001 session model, MT-003 capabilities surface, MT-004 stdio infra, and MT-005 supervisor contracts/code first; this adapter plugs into those seams and must not fork them.\n2. Add agent-client-protocol to src/backend/handshake_core/Cargo.toml with a pinned compatible version range; build to verify the dependency tree (tokio/LocalSet or executor requirements of the crate must be reconciled with handshake_core's async runtime — inspect the crate docs/examples before wiring).\n3. Create acp/mod.rs with AcpAdapterError (typed variants: SpawnFailed, LedgerPreflight, LedgerRegistration, InitializeFailed, CapabilityUnsupported, ProtocolError, AgentExited, TurnFailed) and the public AcpClientAdapter type.\n4. Implement client_core.rs: supervised spawn (MT-005) + ProcessOwnershipLedger fail-closed registration + crate Client connection over the child stdio (MT-004).\n5. Implement capability_map.rs: initialize negotiation -> AdapterCapabilities { steer_mid_turn: false, resume: <loadSession capability>, ... } per MT-003 shape.\n6. Implement session/new (cwd = session worktree) and capability-gated session/load; persist the ACP SessionId on the session record.\n7. Implement turn_stream.rs: session/prompt dispatch + session/update -> TurnItem translation + UnknownUpdate tolerance + stop-reason mapping table + terminal-state settlement on the session model + MT-009 event-bus publication + typed EventLedger emits.\n8. Build the in-repo fake ACP agent fixture (a small bin target using the crate's agent side) that scripts: capability advertisement, a prompt turn streaming several update kinds including one unknown kind, and each of the five stop reasons on demand.\n9. Author the integration tests listed under expected_tests against the fixture agent over real stdio.\n10. Record HBR-INT-009 three-tier wiring outcomes (FR / internal_diagnostics / Palmistry) as build evidence, using WIRED or DEFERRED-with-reason per tier.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/acp/**",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs (module wiring lines only)",
+      "src/backend/handshake_core/Cargo.toml (dependency addition only)",
+      "Cargo.lock",
+      "src/backend/handshake_core/tests/acp_client_core.rs",
+      "src/backend/handshake_core/tests/acp_fixture_agent/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/** (the bridge is READ-ONLY reference for parity; never edited by this WP)",
+      "src/frontend/** (no GUI surface in this MT)",
+      "src/backend/handshake_core/src/mcp/** (reference-only reuse of JSON-RPC patterns; do not edit)"
+    ],
+    "acceptance_criteria": [
+      "agent-client-protocol crate is a declared dependency of handshake_core with a pinned version range; the ACP wire layer is NOT hand-rolled.",
+      "AcpClientAdapter spawns the agent child through the MT-005 supervisor with ProcessOwnershipLedger fail-closed attribution (unregisterable pid => child killed, typed error), mirroring official_cli_bridge.rs LedgerPreflight/LedgerRegistration semantics.",
+      "initialize negotiation populates MT-003 AdapterCapabilities with steer_mid_turn=false unconditionally and resume gated on the agent's loadSession capability; a fixture agent without loadSession yields resume=false.",
+      "session/new binds cwd to the session worktree and the returned ACP SessionId is persisted on the MT-001 session record.",
+      "A full prompt turn against the in-repo fixture agent streams TurnItems onto the MT-009 event bus for agent_message_chunk, tool_call, plan, and usage_update, in order.",
+      "An update of an unknown kind is preserved as a typed UnknownUpdate TurnItem (raw JSON retained) — proven by a test; no panic, no silent drop.",
+      "All five ACP stop reasons (end_turn, max_tokens, max_turn_requests, refusal, cancelled) map to their declared turn terminal states — proven by a parameterized test; an unknown stop reason maps to TurnEndedUnknown.",
+      "Agent process death mid-turn settles the turn into a typed failure state and the supervisor reaps the child (no orphan pid) — proven by a kill-the-fixture test.",
+      "Every session lifecycle transition (spawn, initialize, session-new, turn-start, turn-terminal, session-end) emits a typed EventLedger event; the run is reconstructable from durable state (HBR-INT-007).",
+      "HBR-INT-009 three-tier diagnostic outcomes recorded as build evidence: WIRED or DEFERRED-with-reason per tier; never silently skipped.",
+      "cargo build -p handshake_core green; new tests pass; no test opens a visible window or steals focus (HBR-QUIET-001)."
+    ],
+    "proof_targets": [
+      "cargo build -p handshake_core",
+      "cargo test -p handshake_core --test acp_client_core -- --nocapture",
+      "cargo test -p handshake_core --test acp_client_core acp_stop_reason_mapping -- --nocapture",
+      "cargo test -p handshake_core --test acp_client_core acp_unknown_update_tolerated -- --nocapture",
+      "cargo test -p handshake_core --test acp_client_core acp_agent_death_settles_typed_failure -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/acp/mod.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/client_core.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/capability_map.rs",
+      "src/backend/handshake_core/src/agent_sessions/acp/turn_stream.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "expected_tests": [
+      "acp_initialize_negotiates_capabilities (steer_mid_turn=false, resume gated on loadSession)",
+      "acp_session_new_binds_worktree_cwd_and_persists_session_id",
+      "acp_prompt_turn_streams_turn_items_in_order",
+      "acp_unknown_update_tolerated (typed UnknownUpdate, raw JSON retained)",
+      "acp_stop_reason_mapping (parameterized over all five reasons + unknown)",
+      "acp_agent_death_settles_typed_failure (no orphan pid)",
+      "acp_ledger_preflight_failure_prevents_spawn (fail-closed)",
+      "acp_lifecycle_events_reconstructable_from_ledger"
+    ],
+    "implementation_notes": [
+      "MODULE-ROOT NOTE: the session-core family (MT-001/MT-004/MT-005, authored separately) owns the parent module. If that family lands the session layer under a different module root than agent_sessions/, place the acp/ submodule under THAT root and record the path deviation in this MT's lifecycle; the acp/ internal file layout in this contract remains binding.",
+      "Reuse pattern, not code: official_cli_bridge.rs (CliKind line ~63, CliInvocation line ~157, locked_file_identity line ~1084, GuardedCliChild line ~1829) shows the hardened spawn/attribution/identity discipline this adapter must match. Executable identity PINNING for real agent binaries is MT-064 (registry); this MT takes a resolved executable path + identity as input.",
+      "The fixture agent must speak real ACP via the same crate's agent side (real protocol bytes over real stdio). Mocking Handshake-internal traits instead of running the protocol is a Spec-Realism violation.",
+      "ACP reuses MCP JSON types; src/backend/handshake_core/src/mcp/jsonrpc.rs and mcp/transport/ are the in-repo reference for framing/backpressure/error-surface conventions — read them, do not edit them, do not duplicate their responsibilities.",
+      "Live third-party agents (claude-agent-acp, gemini, codex adapter) are OUT of this MT: MT-064 registers them, MT-066 contract-tests them. This MT's runtime proof is the in-repo conforming fixture agent.",
+      "usage_update: claude-agent-acp is KNOWN to not emit usage/cost events (July 2026). The TurnItem type must still exist and be exercised by the fixture agent; the live-agent gap is ledgered in MT-066.",
+      "All new UUID mint sites use Uuid::now_v7() per HBR-INT-008."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend MT: ACP client adapter has no operator-visible GUI surface; observable behavior is proven via typed EventLedger events and TraceProjection reconstruction per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [
+      "Agent sessions: ACP lane — what it is, which agents it can drive, sequential-turn limitation (no mid-turn steer), stop-reason meanings"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FLIGHT_RECORDER: ACP session lifecycle transitions (spawn, initialize, session-new, turn-start, turn-terminal, session-end) are business events — emit FR events using the MT-161 kinds when landed, else record DEFERRED-with-reason pointing at MT-161.",
+    "INTERNAL_DIAGNOSTICS: register the ACP adapter with the open diagnostic-event API (turn-in-flight state, child pid, last update kind, stall detection on a silent turn) — WIRED or DEFERRED-with-reason if internal_diagnostics is not yet shipped in this worktree.",
+    "PALMISTRY: an ACP agent child that freezes mid-turn is worth surviving-capture — register a liveness tracker for the supervised child, or record DEFERRED-with-reason if the external watcher is not yet available in this worktree."
+  ],
+  "risk_if_missed": "No ACP client core exists: MT-062..066 are all blocked, the ACP pillar of WP-017 cannot start, and the repo-gov ACP-duty takeover (replacement of .GOV/tools/handshake-acp-bridge) has no product path.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Hand-rolled ACP wire layer — reimplementing the JSON-RPC/ACP schema instead of using the official crate silently drifts from the spec as ACP evolves and duplicates mcp/ infrastructure.",
+      "RISK-2: Mock-based proof — tests that stub Handshake traits instead of speaking real ACP bytes over real stdio prove nothing about protocol conformance (Spec-Realism Gate).",
+      "RISK-3: Unattributed child processes — a spawn path that bypasses the MT-005 supervisor or tolerates ProcessOwnershipLedger failure leaves unkillable, unattributable agent processes.",
+      "RISK-4: Capability over-claim — advertising resume for an agent without loadSession, or any steer_mid_turn=true path, makes callers (MT-062, orchestrator models) build on false capabilities.",
+      "RISK-5: Unknown-kind brittleness — panicking or dropping on unrecognized session/update kinds or stop reasons breaks the lane on every adapter version bump."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): agent-client-protocol crate is the only wire implementation; acceptance criterion #1 enforces the dependency; review rejects any hand-rolled ACP frame codec.",
+      "CTRL-2 (RISK-2): the fixture agent is built on the crate's agent side and communicates over real child stdio; at least one proof target runs the full protocol round-trip.",
+      "CTRL-3 (RISK-3): fail-closed ledger semantics copied from official_cli_bridge.rs (LedgerPreflight/LedgerRegistration); dedicated test proves preflight failure prevents spawn and mid-turn death reaps the child.",
+      "CTRL-4 (RISK-4): steer_mid_turn=false is hardcoded for the ACP adapter (not configuration); resume defaults false and flips only on the negotiated loadSession capability; both proven by tests.",
+      "CTRL-5 (RISK-5): UnknownUpdate and TurnEndedUnknown typed fallbacks with raw payload retention; parameterized tests cover the unknown paths explicitly."
+    ]
+  },
+  "research_provenance": {
+    "source": "agentclientprotocol.com (JSON-RPC 2.0 over stdio; reuses MCP JSON types; initialize -> session/new | session/load -> session/prompt -> session/update stream -> stop reason; NO mid-turn steer; official Rust crates agent-client-protocol + agent-client-protocol-schema on crates.io) + WP-017 stub research basis (.GOV/task_packets/stubs/WP-KERNEL-017-...contract.json draft_scope.research_basis, 2026-07-21 web passes) + inspected product code: official_cli_bridge.rs (CliInvocation/GuardedCliChild/ledger fail-closed patterns), mcp/jsonrpc.rs + mcp/transport (in-repo JSON-RPC reference).",
+    "corrections": [
+      "SteerMidTurn=false is a protocol fact for ACP (sequential turns, cancel-then-reprompt only), not an implementation choice; native stream-json/app-server adapters (other MT families) carry first-class mid-turn steering.",
+      "Resume is capability-gated (loadSession), not universal; claude-agent-acp had a Windows path-encoding resume blocker — regression coverage assigned to MT-066.",
+      "claude-agent-acp does not emit usage/cost events (July 2026): usage_update handling is still built and fixture-proven here; the live gap is ledgered in MT-066."
+    ]
+  }
+}

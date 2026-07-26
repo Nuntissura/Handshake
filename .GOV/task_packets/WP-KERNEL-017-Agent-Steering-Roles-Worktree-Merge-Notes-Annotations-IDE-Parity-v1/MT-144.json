@@ -1,0 +1,169 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-144",
+  "title": "WM-MT144-PatchExtractionFallback",
+  "group": "WM Worktree merge-back",
+  "clause": "format-patch/diff bundle from detached or legacy worktrees; apply --3way onto target; ledgered artifacts in external root",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-144.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-142",
+      "MT-143"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Provide the patch-based merge-back path for worktrees that CANNOT branch-merge: legacy/compat detached-HEAD session worktrees (MT-141 DetachedHead mode), worktrees whose branch was lost, and cross-repo transfer (session work applied onto a checkout of a different clone). The kernel already has a primitive to build on: collect_merge_back_artifact (src/backend/handshake_core/src/workspace_safety.rs ~331-354) captures `git status --short --porcelain -z` + `git diff --binary` + a conflict report from a session worktree. This MT extends that into a complete, ledgered, appliable patch bundle with conflict surfacing through the MT-143 bridge.\n\nEXPECTED DIFF SHAPE: New functions in src/backend/handshake_core/src/workspace_safety.rs (extraction, next to collect_merge_back_artifact) and src/backend/handshake_core/src/source_control_merge.rs (application, next to the MT-142 engine), plus artifact persistence under the external artifacts root and tests.\n\nDETAILED SPEC:\n1. Extraction types + signatures (workspace_safety.rs):\n   pub struct SessionPatchBundle { pub session_id: String, pub base_ref: String, pub base_commit: String, pub patch_files: Vec<PathBuf>, pub uncommitted_diff: Option<PathBuf>, pub manifest_path: PathBuf, pub produced_at: DateTime<Utc> }\n   pub fn extract_session_patch_bundle(worktree_path: &Path, base_ref: &str, out_dir: &Path, session_id: &str) -> io::Result<SessionPatchBundle>\n   Command lines (all with -c core.longpaths=true):\n     committed work:   `git -C <worktree_path> -c core.longpaths=true format-patch --output-directory <out_dir>/patches <base_ref>..HEAD`  // one file per commit, ordered\n     uncommitted work: `git -C <worktree_path> -c core.longpaths=true diff --binary` -> <out_dir>/uncommitted.diff (reuse the collect_merge_back_artifact capture; omit file when empty)\n     base pin:         `git -C <worktree_path> rev-parse <base_ref>` -> base_commit recorded in manifest\n   manifest.json (serde): { schema_id: \"hsk.session_patch_bundle@1\", session_id, base_ref, base_commit, patch_files (relative names + sha256), uncommitted_diff (name + sha256 | null), produced_at } — sha256 makes the bundle tamper-evident portable evidence.\n2. Application types + signatures (source_control_merge.rs):\n   pub enum PatchApplyOutcome { Applied { commit_ids: Vec<String> }, Conflicts { conflicts: Vec<MergeConflict>, checkout_path: PathBuf }, Blocked { reason: MergeBlockReason } }\n   pub fn apply_session_patch_bundle(repo_root: &Path, target_branch: &str, bundle: &SessionPatchBundle, opts: &MergeOptions) -> Result<PatchApplyOutcome, SourceControlError>\n   Command lines (run in a controlled scratch checkout of target_branch, same MT-142 checkout discipline, SESSION_WORKTREE_GIT_LOCK for worktree add/remove):\n     committed series:  `git -C <checkout> -c core.longpaths=true am --3way <patch_file>` per file in order; on conflict: `git am --show-current-patch` retained for evidence, conflicts enumerated via `ls-files -u -z` and surfaced through the MT-143 bridge (conflict_file_versions/resolve_conflict/`git am --continue`); operator/governed-session declines => `git am --abort`\n     uncommitted diff:  `git -C <checkout> -c core.longpaths=true apply --3way --index <uncommitted.diff>`; conflicts likewise via ls-files -u + MT-143 bridge; failure without index damage => typed error\n   Preconditions: manifest sha256s verify; target checkout clean; base_commit exists in target repo (else Blocked{UnknownRef} with a typed hint that a fetch is required — this MT does NOT fetch and does NOT push).\n3. Artifact persistence + ledger: out_dir defaults under the external artifacts root (HANDSHAKE_ARTIFACTS_ROOT)/wp-kernel-017/session-patches/<session_id>/<uuid_v7>/ — NEVER inside the repo worktree; after extraction an EventLedger record (existing append API) captures { session_id, bundle manifest sha256, path } so the bundle is citable portable evidence.\n4. HARD RULES: no force flags (no `am --skip` auto-skipping either — a skipped patch is a typed decision surfaced to the caller, never automatic); no push; no auto-resolution — patch conflicts flow to the SAME MT-143 UI bridge; abort always available (`git am --abort` / `git apply` failure leaves index untouched via --index atomicity check); CRDT boundary as in MT-141..143.\n\nSTEP-BY-STEP:\n1. Read workspace_safety.rs collect_merge_back_artifact (~331-354) and run_git_text_command (~442); read MT-142/143 module surface.\n2. Implement extract_session_patch_bundle + manifest + sha256 hashing + EventLedger append.\n3. Implement apply_session_patch_bundle: scratch checkout, precondition checks, am --3way loop with conflict handoff to the bridge, apply --3way --index for the uncommitted diff.\n4. Wire `git am --continue` into the MT-143 resolution completion path for the patch case (resolution session resolves -> continue; declines -> abort).\n5. Tests (two scratch repos for the cross-repo case): extract from a detached worktree with 2 commits + dirty file -> bundle has 2 patch files + uncommitted.diff + valid manifest sha256s; clean apply onto target reproduces contents + commit count; conflicting apply surfaces MergeConflict rows and am --abort restores pristine state; tampered patch (flipped byte) refused by sha256 check; base_commit missing in target => Blocked{UnknownRef}.\n6. Run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_safety.rs",
+      "src/backend/handshake_core/src/source_control_merge.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI IPC allowed only on the GUI MT, MT-146)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain; do not conflate with git worktree code merge)",
+      "src/frontend/** (patch conflicts reuse the MT-143 bridge; no new UI)"
+    ],
+    "acceptance_criteria": [
+      "extract_session_patch_bundle produces ordered format-patch files for <base_ref>..HEAD plus an uncommitted `diff --binary` capture (omitted when clean), with a serde manifest recording base_ref, pinned base_commit, and per-file sha256.",
+      "Bundle artifacts land under the external artifacts root (HANDSHAKE_ARTIFACTS_ROOT path shape), never inside a repo worktree, and an EventLedger record cites the bundle (session_id + manifest sha256 + path).",
+      "apply_session_patch_bundle applies the committed series via `git am --3way` and the uncommitted diff via `git apply --3way --index` in a controlled scratch checkout of the target branch.",
+      "Patch conflicts surface as MergeConflict rows consumable by the MT-143 bridge; resolution completes via `git am --continue`; decline path runs `git am --abort` and a test proves pristine restoration.",
+      "Tamper-evidence: a bundle failing sha256 verification is refused with a typed error before any git command runs.",
+      "Missing base_commit in the target repo returns Blocked{UnknownRef} with a typed fetch-required hint; the function performs no fetch and no push.",
+      "Zero occurrences of '--force', 'push', '--skip', '-X' in the functions added by this MT (grep scoped to the new code regions via the proof-target pattern).",
+      "Cross-repo case proven: bundle extracted from repo A applies onto a clone-of-A repo B checkout.",
+      "All new git invocations include -c core.longpaths=true; worktree add/remove under SESSION_WORKTREE_GIT_LOCK."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core patch_bundle_extract -- --nocapture",
+      "cargo test -p handshake_core patch_bundle_apply_clean -- --nocapture",
+      "cargo test -p handshake_core patch_bundle_apply_conflict_bridge -- --nocapture",
+      "cargo test -p handshake_core patch_bundle_tamper_refused -- --nocapture",
+      "cargo test -p handshake_core patch_bundle_cross_repo -- --nocapture",
+      "bash -lc \"! grep -nE '(--force|push|--skip|\\\"-X\\\")' src/backend/handshake_core/src/source_control_merge.rs && echo NO_FORCE_NO_PUSH_NO_AUTOSKIP\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/workspace_safety.rs (extends: collect_merge_back_artifact ~331-354 pattern, run_git_text_command ~442; NEW extract_session_patch_bundle + SessionPatchBundle)",
+      "src/backend/handshake_core/src/source_control_merge.rs (NEW apply_session_patch_bundle + PatchApplyOutcome; reuses MT-142 scratch-checkout + MT-143 conflict bridge surface)"
+    ],
+    "expected_tests": [
+      "extraction: 2 commits + dirty file => 2 ordered patches + uncommitted.diff + manifest with verifying sha256s",
+      "clean apply: target tree contents and commit count match the session worktree state",
+      "conflict apply: ls-files -u rows -> MergeConflict; programmatic resolution -> am --continue commits; decline -> am --abort pristine",
+      "tampered patch byte => typed refusal, zero git side effects",
+      "cross-repo: bundle from repo A applies onto repo B (clone) checkout",
+      "empty session (no commits, clean tree) => typed EmptyBundle outcome, no artifacts written"
+    ],
+    "implementation_notes": [
+      "Reuse, don't duplicate: collect_merge_back_artifact already captures diff --binary + conflict report; extract_session_patch_bundle should call or share its helpers rather than re-implementing the capture.",
+      "`git am --3way` requires the patch's base blobs to exist in the target repo — that is why base_commit is pinned and checked; the typed fetch-required hint keeps network operations out of this MT (no fetch, no push, operator decides).",
+      "Binary changes ride `format-patch`/`diff --binary` natively; the NotTextResolvable guard from MT-143 still applies at resolution time.",
+      "sha256 via the workspace's existing hashing dependency (check Cargo.toml before adding one); manifest ids minted with Uuid::now_v7() (HBR-INT-008).",
+      "Portable-evidence intent: bundles are the recovery path when a worktree/VM is lost — MT-147's orphan sweep and the swarm recovery flows can cite the ledgered bundle instead of the dead worktree.",
+      "Keep `am --skip` OUT of the API: a skipped commit silently drops work; skipping must be an explicit caller decision in a later governance layer if ever needed."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend patch pipeline; conflicts render through the existing MT-143 bridge and the MT-146 review flow. Bundle lifecycle is reconstructable from the EventLedger record (HBR-VIS-004)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Source Control > Patch-based merge-back (when it applies: detached/legacy worktrees, cross-repo transfer; bundle anatomy; where bundles are stored)",
+      "Source Control > Patch recovery (applying a ledgered bundle after a lost worktree/VM; fetch-required hint semantics)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "Bundle extraction appends an EventLedger record (session_id, manifest sha256, artifact path); apply outcomes ride the MT-145 merge FR events once wired."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Diagnostic event on sha256 verification failure or am/apply unexpected failure, if the open diagnostic-event API exists in the implementing worktree."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Bounded git subprocesses over local files; no long-lived runtime to watch externally."
+    }
+  ],
+  "risk_if_missed": "Detached/legacy worktrees and lost-VM sessions have NO merge-back path at all (their commits are unreachable refs); agent work is unrecoverable exactly in the failure scenarios where evidence matters most.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A tampered or truncated patch bundle applies silently (no integrity check), injecting unreviewed code into the target branch under a session's identity.",
+      "RISK-2: `git am` conflict mid-series leaves the checkout wedged in am-in-progress state; later merges/applies all fail and the half-applied series masquerades as merged work.",
+      "RISK-3: Auto-skip (`am --skip`) or lossy retry drops individual commits from the series without surfacing it — silent partial merge-back.",
+      "RISK-4: Bundles written inside the repo worktree pollute the working tree/diffs and get committed as junk (artifact-hygiene violation).",
+      "RISK-5: Cross-repo apply against a target missing the base commits produces garbage 3-way results instead of a typed block."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): sha256 per patch file + manifest verification BEFORE any git command; tamper test flips one byte and asserts typed refusal with zero side effects.",
+      "CTRL-2 (RISK-2): Every non-continued conflict path ends in `git am --abort`; wedge test kills mid-series and asserts no rebase-apply/am state directory remains and target ref is unchanged.",
+      "CTRL-3 (RISK-3): --skip is API-absent (grep proof target); Applied{commit_ids} length is asserted equal to the bundle's patch count in every clean-apply test.",
+      "CTRL-4 (RISK-4): out_dir defaults under HANDSHAKE_ARTIFACTS_ROOT; test asserts no bundle file path is inside the repo root; extraction into a repo-internal path is a typed error.",
+      "CTRL-5 (RISK-5): base_commit existence check (`git cat-file -e <base_commit>^{commit}`) gates apply; missing => Blocked{UnknownRef} with fetch-required hint, proven by the cross-repo negative test."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-multi-model-orchestration-v1 src/backend/handshake_core/src/workspace_safety.rs — collect_merge_back_artifact ~331-354 (status --porcelain -z + diff --binary + conflict report), run_git_text_command ~442 (longpaths discipline), session worktree root resolution ~356-368. MT-142/143 contracts define the scratch-checkout and conflict-bridge surfaces this MT reuses. Field practice: format-patch + am --3way is git's canonical offline patch-transfer contract (git-format-patch/git-am docs); mailbox transfer preserves per-commit identity vs a single squashed diff, which is why committed work uses format-patch and only uncommitted work uses diff --binary.",
+    "corrections": [
+      "Hard rules baked in: no force flags, no push, no fetch (typed hint instead), no am --skip auto-skipping, conflicts always surface through the MT-143 UI bridge (no auto-resolution).",
+      "Artifacts are external-root + ledgered (portable evidence), aligning with the repo's external Handshake_Artifacts discipline observed in WP-KERNEL-012 evidence.",
+      "CRDT document merging boundary restated; patch path covers git-tracked code only."
+    ]
+  }
+}

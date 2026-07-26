@@ -1,0 +1,332 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "execution_authority": false,
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract"
+    ]
+  },
+  "wp_id": "WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1",
+  "mt_id": "MT-019",
+  "title": "ConcurrentGrantChangeSafety",
+  "group": "AccessSpace, resource grants, ResourceBroker, visitor, MCP, and remote seam",
+  "created_at_utc": "2026-07-26T04:35:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1/MT-019.json",
+    "microtask_projection": "NOT_GENERATED_BY_DEFAULT",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1/packet.json",
+    "microtask_index": ".GOV/task_packets/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1/_MT_INDEX.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json",
+    "spec_current": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "lifecycle": {
+    "status": "PRECREATED_INACTIVE",
+    "depends_on": [
+      "MT-005",
+      "MT-008",
+      "MT-010",
+      "MT-018"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "NOT_ELIGIBLE_PREACTIVATION",
+    "activation_rule": "Must be adopted into an Operator-signed official packet and refinement before Coder or Validator launch."
+  },
+  "no_context_startup": {
+    "required_reads": [
+      ".GOV/spec/SPEC_CURRENT.md",
+      ".GOV/task_packets/stubs/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1.contract.json",
+      ".GOV/task_packets/WP-KERNEL-007-Principal-Visitor-Pass-MCP-Gate-v1/_MT_INDEX.json",
+      "the official packet.json and refinement.json after activation",
+      ".GOV/codex/Handshake_Codex_v1.4.md",
+      ".GOV/roles/coder/CODER_PROTOCOL.md",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+    ],
+    "current_source_discovery": [
+      "Resolve SPEC_CURRENT before trusting any versioned spec path.",
+      "Inspect the activated WP worktree and its repo AGENTS.md and CLAUDE.md before selecting code paths.",
+      "Use rg to locate the current KernelActor, EventLedger, Flight Recorder, storage, API, native UI, ToolGate, ArtifactStore, FEMS, UserManual, Argus, and migration seams relevant to this MT.",
+      "Record exact existing files, symbols, owning tests, and an executable RED reproduction in the activated MT before editing."
+    ],
+    "stop_conditions": [
+      "No official signed packet and refinement exist.",
+      "A dependency MT lacks the required accepted WP Validator verdict.",
+      "Current source contradicts candidate paths or the refinement omits a touched protected-resource boundary.",
+      "Real PostgreSQL or required native Argus proof cannot be exercised and no authoritative typed deferral is allowed."
+    ]
+  },
+  "scope": {
+    "summary": "ConcurrentGrantChangeSafety: Make authorization safe under concurrent read, write, share, revoke, expiry, and Space-switch operations using policy versions, transactions, bounded leases, cancellation, and deterministic receipts.",
+    "objective": "Make authorization safe under concurrent read, write, share, revoke, expiry, and Space-switch operations using policy versions, transactions, bounded leases, cancellation, and deterministic receipts.",
+    "expected_behavior": [
+      "Make authorization safe under concurrent read, write, share, revoke, expiry, and Space-switch operations using policy versions, transactions, bounded leases, cancellation, and deterministic receipts.",
+      "Preserve all pre-existing behavior and original WP intent not explicitly superseded by Master Spec v02.202.",
+      "Authorize at the executable backend before filtering or personalization; client and UI identifiers are selectors, never authority.",
+      "Emit account, Principal, session, AccessSpace, resource, delegation, correlation, action, result, and policy attribution for success, denial, failure, retry, and recovery paths."
+    ],
+    "candidate_code_surfaces": [
+      "src/backend/handshake_core/src/**",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/src/user_manual/**"
+    ],
+    "candidate_surface_rule": "Candidate paths are grounded in current handshake_main topology but must be re-discovered and narrowed during refinement and packet activation; do not invent a parallel subsystem when an existing product seam owns the behavior.",
+    "forbidden_paths": [
+      ".GOV/** during Coder product implementation",
+      "app/src/** legacy web UI as product implementation proof",
+      "SQLite authority, cache, fallback, compatibility, or fixtures",
+      "Docker or manually launched third-party daemon as core proof",
+      "provider chat history, UI filtering, or raw paths as authority"
+    ],
+    "implementation_steps": [
+      "Read all no-context authority, confirm packet activation, and confirm dependency verdicts.",
+      "Inspect current implementation and write a failing targeted test or reproducible negative proof for the exact objective.",
+      "Lock exact schemas, APIs, migrations, event families, resources, and enforcement boundaries before implementation.",
+      "Implement the smallest complete behavior through existing product seams.",
+      "Wire PostgreSQL and EventLedger or Flight Recorder plus ResourceBroker, search, memory, model, tool, export, diagnostic, and UI boundaries that consume the changed resource.",
+      "Add success, wrong-account, wrong-Space, same-project-private, stale or revoked context, metadata side-channel, concurrency, restart, and derived-scope tests as applicable.",
+      "Update the in-product UserManual in the same change with purpose, route or command, inputs, outputs, failure, recovery, privacy, and diagnostic posture.",
+      "For GUI work, use native Handshake UI, stable AccessKit and Argus author IDs, headless steering, re-observation, screenshot or tree evidence, layout, accessibility, and renderer-error scans.",
+      "Run targeted and regression proof, inspect exact artifacts, record HBR evidence, and hand off through governed receipts."
+    ],
+    "acceptance_criteria": [
+      "The product implements exactly this objective: Make authorization safe under concurrent read, write, share, revoke, expiry, and Space-switch operations using policy versions, transactions, bounded leases, cancellation, and deterministic receipts.",
+      "Every touched primary and derived resource has stable owner, account, Principal, session, AccessSpace, ResourceGrant, lineage, and policy linkage, or the official refinement records a valid NOT_APPLICABLE reason.",
+      "Wrong-account, wrong-Space, same-project-private, stale or revoked, forged-selector, and metadata-side-channel cases fail closed where applicable.",
+      "Derived outputs, indexes, previews, caches, logs, contexts, exports, backups, and remote copies cannot widen source visibility.",
+      "EventLedger and Flight Recorder cover success, denial, failure, retry or recovery, actor versus owner, and delegation without leaking restricted metadata.",
+      "No SQLite, Docker, application-only, UI-only, or mock-only proof substitutes for real PostgreSQL and executable product boundaries.",
+      "The UserManual is current and a no-context model can operate and recover the behavior."
+    ],
+    "proof_targets": [
+      "Executable task proof demonstrates ConcurrentGrantChangeSafety under authorized and denied contexts.",
+      "cargo test -p handshake_core with the activated MT-specific selector plus relevant regression modules",
+      "real PostgreSQL migration, RLS, and integration proof when durable state is touched",
+      "negative authorization matrix including same-project-private and metadata non-disclosure",
+      "EventLedger and Flight Recorder event and replay inspection",
+      "UserManual diff plus no-context operation and recovery test"
+    ],
+    "expected_tests": [
+      "unit tests for wire, schema, validation, and policy edge cases",
+      "real PostgreSQL integration tests for every durable authority path",
+      "concurrency and revocation race tests wherever state can change during use",
+      "restart, replay, migration, and recovery tests",
+      "cross-account, cross-Space, same-project-private, metadata-side-channel, and derived-scope tests",
+      "API and backend-navigation contract tests",
+      "UserManual no-context test"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "typed backend state plus EventLedger or Flight Recorder trace projection"
+    ],
+    "not_applicable_reason": "Backend, data, or runtime MT; operator behavior is owned by later UI and E2E MTs, while typed trace visibility remains mandatory."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": "WHEN_EXISTING_MANUAL_CONTRACT_REQUIRES",
+    "target_entries": [
+      "Account and Resource Privacy > ConcurrentGrantChangeSafety"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "no_context_operation_and_recovery_test",
+      "Flight Recorder, EventLedger, and three-tier diagnostic posture"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "ConcurrentGrantChangeSafety",
+      "Make authorization safe under concurrent read, write, share, revoke, expiry, and Space-switch operations using policy versions, transactions, bounded leases, cancellation, and deterministic receipts."
+    ],
+    "identity_and_scope_contexts": [
+      "LocalAccount",
+      "Principal",
+      "AuthenticatedSession",
+      "AccountRole when administrative",
+      "MembershipRole when collaborative",
+      "AccessSpace",
+      "ResourceGrant",
+      "delegation chain",
+      "policy and revocation version"
+    ],
+    "enforcement_boundaries": [
+      "real PostgreSQL RLS and FORCE RLS when data-backed",
+      "server-side API and backend navigation",
+      "ResourceBroker and ArtifactStore when file or artifact-backed",
+      "search, index, memory, model, and tool context when consumed",
+      "UI query, preview, export, log, and diagnostic paths when visible"
+    ],
+    "same_project_private_resource_cases": [
+      "Two accounts are members of one project; only explicitly shared resources are mutually visible."
+    ],
+    "cross_account_negative_cases": [
+      "wrong account",
+      "forged account, Principal, session, Space, or resource IDs",
+      "Admin without private-content ResourceGrant"
+    ],
+    "derived_resource_non_widening_cases": [
+      "mixed-scope source intersection",
+      "preview, index, cache, log, context, export, or backup does not widen source scope"
+    ],
+    "revocation_and_context_switch_cases": [
+      "grant, session, account, Space, or Persona change during concurrent operation",
+      "stale cache, model context, or handle is denied"
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "remote identity, token, manifest, collection, or ACL never becomes a local grant automatically; prove when applicable or record exact NOT_APPLICABLE"
+    ],
+    "metadata_side_channel_cases": [
+      "names",
+      "paths",
+      "identifiers",
+      "counts",
+      "facets",
+      "thumbnails",
+      "timing and error classes",
+      "logs, traces, and diagnostics"
+    ],
+    "expected_evidence": [
+      "stable resource linkage",
+      "positive authorization proof",
+      "default-deny negative matrix",
+      "same-project privacy proof",
+      "derived non-widening proof",
+      "attribution and revocation proof",
+      "Argus privacy-state evidence when operator-visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-003",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "WIRED_OR_IMPLEMENTED_IN_THIS_MT",
+      "evidence": "typed business and security events with replay-visible attribution"
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "WIRED_OR_TYPED_DEFERRED_ONLY_IF_NOT_SHIPPED",
+      "evidence": "privacy-safe health and error counters without project content"
+    },
+    {
+      "tier": "palmistry",
+      "posture": "WIRED_OR_TYPED_DEFERRED_ONLY_IF_NOT_SHIPPED",
+      "evidence": "privacy-safe crash or freeze recovery metadata and forwarding posture"
+    }
+  ],
+  "risk_if_missed": "Omitting or compressing ConcurrentGrantChangeSafety leaves this obligation unimplemented or encourages a second authorization model, causing cross-account leakage, weak Flight Recorder attribution, or future shared-workspace and SaaS rework.",
+  "red_team": {
+    "required": true,
+    "profile": "ACCOUNT_RESOURCE_PRIVACY_PREACTIVATION_V1",
+    "risks": [
+      "ConcurrentGrantChangeSafety may pass a happy-path test while failing its exact objective under denied, failure, restart, or concurrent conditions.",
+      "Authorization may exist only in UI or application code while PostgreSQL, filesystem, search, model, tool, export, or diagnostic paths bypass it.",
+      "Failure, never-started, cache, index, diagnostic, export, or derived paths may omit scope and leak restricted existence.",
+      "Concurrent revocation or context switching may race with a previously authorized operation."
+    ],
+    "minimum_controls": [
+      "Start with executable RED behavior against the exact current product seam.",
+      "Enforce at every real resource boundary and test table-owner, runtime-role, path, API, search, model, and tool bypass attempts that apply.",
+      "Use stable resource lineage and source-scope intersection for every derivative and projection.",
+      "Use policy and revocation versions, bounded leases, cancellation or explicit pinned-context behavior, and concurrent tests."
+    ]
+  },
+  "verification": {
+    "required_before_ready_for_validation": true,
+    "commands_to_finalize_at_activation": [
+      "cargo test -p handshake_core <mt-specific-selector> -- --nocapture",
+      "cargo test -p handshake_core <relevant-regression-selector>",
+      "managed PostgreSQL proof command with packet-defined URL and bootstrap",
+      "HBR matrix and validator-scan commands from official packet"
+    ],
+    "proof_artifacts": [
+      "test output",
+      "migration, schema, or policy diff",
+      "runtime event and receipt sample",
+      "negative-case matrix",
+      "UserManual evidence"
+    ],
+    "activation_note": "Replace angle-bracket selectors with exact existing or new test targets during refinement and packet hydration; unresolved placeholders block activation."
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "research_provenance": {
+    "status": "FIELD_ALIGNED_BASIS_TO_REVERIFY_AT_ACTIVATION",
+    "sources": [
+      "PostgreSQL Row Security Policies",
+      "Google Zanzibar",
+      "AWS SaaS tenant isolation",
+      "OpenFGA",
+      "MCP authorization specification",
+      "Hugging Face resource groups and tokens",
+      "Civitai collections and API"
+    ],
+    "selected_approach": "Handshake-specific LocalAccount, Principal, AccessSpace, ResourceGrant, and Persona separation with PostgreSQL RLS, brokered resources, explicit delegation, derived-scope intersection, and remote audience and quarantine continuity.",
+    "rejected_options": [
+      "UI filtering as security",
+      "project membership as blanket read",
+      "Persona or Profile as authorization",
+      "SQLite or mock-only authority proof",
+      "provider or service identity automatically inheriting local human authority"
+    ]
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_file": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "generated_at_utc": null,
+    "generator": "PENDING_DEMAND"
+  }
+}

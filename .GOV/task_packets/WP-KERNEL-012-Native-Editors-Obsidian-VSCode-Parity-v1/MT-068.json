@@ -14,7 +14,7 @@
   "title": "E10-MT-068-LocusWorkPacketCrossReferenceInterop",
   "group": "E10 Interop edges (cross-pillar force multipliers)",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-26T05:07:46.578Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-068.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt068",
       "mode": "VERIFY_AND_PROVE",
@@ -42,7 +42,7 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -84,11 +84,39 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260707-224033",
-    "claimed_at_utc": "2026-07-08T05:44:22.187Z",
+    "claimed_by_before_v3": "KERNEL_BUILDER-20260707-224033",
+    "claimed_at_utc_before_v3": "2026-07-08T05:44:22.187Z",
+    "claimed_by": "KERNEL_BUILDER-20260725-202657",
+    "claimed_at_utc": "2026-07-26T03:30:42.2378989Z",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T05:44:22.187Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260725-202657",
+    "ready_for_validation_at_utc": "2026-07-26T05:07:46.578Z",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "ACCEPTED_BY_THREE_INDEPENDENT_REVIEWERS_2026-07-26",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-26T05:07:46.578Z",
+    "rfv_evidence_2026_07_26": {
+      "by": "KERNEL_BUILDER-20260725-202657",
+      "mode": "FAIL_V2_REMEDIATION_REAL_POSTGRESQL_CANONICAL_ARGUS_AND_ALIAS_BOUNDARY_HARDENING",
+      "source_head": "d9d275c40ad8a27f7b238a28ef7170025937e0ac",
+      "source_tree": "a591ea2c405e23d5e8c53b792f38846b274bc56c",
+      "product_commits": [
+        "564a617a",
+        "4e9db00f",
+        "83e2c5e7",
+        "e8ef7dfd",
+        "a8611570",
+        "439d7935",
+        "d9d275c4"
+      ],
+      "canonical_proof": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-068/canonical-argus/run-d9d275c40ad8-3cfb84a66e454e72b8c0129915e74d5d/mt068-locus-canonical-argus.json",
+      "proof": "Exact current-source managed-PostgreSQL proof passed. Persisted WP and MT references survive same-listener backend restart, resolve through the live read routes, reverse lookup returns the canonical RichDocument exactly once per ref, a real same-document legacy Loom alias is returned by search for both queries but excluded by the canonical block_id == source_rich_document_id rule, missing records remain typed NotFound/unresolved, and canonical Argus inspect/click/re-observe reaches exact WP/MT navigation identities through stable Button targets.",
+      "diagnostics": "Two successful clicks emitted four typed Flight Recorder rows in resolved-then-reverse causal order and eight PostgreSQL kernel_event_ledger pending/complete mirror receipts. The built-in UserManual now declares Tier 1 WIRED through locus_ref_resolved and locus_reverse_lookup and explains inspection/recovery without fabricated failure success.",
+      "verification": "Nineteen non-live MT-068 tests passed; the managed-PG canonical proof and separate live case-robust reverse-lookup test passed; the exact UserManual test passed; native Linux WSL cargo check --lib --locked passed. All four 1440x900 proof images were directly inspected, all PNG hashes and fourteen source blobs were independently recomputed, and direct PostgreSQL queries confirmed zero WP, MT, alias block, legacy document, or EventLedger fixture residue.",
+      "reviews": "Three independent final adversarial reviews (canonical Argus/visual, correctness/runtime, and spec/UserManual) returned ACCEPT at exact head d9d275c4. The correctness review's initial full-document transclusion counterexample caused a second hardening cycle and was closed by both a production-shaped unit regression and the real managed-PG alias boundary proof.",
+      "validator_boundary": "validator_verdict remains FAIL_V2 as preserved official history; completed_by remains null. This is an implementer READY_FOR_VALIDATION_V3 handoff, not self-validation."
+    },
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
       "mode": "VERIFY_AND_PROVE + small coder fix (add gated live reverse-lookup case-robustness test) + NEEDS_MANAGED_RESOURCE_PROOF",
@@ -402,5 +430,28 @@
       ],
       "no_context_instruction": "Read MT-068.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
-  }
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-068 FAIL V2. Locus WP/MT cross-reference UI lacks a current canonical Argus inspect/steer/re-observe run over real persisted references. Mock or AccessKit coverage does not establish resolution, reverse lookup, navigation, and typed missing/stale behavior on the mounted surface.",
+  "remediation_plan": [
+    "Seed real persisted WP/MT references and prove forward resolution, reverse lookup, missing/stale references, restart readback, and exact navigation receipts.",
+    "Drive the mounted Locus interaction through canonical Argus with stable targets, safe action, and fresh post-action inspection; align canonical UserManual diagnostics."
+  ],
+  "no_context_instruction": "Read MT-068.json and current authorities. Prove real persisted reference behavior and canonical Argus interaction before READY_FOR_VALIDATION_V3."
+}
 }

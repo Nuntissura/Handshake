@@ -1,0 +1,181 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-042",
+  "title": "CX-MT042-ThreadLifecycleMapping",
+  "group": "CX Codex app-server transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-042.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-041",
+      "MT-001",
+      "MT-003",
+      "MT-006"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Map thread/start|resume|fork|list|read|rollback onto AgentThread + session persistence, cwd pinning, capability snapshot",
+  "scope": {
+    "summary": "GOAL: Map the Codex app-server thread lifecycle methods (thread/start, thread/resume, thread/fork, thread/list, thread/read, thread/rollback) onto Handshake's internal session model: the MT-001 AgentThread model, the MT-006 session-persistence/resume seam, and the MT-003 capability descriptor. Pin every thread's cwd to the owning Handshake session's worktree directory, and publish an accurate capabilities snapshot for this adapter (Resume, ForkSession, SteerMidTurn, InterruptMidTurn all true).\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/threads.rs implementing CodexThreadAdapter over the MT-041 AppServerClient, plus a capabilities function/const, plus unit tests. Small re-export additions in codex_app_server/mod.rs. No changes to the MT-041 transport core beyond consuming its public API; no changes to session-core seams (MT-001/003/006 are dependencies, not authoring targets).\n\nDETAILED SPEC:\n1. THREAD MAPPING. CodexThreadAdapter exposes: start_thread(session_ctx) -> AgentThread (calls thread/start, records the returned thread_id); resume_thread(persisted) -> AgentThread (thread/resume with the codex thread/session id previously persisted via MT-006); fork_thread(thread) -> AgentThread (thread/fork - new thread branching from the source thread's history); list_threads(page) (thread/list, used by the MT-041 health probe and by reconciliation); read_thread(thread_id) (thread/read - returns the thread's persisted items for transcript backfill); rollback_thread(thread_id, n_or_point) (thread/rollback - drops trailing items so a turn can be re-run from an earlier point; surface the exact rollback addressing shape from the generated schema, do not invent one). Every mapped call returns typed results using the MT-041 protocol bindings; every failure is a typed CodexAppServerError.\n2. IDENTITY + PERSISTENCE (MT-006). The AgentThread row persists: codex thread_id, adapter kind (codex_app_server), the session worktree cwd it was pinned to, created/resumed timestamps, and the last known turn state. Codex itself persists sessions as JSONL under ~/.codex/sessions/YYYY/MM/DD/ - Handshake does NOT parse those files; resume correctness is delegated to thread/resume with the stored id. Persistence rows go through the MT-006 seam so a Handshake restart can re-attach: on resume, call thread/resume and verify the server acknowledges the id; a NotFound-class JSON-RPC error maps to a typed ResumeTargetMissing outcome that the supervisor can surface (never a silent new thread).\n3. CWD PINNING. thread/start params must carry the session worktree directory as the thread cwd. Follow the F10-gap lesson from the exec lane: production_factory.rs cli_bridge_config_with_working_dir (lines 490-505) exists precisely because a recorded-attribution-only working_dir was a bug; here the cwd MUST be the effective execution cwd of the thread. The cwd is validated absolute + existing before thread/start; a missing worktree is a typed error, not a fallback to the process cwd. The pinned cwd is immutable for the thread's lifetime; fork inherits the source thread's cwd unless the caller supplies a different session worktree explicitly.\n4. CAPABILITIES SNAPSHOT (MT-003). Publish a static-typed capability descriptor for this adapter: Resume=true, ForkSession=true, SteerMidTurn=true, InterruptMidTurn=true (turn/steer and turn/interrupt are first-class app-server methods; MT-043 wires them). The snapshot is what the MT-046 adapter-selection policy reads; it must be exact - a capability listed true here must have a live contract test in MT-047.\n5. STATE MODEL. Thread states surfaced to MT-001: Starting, Idle (no active turn), TurnActive, Interrupted, Closed, Failed(typed). thread.started notifications from the event stream confirm Starting->Idle. Turn-level state transitions belong to MT-043; this MT only guarantees the thread-level container states and their persistence.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the delivered MT-001 (AgentThread model), MT-003 (capability descriptor), MT-006 (persistence/resume seam) code and the MT-041 client public API in the implementation worktree.\n2. Author threads.rs with CodexThreadAdapter struct holding Arc<AppServerClient> + the MT-006 persistence handle + the session context (session id, worktree dir).\n3. Implement start_thread with cwd validation + persistence write + thread.started confirmation await (bounded).\n4. Implement resume_thread with ResumeTargetMissing mapping; implement fork_thread with cwd inheritance rules; implement list/read/rollback pass-throughs with typed results.\n5. Implement the capabilities snapshot per spec item 4 and register it with the MT-003 seam.\n6. Unit-test against the MT-041 fake transport: scripted JSONL conversations for each method incl. error paths (NotFound resume, invalid rollback point), cwd validation failures, and persistence round-trip (write -> reload -> resume uses stored id).\n7. Run proof targets and record outputs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/threads.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs (re-exports only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/tests/** (if tests are split out)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI work in this MT)",
+      "session-core seam modules delivered by MT-001/MT-003/MT-006 (consume their public APIs; do not modify)"
+    ],
+    "acceptance_criteria": [
+      "CodexThreadAdapter maps all six thread methods (start/resume/fork/list/read/rollback) to typed calls over the MT-041 client and compiles green.",
+      "thread/start carries the session worktree cwd; an absent/relative/missing-directory cwd is a typed error BEFORE any RPC is sent (test).",
+      "AgentThread persistence row (codex thread_id, adapter kind, pinned cwd, timestamps, last state) round-trips through the MT-006 seam: write -> reload -> resume_thread reuses the stored id (test).",
+      "resume_thread maps a NotFound-class JSON-RPC error to typed ResumeTargetMissing; it never silently starts a new thread (negative test).",
+      "fork_thread yields a distinct thread_id and inherits the source cwd unless an explicit new session worktree is supplied (test).",
+      "rollback_thread uses the schema-defined addressing shape and surfaces a typed error for an invalid rollback point (test).",
+      "Capabilities snapshot reports Resume=true, ForkSession=true, SteerMidTurn=true, InterruptMidTurn=true and is registered through the MT-003 seam (test asserts exact values).",
+      "Thread-level states Starting/Idle/TurnActive/Interrupted/Closed/Failed are surfaced to the MT-001 model and persisted on transition (test).",
+      "No modification to MT-001/003/006 seam modules or to the MT-041 transport core (mechanical diff check)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core model_runtime::cloud::codex_app_server::threads -- --nocapture",
+      "cargo clippy -p handshake_core -- -D warnings",
+      "HSK_CODEX_LIVE=1 cargo test -p handshake_core codex_thread_lifecycle_live -- --nocapture --ignored  # live start/resume/fork against real CLI; absent CLI/login => typed NEEDS_MANAGED_RESOURCE_PROOF, never silent skip"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/threads.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs",
+      "MT-001 AgentThread model seam (consumed)",
+      "MT-003 capability descriptor seam (consumed)",
+      "MT-006 session persistence/resume seam (consumed)",
+      "production_factory.rs cli_bridge_config_with_working_dir lines 490-505 (cwd-pinning precedent, reference only)"
+    ],
+    "expected_tests": [
+      "start_thread_pins_validated_worktree_cwd",
+      "invalid_cwd_rejected_before_rpc",
+      "persistence_round_trip_resume_uses_stored_id",
+      "resume_not_found_maps_to_resume_target_missing",
+      "fork_inherits_cwd_unless_overridden",
+      "rollback_invalid_point_typed_error",
+      "capabilities_snapshot_exact_values",
+      "thread_state_transitions_persisted",
+      "codex_thread_lifecycle_live (live-gated; typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent)"
+    ],
+    "implementation_notes": [
+      "Do not parse ~/.codex/sessions JSONL files; that is codex-internal persistence. Handshake's durable truth is the MT-006 row plus thread/resume acknowledgement.",
+      "The exact param/result field names for thread methods come from `codex app-server generate-json-schema` (MT-041 records the authored-against version); align threads.rs to the MT-041 protocol.rs bindings rather than re-declaring shapes.",
+      "Thread ids from codex are opaque strings; store verbatim. Internal Handshake row ids follow HBR-INT-008 (Uuid::now_v7).",
+      "Reconciliation guard: list_threads is the truth-check used after reconnect; if a persisted thread is missing server-side, mark the row ResumeTargetMissing rather than deleting it (operator-visible recovery decision).",
+      "Keep the adapter Send+Sync; multiple sessions each own their own CodexThreadAdapter over a shared or per-session client per the MT-005 supervisor policy - do not hard-code one global client."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend adapter MT: no operator-visible surface changed; visual verification = TraceProjection per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal lifecycle mapping; the operator-facing Codex-lane manual entry (steer/interrupt/approvals/lane selection) is owned by MT-043/MT-044/MT-046. If the UserManual artifact is absent in the implementation worktree, record DEFERRED-with-reason per HBR-MAN-001."
+  },
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "Thread lifecycle transitions (start/resume/fork/rollback/close/fail) emit FR business events; full kind mapping is MT-045 (MT-161 kinds)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "Recorded DEFERRED-with-reason if internal_diagnostics is not present in the implementation worktree at claim time; never silently skipped."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "Thread liveness is covered by the MT-041 health probe + MT-005 supervisor; external-watcher registration deferred there; recorded, never silently skipped."
+    }
+  ],
+  "risk_if_missed": "Codex threads are unaddressable from Handshake's session model: no resume after restart, no fork, wrong-cwd agent runs against the wrong worktree, and MT-043/044/045/046 have no thread container to build on.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Wrong-cwd execution - a thread started without a validated worktree cwd lets the agent read/write an unintended directory (repeat of the exec-lane F10 gap).",
+      "RISK-2: Silent resume divergence - resume failure falling back to a fresh thread quietly discards history and produces untraceable transcripts.",
+      "RISK-3: Capability over-claim - advertising SteerMidTurn/Resume without live proof routes work to a lane that cannot honor it (MT-046 policy reads this snapshot).",
+      "RISK-4: Persistence drift - AgentThread rows referencing threads that no longer exist server-side cause crash-loops on reattach."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): cwd validated absolute+existing before any RPC; pinned immutable; test + negative test; precedent cited (production_factory.rs 490-505).",
+      "CTRL-2 (RISK-2): typed ResumeTargetMissing outcome; negative test proves no silent new-thread fallback.",
+      "CTRL-3 (RISK-3): capability snapshot values are contract-tested here AND live-tested in MT-047; snapshot cannot be edited without failing MT-047's probe.",
+      "CTRL-4 (RISK-4): list_threads reconciliation marks missing threads typed instead of deleting or crash-looping; test."
+    ]
+  },
+  "research_provenance": {
+    "source": "OpenAI Codex CLI official docs (developers.openai.com/codex): app-server thread methods thread/start, thread/resume, thread/fork, thread/list, thread/read, thread/rollback; Thread->Turn->Item primitives; sessions persisted as JSONL under ~/.codex/sessions/YYYY/MM/DD/; typed schema via `codex app-server generate-json-schema`.",
+    "grounding_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
+    "verified_code_refs": [
+      "production_factory.rs cli_bridge_config_with_working_dir lines 490-505 (working_dir must be the real execution cwd, not attribution-only - the F10-gap precedent motivating cwd pinning)",
+      "production_factory.rs build_loaded lines 580-620 (session working_dir plumbed onto the per-session config)",
+      "official_cli_bridge.rs codex-home guard lines 938-961 (CODEX_HOME/USERPROFILE resolution + authenticated-CLI precondition pattern)"
+    ],
+    "rejected_options": [
+      "Parsing ~/.codex/sessions JSONL directly for resume (codex-internal format; thread/resume is the supported contract)",
+      "Mutable thread cwd (re-pinning mid-life invites wrong-worktree writes)",
+      "Auto-starting a new thread when resume fails (silent history loss)"
+    ],
+    "selected_approach": "Thin typed lifecycle adapter over the MT-041 client, session-worktree cwd pinned at start, MT-006-persisted thread identity with typed resume-miss handling, and an exact MT-003 capability snapshot (Resume/ForkSession/SteerMidTurn/InterruptMidTurn all true)."
+  }
+}

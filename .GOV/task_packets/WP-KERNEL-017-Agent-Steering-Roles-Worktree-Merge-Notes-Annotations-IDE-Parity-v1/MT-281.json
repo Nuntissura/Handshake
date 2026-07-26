@@ -1,0 +1,193 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-281",
+  "title": "IP-MT281-ParityMatrixArtifact",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-281.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Stand up the machine-readable IDE-parity matrix + a re-runnable Rust checker that is the honest tracking spine for the whole IP family (MT-282..290). Operator judgment 2026-07-21: 'the notes module is still missing a lot of VS Code / Antigravity features to be a professional grade IDE.' This MT does NOT close a feature gap itself; it records, in one auditable artifact, every VS Code / Antigravity baseline feature that was checked against the native editors, its verdict (PRESENT | PARTIAL | MISSING | COVERED_ELSEWHERE(owner) | DEFERRED(reason)), the evidence that verdict rests on, and — for every non-PRESENT row — the owning MT that closes it or the explicit DEFERRED reason. The checker fails CI if any MISSING/PARTIAL row has no owning MT and no DEFERRED reason, so the parity picture can never silently rot.\n\nEXPECTED DIFF SHAPE: (a) NEW machine-readable matrix src/frontend/handshake_native/tests/ide_parity/ide_parity_matrix.json (schema hsk.ide_parity_matrix@1) seeded with the full verified initial matrix embedded in this contract (see scope.embedded_parity_matrix); (b) NEW checker src/frontend/handshake_native/tests/test_ide_parity_matrix.rs that loads the matrix, validates schema + invariants, and asserts every non-PRESENT row is either owned by an MT id in this WP or carries a DEFERRED reason; (c) [[test]] registration in src/frontend/handshake_native/Cargo.toml (name = 'test_ide_parity_matrix', harness = true). A snapshot copy of each passing run is written under the external HANDSHAKE_ARTIFACTS_ROOT (product evidence), never into the repo target dir. NO product-source edits; NO backend edits; this is a proof/tracking artifact only.\n\nDETAILED SPEC:\n1. hsk.ide_parity_matrix@1 row shape (each object): { feature_id (kebab-case, unique), baseline_source ('vscode' | 'antigravity' | 'obsidian-class'), area ('code_editor' | 'rich_editor' | 'shell' | 'both'), status ('PRESENT' | 'PARTIAL' | 'MISSING' | 'COVERED_ELSEWHERE' | 'DEFERRED'), owner (for COVERED_ELSEWHERE: the owning WP/MT string; else null), owning_mt (for MISSING/PARTIAL: the IP MT id that closes it; else null), deferred_reason (for DEFERRED: a non-empty reason; else null), evidence_ref (the module path or task id the verdict was read from) }.\n2. The matrix file top-level: { schema_id: 'hsk.ide_parity_matrix@1', generated_at_utc, source_worktree: 'wtc-native-editors-v1', rows: [ ... ] }.\n3. Checker invariants (each a distinct assertion): (INV-1) schema_id matches and every row parses to the typed Row; (INV-2) feature_id values are unique; (INV-3) status is one of the five literals; (INV-4) every MISSING or PARTIAL row has a non-null owning_mt that matches the /^MT-\\d{3}$/ shape AND names an MT file that exists on disk in THIS packet dir (the checker globs .GOV/... is NOT reachable from the crate; instead it validates owning_mt is within the declared IP id range 282..320 and non-null — repo-path coupling is avoided so the test stays disk-agnostic per portability policy); (INV-5) every COVERED_ELSEWHERE row has a non-null owner string; (INV-6) every DEFERRED row has a non-empty deferred_reason; (INV-7) PRESENT/COVERED_ELSEWHERE rows have null owning_mt (a closed feature must not also claim an open MT). The checker prints a compact verdict-count summary line (PRESENT/PARTIAL/MISSING/COVERED_ELSEWHERE/DEFERRED) to stdout.\n4. Re-runnable: the checker is a pure test over the committed JSON — no network, no PG, no GUI. It is the gate a later validator re-runs to confirm the IP family's tracking artifact is internally consistent. When a new IP MT is added or a verdict flips, the matrix JSON is edited and this checker re-run; drift between the matrix and the actual MT set surfaces as a failing invariant.\n5. Product evidence: on a passing run the checker copies the matrix to $HANDSHAKE_ARTIFACTS_ROOT/wp-kernel-017/mt-281/ide_parity_matrix.<run_id>.json (external artifacts root only; skip the copy with a logged note if the env var is unset — never write into the repo).\n\nSTEP-BY-STEP:\n1. Author ide_parity_matrix.json embedding EXACTLY the rows in scope.embedded_parity_matrix (the full verified initial matrix from the 2026-07-21 source inspection of wtc-native-editors-v1).\n2. Author test_ide_parity_matrix.rs: typed Row + Matrix structs (serde), a loader, and one test function per invariant INV-1..7 plus a summary-count test; use serde_json only (already a workspace dep).\n3. Register the [[test]] in Cargo.toml.\n4. Run the checker; confirm all invariants pass on the seeded matrix; capture the stdout verdict-count summary as evidence.\n5. Write the external-artifact snapshot; record the run_id.",
+    "embedded_parity_matrix": {
+      "schema_id": "hsk.ide_parity_matrix@1",
+      "source_worktree": "wtc-native-editors-v1",
+      "inspection_date_utc": "2026-07-21",
+      "rows": [
+        { "feature_id": "command-palette", "baseline_source": "vscode", "area": "both", "status": "COVERED_ELSEWHERE", "owner": "WP-KERNEL-011/MT-016", "owning_mt": null, "deferred_reason": null, "evidence_ref": "WP-KERNEL-011 MT-016 CommandPalette; src/command_registry.rs" },
+        { "feature_id": "split-editors-drag-dock", "baseline_source": "vscode", "area": "both", "status": "COVERED_ELSEWHERE", "owner": "WP-KERNEL-011/MT-005,MT-006,MT-007", "owning_mt": null, "deferred_reason": null, "evidence_ref": "src/pane_registry.rs, split_layout, WP-011 MT-007 TabbedRegionsMovePinDirtyDrag" },
+        { "feature_id": "workspace-search-replace-glob", "baseline_source": "vscode", "area": "both", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "src/find_in_files.rs (WP-012 MT-029 FindInFiles)" },
+        { "feature_id": "quick-open-goto-file", "baseline_source": "vscode", "area": "both", "status": "COVERED_ELSEWHERE", "owner": "WP-KERNEL-011/MT-017,WP-KERNEL-012/MT-030", "owning_mt": null, "deferred_reason": null, "evidence_ref": "src/quick_switcher.rs; WP-012 MT-030 QuickSwitcherIntegration" },
+        { "feature_id": "goto-symbol-def-refs", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/code_nav.rs (MT-039), code_editor/symbol_palette.rs (MT-053)" },
+        { "feature_id": "peek-view", "baseline_source": "vscode", "area": "code_editor", "status": "MISSING", "owner": null, "owning_mt": "MT-282", "deferred_reason": null, "evidence_ref": "no peek module in code_editor/; code_nav gives def/refs as side panels only, no inline peek overlay" },
+        { "feature_id": "rename-refactor", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/rename.rs (MT-048)" },
+        { "feature_id": "code-folding", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/folding.rs (MT-005)" },
+        { "feature_id": "sticky-scroll", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/sticky_scroll.rs (MT-053)" },
+        { "feature_id": "bracket-pair-colorization", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/render_decorations.rs (MT-054)" },
+        { "feature_id": "snippet-expansion-engine", "baseline_source": "vscode", "area": "code_editor", "status": "MISSING", "owner": null, "owning_mt": "MT-284", "deferred_reason": null, "evidence_ref": "no snippet tab-stop/placeholder engine in code_editor/; 'snippet' only appears as search-preview/alias strings; rich-editor slash_commands is a distinct command menu, not code-snippet expansion" },
+        { "feature_id": "format-document-selection", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/formatting.rs (MT-050)" },
+        { "feature_id": "format-on-save-actions", "baseline_source": "vscode", "area": "code_editor", "status": "MISSING", "owner": null, "owning_mt": "MT-289", "deferred_reason": null, "evidence_ref": "no format_on_save / trim-trailing-whitespace-on-save / final-newline trigger; formatting.rs is manual Format Document/Selection only" },
+        { "feature_id": "lsp-completions-hover-signature-actions-diagnostics", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "lsp_client.rs (MT-008), editor_view.rs completions/hover, signature_help.rs (MT-047), code_actions.rs (MT-049), gutter diagnostics (MT-007)" },
+        { "feature_id": "editor-symbol-breadcrumbs", "baseline_source": "vscode", "area": "code_editor", "status": "PARTIAL", "owner": null, "owning_mt": "MT-283", "deferred_reason": null, "evidence_ref": "sticky_scroll pins enclosing lines but there is NO clickable path+symbol breadcrumb bar; the only breadcrumb code is graph/sidebar_panel.rs (Loom block navigation), not an editor breadcrumb" },
+        { "feature_id": "keybinding-customization", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/keymap_settings.rs (MT-010)" },
+        { "feature_id": "settings-ui", "baseline_source": "vscode", "area": "both", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "src/settings_dialog.rs (WP-012 MT-072), WP-011 MT-018 SettingsOptionsDialog" },
+        { "feature_id": "integrated-terminal", "baseline_source": "vscode", "area": "shell", "status": "COVERED_ELSEWHERE", "owner": "WP-KERNEL-012/MT-100", "owning_mt": null, "deferred_reason": null, "evidence_ref": "WP-012 MT-100 TerminalLaunchInRepoFolderWithWrapper" },
+        { "feature_id": "scm-dirty-diff-gutter", "baseline_source": "vscode", "area": "code_editor", "status": "MISSING", "owner": null, "owning_mt": "MT-285", "deferred_reason": null, "evidence_ref": "gutter.rs GutterMarkerKind = Diagnostic|Breakpoint|FoldTriangle only; source_control.rs is a change-LIST panel, not an in-editor added/modified/deleted gutter with revert-hunk" },
+        { "feature_id": "inline-git-blame", "baseline_source": "antigravity", "area": "code_editor", "status": "MISSING", "owner": null, "owning_mt": "MT-286", "deferred_reason": null, "evidence_ref": "source_control.rs dispatches a blame DISPLAY event to a panel; there is no end-of-line inline blame annotation in the editor body" },
+        { "feature_id": "timeline-local-history", "baseline_source": "vscode", "area": "both", "status": "MISSING", "owner": null, "owning_mt": "MT-290", "deferred_reason": null, "evidence_ref": "rich_editor/save draft recovery (MT-020) is crash recovery, not a per-file version+commit timeline; no Timeline panel" },
+        { "feature_id": "whitespace-render-indent-guides", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/file_meta.rs RenderWhitespace (MT-071), render_decorations indent guides (MT-054)" },
+        { "feature_id": "minimap", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/minimap.rs (MT-006)" },
+        { "feature_id": "outline-view", "baseline_source": "vscode", "area": "both", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/outline.rs (MT-006), rich_editor/outline_panel.rs (MT-056)" },
+        { "feature_id": "diff-merge-editor", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/diff_editor_panel.rs + diff_engine.rs (MT-009); prose diff PD MT-241/242" },
+        { "feature_id": "multi-cursor", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/cursor.rs CursorSet (MT-003)" },
+        { "feature_id": "large-file-virtualization", "baseline_source": "vscode", "area": "code_editor", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "code_editor/virtual_lines.rs (MT-002)" },
+        { "feature_id": "zen-distraction-free-mode", "baseline_source": "vscode", "area": "shell", "status": "DEFERRED", "owner": null, "owning_mt": null, "deferred_reason": "Zen/distraction-free mode hides shell chrome (rails, tabs, status bar); it is a WP-011 native-shell layout concern, not an editor-surface feature, and is low value for professional-IDE parity relative to the closed gaps. Revisit as a WP-011 shell item if the operator prioritizes it." },
+        { "feature_id": "ai-inline-edit-ghost-text", "baseline_source": "antigravity", "area": "code_editor", "status": "MISSING", "owner": null, "owning_mt": "MT-287", "deferred_reason": null, "evidence_ref": "editor_view.rs has LSP CompletionPopup only; no ghost-text inline AI edit preview with accept/reject wired to the WP-017 session API (MT-007)" },
+        { "feature_id": "ai-chat-dock", "baseline_source": "antigravity", "area": "both", "status": "PRESENT", "owner": null, "owning_mt": null, "deferred_reason": null, "evidence_ref": "WP-012 MT-098 ChatboxPaneBesideWorksurface" },
+        { "feature_id": "agent-editor-context-attach", "baseline_source": "antigravity", "area": "both", "status": "MISSING", "owner": null, "owning_mt": "MT-288", "deferred_reason": null, "evidence_ref": "interop/interaction_bus.rs carries clipboard/selection only; no 'add selection/file/symbol to agent context' path feeding the WP-017 session API (MT-007) initial_prompt/steer context" },
+        { "feature_id": "agent-multifile-edit-review", "baseline_source": "antigravity", "area": "both", "status": "COVERED_ELSEWHERE", "owner": "WP-KERNEL-017/MT-146,MT-221..226", "owning_mt": null, "deferred_reason": null, "evidence_ref": "WP-017 WM MT-146 MergeReviewGuiFlow + NA annotation review families cover agent multi-file edit review" }
+      ]
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/ide_parity/**",
+      "src/frontend/handshake_native/tests/test_ide_parity_matrix.rs",
+      "src/frontend/handshake_native/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (no backend; pure tracking artifact)",
+      "src/frontend/handshake_native/src/** (no product-source edits; this MT is the tracking spine, not a feature)"
+    ],
+    "acceptance_criteria": [
+      "src/frontend/handshake_native/tests/ide_parity/ide_parity_matrix.json exists, is valid JSON, has schema_id 'hsk.ide_parity_matrix@1', and embeds EXACTLY the rows in scope.embedded_parity_matrix (every candidate from the baseline scan with verdict + evidence_ref).",
+      "Every MISSING or PARTIAL row has a non-null owning_mt in the IP range (MT-282..MT-320); every COVERED_ELSEWHERE row has a non-null owner; every DEFERRED row has a non-empty deferred_reason.",
+      "test_ide_parity_matrix.rs implements invariants INV-1..INV-7 as distinct assertions and prints a verdict-count summary line to stdout.",
+      "The checker is re-runnable with no network/PG/GUI dependency (pure test over committed JSON).",
+      "cargo test -p handshake-native ide_parity_matrix compiles and every invariant test passes on the seeded matrix.",
+      "A passing-run snapshot is written under $HANDSHAKE_ARTIFACTS_ROOT only (never the repo target dir); if the env var is unset the copy is skipped with a logged note.",
+      "No file under src/frontend/handshake_native/src/** or src/backend/** is modified (grep-provable: only tests/ide_parity/**, the checker, and Cargo.toml [[test]] change)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native ide_parity_matrix -- --nocapture 2>&1 | grep -E 'PRESENT=[0-9]+ .*MISSING=[0-9]+'",
+      "python -c \"import json,sys; m=json.load(open('src/frontend/handshake_native/tests/ide_parity/ide_parity_matrix.json')); rows=m['rows']; bad=[r for r in rows if r['status'] in ('MISSING','PARTIAL') and not r.get('owning_mt')]; print('unowned_open:',len(bad)); assert not bad\"",
+      "python -c \"import json; m=json.load(open('src/frontend/handshake_native/tests/ide_parity/ide_parity_matrix.json')); ids=[r['feature_id'] for r in m['rows']]; assert len(ids)==len(set(ids)), 'dup feature_id'\"",
+      "git diff --name-only | grep -vE 'tests/ide_parity/|test_ide_parity_matrix.rs|Cargo.toml' | grep -q . && echo 'UNEXPECTED_EDIT' || echo 'SCOPE_CLEAN'"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/tests/ide_parity/ide_parity_matrix.json (new matrix artifact)",
+      "src/frontend/handshake_native/tests/test_ide_parity_matrix.rs (new checker)",
+      "src/frontend/handshake_native/Cargo.toml ([[test]] registration)"
+    ],
+    "expected_tests": [
+      "inv1: schema_id matches and every row deserializes to the typed Row",
+      "inv2: feature_id uniqueness",
+      "inv3: status literal is one of the five allowed",
+      "inv4: MISSING/PARTIAL rows carry a well-formed owning_mt in the IP range",
+      "inv5: COVERED_ELSEWHERE rows carry a non-null owner",
+      "inv6: DEFERRED rows carry a non-empty reason",
+      "inv7: PRESENT/COVERED_ELSEWHERE rows carry null owning_mt",
+      "summary: verdict-count line printed and totals equal row count"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): code_editor/ modules present = breakpoints, buffer, code_actions, code_nav, cursor, diff_editor_panel, diff_engine, editor_view, file_meta, find_replace, folding, formatting, gutter, highlight, jump_history, keymap, keymap_settings, language_mode, line_ops, lsp_client, minimap, navigation, note_refs_panel, outline, panel, render_decorations, rename, signature_help, sticky_scroll, symbol_palette, virtual_lines, word_wrap. rich_editor/ modules = daily_notes, document_model, embeds, find_replace, formatting, inline_tags, markdown_render, outline_panel, properties, reading_mode, renderer, save, slash_commands, wikilinks. src/source_control.rs is a change-LIST panel (SCM), not an editor gutter. graph/sidebar_panel.rs owns the ONLY breadcrumb code (Loom navigation).",
+      "The matrix is a TRACKING artifact under GLOBAL-GOVARTIFACTS (machine-readable, non-authority projection); it is not a spec. When an IP MT lands or a verdict flips, edit the JSON and re-run the checker.",
+      "INV-4 deliberately validates owning_mt by shape + IP range, NOT by resolving a .GOV path, so the test stays disk-agnostic (GLOBAL-PORTABILITY) — the crate must not reach into the governance tree.",
+      "Cross-family seams (reference only): every owning_mt in this matrix (MT-282..290) is a sibling IP contract in this same packet; the checker does not import them, it only asserts the id shape."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Machine-readable parity-tracking artifact + a pure Rust checker test; there is no operator-facing surface. The verdict-count stdout line and the external-artifact snapshot are the trace projection."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal tracking/proof artifact with no operator-visible product behavior; the IP feature MTs (MT-282..290) each carry their own UserManual obligations."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure synchronous checker test emits no runtime business events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The verdict-count summary + per-invariant assertion failures give a no-context model an exact, typed reason why the parity matrix is inconsistent, with the offending feature_id named."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "No long-running child process; the checker is a synchronous test."
+    }
+  ],
+  "risk_if_missed": "Without a single machine-readable parity matrix + checker, the IP family's gap list lives only in prose: verdicts drift from the code, closed gaps still read as open (and vice versa), and no gate proves that every MISSING feature actually has an owning MT. The whole 'professional-grade IDE parity' claim becomes unauditable.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Matrix rots — a feature verdict flips to PRESENT in code but the matrix still says MISSING (or an MT closes a gap and the row is never updated), so the artifact lies about parity.",
+      "RISK-2: Fake ownership — a MISSING row points at an owning_mt that does not exist or is outside the IP range, so the gate passes while the gap is actually unowned.",
+      "RISK-3: Repo coupling — the checker reaches into .GOV/ to resolve owning_mt files, breaking disk-agnostic portability and coupling the product crate to the governance tree.",
+      "RISK-4: Evidence-free verdicts — rows carry a status with no evidence_ref, so a reviewer cannot tell whether PRESENT was actually verified against source or guessed.",
+      "RISK-5: Artifact leak — a passing-run snapshot is written into the repo target dir instead of the external artifacts root, polluting the worktree and git status."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The checker is the re-run gate; a validator re-runs it after any IP MT lands. INV-7 (PRESENT/COVERED_ELSEWHERE => null owning_mt) forces a deliberate edit when a gap closes, catching stale rows.",
+      "CTRL-2 (RISK-2): INV-4 asserts owning_mt matches /^MT-\\d{3}$/ and is within the declared IP range 282..320; a test fixture with a bogus owning_mt asserts the checker FAILS.",
+      "CTRL-3 (RISK-3): INV-4 validates by id shape + range only, never by resolving a governance path; a grep proof asserts the checker source contains no '.GOV' or absolute path.",
+      "CTRL-4 (RISK-4): INV-1 requires evidence_ref to be a non-empty string on every row; a fixture with an empty evidence_ref asserts failure.",
+      "CTRL-5 (RISK-5): The snapshot writer targets $HANDSHAKE_ARTIFACTS_ROOT only and skips with a logged note when unset; a scope-clean git-diff proof (only tests/ide_parity/**, checker, Cargo.toml) is part of proof_targets."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/src/: enumerated code_editor/mod.rs + rich_editor/mod.rs module maps, source_control.rs (change-list, not editor gutter), graph/sidebar_panel.rs (only breadcrumb code = Loom navigation), gutter.rs (GutterMarkerKind = Diagnostic|Breakpoint|FoldTriangle), editor_view.rs (LSP CompletionPopup only, no ghost-text), interop/interaction_bus.rs (clipboard/selection only). Cross-checked against WP-KERNEL-012 MT titles (parity work: MT-001..108), WP-KERNEL-011 MT titles (shell: CommandPalette MT-016, QuickSwitcher MT-017, split/tabs MT-005/006/007, TerminalLaunch), WP-KERNEL-013/014 stubs (Notion database+templates / DOCX+dual-view excluded), and WP-KERNEL-017 existing families (SC/CS/CX/AP/RO/MM/ML/WM/RD/AC/NA/PD). Baseline feature set from VS Code core + Antigravity/AI-IDE class.",
+    "corrections": [
+      "Command palette is NOT a gap: it is owned by WP-KERNEL-011 MT-016 (command_registry.rs). Editor breadcrumbs ARE a gap but only PARTIAL: sticky_scroll covers the enclosing-scope pin; the clickable path+symbol breadcrumb bar is absent and the only breadcrumb code is the Loom graph sidebar.",
+      "The SCM surface that exists (source_control.rs) is a change-LIST panel peer of the React SourceControlPanel; it is NOT an in-editor dirty-diff gutter and NOT inline blame — both are confirmed MISSING and owned by MT-285/MT-286."
+    ]
+  }
+}

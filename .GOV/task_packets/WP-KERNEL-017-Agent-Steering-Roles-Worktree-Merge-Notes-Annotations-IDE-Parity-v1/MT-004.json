@@ -1,0 +1,154 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-004",
+  "title": "SC-MT004-InteractiveStdioInfra",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-004.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Extend the CLI-bridge process layer with a BIDIRECTIONAL attached-stdio contract so a spawned agent CLI can be kept alive and written to (steer/interrupt frames on stdin) while its stdout/stderr keep streaming through the existing StreamingPipeReader machinery. Today the contract is hard-locked to one-shot: sandbox/adapter.rs AttachedStdioContract::validate() (src/backend/handshake_core/src/sandbox/adapter.rs lines 91-101) REJECTS anything except null_stdin_piped_output(), and the CLI bridge passes exactly that at official_cli_bridge.rs line 2303 (spawn_attached_child) from LiveCliSpawner::spawn (line 2425). This MT lifts that restriction with an explicit second contract variant while preserving the legacy null-stdin one-shot mode verbatim, and keeps ProcessOwnershipLedger fail-closed semantics unchanged (START row immediately after pid capture, STOP row on EVERY exit path — the normative comment block at official_cli_bridge.rs lines 2439-2453).\n\nEXPECTED DIFF SHAPE: (a) sandbox/adapter.rs — add AttachedStdioContract::piped_stdin_piped_output() and extend validate() to accept EXACTLY the two blessed contracts; (b) sandbox/handshake_native.rs — map AttachedStdioMode::Pipe on stdin to Stdio::piped() and surface the child stdin handle on the attached process (today the spawn impl at line 114 region only wires stdout/stderr; the invalid-stdio negative test at line 385 must be updated to a still-invalid combination, e.g. stdin=Pipe stdout=Null); (c) sandbox/ledger_decorator.rs — pass the stdio contract through unchanged (line 172 region); (d) official_cli_bridge.rs — add take_stdin() on GuardedCliChild (beside take_stdout at line 1872), a StdinWriterHandle bounded-writer abstraction, a new OfficialCliBridgeError::StdinWrite variant, and a spawn_attached_child_interactive path that passes the new contract through spawn_attached_blocking (line 1498); (e) new test file src/backend/handshake_core/tests/agent_sessions_stdio_tests.rs. NO changes to the one-shot spawn() path.\n\nSPEC CATALOG:\n\n- sandbox/adapter.rs: pub const fn piped_stdin_piped_output() -> Self { stdin: Pipe, stdout: Pipe, stderr: Pipe }. validate(self, adapter_id) accepts null_stdin_piped_output OR piped_stdin_piped_output; every other combination keeps the existing typed SandboxAdapterError::SpawnFailed rejection (update the error message to name both blessed contracts).\n- sandbox/handshake_native.rs: in the attached-spawn implementation, when spec stdio.stdin == Pipe use std::process::Stdio::piped() and store the taken child stdin (Option<std::process::ChildStdin>) on the returned AttachedSandboxProcess so GuardedCliChild can take it exactly once; when Null keep Stdio::null(). Windows note: ChildStdin on Windows is a pipe HANDLE owned by the Job-Object-contained child; closing it delivers EOF — that is the graceful-shutdown lever MT-005 uses.\n- official_cli_bridge.rs additions:\n  - impl GuardedCliChild { fn take_stdin(&mut self) -> Result<std::process::ChildStdin, OfficialCliBridgeError> } — single-take like take_stdout (line 1872); second take is a typed error.\n  - pub struct StdinWriterHandle { tx: tokio::sync::mpsc::Sender<StdinFrame>, writer_join: std::thread::JoinHandle<StdinWriterExit> } — a DEDICATED writer std::thread (matching the crate rule that blocking IO never runs on a tokio worker — see the cli_bridge_runtime.rs comment at lines 676-679) that owns ChildStdin and drains a BOUNDED channel (pub const STDIN_WRITER_CHANNEL_CAP: usize = 64).\n  - pub enum StdinFrame { JsonLine(serde_json::Value), Close } — JsonLine is serialized with serde_json::to_string (guaranteed no interior raw newline: serde_json escapes \\n inside strings), then written as bytes + b\"\\n\" + flush() PER LINE (JSONL framing, UTF-8, flush-per-line so the CLI sees each frame immediately); Close (or sender drop) closes ChildStdin -> EOF.\n  - pub struct StdinWriterExit { pub frames_written: u64, pub last_error: Option<String> }.\n  - impl StdinWriterHandle: pub async fn write_frame(&self, frame: StdinFrame) -> Result<(), OfficialCliBridgeError> (maps channel-full after a bounded try/timeout to StdinWrite backpressure error — NEVER unbounded buffering; maps channel-closed to StdinWrite \"writer thread exited\"); pub fn close_and_join(self, deadline: Duration) -> StdinWriterExit.\n  - new error variant: #[error(\"CLI stdin write failed: {reason}\")] StdinWrite { reason: String } on OfficialCliBridgeError (enum at line 111).\n  - fn spawn_attached_child_interactive(&self, config, rendered: CliLaunchPlan-args, invocation) -> Result<GuardedCliChild, OfficialCliBridgeError> — identical to spawn_attached_child (lines ~2200-2314) except it passes AttachedStdioContract::piped_stdin_piped_output() at the line-2303 call site equivalent; factor the shared body into a private fn spawn_attached_child_with_stdio(&self, ..., stdio: AttachedStdioContract) so the two paths cannot drift, with spawn_attached_child delegating with null_stdin_piped_output() — the existing production-source guard test at line 2970 (asserts the literal \"AttachedStdioContract::null_stdin_piped_output()\" appears) must keep passing.\n  - pub struct InteractiveCliChild { pub pid: u32, pub stdin: StdinWriterHandle, pub stdout_reader: StreamingPipeReader (via the existing drain_streaming_pipe at line 1742), pub stderr_reader: StreamingPipeReader, guarded: GuardedCliChild } with pub fn terminate_and_collect(&mut self, reason: &str) -> Option<ExitStatus> delegating to GuardedCliChild (line 1928) — MT-005 supervises this.\n  - pub fn spawn_interactive(&self, config: &CliBridgeConfig, invocation: &CliInvocationContext, model_name: &str) -> Result<InteractiveCliChild, OfficialCliBridgeError> on LiveCliSpawner — the interactive sibling of spawn (line 2425): reserve_process_lifecycle (line 2357) -> spawn_attached_child_interactive -> UNCONDITIONAL ledger START via attributed_spawn_meta + attach_durable_lifecycle (lines 2374-2400, fail-closed: START registration failure kills the child) -> take stdin/stdout/stderr -> return InteractiveCliChild. NOTE: no prompt argv rendering with a user prompt — interactive sessions receive the prompt as the FIRST stdin frame; args come from config.args_template with {prompt} substituted by the transport-required stream flags at the adapter layer (this MT only requires that spawn_interactive does NOT demand a prompt parameter).\n- LEDGER INVARIANT (normative, unchanged): every interactive spawn produces exactly one START row (engine_kind=OfficialCliBridge) at pid capture and exactly one STOP row at terminal collection on every path (normal EOF exit, kill, writer failure, startup failure after pid) — same fail-closed rule as the one-shot comment block (lines 2439-2453).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the cited regions first: sandbox/adapter.rs 67-160, sandbox/handshake_native.rs spawn impl around line 114 and negative test at 385, ledger_decorator.rs 160-200, official_cli_bridge.rs 1490-1560 (spawn_attached_blocking), 1660-1760 (StreamingPipeReaders/drain_streaming_pipe), 1860-1960 (GuardedCliChild), 2200-2530 (spawn_attached_child + spawn + ledger paths), 2960-2980 (source guard test).\n2. Extend AttachedStdioContract + validate(); update the handshake_native invalid-stdio negative test to a combination that remains invalid; run existing sandbox tests.\n3. Wire stdin piping through handshake_native.rs attached spawn and the ledger_decorator passthrough; expose take-once stdin on the attached process type.\n4. Refactor spawn_attached_child into spawn_attached_child_with_stdio + two thin wrappers; verify the L2970 source-guard test still passes.\n5. Implement StdinWriterHandle + StdinFrame + writer thread (bounded channel cap 64, write+flush per line, exit report); add the StdinWrite error variant.\n6. Implement spawn_interactive with the full ledger fail-closed sequence.\n7. Author tests/agent_sessions_stdio_tests.rs: (a) contract validation matrix — both blessed contracts accepted, stdin=Pipe/stdout=Null rejected; (b) JSONL framing unit test — frames with embedded newlines/UTF-8 multibyte content serialize to exactly one line each, flush-per-line observed via a captured pipe; (c) real-child round trip with a tiny stdin-echo counterparty (cmd /c findstr or a rust test helper bin): write 3 JsonLine frames, read them back on stdout via StreamingPipeReader, Close -> child exits 0, terminate_and_collect reaps; (d) backpressure test — writer blocked (child not reading) fills the 64-cap channel and write_frame returns typed StdinWrite backpressure, never unbounded growth; (e) ledger test — spawn_interactive against a stub records START and STOP rows on both normal-exit and kill paths (reuse the existing in-memory LedgerBatcher test pattern).\n8. cargo build + clippy + full official_cli_bridge test suite green (no regression on one-shot).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/sandbox/adapter.rs",
+      "src/backend/handshake_core/src/sandbox/handshake_native.rs",
+      "src/backend/handshake_core/src/sandbox/ledger_decorator.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+      "src/backend/handshake_core/tests/agent_sessions_stdio_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (one-shot streaming runtime untouched; MT-005+ consume the new seam)",
+      "src/backend/handshake_core/src/sandbox/windows_native_jail/** (its internal null-stdin probe at adapter.rs:1412 stays as-is)",
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "AttachedStdioContract::piped_stdin_piped_output() exists; validate() accepts exactly the two blessed contracts and rejects all others with the typed SandboxAdapterError — proven by the validation matrix test.",
+      "Legacy one-shot path unchanged: LiveCliSpawner::spawn still uses null_stdin_piped_output() and the existing source-guard test (official_cli_bridge.rs:2970 region) still passes; full pre-existing official_cli_bridge test suite green.",
+      "GuardedCliChild::take_stdin is take-once with a typed second-take error, mirroring take_stdout.",
+      "StdinWriterHandle: dedicated writer std::thread, bounded mpsc cap 64, JSONL framing (serde_json line + \\n), UTF-8, flush per line — proven by framing + round-trip tests.",
+      "Backpressure is typed: a full writer channel yields OfficialCliBridgeError::StdinWrite, never unbounded buffering — proven by test.",
+      "Close/drop of the writer closes child stdin (EOF) and close_and_join returns StdinWriterExit with frames_written — proven by the echo round-trip (child exits 0 on EOF).",
+      "spawn_interactive records an UNCONDITIONAL ledger START row after pid capture (fail-closed: START failure kills the child) and a STOP row on every exit path — proven by ledger tests on normal-exit and kill paths.",
+      "spawn_interactive takes no prompt argument (prompt arrives as the first stdin frame at the adapter layer)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core agent_sessions_stdio --nocapture 2>&1 | tee /tmp/mt004_run.txt && grep -E 'test result: ok' /tmp/mt004_run.txt",
+      "cargo test -p handshake_core official_cli_bridge --nocapture 2>&1 | grep -E 'test result: ok'",
+      "grep -n 'piped_stdin_piped_output' src/backend/handshake_core/src/sandbox/adapter.rs",
+      "grep -n 'AttachedStdioContract::null_stdin_piped_output()' src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+      "grep -n 'StdinWrite' src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+      "cargo test -p handshake_core agent_sessions_stdio --nocapture 2>&1 | grep -q 'backpressure'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/sandbox/adapter.rs (AttachedStdioContract + validate)",
+      "src/backend/handshake_core/src/sandbox/handshake_native.rs (stdin piping)",
+      "src/backend/handshake_core/src/sandbox/ledger_decorator.rs (contract passthrough)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (take_stdin, StdinWriterHandle, spawn_interactive, spawn_attached_child_with_stdio refactor)",
+      "src/backend/handshake_core/tests/agent_sessions_stdio_tests.rs (new)"
+    ],
+    "expected_tests": [
+      "stdio contract validation matrix (2 accepted, others rejected)",
+      "JSONL framing + flush-per-line + UTF-8 multibyte proof",
+      "real echo-child round trip: 3 frames in, 3 lines out, EOF exit 0, reap proven",
+      "typed backpressure at cap 64",
+      "ledger START/STOP rows on normal-exit and kill paths"
+    ],
+    "implementation_notes": [
+      "The refactor-to-shared-body rule exists because the ledger fail-closed comment block (L2439-2453) is the MT-127-remediation invariant; duplicating the spawn body would eventually fork the invariant. One body, two stdio contracts.",
+      "serde_json string escaping is what makes JSONL framing safe: a steer message containing raw newlines serializes to \\n inside the JSON string, so one frame is always exactly one line. The framing test must include a multi-line steer text to pin this.",
+      "Do not add tokio::process here: the whole CLI-bridge layer is std::process + dedicated threads by design (blocking poll loop must not run on tokio workers — cli_bridge_runtime.rs L676-679); the writer thread follows the same discipline.",
+      "Windows kill semantics: terminate_and_collect delegates to the sandbox adapter which owns process-TREE termination (Job Object); MT-005 builds graceful-stop (stdin EOF first, then tree kill) on top of exactly these two levers.",
+      "HBR-QUIET: the spawned interactive child inherits the existing attached-sandbox containment — hidden window, no foreground focus (HBR-QUIET-001/002); ownership metadata via attributed_spawn_meta (HBR-QUIET-003)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless process-transport infrastructure; observable via ProcessOwnershipLedger rows and MT-009 bus events; operator surfaces arrive with the GUI family."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal transport seam with no operator-callable command; MT-007 documents the session lifecycle surface it powers."
+  },
+  "hbr_obligations": [
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder",
+    "internal_diagnostics (may be typed DEFERRED if the internal-diagnostics tier is not yet shipped for agent_sessions)",
+    "palmistry (may be typed DEFERRED if palmistry wiring is not yet shipped for agent_sessions)"
+  ],
+  "risk_if_missed": "No bidirectional transport exists: sessions stay one-shot, steering/interrupt/resume are impossible, and the adapter families have no seam to build on — the entire WP-017 session runtime is blocked.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Unattributed long-lived child — an interactive spawn path that skips or reorders the ledger START registration leaves a live agent process invisible to reclaim (exactly the MT-122/MT-127 class the one-shot path was hardened against).",
+      "RISK-2: Deadlock on full pipes — child stops reading stdin while we block writing, or we stop reading stdout while the child blocks writing; classic bidirectional-pipe deadlock hangs the session.",
+      "RISK-3: Frame corruption — hand-rolled framing lets an embedded newline split one steer into two bogus JSON lines, silently corrupting the transport protocol.",
+      "RISK-4: One-shot regression — refactoring the shared spawn body subtly changes null-stdin behavior (timeout, reap, STOP rows) and breaks every existing CLI-bridge caller.",
+      "RISK-5: Sandbox contract widening — validate() accidentally accepts arbitrary stdio combinations, allowing a future caller to spawn with inherited stdio and leak the operator console into an agent process."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): spawn_interactive reuses reserve_process_lifecycle + attach_durable_lifecycle verbatim (fail-closed kill on START failure); ledger tests assert START+STOP on normal and kill paths.",
+      "CTRL-2 (RISK-2): stdin writes go through the bounded channel + dedicated thread with typed backpressure (never block a tokio worker); stdout/stderr are ALWAYS drained by StreamingPipeReader from spawn; backpressure test pins the behavior.",
+      "CTRL-3 (RISK-3): serde_json-only serialization (escapes newlines) + framing test with multi-line UTF-8 payload.",
+      "CTRL-4 (RISK-4): shared-body refactor keeps two thin wrappers; the existing L2970 source-guard test plus the full pre-existing official_cli_bridge suite are named proof targets.",
+      "CTRL-5 (RISK-5): validate() enumerates exactly two blessed contracts; validation-matrix test asserts a still-invalid combination is rejected."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: sandbox/adapter.rs (AttachedStdioMode L70, AttachedStdioContract L76-101, AttachedProcessSpec L107-148), sandbox/handshake_native.rs (attached spawn L114 region, invalid-stdio test L385), sandbox/ledger_decorator.rs (L172), official_cli_bridge.rs (spawn_attached_blocking L1498, StreamingPipeReaders L1664, drain_streaming_pipe L1742, GuardedCliChild take_stdout L1872 / terminate_and_collect L1928, spawn_attached_child stdio call L2303, LiveCliSpawner L590/L2403, spawn L2425, ledger fail-closed block L2439-2453, reserve/attach lifecycle L2357-2400, source-guard test L2970), cli_bridge_runtime.rs no-blocking-on-tokio comment L676-679. Research digest: Claude Code --input-format stream-json bidirectional stdio; Codex app-server JSON-RPC over stdio.",
+    "corrections": [
+      "Brief said 'AttachedStdioContract around line 2303' — that is the CALL SITE in official_cli_bridge.rs; the type itself lives in sandbox/adapter.rs:76-101 and its validate() currently hard-rejects piped stdin, which is why sandbox-layer edits are in scope.",
+      "Brief said 'LiveCliSpawner ~590/2403' — verified: struct at L590, impl CliSubprocessSpawner at L2403, spawn at L2425, ProcessOwnershipLedger START comment block at L2439-2453 (brief said ~2449).",
+      "Brief named 'spawn_attached_with_stdio' — no such symbol exists yet; the real seams are spawn_attached_blocking (L1498) and spawn_attached_child (L2303 call); this contract names the new shared body spawn_attached_child_with_stdio."
+    ]
+  }
+}

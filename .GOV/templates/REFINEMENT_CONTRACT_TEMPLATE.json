@@ -67,7 +67,55 @@
       "MAN": {
         "applicable": null,
         "evidence_path": null
+      },
+      "PRIV": {
+        "applicable": null,
+        "evidence_path": null
       }
+    },
+    "resource_privacy_review": {
+      "required_for_every_product_refinement": true,
+      "applicability": null,
+      "identity_concepts": {
+        "local_accounts": [],
+        "principals": [],
+        "account_roles": [],
+        "membership_roles": [],
+        "access_spaces": [],
+        "resource_grants": [],
+        "personas": [],
+        "reserved_profile_terms_checked": false
+      },
+      "resource_inventory": [],
+      "resource_inventory_required_fields": [
+        "resource_kind",
+        "producer",
+        "consumer",
+        "stable_resource_id",
+        "owner_account_or_principal",
+        "access_space_or_visibility_scope",
+        "storage_boundary",
+        "derived_from",
+        "default_deny_enforcement_points",
+        "revocation_behavior",
+        "proof_target"
+      ],
+      "same_project_privacy_scenarios": [],
+      "derived_resource_non_widening_scenarios": [],
+      "session_switch_and_revocation_scenarios": [],
+      "remote_saas_mcp_sync_scenarios": [],
+      "metadata_side_channel_scenarios": [],
+      "required_hbr_rows": [
+        "HBR-PRIV-001",
+        "HBR-PRIV-002",
+        "HBR-PRIV-003",
+        "HBR-PRIV-004",
+        "HBR-PRIV-005",
+        "HBR-PRIV-006",
+        "HBR-PRIV-007",
+        "HBR-PRIV-008"
+      ],
+      "not_applicable_reason": null
     },
     "hbr_int_009_three_tier_diagnostic": {
       "applicable": null,
@@ -87,7 +135,23 @@
     },
     "microtask_plan": [],
     "microtask_plan_item_defaults": {
-      "hbr_obligations": []
+      "hbr_obligations": [],
+      "resource_privacy_obligation": {
+        "status": "REQUIRED_WHEN_RESOURCE_OR_CONTEXT_IS_TOUCHED",
+        "resources_touched": [],
+        "authorized_context_inputs": [
+          "local_account_id",
+          "principal_id",
+          "session_id",
+          "access_space_id"
+        ],
+        "enforcement_boundaries": [],
+        "positive_proof": [],
+        "negative_proof": [],
+        "derived_scope_rule": "DERIVED_RESOURCE_SCOPE_MUST_NOT_EXCEED_ANY_RESTRICTING_SOURCE_SCOPE",
+        "revocation_and_context_switch_proof": [],
+        "remote_delegation_proof": []
+      }
     }
   },
   "red_team": {

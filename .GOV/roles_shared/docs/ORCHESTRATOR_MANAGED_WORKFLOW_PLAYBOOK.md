@@ -18,6 +18,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
 - Packet truth wins over runtime and session projections. `RECEIPTS.jsonl` and `RUNTIME_STATUS.json` are the primary communication runtime. `THREAD.md` is coordination prose only.
 - All non-Coder roles share `CX-218L` governance paperwork/workflow stabilization duty within their authority and must actively strive to make brittle handoffs, receipts, projections, and documentation transitions mechanical. Coder is excluded and reports governance blockers instead of patching `.GOV/` or workflow tooling from the product-code lane.
 - Governance refactor or stabilization work must be declared in `.GOV/roles_shared/records/REPO_GOVERNANCE_REFACTOR_TASK_BOARD.md` with a stable item and current status, then updated as the work moves through IN_PROGRESS, DONE, HOLD, or superseded.
+- HBR-PRIV is a permanent launch and handoff boundary. Product WPs must separate LocalAccount, Principal, AccountRole, MembershipRole, AccessSpace, ResourceGrant, and Persona; inventory every primary and derived resource; and name the real PostgreSQL RLS, ResourceBroker/filesystem, API, search/index, model/tool, UI, export, diagnostic, and remote-service enforcement paths they touch. A project membership or visible UI filter is never blanket authorization.
 
 ## Healthy Sequence
 
@@ -33,6 +34,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
    - Orchestrator reviews, gets operator approval/signature, and steers the bundle back.
    - Activation Manager writes packet, microtasks, worktree/backups, health evidence, and `ACTIVATION_READINESS`.
    - For large/folded bundles, `ACTIVATION_READINESS` must expose `MICROTASK_STATUS` and `MICROTASK_GRANULARITY`; launch is not healthy if the packet compresses broad subsystem work into a few MTs just to reduce paperwork.
+   - Refinement, packet, and each resource-touching MT must carry its `resource_privacy_review`, `resource_privacy_contract`, or `resource_privacy_obligation`, including same-project-private, cross-account, cross-Space, revoked-context, metadata-side-channel, and derived-scope non-widening proof.
    - Before any model wake on stale readiness, run `just activation-manager readiness WP-{ID} --write` and inspect `just activation-manager next WP-{ID}`.
 
 ### Large Bundle MT Discipline
@@ -65,6 +67,7 @@ This file is a human-readable projection of the machine workflow contract. It ex
 6. Whole-WP closeout prep
    - Confirm all MTs have WP Validator PASS receipts.
    - HBR closeout smoke gate: run `just hbr-visual-smoke`, `just hbr-swarm-n8`, and `just hbr-inspector-smoke` before Integration Validator closeout; preserve their reports as HBR evidence.
+   - Require HBR-PRIV closure for every touched resource boundary. Whole-WP evidence must demonstrate authorized access and fail-closed denial through the executable backend—not only hidden UI rows—and must show that logs, traces, indexes, previews, derivatives, exports, backups, and future SaaS/MCP links do not widen source visibility.
    - If no whole-WP `CODER_HANDOFF` exists and no `committed_handoff_head_sha` is recorded, steer Coder to publish the final handoff first. Per-MT PASS receipts are not a committed target for Integration Validator closeout.
    - After final `CODER_HANDOFF`, run `just phase-check HANDOFF WP-{ID} WP_VALIDATOR --range <base>..<head>` to write durable committed validation evidence for the exact final range.
    - `just closeout-repair WP-{ID}` may repair deterministic prep drift, but terminal `phase-check CLOSEOUT` waits until the Integration Validator has written its final review/verdict.

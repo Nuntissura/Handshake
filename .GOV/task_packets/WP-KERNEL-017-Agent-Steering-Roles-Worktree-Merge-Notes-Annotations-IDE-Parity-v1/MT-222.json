@@ -1,0 +1,192 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-222",
+  "title": "NA-MT222-RichEditorAnnotationRendering",
+  "group": "NA Notes annotation UI",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-222.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-221",
+      "MT-202"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Render annotations in the NATIVE rich_editor (Notes): block-range highlights plus margin markers in BOTH edit mode and reading mode, anchored to prose blocks via the AC MT-202 anchor live_file/prose subject. The inline thread widget is REUSED from MT-221 (annotations/thread_widget.rs — one shared widget module, never a fork). Annotation affordances must not overlap or fight the existing outline / wikilink / inline-tag affordances. Interaction pattern reference: VS Code Comment API (thread rendered at the anchored range; file-level thread when no range); visual concept: hunk noteBorder-style left accent beside the exact annotated content.\n\nEXPECTED DIFF SHAPE: New annotations/rich_markers.rs; hooks in rich_editor/renderer (block-range highlight + margin marker paint) and rich_editor/reading_mode.rs (same rendering in reading view); no document_model schema change; one integration test file. Rich editor AccessKit ids go through the existing rich_editor::scoped_author_id namespace helper so secondary split-pane views stay collision-free.\n\nDETAILED SPEC (widget structs, pane names, interaction flows):\n1. annotations/rich_markers.rs: `pub struct RichAnnotationLayer` — computes, per rendered document, (a) block-range highlight spans (which blocks / inline ranges are covered by each annotation's prose anchor) and (b) margin marker rows (one marker per annotation, placed at the first covered block). Input is the resolved placement set from annotations/client.rs (MT-221); NO anchor math here — the AC MT-202 prose subject (block ids + offsets) plus the MT-204 reanchor verdict fully determine placement.\n2. Edit mode (rich_editor/renderer): the block renderer paints a subtle background tint across covered inline ranges (theme-token color per AnnotationMarkerState; Open tint stronger than Resolved) and a left-margin marker glyph (same state glyphs as MT-221) in the margin gutter beside the first covered block. Clicking the margin marker (or a highlighted range) opens the shared AnnotationThreadWidget inline below the covered block. The tint must never make text unreadable (contrast-checked in Argus evidence) and must compose with selection/find-highlight layers without z-fighting (annotation tint renders UNDER the find_replace highlight_layer and UNDER selection).\n3. Reading mode (rich_editor/reading_mode.rs): the same RichAnnotationLayer output renders in the read-only view — highlights + margin markers + click-to-open thread (read-only thread: reply/resolve buttons hidden here until MT-224 wires authoring; widget takes a read_only flag). Reading mode toggling (existing ViewMode / view_mode_toggle) must preserve open-thread state per document.\n4. Orphaned/outdated prose anchors follow the MT-221 rule: orphaned NEVER placed at a guessed block — they render in the document-top 'Unanchored annotations (N)' strip (shared strip component from MT-221); outdated render at the resolved block with the Outdated glyph + drift note.\n5. NON-OVERLAP (binding): margin markers must not collide with existing affordances — the outline_panel is a separate pane (untouched); wikilink inline chips (wikilinks/inline_view.rs), inline tag chips (inline_tags/inline_chip.rs), and transclusion frames (wikilinks/transclusion_view.rs) keep their exact current geometry; annotation highlights render as background only and never re-flow text. A layout regression test asserts identical line_layout output with and without annotations present.\n6. AccessKit: all ids go through rich_editor::scoped_author_id: `annotation_rich_marker_{annotation_id}`, `annotation_rich_highlight_{annotation_id}_{block_n}` (container-level, not per-glyph), and the shared thread widget ids from MT-221. File-level annotations (no range) surface only in the strip + MT-223 panel.\n\nSTEP-BY-STEP:\n1. Read AC MT-202 (prose anchor subject shape) and MT-204 (reanchor verdicts); read rich_editor/mod.rs module map + scoped_author_id, renderer/block_renderer.rs + line_layout.rs + rich_editor_widget.rs, reading_mode.rs (ViewMode, ReadingModeStore, view_mode_toggle), find_replace/highlight_layer.rs (layer composition precedent), wikilinks/inline_view.rs + inline_tags/inline_chip.rs (geometry that must not change).\n2. Implement RichAnnotationLayer (placement computation from resolved anchors; pure function over the block DocModel — unit-testable without egui).\n3. Paint highlights + margin markers in the edit-mode renderer, layered under selection/find highlights.\n4. Wire the same layer into reading_mode rendering with the read_only thread widget flag.\n5. Add the unanchored strip reuse + outdated styling.\n6. Register scoped AccessKit ids; write integration tests incl. the no-reflow layout regression; capture Argus evidence in both modes.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/annotations/rich_markers.rs",
+      "src/frontend/handshake_native/src/annotations/mod.rs",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (read_only flag only)",
+      "src/frontend/handshake_native/src/rich_editor/renderer/**",
+      "src/frontend/handshake_native/src/rich_editor/reading_mode.rs",
+      "src/frontend/handshake_native/tests/test_annotation_rich_rendering.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by MT-261..264 — never extend it)",
+      ".GOV/**",
+      "src/backend/** (annotation core is AC MT-201..209; consume via routes only)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/** (no schema change; annotations are NOT document content)",
+      "src/frontend/handshake_native/src/rich_editor/outline_panel.rs (must remain untouched — non-overlap requirement)",
+      "src/frontend/handshake_native/src/rich_editor/wikilinks/** (geometry must not change)",
+      "src/frontend/handshake_native/src/rich_editor/inline_tags/** (geometry must not change)"
+    ],
+    "acceptance_criteria": [
+      "Edit mode: prose-anchored annotations render as block-range background highlights (state-tinted, theme tokens) plus a margin marker at the first covered block; clicking either opens the SHARED MT-221 AnnotationThreadWidget below the block.",
+      "Reading mode: the SAME annotations render (highlights + margin markers + openable read-only thread); toggling ViewMode preserves open-thread state.",
+      "Annotation rendering causes ZERO text re-flow: a layout regression test proves identical line_layout output with and without annotations.",
+      "Annotation tint composes under selection and find/replace highlights; annotated text remains readable (contrast evidenced via Argus screenshots in light and dark theme).",
+      "Outline, wikilink chips, inline tag chips, and transclusion frames are pixel-untouched (no edits to those modules; overlap check in Argus evidence).",
+      "Orphaned prose annotations appear only in the shared unanchored strip; outdated render at the resolved block with drift note; file-level (rangeless) annotations appear only in strip/panel, never at an arbitrary block.",
+      "All rich-editor annotation AccessKit ids go through scoped_author_id and are collision-free in a split-pane dual mount.",
+      "thread_widget.rs changes are limited to the read_only flag (grep-provable: no fork, no second thread widget struct).",
+      "UserManual updated in the same change: annotations in Notes, edit vs reading mode behavior."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native annotation_rich_rendering -- --nocapture",
+      "cargo test -p handshake-native annotation_rich_no_reflow -- --nocapture",
+      "! rg -n \"struct .*ThreadWidget\" src/frontend/handshake_native/src/annotations/ | rg -v \"AnnotationThreadWidget\"",
+      "Argus evidence: argus.screenshot + AccessKit tree dump of (a) edit mode with highlights+markers+open thread, (b) reading mode same document, (c) split-pane dual mount scoped ids, (d) unanchored strip in a Notes doc — light + dark theme, stored under the external HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/annotations/rich_markers.rs (new, RichAnnotationLayer)",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (read_only flag)",
+      "src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs (highlight + margin marker paint hooks)",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs (layer wiring)",
+      "src/frontend/handshake_native/src/rich_editor/reading_mode.rs (reading-view rendering)",
+      "src/frontend/handshake_native/src/rich_editor/find_replace/highlight_layer.rs (reference only: layer composition precedent)"
+    ],
+    "expected_tests": [
+      "unit: RichAnnotationLayer maps prose anchors (block ids + offsets) to highlight spans + margin rows, pure over DocModel",
+      "unit: state -> tint/glyph mapping matches MT-221 marker_state vocabulary",
+      "integration: edit-mode click on margin marker opens shared thread widget; reading-mode opens read-only variant",
+      "integration: layout regression — line_layout identical with/without annotation layer",
+      "integration: split-pane dual mount produces scoped, non-colliding author_ids",
+      "negative: orphaned prose anchor never renders at a body block; rangeless annotation never renders at a block"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): rich_editor/mod.rs module map (document_model, renderer, reading_mode, outline_panel, wikilinks, inline_tags, find_replace, save, markdown_render) and scoped_author_id + AccessibilityViewNamespaceGuard (lines 52-70); reading_mode.rs has ViewMode (line 71), ReadingModeStore (113), view_mode_toggle (215); renderer/ contains block_renderer.rs, line_layout.rs, rich_editor_widget.rs, caret.rs, input_handler.rs; find_replace/highlight_layer.rs is the existing highlight-layer precedent to compose with.",
+      "Annotations are metadata ABOUT the document, not document content: document_model is forbidden; the layer is computed per frame/per placement-refresh from the client seam, so undo/redo history is never polluted (this also pre-answers the MT-224 undo-safety requirement).",
+      "Reading mode reuses the same RichAnnotationLayer output — reading_mode renders through the shared markdown/block rendering path per mod.rs (MT-059 markdown_render note), so hook at the block-paint level, not by duplicating the layer.",
+      "Tint layering: annotation background renders UNDER find/replace highlight and UNDER selection so operator-initiated emphasis always wins; document this z-order in code and show it in the Argus overlap evidence.",
+      "Design basis (cite in code docs): VS Code Comment API thread-at-range pattern; hunk noteBorder left-accent styling; Google-Docs-style margin markers as the prose-comment field precedent.",
+      "Cross-family seams (reference only): MT-221 shared widget + strip + client seam; MT-223 panel jump-to-anchor lands on these rendered placements; MT-224 flips read_only off for authoring; MT-202/MT-204 own anchor subjects + verdicts."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "rich_editor edit mode block-range highlights + margin markers",
+      "rich_editor reading mode highlights + margin markers",
+      "shared AnnotationThreadWidget (read-only variant)",
+      "unanchored-annotations strip in Notes documents"
+    ],
+    "argus_targets": [
+      "annotation_rich_marker_{annotation_id} (scoped_author_id)",
+      "annotation_rich_highlight_{annotation_id}_{block_n} (scoped_author_id)",
+      "annotation_thread_{annotation_id}",
+      "annotation_unanchored_strip"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "readability_contrast_check_light_and_dark",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Annotations in Notes: highlights and margin markers, edit vs reading mode, opening threads, orphaned/outdated prose annotations"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "No new business events; annotation lifecycle events are the AC/MT-161 seam."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "RichAnnotationLayer placement output (per-annotation block spans, orphan verdicts, layer z-order) exposed as structured state for the visual_debugger surface."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure render surface; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "Annotations exist in the code editor but not in Notes: model feedback on prose documents is invisible in the native product, forcing review back into the legacy React editor that MT-261..264 removes, and the AC prose-anchor subject ships with no consuming surface.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Content corruption vector — annotation rendering writes into the document model (or its undo history), turning display metadata into persisted document content.",
+      "RISK-2: Widget fork — the rich editor grows its own thread widget, drifting from MT-221 (badges/provenance rules silently diverge between editors).",
+      "RISK-3: Affordance collision — margin markers or tints overlap wikilink chips, inline tag chips, or transclusion frames, breaking existing interactions or readability.",
+      "RISK-4: Guessed prose placement — a reanchor-orphaned annotation is drawn at a stale block, attaching model commentary to the wrong prose.",
+      "RISK-5: Reading-mode divergence — reading mode renders a different annotation set or geometry than edit mode, so operators reviewing in reading view miss annotations."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): document_model/** is a forbidden path; layer computed from client-seam placements only; a test proves DocJson serialization and undo stack are byte-identical with annotations present.",
+      "CTRL-2 (RISK-2): Single AnnotationThreadWidget struct (grep proof target); only a read_only flag may be added.",
+      "CTRL-3 (RISK-3): wikilinks/**, inline_tags/**, outline_panel.rs are forbidden paths; no-reflow layout regression test; overlap check in Argus evidence.",
+      "CTRL-4 (RISK-4): Orphaned-only-in-strip integration test for prose anchors; rangeless annotations never at a block.",
+      "CTRL-5 (RISK-5): One shared RichAnnotationLayer feeds both modes; a test renders the same document in both modes and asserts identical annotation placement sets."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/src/rich_editor/: mod.rs (module map, scoped_author_id, shell-reuse mandate), reading_mode.rs (ViewMode, ReadingModeStore, view_mode_toggle), renderer/ (block_renderer, line_layout, rich_editor_widget), find_replace/highlight_layer.rs (layer precedent), wikilinks + inline_tags chip modules (non-overlap geometry). External design basis: VS Code Comment API (CommentThread at range; file-level when rangeless); hunk noteBorder inline annotation styling; Google Docs margin-comment pattern for prose.",
+    "corrections": [
+      "Reading mode is a per-document ViewMode store (reading_mode.rs MT-055), not a separate pane — annotation rendering hooks the shared block-paint path once, serving both modes, rather than wiring two renderers as the WP stub sketch implied."
+    ]
+  }
+}

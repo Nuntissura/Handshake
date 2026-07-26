@@ -1,0 +1,189 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-288",
+  "title": "IP-MT288-EditorAgentContextAttach",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-288.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-007",
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the Antigravity / Cursor 'Add to context' seam — the editor-side path that lets an operator attach a code/notes selection, a whole file, or a symbol to the bound agent session's prompt context as a typed, removable context chip (Cursor Ctrl+L 'Add to Chat', @-mentions of files/symbols). The MT-281 matrix marks 'agent-editor-context-attach' MISSING: interop/interaction_bus.rs carries clipboard + shared selection only; there is NO path that turns an editor selection/file/symbol into structured agent-session context feeding the WP-017 session API (MT-007). This MT owns the typed ContextItem model, the 'attach' commands in both editors, and the removable context-chip strip; the CONSUMER is an agent session (MT-007 AgentSessionService: the attached context rides the launch initial_prompt / steer payload). It does NOT build prompts, does NOT call a model, and does NOT own the chat dock (MT-098) — it produces structured context the session consumes.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/interop/agent_context.rs (typed AgentContextItem + AgentContextSet + the attach/remove API + serialization to the MT-007 session context payload); (b) `pub mod agent_context;` (or re-export) in interop/mod.rs; (c) a NEW context-chip strip widget src/frontend/handshake_native/src/agent_context_bar.rs (the removable chips UI, mountable beside the chat dock / worksurface); (d) attach entry points: a code-editor command 'Add Selection to Agent Context' + 'Add File' + 'Add Symbol' in code_editor (via the existing command/context-menu surfaces) and the rich-editor equivalent for a block/selection; (e) one integration test file. Consumes MT-007 (session context payload); reuses the interaction_bus selection + code_nav symbol + the existing context-menu infra; NO backend model code.\n\nDETAILED SPEC:\n1. agent_context.rs: `pub enum AgentContextItem { Selection { pane_id, surface (code|rich), file_path: Option<String>, start: usize, end: usize, text: String, language: Option<String> }, File { path: String, byte_len: usize }, Symbol { file_path: String, symbol_name: String, kind: String, range: (usize,usize) }, Block { block_id: String, doc_id: String } }`; `pub struct AgentContextSet { items: Vec<AgentContextItem>, max_items: usize (cap, RISK), total_bytes: usize (running budget) }`. `attach(item)` dedups (same file/selection/symbol added twice is one chip) and enforces the item + byte cap; `remove(idx)`; `to_session_context() -> SessionContextPayload` serializes to the MT-007 launch/steer context shape (a typed list, NOT a rendered prompt string — the session owns rendering).\n2. Attach sources: code editor — the primary selection (reuse interop interaction_bus SharedSelection / CodeEditorPanel::selected_primary_text), the open file, or the symbol under the caret (reuse code_nav symbol resolution + the MT-283 breadcrumb leaf / outline). Rich editor — the current selection text or a whole block (reuse the rich interop_adapter block_ref_selection). Each attach is a command wired through the existing command_registry / context_menu_surfaces (the same Copy/Copy-as-note-reference precedent), NOT a new ad-hoc menu system.\n3. Context-chip strip (agent_context_bar.rs): a horizontal strip of removable chips, each showing an icon + label ('sel: foo.rs:10-24', 'file: bar.rs', '#symbol', 'block: …') + an 'x' remove button, plus a 'Clear all' and a live 'N items • ~K tokens' budget readout (bytes as a proxy; exact tokenization is the model's job). Chips are the operator's explicit, visible, removable control over what the agent sees (no hidden context). Colors/icons from theme tokens.\n4. Budget + safety (binding): the set enforces a max item count and a byte budget; attaching past the budget shows a visible 'context full — remove an item' state rather than silently dropping or truncating. A stale chip (its file/selection no longer exists or the selection range drifted) is marked stale in the strip and excluded from to_session_context() until refreshed — the agent is never sent a phantom range. Nothing is auto-attached; every item is an explicit operator action (no silent context capture).\n5. Handoff to the session: to_session_context() feeds the MT-007 launch initial context and the steer path (so 'add to context then steer' works). MT-287 (inline AI edit) reuses this set as its Ctrl+K context payload when present. The payload is a typed structure; this MT does NOT concatenate a prompt.\n6. AccessKit: the strip is a Role::Group `agent_context_bar` (instance-suffixed), each chip a Role::ListItem `agent_context_chip_{n}` with a remove Role::Button `agent_context_chip_{n}_remove`, and a `agent_context_clear_all` button.\n\nSTEP-BY-STEP:\n1. Read interop/interaction_bus.rs (SharedSelection, selection publishing, the clipboard command precedent), interop/mod.rs (adapter registration), code_editor/panel.rs selected_primary_text + code_nav symbol resolution, rich_editor interop_adapter (block_ref_selection, text_selection), command_registry.rs + context_menu_surfaces.rs (how existing editor commands/menu items are registered — reuse for the attach commands), and the WP-017 MT-007 contract (the session context payload field on launch/steer).\n2. Create interop/agent_context.rs with AgentContextItem/AgentContextSet + attach/remove/dedup/budget + to_session_context() serialization to the MT-007 shape; unit-test dedup, budget enforcement, and stale exclusion.\n3. Create agent_context_bar.rs (the removable chip strip + budget readout + AccessKit nodes); unit-test the chip render model + remove/clear.\n4. Wire the attach commands into command_registry / context_menu_surfaces for code (selection/file/symbol) and rich (selection/block); wire to_session_context() into the MT-007 launch/steer call site (or a typed seam if the chat dock host owns the call).\n5. Register the modules; integration test: attach a code selection, a file, and a symbol -> three deduped chips + budget readout; remove one; over-budget shows the full state; a drifted selection chip is marked stale and excluded from to_session_context(); the serialized payload matches the MT-007 context shape. Capture Argus screenshot + AccessKit tree of the chip strip with mixed item kinds and the over-budget state.\n6. Update the UserManual (same change): Add to Agent Context — the commands, the chip strip, removing/clearing, the budget readout, stale chips, and that nothing is sent to the agent that is not a visible chip.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/interop/agent_context.rs",
+      "src/frontend/handshake_native/src/interop/mod.rs",
+      "src/frontend/handshake_native/src/agent_context_bar.rs",
+      "src/frontend/handshake_native/src/command_registry.rs",
+      "src/frontend/handshake_native/src/context_menu_surfaces.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_agent_context_attach.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (the agent session runtime is MT-007; this MT produces context it consumes, no backend model code)",
+      "src/frontend/handshake_native/src/code_editor/inline_ai/** (MT-287 owns the inline-edit seam; it CONSUMES this context set, do not modify it here)"
+    ],
+    "acceptance_criteria": [
+      "interop/agent_context.rs exists with AgentContextItem{Selection,File,Symbol,Block} + AgentContextSet (attach/remove/dedup, item + byte budget) + to_session_context() serializing to the MT-007 session context payload as a TYPED list (not a rendered prompt string).",
+      "Attach commands exist for the code editor (selection / file / symbol) and the rich editor (selection / block), wired through the existing command_registry / context_menu_surfaces (not a new ad-hoc menu), reusing interaction_bus selection + code_nav symbol + rich interop_adapter.",
+      "agent_context_bar.rs renders a removable chip strip with per-chip labels + remove buttons, a Clear-all, and a live 'N items • ~K tokens/bytes' budget readout; colors/icons from theme tokens (no hardcoded hex).",
+      "Budget is enforced: attaching past the item/byte cap shows a visible 'context full' state, never silently drops or truncates; a stale chip (missing file / drifted selection) is marked stale and EXCLUDED from to_session_context() (no phantom range sent).",
+      "Nothing is auto-attached: every context item is an explicit operator action, and everything the agent receives corresponds to a visible chip (no hidden context).",
+      "to_session_context() feeds the MT-007 launch/steer context; the payload shape matches the MT-007 contract (grep/test-provable); no model call or prompt concatenation in this MT.",
+      "AccessKit author_ids agent_context_bar / agent_context_chip_{n} / agent_context_chip_{n}_remove / agent_context_clear_all are stable and instance-suffixed.",
+      "UserManual updated in the same change: attach commands, chip strip, remove/clear, budget readout, stale chips, no-hidden-context guarantee."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native agent_context_attach -- --nocapture",
+      "rg -n 'AgentContextItem|to_session_context|agent_context_chip' src/frontend/handshake_native/src/interop/agent_context.rs src/frontend/handshake_native/src/agent_context_bar.rs",
+      "rg -n 'openai|anthropic|prompt_template|render_prompt|model_endpoint' src/frontend/handshake_native/src/interop/agent_context.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of the context-chip strip with a selection + file + symbol chip and the over-budget state, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/interop/agent_context.rs (typed context model + budget + MT-007 serialization)",
+      "src/frontend/handshake_native/src/agent_context_bar.rs (removable chip strip widget)",
+      "src/frontend/handshake_native/src/command_registry.rs (attach commands)",
+      "src/frontend/handshake_native/src/context_menu_surfaces.rs (attach context-menu items)"
+    ],
+    "expected_tests": [
+      "unit: attach dedups an identical selection/file/symbol into one chip",
+      "unit: item + byte budget enforced; over-budget attach yields the 'context full' state, never a silent drop",
+      "unit: stale item (missing file / drifted range) marked stale and excluded from to_session_context()",
+      "unit: to_session_context() serializes to the MT-007 context payload shape (typed list, not a prompt string)",
+      "unit: AccessKit chip-strip node tree (bar + chips + remove + clear-all, stable suffixed ids)",
+      "integration: attach code selection + file + symbol -> three chips + budget readout; remove one; clear all",
+      "integration: rich-editor block attach produces a Block chip"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: interop/interaction_bus.rs carries SharedSelection + clipboard commands only (no agent-context path); code_editor/panel.rs selected_primary_text + code_nav symbol resolution supply code context; rich_editor interop_adapter (block_ref_selection/text_selection) supplies rich context; command_registry.rs + context_menu_surfaces.rs are the existing command/menu registration surfaces (Copy / Copy-as-note-reference precedent) to reuse. WP-017 MT-007 launch/steer DTOs carry the session context this set serializes into.",
+      "Design basis (cite in code docs): Cursor 'Add to Chat' (Ctrl+L) + @-mention of files/symbols; Antigravity context attachment — explicit, visible, removable context chips with a budget readout; nothing hidden.",
+      "NO-HIDDEN-CONTEXT is load-bearing: everything the agent receives must correspond to a visible chip and an explicit operator action. The set never auto-captures the open file or selection.",
+      "This MT produces a TYPED context structure, not a prompt. The agent session (MT-007) renders it. MT-287 reuses this set for Ctrl+K inline-edit context; MT-098 chat dock is the conversational host that may display the strip.",
+      "Cross-family seams (reference only): MT-007 session API (consumer), MT-287 inline AI edit (reuses the set), MT-098 chat dock (host surface), MT-283 breadcrumb leaf (symbol source)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "agent context-chip strip (removable chips)",
+      "budget readout (N items / bytes)",
+      "over-budget 'context full' state",
+      "stale-chip state",
+      "attach commands / context-menu items in both editors"
+    ],
+    "argus_targets": [
+      "agent_context_bar",
+      "agent_context_chip_0",
+      "agent_context_chip_0_remove",
+      "agent_context_clear_all"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "budget_and_stale_state_check",
+      "no_hidden_context_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Add to Agent Context: the attach commands (selection/file/symbol/block), the removable chip strip, remove/clear, the budget readout, stale chips, and the guarantee that nothing reaches the agent that is not a visible chip"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Attaching context is a local UI action; the session consuming the context (MT-007) owns the steer/launch events that carry it."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The context set (items, budget usage, stale flags) is exposed as structured state so a no-context model can see exactly what the agent will receive and why an item was excluded."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "UI + typed-data surface; no child process."
+    }
+  ],
+  "risk_if_missed": "The native editor cannot feed a selection, file, or symbol into an agent session as structured, visible context — the Cursor/Antigravity 'add to chat / @-mention' affordance — so operators must paste code manually (lossy, no provenance) and the inline-AI edit seam (MT-287) has no rich context source.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Hidden context — the open file or selection is auto-attached without an explicit action, so the agent silently receives content the operator did not choose to share.",
+      "RISK-2: Phantom range — a stale/drifted selection chip is sent to the agent pointing at code that moved or was deleted, giving the model wrong context.",
+      "RISK-3: Budget blowout — attaching a huge file silently truncates or floods the session context, degrading the agent or exceeding limits with no operator signal.",
+      "RISK-4: Prompt coupling — the set concatenates a prompt string instead of a typed list, coupling the editor to a specific model's prompt format and violating the model/editor separation.",
+      "RISK-5: AccessKit collision — chip ids collide across mounts, breaking the Argus/keyboard remove path."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Every item is an explicit operator command; a test asserts the set is empty until an attach command runs and that the open file is not auto-added.",
+      "CTRL-2 (RISK-2): Stale/drifted items are marked stale and excluded from to_session_context(); a test drifts a selection and asserts it is excluded from the payload.",
+      "CTRL-3 (RISK-3): Item + byte budget enforced with a visible 'context full' state; a test attaches past the cap and asserts no silent drop/truncation.",
+      "CTRL-4 (RISK-4): to_session_context() returns a typed list matching the MT-007 shape; a grep proof asserts no prompt-template/model-endpoint code and a test asserts the typed structure, not a concatenated string.",
+      "CTRL-5 (RISK-5): Chips use instance-suffixed author_ids; a dual-mount test asserts non-colliding ids and a working remove path."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: interop/interaction_bus.rs (SharedSelection + clipboard only, no agent-context path); code_editor/panel.rs selected_primary_text + code_nav symbol; rich_editor interop_adapter block_ref_selection/text_selection; command_registry.rs + context_menu_surfaces.rs (existing command/menu registration). WP-017 MT-007 launch/steer DTOs (read in this packet) carry the session context payload. Confirmed 'agent-editor-context-attach' is not covered by WP-012 (MT-001..108, incl. MT-098 chat dock), WP-013/014 stubs, STUDIO, or WP-011. External design basis: Cursor Add-to-Chat / @-mentions, Antigravity context attachment.",
+    "corrections": [
+      "The chat dock (MT-098) is the conversational surface but has NO structured editor-context attach path; interaction_bus is clipboard/selection only. This MT adds the typed, visible, removable context model feeding the MT-007 session — distinct from clipboard and from the inline-edit seam (MT-287, which reuses this set)."
+    ]
+  }
+}

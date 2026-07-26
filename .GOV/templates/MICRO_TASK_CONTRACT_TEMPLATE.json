@@ -76,6 +76,30 @@
     ],
     "not_applicable_reason": null
   },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": "{{MT_RESOURCE_PRIVACY_APPLICABLE}}",
+    "resources_touched": [],
+    "identity_and_scope_contexts": [],
+    "enforcement_boundaries": [],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
   "hbr_obligations": [],
   "hbr_int_009_tier_obligations": [],
   "handoff": {

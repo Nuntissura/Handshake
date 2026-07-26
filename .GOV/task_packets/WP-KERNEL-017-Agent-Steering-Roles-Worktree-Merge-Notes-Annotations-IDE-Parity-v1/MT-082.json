@@ -1,0 +1,155 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-082",
+  "title": "RO-MT082-RoleInjectionEngine",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-082.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-021",
+      "MT-043",
+      "MT-061"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Implement the per-transport Role Injection Engine: given an ACTIVE hsk.handshake_role@1 (MT-081) and a session launch, inject the role overlay through the correct transport-specific mechanism — Claude CLI, Codex CLI, or ACP — and record a typed injection event. Field-verified injection strategies (never full system-prompt replacement, which destroys the harness's agentic scaffolding): Claude = --append-system-prompt-file (overlay on top of defaults; the documented \"You are a security engineer\" pattern) with optional --agents '<json>' named-agent strategy; Codex = no append flag exists, so the role text is prepended to the first turn/start input under a stable delimiter contract; ACP = no system-prompt primitive, so the harness owns injection as the first session/prompt segment.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/role_injection.rs (RoleInjectionEngine + per-transport strategy impls + temp-overlay-file lifecycle), small integration seams into the launch paths delivered by MT-021 (Claude launch preset), MT-043 (Codex turn/start), MT-061 (ACP core), a new Flight Recorder event using the role-injection kind registered by MT-161's FR-kind catalog, plus tests. No frontend edits.\n\nDETAILED SPEC:\n- pub struct RoleInjectionEngine { store: HandshakeRoleStore, recorder: Arc<dyn FlightRecorder> } with pub async fn prepare_injection(&self, role_id, role_version: Option<u32>, transport: RoleTransport) -> Result<PreparedRoleInjection, RoleInjectionError>.\n- pub enum RoleTransport { ClaudeCli, CodexCli, Acp } and pub enum PreparedRoleInjection with per-transport payloads:\n  * ClaudeAppendFile { overlay_path: TempOverlayFile, extra_args: Vec<String> } — writes overlay_prompt to a mode-restricted temp file under the managed runtime temp root, yields [\"--append-system-prompt-file\", <path>]. Optional ClaudeAgentsJson { agents_json: String, agent_name: String } strategy renders the role as a named agent definition (description/tools/model/permissionMode + body prompt) yielding [\"--agents\", <json>, \"--agent\", <name>] when transport_bindings.claude == AGENTS_JSON.\n  * CodexFirstTurnPrefix { prefixed_input: fn(original: &str) -> String } — prepends the overlay under the stable delimiter contract: \"<handshake-role id=\\\"{id}\\\" version=\\\"{v}\\\" sha256=\\\"{h}\\\">\\n{overlay}\\n</handshake-role>\\n\\n\" + original first-turn/start input. Delimiter format is a frozen contract (tests pin exact bytes) so transcripts are machine-recoverable.\n  * AcpFirstPromptSegment { segment: PromptSegment } — same delimiter contract emitted as the first session/prompt segment through the MT-061 ACP core.\n- TempOverlayFile: RAII guard; file created with restrictive permissions in the session's managed temp dir, path registered with the process ledger, deleted on Drop AND on session-end/failure sweep (double cleanup path); never created inside the repo worktree.\n- Injection event: every successful prepare+attach records the MT-161 FR kind (role_injected) with { role_id, role_version, overlay_sha256, transport, strategy, session_id }. The sha256 must match the registry row (MT-081) — mismatch aborts injection with a typed error.\n- Guard rails: the engine exposes NO code path that renders a --system-prompt (full replacement) argument; only active-status roles are injectable (draft/retired -> typed RoleInjectionError::RoleNotActive); overlay size cap (configurable, default 64 KiB) with typed error to protect first-turn budgets.\n- Note on scope: this MT prepares and records injection payloads and wires them into the three launch seams; whole-session behavioral proof across live CLIs is MT-087.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-021 Claude launch preset seam and official_cli_bridge.rs (CliBridgeConfig.args_template + OfficialCliBridgeRuntime::render_args) to determine where extra role args join the rendered arg vector without violating the template validators.\n2. Implement RoleTransport/PreparedRoleInjection/RoleInjectionError and the engine skeleton over HandshakeRoleStore.\n3. Implement TempOverlayFile RAII with process-ledger registration and the session-end sweep hook; unit-test both cleanup paths (Drop and sweep after simulated crash).\n4. Implement the Claude append-file strategy and the optional agents-json strategy behind transport_bindings.claude.\n5. Implement the Codex first-turn prefix function with the frozen delimiter contract; pin exact-byte tests.\n6. Implement the ACP first-prompt segment through the MT-061 session/prompt path.\n7. Wire the FR role_injected event (MT-161 kind) with sha256 verification against the registry.\n8. Negative tests: draft role rejected; sha mismatch rejected; oversized overlay rejected; assert no strategy ever emits \"--system-prompt\" as a standalone arg.\n9. Integration test per transport seam with a stub spawner asserting final arg vector / first-turn bytes / first-segment bytes.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/role_injection.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs (launch seam only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (arg-join seam only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (seam only)",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/frontend/handshake_native/**",
+      "src/backend/handshake_core/migrations/** (no new tables in this MT)"
+    ],
+    "acceptance_criteria": [
+      "RoleInjectionEngine prepares Claude append-file injection: overlay bytes land in a temp file outside the repo worktree and the extra args are exactly [\"--append-system-prompt-file\", <path>] (or the agents-json pair when bound).",
+      "Codex strategy produces first-turn input prefixed with the frozen <handshake-role .../> delimiter block; exact-byte test pins the delimiter contract.",
+      "ACP strategy emits the same delimiter block as the first session/prompt segment via the MT-061 core.",
+      "TempOverlayFile is cleaned up on Drop AND by the session-end/failure sweep; a simulated-crash test proves no orphan overlay file survives the sweep.",
+      "Every injection records the MT-161 role_injected FR event with role_id, role_version, overlay_sha256, transport, strategy, session_id; sha mismatch against the registry aborts with a typed error.",
+      "Draft and retired roles are not injectable (typed RoleNotActive error).",
+      "No engine code path can emit a full --system-prompt replacement argument (negative test + grep proof).",
+      "Overlay size cap enforced with typed error."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core role_injection -- --nocapture",
+      "cargo test -p handshake_core role_injection_delimiter_exact_bytes -- --nocapture",
+      "cargo test -p handshake_core role_injection_temp_cleanup -- --nocapture",
+      "grep -n '\"--system-prompt\"' src/backend/handshake_core/src/swarm_orchestration/role_injection.rs | wc -l  # expect 0"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/role_injection.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs (OperatorChatLaunchService::build_spawn_request seam)",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs (render_args arg-join seam)"
+    ],
+    "expected_tests": [
+      "per-transport strategy unit tests (arg vector / first-turn bytes / first-segment bytes)",
+      "temp overlay RAII + crash-sweep tests",
+      "sha-verification + not-active + size-cap negative tests",
+      "no-full-replacement negative test",
+      "FR role_injected event assertion test"
+    ],
+    "implementation_notes": [
+      "official_cli_bridge.rs validates args_template shape (e.g. {prompt} placement); join role args through the documented seam rather than mutating templates ad hoc — see render_args and the template validators around lines 984-1067.",
+      "Claude specifics (verified): --append-system-prompt/--append-system-prompt-file overlay on top of the default system prompt; --agents '<json>' defines named agents (description/tools/model/permissionMode + body prompt); --agent <name> runs the whole session under that role; CLAUDE.md/AGENTS.md load via message flow (skipped by --bare), so the overlay file is the reliable role carrier.",
+      "Codex specifics (verified): no append flag; config.toml profiles + AGENTS.md + initial turn/start input are the only carriers — hence the first-turn delimiter contract.",
+      "ACP specifics (verified): no system-prompt primitive; the harness owns role injection in launch/first-prompt.",
+      "Temp overlay files must live under the managed runtime temp root (portability: no hardcoded drive paths) and be registered with the process ledger for sweep-based reclamation."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend injection engine MT; operator visibility comes from MT-085 (GUI) and the role_injected FR events (trace projection)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal engine behind the launch flow; the operator-facing manual entries land with MT-085 (Role Manager GUI) and MT-086 (spawn role_id surface), which document injection behavior end-to-end."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-QUIET-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "role injection at session launch (all three transports)",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1; role_injected FR kind (MT-161) is the Tier-1 evidence surface."
+    }
+  ],
+  "risk_if_missed": "Roles exist in the registry but never reach a live session; steering stays manual prose pasted into prompts, unrecorded and unverifiable, and MT-083/086/087 have no injection substrate.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Scaffolding destruction — a shortcut that swaps the whole system prompt (instead of appending) silently strips the harness's agentic behaviors; sessions look launched but degrade unpredictably.",
+      "RISK-2: Orphaned overlay temp files — crashed or cancelled launches leak role text onto disk outside cleanup, violating quiet-operation and leaving stale prompts that a later session could pick up.",
+      "RISK-3: Injected-bytes drift — the bytes written to the temp file / first turn differ from the approved registry version (encoding, truncation, template interpolation), so the operator-approved role is not what runs.",
+      "RISK-4: Delimiter collision — a task payload containing the literal delimiter string corrupts the Codex/ACP role framing and lets payload text masquerade as role authority."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): no full-replacement code path exists (closed enums + negative test + grep proof target).",
+      "CTRL-2 (RISK-2): TempOverlayFile RAII + process-ledger registration + session-end/failure sweep; simulated-crash test proves zero orphans.",
+      "CTRL-3 (RISK-3): sha256 of prepared bytes verified against the registry row before attach; mismatch aborts; role_injected event records the hash for post-hoc audit.",
+      "CTRL-4 (RISK-4): delimiter includes the per-injection sha256 attribute making spoofed blocks detectable; composition layer (MT-083) escapes literal delimiter sequences in payload text; exact-byte tests pin the contract."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified field research: Claude Code --append-system-prompt-file / --agents / --agent (role overlay pattern; full --system-prompt replacement REJECTED as it destroys agentic scaffolding; CLAUDE.md loads via message flow, skipped by --bare); Codex no-append-flag reality (AGENTS.md + config.toml profiles + first-turn input); ACP has no system-prompt primitive (harness-owned injection). Inspected product code: official_cli_bridge.rs CliBridgeConfig/args_template/render_args + template validators; operator_chat.rs OperatorChatLaunchService::build_spawn_request/launch; process ledger for cleanup registration.",
+    "corrections": [
+      "Injection is append/prefix-only across all three transports; replacement is a contract-level forbidden action, not a style preference.",
+      "Codex and ACP get an identical frozen delimiter contract so transcripts remain machine-recoverable across providers.",
+      "Injection eventing depends on the MT-161 FR-kind catalog; this MT consumes, never invents, event kinds."
+    ]
+  }
+}

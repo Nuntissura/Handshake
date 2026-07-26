@@ -1,0 +1,172 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-142",
+  "title": "WM-MT142-MergeEngine",
+  "group": "WM Worktree merge-back",
+  "clause": "source_control merge engine: merge_branch with typed MergeOutcome, ff detection, no-ff 3-way, abort, no force flags",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-142.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-141"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Close the verified merge gap in handshake_core source control. The current SourceControlRepository (src/backend/handshake_core/src/source_control.rs) exposes status/diff/stage/unstage/discard/commit/log/branches/create_branch/switch_branch/blame (~lines 154-365) and NOTHING for merge/rebase/cherry-pick/pull ('Unmerged' appears only as a git-status code). This MT adds a governed merge engine as a NEW module so session branches (MT-141) can merge back into target branches with typed outcomes, an always-available abort, and provable absence of force flags and push.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/source_control_merge.rs (registered in lib.rs) containing the typed merge API; NO behavioral edits to existing source_control.rs functions (only pub(crate) visibility relaxation of small helpers like literal_pathspec/validate_branch_name if reuse requires it). New tests in src/backend/handshake_core/tests/. The new module is the ONLY place merge command lines are constructed, which makes the no-force/no-push grep proof precise (existing `clean -f` in discard() and `worktree remove --force` in workspace_safety.rs are pre-existing, non-merge, non-push code and stay untouched).\n\nDETAILED SPEC:\n1. Typed API:\n   pub struct MergeOptions { pub allow_fast_forward: bool, pub commit_message: Option<String>, pub attribution: Option<String> }  // attribution = session/role identity folded into the merge commit message trailer\n   pub struct MergeConflictStages { pub base_oid: Option<String>, pub local_oid: Option<String>, pub remote_oid: Option<String> }  // stages 1/2/3 from `git ls-files -u -z`; None = side absent (add/add, delete/modify)\n   pub struct MergeConflict { pub path: String, pub stages: MergeConflictStages }\n   pub enum MergeBlockReason { DirtyTargetTree { paths: Vec<String> }, DirtySourceTree { paths: Vec<String> }, MergeAlreadyInProgress, UnknownRef { name: String }, TargetProtectedApprovalRequired { target: String } }\n   pub enum MergeOutcome { CleanMerged { commit_id: String, fast_forward: bool }, Conflicts { conflicts: Vec<MergeConflict>, checkout_path: PathBuf }, Blocked { reason: MergeBlockReason } }\n   pub struct MergeSession { /* owns the controlled target checkout */ }\n   impl MergeSession {\n     pub fn begin(repo_root: &Path, target_branch: &str, source_branch: &str, opts: &MergeOptions) -> Result<MergeOutcome, SourceControlError>\n     pub fn abort(&self) -> Result<(), SourceControlError>          // always available while Conflicts state persists\n     pub fn checkout_path(&self) -> &Path\n   }\n2. Git command lines (every invocation: `git -C <cwd> -c core.longpaths=true ...`; worktree-creating/removing calls serialized under SESSION_WORKTREE_GIT_LOCK, imported from workspace_safety):\n   ref validation:        `git check-ref-format --branch <name>` (reuse validate_branch_name pattern, source_control.rs ~336-350)\n   ff detection:          `git merge-base --is-ancestor <target_commit> <source_commit>`  (exit 0 => source is ahead => ff possible)\n   controlled checkout:   `git -C <repo_root> -c core.longpaths=true worktree add <merge_scratch_path> <target_branch>`  // named-branch checkout of TARGET in an external scratch path (under HANDSHAKE_SESSION_WORKTREE_ROOT sibling dir merge_checkouts/<uuid_v7>); NEVER merges inside the operator's live worktree\n   ff merge (allowed):    `git -C <checkout> -c core.longpaths=true merge --ff-only <source_branch>`\n   3-way merge:           `git -C <checkout> -c core.longpaths=true merge --no-ff --no-commit <source_branch>`\n   conflict enumeration:  `git -C <checkout> -c core.longpaths=true ls-files -u -z`  -> parse (mode, oid, stage, path) rows into MergeConflict list\n   abort:                 `git -C <checkout> -c core.longpaths=true merge --abort`\n   completion commit:     `git -C <checkout> -c core.longpaths=true commit --no-gpg-sign -m <message>` (same no-gpg-sign discipline as commit(), source_control.rs ~275)\n3. Preconditions (evaluated inside begin(), before any merge command): target checkout clean and source worktree clean via `status --porcelain=v1 -z` (reuse status() parsing); .git/MERGE_HEAD absent in the checkout (else MergeAlreadyInProgress); both refs resolve. Dirty trees return MergeOutcome::Blocked, never a partial merge. TargetProtectedApprovalRequired is RETURNED here as a typed reason but the protected-branch policy/approval evaluation itself is MT-145 (this MT ships the enum arm + a policy hook trait `MergePolicyGate { fn check(&self, target: &str) -> Result<(), MergeBlockReason> }` with a default allow-all implementation; MT-145 supplies the real gate).\n4. HARD RULES (operator + red-team): NO force flag of any kind in this module (--force, -f, -D, --force-with-lease); NO `git push` invocation at all (merge-back is local; publishing is a separate operator concern outside this WP); NO auto-resolution of conflicts (no `-X ours`, `-X theirs`, no `git checkout --ours/--theirs`): Conflicts always surface as MergeOutcome::Conflicts for the native merge UI / operator / governed resolution session (MT-143). Unresolved MergeSession Drop aborts the merge and removes the scratch checkout (never half-committed).\n5. BOUNDARY: this engine merges git-tracked worktree CODE only. CRDT document merging (kernel/crdt live shared documents) is a different mechanism and MUST NOT be routed through, or conflated with, this engine.\n\nSTEP-BY-STEP:\n1. Read source_control.rs 96-450 (SourceControlRepository, SourceControlError, run_git_bytes, validate_branch_name, literal_pathspec, status parsing) and workspace_safety.rs SESSION_WORKTREE_GIT_LOCK.\n2. Create source_control_merge.rs with the types above; register `pub mod source_control_merge;` in lib.rs.\n3. Implement precondition checks (clean trees, refs resolve, no MERGE_HEAD, policy hook).\n4. Implement ff detection + --ff-only path (only when opts.allow_fast_forward).\n5. Implement the scratch-checkout no-ff no-commit path, conflict enumeration via ls-files -u -z, and the Conflicts outcome carrying checkout_path for MT-143.\n6. Implement completion commit (clean 3-way) with attribution trailer, abort(), and Drop = abort + scratch cleanup.\n7. Add SourceControlError variants as needed (e.g. MergeFailed { stderr }).\n8. Tests in a scratch git repo: clean ff, clean no-ff, conflict outcome with correct stage oids, abort restores pristine state, dirty-tree Blocked, unknown-ref Blocked, Drop-aborts.\n9. Run proof targets including the no-force/no-push greps.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/source_control_merge.rs",
+      "src/backend/handshake_core/src/source_control.rs (visibility-only edits: pub(crate) on reused helpers; no behavior change)",
+      "src/backend/handshake_core/src/lib.rs (module registration only)",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI IPC allowed only on the GUI MT, MT-146)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain; do not conflate with git worktree code merge)",
+      "src/frontend/** (UI bridge is MT-143/MT-146)"
+    ],
+    "acceptance_criteria": [
+      "MergeOutcome { CleanMerged{commit_id, fast_forward}, Conflicts{conflicts, checkout_path}, Blocked{reason} } and MergeBlockReason exist as typed, serde-serializable enums in src/backend/handshake_core/src/source_control_merge.rs.",
+      "MergeSession::begin performs ff detection via `merge-base --is-ancestor` and, for 3-way, runs `merge --no-ff --no-commit` in a controlled scratch worktree checkout of the TARGET branch, never in the operator's live worktree.",
+      "Conflicts are enumerated from `git ls-files -u -z` into MergeConflict rows with stage-1/2/3 oids; a live conflict test asserts path + all three stage oids.",
+      "MergeSession::abort runs `git merge --abort` and a test proves the checkout returns to pristine target state; Drop of an unresolved MergeSession aborts and removes the scratch checkout.",
+      "Dirty target tree, dirty source tree, in-progress merge, and unknown ref each return the matching typed Blocked reason without executing any merge command.",
+      "No auto-resolution: the module contains no -X ours/theirs and no checkout --ours/--theirs path; a conflict NEVER auto-commits.",
+      "Grep-provable hard rule: zero occurrences of '--force', '\"-f\"', '-D', 'push', '-X' in source_control_merge.rs.",
+      "Every git invocation in the module includes -c core.longpaths=true; worktree add/remove calls hold SESSION_WORKTREE_GIT_LOCK.",
+      "MergePolicyGate hook exists with default allow-all; TargetProtectedApprovalRequired arm compiles and is reachable via an injected test gate (real policy lands in MT-145)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core merge_engine -- --nocapture",
+      "cargo test -p handshake_core merge_engine_conflict_stages -- --nocapture",
+      "cargo test -p handshake_core merge_engine_abort_pristine -- --nocapture",
+      "cargo test -p handshake_core merge_engine_blocked_preconditions -- --nocapture",
+      "bash -lc \"! grep -nE '(--force|\\\"-f\\\"|\\\"-D\\\"|push|\\\"-X\\\")' src/backend/handshake_core/src/source_control_merge.rs && echo NO_FORCE_NO_PUSH\"",
+      "bash -lc \"grep -c 'core.longpaths=true' src/backend/handshake_core/src/source_control_merge.rs\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/source_control_merge.rs (NEW: MergeOptions, MergeOutcome, MergeConflict, MergeBlockReason, MergeSession, MergePolicyGate)",
+      "src/backend/handshake_core/src/source_control.rs (reused helpers: run_git_bytes pattern, validate_branch_name ~336, literal_pathspec, status parsing ~154-162; no behavior change)",
+      "src/backend/handshake_core/src/workspace_safety.rs (SESSION_WORKTREE_GIT_LOCK import; read-only reuse)"
+    ],
+    "expected_tests": [
+      "scratch-repo test: ff merge returns CleanMerged{fast_forward:true} and target ref advances",
+      "scratch-repo test: divergent branches produce a no-ff merge commit with attribution trailer, CleanMerged{fast_forward:false}",
+      "scratch-repo test: overlapping edits return Conflicts with correct path and 3 stage oids matching `git rev-parse :1/:2/:3`",
+      "scratch-repo test: abort() then `git status --porcelain` empty in checkout; target ref unchanged",
+      "scratch-repo test: dirty target/source => Blocked{DirtyTargetTree|DirtySourceTree} and no MERGE_HEAD created",
+      "scratch-repo test: Drop of unresolved MergeSession leaves no scratch checkout directory and no MERGE_HEAD",
+      "unit test: injected MergePolicyGate returning TargetProtectedApprovalRequired blocks before any git merge command runs"
+    ],
+    "implementation_notes": [
+      "Scratch checkout root: sibling of the session worktree root (session_worktree_path pattern, workspace_safety.rs ~356-368) => merge_checkouts/<uuid> under HANDSHAKE_SESSION_WORKTREE_ROOT or <repo_parent>/merge_checkouts; ids minted with Uuid::now_v7() (HBR-INT-008).",
+      "The target branch cannot be checked out twice: if the target is already checked out in the main worktree, `git worktree add <path> <target_branch>` fails; detect and surface as a typed Blocked reason or use the main checkout ONLY when it is the operator-approved target checkout — decision recorded in code comment; default = dedicated scratch checkout of a non-checked-out target, and a typed error otherwise.",
+      "ls-files -u -z row format: '<mode> <oid> <stage>\\t<path>' NUL-terminated; group rows by path into MergeConflictStages.",
+      "Do not implement rebase/cherry-pick/pull here; the verified gap this family closes is merge-back only.",
+      "Emit an EventLedger/FR record for merge attempt outcomes only via the MT-145 governance layer; this MT keeps the engine pure and returns typed outcomes (HBR-INT-001 evidence lands with MT-145 wiring; engine tests prove outcomes deterministically).",
+      "Cross-family seam: MT-123 MT-run states are merge preconditions read in MT-145, not here; keep the engine policy-agnostic behind MergePolicyGate."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless merge engine; operator-facing merge review UI is MT-146, conflict UI bridge is MT-143. Outcomes are typed and reconstructable (HBR-VIS-004)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Source Control > Merging session branches (outcomes: clean / conflicts / blocked; abort always available)",
+      "Source Control > Merge safety rules (no force, no push, no auto-resolution, code-merge vs CRDT-document boundary)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "DEFERRED_WITH_REASON",
+      "note": "Merge-lifecycle FR kinds (proposed/approved/executed/conflicted/aborted) are MT-161 seam, wired by MT-145; the engine stays event-free by design and this disposition must be recorded, not silently skipped."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit a diagnostic event when a merge git subprocess fails unexpectedly (non-conflict non-zero exit) if the open diagnostic-event API exists in the implementing worktree."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Bounded git subprocesses; no long-lived runtime whose freeze/crash needs external capture."
+    }
+  ],
+  "risk_if_missed": "The verified surface gap stays open: no governed merge path exists, agents hand-roll git merges without typed outcomes/abort/no-force guarantees, and MT-143..148 have no engine to build on.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A merge runs in the operator's live worktree instead of a controlled checkout, leaving conflict markers/MERGE_HEAD in the surface the operator is editing.",
+      "RISK-2: A 'convenient' auto-resolution strategy (-X theirs / checkout --ours) sneaks in and silently destroys one side of a conflict — the exact failure the no-auto-resolution hard rule forbids.",
+      "RISK-3: Force flags or a push path enter the module later; without a grep-provable module boundary the absence proof degrades into trust.",
+      "RISK-4: Half-committed state: a panic/early-return between `merge --no-commit` and commit/abort leaves MERGE_HEAD + staged conflict soup that blocks every later merge (MergeAlreadyInProgress forever).",
+      "RISK-5: Conflict stage parsing loses add/add or delete/modify cases (missing stages) and MT-143 renders the wrong base/local/remote panes."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): begin() always operates on a dedicated scratch checkout path derived under the external worktree root; a test asserts the repo's main worktree is byte-identical before/after a conflicted merge + abort.",
+      "CTRL-2 (RISK-2): No -X/--strategy-option accepted anywhere in the API; grep proof target includes '-X'; conflict tests assert both sides' content still present in stage oids.",
+      "CTRL-3 (RISK-3): All merge command construction confined to source_control_merge.rs; proof target greps that single module for --force/-f/-D/push/-X on every run (MT-148 re-proves it live).",
+      "CTRL-4 (RISK-4): MergeSession implements Drop = abort + scratch removal; test kills the session mid-conflict and proves no MERGE_HEAD survives; MergeAlreadyInProgress precondition covers external leftovers.",
+      "CTRL-5 (RISK-5): ls-files -u parser has unit tests for add/add (no stage 1), delete/modify (missing stage 2 or 3), and rename-ish paths with spaces (NUL-terminated parsing)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-multi-model-orchestration-v1 src/backend/handshake_core/src/source_control.rs — full surface status/diff/stage/unstage/discard/commit/log/branches/create_branch/switch_branch/blame at ~154-365 with NO merge/rebase/cherry-pick/pull ('Unmerged' only as a status code); commit --no-gpg-sign pattern ~275; validate_branch_name + check-ref-format ~336-350; discard() uses clean -f (pre-existing, non-merge). workspace_safety.rs SESSION_WORKTREE_GIT_LOCK + core.longpaths discipline ~370-440. Field practice: merge --no-ff --no-commit + ls-files -u stage enumeration is the standard porcelain-scriptable conflict workflow (git-scm docs); libgit2/gitoxide in-process merge rejected to keep one git-CLI discipline consistent with the existing module.",
+    "corrections": [
+      "Hard rules baked in from operator + red-team decisions: NEVER force-push (no push at all in this module); no auto-resolution of conflicts — conflicts always surface to the native merge UI/operator/governed resolution session; protected-branch gating is a typed Blocked arm here, enforced by MT-145.",
+      "Engine placed in a NEW module so the no-force/no-push grep proof is precise despite pre-existing clean -f / worktree remove --force elsewhere.",
+      "Git worktree CODE merge strictly separated from CRDT document merging (kernel/crdt); boundary stated in scope, forbidden_paths, and manual entries."
+    ]
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-102",
+  "title": "MM-MT102-SteerStatusTools",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-102.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-101",
+      "MT-002"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give orchestrator-model sessions governed steering and observation tools over the workers they spawned: `steer_worker{child_session_id, message}`, `interrupt_worker{child_session_id}`, `worker_status{child_session_id}`, `list_children{}`. This is the async steering layer that the Anthropic multi-agent research system names as its own gap (their steering is synchronous-only); Handshake delivers steer messages through the MT-002 steer queue with per-transport capability awareness.\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/swarm_orchestration/model_tools/steer_tools.rs (+ types additions in model_tools/types.rs) registering the four tools on the same session tool channel as MT-101; delivery adapter that enqueues onto the MT-002 steer queue; a per-parent token-bucket rate limiter; ledger + FR-event stamping on every call. Tests. No frontend changes.\n\nDETAILED SPEC:\n1. Scope of authority: a parent may only steer/interrupt/inspect its OWN children (lineage from the MT-103 registry once it lands; until then, from SpawnRequest.parent_session_id attribution in the coordinator/ledger). Any call naming a session that is not a live child of the caller returns typed `NotYourChild` — the tool must not even confirm whether the session exists (no session-id oracle).\n2. steer_worker: validates message size (config cap, default 16 KiB), passes the message through the MT-104 injection-scan pipeline BEFORE enqueue (a quarantined message is not delivered; caller gets typed `MessageQuarantined` with the finding id), then enqueues onto the MT-002 steer queue addressed to the child session.\n3. Capability-aware delivery (per-transport steer seams MT-023/043/062): app-server transport = mid-turn injection; claude transport = queued-turn (delivered at next turn boundary); acp transport = next-turn. worker_status exposes the delivery capability class so the orchestrator model knows WHEN its steer will land; the tool response includes `delivery_class: mid_turn | queued_turn | next_turn`.\n4. interrupt_worker: requests cooperative cancellation of the child's current turn via the coordinator's CancellationToken plumbing — it NEVER kills the process directly and never bypasses SwarmCoordinator ownership of teardown; the child session survives (turn-level interrupt), and a policy flag (MT-106) controls whether a parent may interrupt at all.\n5. worker_status: returns the child's session state (from the MT-001 session model / coordinator state), current turn state, last MT-121 signal if any, and queue depth of pending steers. list_children: returns live + recently-terminated children of the caller only, with role_id and lane.\n6. Rate limits: per-parent token bucket (config: default 30 steer calls/min, 10 interrupts/min); exceeding returns typed `RateLimited` with retry_after_ms — the model gets a bounded, honest backoff signal instead of a silent drop (HBR-SWARM-002 no-silent-loss).\n7. Ledger + events: every call (all four tools, allow and deny) writes a process_ledger row with parent attribution, tool name, target child, decision, and injection-scan verdict where applicable. Steer deliveries are recorded so a lost message is detectable (no-silent-loss).\n\nSECURITY FRAME (binding): steering is inter-model content flow — a privilege-escalation and injection surface. All steer bodies are injection-scanned (MT-104); parent identity is server-side only (MT-101 rule); deny-by-default policy (MT-106) gates steer/interrupt capability per role pair; nothing here spawns sessions.\n\nSTEP-BY-STEP:\n1. Read MT-101 model_tools module, MT-002 steer-queue contract, per-transport steer seams (MT-023/043/062 contracts), coordinator CancellationToken usage.\n2. Add SteerWorkerInput/Output, InterruptWorkerInput/Output, WorkerStatusOutput, ListChildrenOutput, and typed errors NotYourChild, MessageQuarantined, RateLimited, PolicyDenied to model_tools/types.rs.\n3. Implement steer_tools.rs handlers with lineage check, policy check, injection scan, queue enqueue, capability-class resolution.\n4. Implement the per-parent token-bucket limiter (in-memory keyed by parent_session_id, config-driven caps).\n5. Ledger + FR stamping with parent attribution on every path.\n6. Tests per expected_tests.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/**",
+      "src/backend/handshake_core/tests/model_tools_steer/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (read-only; interrupt goes through existing cancellation plumbing, no new teardown path)"
+    ],
+    "acceptance_criteria": [
+      "All four tools (steer_worker, interrupt_worker, worker_status, list_children) exist on the session tool channel, gated behind the same model_to_model feature flag family as MT-101.",
+      "A parent can only address its own children: cross-lineage calls return typed NotYourChild without confirming target existence (anti-oracle), with a dedicated test.",
+      "Every steer message passes the MT-104 injection scan before enqueue; a crafted instruction-shaped message is quarantined, not delivered, and the caller receives MessageQuarantined.",
+      "Delivery is via the MT-002 steer queue only — no direct writes into a child's transport; worker_status reports the correct delivery_class per transport (mid_turn for app-server, queued_turn for claude, next_turn for acp).",
+      "interrupt_worker cancels the child's current turn via coordinator cancellation plumbing; the child process/session is not killed and coordinator teardown ownership is untouched.",
+      "Per-parent rate limits enforce configured caps and return typed RateLimited with retry_after_ms; no call is silently dropped.",
+      "Every call on every path (success, NotYourChild, PolicyDenied, MessageQuarantined, RateLimited) produces a process_ledger row with parent attribution."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core model_tools_steer -- --nocapture",
+      "cargo test -p handshake_core steer_cross_lineage_not_your_child -- --nocapture",
+      "cargo test -p handshake_core steer_injection_quarantine_blocks_delivery -- --nocapture",
+      "cargo test -p handshake_core steer_rate_limit_typed_rejection -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/steer_tools.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/types.rs (extend)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/rate_limit.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (reference: CancellationToken turn-cancel plumbing)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs (reference: lane/transport metadata for delivery_class)"
+    ],
+    "expected_tests": [
+      "unit: message size cap enforcement; unknown child id => NotYourChild",
+      "unit: token bucket refill math and per-parent isolation",
+      "integration: steer enqueued onto MT-002 queue with correct delivery_class per transport",
+      "integration: quarantined message never reaches the queue; finding recorded",
+      "integration: interrupt cancels current turn, session stays alive, ledger row written",
+      "negative: policy denies interrupt for a role pair configured no-interrupt (MT-106)"
+    ],
+    "implementation_notes": [
+      "Lineage source order: MT-103 registry when present; fallback to coordinator/ledger parent_session_id attribution so this MT is testable before MT-103 merges (document the fallback in code).",
+      "delivery_class mapping is a capability lookup, not a behavior reimplementation: the actual mid-turn/queued-turn/next-turn mechanics live in the per-transport steer MTs (MT-023 app-server, MT-043 claude, MT-062 acp); this MT only routes and reports.",
+      "Rate limiter is in-memory and per-process by design (steering is coordinator-local); note this limitation for any future multi-process coordinator work.",
+      "Operator precedence: the operator's own steering surfaces (operator_chat) are NOT rate-limited or policy-gated by this MT; only model-initiated calls flow through these tools.",
+      "Cross-family seams (reference only): MT-001 session model, MT-002 steer queue, MT-023/043/062 per-transport steer, MT-104 injection scan, MT-106 policy, MT-121 signals."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend tools; the live steering feed and operator entry points ship in MT-107."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Model-to-model orchestration: steer/interrupt/status/list_children tools — lineage scope, delivery classes per transport, rate limits, quarantine behavior"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-001",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "Spawned workers are fire-and-forget: no mid-run correction, no bounded interrupt, no status introspection — the orchestrator either polls (operator-declared defect) or loses control of children, and steering content flows unscanned if improvised later.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Cross-lineage steering — a parent steers or interrupts another parent's child (or an operator session) by guessing session ids, escalating one compromised orchestrator into swarm-wide control.",
+      "RISK-2: Injection relay — a compromised or manipulated orchestrator embeds instruction-shaped content in steer messages, turning steering into a prompt-injection channel into workers.",
+      "RISK-3: Steer flooding — an orchestrator in a defective loop floods a child with steers, burning tokens and starving the queue (unbounded loop).",
+      "RISK-4: Interrupt as kill — interrupt_worker implemented as process termination bypasses coordinator teardown, leaking leases/worktrees and violating STOP semantics.",
+      "RISK-5: Session-id oracle — differing errors for 'not found' vs 'not yours' let a model enumerate live session ids."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Server-side lineage check on every call; NotYourChild typed error; dedicated cross-lineage test.",
+      "CTRL-2 (RISK-2): Mandatory MT-104 injection scan before enqueue; quarantine blocks delivery; test with a crafted instruction-shaped message.",
+      "CTRL-3 (RISK-3): Per-parent token-bucket rate limits with typed RateLimited + retry_after_ms; caps operator-configurable; test proves enforcement.",
+      "CTRL-4 (RISK-4): Interrupt routes through coordinator CancellationToken turn-cancel only; coordinator.rs is read-only for this MT; test asserts session alive after interrupt.",
+      "CTRL-5 (RISK-5): Identical NotYourChild response for nonexistent and non-owned targets, asserted by test."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: coordinator.rs (CancellationToken per-session cancel), model_lane.rs (ModelLaneStore transport/lane metadata), events.rs (FR-EVT-SWARM catalogue), process_ledger/ (attribution rows). Cross-family seams from WP-017 stub: MT-002 steer queue, MT-023/043/062 per-transport steer capability classes. External precedent: Anthropic multi-agent research system names synchronous-only steering as their gap — this MT is the async steering they lack; Claude Code marker-line injection defense copied via MT-104.",
+    "corrections": []
+  }
+}

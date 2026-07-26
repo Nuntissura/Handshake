@@ -1,0 +1,182 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-045",
+  "title": "CX-MT045-CodexEventRecording",
+  "group": "CX Codex app-server transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-045.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-043",
+      "MT-161"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "Map thread/turn/item events to FR events (MT-161 kinds) + ModelLane transcripts + cost/usage rows with Claude-lane recording parity",
+  "scope": {
+    "summary": "GOAL: Make the Codex app-server lane fully recorded and cross-lane comparable: map thread/turn/item events and steer/approval dispositions into Flight Recorder events using the FR event kinds defined by MT-161, project item activity into ModelLane transcript rows, emit cost/usage rows from captured token usage, and prove recording PARITY with the Claude lane so cross-lane dashboards read both lanes identically (same row shapes, same activity_kind labels, lane distinguishable only by its lane label).\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/recording.rs implementing CodexEventRecorder subscribed to the MT-043 TurnItem stream + turn/thread lifecycle + steer dispositions + MT-044 approval ledger emissions, mapping them to MT-161 FR kinds, transcript rows, and usage rows; a cross-lane parity test module. Re-export additions in codex_app_server/mod.rs. MT-161's kind registry is consumed, not modified.\n\nDETAILED SPEC:\n1. FR EVENT MAPPING. Subscribe to the typed streams delivered by MT-042/043/044 and emit FR business events using ONLY kinds registered by MT-161 (no ad-hoc kind strings). Required coverage: thread lifecycle (started/resumed/forked/rolled-back/closed/failed), turn lifecycle (started/completed-with-usage/interrupted/failed), item lifecycle per the MT-043 emission discipline (completed always; started for command_execution), steer dispositions (delivered-mid-turn/held/rejected/undelivered-returned), and approval decisions (the MT-044 ledger records). Every event carries correlation fields: session_id, thread_id, turn_id, item_id (when applicable), mt_id when the turn was started for a governed MT, and the lane label for the codex app-server lane.\n2. MODELLANE TRANSCRIPTS. Project TurnItems into ModelLane transcript rows using the SAME activity_kind label vocabulary the aggregator already keys on - tool_call, thinking, text, other (agent_activity.rs AgentActivityKind::label, lines 111-118). Mapping: agent_message -> text; reasoning -> thinking; command_execution, file_change, mcp_tool_call, web_search -> tool_call (with the concrete tool name in the row payload); plan_update -> other (payload-preserved) unless MT-161 defines a dedicated label; Unknown{raw} -> other with lossless raw. Rows carry ordering that reproduces stream order deterministically.\n3. COST/USAGE ROWS. Each TurnUsage captured by MT-043 becomes one usage row: {session_id, thread_id, turn_id, lane label, input_tokens, cached_input_tokens?, output_tokens, total, recorded_at}. Interrupted/failed turns with schema-provided usage record it; absent usage records a typed-unknown row (never fabricated zeros). Usage rows feed the same cost dashboard tables the Claude lane feeds.\n4. CROSS-LANE PARITY (HBR-INT-005). The acceptance bar is the build rule's own wording: the lane normalizes into the same SessionRun event stream as every other lane, and the TraceProjection cannot tell which lane ran beyond a lane label. Deliver a parity test that runs a scripted Codex app-server conversation and a scripted Claude-lane conversation with equivalent semantic content (text + thinking + one tool call + usage) through recording, then asserts: identical row schemas, identical activity_kind labels for equivalent activities, identical FR correlation-field sets, and that a dashboard-side query (the cross-lane read path) returns both lanes through one code path with only the lane label differing.\n5. REPLAY. FR events must reconstruct the turn timeline: a replay test rebuilds the ordered item/steer/approval sequence for a turn purely from recorded events (no in-memory state), per HBR-INT-001/007.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-161 FR kind registry contract and its delivered kinds; read agent_activity.rs label vocabulary (lines 111-118) and the Claude-lane recording path (cli_bridge_runtime.rs FR-EVT-AGENT-* emission around line 290, CloudLaneObservability FR-EVT-LLM-INFER-* per production_factory.rs lines 511-515) in the implementation worktree.\n2. Author recording.rs: CodexEventRecorder subscribing to the MT-042/043/044 typed streams; no direct JSON parsing (typed inputs only).\n3. Implement FR mapping per spec item 1 with a compile-time-exhaustive match over event types (no catch-all that silently drops).\n4. Implement transcript projection per spec item 2 and usage rows per spec item 3.\n5. Implement the replay reconstruction helper used by the replay test.\n6. Author the cross-lane parity test per spec item 4 (scripted fake transports on both lanes; the Claude side reuses its existing test fixtures).\n7. Run proof targets; record outputs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/recording.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs (re-exports only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/tests/** (if tests are split out)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI work in this MT)",
+      "MT-161 FR kind registry modules (consume kinds; do not add or modify kinds here)",
+      "Claude-lane recording modules (parity is proven by test, not by editing the other lane)"
+    ],
+    "acceptance_criteria": [
+      "Every MT-042/043/044 typed event type maps to an MT-161-registered FR kind via an exhaustive match; an unmapped event type is a compile error, not a silent drop (code-shape criterion + test).",
+      "FR events carry the full correlation field set (session_id, thread_id, turn_id, item_id?, mt_id?, lane label) on every emission (test).",
+      "TurnItems project to ModelLane transcript rows using exactly the tool_call/thinking/text/other label vocabulary; the seven documented item kinds plus Unknown all land per the declared mapping (test).",
+      "Usage rows are recorded for completed turns, schema-provided interrupted/failed turns, and typed-unknown when absent - never fabricated zeros (tests).",
+      "Cross-lane parity test passes: equivalent scripted conversations on the Codex and Claude lanes yield identical row schemas, identical labels for equivalent activities, and a single cross-lane query path where only the lane label differs (test).",
+      "Replay test reconstructs the ordered item/steer/approval timeline of a turn purely from FR events (test).",
+      "Steer dispositions and approval decisions appear in FR with their MT-161 kinds (test).",
+      "No new FR kind strings are minted in this MT (grep criterion: all kinds referenced come from the MT-161 registry)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core model_runtime::cloud::codex_app_server::recording -- --nocapture",
+      "cargo test -p handshake_core cross_lane_recording_parity -- --nocapture",
+      "cargo clippy -p handshake_core -- -D warnings",
+      "HSK_CODEX_LIVE=1 cargo test -p handshake_core codex_recording_live_turn -- --nocapture --ignored  # live: one real turn recorded end-to-end incl. usage row; absent CLI/login => typed NEEDS_MANAGED_RESOURCE_PROOF, never silent skip"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/recording.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs",
+      "MT-161 FR event kind registry (consumed)",
+      "agent_activity.rs AgentActivityKind::label lines 111-118 (label vocabulary parity target)",
+      "cli_bridge_runtime.rs FR-EVT-AGENT-* emission (~line 290) and CloudLaneObservability seam (production_factory.rs lines 511-515) - Claude/exec lane recording precedent (reference only)"
+    ],
+    "expected_tests": [
+      "fr_mapping_exhaustive_no_silent_drop",
+      "fr_events_carry_full_correlation_fields",
+      "transcript_labels_match_lane_vocabulary",
+      "usage_rows_completed_interrupted_absent_variants",
+      "cross_lane_recording_parity",
+      "replay_reconstructs_turn_timeline_from_fr_only",
+      "steer_dispositions_and_approvals_recorded",
+      "no_ad_hoc_fr_kind_strings",
+      "codex_recording_live_turn (live-gated; typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent)"
+    ],
+    "implementation_notes": [
+      "Parity is with the Claude LANE'S RECORDING OUTPUT, not its wire format: both lanes have different upstream JSON but must be indistinguishable downstream except for the lane label (HBR-INT-005 wording is the bar).",
+      "The exec Codex lane already records via parse_codex_line -> FR-EVT-AGENT-*; the app-server lane must not double-record if a session ever runs both lanes - key rows by (lane, thread_id, turn_id, item_id) so overlap is detectable (MT-046 owns lane selection).",
+      "plan_update: check MT-161 first for a dedicated kind/label; only fall back to other/payload-preserved if none is registered - do not register one yourself.",
+      "Ordering: use the arrival order of the typed streams; do not re-sort by timestamps (clock skew between server and Handshake).",
+      "Keep the recorder side-effect-free on failure of a single row write beyond typed error propagation; a recording failure must never stall the turn (record-behind, bounded buffer, overflow counted)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless recording MT: dashboards consume the rows; no new GUI is created here. Visual verification = TraceProjection per HBR-VIS-004 (the replay test IS the projection proof)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Recording internals; the operator-facing lane documentation (steering/approvals/lane selection) is owned by MT-043/MT-044/MT-046. If cross-lane dashboard docs need a note, MT-046's manual entry carries it. If the UserManual artifact is absent in the implementation worktree, record DEFERRED-with-reason per HBR-MAN-001."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "This MT IS the FR wiring for the Codex app-server lane (MT-161 kinds; replay-proven)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "Recorded DEFERRED-with-reason if internal_diagnostics is not present in the implementation worktree at claim time; never silently skipped."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "Recording-path liveness rides the MT-041 health probe + MT-005 supervisor; external-watcher registration deferred there; recorded, never silently skipped."
+    }
+  ],
+  "risk_if_missed": "Codex app-server turns run unrecorded or lane-shaped: no replayable timeline, no cost rows, dashboards show Claude-only truth, and steering/approval decisions vanish from the audit trail - the WP's observability parity goal fails.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent event drop - a catch-all match arm or lossy channel drops event types added later, quietly eroding the audit trail.",
+      "RISK-2: Label drift - Codex rows using near-miss labels (e.g. tool_use vs tool_call) split dashboards into per-lane code paths, defeating parity.",
+      "RISK-3: Fabricated usage - defaulting absent token usage to zero corrupts cost accounting invisibly.",
+      "RISK-4: Recording stalls the turn - synchronous row writes on the hot event path block item streaming under storage latency.",
+      "RISK-5: Double-recording - a session touching both the exec lane and app-server lane records the same semantic activity twice, inflating transcripts and cost."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Compile-time-exhaustive match over typed event enums; no wildcard arm; test proves a scripted full-coverage conversation yields the full expected FR sequence.",
+      "CTRL-2 (RISK-2): Labels referenced from the shared vocabulary (agent_activity.rs label fn / MT-161 registry), never string literals in recording.rs; parity test asserts label equality across lanes.",
+      "CTRL-3 (RISK-3): typed-unknown usage rows for absent data; test asserts no zero-fabrication.",
+      "CTRL-4 (RISK-4): Record-behind with bounded buffer + overflow counter; test proves item stream latency is independent of a slow row sink.",
+      "CTRL-5 (RISK-5): Rows keyed by (lane, thread_id, turn_id, item_id); overlap detection test; lane selection exclusivity enforced in MT-046."
+    ]
+  },
+  "research_provenance": {
+    "source": "OpenAI Codex CLI official docs (developers.openai.com/codex): app-server event stream thread.started/turn.started/turn.completed (token usage)/item.started/item.completed with item types agent_message, reasoning, command_execution, file_change, mcp_tool_call, web_search, plan_update - the recording input surface for this MT.",
+    "grounding_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
+    "verified_code_refs": [
+      "agent_activity.rs AgentActivityKind::label lines 111-118 (tool_call/thinking/text/other - the transcript label vocabulary both lanes must share)",
+      "agent_activity.rs parse_codex_line line 284 + emit rule lines 301-304 (exec-lane recording precedent whose discipline the app-server lane mirrors)",
+      "cli_bridge_runtime.rs FR-EVT-AGENT-* per-line emission (~line 290) and module doc lines 6-10 (stdout mirrored into in-app evidence)",
+      "production_factory.rs CliBridgeCloudRuntimeBuilder lane_obs field lines 511-515 (FR-EVT-LLM-INFER-{START,TOKEN,END} observability seam precedent)"
+    ],
+    "rejected_options": [
+      "Minting Codex-specific FR kinds in this MT (kind authority is MT-161)",
+      "Timestamp-resorting of events (clock skew; arrival order is truth)",
+      "Synchronous row writes on the event hot path",
+      "Per-lane dashboard query paths (defeats the parity goal)"
+    ],
+    "selected_approach": "Typed-stream recorder with compile-time-exhaustive FR mapping onto MT-161 kinds, shared-vocabulary transcript rows, honest usage rows, replay-proven timelines, and a cross-lane parity test enforcing HBR-INT-005's lane-label-only distinguishability."
+  }
+}

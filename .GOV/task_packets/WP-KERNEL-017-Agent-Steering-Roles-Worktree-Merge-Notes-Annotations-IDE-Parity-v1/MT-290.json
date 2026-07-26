@@ -1,0 +1,184 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-290",
+  "title": "IP-MT290-TimelineLocalHistoryPanel",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-290.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-162",
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add the VS Code 'Timeline' view to the native editors — a per-file panel listing a merged, time-ordered history of that file/document's versions: git commits that touched it, local save points (the editor's own save/draft history), and, for a rich/knowledge document, its EventLedger version entries — each row clickable to open a diff of that version against the current content. The MT-281 matrix marks 'timeline-local-history' MISSING: rich_editor/save draft recovery (MT-020) is CRASH recovery (restore the last unsaved draft), NOT a browsable per-file version+commit timeline, and there is no Timeline panel for either editor. This MT builds the panel + the merged history model over EXISTING sources — git history via the SourceControlClient log/history seam, knowledge-doc versions via the EventLedger (LR-04 KNOWLEDGE_RICH_DOCUMENT_SAVED receipts / doc version), and local save points from the editor save path — and reuses the EXISTING diff surfaces (code_editor diff_editor_panel for code, PD MT-241/242 prose diff for rich docs) to show a selected version's diff. It adds NO new history storage and NO new diff engine.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/timeline_panel.rs (TimelineEntry + TimelineSource + TimelineState + the merged-history builder + the panel widget + AccessKit author_ids); (b) a thin client seam consuming the git-log/history route (SourceControlClient) and the EventLedger doc-version route (backend_client / knowledge_documents) — no new routes if they exist; if a needed history route is absent, record a typed DEFERRED_HISTORY_SOURCE blocker rather than adding backend history; (c) registration in lib.rs + a pane/tab or sidebar mount point (reuse the existing pane/sidebar factory pattern — do NOT invent a new shell layout system); (d) one integration test file. Reuses SCM log + EventLedger + the existing diff surfaces; NO new storage; NO new diff engine.\n\nDETAILED SPEC:\n1. timeline_panel.rs: `pub enum TimelineSource { GitCommit, LocalSave, LedgerVersion }`; `pub struct TimelineEntry { source: TimelineSource, id: String (sha / save-id / version), label: String, author: Option<String>, timestamp_utc: i64, summary: String, diffable: bool }`; `pub struct TimelineState { file_ref: TimelineFileRef (a code file path OR a knowledge doc id), entries: Vec<TimelineEntry> (merged, newest-first), selected: Option<usize>, loading: bool, error: Option<String> }`. The builder merges the three sources into ONE newest-first list keyed by timestamp; each source is loaded independently so a missing source (e.g. an untracked file has no git history) degrades that source to empty WITHOUT failing the others.\n2. Sources: (a) GitCommit — the file's commit history via the SourceControlClient log/history seam (author, date, sha, subject); (b) LocalSave — the editor's own save points for the open buffer (the save path records a lightweight in-session save log; persistence beyond the session is NOT required in this MT — document that local history is session-scoped unless a durable store already exists); (c) LedgerVersion — for a knowledge/rich document, the EventLedger version entries (LR-04 doc version / KNOWLEDGE_RICH_DOCUMENT_SAVED). A code file shows GitCommit + LocalSave; a knowledge doc shows LedgerVersion + LocalSave (+ GitCommit if the doc maps to a tracked file).\n3. Panel: a vertical, newest-first list with per-row source icon + relative time + author + summary; selecting a row opens a DIFF of that version against the current content in the appropriate existing diff surface (code_editor diff_editor_panel for a code file version; PD MT-242 ProseDiffUi for a knowledge-doc version). A 'Restore this version' action is OUT OF SCOPE for this MT (view/diff only) — restore is a heavier, destructive operation deferred to a later MT; the panel is read-only navigation + diff. Colors/icons from theme tokens.\n4. Loading + empty states (binding): each source loads off-thread (HBR-QUIET) and shows a per-source loading indicator; a source that errors shows a typed per-source error line WITHOUT blanking the others; a file with no history in any source shows an explicit 'No history' state. The timeline NEVER fabricates a version entry.\n5. AccessKit: Role::Tree / list container `timeline_panel` (instance-suffixed), one Role::TreeItem/ListItem per entry `timeline_entry_{n}`, and the diff-open action per row. The panel is a first-class swarm-navigable surface (stable ids so an agent can inspect a file's history).\n6. Scope edges: this MT owns the Timeline PANEL + the merged-history model. It REUSES the SCM log seam, the EventLedger doc-version data, and the existing code/prose diff surfaces; it does NOT add history storage, does NOT add a diff engine, and does NOT implement Restore.\n\nSTEP-BY-STEP:\n1. Read backend_client.rs SourceControlClient (is there a log/history call? if not, note the seam gap), knowledge_documents.rs / the EventLedger doc-version surface (LR-04 version data), the RD family MT-162 LedgerExtensions (the ledger surface this may extend), code_editor/diff_editor_panel.rs (open a code diff for a selected version), rich_editor PD MT-242 ProseDiffUi (open a prose diff for a doc version), the existing pane/sidebar factory + AccessKit stable-id pattern (WP-011 MT-025), and rich_editor/save draft-recovery (MT-020) to keep the timeline DISTINCT from crash recovery.\n2. Create timeline_panel.rs with TimelineEntry/TimelineSource/TimelineState + the independent per-source loaders + the merge (newest-first) + the panel widget + AccessKit nodes; unit-test the merge ordering and per-source degradation.\n3. Wire the git-log + ledger-version + local-save loaders (off-thread, per-source error isolation); wire row-select -> open the appropriate existing diff surface.\n4. Mount the panel via the existing pane/sidebar factory; register in lib.rs.\n5. Integration test: a tracked code file shows commits + local saves merged newest-first; selecting a commit opens a code diff; a knowledge doc shows ledger versions + saves; selecting a version opens a prose diff; an untracked file with only local saves still shows them; a source error shows a per-source error line without blanking others; empty history shows 'No history'. Capture Argus screenshot + AccessKit tree of a merged timeline and a selected-version diff.\n6. Update the UserManual (same change): the Timeline panel — what the sources mean (commit / local save / doc version), selecting a row to diff, that it is view-only (no restore yet), and that local history is session-scoped.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/timeline_panel.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/tests/test_timeline_panel.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (consumes existing SCM-log + EventLedger routes; add NO new backend history storage — record a typed blocker if a route is missing)",
+      "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs (reuse the code diff surface; do not modify it)",
+      "src/frontend/handshake_native/src/rich_editor/save/** (draft/crash recovery is MT-020, a distinct surface; do not modify it)"
+    ],
+    "acceptance_criteria": [
+      "timeline_panel.rs exists with TimelineEntry/TimelineSource{GitCommit,LocalSave,LedgerVersion}/TimelineState, a merged newest-first history builder, and a panel widget with stable AccessKit author_ids (timeline_panel, timeline_entry_{n}), instance-suffixed.",
+      "History is merged from EXISTING sources only: git commits via the SourceControlClient log/history seam, knowledge-doc versions via the EventLedger (LR-04), and session-scoped local save points from the editor save path (grep-provable: no new history storage and no new diff engine).",
+      "Each source loads independently off-thread (HBR-QUIET); a missing/untracked source degrades to empty and an errored source shows a per-source error line WITHOUT blanking the others; empty-in-all shows an explicit 'No history'.",
+      "Selecting a row opens a DIFF of that version against current content in the EXISTING surface: code_editor diff_editor_panel for a code file, PD MT-242 ProseDiffUi for a knowledge doc; the panel is view/diff only (no Restore in this MT).",
+      "The timeline never fabricates a version entry; every entry corresponds to a real commit / save / ledger version.",
+      "If a needed history route (git log for a path, or ledger doc-version list) does not exist in the backend client, a typed DEFERRED_HISTORY_SOURCE blocker is recorded instead of adding backend history.",
+      "UserManual updated in the same change: the three source kinds, selecting a row to diff, view-only (no restore yet), and session-scoped local history."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native timeline_panel -- --nocapture",
+      "rg -n 'TimelineSource|timeline_entry' src/frontend/handshake_native/src/timeline_panel.rs",
+      "rg -n 'DiffEngine::new|struct .*Diff.*Engine|fn myers|fn patience' src/frontend/handshake_native/src/timeline_panel.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of a merged timeline (commits + saves) and a selected-version diff opening in the existing diff surface, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/timeline_panel.rs (merged-history model + panel widget)",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs (panel mount via existing factory)",
+      "src/frontend/handshake_native/src/lib.rs (module registration)"
+    ],
+    "expected_tests": [
+      "unit: merge orders GitCommit + LocalSave + LedgerVersion newest-first by timestamp",
+      "unit: a missing source (untracked file -> no git) degrades to empty without failing others",
+      "unit: an errored source yields a per-source error line, others still populated",
+      "unit: AccessKit node tree (panel + entries, stable suffixed ids)",
+      "integration: code file timeline -> select a commit opens a code diff in diff_editor_panel",
+      "integration: knowledge doc timeline -> select a version opens a prose diff (MT-242)",
+      "integration: empty history shows 'No history'; timeline never fabricates an entry"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: rich_editor/save draft recovery (MT-020) is CRASH recovery, not a version timeline; MT-045 LR-04 proves the EventLedger records KNOWLEDGE_RICH_DOCUMENT_SAVED with a doc version (version 1->2), the ledger-version source; source_control.rs / backend_client SourceControlClient dispatches diff/blame (a log/history call may need adding to the client seam — check before assuming); code_editor/diff_editor_panel.rs (code diff surface) and PD MT-242 ProseDiffUi (prose diff surface) are the existing diff surfaces to reuse; WP-017 RD MT-162 (LedgerExtensions) is the ledger surface this depends on for doc-version history; WP-011 MT-025 AccessKitTreeStableIds is the stable-id pattern; the existing pane/sidebar factory (editor_pane_factories.rs) is the mount point.",
+      "Design basis (cite in code docs): VS Code Timeline view — a per-resource merged history (git commits + Local History save points), each entry opening a diff against current; extensible source providers.",
+      "Timeline is DISTINCT from MT-020 draft/crash recovery: recovery restores the last unsaved draft after a crash; the timeline browses committed/saved versions and diffs them. Keep them separate surfaces.",
+      "Restore is deliberately OUT OF SCOPE (view/diff only) because restoring a version is a destructive operation that needs its own undo/confirmation design; adding it here would over-scope the MT.",
+      "Local save history persistence beyond the session is NOT required here (session-scoped) unless a durable local-history store already exists; if durable local history is later wanted it is a separate MT. Cross-family seams (reference only): MT-162 ledger extensions (dependency), MT-241/242 prose diff (reused), diff_editor_panel (reused)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "timeline panel (merged newest-first history list)",
+      "per-source icons + relative time + author + summary",
+      "selected-version diff opening in the existing diff surface",
+      "per-source loading / error / 'No history' states"
+    ],
+    "argus_targets": [
+      "timeline_panel",
+      "timeline_entry_0",
+      "code_editor_panel"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "per_source_error_isolation_check",
+      "empty_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Timeline panel: the source kinds (git commit / local save / document version), selecting a row to diff against current, that it is view-only (no restore yet), and that local history is session-scoped"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-SWARM-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Read-only history browser; opening a diff uses the existing diff surface which owns its own events."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Per-source load status, merge outcome, and per-source errors are exposed as structured state so a no-context model can see which history sources populated and why any is empty."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Panel + off-thread bounded loads; no supervised child process."
+    }
+  ],
+  "risk_if_missed": "Without a Timeline the native editors offer no browsable per-file/per-document version history: an operator cannot see or diff a file's prior commits and saves in place, which is a baseline VS Code affordance and directly useful for reviewing how an agent changed a file over a worktree session.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fabricated history — a timeline entry is shown that does not correspond to a real commit/save/version, misleading the operator about the file's history.",
+      "RISK-2: One-source failure blanks all — a git-log error clears the whole panel, hiding the local saves and ledger versions that did load.",
+      "RISK-3: Wrong diff surface — a knowledge-doc version opens in the code line-diff (or vice versa), showing a noisy/incorrect diff.",
+      "RISK-4: Render-thread block — history loads run synchronously, freezing the UI on a long git log.",
+      "RISK-5: Scope creep into storage/restore — the MT adds backend history storage or a destructive Restore, over-scoping and risking data loss."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Every entry maps to a real source record; a test asserts the merged list contains only entries returned by the loaders and never a synthesized one.",
+      "CTRL-2 (RISK-2): Sources load and fail independently; a test errors the git source and asserts local-save + ledger entries still render with a per-source error line.",
+      "CTRL-3 (RISK-3): Row-select routes a code-file version to diff_editor_panel and a knowledge-doc version to the MT-242 prose diff; a test asserts the correct surface per file_ref kind.",
+      "CTRL-4 (RISK-4): All loads are off-thread + drained; a per-source loading indicator proves non-blocking; grep proves no block_on/join on the render path.",
+      "CTRL-5 (RISK-5): The MT is view/diff only — no backend history storage and no Restore; a grep proof asserts no new diff engine and forbidden_paths keep it out of backend/save; a missing route yields a typed DEFERRED_HISTORY_SOURCE blocker, not new storage."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: rich_editor/save is draft/crash recovery (MT-020), NOT a version timeline; MT-045 LR-04 evidence confirms the EventLedger records doc versions (KNOWLEDGE_RICH_DOCUMENT_SAVED, version 1->2) as the ledger-version source; source_control.rs / backend_client SourceControlClient dispatches diff/blame (git log may need a client-seam addition); code_editor/diff_editor_panel.rs + PD MT-242 ProseDiffUi are the existing diff surfaces; editor_pane_factories.rs is the mount pattern; WP-017 RD MT-162 LedgerExtensions is the ledger dependency. Confirmed 'timeline-local-history' is not covered by WP-012 (MT-001..108), WP-013/014 stubs, STUDIO, or WP-011. External design basis: VS Code Timeline view (git + Local History providers).",
+    "corrections": [
+      "MT-020 draft recovery is crash recovery, NOT a timeline; there is no per-file version+commit history panel. This MT adds the Timeline panel over EXISTING sources (SCM log + EventLedger versions + session local saves) and reuses the existing code/prose diff surfaces — no new storage, no new diff engine, no Restore."
+    ]
+  }
+}

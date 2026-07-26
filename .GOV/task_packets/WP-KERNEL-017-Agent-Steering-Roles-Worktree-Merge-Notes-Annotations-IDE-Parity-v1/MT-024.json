@@ -1,0 +1,148 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-024",
+  "title": "CS-MT024-ClaudeInterrupt",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-024.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-003",
+      "MT-004",
+      "MT-005",
+      "MT-023"
+    ],
+    "blocks": [
+      "MT-028"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Mid-turn interrupt of a RUNNING Claude Code session without killing it: emit a control_request interrupt line on the session's stdin, gated on the interrupt_receipt_v1 capability when the system/init capabilities array advertises it, behind an explicit feature flag, with a typed CapabilityMissing degradation and a guaranteed fallback path = MT-005 supervisor graceful stop (SIGTERM: aborts turn, kills bash tree, runs SessionEnd hooks, exit 143). The undocumented-protocol surface is kept to the ONE interrupt subtype — no other control subtypes may be emitted, referenced, or scaffolded.\n\nEXPECTED DIFF SHAPE: new file src/backend/handshake_core/src/model_runtime/cloud/claude_interrupt.rs (request constructor + gate + outcome types) + wiring into the session command surface next to the MT-023 injector; tests with scripted child; live proof.\n\nSPEC:\n1. Wire shape behind ONE constructor: `claude_interrupt_request_line(request_id: &str) -> String` producing a single serde-serialized JSON line + newline for the control_request interrupt (shape per the reverse-engineered protocol: a top-level control_request envelope whose request payload has subtype \"interrupt\"; Roasbeef claude-agent-sdk-go docs/cli-protocol.md, anthropics/claude-code#41665). The exact field spelling is pinned in this ONE function + its snapshot test, so a protocol drift is a one-line fix and MT-028 catches it. request_id is minted as Uuid::now_v7().to_string() (HBR-INT-008).\n2. Feature flag: `claude_interrupt_enabled: bool` in the Claude adapter config (default OFF until MT-028 contract evidence exists). Flag OFF -> `InterruptOutcome::FeatureDisabled` and the caller is directed to the supervisor stop; the flag state is recorded on the outcome so ledger rows show WHY the soft path was skipped.\n3. Capability gate: interrupt emission requires the session's MT-003 capability set to contain \"interrupt_receipt_v1\" (captured from system/init by MT-022). Capability absent -> typed `InterruptOutcome::CapabilityMissing` WITHOUT writing anything to stdin (never fire undocumented bytes at an unknown CLI). Capability present + flag on -> write the line via the MT-004 stdin writer, then await the interrupt receipt/turn-abort evidence in the stream (turn ends without a normal result completion for the aborted turn) within a bounded `interrupt_ack_timeout` (default 10s).\n4. Outcomes are a closed set: `Interrupted { request_id, acked: bool }` (acked=true when receipt evidence observed; acked=false = timeout -> caller MUST escalate), `CapabilityMissing`, `FeatureDisabled`, `ChildGone`, `EscalatedToSupervisorStop { reason }`. There is NO silent path: every outcome is returned AND emitted to the MT-029 recording seam (no-op sink allowed until MT-029 lands, flagged in implementation result).\n5. Escalation ladder (single public entry `interrupt_or_stop(session, deadline)`): (a) soft control_request interrupt when flag+capability allow; (b) on CapabilityMissing / FeatureDisabled / ack-timeout / ChildGone -> MT-005 supervisor graceful stop (SIGTERM semantics above, exit 143 expected); (c) supervisor hard-kill remains the supervisor's own final rung — NOT re-implemented here. The ladder is data-driven and each rung's attempt+result is recorded.\n6. Undocumented-surface containment (grep-provable): the string \"control_request\" and the interrupt subtype literal appear ONLY in claude_interrupt.rs (constructor + tests). A unit test greps the module tree to enforce single-definition-site.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read MT-003 (capabilities), MT-004 (stdin writer), MT-005 (supervisor stop), MT-023 (injector patterns) delivered seams.\n2. Implement the constructor + serde types; snapshot test the exact line.\n3. Implement the gate (flag -> capability -> write -> bounded ack wait) with the closed outcome set.\n4. Implement interrupt_or_stop escalation calling the MT-005 supervisor stop seam.\n5. Tests: flag-off short-circuit; capability-missing short-circuit writes zero bytes (scripted child asserts no stdin traffic); happy-path write + simulated receipt -> Interrupted{acked:true}; ack-timeout -> escalation invoked; ChildGone -> escalation; single-definition-site grep test.\n6. Live proof (typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent): interrupt a real long-running turn; assert the turn aborts, the session SURVIVES, and a follow-up steer (MT-023) still executes.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_interrupt.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_interrupt_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "claude_interrupt_request_line is the single definition site of the control_request interrupt wire shape (grep-enforced by a test); request_id is Uuid::now_v7.",
+      "Interrupt emission is double-gated: claude_interrupt_enabled flag AND interrupt_receipt_v1 capability; either gate failing yields its typed outcome with ZERO bytes written to stdin (scripted-child proven).",
+      "Bounded ack wait: receipt evidence -> Interrupted{acked:true}; timeout -> Interrupted{acked:false} and interrupt_or_stop escalates to the MT-005 supervisor graceful stop.",
+      "interrupt_or_stop escalation ladder covers CapabilityMissing, FeatureDisabled, ack-timeout, and ChildGone, each rung recorded via the MT-029 seam; no silent outcome exists.",
+      "No other undocumented control subtype is emitted, matched, or scaffolded anywhere in the diff.",
+      "Live proof (or typed NEEDS_MANAGED_RESOURCE_PROOF): a real mid-turn interrupt aborts the turn while the session survives and accepts a subsequent steer.",
+      "Supervisor-stop fallback proven: with the flag off, interrupt_or_stop stops the session via MT-005 SIGTERM semantics (exit 143 observed in test or live proof)."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_interrupt -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_interrupt_capability_missing_writes_nothing -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rln 'control_request' src/backend/handshake_core/src/ | grep -v claude_interrupt.rs | wc -l | grep -q '^0'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): interrupt a real long-running turn; assert turn abort + session survival + follow-up steer executes; separately assert supervisor SIGTERM fallback exits 143"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_interrupt.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (session command wiring)"
+    ],
+    "expected_tests": [
+      "claude_interrupt::request_line_snapshot",
+      "claude_interrupt::flag_off_short_circuits",
+      "claude_interrupt::capability_missing_writes_nothing",
+      "claude_interrupt::happy_path_acked",
+      "claude_interrupt::ack_timeout_escalates_to_supervisor",
+      "claude_interrupt::child_gone_escalates",
+      "claude_interrupt::control_request_single_definition_site"
+    ],
+    "implementation_notes": [
+      "The interrupt control protocol is UNDOCUMENTED upstream (Anthropic acknowledges stream-json under-documentation in claude-code#24594); the reverse-engineered shape comes from Roasbeef claude-agent-sdk-go docs/cli-protocol.md and claude-code#41665. That is exactly why: single constructor, snapshot test, capability+flag double gate, MT-028 drift alarm, and a fallback that uses only DOCUMENTED behavior (SIGTERM -> abort turn, kill bash tree, SessionEnd hooks, exit 143).",
+      "If live testing shows the CLI emits an explicit interrupt receipt event, treat that as the ack evidence and record its observed shape in MT-028 drift notes; if only implicit evidence exists (turn ends abnormally), the acked determination uses that and says so in the outcome docs. Never fabricate an ack.",
+      "The capability string to match is exactly \"interrupt_receipt_v1\" from the system/init capabilities array (MT-022 ClaudeSessionInit.capabilities).",
+      "MT-005 supervisor owns process termination + ledger STOP rows (pattern: official_cli_bridge.rs terminate_and_collect usage around 2462-2490); this MT must not spawn, kill, or reap processes itself.",
+      "Session-core seams absent at implementation time = dependency-blocked (HBR-STOP-004); the only allowed stub is the no-op recording sink shared with MT-023."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Transport-layer interrupt mechanics; the operator stop/interrupt button binds to interrupt_or_stop in the WP-017 GUI MT group."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Operator/model-facing interrupt workflow docs land with the session-control tool-surface MT; this MT ships the internal escalation ladder only."
+  },
+  "hbr_obligations": [
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-QUIET-003",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED via MT-029 seam — every interrupt attempt, outcome, and escalation rung recorded.",
+    "internal_diagnostics: WIRED — closed typed outcome set (Interrupted/CapabilityMissing/FeatureDisabled/ChildGone/Escalated) inspectable per session.",
+    "Palmistry: DEFERRED-with-reason — session runtime posture owned by MT-005 supervisor + MT-029 recording; this MT contributes typed outcomes."
+  ],
+  "risk_if_missed": "No graceful mid-turn stop: every abort is a SIGTERM session kill, losing session continuity (resume-only recovery), making the operator stop button destructive, and leaving the orchestrator unable to redirect a runaway worker cheaply.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Undocumented control-protocol drift — a CLI release changes the interrupt envelope; blind emission then desynchronizes or crashes the session channel.",
+      "RISK-2: Interrupt believed delivered but never acted on (no ack evidence), leaving a runaway worker burning tokens while the harness reports it interrupted.",
+      "RISK-3: Scope creep into other undocumented control subtypes (permission prompts, mode switches) multiplying the unstable surface.",
+      "RISK-4: Fallback confusion — soft interrupt and supervisor SIGTERM race each other, double-killing or orphaning the child and corrupting ledger STOP rows.",
+      "RISK-5: Interrupt fired at a CLI without the capability corrupts the stdin channel that MT-023 steering depends on."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): single constructor + snapshot test + MT-028 live contract test = one-line fix surface; capability gate prevents blind emission.",
+      "CTRL-2 (RISK-2): bounded ack wait; acked:false forces escalation to the supervisor stop — no terminal 'assumed interrupted' state.",
+      "CTRL-3 (RISK-3): grep-enforced single-definition-site test; contract forbids scaffolding other subtypes.",
+      "CTRL-4 (RISK-4): escalation is sequential inside interrupt_or_stop (soft rung fully resolved before supervisor rung); termination/reaping is exclusively MT-005's, which owns the ledger STOP row.",
+      "CTRL-5 (RISK-5): CapabilityMissing short-circuits BEFORE any stdin write (scripted-child zero-bytes test)."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified Claude Code CLI research 2026-07-21 (undocumented control_request interrupt on the same stdio — reverse-engineered: Roasbeef claude-agent-sdk-go docs/cli-protocol.md, anthropics/claude-code#41665; under-documentation acknowledged in #24594; interrupt_receipt_v1 capability advertised in system/init for FEATURE DETECTION never version compare; documented SIGTERM semantics: abort turn, kill bash tree, SessionEnd hooks, exit 143) + grounding audit of wtc-multi-model-orchestration-v1 official_cli_bridge.rs (terminate_and_collect exit paths 2462-2490, v7 ledger ids 2449, sandbox-owned process containment 570-588).",
+    "corrections": []
+  }
+}

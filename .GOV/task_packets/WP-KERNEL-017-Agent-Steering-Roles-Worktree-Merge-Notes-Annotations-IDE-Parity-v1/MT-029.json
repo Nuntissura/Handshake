@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-029",
+  "title": "CS-MT029-ClaudeSessionRecording",
+  "group": "CS Claude Code stream-json transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-029.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-022",
+      "MT-023",
+      "MT-161"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Durable, replayable recording of the Claude lane's session lifecycle: Flight Recorder events + ledger rows for launch / steer / ack / interrupt / resume with session + parent correlation, and transcript persistence of the full steering exchange — so the session's behavior is reconstructible from durable state alone (no chat history, no terminal scrollback), extending the existing WP-1 recording stack (FR-EVT-AGENT-* activity events, ProcessOwnershipLedger rows, session-transcript aggregator) rather than inventing a parallel one.\n\nEXPECTED DIFF SHAPE: new file src/backend/handshake_core/src/model_runtime/cloud/claude_session_recording.rs implementing the concrete recording sink the MT-023/024/025 seams call (replacing their interim no-op sinks); wiring in cli_bridge_runtime.rs; transcript-aggregator extension for steering-exchange rows; tests including a replay-reconstruction proof.\n\nSPEC:\n1. Event kinds come from MT-161 (recording/event-kind registry MT): this MT EMITS the MT-161-defined kinds for: session-launched (with preset fingerprint: argv sha256, bare_mode, role binding present), steer-injected (steer_seq, content_sha256), steer-acked (steer_seq, echo latency ms), steer-unconfirmed (steer_seq, timeout), interrupt-attempted/interrupt-outcome (MT-024 closed outcome set), session-resumed / session-forked (parent session_id correlation), session-ended (exit status, duration, total_cost_usd from the MT-022 result envelope). Kinds are consumed from MT-161's registry — never string literals minted here.\n2. Correlation model: every event carries { handshake_session_id (MT-001), claude_session_id (from system/init / result), parent_claude_session_id (forks), parent_tool_use_id (subagent attribution from MT-022 ClaudeParsedLine), steer_seq where applicable }. This is what lets the transcript viewer and validators reconstruct WHO instructed WHAT and WHEN across forks and subagents.\n3. `ClaudeSessionRecorder` implements the recording-sink traits established by MT-023 (SteerRecordingSink) and MT-024/MT-025's seams; construction requires the FlightRecorder handle + LedgerBatcher (mirroring the MANDATORY-ledger posture of LiveCliSpawner, official_cli_bridge.rs 577-588: no unattributed path). Recording failures follow the established emit_agent posture (cli_bridge_runtime.rs 270-282): log-and-continue for FR event emission — generation/steering is never blocked by a recording error — EXCEPT session-launched ledger registration which stays fail-closed (it already is, via the existing spawn path; this MT must not weaken it).\n4. Transcript persistence: extend the session-transcript aggregator (the FR-EVT-AGENT -> SessionTranscriptEntry::AgentActivity pipeline named in agent_activity.rs mod docs, lines 8-11) so the steering exchange appears as ordered transcript rows: operator/orchestrator steer text (redacted via the existing SecretRedactor seam, cli_bridge_runtime.rs emit_agent_line signature line 300), ack status, interrupts, resume/fork boundaries. Ordering key: (turn ordering from the stream, steer_seq) — the transcript must show a steer BETWEEN the turns it actually separated (queued-own-turn semantics from MT-023).\n5. Replay proof (HBR-INT-001/HBR-INT-007): an integration test drives a scripted session (fixture envelope stream + injected steers via the scripted-child harness from MT-023's tests), then reconstructs the session timeline PURELY from durable state (FR events + ledger + transcript rows) and asserts: launch fingerprint, 2 steers with ack latencies, 1 interrupt outcome, resume boundary with parent correlation, end with cost — byte-comparing the reconstruction against the expected timeline fixture. No in-memory state may be consulted by the reconstruction path.\n6. Ids: all new record/event ids minted Uuid::now_v7() (HBR-INT-008).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-161 event-kind registry, MT-001 session model ids, MT-023/024/025 sink traits, and the existing recording stack (emit_agent/emit_agent_line cli_bridge_runtime.rs 270-320; ledger START/STOP pattern official_cli_bridge.rs 2439-2490; transcript aggregator per agent_activity.rs mod docs).\n2. Implement ClaudeSessionRecorder + correlation struct + kind mapping from MT-161.\n3. Replace the interim no-op sinks in MT-023/024/025 wiring with the concrete recorder (one-line swaps left ready by those MTs).\n4. Extend the transcript aggregator with steering-exchange row types (redaction-aware).\n5. Tests: per-event-kind emission fixtures; correlation fields present on every kind; redaction applied to steer text; ordering test (steer lands between turns); recording-failure tolerance (FR emit error does not break steering); the replay-reconstruction integration test.\n6. Live smoke (typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent): one real steered session; then reconstruct its timeline from durable state and eyeball-match the live transcript.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_session_recording.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_steer.rs (sink swap only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_interrupt.rs (sink swap only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_resume.rs (sink swap only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/mod.rs",
+      "src/backend/handshake_core/tests/claude_session_recording_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "All MT-161-defined Claude-lane event kinds are emitted at the right lifecycle points: launch (argv fingerprint), steer-injected/acked/unconfirmed (steer_seq + latency), interrupt attempt/outcome, resume/fork (parent correlation), end (exit status + total_cost_usd); kinds sourced from the MT-161 registry, zero locally-minted kind literals.",
+      "Every event carries the full correlation set: handshake_session_id, claude_session_id, parent_claude_session_id (forks), parent_tool_use_id (subagents), steer_seq where applicable.",
+      "ClaudeSessionRecorder replaces the interim no-op sinks of MT-023/024/025; construction requires FlightRecorder + LedgerBatcher (no unattributed recording path).",
+      "FR-emit failures log-and-continue (steering never blocked); session-launch ledger registration remains fail-closed and untouched.",
+      "Transcript rows show the steering exchange redacted and correctly ORDERED between the turns it separated (queued-own-turn semantics respected).",
+      "Replay-reconstruction test passes: the scripted session timeline is rebuilt from durable state alone and matches the fixture byte-for-byte; reconstruction provably consults no in-memory session state.",
+      "All new ids are Uuid::now_v7 (HBR-INT-008 grep proof).",
+      "Live smoke (or typed NEEDS_MANAGED_RESOURCE_PROOF): one real steered session reconstructs from durable state."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_session_recording -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml claude_session_replay_reconstruction -- --exact --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rn 'new_v4\\|Uuid::new_v4' src/backend/handshake_core/src/model_runtime/cloud/claude_session_recording.rs | wc -l | grep -q '^0'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings",
+      "LIVE (type NEEDS_MANAGED_RESOURCE_PROOF if the claude CLI or operator login is absent): steer a real session twice, interrupt once, resume once; reconstruct from durable state; assert 2 steer-acked, 1 interrupt outcome, 1 resume boundary, terminal cost present"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_session_recording.rs (new)",
+      "src/backend/handshake_core/src/model_runtime/cloud/cli_bridge_runtime.rs (recorder wiring + transcript aggregator extension)",
+      "src/backend/handshake_core/src/model_runtime/cloud/claude_steer.rs / claude_interrupt.rs / claude_resume.rs (no-op sink -> concrete recorder swaps)"
+    ],
+    "expected_tests": [
+      "claude_session_recording::event_kind_emission_per_lifecycle_point",
+      "claude_session_recording::correlation_fields_on_every_kind",
+      "claude_session_recording::steer_text_redacted_in_transcript",
+      "claude_session_recording::steer_ordered_between_turns",
+      "claude_session_recording::fr_emit_failure_does_not_block_steering",
+      "claude_session_recording::replay_reconstruction_from_durable_state",
+      "claude_session_recording::v7_ids_only"
+    ],
+    "implementation_notes": [
+      "GROUNDING FACTS: the recording stack to extend already exists — FR-EVT-AGENT-* emission with log-and-continue posture (cli_bridge_runtime.rs emit_agent 270-282, emit_agent_line 290-320 with SecretRedactor), mandatory-ledger fail-closed spawn attribution (official_cli_bridge.rs 577-588, START row 2439-2454, STOP on every exit path 2462-2490), and the session-transcript aggregator named in agent_activity.rs mod docs 8-11. Reuse each; add no parallel recorder.",
+      "MT-161 owns the event-kind registry; MT-026 (role injection) already emits its own MT-161 kind — do not duplicate role-injection emission here, but DO include the role-binding fingerprint in the session-launched event for one-stop session identification.",
+      "Steer text in transcripts goes through the existing SecretRedactor seam exactly like tool-call inputs do today; the redaction test must prove a planted secret pattern in steer text is masked in the persisted row.",
+      "The replay test is the HBR-INT-001/007 acceptance surface: reconstruction must be a pure function of durable stores; enforce by running it against a freshly-opened store handle in the test.",
+      "MT-161/MT-001 seams absent = dependency-blocked (HBR-STOP-004); the interim no-op sinks in MT-023/024/025 stay in place until this MT swaps them (their contracts flag the no-op as a tracked deviation)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Durable recording layer; the session-timeline GUI/Argus surfaces consume these records in the WP-017 GUI MT group, where HBR-VIS applies."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Recording is internal wiring against MT-161's documented event kinds; the manual entry describing session-timeline inspection ships with the viewer surface MT."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-007",
+    "HBR-INT-008",
+    "HBR-INT-009",
+    "HBR-VIS-004",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED — this MT is the Claude-lane FR wiring itself (MT-161 kinds, correlation fields, redacted transcript).",
+    "internal_diagnostics: WIRED — recording-failure log-and-continue events and reconstruction test surface; ledger rows inspectable.",
+    "Palmistry: DEFERRED-with-reason — long-session health/heartbeat posture is the MT-005 supervisor's obligation; this MT records what the supervisor and transport report."
+  ],
+  "risk_if_missed": "Steering exchanges exist only in process memory: no audit trail of who instructed a worker, no replay for validators, no parent/subagent attribution, broken HBR-INT-007 reconstruction — the governance value of the entire steering stack evaporates at the first session end.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Recording is fire-and-forget into a sink that drops events under backpressure, so the durable timeline is subtly incomplete and replay reconstructions silently lie.",
+      "RISK-2: Steer text persisted unredacted leaks secrets (tokens, keys) that the operator pasted into a steering instruction, into durable transcripts.",
+      "RISK-3: Transcript ordering places steers at injection wall-clock time instead of between the turns they separated, so the replayed narrative misrepresents what the model actually saw when.",
+      "RISK-4: A second ad-hoc recording path (bypassing FlightRecorder/LedgerBatcher) creeps in for 'just this one event', forking the WP-1 recording architecture."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): the replay-reconstruction test asserts exact event counts against the scripted fixture; ack/unconfirmed states make delivery gaps visible rather than absent.",
+      "CTRL-2 (RISK-2): SecretRedactor applied to steer text on the persistence path; planted-secret redaction test mandatory.",
+      "CTRL-3 (RISK-3): ordering key is (stream turn order, steer_seq), test-pinned with a steer injected mid-fixture; wall-clock is metadata, never the sort key.",
+      "CTRL-4 (RISK-4): ClaudeSessionRecorder is constructor-gated on FlightRecorder + LedgerBatcher; grep/review proof that no cloud-module event emission bypasses it or emit_agent."
+    ]
+  },
+  "research_provenance": {
+    "source": "MT-161 recording/event-kind seam + operator-verified Claude Code CLI research 2026-07-21 (result carries cost + session_id; parent_tool_use_id attributes subagent messages; session forking) + grounding audit of wtc-multi-model-orchestration-v1 recording stack: cli_bridge_runtime.rs emit_agent 270-282 (log-and-continue posture), emit_agent_line 290-320 (SecretRedactor in signature), official_cli_bridge.rs mandatory LedgerBatcher fail-closed attribution 577-588 with START 2439-2454 and STOP-on-every-exit-path 2462-2490, agent_activity.rs mod docs 8-11 (FR-EVT-AGENT -> SessionTranscriptEntry::AgentActivity aggregator).",
+    "corrections": [
+      "The task brief's 'uses event kinds from MT-161' is honored strictly: this contract forbids locally-minted kind strings, so MT-161 must land (or export a stable registry) before this MT's sink swap — reflected in depends_on."
+    ]
+  }
+}

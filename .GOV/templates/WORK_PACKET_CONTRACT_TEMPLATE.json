@@ -67,6 +67,29 @@
     "tags_declared": [],
     "not_applicable_overrides": []
   },
+  "resource_privacy_contract": {
+    "required_for_every_product_wp": true,
+    "resource_inventory": [],
+    "identity_and_scope_contexts": [],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "runtime_enforcement_boundaries": [],
+    "required_hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "not_applicable_reason": null
+  },
   "gui_obligations": {
     "operator_surface_required": "{{GUI_OPERATOR_SURFACE_REQUIRED}}",
     "gui_creation_required_when_operator_visible": true,
@@ -120,7 +143,8 @@
     "next_id": null,
     "required_contract_fields": [
       "gui_obligation",
-      "user_manual_obligation"
+      "user_manual_obligation",
+      "resource_privacy_obligation"
     ]
   },
   "role_profiles": {

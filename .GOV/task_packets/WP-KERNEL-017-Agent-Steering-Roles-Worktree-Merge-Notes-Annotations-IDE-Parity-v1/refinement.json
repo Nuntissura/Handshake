@@ -1,0 +1,84 @@
+{
+  "schema_id": "hsk.refinement_contract@1",
+  "schema_version": "refinement_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "created_at_utc": "2026-07-22T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/refinement.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json",
+    "microtask_index": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/_MT_INDEX.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "activation_manager": {
+    "required": true,
+    "status": "PREPARED_AHEAD_OF_ACTIVATION",
+    "handoff_summary": "Full prep completed 2026-07-21/22: stub contract, two recorded research passes (agent-harness steering mechanics + Anthropic workflow methodology; hunk diff-annotation prior art), 101 microtask contracts across 14 domain families with verified product-code grounding, _MT_INDEX.json, ACTIVATION_READINESS.json. Activation deferred by operator until WP-1-Multi-Model-Orchestration, WP-CKC-posekit, and WP-KERNEL-012 are validated and merged.",
+    "readiness_status": "READY_FOR_OPERATOR_REVIEW_NOT_READY_FOR_LAUNCH"
+  },
+  "refinement": {
+    "operator_request": "Operator 2026-07-21: single WP remediating everything found in the WP-1/WP-012 worktree audits and adding the agentic-harness capability set: (1) Handshake takes over repo-governance ACP duty in the near future and must support the same workflows Anthropic/OpenAI harnesses already have built in; (2) Handshake Roles: streamlined productized successors of the .GOV/roles startup inject-prompts, used by Handshake and future projects built by Handshake; (3) orchestrator model launches worker models THROUGH Handshake; Handshake launches models, injects roles + MT contracts; worker works in e.g. a worktree inside a VM and signals Handshake MT-implemented/ready-for-validation; Handshake then signals the orchestrator; straight model-to-model communication is required for steering; (4) Hunk-style diff annotation added to Notes, annotatable by operator AND models; annotations-for-models-in-files is a key concept to expand later to Studio and Stage, Notes first; (5) remove the legacy TypeScript/React notes editor so nothing accidentally builds on it; (6) close VS Code/Antigravity feature gaps toward a professional-grade IDE. Everything built in Rust. MT count uncapped; every MT detailed enough for a no-context model. Prep now; activation only after WP-1, WP-CKC-posekit, and WP-012 validate and merge.",
+    "approved_spec_enrichment": "PENDING - spec enrichment (master-spec sections for agent sessions/steering, Handshake Roles, annotations, worktree merge-back, IDE parity matrix) must be authored and merged during activation per GLOBAL-BUILD-083; this refinement records the payload; no spec text has been merged yet.",
+    "vendor_agnostic_engine": "OPERATOR FRAMING 2026-07-22 (authoritative): Handshake is a model/vendor-agnostic engine that WRAPS whatever runs the model. The CLI/terminal transport exists only because Anthropic subscription plans block economical direct API use - it is a lane, not the architecture. The wrapper owns: sandboxing, tool-call gating/stopping (SC MT-011), hooks (SC MT-012), cron/scheduling (SC MT-013), and exposing Handshake API/primitives as governed tools (SC MT-014). Claude and GPT are the first two engines; open-source/other vendors follow. Vendor harness behaviors in the research basis were input, not target; per-lane specifics live only in adapters and classification-table data; no vendor names in schemas, policy vocabulary, or operator-facing surfaces. A future direct-API lane replaces a CLI lane without touching wrapper capabilities. Implementing sessions must treat any vendor-coupled shortcut outside a lane adapter as a defect.",
+    "naming_dexterity": "Dexterity is the operator-facing name of the model-lane kernel this WP extends (verified: model_lane.rs:1-5 'Dexterity is the operator-facing name for the internal kernel that launches, switches, and records local, cloud, CLI, human, subagent, and validator lanes'; symbols DexterityNoOsLaunchCaller, DexterityNormalizedLaunch, dexterity_launch, payload stamp dexterity_kernel). Operator 2026-07-22: Dexterity is the ACP replacer. All Pillar-A operator-facing surfaces/manual entries use the Dexterity name; stable wire/schema ids (ModelLaneRun, ModelLane, hsk.mt_signal@1, hsk.annotation@1, FR-EVT-*) keep their own names per existing convention. Implementing sessions must align new code with the existing Dexterity* symbols instead of inventing a parallel naming family.",
+    "spec_anchors": [
+      "Master Spec 4.3.9 MULTI_MODEL_PARALLEL (swarm orchestration seam this WP extends)",
+      "Master Spec three-tier diagnostic model (FR kept-as-is; internal_diagnostics + Palmistry built by WP-KERNEL-015, retrofit 016; WP-017 wires or types DEFERRED)",
+      "HBR-INT-009 build_rules v1.5.0 diagnostic-wiring mandate (applies to every WP-017 behavior)"
+    ],
+    "scope_edges": {
+      "in_scope": "Pillar A: long-lived steerable agent sessions (Thread/Turn/Item + steer/interrupt) replacing the null-stdin one-shot CLI contract; Claude stream-json bidirectional transport; Codex app-server JSON-RPC transport (turn/steer first-class); ACP client layer (official Rust crate) incl. repo-gov duty parity proof vs .GOV/tools/handshake-acp-bridge; Handshake Roles (schema/registry/injection/importer/GUI); governed model-to-model spawn+steer tools (SwarmCoordinator sole spawn path, deny-by-default policy, injection-scan, parent-child registry); MT dispatch lifecycle (hsk.mt_signal@1 structured exits, zero-polling notification, validation handoff); worktree merge-back (merge engine, conflict bridge to native merge UI, patch fallback, governance gates, reclaim); FR/ledger/transcript/audit recording + manuals. Pillar B: annotation core (hsk.annotation@1, Gerrit-style provenance, Hypothesis-style multi-selector anchors, fuzzy re-anchor, explicit ORPHANED), notes annotation UI (markers, panel, authoring, live model annotations, quarantine), native block-level prose diff + 3-way merge UI (closes the diff_engine.rs DEFERRED item, ports document_diff_merge.ts), gated removal of the legacy TS/React notes editor, IDE parity matrix + 9 confirmed gap MTs (peek view, breadcrumbs, snippets, SCM gutter, inline blame, inline-AI-edit seam, agent context-attach seam, on-save actions, timeline/local history).",
+      "out_of_scope": "Studio/Stage annotation rollout (seam only); repo-governance process changes and the actual ACP-duty cutover decision; new model engines/provider lanes beyond WP-1; Flight Recorder schema changes (additive kinds only); non-notes TS surfaces; features owned by WP-KERNEL-011 shell (command palette, split-dock, quick-open, terminal, zen-mode), WP-KERNEL-012 (in-flight editor MTs), 013/014 stubs, WP-KERNEL-STUDIO (whiteboard/canvas)."
+    },
+    "assumptions": [
+      "WP-1-Multi-Model-Orchestration, WP-CKC-posekit, and WP-KERNEL-012 are validated and merged BEFORE activation; all 101 MT contracts were grounded against those worktrees as of 2026-07-21/22 and a post-merge grounding re-check is an activation step.",
+      "The sandbox AttachedStdioContract currently hard-rejects piped stdin (sandbox/adapter.rs validate); SC MT-004 is the load-bearing unblocker for all steering transports.",
+      "internal_diagnostics and Palmistry (WP-KERNEL-015) may not exist when WP-017 runs; all such wiring is typed DEFERRED, never silently skipped.",
+      "Claude stream-json contract is under-documented upstream and version-sensitive (queued-steer since v2.1.205; interrupt via reverse-engineered control_request): capability feature-detection + pinned version ranges + CI contract tests are mandatory, and only the interrupt subtype of the undocumented control protocol is used.",
+      "ACP has no mid-turn steer primitive (sequential turns): ACP is the cross-agent abstraction, native stream-json/app-server adapters carry first-class steering."
+    ],
+    "non_goals": [
+      "No model-initiated spawn path outside SwarmCoordinator; no auto-conflict-resolution or force-push in merge-back; no full --system-prompt replacement for roles; no polling anywhere in the MT lifecycle loop; no annotation without provenance for model authors; no TS-editor removal before the machine-checked parity gate is GREEN."
+    ],
+    "acceptance_criteria": [
+      "Acceptance criteria live per-MT in the 101 microtask contracts; WP-level closure = the family end-to-end proofs: SC MT-010 (session core), CS MT-028 (Claude contract suite), CX MT-047 (Codex contract suite), AP MT-065 (ACP repo-gov takeover parity), RO MT-087 (roles across 3 transports), MM MT-108 (model-to-model live proof incl. negatives), ML MT-126 (full MT loop, zero polling), WM MT-148 (merge-back incl. conflict + no-force negatives), RD MT-164/165/166 (tier wiring manifest, manuals, audit surface), AC MT-208/209 (seam + drift suites), NA MT-226 (GUI evidence), PD MT-245 (prose-diff parity + perf), TR MT-264 (post-removal sweep), IP MT-281 checker (every non-PRESENT matrix row owned or DEFERRED)."
+    ],
+    "hbr_pillar_review": "Recorded per-MT in hbr_obligations across all 101 contracts (INT/MAN/QUIET/STOP/SWARM/VIS vocabulary from HANDSHAKE_BUILD_RULES.json v1.5.0); GUI MTs (24) carry HBR-VIS + Argus obligations; model-facing surfaces carry HBR-QUIET no-intrusion + HBR-SWARM bounded-loop/no-silent-loss.",
+    "hbr_int_009_three_tier_diagnostic": "RD MT-164 owns the machine-readable three-tier wiring manifest covering every WP-017 behavior family; flight_recorder tier wired in-WP via RD MT-161 additive event kinds; internal_diagnostics/palmistry tiers WIRED if WP-KERNEL-015 has shipped at implementation time else typed DEFERRED(reason=WP-KERNEL-015-not-shipped).",
+    "research_basis": "Recorded in the stub contract draft_scope.research_basis (sources checked, selected approach, rejected options, validation seed) from two web research passes on 2026-07-21: (A) steering mechanics + methodology - code.claude.com CLI/headless/Agent-SDK docs (stream-json bidirectional stdio, --replay-user-messages, --session-id, capabilities feature-detection, --append-system-prompt-file, --json-schema, --bare), Codex app-server JSON-RPC (thread/turn/item, turn/steer, turn/interrupt, approvals, generate-json-schema), agentclientprotocol.com + official Rust crates, Anthropic 'Building Effective Agents' + multi-agent research system (worker prompt contract: objective/output-format/tool-guidance/boundaries/effort); (B) annotations - modem-dev/hunk sidecar concept, Gerrit robot comments (robot_id/run_id/fix_suggestions), Hypothesis fuzzy anchoring multi-selector chain, revdiff explicit-orphan, reviewdog filter modes, Rust crates similar/diff-match-patch-rs/dissimilar. Per-MT grounding: every contract cites verified file/line anchors read directly from the wtc-multi-model-orchestration-v1 and wtc-native-editors-v1 worktrees.",
+    "open_contract_points": [
+      "OCP-017-001: ProviderKind/CliKind extension shape for the ACP lane (AP MT-064) - inspect-first decision recorded at implementation, options constrained in-contract.",
+      "OCP-017-002: fuzzy re-anchor crate selection diff-match-patch-rs vs dissimilar (AC MT-204) - benchmark + recorded rationale required.",
+      "OCP-017-003: annotation router-mount + MCP tool-registration exact sites (AC MT-205/206) - locate incumbent composition sites first; placeholders deliberately not hardcoded.",
+      "OCP-017-004: hsk.validation_verdict@1 upgrade seam (ML MT-124 maps validator verdicts onto hsk.mt_signal@1 in one function pending a dedicated schema).",
+      "OCP-017-005: TR removal gate is RED as of 2026-07-22 (WP-KERNEL-012 MT-045 perf evidence failing); gate rows re-evaluated at activation.",
+      "OCP-017-006: spec enrichment payload must be merged into the master spec at activation (GLOBAL-BUILD-083)."
+    ],
+    "microtask_decomposition_plan": "105 MT contracts prepared in this packet folder (see _MT_INDEX.json): session_runtime_core MT-001..014 (incl. engine-capability MTs: MT-011 SessionToolGate, MT-012 hooks engine, MT-013 scheduling, MT-014 primitives tool surface), claude_stream_json MT-021..029, codex_app_server MT-041..047, acp_client_layer MT-061..066, handshake_roles MT-081..087, model_to_model MT-101..108, mt_dispatch_lifecycle MT-121..126, worktree_merge_back MT-141..148, recording_diagnostics_manuals MT-161..166, annotation_core MT-201..209, notes_annotation_ui MT-221..226, native_prose_diff MT-241..245, ts_notes_editor_removal MT-261..264, ide_parity_gap_closure MT-281..290. Headroom deliberately left below each domain ceiling for MTs discovered during implementation. MT count uncapped by operator decision; every MT authored to the no-context bar (GLOBAL-BUILD-064)."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "findings": [
+      "Model-initiated spawn/steer is a privilege-escalation surface: mitigated by SwarmCoordinator-only spawn path, deny-by-default policy (MM MT-106), caps/leases, full ledger attribution, injection-scan (MM MT-104) on all inter-model content.",
+      "Upstream CLI contract drift (stream-json/app-server): mitigated by capability feature-detection, pinned version ranges, CI contract suites (CS MT-028, CX MT-047, AP MT-066), unknown-event tolerance.",
+      "Premature TS-editor removal: mitigated by machine-checked gate (TR MT-261) reading WP-012 evidence + PD MT-245 parity suite + operator sign-off row; gate RED today.",
+      "Annotation mis-attachment after edits: mitigated by multi-selector anchors, bounded fuzzy re-anchor, explicit ORPHANED/OUTDATED states, adversarial drift suite (AC MT-209).",
+      "Merge-back destroying work: mitigated by no-force invariant (grep-provable), no auto-conflict-resolution, protected-branch operator approval, abort-always-available, runtime negative proofs (WM MT-148)."
+    ],
+    "minimum_controls": [
+      "Every WP-017 behavior emits FR events + ledger rows fail-closed (RD MT-161/162).",
+      "Zero-polling invariant proven by scanner with canary (ML MT-126).",
+      "Per-MT red_team risks/controls present in all 101 contracts (validated).",
+      "Activation re-checks grounding against post-merge main before any coder launch."
+    ]
+  }
+}

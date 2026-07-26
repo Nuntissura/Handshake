@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-014",
+  "title": "SC-MT014-HandshakePrimitivesToolSurface",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-22T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-014.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-007", "MT-011"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the Handshake Primitives Tool Surface - ONE uniform registry through which Handshake exposes its own API/primitives as tools to EVERY agent session, on every lane, vendor-agnostically. OPERATOR FRAMING (2026-07-22): exposing Handshake primitives to models is a core engine capability of the wrapper. Without this MT, each tool family ships its own bespoke MCP server (MM MT-101/102 spawn+steer tools, AC MT-206 annotation tools), which fragments discovery, policy, and attribution, and makes adding the next primitive (or the next vendor lane) an N-by-M problem. This MT delivers the shared foundation those register into: define a primitive once, and Claude, GPT/Codex, ACP, and future lanes all get it - governed identically.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/primitives_surface.rs: PrimitiveToolDef { tool_id (stable, kebab), version, description (model-facing), input_schema (JSON Schema), tool_class (maps into MT-011 ToolClass::HandshakePrimitive subtypes), handler (async trait object), provenance_stamping (bool, default true), rate_limit }; a PrimitiveToolRegistry (in-process registration at boot; families register their defs); ONE session-facing tool server built on the mcp/gate.rs server-side pattern serving the registry over the session tool channel; per-lane exposure adapters (Claude lane: tools appear via the session MCP config; Codex lane: MCP server config; ACP lane: MCP capability passthrough) - all three reuse the SAME server, only the wiring differs.\n\nGOVERNANCE PIPELINE (uniform, in order, for every call): (1) session identity resolved server-side (session_id, parent, role) - never model-supplied; (2) MT-011 SessionToolGate evaluation (tool_class HandshakePrimitive rules + role tool_policy from RO MT-081); (3) SC MT-012 ToolCallRequested hooks; (4) input schema validation (reject malformed with typed error the model can read); (5) handler execution with rate limits; (6) provenance stamping (robot_id/session_id/run_id) on any write primitive; (7) ledger row + FR event (RD MT-161) per call. V1 REGISTERED PRIMITIVES (delivered by their owning MTs, registered here): spawn_worker/steer_worker/interrupt_worker/worker_status/list_children (MM MT-101/102), annotation_create/annotation_list/annotation_reply (AC MT-206), plus two delivered IN this MT as reference implementations: session_info (read own session/thread/turn state, capabilities, workspace binding) and mt_status (read the dispatched MT run state from ML MT-123 for the session's own wp/mt scope).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read mcp/gate.rs (GatedMcpClient + server patterns), MM MT-101/102 and AC MT-206 contracts (their tool schemas become registry entries), MT-011 (gate), MT-012 (hooks).\n2. Define PrimitiveToolDef/Registry types; registration API with duplicate-id rejection and version metadata; registry snapshot exposed for diagnostics (RD MT-166 join).\n3. Build the shared tool server on the mcp server-side pattern: list_tools from the registry (filtered by what the SESSION'S ROLE may see - a model must not even discover tools its policy denies, discovery-filtering per role tool_policy), call_tool through the 7-step governance pipeline.\n4. Implement the two reference primitives (session_info, mt_status) end to end incl. schemas, handlers, tests.\n5. Wire per-lane exposure: Claude interactive preset gains the Handshake MCP server in its session MCP config; Codex app-server/exec lanes reference the same server; ACP lane advertises it via MCP capability passthrough. No lane-specific tool logic anywhere.\n6. Migrate-by-registration: MM/AC tool families register into this registry (their MTs keep their handlers; this MT provides the registration seam and asserts via test that bespoke parallel servers are not admitted - one server, many primitives).\n7. Tests: discovery filtering by role, full governance pipeline order (gate deny blocks before handler, hook deny blocks, schema reject typed), provenance auto-stamping, rate limits, identical tool list served across two lanes (fake adapter + one real lane or typed blocker).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/primitives_surface.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/src/mcp/**",
+      "src/backend/handshake_core/tests/primitives_surface_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI; registry snapshot surfaces via RD MT-166)"
+    ],
+    "acceptance_criteria": [
+      "PrimitiveToolRegistry with stable tool_ids, versions, JSON-Schema inputs, duplicate rejection; registry snapshot queryable.",
+      "One shared tool server serves the registry to sessions; discovery is role-filtered (a denied tool is invisible, not just refused - proven by test).",
+      "Every call runs the full pipeline in order: identity -> MT-011 gate -> MT-012 hooks -> schema validation -> handler -> provenance stamp -> ledger+FR; each stage's rejection is typed and model-readable; order proven by test.",
+      "session_info and mt_status reference primitives work end to end with tests.",
+      "MM and AC tool families register into this registry; a test asserts no bespoke parallel tool server is admitted for primitives.",
+      "The identical tool list is served on two different lanes from the same registry (fake adapter + one real lane, or typed NEEDS_MANAGED_RESOURCE_PROOF).",
+      "Provenance (robot_id/session_id/run_id) is stamped server-side on write primitives and cannot be supplied by the model.",
+      "No vendor names in registry types, tool ids, or schemas."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core primitives_surface --nocapture 2>&1 | grep -E 'test result: ok'",
+      "cargo test -p handshake_core primitives_pipeline_order --nocapture 2>&1 | grep -q 'PIPELINE_ORDER_PROVEN'",
+      "cargo test -p handshake_core primitives_discovery_role_filter --nocapture 2>&1 | grep -q 'DENIED_TOOL_INVISIBLE'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/primitives_surface.rs (new)",
+      "src/backend/handshake_core/src/mcp/gate.rs (server-side pattern reused)",
+      "src/backend/handshake_core/src/agent_sessions/ (gate MT-011 + hooks MT-012 seams)"
+    ],
+    "expected_tests": [
+      "discovery filtering by role",
+      "pipeline order + typed rejections per stage",
+      "provenance server-side stamping",
+      "rate limits",
+      "cross-lane identical tool list",
+      "reference primitives e2e"
+    ],
+    "implementation_notes": [
+      "OPERATOR FRAMING 2026-07-22: Handshake API/primitives exposure is an engine capability; the wrapper defines the tool surface once, lanes only differ in wiring. This is also the seam future Handshake-built projects inherit.",
+      "MM MT-101/102 and AC MT-206 predate this MT in authoring order; at activation, packet-level ordering runs MT-014 in the same phase so their handlers register here instead of standing up bespoke servers (their contracts already follow the gate.rs pattern, so registration is a thin adaptation - record it in their implementation sessions, do not rewrite their contracts).",
+      "Discovery filtering matters for prompt-injection surface reduction: an invisible tool cannot be socially engineered into use.",
+      "MCP is the carrier because all current lanes speak it (verified 2026-07-21 research: Claude session MCP config, Codex MCP tool support, ACP reuses MCP types); the registry itself is transport-neutral - a future non-MCP lane implements the same exposure trait.",
+      "mt_status reads ML MT-123 run state scoped to the session's own dispatch - a worker may see its own MT state, never the whole board (scope rule in handler)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend registry + server; registry snapshot and per-call audit surface via RD MT-166."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Dexterity primitives tool surface: what tools sessions get, how discovery/policy filtering works",
+      "Registering a new Handshake primitive (for future feature MTs)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-003", "HBR-INT-009", "HBR-SWARM-001", "HBR-SWARM-004", "HBR-QUIET-001", "HBR-MAN-001", "HBR-STOP-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": ["flight_recorder", "internal_diagnostics", "palmistry"],
+  "risk_if_missed": "Primitive exposure stays N-by-M (each tool family x each vendor lane), discovery/policy/attribution fragment across bespoke servers, and adding the next vendor or the next primitive multiplies work instead of registering once.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A primitive handler bypasses the gate/hook pipeline (direct registration of an ungoverned tool).",
+      "RISK-2: Model-supplied provenance spoofs attribution on write primitives.",
+      "RISK-3: Tool discovery leaks denied tools, inviting prompt-injection attempts against them.",
+      "RISK-4: mt_status/session_info leak cross-session state (a worker reads the whole board or another session's data).",
+      "RISK-5: Bespoke parallel tool servers reappear, re-fragmenting governance."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The server is the only call path; handlers are invoked exclusively by the pipeline; pipeline-order test mandatory.",
+      "CTRL-2 (RISK-2): Provenance fields are stamped server-side from session identity; model-supplied values rejected with typed error; tested.",
+      "CTRL-3 (RISK-3): Role-filtered discovery - denied tools are absent from list_tools; tested.",
+      "CTRL-4 (RISK-4): Reference primitives enforce own-session/own-dispatch scope in handlers; cross-scope test proves denial.",
+      "CTRL-5 (RISK-5): Admission test asserts primitives are served only via the registry server; code review gate for new tool servers."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator vendor-agnostic-engine directive 2026-07-22 (Handshake API/primitives exposure is an engine capability); mcp/gate.rs incumbent pattern; MM MT-101/102 + AC MT-206 tool schemas as first registrants; 2026-07-21 research pass (MCP support across Claude/Codex/ACP lanes).",
+    "corrections": []
+  }
+}

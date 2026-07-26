@@ -1,0 +1,164 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-163",
+  "title": "RD-MT163-SteeringTranscripts",
+  "group": "RD Recording + diagnostics + manuals",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-163.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-161",
+      "MT-162"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Make session transcripts capture the FULL steering exchange — injected steer messages, acks, interrupts, resumes, notifications, and structured signals — so a replayed session shows not only what the model said but what it was TOLD and WHEN. Transcript export gains a steering timeline; the React SessionReplayPanel and the native replay surface render that timeline READ-ONLY. Transcripts are the governed custody surface for steer TEXT (the ledgers of MT-162 hold only hashes; FR events of MT-161 hold hashes/previews).\n\nEXPECTED DIFF SHAPE: (a) additive variants on SessionTranscriptEntry + mapping/merge/filter/search updates in src/backend/handshake_core/src/session_transcript/mod.rs; (b) steering-timeline section in src/backend/handshake_core/src/session_transcript/export.rs; (c) replay integration so checkpoint-replayed sessions reconstruct the steering entries (session_checkpoint/replay.rs read + minimal wiring if a new entry kind must pass through); (d) React: app/src/components/session/SessionReplayPanel.tsx extended with a read-only steering timeline lane (NAMED allowed exception to the app/src/** freeze); (e) native replay surface extension in src/frontend/handshake_native (steering timeline rendering in the existing session replay/diagnostics surface, swarm_lane_diagnostics.rs pattern); (f) tests for mapping, merge ordering, export, and searchability.\n\nDETAILED SPEC — TRANSCRIPT ENTRY EXTENSIONS (session_transcript/mod.rs; SessionTranscriptEntry enum at line 89, TranscriptKind at line 58 — ALL changes additive; existing variants, seq/timestamp/kind accessors lines 179-227, and wire compatibility for previously persisted transcripts are preserved):\n\nNew SessionTranscriptEntry variants (serde-tagged consistently with the existing enum; each carries seq: u64, at_utc: DateTime<Utc> like its siblings):\n  1. SteerInjected { message_id, sender: SteerSender (Operator | Session { session_id } | Role { role_id }), text: String, payload_sha256: String } — the sha256 MUST equal the MT-162 ledger row hash, making transcript text verifiable against the ledger.\n  2. SteerAcked { message_id, ack_kind: String }.\n  3. SteerRejected { message_id, reason: String }.\n  4. InterruptRequested { message_id, requested_by: SteerSender }.\n  5. InterruptConfirmed { message_id, exit_code: Option<i32> }.\n  6. SessionResumed { resume_kind: String, prior_turn_count: u64 }.\n  7. StructuredSignal { signal_kind: String, wp_id: Option<String>, mt_id: Option<String>, body_sha256: String } — MT-loop signals (FR-EVT-MT-SIGNALED).\n  8. Notification { message_id, notify_kind: String, text: String } — m2m notifications (FR-EVT-M2M-NOTIFY).\nNew TranscriptKind values mirroring the variants (steer, interrupt, resume, signal, notification) with from_ipc coverage (line 72).\n\nFR-EVENT MAPPING: extend entries_from_fr_event (line 339) to map the MT-161 catalogue: FR-EVT-SESSION-STEER-{QUEUED->SteerInjected, ACKED->SteerAcked, REJECTED->SteerRejected}, FR-EVT-SESSION-INTERRUPT-{REQUESTED,CONFIRMED}, FR-EVT-SESSION-RESUMED, FR-EVT-M2M-{STEER->SteerInjected(sender=Session), NOTIFY->Notification}, FR-EVT-MT-SIGNALED->StructuredSignal. FR payloads carry hashes, not text — the mapping produces hash-only entries; full text enters the transcript at the live capture point (the steering runtime family MT-002/MT-008 appends SteerInjected with text at delivery time). entries_from_fr_event stays lossless and total: unknown FR-EVT ids keep the existing defensive fallthrough behavior, never panic.\n\nMERGE + ORDER: merge_transcript (line 443) must interleave steering entries with chat/tool entries in stable seq order, deduplicating by (kind, message_id) so a live-appended SteerInjected and its FR-derived hash-only twin collapse to the richer (text-bearing) entry. searchable_text (line 557) includes steer/notification text so replay search finds steering content. filter_by_kinds (line 529) supports the new kinds.\n\nEXPORT (export.rs): the transcript export gains a 'steering_timeline' section: ordered array of { seq, at_utc, kind, message_id, sender, ack_state (joined from entry pairs), text_or_sha256 } — machine-readable, plus inclusion in any existing human-readable rendering the exporter already produces. Export of a session with zero steering events emits an empty timeline (not a missing key).\n\nGUI READ SURFACES (both READ-ONLY — no steering controls here; interactive steering UI belongs to the session/steering families):\n- React SessionReplayPanel.tsx: render the steering timeline as a distinct lane/track in the replay — injected messages, acks, interrupts, resumes visibly typed (icon/label per kind), clicking an entry reveals full text (when present) and correlation ids. No new write calls; consumes existing replay/export data.\n- Native: extend the existing native session replay/diagnostics surface following the swarm_lane_diagnostics.rs pattern (stable element ids for parallel-model GUI testing, HBR-SWARM discipline) to list the same timeline read-only.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the grounding files first: session_transcript/mod.rs in full (entry enum 89, kind 58, from_ipc 72, entries_from_fr_event 339, merge_transcript 443, append_terminal_scrollback 497, filter_by_kinds 529, searchable_text 557), session_transcript/export.rs, session_checkpoint/{replay.rs,checkpoint.rs,writer.rs} (how entries survive checkpoint/replay), app/src/components/session/SessionReplayPanel.tsx, src/frontend/handshake_native/src/swarm_lane_diagnostics.rs, MT-161 contract (FR ids + payload fields), MT-162 contract (payload_sha256 custody split).\n2. Add the 8 variants + kinds additively; update every exhaustive match the compiler flags (accessors, filter, search, merge) — compiler-driven, no wildcard-arm shortcuts that would silently drop new kinds from search/filter.\n3. Extend entries_from_fr_event with the MT-161 mapping; property: every mapped entry preserves message_id and timestamps from the FR payload.\n4. Implement merge dedup by (kind, message_id) preferring text-bearing entries; keep ordering stable and deterministic for identical inputs.\n5. Extend export.rs with steering_timeline; keep the existing export shape backward-compatible (only additive keys).\n6. Verify checkpoint replay: a session checkpointed after steering events replays with the steering entries intact (test via session_checkpoint replay path; wire-through only if the replay path filters kinds).\n7. React: add the read-only steering lane to SessionReplayPanel.tsx with stable data-testid attributes per entry kind; no other app/src file changes.\n8. Native: add the read-only timeline listing to the native replay/diagnostics surface with stable element ids.\n9. Tests: backend mapping/merge/export/search tests + a React component test for the steering lane rendering a fixture timeline + native surface smoke coverage per the crate's existing GUI-test conventions.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/session_transcript/**",
+      "src/backend/handshake_core/src/session_checkpoint/replay.rs (only if replay filtering must pass the new kinds through)",
+      "src/backend/handshake_core/tests/steering_transcript_tests.rs",
+      "app/src/components/session/SessionReplayPanel.tsx (NAMED exception: read-only steering timeline lane)",
+      "app/src/components/session/SessionReplayPanel.test.tsx (component test for the new lane, if the repo's React test convention uses sibling test files)",
+      "src/frontend/handshake_native/src/** (native replay/diagnostics surface extension only — swarm_lane_diagnostics.rs pattern)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named surfaces above)",
+      ".GOV/** (registry sync = governance closeout step, documented not coded)",
+      "src/backend/handshake_core/src/flight_recorder/** (FR kinds are MT-161; consume, don't redefine)",
+      "src/backend/handshake_core/src/swarm_orchestration/** (ledger rows are MT-162; steering runtime is the session family)",
+      "src/backend/handshake_core/src/process_ledger/**"
+    ],
+    "acceptance_criteria": [
+      "SessionTranscriptEntry gains exactly the 8 contracted steering variants additively; previously persisted transcript JSON still deserializes (backward-compat test with a pre-change fixture).",
+      "entries_from_fr_event maps every steering-relevant MT-161 id to the correct entry kind, preserves message_id/timestamps, and keeps the defensive unknown-id fallthrough (totality test).",
+      "SteerInjected.payload_sha256 equals the MT-162 ledger hash for the same message (cross-check test computing sha256 of the text).",
+      "merge_transcript interleaves steering entries in stable seq order and dedups (kind, message_id) pairs preferring text-bearing entries (determinism test: same input twice -> identical output).",
+      "searchable_text and filter_by_kinds cover the new kinds (search finds steer text; filter isolates the steering lane).",
+      "Export contains a machine-readable steering_timeline section, present-and-empty for sessions without steering; existing export keys unchanged (additive-only diff proven by fixture comparison).",
+      "A checkpointed-then-replayed session retains its steering entries (replay round-trip test).",
+      "SessionReplayPanel renders the steering timeline read-only with stable data-testid per entry kind; component test passes; no steering-control (write) elements exist in the panel.",
+      "Native replay/diagnostics surface lists the same timeline read-only with stable element ids.",
+      "cargo build green, clippy clean; React build/tests green for the touched component."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core steering_transcript --nocapture 2>&1 | tee /tmp/mt163_run.txt && grep -E 'test result: ok' /tmp/mt163_run.txt",
+      "cargo test -p handshake_core session_transcript --nocapture 2>&1 | grep -E 'test result: ok'",
+      "grep -n 'SteerInjected' src/backend/handshake_core/src/session_transcript/mod.rs",
+      "grep -n 'steering_timeline' src/backend/handshake_core/src/session_transcript/export.rs",
+      "grep -n 'data-testid' app/src/components/session/SessionReplayPanel.tsx | grep -i steer",
+      "cd app && npx vitest run src/components/session/SessionReplayPanel.test.tsx 2>&1 | tail -5 (or the repo's equivalent React test runner command — verify the actual runner from app/package.json before running)",
+      "cargo test -p handshake-native swarm_lane 2>&1 | grep -E 'test result: ok' (native surface smoke per existing convention)"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/session_transcript/mod.rs (additive variants + mapping/merge/filter/search)",
+      "src/backend/handshake_core/src/session_transcript/export.rs (steering_timeline section)",
+      "src/backend/handshake_core/src/session_checkpoint/replay.rs (pass-through only if needed)",
+      "src/backend/handshake_core/tests/steering_transcript_tests.rs (new)",
+      "app/src/components/session/SessionReplayPanel.tsx (read-only steering lane)",
+      "src/frontend/handshake_native/src/ (native replay/diagnostics timeline extension)"
+    ],
+    "expected_tests": [
+      "backward-compat deserialization of pre-change transcript fixture",
+      "FR-id -> entry mapping totality + field preservation",
+      "merge determinism + (kind, message_id) dedup preference",
+      "export steering_timeline shape + empty-timeline presence",
+      "checkpoint/replay round-trip with steering entries",
+      "React component test: steering lane renders fixture timeline read-only",
+      "native surface smoke test with stable element ids"
+    ],
+    "implementation_notes": [
+      "Custody split (do not blur it): transcript = governed full text; MT-162 ledger = hash + ack state; MT-161 FR = hash/preview + correlation. The sha256 equality test is the seam that keeps all three honest.",
+      "Live text capture point: the steering runtime (session family MT-002/MT-008) appends the text-bearing SteerInjected at delivery time; this MT provides the entry types, FR mapping, merge dedup, export, and read surfaces. If the session family lands after this MT, the text-bearing path is proven here with a direct-append test rather than the live runtime.",
+      "READ-ONLY is a contract line for both GUI surfaces: no send/steer/interrupt buttons in the replay panel — interactive steering UI is owned by the steering/session families; adding controls here would duplicate a surface and violate the family split.",
+      "Follow the existing native GUI conventions from swarm_lane_diagnostics.rs (stable ids, non-focus-stealing rendering, HBR-QUIET) — the replay surface must never pop or grab focus during parallel-model test runs.",
+      "Unknown-kind fallthrough in entries_from_fr_event is a shipped defensive contract (agent_activity-style losslessness); keep it total — WP-017 families may add FR kinds later (additive), and old builds must not panic on them."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "app/src/components/session/SessionReplayPanel.tsx (read-only steering timeline lane — extension of an existing surface, not a new pane)",
+      "src/frontend/handshake_native session replay/diagnostics surface (read-only timeline listing)"
+    ],
+    "argus_targets": [],
+    "not_applicable_reason": "Per the RD family split, the WP-017 GUI obligation (new operator pane + Argus coverage) is carried by MT-166's audit pane. This MT only extends existing replay surfaces read-only; their rendering is proven by component/native tests and the exported timeline is trace-projection reconstructable."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Replay-surface behavior is documented in the MT-165 manual entries (session replay + steering timeline section); MT-165 defines the entry set and the conformance check this MT's surfaces are checked against."
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-QUIET-001",
+    "HBR-SWARM-002",
+    "HBR-VIS-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "flight_recorder: WIRED — consumes MT-161 kinds via entries_from_fr_event; transcript entries are FR-correlated by message_id",
+    "internal_diagnostics: typed DEFERRED(reason=WP-KERNEL-015-not-shipped) unless the internal_diagnostics tier exists at implementation time; disposition recorded by MT-164",
+    "palmistry: typed DEFERRED(reason=WP-KERNEL-015-not-shipped) unless Palmistry exists at implementation time; disposition recorded by MT-164"
+  ],
+  "risk_if_missed": "Replay shows only model output: operators cannot see what a session was told, when it was interrupted, or why it resumed; steering disputes are unverifiable (no text custody surface), and the MT-166 audit pane has no drill-down target for message content.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Wire break — new enum variants or kind strings break deserialization of previously persisted transcripts/checkpoints, corrupting historical replay.",
+      "RISK-2: Dedup swallows truth — the (kind, message_id) merge dedup collapses genuinely distinct entries (e.g. re-delivered steer after resume), hiding a delivery from the timeline.",
+      "RISK-3: Read-only erosion — a 'small' resend button lands in the replay panel, creating an unowned steering write path that bypasses the session family's queue/ledger discipline.",
+      "RISK-4: Hash mismatch — transcript text and ledger hash diverge (encoding, trimming, normalization) so the verification seam between MT-162 and MT-163 always fails or, worse, is skipped.",
+      "RISK-5: Search/filter holes — wildcard match arms silently exclude new kinds from searchable_text/filter_by_kinds, making steering content invisible to replay search."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): backward-compat fixture test with pre-change persisted JSON; additive serde tags only; checkpoint replay round-trip test.",
+      "CTRL-2 (RISK-2): dedup keys include seq-window semantics — only an FR-derived hash-only entry and its live text twin for the SAME message_id and same delivery collapse; a re-delivery mints a new message_id upstream (MT-162 contract), tested with a re-delivery fixture.",
+      "CTRL-3 (RISK-3): acceptance criterion asserts no write/control elements in the panel; component test queries for absence of button roles in the steering lane; contract names the owning families for interactive UI.",
+      "CTRL-4 (RISK-4): one canonical hashing rule (sha256 over exact UTF-8 payload bytes, no trim/normalize) stated here and in MT-162; cross-check test computes the hash from transcript text and matches the ledger row.",
+      "CTRL-5 (RISK-5): compiler-driven exhaustiveness — no new wildcard arms in the touched matches; explicit tests assert search hits and filter inclusion per new kind."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounded in wtc-multi-model-orchestration-v1: session_transcript/mod.rs (TranscriptKind 58, from_ipc 72, SessionTranscriptEntry 89, accessors 179-227, ChatTurnInput 227, entries_from_fr_event 339, merge_transcript 443, append_terminal_scrollback 497, filter_by_kinds 529, searchable_text 557), session_transcript/export.rs, session_checkpoint/{replay,checkpoint,writer}.rs, app/src/components/session/SessionReplayPanel.tsx (existence + replay-surface role verified), src/frontend/handshake_native/src/swarm_lane_diagnostics.rs (native diagnostics pane pattern), MT-161 contract (FR catalogue), MT-162 contract (hash custody + ack vocab).",
+    "corrections": [
+      "Stub asked for 'SessionReplayPanel (React) + native replay surface extended' — confirmed SessionReplayPanel.tsx exists at the briefed path and swarm_lane_diagnostics.rs is the native pattern file; both are named allowed exceptions, everything else in app/src/** stays frozen.",
+      "Refined the custody model against the code: FR payloads are hash/preview-redacted (duckdb.rs redaction, MT-161), so transcripts are designated the sole full-text custody surface, and the FR->entry mapping is hash-only with live capture supplying text — this resolves the otherwise-contradictory 'transcripts capture full exchange' vs 'FR never stores raw text'.",
+      "Verified entries_from_fr_event exists (line 339) and already implements defensive FR-event mapping — the contract extends it rather than inventing a parallel mapper."
+    ]
+  }
+}

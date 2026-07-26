@@ -1,0 +1,149 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-101",
+  "title": "MM-MT101-GovernedSpawnToolSurface",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-101.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-007",
+      "MT-086",
+      "MT-106"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Expose worker spawning to orchestrator-model sessions as ONE governed tool, `spawn_worker`, so a model can request a child worker session without gaining any new spawn authority. Today NO model-initiated spawn exists (verified: spawns come only from operator surfaces and the scheduler; CLI children have null stdin). This MT creates the first model-facing spawn surface and it MUST NOT create a second spawn path: the handler routes EXCLUSIVELY through SwarmCoordinator::spawn_session (src/backend/handshake_core/src/swarm_orchestration/coordinator.rs, `pub async fn spawn_session`), which is the single sanctioned spawn path enforcing the concurrency semaphore cap, the monotonic lifetime spawn ceiling (HBR-SWARM-002 loop-cap semantics on `lifetime_spawns` / `budget.max_lifetime_spawns`), coordinator-minted checkout leases (ClaimLease / CheckoutLeaseRef), and CancellationToken teardown.\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/swarm_orchestration/model_tools/ (mod.rs + spawn_tool.rs + types.rs) registered from swarm_orchestration/mod.rs; a tool descriptor + JSON-schema for `spawn_worker`; a handler that (a) resolves the calling session's identity from the session tool channel (MT-007 session API seam), (b) evaluates the MT-106 model-to-model policy BEFORE any coordinator call, (c) builds a SpawnRequest with `parent_session_id` set to the calling session (field already exists in src/backend/handshake_core/src/swarm_orchestration/ids.rs SpawnRequest), and (d) calls SwarmCoordinator::spawn_session. Plus unit/integration tests. No frontend changes.\n\nDETAILED SPEC:\n1. Tool schema `spawn_worker` with input fields: `role_id` (string, must resolve against the MT-081/MT-086 role registry), `task_payload_ref` (string reference to a governed task payload — never inline free-text instructions; the payload body itself is fetched server-side and passes the MT-104 injection scan before delivery to the child), `lane_preference` (optional string, validated against ModelLaneStore lanes in src/backend/handshake_core/src/swarm_orchestration/model_lane.rs), `workspace_mode` (enum: `worktree` | `worktree_vm` | `none`), `budget` (object: max_child_tokens?, max_child_cost?, max_child_wall_secs? — all optional, all clamped to the MT-106 per-parent ceiling; a model can never raise its own ceiling).\n2. Serve the tool on the session's tool channel as an MCP-server-style surface following the gate pattern of src/backend/handshake_core/src/mcp/gate.rs (GatedMcpClient / evaluate_kernel_tool_gate_decision / ConsentDecision): every call passes a deny-by-default gate decision before the handler body runs, and the decision (allow or deny, with reason) is recorded.\n3. Parent identity is captured server-side from the authenticated session context — NEVER from tool arguments. A `parent_session_id` supplied inside tool arguments is rejected as a typed error (identity spoofing attempt, ledgered).\n4. Policy check (MT-106) evaluated before spawn: parent role/session allowed to spawn requested role/lane, per-parent concurrent-children cap, per-parent budget ceiling, allowed workspace modes. No policy row => DENY (deny-by-default).\n5. Typed rejections surfaced to the calling model as structured tool errors: `PolicyDenied` (MT-106 denial, with policy row id), `CapExceeded` (maps SwarmError::ConcurrencyCapReached / LifetimeSpawnCeilingReached / BudgetExhausted from src/backend/handshake_core/src/swarm_orchestration/error.rs), `ConsentRequired` (cloud-lane spawn blocked pending operator consent per the model_runtime/cloud/consent_gate.rs consent surface). Rejections are terminal for the call — no silent retry loop inside the handler (HBR-SWARM-001 bounded-loop).\n6. Every call — success AND rejection — writes a ledger row (process_ledger) attributing parent session, requested role, decision, and resulting child instance id when spawned, and stamps the existing FR-EVT-SWARM-SESSION-SPAWNED / FR-EVT-SWARM-SPAWN-REJECTED events (src/backend/handshake_core/src/swarm_orchestration/events.rs SwarmFrEventId) with the parent attribution in the payload.\n\nSECURITY FRAME (binding): model-initiated spawn is a privilege-escalation surface. This MT may not add any bypass of caps, ceilings, leases, consent gates, or breaker state; the coordinator's existing enforcement is the enforcement. Anthropic multi-agent research precedent: orchestrator-workers with structured spawn requests; Handshake adds the governed-tool + deny-by-default policy layer they describe as the safety gap.\n\nSTEP-BY-STEP:\n1. Read coordinator.rs spawn_session, ids.rs SpawnRequest, error.rs SwarmError, mcp/gate.rs gate evaluation, and the MT-007 session tool-channel seam.\n2. Create model_tools/types.rs: SpawnWorkerInput, SpawnWorkerOutput { child_session_id, lane, workspace_mode, budget_granted }, ModelToolError { PolicyDenied, CapExceeded, ConsentRequired, InvalidInput, IdentitySpoofAttempt }.\n3. Create model_tools/spawn_tool.rs: descriptor + JSON schema + handler as specced; handler takes &SwarmCoordinator and the MT-106 policy evaluator trait (define the trait here if MT-106 lands later; deny-by-default stub until a real evaluator is registered).\n4. Wire the tool into the session tool channel registration (MT-007 seam) behind a config flag `model_to_model.spawn_tool_enabled` (default false = feature dark).\n5. Ledger + FR event stamping with parent attribution.\n6. Tests per expected_tests, including the no-second-spawn-path grep-level proof and deny-by-default proof.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (payload attribution only; new event ids belong to MT-161)",
+      "src/backend/handshake_core/tests/model_tools_spawn/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (read-only: the sanctioned spawn path must not be modified or forked by this MT)"
+    ],
+    "acceptance_criteria": [
+      "`spawn_worker` tool exists with the specced schema and is served on the session tool channel behind config flag model_to_model.spawn_tool_enabled (default false).",
+      "Handler calls SwarmCoordinator::spawn_session and NOTHING else creates sessions: no factory call, no process spawn, no duplicated cap/lease logic inside model_tools.",
+      "Parent identity comes only from authenticated session context; a parent_session_id inside tool arguments produces typed IdentitySpoofAttempt rejection plus a ledger row.",
+      "With no MT-106 policy row registered, every spawn_worker call is denied (deny-by-default) with PolicyDenied.",
+      "Coordinator rejections (concurrency cap, lifetime ceiling, budget) surface as typed CapExceeded tool errors — never as silent success, never retried in a loop inside the handler.",
+      "Cloud-lane spawns without operator consent surface ConsentRequired; consent gate is not bypassed.",
+      "Every call (allow and deny) produces a process_ledger row with parent attribution, and spawned children stamp FR-EVT-SWARM-SESSION-SPAWNED with parent_session_id in payload; rejections stamp FR-EVT-SWARM-SPAWN-REJECTED.",
+      "Budget in the request is clamped to the policy ceiling; a request above ceiling is granted at most the ceiling (recorded) or denied per policy config — it never passes through unclamped."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core model_tools -- --nocapture",
+      "cargo test -p handshake_core model_tools_spawn_denied_by_default -- --nocapture",
+      "cargo test -p handshake_core model_tools_spawn_identity_spoof_rejected -- --nocapture",
+      "rg -n \"spawn_session\" src/backend/handshake_core/src/swarm_orchestration/model_tools/ && ! rg -n \"ModelSessionFactory|Command::new|tokio::process\" src/backend/handshake_core/src/swarm_orchestration/model_tools/"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/mod.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/spawn_tool.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/types.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (reference only: spawn_session, ClaimLease, CancellationToken)",
+      "src/backend/handshake_core/src/swarm_orchestration/ids.rs (reference: SpawnRequest.parent_session_id)",
+      "src/backend/handshake_core/src/mcp/gate.rs (pattern reference: GatedMcpClient, evaluate_kernel_tool_gate_decision)"
+    ],
+    "expected_tests": [
+      "unit: spawn_worker schema validation rejects unknown fields, bad workspace_mode, inline parent_session_id",
+      "unit: deny-by-default with no policy evaluator registered",
+      "integration: policy-allowed spawn routes through spawn_session and returns child_session_id with ledger row + FR event",
+      "integration: coordinator cap exhaustion maps to CapExceeded typed error",
+      "integration: budget clamp to policy ceiling",
+      "negative: feature flag off => tool not listed on the channel"
+    ],
+    "implementation_notes": [
+      "Verified grounding: SwarmCoordinator::spawn_session at coordinator.rs (semaphore + cold_start_semaphore + lifetime_spawns AtomicU64 vs budget.max_lifetime_spawns + ClaimLease + CancellationToken); SpawnRequest already carries parent_session_id, role_id, owner_role, worktree_id, working_dir (ids.rs); SwarmError variants ConcurrencyCapReached / LifetimeSpawnCeilingReached / BudgetExhausted (error.rs); FR-EVT-SWARM-SESSION-SPAWNED and FR-EVT-SWARM-SPAWN-REJECTED exist in events.rs SwarmFrEventId.",
+      "Consent gate lives at src/backend/handshake_core/src/model_runtime/cloud/consent_gate.rs (NOT src/.../cloud/consent_gate.rs).",
+      "The MT-106 policy evaluator is co-designed: define the evaluator trait in this MT (deny-by-default when unregistered); MT-106 supplies the real config-backed implementation.",
+      "task_payload_ref indirection is deliberate: free-text instruction bodies from a model never travel inline through the spawn surface; the referenced payload is injection-scanned (MT-104) before the child reads it.",
+      "Do not add new SwarmFrEventId variants here; new FR kinds are MT-161's seam. Reuse existing ids and enrich payloads only.",
+      "Cross-family seams (reference only, not authored here): MT-001 session model, MT-002 steer queue, MT-007 session API, MT-081/086 roles, MT-121 MT-signal contract."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend tool surface; operator visibility for the session tree ships in MT-107."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Model-to-model orchestration: spawn_worker governed tool — what it is, deny-by-default policy, typed rejections, how the operator enables model_to_model.spawn_tool_enabled"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "No governed model-initiated spawn surface exists; either the capability is missing entirely (Anthropic-style orchestrator-workers impossible) or a later MT improvises an ungoverned spawn path bypassing caps/leases/consent — the exact privilege-escalation this WP exists to prevent.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Second spawn path — the handler (or a test helper promoted to product code) creates sessions without SwarmCoordinator::spawn_session, silently bypassing semaphore cap, lifetime ceiling, leases, and breaker.",
+      "RISK-2: Identity spoofing — a model supplies parent_session_id / role_id attribution in tool arguments and the handler trusts it, corrupting lineage, policy evaluation, and ledger attribution.",
+      "RISK-3: Budget self-escalation — a parent passes a budget above its policy ceiling and the value flows unclamped into SpawnRequest, letting a model grant itself more than the operator allowed.",
+      "RISK-4: Prompt-injection via task payload — inline instruction text in the spawn call reaches the child unscanned, letting a compromised orchestrator inject instructions into workers.",
+      "RISK-5: Allow-by-default drift — a missing/unregistered policy evaluator silently allows spawns instead of denying them."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Executable proof target asserts model_tools/ contains a spawn_session call and NO factory/process-spawn symbols; coordinator.rs is a forbidden path for this MT.",
+      "CTRL-2 (RISK-2): Parent identity resolved exclusively from authenticated session context; argument-supplied identity is a typed, ledgered IdentitySpoofAttempt rejection with a dedicated test.",
+      "CTRL-3 (RISK-3): Budget clamp to policy ceiling with a test asserting the granted budget never exceeds the ceiling; granted value recorded in the ledger row.",
+      "CTRL-4 (RISK-4): task_payload_ref indirection only — no inline instruction body accepted; payload passes MT-104 injection scan before child delivery (integration point named in tests).",
+      "CTRL-5 (RISK-5): Deny-by-default when no evaluator is registered, proven by model_tools_spawn_denied_by_default test."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: swarm_orchestration/coordinator.rs (spawn_session, semaphore, lifetime_spawns, ClaimLease, CancellationToken), ids.rs (SpawnRequest.parent_session_id), error.rs (SwarmError typed classes), events.rs (SwarmFrEventId FR-EVT-SWARM-* incl SESSION-SPAWNED / SPAWN-REJECTED), mcp/gate.rs (GatedMcpClient, evaluate_kernel_tool_gate_decision, ConsentDecision), model_runtime/cloud/consent_gate.rs (path corrected from grounding note), model_lane.rs (ModelLaneStore). Verified: no model-initiated spawn path exists today. External precedent: Anthropic multi-agent research system (orchestrator-workers, structured spawn); Claude Code subagent governance (single sanctioned dispatch path).",
+    "corrections": [
+      "consent_gate.rs lives under src/backend/handshake_core/src/model_runtime/cloud/, not src/backend/handshake_core/src/cloud/ as the WP stub sketch cited."
+    ]
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-043",
+  "title": "CX-MT043-TurnSteerInterrupt",
+  "group": "CX Codex app-server transport",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-043.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-041",
+      "MT-042",
+      "MT-002"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "clause": "turn/start with composed input, turn/steer wired to the steer-queue drain (mid-turn, no relaunch), turn/interrupt, TurnItem stream + token usage",
+  "scope": {
+    "summary": "GOAL: Wire the turn layer of the Codex adapter: turn/start with the composed initial input (role overlay + MT payload from the MT-083 composition seam), turn/steer as FIRST-CLASS mid-turn steering driven by the MT-002 steer-queue drain (guidance injected into a RUNNING turn without interrupting or relaunching it), turn/interrupt mapping to an Interrupted turn state, the item.* event stream mapped into a typed TurnItem stream, and token-usage capture from turn.completed. turn/steer vs turn/interrupt is the cleanest published model of steering in the field; Handshake's internal session model (MT-001 family) is mapped onto exactly this shape - this MT is the payoff seam of the whole CX group.\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/turns.rs implementing CodexTurnDriver over the MT-041 client + MT-042 thread adapter, a TurnItem typed stream, the steer-queue bridge, and unit tests. Re-export additions in codex_app_server/mod.rs. No modification to the MT-002 steer-queue seam itself (consumed, not authored).\n\nDETAILED SPEC:\n1. TURN START. start_turn(thread, input) calls turn/start with the initial input composed by the MT-083 composition seam (role overlay + MT payload). The composed input arrives as an opaque, already-rendered payload; this MT does NOT compose roles or MT text itself - it only requires that turn/start receives it verbatim and that the turn is associated with the originating mt_id/session ids for recording (MT-045). Only one active turn per thread: starting a turn while one is active is a typed TurnAlreadyActive error (the app-server thread model is sequential turns).\n2. STEER BRIDGE (core deliverable). The MT-002 steer queue holds operator/orchestrator guidance targeted at a session. This MT subscribes a drain to that queue for threads owned by this adapter: while a turn is ACTIVE, each drained steer message is delivered via turn/steer against the active turn - guidance is injected MID-TURN, the model sees it at its next step boundary, and the turn is NOT interrupted, NOT relaunched, and its already-streamed items remain valid. Ordering: FIFO per thread; a steer drained while delivery of the previous one is in-flight queues behind it (no reordering, no coalescing unless the MT-002 queue itself coalesces). If NO turn is active when a steer is drained, the message follows the MT-002 policy surface (hold for next turn/start and prepend to its input, or reject-typed if the policy says immediate-only) - the chosen behavior is read from the MT-002 seam's policy field, not invented here. Every steer delivery outcome (delivered-mid-turn, held-for-next-turn, rejected, failed-typed) is reported back to the MT-002 queue entry so the steering operator sees a definitive per-message disposition.\n3. INTERRUPT. interrupt_turn(thread) calls turn/interrupt; the turn transitions to Interrupted (a terminal state for that turn; the THREAD stays usable - a subsequent turn/start on the same thread is legal and must be tested). In-flight items at interrupt time are retained with their partial content and marked truncated-by-interrupt. Steer messages still queued for that turn are returned to the MT-002 queue as undelivered-typed (never silently dropped).\n4. TURN ITEM STREAM. Subscribe to the MT-041 notification stream and project item.started/item.updated/item.completed for the active turn into a typed TurnItem stream with item kinds: agent_message, reasoning, command_execution, file_change, mcp_tool_call, web_search, plan_update, plus Unknown{raw} for forward-compatibility. Emission discipline mirrors the exec lane's proven rule (agent_activity.rs lines 301-304): consumers get completed items always, and started markers for long-running kinds (command_execution) so activity is visible before completion. The stream carries thread_id, turn_id, item_id, kind, and the typed payload.\n5. TOKEN USAGE. turn.completed carries token usage; capture it into a typed TurnUsage { input_tokens, cached_input_tokens (if present in schema), output_tokens, total } attached to the turn result and forwarded to MT-045 for cost/usage rows. turn.failed (if present in schema) maps to a typed TurnFailed with the server-reported reason.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the delivered MT-002 steer-queue seam (drain API + no-active-turn policy field + per-message disposition reporting) and the MT-041/MT-042 public APIs in the implementation worktree.\n2. Author turns.rs: CodexTurnDriver { client, thread_adapter, steer_drain_handle, item_tx } with start_turn/interrupt_turn/active_turn_state.\n3. Implement the single-active-turn state machine (Idle -> TurnActive -> {Completed, Interrupted, Failed}) at thread scope, updating MT-042's thread state on transitions.\n4. Implement the TurnItem projection from the MT-041 notification stream per spec item 4 with per-turn filtering (drop-or-buffer rules for items of other threads are: filter by thread_id, never cross-deliver).\n5. Implement the steer bridge per spec item 2 incl. disposition reporting and interrupt-time undelivered return.\n6. Implement usage capture per spec item 5.\n7. Unit-test everything against the MT-041 fake transport with scripted JSONL: mid-turn steer delivery order, steer-while-no-active-turn policy branches, interrupt with queued steers returned undelivered, item stream kinds incl. unknown kind tolerance, usage capture, TurnAlreadyActive, and post-interrupt new-turn legality.\n8. Run proof targets; record outputs.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/turns.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs (re-exports only)",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/tests/** (if tests are split out)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (no GUI work in this MT)",
+      "MT-002 steer-queue seam modules (consume the drain API; do not modify)"
+    ],
+    "acceptance_criteria": [
+      "start_turn delivers the composed input verbatim to turn/start and enforces single-active-turn with typed TurnAlreadyActive (tests).",
+      "A steer message drained from the MT-002 queue while a turn is active is delivered via turn/steer WITHOUT interrupting the turn: the fake-transport script proves the turn continues streaming items after steer delivery and completes normally (test).",
+      "Steer delivery is FIFO per thread; a 3-message burst arrives at the server in drain order (test).",
+      "Steer with no active turn follows the MT-002 policy field (both policy branches tested: held-and-prepended to next turn/start; rejected-typed).",
+      "Every steer message ends in exactly one reported disposition: delivered-mid-turn, held-for-next-turn, rejected, failed-typed, or undelivered-returned-on-interrupt (test asserts exhaustiveness).",
+      "interrupt_turn maps to Interrupted state; partial items are retained marked truncated-by-interrupt; queued steers are returned undelivered-typed; a NEW turn on the same thread afterwards succeeds (tests).",
+      "TurnItem stream projects all seven documented item kinds plus Unknown{raw} without panic; items are filtered by thread_id (tests).",
+      "TurnUsage is captured from turn.completed and attached to the turn result (test); turn.failed (if schema-present) maps to typed TurnFailed.",
+      "MT-042 thread state reflects TurnActive/Interrupted transitions (test)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core model_runtime::cloud::codex_app_server::turns -- --nocapture",
+      "cargo clippy -p handshake_core -- -D warnings",
+      "HSK_CODEX_LIVE=1 cargo test -p handshake_core codex_steer_mid_turn_live -- --nocapture --ignored  # live: steer a real running turn and observe uninterrupted completion; absent CLI/login => typed NEEDS_MANAGED_RESOURCE_PROOF, never silent skip"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/turns.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/codex_app_server/mod.rs",
+      "MT-002 steer-queue seam (consumed: drain API, no-active-turn policy, disposition reporting)",
+      "MT-083 composition seam (consumed: opaque composed initial input)",
+      "agent_activity.rs lines 49-54 (envelope doc) and 301-304 (emit rule precedent), parse_codex_line at line 284 (exec-lane dialect kept separate)"
+    ],
+    "expected_tests": [
+      "steer_delivered_mid_turn_without_interrupt",
+      "steer_fifo_order_preserved",
+      "steer_no_active_turn_policy_hold_branch",
+      "steer_no_active_turn_policy_reject_branch",
+      "steer_disposition_exhaustive",
+      "interrupt_returns_queued_steers_undelivered",
+      "interrupt_retains_partial_items_truncated",
+      "new_turn_after_interrupt_succeeds",
+      "turn_already_active_typed",
+      "turn_item_kinds_projected_with_unknown_tolerance",
+      "turn_usage_captured_from_turn_completed",
+      "codex_steer_mid_turn_live (live-gated; typed NEEDS_MANAGED_RESOURCE_PROOF when CLI/login absent)"
+    ],
+    "implementation_notes": [
+      "turn/steer is the reason the app-server lane exists for Handshake: the exec lane can only relaunch with new prompt text. Never implement steer as interrupt+restart; the acceptance test explicitly proves the turn keeps streaming after steer.",
+      "Do not reuse parse_codex_line (agent_activity.rs:284) for app-server notifications - that function parses the exec lane's `codex exec --json` event shapes. The app-server bindings live in MT-041 protocol.rs; MT-045 owns unifying both into recording.",
+      "Composed initial input is opaque here: the role overlay + MT payload contract is MT-083's (roles MT-081/082). Assert pass-through byte-equality in tests, nothing more.",
+      "Steer disposition reporting is what makes steering observable and attributable for the operator (GLOBAL-BUILD-035..037); wire it to the MT-002 entry, and MT-045 records it to FR.",
+      "Field names for usage (input_tokens/cached_input_tokens/output_tokens) must be taken from the generated schema at implementation time; keep Option-al fields for schema variance."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless backend adapter MT: no operator-visible surface changed; visual verification = TraceProjection per HBR-VIS-004."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Codex lane: mid-turn steering (what turn/steer does, when a steer is held vs delivered vs rejected, how dispositions read)",
+      "Codex lane: interrupting a turn (state outcome, partial items, queued-steer return, thread reusability)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-002",
+    "HBR-INT-005",
+    "HBR-INT-006",
+    "HBR-INT-007",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-STOP-001",
+    "HBR-STOP-002",
+    "HBR-STOP-003",
+    "HBR-STOP-004",
+    "HBR-STOP-005"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "WIRED",
+      "reason": "Turn start/steer-disposition/interrupt/complete are FR business events; kind mapping finalized in MT-045 with MT-161 kinds."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "DEFERRED",
+      "reason": "Recorded DEFERRED-with-reason if internal_diagnostics is not present in the implementation worktree at claim time; never silently skipped."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED",
+      "reason": "Turn liveness rides the MT-041 health probe + MT-005 supervisor; external-watcher registration deferred there; recorded, never silently skipped."
+    }
+  ],
+  "risk_if_missed": "No mid-turn steering: operator guidance can only interrupt-and-relaunch Codex turns, losing in-flight work and defeating the WP's core steering goal; MT-044/045/047 lose their turn substrate.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Steer-as-interrupt fake - implementing steer by interrupting and restarting the turn would pass naive tests while destroying in-flight work (the exact deflection this MT exists to prevent).",
+      "RISK-2: Lost/dropped steers - a steer drained but never delivered (turn ended racing the drain) disappears silently; the operator believes guidance was applied.",
+      "RISK-3: Cross-thread item leakage - items of thread A projected into thread B's TurnItem stream corrupt transcripts and steering context.",
+      "RISK-4: Reorder under burst - concurrent steer deliveries arriving out of order invert operator intent (\"stop X, then do Y\" becomes \"do Y, then stop X\").",
+      "RISK-5: Usage loss on interrupt/failure - token usage only captured on clean completion undercounts cost rows."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Acceptance test scripts items AFTER steer delivery within the SAME turn_id and asserts normal completion; live MT-047 steer test repeats this against the real CLI.",
+      "CTRL-2 (RISK-2): Exhaustive disposition contract - every drained steer must end in exactly one reported disposition incl. undelivered-returned; test asserts no silent path.",
+      "CTRL-3 (RISK-3): thread_id filtering on the projection with a two-thread interleaved fake-transport test.",
+      "CTRL-4 (RISK-4): Per-thread FIFO with in-flight serialization (next delivery awaits previous ack); burst-order test.",
+      "CTRL-5 (RISK-5): Capture usage from turn.completed AND from the terminal notification of interrupted/failed turns when the schema provides it; absent data recorded as typed-unknown, not zero."
+    ]
+  },
+  "research_provenance": {
+    "source": "OpenAI Codex CLI official docs (developers.openai.com/codex): turn/start, turn/steer (inject guidance MID-TURN without interrupting), turn/interrupt; item lifecycle item.started/item.completed with item types agent_message, reasoning, command_execution, file_change, mcp_tool_call, web_search, plan_update; turn.completed carries token usage. turn/steer vs turn/interrupt is the cleanest published steering model; Handshake's session model (MT-001 family) is mapped onto this shape.",
+    "grounding_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
+    "verified_code_refs": [
+      "agent_activity.rs module doc lines 49-54 (envelopes thread.started/turn.started/turn.completed/item lifecycle) and emit rule lines 301-304 (item.completed always; item.started for command_execution) - precedent for TurnItem emission discipline",
+      "agent_activity.rs parse_line dispatch line 131 and parse_codex_line line 284 (exec-lane dialect; kept separate from app-server bindings)",
+      "cli_bridge_runtime.rs CliBridgeModelRuntime line 477 (exec-lane streaming precedent; the app-server lane must offer streamed activity at least this good)"
+    ],
+    "rejected_options": [
+      "Steer via interrupt+relaunch (destroys in-flight work; exec-lane-era workaround)",
+      "Coalescing steer messages in the adapter (ordering/intent hazards; coalescing policy belongs to MT-002 if anywhere)",
+      "Reusing the exec-lane parse_codex_line parser for app-server notifications (different wire shapes)"
+    ],
+    "selected_approach": "First-class turn/steer bridge from the MT-002 steer-queue drain with exhaustive per-message dispositions, single-active-turn state machine, typed TurnItem projection with unknown-kind tolerance, and usage capture wired to MT-045."
+  }
+}

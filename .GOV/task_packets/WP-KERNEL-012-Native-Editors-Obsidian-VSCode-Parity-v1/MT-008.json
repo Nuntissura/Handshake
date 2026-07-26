@@ -14,7 +14,7 @@
   "title": "E1-MT-008-LspClient",
   "group": "E1 Code editor (VS Code parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T14:31:37.9630797Z",
+  "updated_at_utc": "2026-07-23T12:08:46.6142311Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,17 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-001",
       "MT-007"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Current MT-008 remediation state: the reopen finding was that real LSP was not reachable from the shipped app path, didOpen/didChange were not proven, real-process LSP Drop proof was absent, and backend-populated AC-005/006 were overclaimed. KERNEL_BUILDER-20260704-122106 implemented app-level LSP attach/sync, deterministic didOpen/didChange frame proof, real-process spawn/initialize/Drop proof, URI-scoped publishDiagnostics gutter proof, completion/hover fallback raw-symbol queue proof, manual coverage, and honest typed blockers for backend-populated content that still needs a seeded indexed-code workspace.",
@@ -74,17 +74,47 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260704-122106",
+    "claimed_by": "KERNEL_BUILDER-20260722-182301",
+    "claimed_at_utc": "2026-07-22T18:23:01Z",
+    "completed_by": null,
     "remediation_closed_at_utc": "2026-07-04T16:53:29Z",
     "remediation_closed_by": "KERNEL_BUILDER-20260704-122106",
     "remediation_closed_summary": "Implementation and fresh proof complete for the app-level LSP orphan and raw-symbol fallback gaps. Official validator review remains pending; do not mark COMPLETED from builder handoff.",
-    "ready_for_validation_at_utc": "2026-07-04T16:55:22Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-122106",
+    "ready_for_validation_at_utc": "2026-07-23T12:08:46.6142311Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260722-182301",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_REVIEWS_2026-07-23_FINAL_REBIND",
     "ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
-      "generated_at_utc": "2026-07-04T16:54:55.805Z",
-      "actor_session": "KERNEL_BUILDER-20260704-122106",
+      "generated_at_utc": "2026-07-23T12:10:57.432Z",
+      "actor_session": "KERNEL_BUILDER-20260722-182301",
       "overall_verdict": "PASS"
+    },
+    "rfv_rebind_evidence_2026_07_23": {
+      "by": "KERNEL_BUILDER-20260722-182301",
+      "mode": "V2_REAL_LSP_MANAGED_CODENAV_CANONICAL_ARGUS_REMEDIATION",
+      "source_head": "30d8657afaac31756852929291b669723f97234e",
+      "candidate_manifest_sort": "scope.allowed_paths order; UTF-8 records <repo-relative-path><TAB><sha256> joined by LF with final LF",
+      "candidate_manifest_file_count": 9,
+      "candidate_manifest_sha256": "07f09f0d2ee8609eabaf0de5bc5aad874c55ea9aea9cee1073aa93d7e8b54660",
+      "key_file_sha256": {
+        "src/frontend/handshake_native/src/code_editor/editor_view.rs": "544ce557ff73540138002d392266493c2b0fa53a3f7ad2e58224e899a516c351",
+        "src/frontend/handshake_native/tests/test_lsp_client.rs": "70a8c973915aab3bff0b958704a2d0e294df7c0cf75f6da69d43629b2c385e32",
+        "src/frontend/handshake_native/tests/test_completion_hover_accesskit.rs": "7c3166e36561e184c1fb235d982389f30cc33b78277c3d77345ad9d7c88e3980"
+      },
+      "real_lsp_proof": "PASS: actual clangd process proved initialize, didOpen, completion, hover, cross-file definition, two populated references, publishDiagnostics, versioned didChange/diagnostic clearing, abrupt-loss bounded behavior, and exact child cleanup. Full LSP binary 34/34; final mounted canonical exact rerun 1/1.",
+      "managed_codenav_proof": "PASS: owned handshake_core plus managed PostgreSQL fixture indexed workspace 019f8ecf-e09a-7642-982f-be6352bf4447; strict populated lookup/detail/reference/completion/hover UI results passed. Full CodeNav client binary 21/21. Owned fixture, PostgreSQL child, port 5569, and runtime data were reclaimed; pre-existing system PostgreSQL PID 6636 was not touched.",
+      "canonical_argus_proof": "PASS: mounted HandshakeApp exposed real clangd diagnostics, hover, completion popup and LSP status through canonical localhost Argus stable author IDs; attributed safe click inserted exact add_numbers text; fresh reinspection showed popup closure and didChange. Completion/hover suite 19/19. Final PNG visibly shows populated completion, diagnostic gutter dots, and attached clangd; the test samples the exact canonical item bounds and requires at least 100 foreground pixels.",
+      "visual_artifacts": {
+        "png": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-008/canonical-argus/mt008-mounted-real-lsp-before-click.png",
+        "png_sha256": "56c5c4d2423fc936c777a277e1b26870341665679010f97a7ca7503b16387b9d",
+        "pre_action_tree_sha256": "0452f85e3d6ba0f4ef71646b6e950a4a24bd5e6e155f0b09bcb66418f611381f",
+        "final_tree_sha256": "5329c378b3cac17bcceb05f174fb9d4300a5d9a8a2574998e124a1279ea516c4"
+      },
+      "menu_manual_settings": "GO menu F12/Shift+F12 routing and settings AccessKit proof passed. The existing Code Editor UserManual covers LSP discovery/status, didOpen/didChange/didClose, completion/hover IDs, URI-scoped diagnostics, CodeNav fallback, recovery, and managed-resource posture. No new user-configurable setting was introduced.",
+      "negative_paths": "PASS: absent/crashed LSP, timeout/EOF/malformed/oversized/stale responses, URI/version diagnostic filtering, HTTP 500, malformed JSON, dropped CodeNav connection, and exact cleanup are covered.",
+      "reviews": "Three independent final adversarial reviewers bound to the final 9-file manifest and regenerated PNG returned READY_FOR_VALIDATION_V3. The initial screenshot/tree mismatch was repaired with an ordinary-paint refresh plus exact canonical-item pixel gate and independently re-inspected.",
+      "residuals": "The broad UserManual aggregate still fails an unrelated MT-063 FEMS needle and is not represented as green. The canonical action receipt is indeterminate, but exact buffer mutation, popup closure, fresh tree absence, and didChange prove application. Historical validation_v2 FAIL_V2 remains preserved."
     }
   },
   "scope": {
@@ -515,5 +545,48 @@
       ],
       "no_context_instruction": "Read MT-008.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260722-182301",
+    "prepared_at_utc": "2026-07-23T12:08:46.6142311Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "real_lsp_full_binary": "PASS_34_OF_34",
+      "completion_hover_full_binary": "PASS_19_OF_19",
+      "managed_codenav_full_binary": "PASS_21_OF_21",
+      "final_mounted_canonical_exact": "PASS_1_OF_1",
+      "go_menu_exact": "PASS_1_OF_1",
+      "settings_accesskit_exact": "PASS_1_OF_1",
+      "scoped_diff_check": "PASS",
+      "candidate_manifest_sha256": "07f09f0d2ee8609eabaf0de5bc5aad874c55ea9aea9cee1073aa93d7e8b54660",
+      "visible_png_sha256": "56c5c4d2423fc936c777a277e1b26870341665679010f97a7ca7503b16387b9d"
+    },
+    "adversarial_review": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_FINAL_REVIEWS_NO_BLOCKER",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-23T12:10:57.432Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null; validation_v2 is retained as historical FAIL_V2."
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-008 FAIL V2. The real LSP/CodeNav acceptance remains unproved with populated symbol, hover, reference, completion, and diagnostic results from an actual language-server process. The reopened proof also lacks a canonical Argus inspect/steer/re-observe run for the mounted code-editor states.",
+    "remediation_plan": [
+      "Run the mounted app against a real indexed workspace and real LSP process; prove didOpen/didChange, populated navigation results, diagnostics, timeout/error behavior, and child cleanup.",
+      "Drive the mounted editor through canonical Argus with stable author_ids, a safe action, fresh post-action inspection, and screenshot/tree evidence; update the canonical UserManual diagnostic posture."
+    ],
+    "no_context_instruction": "Read MT-008.json, packet.json, WP_VALIDATOR_PROTOCOL.md, and resolved SPEC_CURRENT v02.201 before editing. Repair only the listed product/proof gaps, run the exact live and Argus checks from the assigned WP worktree with external artifacts, then return READY_FOR_VALIDATION_V3 without self-issuing PASS."
   }
 }

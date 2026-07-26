@@ -19,6 +19,7 @@
     "authority_files": { "type": "object", "required": ["packet_contract", "packet_projection", "refinement_contract", "microtask_contract_glob"], "additionalProperties": { "type": "string" } },
     "markdown_projection": { "$ref": "#/$defs/markdown_projection" },
     "scope": { "type": "object" },
+    "resource_privacy_contract": { "$ref": "#/$defs/resource_privacy_obligation" },
     "refinement": { "type": "object" },
     "microtasks": { "type": "object" },
     "role_profiles": { "type": "object" },
@@ -39,7 +40,18 @@
       "additionalProperties": true
     },
     "markdown_projection": { "type": "object", "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "enum": ["GENERATED_PENDING", "GENERATED_IN_SYNC", "LEGACY_AUTHORITY", "BLOCKED"] }, "source_hash": { "type": ["string", "null"] }, "projection_hash": { "type": ["string", "null"] }, "source_file": { "type": ["string", "null"] }, "projection_hash": { "type": ["string", "null"] }, "source_file": { "type": ["string", "null"] }, "generated_at_utc": { "type": ["string", "null"] }, "generator": { "type": ["string", "null"] } }, "additionalProperties": true },
-    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" }, "assumptions_to_attack": { "type": "array", "items": { "type": "string" } }, "minimum_controls": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": true }
+    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" }, "assumptions_to_attack": { "type": "array", "items": { "type": "string" } }, "minimum_controls": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": true },
+    "resource_privacy_obligation": {
+      "type": "object",
+      "required": ["required_for_every_product_wp", "resource_inventory", "required_hbr_rows"],
+      "properties": {
+        "required_for_every_product_wp": { "const": true },
+        "resource_inventory": { "type": "array" },
+        "required_hbr_rows": { "type": "array", "items": { "type": "string", "pattern": "^HBR-PRIV-" } },
+        "not_applicable_reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
   }
 }
 

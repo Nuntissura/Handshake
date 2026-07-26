@@ -1,0 +1,145 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-201",
+  "title": "AC-MT201-AnnotationRecordSchema",
+  "group": "AC Annotation core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-201.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define the SINGLE shared annotation record schema `hsk.annotation@1` as pure Rust types + a committed JSON Schema, used identically by human (operator) and model authors — provenance fields, not separate schemas, distinguish the two. This is the root type of the whole AC family: MT-202 anchors plug into it, MT-203 persists it, MT-205/206 transport it, and future Studio/Stage surfaces adopt it through the MT-208 seam.\n\nEXPECTED DIFF SHAPE: (a) new module src/backend/handshake_core/src/annotations/ with mod.rs (module docs + re-exports + AnnotationError) and record.rs (all record types); (b) committed JSON Schema file src/backend/handshake_core/src/annotations/schema/hsk_annotation_v1.schema.json kept in sync by a round-trip test; (c) one `pub mod annotations;` line added to src/backend/handshake_core/src/lib.rs; (d) unit tests. NO storage, NO routes, NO re-anchoring logic in this MT.\n\nDETAILED SPEC — record `Annotation` (serde Serialize/Deserialize, deny_unknown_fields):\n1. `schema: String` — always \"hsk.annotation@1\" (serde default + validation).\n2. `id: uuid::Uuid`, `workspace_id: uuid::Uuid`.\n3. `subject: AnnotationSubject` — enum (tagged, `kind` discriminator) describing WHAT is annotated: `File { path: String }` (live file in the workspace), `Diff { old_ref: String, new_ref: String, path: String }` (a comparison between two content refs, e.g. worktree-merge review), `ProseBlock { document_id: Uuid, block_id: Uuid }` (rich/knowledge document block; consumed by the PD family MT-241+). Optional field on all variants: `mt_run_ref: Option<String>` — free-form reference to an MT run/mt_signal correlation id (MT-121 seam, string-typed on purpose so this crate does not import orchestration types).\n4. `anchor_ref: AnchorRef` — in THIS MT a schema-versioned opaque envelope `AnchorRef { anchor_version: u32, value: serde_json::Value }`; MT-202 replaces the payload with the typed `AnnotationAnchor` while keeping the serialized shape stable (anchor_version stays the outer discriminator). Document this handoff in record.rs module docs.\n5. `body: String` — markdown. Empty body is REJECTED at construction (typed error), max length 64 KiB (typed error beyond).\n6. `kind: AnnotationKind` — enum comment | suggestion | finding | question (serde lowercase).\n7. `thread: Option<Uuid>` — `parent_annotation_id` for replies; None = thread root. Replies inherit subject/anchor from the root (the reply record still carries its own copies for self-containment; constructor helper `Annotation::reply_to(&parent, ...)` copies them).\n8. `state: AnnotationState` — enum open | resolved | orphaned | outdated (serde lowercase). New records are always `open`; only MT-203 store transitions (resolve/reopen) and the MT-204 re-anchor engine (orphaned/outdated) may change it.\n9. `author: AnnotationAuthor` — struct { kind: AuthorKind (operator | model), display: String, provenance: Option<ModelProvenance> }. `ModelProvenance { robot_id: String, session_id: String, run_id: String }` — MANDATORY when kind == model, FORBIDDEN when kind == operator. This is the Gerrit RobotCommentInfo hardening over hunk's free-form `author` string: a model annotation without robot_id + session_id + run_id must be UNREPRESENTABLE through the constructor and REJECTED by a custom Deserialize validation (implement via `#[serde(try_from)]` or a validating `TryFrom<RawAnnotationAuthor>`).\n10. `fix_suggestions: Vec<FixSuggestion>` — Gerrit fix_suggestions shape: `FixSuggestion { description: String, replacements: Vec<FixReplacement> }`, `FixReplacement { path: String, range: ReplacementRange, replacement: String }`, `ReplacementRange { start_line: u32, start_char: u32, end_line: u32, end_char: u32 }` (0-based, half-open, UTF-8 byte columns — documented in rustdoc). Typically model-authored; allowed empty for plain comments.\n11. `created_at_utc: chrono OR time RFC3339 string` — use whichever datetime representation the existing handshake_core storage records use (inspect src/backend/handshake_core/src/storage/knowledge.rs for the incumbent convention and MATCH it); `updated_at_utc` same type, equal to created_at_utc on creation.\n12. `AnnotationError` enum in mod.rs with typed variants: EmptyBody, BodyTooLarge, MissingModelProvenance, ProvenanceOnOperatorAuthor, SchemaMismatch, InvalidAnchorEnvelope — all `thiserror`-derived if thiserror is already a workspace dep (verify; otherwise manual Display impls).\n13. JSON Schema: commit hsk_annotation_v1.schema.json describing the full record (draft 2020-12). A unit test deserializes the schema file, serializes a maximal sample Annotation, and asserts every serialized key is declared by the schema (drift tripwire in BOTH directions: schema keys not producible by the types also fail).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read src/backend/handshake_core/src/storage/knowledge.rs and src/backend/handshake_core/src/api/knowledge_documents.rs (wtc-native-editors-v1 worktree) to copy the incumbent id/timestamp/serde conventions — do NOT invent new ones.\n2. Create src/backend/handshake_core/src/annotations/mod.rs with module docs stating the seam law: this module must never import editor/notes/document modules (enforced by MT-208); it may import only std, serde, uuid, the workspace datetime crate, and thiserror.\n3. Create record.rs with the types above, constructors `Annotation::new_operator(...)`, `Annotation::new_model(...)` (provenance required by signature), `Annotation::reply_to(...)`, and validating deserialization.\n4. Write hsk_annotation_v1.schema.json by hand (or via a dev-only schemars generation run committed as a static file — do NOT add schemars as a runtime dep).\n5. Unit tests: serde round-trip for every enum variant combination; model-author-without-provenance rejected on both construct and deserialize; operator-author-with-provenance rejected; empty/oversized body rejected; reply_to copies subject + anchor and sets thread; schema drift tripwire test.\n6. Wire `pub mod annotations;` into lib.rs; run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/annotations/mod.rs",
+      "src/backend/handshake_core/src/annotations/record.rs",
+      "src/backend/handshake_core/src/annotations/schema/hsk_annotation_v1.schema.json",
+      "src/backend/handshake_core/src/lib.rs (single mod line)",
+      "src/backend/handshake_core/tests/annotation_record_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (GUI owned by NA family MT-221+)",
+      "src/backend/handshake_core/src/storage/** (persistence is MT-203)",
+      "src/backend/handshake_core/src/api/** (routes are MT-205)"
+    ],
+    "acceptance_criteria": [
+      "hsk.annotation@1 record types exist in src/backend/handshake_core/src/annotations/record.rs with exactly the specified fields: id, workspace_id, subject, anchor_ref, body, kind, thread, state, author, fix_suggestions, created/updated timestamps, schema tag.",
+      "A model-authored annotation without robot_id + session_id + run_id is unrepresentable via constructors AND rejected by deserialization with the typed MissingModelProvenance error; an operator-authored annotation carrying provenance is rejected with ProvenanceOnOperatorAuthor.",
+      "One shared schema serves human and model authors — no second record type, no parallel model-only schema (grep-provable: exactly one `struct Annotation` in the annotations module).",
+      "AnnotationSubject covers File, Diff, and ProseBlock targets with an optional string-typed mt_run_ref on each (MT-121 seam without an orchestration import).",
+      "fix_suggestions serialize in the Gerrit-style description + replacements[{path, range, replacement}] shape with 0-based half-open ranges documented in rustdoc.",
+      "hsk_annotation_v1.schema.json is committed and the bidirectional schema-drift tripwire test passes.",
+      "AnchorRef is a versioned opaque envelope whose serialized shape MT-202 can replace without breaking round-trips (documented handoff note in record.rs).",
+      "cargo build -p handshake_core succeeds; the annotations module imports nothing from knowledge_document, knowledge_wiki, loom_*, atelier, or any api/storage module."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_record -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo build --manifest-path src/backend/handshake_core/Cargo.toml 2>&1 | tail -1",
+      "grep -c 'pub struct Annotation ' src/backend/handshake_core/src/annotations/record.rs | grep -q '^1$' (single shared record type)",
+      "grep -rn 'use crate::\\(knowledge\\|loom\\|atelier\\|api\\|storage\\)' src/backend/handshake_core/src/annotations/ | wc -l | grep -q '^0$' (seam law pre-check ahead of MT-208 enforcement)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/annotations/mod.rs (new)",
+      "src/backend/handshake_core/src/annotations/record.rs (new)",
+      "src/backend/handshake_core/src/annotations/schema/hsk_annotation_v1.schema.json (new)",
+      "src/backend/handshake_core/src/lib.rs (module wiring only)"
+    ],
+    "expected_tests": [
+      "annotation_record::serde_round_trip_all_variants",
+      "annotation_record::model_author_requires_provenance_construct_and_deserialize",
+      "annotation_record::operator_author_rejects_provenance",
+      "annotation_record::body_empty_and_oversize_rejected",
+      "annotation_record::reply_to_inherits_subject_anchor_sets_thread",
+      "annotation_record::json_schema_bidirectional_drift_tripwire"
+    ],
+    "implementation_notes": [
+      "Research basis (packet-level, operator-verified 2026-07-21): concept from modem-dev/hunk agent-context sidecar (annotations with summary/rationale/author), hardened with the Gerrit CommentInfo/RobotCommentInfo model — hunk's free-form `author` string is explicitly INSUFFICIENT provenance; Gerrit's robot_id/robot_run_id extension fields are the adopted fix (mapped here to robot_id/session_id/run_id).",
+      "Single-schema decision: Gerrit robot comments EXTEND the human comment schema rather than forking it; Handshake adopts the same shape so every downstream surface (store, routes, tools, GUI, Studio/Stage) handles one type.",
+      "The AnchorRef opaque-envelope indirection exists ONLY so MT-201 has no dependency; MT-202 owns the typed anchor. Do not sneak anchor semantics (quote, context, hash) into this MT.",
+      "Datetime + uuid conventions MUST be copied from the incumbent storage records (storage/knowledge.rs) — mismatched conventions here would force MT-203 into conversion shims.",
+      "Keep the module free of tokio/async and of any DB type: pure data + validation, synchronously testable, so MT-208 can prove Studio/Stage adoption with zero runtime baggage."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend/core schema MT; operator GUI surfaces for annotations are owned by the NA family (MT-221+)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal data-model MT with no operator-visible behavior yet; the UserManual entries land with the MT-205 routes and MT-206 tool surface."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — pure type/schema module emits no runtime events; event emission starts at the MT-203 store (EventLedger receipts) and MT-204 engine (MT-161 FR kinds).",
+    "internal_diagnostics: WIRED — all validation failures are typed AnnotationError variants (no stringly errors, no silent coercion), surfaced by every downstream consumer.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no long-running runtime posture; pure data types."
+  ],
+  "risk_if_missed": "Without a single hardened record schema every downstream MT invents its own annotation shape: model annotations land with hunk-style free-form authorship (no provenance, unattributable in a multi-agent swarm), human and model comments fork into incompatible types, and Studio/Stage adoption of the seam becomes a migration instead of an import.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Model provenance enforced only in the constructor — a crafted JSON payload deserializes a model annotation with no robot_id/session_id/run_id, and swarm attribution silently degrades to hunk's free-form-author weakness.",
+      "RISK-2: The JSON Schema file drifts from the Rust types (field added to one, not the other) and external consumers (sidecar import/export, future Studio) validate against a stale contract.",
+      "RISK-3: A downstream MT finds the shared type inconvenient and forks a model-only annotation struct, splitting the human/model surface the whole design exists to unify.",
+      "RISK-4: Anchor semantics leak into MT-201 (e.g. quote or hash fields on the record), pre-empting the MT-202 typed anchor and forcing a breaking re-serialization later."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Provenance validation runs in Deserialize (try_from), not only in constructors; a dedicated negative test feeds raw JSON with kind=model and no provenance and asserts the typed rejection.",
+      "CTRL-2 (RISK-2): The bidirectional schema-drift tripwire test fails when either the serialized record produces a key the schema does not declare or the schema declares a key the types cannot produce.",
+      "CTRL-3 (RISK-3): Acceptance criterion pins exactly one `struct Annotation` (grep proof target); MT-208's seam consumer example re-proves single-type adoption.",
+      "CTRL-4 (RISK-4): AnchorRef is an opaque versioned envelope in this MT; the grep proof over annotations/ shows no quote/context/hash identifiers before MT-202."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified annotation research 2026-07-21: modem-dev/hunk (github.com/modem-dev/hunk, MIT, ~7.5k stars) agent-context sidecar concept with author-as-free-form-string identified as insufficient provenance; Gerrit CommentInfo/RobotCommentInfo (robot_id, robot_run_id, fix_suggestions[{description, replacements:[{path, range, replacement}]}]) adopted as the hardened shared human+model schema; REJECTED: git-notes storage (commit granularity, orphaning) and reusing hunk TS code (concept only). Grounding audit of wtc-native-editors-v1: src/backend/handshake_core/src/lib.rs module list (annotations is a new top-level module), storage/knowledge.rs + api/knowledge_documents.rs incumbent id/timestamp/receipt conventions.",
+    "corrections": [
+      "hunk live-comment targets (exactly one of hunk|hunkNumber|oldLine|newLine) are deliberately NOT adopted at the record level — targeting lives entirely in the MT-202 anchor model; the record only carries the versioned anchor envelope.",
+      "Gerrit robot_run_id is split into session_id + run_id to match Handshake's session/run identity model used by the CS family and FR correlation (string-typed, no orchestration import)."
+    ]
+  }
+}

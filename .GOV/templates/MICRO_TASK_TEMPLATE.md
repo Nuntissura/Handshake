@@ -32,6 +32,14 @@ Projection note: this Markdown is a generated compatibility view for `{{MT_ID}}`
 - USER_MANUAL_TARGET_ENTRIES:
   - <entry/group/path or NONE>
 - USER_MANUAL_NOT_APPLICABLE_REASON: <reason or NONE>
+- RESOURCE_PRIVACY_APPLICABLE: <YES|NO>
+- RESOURCES_TOUCHED:
+  - <resource kind/id or NONE>
+- IDENTITY_AND_SCOPE_CONTEXTS:
+  - <LocalAccount|Principal|AccountRole|MembershipRole|AccessSpace|ResourceGrant|Persona context or NONE>
+- PRIVACY_ENFORCEMENT_BOUNDARIES:
+  - <PostgreSQL_RLS|ResourceBroker|filesystem_broker|API|search|model_retrieval|tool|preview|export|sync|UI_query|NONE>
+- RESOURCE_PRIVACY_NOT_APPLICABLE_REASON: <concrete pure-governance reason or NONE>
 <!-- Assume stale projections, shadow prose authority, schema omissions, round-trip loss, lifecycle split drift, and role-duty divergence until machine checks prove otherwise. -->
 
 ## CODER
@@ -50,6 +58,15 @@ Projection note: this Markdown is a generated compatibility view for `{{MT_ID}}`
   - SELF_CONSISTENCY_TEST:
   - INSPECTION_OR_NO_CONTEXT_OPERATION_TEST:
   - DIAGNOSTIC_LINKAGE_POSTURE:
+- RESOURCE_PRIVACY_EVIDENCE:
+  - STABLE_RESOURCE_OWNER_SCOPE_LINKAGE:
+  - DEFAULT_DENY_NEGATIVE_TEST:
+  - SAME_PROJECT_CROSS_ACCOUNT_ISOLATION_TEST:
+  - DERIVED_RESOURCE_NON_WIDENING_TEST:
+  - ACTOR_OWNER_ACCESS_SPACE_ATTRIBUTION:
+  - REVOCATION_OR_CONTEXT_SWITCH_TEST:
+  - REMOTE_DELEGATION_SYNC_SCOPE_TEST:
+  - ARGUS_OR_TYPED_PRIVACY_STATE_INSPECTION:
 - NOTES:
 
 ## VALIDATOR

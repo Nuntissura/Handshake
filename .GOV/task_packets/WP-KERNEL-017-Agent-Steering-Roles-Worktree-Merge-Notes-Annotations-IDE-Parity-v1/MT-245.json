@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-245",
+  "title": "PD-MT245-ProseDiffParityAndPerfProofs",
+  "group": "PD Native prose diff",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-245.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-241",
+      "MT-242",
+      "MT-243"
+    ],
+    "blocks": [
+      "MT-261"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Author and run the proof suite that (a) PROVES the native prose diff/merge (MT-241) is behaviourally equivalent to the React reference app/src/lib/editor/document_diff_merge.ts BEFORE that file is deleted, (b) enforces performance budgets on large prose documents, and (c) fuzzes the engine for panics and merge-plan totality. This MT is the GATE that lets the TR family remove the TS reference: it EXPLICITLY BLOCKS TR MT-261 (lifecycle.blocks = ['MT-261']) — the parity fixtures MUST be captured and green while document_diff_merge.ts still exists, because once it is deleted the equivalence can never be re-derived.\n\nEXPECTED DIFF SHAPE: Flat proof files under src/frontend/handshake_native/tests/ : (a) tests/prose_diff_proof/parity_fixtures.json — the equivalence corpus (input doc triples + the EXPECTED block statuses and merge-plan classifications, captured from the TS reference); (b) tests/test_prose_diff_parity.rs — feeds each fixture through MT-241 and asserts native output equals the recorded TS output; (c) tests/test_prose_diff_perf.rs — the large-document latency budgets; (d) tests/test_prose_diff_fuzz.rs — random-edit no-panic + merge-plan totality; (e) tests/prose_diff_proof/perf_manifest.json — machine-readable per-scenario budget/measured/status. NO product-code edits (proof-only), NO backend, NO change to MT-241/242/243.\n\nPART A — PARITY vs the TS reference (the removal gate):\n  A1. Capture the reference outputs WHILE document_diff_merge.ts EXISTS. For each fixture (a set spanning: identical docs; pure add; pure remove; single modify; multi-block modify; a moved block; interleaved add/remove/modify; a code-block (monacoCodeBlock) edit; nested-content blocks; empty doc vs non-empty; and the 3-way cases: local-only, remote-only, both-same, conflict, and no-change-skip), record the EXPECTED buildRichDocumentDiff block statuses (unchanged|modified|added|removed) and planRichDocumentMerge classifications (local_only|remote_only|both_same|conflict, with the correct set of emitted blocks) into parity_fixtures.json. Prefer generating these from the actual TS (a small node/ts-node harness run against document_diff_merge.ts, committed as the capture method) over hand-transcription; if the TS harness cannot run in the environment, hand-transcribe from a direct read of the file and record NOT_RUN_FROM_TS_WITH_REASON in the manifest — never fabricate a passing capture.\n  A2. tests/test_prose_diff_parity.rs feeds each fixture's input triple through MT-241 (ProseDiffEngine::diff and BlockMergeEngine::three_way) and asserts native block statuses + merge classifications EQUAL the recorded reference values. Fixtures are chosen in the parity-neutral regime of MT-241 (id-free, no cross-gap move) EXCEPT the dedicated move fixture, which asserts the DOCUMENTED native superset behaviour (a note in the fixture marks it native-enhanced, not a TS-divergence bug).\n  A3. A tripwire test asserts document_diff_merge.ts still exists at author time (so the gate is meaningful) and records its path; when TR MT-261 removes it, this suite must already be GREEN and frozen as the parity record.\n\nPART B — PERFORMANCE budgets (env-overridable, MT-045 PERF_BUDGET_* pattern):\n  B1. Diff a 1000-block document against an edited copy (deterministic seeded generation, in-process, no backend): budget <= 100 ms for ProseDiffEngine::diff. Env override PROSE_PERF_BUDGET_DIFF_MS.\n  B2. Three-way plan over a 1000-block base/local/remote triple: budget <= 200 ms for BlockMergeEngine::three_way. Env override PROSE_PERF_BUDGET_MERGE_MS.\n  B3. Separate fixture GENERATION (not timed) from the measured operation via std::time::Instant placed AFTER all setup (MT-045 CTRL-2). Record measured values + PASS/FAIL to perf_manifest.json written atomically (temp-file + rename). Budgets overridable so a slow host widens without code change; record the MEASURED value, not just PASS.\n\nPART C — FUZZ:\n  C1. Random block edits (seeded RNG so failures reproduce): generate a base doc, apply N random block operations (insert/delete/edit/move) to produce local and remote, run diff + three_way + apply; assert NO panic across many iterations.\n  C2. Merge-plan TOTALITY: assert every block index is accounted for — every changed block appears in exactly one plan classification and applying the plan (with an arbitrary but complete conflict resolution) yields a document whose block count and content are consistent with the chosen sides (no block silently dropped or duplicated). This is the block-level analogue of the code-merge tiling invariant.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read app/src/lib/editor/document_diff_merge.ts IN FULL (the parity target) and MT-241 prose_diff.rs (ProseDiffEngine/BlockMergeEngine/BlockMergePlan/ProseDiffStatus/BlockMergeStatus/MergeChoice/ProseMergeError) and MT-045 (tests/perf_proof/*: the PERF_BUDGET_* override pattern, atomic manifest write via temp+rename, fixture-vs-measured separation, seeded deterministic generators) as the proof-authoring precedent.\n2. Build the capture harness (node/ts-node against document_diff_merge.ts) OR the documented hand-transcription; write parity_fixtures.json with input triples + expected outputs + a capture-method field per fixture.\n3. Author test_prose_diff_parity.rs (equivalence), test_prose_diff_perf.rs (B1/B2 with env overrides + manifest write), test_prose_diff_fuzz.rs (C1 no-panic + C2 totality) using seeded generators.\n4. Register the three test files under [[test]] in src/frontend/handshake_native/Cargo.toml if the harness requires explicit registration (proof-only Cargo.toml edit allowed, MT-045 precedent).\n5. Run: parity green, perf within budgets (or env-widened with the measured value recorded), fuzz no-panic + totality. Write perf_manifest.json atomically. Record the document_diff_merge.ts existence tripwire.\n6. Confirm lifecycle.blocks=['MT-261'] is honoured operationally: the TR removal MT must not proceed until this suite is green; state that dependency in the proof output.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/tests/prose_diff_proof/parity_fixtures.json",
+      "src/frontend/handshake_native/tests/prose_diff_proof/perf_manifest.json",
+      "src/frontend/handshake_native/tests/prose_diff_proof/** (capture harness + support)",
+      "src/frontend/handshake_native/tests/test_prose_diff_parity.rs",
+      "src/frontend/handshake_native/tests/test_prose_diff_perf.rs",
+      "src/frontend/handshake_native/tests/test_prose_diff_fuzz.rs",
+      "src/frontend/handshake_native/Cargo.toml ([[test]] registration + dev-deps only)"
+    ],
+    "forbidden_paths": [
+      "app/src/** (document_diff_merge.ts is READ as the parity target and its existence asserted; it is NOT edited here — its removal is TR MT-261..264)",
+      ".GOV/**",
+      "src/backend/** (no backend; the prose diff/merge is pure client-side)",
+      "src/frontend/handshake_native/src/** (proof-only MT; no product-code edits — MT-241/242/243 own the product code)"
+    ],
+    "acceptance_criteria": [
+      "parity_fixtures.json exists with input doc triples plus recorded EXPECTED buildRichDocumentDiff block statuses and planRichDocumentMerge classifications, each fixture tagged with its capture method (from-TS-harness or hand-transcribed-with-reason); no fabricated captures.",
+      "test_prose_diff_parity.rs feeds every fixture through MT-241 and asserts native block statuses + merge-plan classifications EQUAL the recorded reference; the suite is GREEN while document_diff_merge.ts still exists.",
+      "A tripwire asserts document_diff_merge.ts exists at author time and records its path, making the removal gate meaningful; the parity suite is the frozen equivalence record TR MT-261 relies on.",
+      "test_prose_diff_perf.rs proves a 1000-block diff <= 100 ms (PROSE_PERF_BUDGET_DIFF_MS override) and a 1000-block three-way plan <= 200 ms (PROSE_PERF_BUDGET_MERGE_MS override), with fixture generation excluded from the measured span and measured values recorded.",
+      "test_prose_diff_fuzz.rs runs seeded random block edits over many iterations with NO panic across diff/three_way/apply, and asserts merge-plan totality (every changed block classified exactly once; apply drops/duplicates no block).",
+      "perf_manifest.json is written atomically (temp-file + rename) with per-scenario {id, budget, measured_value, unit, status}; a passing run has 0 FAIL (or env-widened budgets with the real measured value recorded, never a hidden widening).",
+      "Proof-only: no edits under src/frontend/handshake_native/src/** or src/backend/** (grep/lineage-provable); only tests/** and a proof-scope Cargo.toml change.",
+      "The suite explicitly documents that it BLOCKS TR MT-261 (lifecycle.blocks) and that the TR removal must not proceed until this suite is green."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native prose_diff_parity -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test -p handshake-native prose_diff_perf -- --nocapture 2>&1 | grep -E 'measured=[0-9]+ms'",
+      "cargo test -p handshake-native prose_diff_fuzz -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "test -f app/src/lib/editor/document_diff_merge.ts && echo TS_REFERENCE_PRESENT (parity gate meaningful)",
+      "python -c \"import json,sys; m=json.load(open('src/frontend/handshake_native/tests/prose_diff_proof/perf_manifest.json')); f=[e for e in m if e['status']=='FAIL']; print('FAIL:',len(f)); assert len(f)==0\""
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/tests/prose_diff_proof/parity_fixtures.json (new)",
+      "src/frontend/handshake_native/tests/prose_diff_proof/perf_manifest.json (new)",
+      "src/frontend/handshake_native/tests/test_prose_diff_parity.rs (new)",
+      "src/frontend/handshake_native/tests/test_prose_diff_perf.rs (new)",
+      "src/frontend/handshake_native/tests/test_prose_diff_fuzz.rs (new)"
+    ],
+    "expected_tests": [
+      "parity: every fixture's native diff block statuses equal the recorded TS statuses",
+      "parity: every fixture's native three-way classifications equal the recorded TS classifications (including no-change-skip)",
+      "parity: document_diff_merge.ts existence tripwire (gate is meaningful)",
+      "perf: 1000-block diff <= 100 ms (env-overridable), measured value recorded",
+      "perf: 1000-block three-way plan <= 200 ms (env-overridable), measured value recorded",
+      "fuzz: N seeded random-edit iterations never panic across diff/three_way/apply",
+      "fuzz: merge-plan totality — every changed block classified once; apply drops/duplicates no block"
+    ],
+    "implementation_notes": [
+      "This suite is the REMOVAL GATE for the TS reference: lifecycle.blocks=['MT-261']. document_diff_merge.ts is DELETED by TR MT-261..264; the equivalence CANNOT be re-derived after deletion, so the fixtures must be captured and green now. Do not defer any part of Part A.",
+      "Prefer capturing expected outputs from the ACTUAL TS (a committed node/ts-node harness against document_diff_merge.ts) so the parity record is real; if the TS harness cannot run, hand-transcribe from a direct read and record NOT_RUN_FROM_TS_WITH_REASON per fixture — never fabricate a passing capture (GLOBAL-TRUTH).",
+      "Reuse the MT-045 proof precedent verified 2026-07-21: PERF_BUDGET_* env overrides for every budget, Instant placed AFTER setup so generation is never timed, atomic manifest write (temp-file + rename), seeded deterministic generators so failures reproduce, and recording the MEASURED value not just PASS.",
+      "The parity fixtures live in MT-241's parity-neutral regime (id-free, no cross-gap move) so native==TS, EXCEPT one dedicated move fixture that asserts MT-241's documented superset (stable-id/similarity) behaviour and is tagged native-enhanced — proving the hardening is intentional, not a parity break.",
+      "Merge-plan totality is the block-level analogue of the code diff tiling invariant (code_editor/diff_engine.rs diff_blocks_tile_both_buffers_without_gaps): every changed block is classified exactly once and apply neither drops nor duplicates a block.",
+      "Cross-family seams (reference only): MT-241 engine (under test), MT-242/243 UI (not under test here), TR MT-261 removal gate (blocked by this MT)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Proof-only MT (parity/perf/fuzz test suite over the pure MT-241 engine); it renders no operator surface."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Test/proof suite with no operator-visible behaviour; UserManual coverage of the prose diff/merge lands with MT-242 and MT-243."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-002",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — synchronous in-process test suite; it emits no product runtime events.",
+    "internal_diagnostics: WIRED — perf_manifest.json + per-fixture capture-method records + the TS-existence tripwire make every parity/perf/fuzz result machine-readable and reproducible by a no-context model.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no long-running child process; bounded in-process test run."
+  ],
+  "risk_if_missed": "The TS reference document_diff_merge.ts is removed by TR MT-261..264 with NO frozen equivalence record, so any future divergence of the native prose diff/merge from the intended behaviour is undetectable; large-document diff/merge could regress into unbounded latency; and a fuzzing gap lets a malformed block sequence panic or silently drop blocks during a real merge, corrupting a document.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The parity fixtures are captured AFTER document_diff_merge.ts is removed (or fabricated), so the 'equivalence' proves nothing and the removal gate is hollow.",
+      "RISK-2: Perf budgets are set for a fast dev host and always fail (or are silently widened by an env override) on slow CI, hiding a real regression.",
+      "RISK-3: Fuzz iterations are too few or not seeded, so a panic/data-loss path is missed or a failure cannot be reproduced.",
+      "RISK-4: Totality is under-checked — apply silently drops or duplicates a block on some conflict-resolution combination the totality assertion does not cover.",
+      "RISK-5: The suite quietly edits product code (src/**) to make a test pass, violating proof-only scope and masking a real MT-241 defect."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): a tripwire asserts document_diff_merge.ts exists at author time; captures are tagged from-TS-harness or hand-transcribed-with-reason; lifecycle.blocks=['MT-261'] enforces green-before-removal; no fabricated captures (GLOBAL-TRUTH).",
+      "CTRL-2 (RISK-2): every budget accepts a PROSE_PERF_BUDGET_*_MS override and the manifest records the MEASURED value + whether an override was applied, so a widened gate is visible, never hidden (MT-045 B1 precedent).",
+      "CTRL-3 (RISK-3): fuzz uses a seeded RNG (reproducible) over a substantial iteration count; the seed is recorded on failure.",
+      "CTRL-4 (RISK-4): totality asserts every changed block is classified exactly once AND apply's output block set equals the union of chosen sides for a complete resolution, across randomized complete resolutions.",
+      "CTRL-5 (RISK-5): proof-only scope — grep/lineage proof that no src/** or backend file changed; a genuine MT-241 defect is reported back to MT-241, not patched here."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: the PARITY TARGET app/src/lib/editor/document_diff_merge.ts read in full (buildRichDocumentDiff/planRichDocumentMerge/applyRichDocumentMergePlan; statuses unchanged|modified|added|removed and local_only|remote_only|both_same|conflict); MT-241 prose_diff.rs engine under test; and the MT-045 proof precedent (.GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json: PERF_BUDGET_* env overrides, Instant-after-setup fixture/measured separation, atomic temp+rename manifest write, seeded deterministic generators, measured-value recording, honest REQUIRES/NOT_RUN typing). Totality invariant modeled on code_editor/diff_engine.rs diff_blocks_tile_both_buffers_without_gaps.",
+    "corrections": [
+      "The parity suite is a REMOVAL GATE (lifecycle.blocks=['MT-261']), not a general regression test: it must be captured and green while the TS reference still exists because the equivalence is unrecoverable after deletion.",
+      "One fixture asserts MT-241's documented native superset (stable-id/similarity move handling) and is tagged native-enhanced; all other parity fixtures sit in the parity-neutral regime where native output must equal the TS output exactly."
+    ]
+  }
+}

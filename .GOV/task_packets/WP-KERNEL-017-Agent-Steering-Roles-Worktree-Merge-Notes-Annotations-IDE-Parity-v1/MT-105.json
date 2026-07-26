@@ -1,0 +1,144 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-105",
+  "title": "MM-MT105-OrchestratorNotificationPath",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-105.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-002",
+      "MT-009",
+      "MT-102",
+      "MT-121"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Event-driven worker-to-orchestrator notification with ZERO polling. Worker completion, blocker, and signal events (from the MT-009 event bus plus MT-121 MT-signal contract) are delivered INTO the orchestrator session as steer-queue messages via MT-002, so the orchestrator model is woken by its children's outcomes instead of burning turns asking. Operator rule (governance memory): polling is a defect — this MT is the mechanical notification/callback path that removes it from model-to-model orchestration. This is also the async orchestrator-workers wiring Anthropic's research system lacks (their orchestrator blocks synchronously on workers).\n\nEXPECTED DIFF SHAPE: New file src/backend/handshake_core/src/swarm_orchestration/model_tools/notify_path.rs (subscriber + router + batcher + dedupe) wired at coordinator/service startup; notification message schema addition in model_tools/types.rs; delivery records in the ledger. Tests. No frontend changes.\n\nDETAILED SPEC:\n1. Subscription: subscribe on the MT-009 event bus to child-session terminal events (completed/failed/cancelled — the FR-EVT-SWARM-SESSION-COMPLETED / -FAILED / -CANCELLED family in src/backend/handshake_core/src/swarm_orchestration/events.rs), blocker events, and MT-121 structured MT-signals emitted by workers. Routing key: MT-103 lineage — each event routes to the live parent of the emitting child; events for children whose parent is terminated route nowhere but are recorded as undeliverable (no crash, no silent drop).\n2. Delivery: notifications are wrapped as a typed `worker_notification` steer message (schema: notification_id, child_session_id, role_id, kind = `completed | failed | cancelled | blocker | signal`, signal payload ref, occurred_at, batch info) and enqueued onto the MT-002 steer queue addressed to the parent session — the SAME queue and turn-boundary semantics as any steer (capability-aware per transport via the MT-102 delivery classes). No new delivery transport is invented.\n3. Content safety: worker-authored content inside a notification (final report body, blocker text, signal free-text) is passed through the MT-104 injection scan before enqueue; quarantined bodies deliver the notification envelope WITH the quarantine_id instead of the body (the orchestrator learns the child finished and that the report is quarantined — no silent loss, no unscanned delivery).\n4. Batching + backpressure: a per-parent batching window (config, default 500ms) coalesces bursts into one steer message carrying up to N notifications (config, default 20); queue-depth backpressure defers batches when the parent's steer queue exceeds a config threshold rather than dropping. Deferral is bounded (max age config, default 60s) — past it, delivery is forced regardless of depth so notifications cannot age out invisibly.\n5. Dedupe: notification_id is deterministic (child_session_id + event id) and an at-least-once bus is assumed; the router keeps a bounded seen-window per parent and drops exact duplicates, recording the drop as a dedupe (not a loss).\n6. Delivery accounting: every notification's lifecycle (received-from-bus, batched, enqueued, deferred, forced, deduped, undeliverable) is ledgered; MT-108 asserts a completed worker produces exactly one delivered notification at the parent with a full ledger trail (HBR-SWARM-002 no-silent-loss).\n7. Zero-polling proof obligation: no code path in this MT sleeps-and-checks or timer-scans session state to detect completion; the only timers permitted are the batching window and deferral bound. An executable grep-level proof plus test asserts no polling loop exists in the notify path.\n\nSTEP-BY-STEP:\n1. Read MT-009 bus subscribe API, MT-121 signal schema, MT-002 enqueue API, MT-103 lineage queries, events.rs terminal-event catalogue.\n2. Define WorkerNotification + batch envelope types in model_tools/types.rs.\n3. Implement notify_path.rs: subscriber task (spawned at service startup under the coordinator's shutdown CancellationToken), lineage routing, MT-104 scan integration, batcher with window + cap, backpressure deferral with bounded age, dedupe window.\n4. Ledger every lifecycle transition.\n5. Tests per expected_tests.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/notify_path/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (read-only; subscriber hooks the existing event seam and shutdown token only)"
+    ],
+    "acceptance_criteria": [
+      "Worker terminal events, blockers, and MT-121 signals reach the parent session as typed worker_notification steer messages via the MT-002 queue; no new transport is introduced.",
+      "Routing uses MT-103 lineage; notifications for children of terminated parents are recorded undeliverable — never crash, never silently dropped.",
+      "Worker-authored bodies are MT-104-scanned before enqueue; quarantined bodies deliver envelope + quarantine_id, never the raw body.",
+      "Batching coalesces bursts within the configured window/cap; backpressure defers (bounded by max age) and never drops; forced delivery past max age is ledgered as forced.",
+      "Exact duplicate bus events are deduped via deterministic notification_id with the drop recorded as dedupe.",
+      "Ledger trail covers every notification lifecycle state; a completed worker yields exactly one delivered notification at the parent (asserted end-to-end in MT-108).",
+      "Zero polling: no sleep-and-check or timer-scan of session state anywhere in the notify path; only the batching window and deferral bound timers exist (grep proof + code review criterion).",
+      "Subscriber shuts down cleanly under the coordinator shutdown CancellationToken (no orphan task after teardown)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core notify_path -- --nocapture",
+      "cargo test -p handshake_core notify_burst_batched_single_steer -- --nocapture",
+      "cargo test -p handshake_core notify_quarantined_body_envelope_only -- --nocapture",
+      "! rg -n \"poll|sleep\\(.*\\).*loop|interval.*status\" --ignore-case src/backend/handshake_core/src/swarm_orchestration/model_tools/notify_path.rs | rg -v \"batch_window|defer|max_age\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/notify_path.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/types.rs (extend: WorkerNotification)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (reference: SESSION-COMPLETED/FAILED/CANCELLED)",
+      "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (reference: parent_of routing)",
+      "src/backend/handshake_core/src/process_ledger/ (reference: lifecycle accounting rows)"
+    ],
+    "expected_tests": [
+      "integration: child completion event arrives at parent as one worker_notification steer message",
+      "integration: 25-event burst within window delivers as batched messages respecting cap 20",
+      "integration: backpressure defers then force-delivers past max age with ledger states deferred->forced",
+      "unit: deterministic notification_id and dedupe window drops exact duplicates only",
+      "integration: quarantined report body delivers envelope with quarantine_id",
+      "negative: parent terminated => undeliverable recorded, no panic",
+      "shutdown: cancellation token stops the subscriber task with no residue"
+    ],
+    "implementation_notes": [
+      "Operator governance rule baked in: polling is a defect. The orchestrator model never calls worker_status in a loop to detect completion; worker_status (MT-102) remains for on-demand inspection, this path is the push channel.",
+      "At-least-once bus assumption: dedupe is mandatory; if the MT-009 bus turns out exactly-once, dedupe stays as cheap insurance (documented).",
+      "The batch envelope keeps individual notification integrity: consumers can attribute each item to its child and ledger row even inside a batch.",
+      "Blocker notifications are how a stuck worker escalates without dying; pair with MT-121 signal kinds; escalation policy itself (what the orchestrator does) is model behavior, not this MT.",
+      "Cross-family seams (reference only): MT-002 steer queue, MT-009 event bus, MT-102 delivery classes, MT-103 lineage, MT-104 scan, MT-121 signal contract, MT-161 FR kinds."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless routing path; the live steering/notification feed becomes operator-visible in MT-107."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal push path with no new operator-facing controls; MT-107 documents the visible feed and MT-108 documents the end-to-end behavior."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-002",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "Orchestrator models must poll children (operator-declared defect: token burn, latency, missed blockers) or workers complete into the void; blockers go unnoticed and the async-steering advantage over the Anthropic synchronous pattern is lost.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Silent notification loss — a dropped bus event, race at parent termination, or backpressure drop means a worker completed but its orchestrator never learns, stalling the whole tree.",
+      "RISK-2: Notification flood — a failing worker emitting rapid signals (or many children at once) floods the parent's steer queue and drowns operator steers.",
+      "RISK-3: Injection via notification body — worker report/blocker text delivered unscanned becomes an injection channel into the orchestrator (the highest-value target).",
+      "RISK-4: Duplicate-delivery loops — at-least-once bus delivery double-notifies and a naive orchestrator double-acts (e.g. double spawn of a follow-up worker).",
+      "RISK-5: Covert polling reintroduction — the implementation 'simplifies' to a timer scan of session state, silently violating the operator's zero-polling rule."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Full lifecycle ledger accounting including undeliverable + forced states; bounded deferral (never indefinite); MT-108 asserts exactly-one-delivery with trail.",
+      "CTRL-2 (RISK-2): Per-parent batching window + cap and queue-depth backpressure with bounded deferral; burst test proves coalescing.",
+      "CTRL-3 (RISK-3): Mandatory MT-104 scan pre-enqueue; quarantine delivers envelope-only; dedicated test.",
+      "CTRL-4 (RISK-4): Deterministic notification_id + dedupe window; duplicate test proves single delivery.",
+      "CTRL-5 (RISK-5): Zero-polling acceptance criterion with executable grep proof target and code-review note; only batch-window/deferral timers permitted."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: events.rs (SESSION-COMPLETED/FAILED/CANCELLED FR events), coordinator.rs (shutdown CancellationToken ownership), process_ledger/ (accounting rows). Operator governance memory: polling is a defect; mechanical notification/callback required. External precedent: Anthropic multi-agent research system (synchronous-only steering named as their gap — this MT builds the async push they lack); event-driven callback patterns over at-least-once buses (dedupe + idempotency as standard hardening).",
+    "corrections": []
+  }
+}

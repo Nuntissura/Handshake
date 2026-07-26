@@ -1,0 +1,184 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-284",
+  "title": "IP-MT284-SnippetExpansionEngine",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-284.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add a VS Code / LSP-style snippet expansion engine to the native code editor — TextMate-syntax snippet bodies with tab-stops ($1, $2, $0), placeholders (${1:name}), mirrored/linked tab-stops (the same index appearing twice edits together), choices (${1|a,b,c|}), and a curated builtin set of variables ($TM_SELECTED_TEXT, $TM_FILENAME, $CURRENT_YEAR, $LINE_NUMBER, etc.). The MT-281 matrix marks 'snippet-expansion-engine' MISSING: the code editor has NO tab-stop/placeholder engine (the string 'snippet' appears only as search-preview text and a command alias), and the rich-editor slash_commands menu is a DIFFERENT surface (a command palette that inserts blocks, not a code-snippet template engine with tab-stop cursor sequencing). Snippet expansion also becomes the insertion mechanism LSP completion items of kind Snippet (editor_view CompletionKind) should use, and the apply target for a Snippet-format LSP textEdit.\n\nEXPECTED DIFF SHAPE: (a) NEW module dir src/frontend/handshake_native/src/code_editor/snippets/ with mod.rs, parser.rs (TextMate snippet-body parser -> typed SnippetAst), session.rs (SnippetSession: the live tab-stop cursor sequencer over the MT-001 TextBuffer + MT-003 CursorSet), variables.rs (builtin variable resolver), registry.rs (SnippetRegistry: builtin + language-scoped snippet definitions, loaded from a bundled snippets JSON, no network); (b) `pub mod snippets;` + re-exports in code_editor/mod.rs; (c) wiring in code_editor/panel.rs: Tab/Shift+Tab advance/retreat tab-stops while a SnippetSession is active (falling back to normal indent when none is active), Esc cancels the session, and an insert-snippet entry point the completion path (editor_view Snippet completions) and a future command call; (d) a bundled snippets/builtin_snippets.json (rust/generic) under the module; (e) unit + integration tests. PURE editor-side engine over TextBuffer/CursorSet; NO backend; NO network.\n\nDETAILED SPEC — parity rule set (TextMate snippet grammar as VS Code implements it):\n1. parser.rs: parse a snippet body String into `SnippetAst = Vec<SnippetNode>` where `SnippetNode = Text(String) | TabStop{ index: u32 } | Placeholder{ index: u32, default: SnippetAst } | Choice{ index: u32, options: Vec<String> } | Variable{ name: String, default: Option<SnippetAst> }`. Index 0 ($0) is the FINAL cursor stop (VS Code semantics: after the last real stop, the cursor lands at $0, or end-of-snippet if no $0). Escapes: \\$, \\}, \\\\ are literal. Malformed bodies degrade to literal text, never panic.\n2. session.rs: on insert, expand the SnippetAst at the caret: resolve variables, materialize placeholder defaults, and build an ordered stop list (ascending index, $0 last) with each stop's live byte range. A SnippetSession holds the stops as MT-003 selections. Tab moves to the next stop (selecting its placeholder text so the operator types over it); Shift+Tab moves back; typing into a stop that is MIRRORED (same index appears >1 time) updates ALL its ranges live; reaching past the last stop (or $0) ends the session. Edits keep stop ranges correct via the buffer's byte-offset mapping (descending-order application discipline, the MT-051 line_ops precedent).\n3. variables.rs: resolve the builtin set — $TM_SELECTED_TEXT (the pre-insert selection, enabling 'wrap selection in snippet'), $TM_CURRENT_LINE, $TM_FILENAME / $TM_FILENAME_BASE / $TM_DIRECTORY (from the panel's open-file path), $CURRENT_YEAR/$CURRENT_MONTH/$CURRENT_DATE (chrono, a workspace dep), $LINE_NUMBER, $CLIPBOARD (via the shared interaction_bus clipboard read — MT-031), $RANDOM/$RANDOM_HEX/$UUID. An unknown variable resolves to its default if present, else to empty string (VS Code parity), never an error.\n4. registry.rs: SnippetRegistry loads builtin_snippets.json (a map of language_id -> [{ prefix, body, description }]) bundled in-crate. `resolve(language_id, prefix) -> Option<SnippetDef>`. Language scoping reuses the MT-071 language_mode LanguageId. NO user-snippet file IO in this MT (that is a later settings concern); the registry is bundled + in-memory.\n5. LSP integration: editor_view completion items of CompletionKind::Snippet insert via this engine (their insertText is a snippet body); a plain-text completion inserts literally as today. Expose `SnippetEngine::insert(panel, body, language_id)` as the single entry the completion path and a command call use.\n6. AccessKit / VIS: while a SnippetSession is active, each tab-stop selection is a MT-003 Role::Caret/selection (already emitted); add a subtle active-stop decoration (theme token, not hardcoded) so the operator can see which stop is active. No new heavy widget.\n\nSTEP-BY-STEP:\n1. Read code_editor/buffer.rs (TextBuffer byte-addressed edits), cursor.rs (CursorSet, Cursor anchor/head selections, MAX_ACCESSKIT_CURSORS), line_ops.rs (descending-offset multi-edit + single-undo-at-boundary precedent), editor_view.rs (CompletionItem/CompletionKind::Snippet insertion point), language_mode.rs (LanguageId), interop interaction_bus clipboard read (for $CLIPBOARD), panel.rs (Tab handling, insert path, undo boundary via interop_adapter push).\n2. Create snippets/parser.rs + the SnippetAst types; unit-test the grammar: tab-stops, placeholders, nested placeholder defaults, mirrored index, choices, variables, escapes, malformed-degrades-to-literal.\n3. Create snippets/variables.rs (builtin resolver) + snippets/registry.rs (bundled JSON load + resolve) + snippets/session.rs (the tab-stop sequencer over TextBuffer/CursorSet).\n4. Wire panel.rs: Tab/Shift+Tab advance/retreat while a session is active (else normal indent), Esc cancels, mirrored-stop live update, whole snippet insert = ONE undo entry (line_ops single-undo pattern).\n5. Wire editor_view Snippet-kind completions to SnippetEngine::insert.\n6. Register `pub mod snippets;` + re-exports; ship builtin_snippets.json.\n7. Integration test: insert 'fn' snippet -> Tab cycles name -> params -> body -> $0; a mirrored-index snippet edits both sites; ${1|pub,pub(crate)|} choice; $TM_SELECTED_TEXT wraps a selection; the whole insert undoes in one Ctrl+Z. Capture Argus evidence of an active session with the active-stop decoration.\n8. Update the UserManual (same change): snippets — how to trigger, Tab/Shift+Tab to move stops, placeholders/choices/mirrors, builtin variables, and that snippet completions come from LSP + the bundled set.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/snippets/**",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/editor_view.rs",
+      "src/frontend/handshake_native/tests/test_snippet_engine.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (no backend; pure editor-side engine)",
+      "src/frontend/handshake_native/src/rich_editor/slash_commands/** (slash commands are a distinct block-insert menu, not the code-snippet engine)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/snippets/ exists with parser.rs (TextMate body -> SnippetAst: Text/TabStop/Placeholder/Choice/Variable, $0 final, escapes handled, malformed degrades to literal), session.rs (tab-stop sequencer over TextBuffer/CursorSet), variables.rs (builtin resolver), registry.rs (bundled builtin_snippets.json + language-scoped resolve).",
+      "Tab/Shift+Tab advance/retreat tab-stops while a SnippetSession is active (placeholder text selected for type-over) and fall back to normal indent when no session is active; Esc cancels the session.",
+      "Mirrored tab-stops (same index appearing more than once) update ALL ranges live as the operator types; choices (${1|a,b,c|}) and nested placeholder defaults expand correctly.",
+      "Builtin variables resolve: $TM_SELECTED_TEXT wraps the pre-insert selection, filename/date/line/clipboard variables resolve from the real panel/file/bus state; an unknown variable resolves to its default or empty string, never an error.",
+      "LSP completion items of CompletionKind::Snippet insert via this engine; plain completions still insert literally.",
+      "The whole snippet insert is a SINGLE undo entry (one Ctrl+Z reverts it); byte ranges stay correct across edits (descending-offset discipline).",
+      "The engine is pure editor-side (grep-provable: no tokio/reqwest/backend/api import in snippets/**); an active stop has a theme-token decoration (no hardcoded hex).",
+      "UserManual updated in the same change: snippet trigger, Tab/Shift+Tab, placeholders/choices/mirrors, builtin variables."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native snippet_engine -- --nocapture 2>&1 | grep -E 'test result: ok'",
+      "rg -n 'TabStop|Placeholder|Choice|Variable' src/frontend/handshake_native/src/code_editor/snippets/parser.rs",
+      "rg -n 'tokio::|reqwest|backend_client|crate::mcp' src/frontend/handshake_native/src/code_editor/snippets/ | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of an active SnippetSession (placeholder selected, active-stop decoration) after inserting a multi-stop snippet, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/snippets/parser.rs (TextMate body parser)",
+      "src/frontend/handshake_native/src/code_editor/snippets/session.rs (tab-stop sequencer)",
+      "src/frontend/handshake_native/src/code_editor/snippets/variables.rs (builtin variables)",
+      "src/frontend/handshake_native/src/code_editor/snippets/registry.rs (bundled + language-scoped defs)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (Tab/Shift+Tab/Esc while active + single-undo insert)",
+      "src/frontend/handshake_native/src/code_editor/editor_view.rs (Snippet-kind completion insertion)"
+    ],
+    "expected_tests": [
+      "unit: parse tab-stops, placeholders, nested placeholder defaults, mirrored index, choices, variables, escapes",
+      "unit: malformed snippet body degrades to literal text (no panic)",
+      "unit: $0 is the final stop; end-of-snippet fallback when absent",
+      "unit: $TM_SELECTED_TEXT resolves to the pre-insert selection; unknown variable -> default/empty",
+      "integration: Tab cycles stops in ascending order; Shift+Tab retreats; Esc cancels",
+      "integration: mirrored-index edit updates all sites live",
+      "integration: whole insert is one undo entry; byte ranges correct after typing into a mid stop",
+      "integration: LSP CompletionKind::Snippet inserts via the engine; plain completion inserts literally"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: code_editor exports TextBuffer (buffer.rs, byte-addressed), CursorSet/Cursor (cursor.rs, anchor/head selections, MAX_ACCESSKIT_CURSORS), line_ops (descending-offset multi-edit + ONE-undo-at-panel-boundary, MT-051), editor_view CompletionItem/CompletionKind (Snippet variant exists), language_mode LanguageId (MT-071), interop interaction_bus clipboard read (MT-031, for $CLIPBOARD). No snippet module exists; 'snippet' currently only appears as search-preview/alias strings.",
+      "Design basis (cite in code docs): the VS Code / LSP TextMate snippet grammar — tab-stops $1/$2/$0, placeholders ${1:default}, mirrors (repeated index), choices ${1|a,b|}, variables with defaults, backslash escapes.",
+      "The rich-editor slash_commands menu is NOT this engine: it is a block-insert command palette. Do not fold snippets into slash_commands; snippets are a code-editor tab-stop template engine.",
+      "chrono is a workspace dependency (used elsewhere for dates) — reuse it for $CURRENT_YEAR/etc.; do not add a new date crate. Whole-insert single-undo reuses the MT-035/051 panel-boundary undo pattern.",
+      "Cross-family seams (reference only): MT-287 AI ghost-text may also insert multi-line edits but is a distinct accept/reject overlay, not a tab-stop session; the two insert paths must not fight over Tab (ghost-text uses its own accept chord)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "active SnippetSession tab-stop selections in the editor body",
+      "active-stop decoration",
+      "choice-stop inline picker",
+      "snippet insertion via LSP Snippet completions"
+    ],
+    "argus_targets": [
+      "code_editor_panel",
+      "code_editor_cursor_0",
+      "editor.code.text"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "active_stop_visibility_check",
+      "single_undo_behavior_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Code snippets: triggering a snippet, Tab/Shift+Tab to move between stops, placeholders/choices/mirrored stops, builtin variables, and that snippet completions come from LSP plus the bundled set"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Snippet expansion is a local buffer edit; it emits no new business events beyond the ordinary edit/undo the panel already records."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The parsed SnippetAst, the resolved stop list, and the active stop index are exposed as structured state so a no-context model can trace why a tab-stop landed where it did."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Synchronous editor-side engine; no child process."
+    }
+  ],
+  "risk_if_missed": "Without a snippet engine the native editor cannot expand LSP Snippet completions or offer templated boilerplate with tab-stop sequencing — a baseline professional-IDE affordance. Snippet-kind completions would insert broken literal '${1:...}' text, which is worse than absent, so the completion path also stays degraded.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Range drift — after typing into an early tab-stop, later stops' byte ranges are stale, so Tab lands mid-token or the mirror updates the wrong span, corrupting the inserted code.",
+      "RISK-2: Malformed body panic — a snippet with unbalanced ${ or a bad choice list panics the render thread instead of degrading to literal text.",
+      "RISK-3: Undo fragmentation — the multi-part expansion records many undo entries, so one Ctrl+Z only removes part of the snippet, leaving broken code.",
+      "RISK-4: Variable injection — $CLIPBOARD / $TM_SELECTED_TEXT content is treated as snippet syntax (its own $1 re-parsed), letting pasted text hijack tab-stops.",
+      "RISK-5: Tab hijack — the snippet session swallows Tab even when inactive, breaking normal indentation."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Stops are maintained as live byte ranges updated through the same descending-offset discipline as MT-051; a test types into a mid stop and asserts all later stops + mirrors remain correct.",
+      "CTRL-2 (RISK-2): The parser is total — malformed input returns literal Text nodes; a fuzz-style unit test with unbalanced/garbage bodies asserts no panic.",
+      "CTRL-3 (RISK-3): The whole insert is grouped into ONE undo entry at the panel boundary (MT-035/051 pattern); a test asserts a single Ctrl+Z reverts the entire snippet.",
+      "CTRL-4 (RISK-4): Resolved variable/clipboard/selection VALUES are inserted as literal text, never re-parsed as snippet syntax; a test with '$1' inside $CLIPBOARD asserts it stays literal.",
+      "CTRL-5 (RISK-5): Tab is intercepted ONLY while a SnippetSession is active; a test asserts Tab indents normally with no active session."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: code_editor/mod.rs has NO snippets module; grep for 'snippet' found only search-preview fields (knowledge_documents.rs, sidebar_panel.rs) and a command alias (command_registry.rs) — no tab-stop/placeholder engine. buffer.rs/cursor.rs/line_ops.rs/editor_view.rs (CompletionKind::Snippet)/language_mode.rs supply the substrate. Confirmed 'snippet-expansion-engine' is not covered by WP-012 (MT-001..108), WP-013/014 stubs, STUDIO, or WP-011. External design basis: VS Code / LSP TextMate snippet grammar.",
+    "corrections": [
+      "The rich-editor slash_commands menu is NOT a code-snippet engine (it inserts blocks via a command palette). CompletionKind::Snippet already exists in editor_view but has no expansion engine to honor it — this MT supplies that engine, so Snippet completions stop inserting broken literal placeholder text."
+    ]
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-282",
+  "title": "IP-MT282-EditorPeekView",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-282.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add VS Code 'Peek' to the native code editor — the inline, in-place overlay that shows a symbol's Definition (Alt+F12) or References / Implementations (Shift+F12) WITHOUT navigating away from the current file. Today the native editor can Go To Definition and list References only by JUMPING (code_nav opens the target file / a side panel); there is no inline peek that expands under the cursor line, shows the target ranges with surrounding context, lets the operator arrow through results, and collapses back. This is a confirmed MISSING row (feature_id 'peek-view') in the MT-281 matrix. The data (definition location, reference locations, hover text) already exists via code_editor::code_nav (CodeNavClient, CodeSymbolDefinition, CodeSymbolReferencesResponse, CodeNavLocation) and lsp_client — this MT is pure native egui UI + interaction over those existing contracts; it adds NO new nav resolution.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/code_editor/peek_view.rs (PeekView widget + PeekState + PeekRequest/PeekResult types + AccessKit author_ids); (b) `pub mod peek_view;` + re-exports in code_editor/mod.rs; (c) wiring in code_editor/panel.rs: a Peek trigger (Alt+F12 = peek definition, Shift+F12 = peek references) on the MT-010 keymap, an inline expanded region rendered UNDER the trigger line inside the virtualized layout (MT-002 show_rows path), and result-navigation keys; (d) keymap entries in code_editor/keymap.rs (CodeEditorAction::PeekDefinition / PeekReferences) with default chords; (e) one integration test file. NO backend edits; NO new code-nav route; consumes code_nav + lsp_client only.\n\nDETAILED SPEC:\n1. peek_view.rs: `pub enum PeekKind { Definition, References, Implementations }`; `pub struct PeekLocation { path: String, line: usize, col: usize, preview_lines: Vec<String>, focus_line_in_preview: usize }`; `pub struct PeekState { kind: PeekKind, anchor_line: usize (buffer line the peek expands under), results: Vec<PeekLocation>, active_index: usize, open: bool }`. A read model only — the resolution (which locations) comes from code_nav.\n2. Rendering: when open, the panel inserts an inline peek panel occupying N rows directly beneath anchor_line (VS Code peek visual: a bordered inset panel with a title bar 'Definition of `foo` (1 of 3)', a scrollable results list on the right, and a code-preview pane on the left showing the active location's surrounding lines with the target range highlighted). The peek panel participates in the SAME virtualized row accounting as folds do (MT-005 fold-aware visible<->buffer mapping) so rows below shift down while it is open and restore on close — it must never paint over unrelated lines.\n3. Interaction: Alt+F12 opens a Definition peek at the identifier under the primary cursor; Shift+F12 opens a References peek. Up/Down (or the peek list click) moves active_index and updates the preview pane; Enter navigates to the active location (reusing the EXISTING jump path + MT-052 jump_history push so Alt+Left returns); Esc collapses the peek. Opening a peek while one is open replaces it. A second Alt+F12 with the caret already inside the definition cycles to the next result (VS Code parity).\n4. Empty / error states (binding): a peek that resolves to zero locations shows 'No definition found' / 'No references found' inside the panel (never a silent no-op and never a guessed location); a code_nav error shows a typed 'Lookup failed' line with the correlation id, not a blank panel. A pending async lookup shows a bounded 'Resolving…' state (HBR-QUIET: the lookup is dispatched off-thread and drained next frame, the source_control.rs / rename off-thread precedent).\n5. AccessKit: the peek panel emits a Role::Group container `code_editor_peek` (instance-suffixed on multi-pane mount via the panel.rs RISK-004 scheme), a Role::Label title `code_editor_peek_title`, one Role::ListItem per result `code_editor_peek_result_{n}`, and the preview pane `code_editor_peek_preview`. Colors/borders come from theme tokens (no hardcoded hex), matching the render_decorations/gutter token pattern.\n6. Scope edge: peek REUSES code_nav resolution and the existing cross-file open + jump_history; it does not add a new resolver, does not modify code_nav, and does not implement the definition/reference computation itself (that is MT-039/code_nav, delivered).\n\nSTEP-BY-STEP:\n1. Read code_editor/code_nav.rs (CodeNavClient, CodeSymbolDefinition, CodeSymbolReferencesResponse, CodeNavLocation, symbol_file_path), code_editor/panel.rs (cursor/identifier resolution, the jump path, virtualized show_rows, RISK-004 instance-suffix author_ids, GotoLine/Find inline-widget precedent for an inline expanded region), code_editor/keymap.rs (CodeEditorAction, KeyChord defaults), code_editor/folding.rs (fold-aware visible<->buffer row shift precedent), code_editor/jump_history.rs (JumpHistory push on navigate).\n2. Create peek_view.rs with the PeekKind/PeekLocation/PeekState types + the egui PeekView renderer + AccessKit nodes; unit-test the row-accounting (open peek shifts N rows; close restores) and the active-index navigation.\n3. Add CodeEditorAction::PeekDefinition/PeekReferences + default chords (Alt+F12 / Shift+F12) in keymap.rs.\n4. Wire panel.rs: trigger resolution (identifier under caret -> code_nav lookup dispatched off-thread), inline render under anchor_line inside show_rows, Up/Down/Enter/Esc handling, Enter -> existing jump + jump_history push.\n5. Register `pub mod peek_view;` + re-exports in code_editor/mod.rs.\n6. Integration test: peek definition (1 result) opens under the line, preview shows target range; peek references (3 results) navigates active_index; zero-result shows the empty message; Enter navigates + pushes jump_history; Esc restores row layout. Capture Argus screenshot + AccessKit tree for definition-peek and references-peek.\n7. Update the UserManual (same change): Peek Definition / Peek References — chords, how to arrow through results, Enter to go, Esc to close, difference from Go To Definition.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/peek_view.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/tests/test_peek_view.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (no backend; consumes code_nav routes only)",
+      "src/frontend/handshake_native/src/code_editor/code_nav.rs (peek CONSUMES code_nav; it must not modify the resolver)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/peek_view.rs exists with PeekKind{Definition,References,Implementations}, PeekLocation, PeekState, a PeekView egui renderer, and stable AccessKit author_ids (code_editor_peek, code_editor_peek_title, code_editor_peek_result_{n}, code_editor_peek_preview), instance-suffixed on multi-pane mount.",
+      "Alt+F12 opens an inline Definition peek under the caret line; Shift+F12 opens a References peek; the panel renders inside the virtualized layout and shifts rows below down while open, restoring them on Esc.",
+      "Up/Down (and list click) move the active result and update the preview pane; Enter navigates to the active location AND pushes MT-052 jump_history (Alt+Left returns); a second Alt+F12 cycles to the next result.",
+      "Zero-result peeks show an explicit 'No definition/references found' message and NEVER navigate or place a guessed location; a code_nav error shows a typed 'Lookup failed' line; a pending lookup shows a bounded 'Resolving…' state with the off-thread drain pattern (no render-thread block).",
+      "peek_view.rs contains no code-nav resolution math (grep-provable): definition/reference locations come exclusively from code_editor::code_nav / lsp_client.",
+      "Colors and borders come from theme tokens (no hardcoded hex).",
+      "UserManual updated in the same change: Peek Definition/References chords, navigation, Esc, difference from Go To Definition."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native peek_view -- --nocapture",
+      "rg -n 'PeekKind|code_editor_peek' src/frontend/handshake_native/src/code_editor/peek_view.rs",
+      "rg -n 'reanchor|resolve_definition|compute_references|levenshtein' src/frontend/handshake_native/src/code_editor/peek_view.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of (a) an open Definition peek (1 result) and (b) a References peek (3 results, second active), stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/peek_view.rs (new widget + state)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (trigger + inline render + result nav + jump)",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs (PeekDefinition/PeekReferences actions + chords)",
+      "src/frontend/handshake_native/src/code_editor/mod.rs (module wiring + re-exports)"
+    ],
+    "expected_tests": [
+      "unit: open peek shifts N rows below anchor_line; close restores exact prior layout",
+      "unit: active_index navigation updates the preview to the correct location",
+      "unit: AccessKit node tree (container + title + results + preview, stable suffixed ids)",
+      "integration: definition peek with 1 result renders preview with target range highlighted",
+      "integration: references peek with 3 results; Enter navigates active + pushes jump_history",
+      "integration: zero-result peek shows the empty message and does not navigate",
+      "negative: code_nav error shows typed 'Lookup failed' with correlation id, panel not blank"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: code_nav.rs exports CodeNavClient, CodeSymbolDefinition, CodeSymbolReferencesResponse, CodeNavLocation (Location), symbol_file_path; panel.rs has the FindState/GotoLineState inline-widget precedent for an inline expanded region and the RISK-004 instance-suffix author_id scheme; folding.rs establishes the fold-aware visible<->buffer row-shift the peek reuses; jump_history.rs JumpHistory push on navigate.",
+      "Design basis (cite in code docs): VS Code Peek (peekDefinition Alt+F12, peekReferences Shift+F12) — an inline inset editor overlay, arrow-through results, Enter to go, Esc to close, does not change the active file until Enter.",
+      "Off-thread lookup + next-frame drain is the HBR-QUIET rule and matches source_control.rs / rename off-thread dispatch; the render thread never blocks on code_nav.",
+      "Cross-family seams (reference only): MT-283 breadcrumbs may open a peek from a breadcrumb symbol; MT-287 AI ghost-text is a separate inline overlay and must not collide with the peek author_id namespace."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "code_editor inline peek overlay (definition)",
+      "code_editor inline peek overlay (references, multi-result nav)",
+      "peek preview pane with highlighted target range",
+      "peek empty / error / resolving states"
+    ],
+    "argus_targets": [
+      "code_editor_peek",
+      "code_editor_peek_title",
+      "code_editor_peek_result_0",
+      "code_editor_peek_preview"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "empty_and_error_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Peek Definition / Peek References in the code editor: chords (Alt+F12 / Shift+F12), navigating results, Enter to go (with back via Alt+Left), Esc to close, and how peek differs from Go To Definition"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-QUIET-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Peek is a read-only navigation overlay; it emits no new business events (navigation lands via the existing jump path which owns its own events)."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Peek open/close, active_index, resolution outcome (n results / empty / error+correlation id) are exposed as structured state readable by the visual_debugger for no-context diagnosis."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Render/overlay surface; no long-running child process to liveness-track."
+    }
+  ],
+  "risk_if_missed": "The native editor stays below professional-IDE parity: an operator (or a reviewing agent) cannot inspect a definition or all references without losing their place by jumping away, which is exactly the friction VS Code Peek removes. Reference review during agent edits is slower and more error-prone.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Row-accounting corruption — the inline peek shifts rows incorrectly (or paints over lines) so code below the peek is hidden or duplicated, corrupting the operator's view of the file.",
+      "RISK-2: Silent empty peek — a zero-result peek renders nothing or a guessed location, letting the operator believe a symbol has a definition/references it does not.",
+      "RISK-3: Render-thread block — the code_nav lookup runs synchronously on the egui frame thread, freezing the UI on a slow lookup (HBR-QUIET violation).",
+      "RISK-4: AccessKit id collision on dual mount — SideBySide/pop-out mounts collide peek ids, breaking the Argus/keyboard path.",
+      "RISK-5: Lost place on navigate — Enter navigates without pushing jump_history, so Alt+Left cannot return the operator to where they peeked from."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Peek uses the fold-aware visible<->buffer mapping; a unit test asserts opening shifts exactly N rows and closing restores the prior layout byte-for-byte; an Argus overlap check confirms no line is obscured.",
+      "CTRL-2 (RISK-2): Zero-result peeks render an explicit empty message and never navigate/guess; an integration test asserts the message and no cursor move.",
+      "CTRL-3 (RISK-3): The lookup is dispatched off-thread and drained next frame; a 'Resolving…' state proves non-blocking; grep proves no blocking .join()/block_on on the render path.",
+      "CTRL-4 (RISK-4): Reuse the panel.rs RISK-004 instance-suffix scheme; a dual-mount test asserts non-colliding peek author_ids.",
+      "CTRL-5 (RISK-5): Enter navigates through the existing jump path and pushes MT-052 jump_history; a test asserts Alt+Left returns to the pre-peek position."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: checked code_editor/mod.rs module map — NO peek module exists; code_nav.rs resolves definitions/references as jumps + side panels only; panel.rs has inline-widget (Find/GotoLine) + RISK-004 instance-suffix precedent; folding.rs row-shift precedent; jump_history.rs. Confirmed 'peek-view' is not covered by WP-012 (MT-001..108), WP-013/014 stubs, WP-KERNEL-STUDIO, or WP-011 shell. External design basis: VS Code Peek (peekDefinition/peekReferences inline inset overlay).",
+    "corrections": [
+      "Go To Definition (jump) and the code_nav side panels already exist; the gap is specifically the INLINE peek overlay that keeps the operator in place, so this MT is pure egui UI over existing code_nav data, not new nav resolution."
+    ]
+  }
+}

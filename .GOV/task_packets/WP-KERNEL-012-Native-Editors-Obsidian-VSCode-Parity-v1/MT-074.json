@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-18T01:01:42Z",
+  "updated_at_utc": "2026-07-26T07:24:07.2893239Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-066",
@@ -35,18 +35,39 @@
       "MT-042"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V1",
-    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
-    "ready_for_validation_at_utc": "2026-07-18T01:01:42Z",
-    "proof_status": "PASS_REMEDIATION_V2: all 17 Other-Pillar runtime proofs passed against the exact managed PostgreSQL/EventLedger backend, including Stage embed-back, Calendar binding/ActivitySpan, Locus resolve/reverse, raw AccessKit driving, exact cleanup, and killed-owner binding recovery. Historical FAIL_V1 remains preserved for independent V2 validation.",
-    "post_implementation_adversarial_review_status": "PASS_2026-07-18_INDEPENDENT_REVIEW_NO_CONTRACT_BLOCKER",
+    "validator_verdict": "PENDING_V3",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_ADVERSARIAL_REVIEWS_NO_BLOCKER_2026-07-26",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260711-interop",
-    "ready_for_validation_at_utc": "2026-07-10T22:51:05.000Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-10)",
+    "claimed_by": "KERNEL_BUILDER-20260726-052638",
+    "claimed_at_utc": "2026-07-26T05:31:19.6688168Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260726-052638",
+    "ready_for_validation_at_utc": "2026-07-26T07:24:07.2893239Z",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-26T07:21:15.694Z",
+    "rfv_evidence_2026_07_26": {
+      "by": "KERNEL_BUILDER-20260726-052638",
+      "mode": "FAIL_V2_CANONICAL_ARGUS_REMEDIATION_IMPLEMENT_REVIEW_HARDEN",
+      "source_head": "9a097dab4a44c067e08d102ed5c733a08e5fc5f1",
+      "product_commits": [
+        "862481b35605a173e7919812194b6a72bb7f2870",
+        "48271dfeb243bff778317216be24deb0a783bd80",
+        "9a097dab4a44c067e08d102ed5c733a08e5fc5f1"
+      ],
+      "proof": "Current committed source passed the declared other_pillar_interop filter 4/4 against isolated real PostgreSQL and the current-source handshake_core backend. OP01 Stage, OP02 Calendar, OP03 Locus, and OP04 aggregate canonical Argus runs each persisted attributed receipts, one concrete product-effect link per receipt, fresh canonical trees, automatic Flight Recorder rows, exact fixture cleanup, and verified Argus teardown. Manifest, surface-anchor, and no-glue/no-double guards passed 3/3. The focused MT-074 UserManual contract passed 1/1. The immediately preceding hardening source passed the complete proof binary 15/15; the final diff only registered the authoritative test filter and preserved declared stdout signatures.",
+      "canonical_evidence": {
+        "op01": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/op01-stage/run-9c52217359ff4380a6f4be47c4ec881c/op01-stage-canonical-argus.json",
+        "op02": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/op02-calendar/run-29d72daccb524f1681d12a0cd7dcfb8b/op02-calendar-canonical-argus.json",
+        "op03": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/op03-locus/run-bb370eb1aad24a4a9d932a08cf881864/op03-locus-canonical-argus.json",
+        "op04": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/op04-aggregate/run-02fc8082d46d474391244f65d9198c3b/op04-aggregate-canonical-argus.json"
+      },
+      "provenance": "All four evidence files bind source_sha to 9a097dab4a44c067e08d102ed5c733a08e5fc5f1, record exactly five current proof-source blobs, and report proof_paths_clean_against_source_sha=true, argus_teardown_verified=true, and cleanup_verified=true.",
+      "visual_review": "All seven exact current-source PNGs were opened and compared with the MT-074 surface requirements. Stage terminal and saved-rich states, Calendar event/span/document correlation, and Locus target navigation are readable; the prior long-ID title/chrome overlap is absent at the 1440x900 Locus proof viewport. Unrelated typed alias-resolution and Runtime Chat EndpointMissing diagnostics remain explicitly annotated as outside MT-074.",
+      "reviews": "Three independent adversarial post-reviews covered runtime/Argus behavior, PostgreSQL/provenance/cleanup, and contract/manual/visual parity. After receipt-effect, causal-ID, teardown-order, no-double, manifest-target, Locus final-tree, viewport, and proof-command hardening, all three returned NO BLOCKER on current committed evidence.",
+      "validator_boundary": "Implementer handoff only: validator_verdict is PENDING_V3, completed_by is null, and historical FAIL_V1/FAIL_V2 verdict artifacts remain preserved."
+    },
     "rfv_evidence_2026_07_10": "OtherPillarInteropProofSuite proven KERNEL_BUILDER-authoritative against the live managed-PG stack (handshake_core 127.0.0.1:37501, PG 5544). The three reopen defects are closed: (1) placebo self-assertion (other_pillar_fr_route_resolved) converted to a real source scan; (2) typed BLOCKER[fr_event_kind_not_emitted_frontend] entries added for the un-emitted FR kinds; (3) OP proofs re-run against the composed backend routes (Stage/Calendar/Locus stores from MT-041/042/044/045). Three *_live interop bodies exercise real routes end-to-end: other_pillar_op01_stage_route_embed_back_live PASS (Stage capture-artifact route round-trip), other_pillar_op02_calendar_bind_activity_span_live PASS (Calendar activity-span bind + correlate), other_pillar_op03_locus_resolve_reverse_live PASS (Locus work-packet resolve + reverse lookup; WP-KERNEL-012 seeded into product public.work_packets, reproducible via seed fixture). Full run: test_other_pillar_interop_proofs 3 passed / 0 failed (ignored/_live, --test-threads=1) + 10 default proofs passed. Product code committed b289993f (placebo->source-scan, typed blockers, live bodies); OP-03 seed reproducibility committed 30d8657a (psql work_packet seed added to tests/live_pg/seed_fixture.sh + HSK_TEST_LOCUS_WP_ID export). No faked assertions; no scaffolding; every proof exercises native/backend product code in runtime.",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
@@ -309,6 +330,25 @@
     "ready_for_validation_at_utc": "2026-07-18T01:01:42Z",
     "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2"
   },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260726-052638",
+    "prepared_at_utc": "2026-07-26T07:24:07.2893239Z",
+    "v1_v2_verdicts_preserved": true,
+    "source_head": "9a097dab4a44c067e08d102ed5c733a08e5fc5f1",
+    "proof_results": {
+      "declared_other_pillar_interop_filter": "PASS_4_OF_4_REAL_POSTGRESQL_CANONICAL_ARGUS",
+      "complete_hardening_binary": "PASS_15_OF_15_ZERO_FAILED_ZERO_IGNORED",
+      "manifest_anchor_no_double_checks": "PASS_3_OF_3",
+      "manual_contract": "PASS_1_OF_1",
+      "canonical_evidence_provenance": "PASS_4_OF_4_CURRENT_HEAD_FIVE_BLOBS_SCOPED_CLEAN",
+      "receipt_effect_cardinality": "PASS_OP01_4_OF_4_OP02_2_OF_2_OP03_1_OF_1_OP04_6_OF_6",
+      "visual_inspection": "PASS_7_OF_7_EXACT_CURRENT_SOURCE_PNGS"
+    },
+    "adversarial_review": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_POST_REVIEWS_NO_BLOCKER",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-26T07:21:15.694Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
   "validation_v1": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V1",
@@ -418,5 +458,28 @@
       ],
       "no_context_instruction": "Read MT-074.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
-  }
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-074 FAIL V2. The other-pillar suite uses raw AccessKit dispatch for one scenario but does not provide a complete canonical Argus inspect/action/fresh-reinspect matrix across Stage, Calendar, Locus, and editor surfaces. Required mounted product interaction remains unproved.",
+  "remediation_plan": [
+    "Re-run OP-01 through OP-04 against real PostgreSQL/EventLedger/current source with exact persisted identities, correlation, retry/recovery, cleanup, and no mock substitutions.",
+    "For every mounted pillar surface, execute canonical Argus inspect, stable-target action, receipt, fresh re-inspect, and screenshot/tree evidence; update canonical UserManual diagnostics."
+  ],
+  "no_context_instruction": "Read MT-074.json and all referenced interop MTs. Re-prove every scenario on real resources and through canonical Argus before READY_FOR_VALIDATION_V3."
+}
 }

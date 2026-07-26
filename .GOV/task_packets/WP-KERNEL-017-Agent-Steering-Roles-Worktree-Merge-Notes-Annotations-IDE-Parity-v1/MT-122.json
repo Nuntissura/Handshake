@@ -1,0 +1,152 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-122",
+  "title": "ML-MT122-MtDispatchComposer",
+  "group": "ML MT dispatch lifecycle",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-122.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-083",
+      "MT-121"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Build the MT dispatch composer — the Handshake component that turns a governance microtask contract (an hsk.microtask_contract@1 JSON file, the EXACT shape used in .GOV/task_packets/*/MT-NNN.json — verified against .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json and the real example WP-KERNEL-012/MT-045.json) into a governed worker launch. This productizes what the operator's repo-gov orchestrator does by hand today: read the MT contract, inject role + contract into a coder session, launch it in a lane. The product READS the contract file shape; it NEVER writes .GOV.\n\nEXPECTED DIFF SHAPE: One new backend module src/backend/handshake_core/src/swarm_orchestration/mt_dispatch.rs (contract parser + payload composition + lane policy + spawn call + dispatch record), wired into swarm_orchestration/mod.rs, plus tests with FIXTURE contracts under the crate's test tree (never pointing at .GOV).\n\nDETAILED SPEC:\n1. Contract ingestion — pub struct MicrotaskContractDoc, parsed from raw JSON (pub fn parse_microtask_contract(raw: &str) -> Result<MicrotaskContractDoc, ContractParseFailure>). Required fields read: schema_id (MUST be \"hsk.microtask_contract@1\"), wp_id, mt_id, lifecycle.status + lifecycle.depends_on, scope.summary, scope.allowed_paths, scope.forbidden_paths, scope.acceptance_criteria, scope.proof_targets. ALL other fields (gui_obligation, red_team, implementation_notes, validation blocks...) MUST be tolerated and ignored — real contracts carry many extra keys (MT-045 is the reference fixture shape). Typed error pub enum ContractParseFailure: MalformedJson { reason }, UnsupportedSchema { found }, MissingField { path }, NotDispatchable { status } (dispatch refuses contracts whose lifecycle.status is a terminal/validated state; PENDING/OPEN/claimed-for-work states are dispatchable per policy flag).\n2. Payload composition — pub fn compose_worker_payload(contract: &MicrotaskContractDoc, role: &RoleRef, policy: &MtDispatchPolicy) -> WorkerLaunchPayload, delegating section assembly to the MT-083 worker prompt composer. The composed payload MUST carry, as distinct sections: (a) role overlay (role_id resolved via the Roles layer; child-role semantics per MT-086); (b) OBJECTIVE = scope.summary verbatim; (c) BOUNDARIES = allowed_paths + forbidden_paths verbatim, framed as hard scope; (d) OUTPUT FORMAT = the hsk.mt_signal@1 JSON Schema from MT-121 mt_signal_json_schema(), declared as the REQUIRED structured exit (transport binding: --json-schema on the Claude lane per MT-027, --output-schema on the Codex lane per MT-046, final-message parse on ACP); (e) PROOF-TARGET EXPECTATIONS = scope.proof_targets verbatim with the instruction that each executed target becomes one evidence[] entry in the exit signal; (f) acceptance_criteria verbatim.\n3. Lane choice — pub struct MtDispatchPolicy { lane_selector: LaneSelector, dispatchable_statuses: Vec<String>, ... }; LaneSelector resolves a model lane (local or cloud) per policy (explicit lane pin, else role-default). NO new spawn path: the actual launch goes through SwarmCoordinator::spawn_session (the single sanctioned spawn path — coordinator.rs:548), so caps, consent gates, breaker, and claim leases all still apply.\n4. Dispatch record — pub struct MtDispatchRecord { dispatch_id, wp_id, mt_id, session_id, model_lane_id, role_id, payload_sha256, dispatched_at_utc }; returned to the caller AND recorded (event on the swarm event sink + persisted alongside the session per existing session-record conventions) so MT-123 can open the run as DISPATCHED and receipts can correlate.\n\nSTEP-BY-STEP:\n1. Read coordinator.rs (spawn_session, SessionHandle, lane store), model_lane.rs, and the MT-083 composer surface in the product worktree; match their conventions.\n2. Implement parse_microtask_contract + ContractParseFailure with serde against a permissive struct (serde default + flatten-tolerant); add fixture JSONs under the test tree: one full-shape contract copied structurally from the MT-045 example (ids anonymized), one minimal contract, one malformed, one wrong-schema, one terminal-status.\n3. Implement compose_worker_payload delegating to MT-083; assert section presence and verbatim boundary/proof-target inclusion by test.\n4. Implement dispatch(contract, role, policy) -> MtDispatchRecord calling SwarmCoordinator::spawn_session; in tests use the crate's existing fake/test lane caller pattern (see coordinator tests) — no live CLI required in this MT.\n5. Emit the dispatch event; assert via RecordingSwarmSink (events.rs) that dispatch produces exactly one dispatch event carrying wp_id/mt_id/session_id.\n6. Run proof targets.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_dispatch.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React; GUI surface exception exists only on the board MT MT-125)",
+      ".GOV/** (the product READS MT contracts; it never writes .GOV — tests use fixtures, not .GOV paths)",
+      ".GOV/tools/handshake-acp-bridge/** (repo-gov broker stays as-is)",
+      "src/frontend/** (no GUI in this MT)"
+    ],
+    "acceptance_criteria": [
+      "parse_microtask_contract ingests the full real-world contract shape (fixture structurally mirroring WP-KERNEL-012 MT-045.json) reading wp_id, mt_id, lifecycle, scope.summary/allowed_paths/forbidden_paths/acceptance_criteria/proof_targets, and tolerates all extra keys.",
+      "Wrong schema_id, malformed JSON, missing required field, and terminal lifecycle.status each yield the correct typed ContractParseFailure variant — never a silent default and never a spawned worker.",
+      "compose_worker_payload output contains role overlay, verbatim objective (scope.summary), verbatim boundaries (allowed_paths + forbidden_paths), the hsk.mt_signal@1 schema as required output format, and verbatim proof-target expectations — each asserted by test.",
+      "dispatch() launches ONLY via SwarmCoordinator::spawn_session; grep-level proof that mt_dispatch.rs contains no process spawn primitive (no Command::new / tokio::process) of its own.",
+      "Every dispatch produces an MtDispatchRecord with payload_sha256 and exactly one dispatch event observable on a RecordingSwarmSink.",
+      "cargo build -p handshake_core green; new tests green."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core mt_dispatch -- --nocapture",
+      "rg -n \"Command::new|tokio::process\" src/backend/handshake_core/src/swarm_orchestration/mt_dispatch.rs | wc -l | grep -q '^0'",
+      "cargo build -p handshake_core"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/mt_dispatch.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs (module wiring)",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (call-only reuse: spawn_session)"
+    ],
+    "expected_tests": [
+      "full-shape fixture contract parses; extra keys ignored",
+      "typed failures: MalformedJson / UnsupportedSchema / MissingField / NotDispatchable",
+      "payload sections present + verbatim boundaries/proof targets + mt_signal schema embedded",
+      "dispatch via coordinator fake-lane produces MtDispatchRecord + one dispatch event",
+      "no self-owned spawn primitive in mt_dispatch.rs"
+    ],
+    "implementation_notes": [
+      "The governance contract file is the interface, not the storage: Handshake ingests the JSON the orchestrator (or a future in-product taskboard) hands it. Do not build a .GOV directory walker in this MT; the caller supplies raw contract JSON (path reading is the caller's concern and keeps this module .GOV-agnostic and disk-agnostic per GLOBAL-PORTABILITY).",
+      "Reuse MT-083's composition API rather than string-formatting a prompt here; this MT only defines WHAT sections the MT-dispatch payload must carry. If MT-083's API lacks a section kind needed here, extend it there via its declared extension seam (coordinate through depends_on, do not fork composition logic).",
+      "payload_sha256 exists so a dispatch is reproducible/attributable: same contract + role + policy => same hash; hash the composed payload bytes, not the file path.",
+      "Lane choice policy stays minimal here (pin or role-default); richer routing lives in the coordinator's existing routing surface — do not duplicate routing.rs logic.",
+      "NotDispatchable statuses default-deny: only statuses explicitly listed in MtDispatchPolicy.dispatchable_statuses (default [\"PENDING\", \"OPEN\"]) may spawn."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless dispatcher MT; operator-visible dispatch rows ship on the board MT MT-125."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal dispatch plumbing; the UserManual entry for the MT dispatch loop lands with MT-126/MT-125."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "TIER_1_STRUCTURED_STATE",
+      "obligation": "MtDispatchRecord (ids, lane, role, payload hash, timestamp) is the machine-readable dispatch state a no-context model can query."
+    },
+    {
+      "tier": "TIER_2_TRACE",
+      "obligation": "One dispatch event per launch on the swarm event sink, correlatable by wp_id/mt_id/session_id."
+    },
+    {
+      "tier": "TIER_3_OPERATOR_SURFACE",
+      "obligation": "Deferred to MT-125 (board row per dispatch); recorded here as the consuming surface."
+    }
+  ],
+  "risk_if_missed": "No mechanical bridge from governance MT contracts to worker launches — the operator keeps hand-injecting contracts through the ACP bridge and the productized loop (MT-123..126) has no entry point.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A second spawn path sneaks in (dispatcher launching processes directly), bypassing SwarmCoordinator caps, consent gates, and claim leases — privilege-escalation surface.",
+      "RISK-2: Boundary sections (allowed/forbidden paths) get summarized or paraphrased during composition, so the worker never sees the hard scope verbatim and edits out-of-scope files.",
+      "RISK-3: Dispatching a contract in a terminal/validated lifecycle state silently re-runs completed work or clobbers validation state.",
+      "RISK-4: Tests read real .GOV contract files, coupling product tests to governance content and breaking the repo-governance/product split.",
+      "RISK-5: Contract text is attacker-controllable input to a prompt; a malicious 'summary' could try to override the role/output-format sections."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): only SwarmCoordinator::spawn_session may spawn; proof target greps mt_dispatch.rs for process primitives and requires zero.",
+      "CTRL-2 (RISK-2): tests assert byte-verbatim inclusion of allowed_paths/forbidden_paths/proof_targets in the composed payload.",
+      "CTRL-3 (RISK-3): default-deny dispatchable_statuses allowlist + NotDispatchable typed refusal, covered by a negative test.",
+      "CTRL-4 (RISK-4): fixtures live in the crate test tree; .GOV/** is a forbidden path for this MT.",
+      "CTRL-5 (RISK-5): composition places contract-derived text in clearly delimited data sections AFTER the role/output-format sections (MT-083 section ordering), and the output-format section is always composer-owned, never contract-derived."
+    ]
+  },
+  "research_provenance": {
+    "source": "WP-017 stub research basis (Anthropic multi-agent worker-prompt structure: objective/output-format/boundaries/effort; Claude --json-schema, Codex --output-schema) + verified governance shape: .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json + .GOV/task_packets/WP-KERNEL-012-.../MT-045.json (real-world extra-key density) + verified product code: coordinator.rs spawn_session:548 / SessionHandle / RecordingSwarmSink in events.rs.",
+    "corrections": [
+      "Contract parser must be permissive-read (real contracts carry validation blocks, repair plans, waivers far beyond the template) — strict-read against the template shape would reject production contracts like MT-045.",
+      "Dispatcher composes; it does not route — lane selection defers to existing coordinator routing surfaces to avoid duplicating routing.rs."
+    ]
+  }
+}

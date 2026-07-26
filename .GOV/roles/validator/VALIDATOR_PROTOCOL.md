@@ -32,7 +32,9 @@
 
 ## HBR Gate Obligations
 
-This role must honor `HANDSHAKE_BUILD_RULES.json` v1.2.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+This role must honor `HANDSHAKE_BUILD_RULES.json` v1.8.0+ (see Codex CX-131, Master Spec §5.6, registry at `.GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json`).
+
+- Account-resource privacy duty: for every product validation, independently verify stable owner/scope linkage and executable authorization across PostgreSQL RLS, ResourceBroker/filesystem, APIs, search/index, memory/model context, tools, UI, previews, exports, backups, logs/Flight Recorder, and SaaS/MCP seams touched by the WP. Require positive access plus cross-account, cross-Space, same-project-private, stale/revoked-context, metadata-side-channel, and mixed-source derived-scope non-widening proof as applicable. UI filtering and fixture-only authorization do not satisfy HBR-PRIV.
 
 - At WP claim: read `packet.acceptance_matrix.hbr` and confirm row applicability.
 - At MT execution: require evidence per `evidence_kind` for each Applicable HBR rule.

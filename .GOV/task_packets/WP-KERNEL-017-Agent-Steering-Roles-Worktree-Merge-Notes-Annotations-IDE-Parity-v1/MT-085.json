@@ -1,0 +1,171 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-085",
+  "title": "RO-MT085-RoleManagerGui",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-085.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-001",
+      "MT-007"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Deliver the operator-facing Role Manager: (a) a native egui Role Manager pane in handshake_native for the full role lifecycle — list / create / edit (new version) / version history / retire / approve-draft — and (b) a role picker integrated into the operator_chat_pane launch flow so every session launch can carry a role; plus (c) a READ-ONLY React surface in the swarm launch UI (list/pick over IPC). Roles are operator-authored/approved and model-consumed: this pane is where drafts (operator-authored or MT-084 imports) get reviewed and approved. Approve-draft is the GUI face of the MT-081 activate transition.\n\nEXPECTED DIFF SHAPE: New native pane src/frontend/handshake_native/src/role_manager_pane.rs registered in the native shell navigation; role-picker seam edits in src/frontend/handshake_native/src/operator_chat_pane.rs; React read-only components (RolePicker list/pick) under app/src/components/swarm/ wired to the MT-081 IPC read commands (list_handshake_roles / get_handshake_role); AccessKit metadata on every new control; Argus screenshot evidence; UserManual same-change update.\n\nDETAILED SPEC — native Role Manager pane:\n- List view: table of roles (id, title, current version, status badge draft/active/retired, provenance operator/imported) with status filter; stable AccessKit ids per row (role-row-{id}).\n- Detail view: read-only render of the selected version (overlay_prompt markdown preview, tool_policy allow/deny, model_profile, transport_bindings, provenance incl. source_ref for imports); version-history selector.\n- Create/edit: form producing a DRAFT (create) or a NEW DRAFT VERSION (edit) via the MT-081 HTTP/store API; kebab-id validation inline; editing never mutates an existing version (registry immutability surfaces as 'editing creates v{N+1} draft' in the UI copy).\n- Approve-draft: explicit button with confirm step; calls activate; shows the one-active-version consequence (demotes prior active) before confirm. Retire likewise explicit + confirmed.\n- Import review affordance: imported drafts show their ImportReport summary (dropped sections, warnings) when available, so approval is informed.\n- Role picker in operator_chat_pane launch flow: dropdown/combo listing ACTIVE roles only (plus 'No role'), selection carried into the launch request alongside the existing lane/model selection (OperatorChatLaunchRequest seam; actual injection is MT-082's engine, spawn wiring for child sessions is MT-086). Picker shows role id + version so the operator knows exactly what will be injected.\n- React read-only surface: RolePicker component in app/src/components/swarm/ (pattern siblings: OperatorChat.tsx, SwarmControlRoom.tsx) listing active roles via IPC read commands; pick feeds the React launch flow's request payload. NO create/edit/approve from React — write surfaces are native-only this MT.\n- Non-intrusion: pane renders inside the existing native shell; no popup windows, no focus stealing; all evidence capture headless via Argus.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read operator_chat_pane.rs to match the existing pane structure, state handling, and AccessKit conventions; read app/src/components/swarm/OperatorChat.tsx for the React launch-flow request shape.\n2. Implement role_manager_pane.rs list view against GET /api/roles (via the native backend client used by sibling panes), with status filter + stable ids.\n3. Implement detail + version-history view.\n4. Implement create/edit draft forms with inline kebab-id validation and 'creates new draft version' messaging.\n5. Implement approve-draft (activate) and retire flows with confirm steps and typed-error surfacing (409/422 from MT-081 rendered as operator-readable messages, not toasts that vanish).\n6. Integrate the role picker into the operator_chat_pane launch flow; extend the launch request seam with optional role_id + role_version.\n7. Implement the React RolePicker (list/pick) over the IPC read commands; wire into the swarm launch UI payload.\n8. AccessKit pass: every new interactive control gets a stable accessibility id + label; keyboard navigable.\n9. Argus evidence: drive the pane headlessly — list, open detail, create draft, approve draft, picker-shows-active-only — capturing screenshots per target; attach artifact paths to build evidence.\n10. UserManual same-change update: role-manager entry (purpose, navigation path, lifecycle walkthrough incl. import-review-approve, failure modes: backend down, version conflict, approval demotes prior active).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/role_manager_pane.rs",
+      "src/frontend/handshake_native/src/operator_chat_pane.rs",
+      "src/frontend/handshake_native/src/** (shell/navigation registration + AccessKit seams only)",
+      "app/src/components/swarm/RolePicker.tsx",
+      "app/src/components/swarm/RolePicker.test.tsx",
+      "app/src/components/swarm/index.ts",
+      "src/backend/handshake_core/src/user_manual/**",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/backend/handshake_core/** except src/user_manual/** (registry/API owned by MT-081; injection by MT-082)"
+    ],
+    "acceptance_criteria": [
+      "Native Role Manager pane lists roles with id, title, version, status badge, provenance, and a working status filter; rows carry stable AccessKit ids.",
+      "Detail view renders overlay_prompt preview, tool_policy, model_profile, transport_bindings, provenance (incl. import source_ref), and version history.",
+      "Create produces a draft; edit produces a new draft version; the UI cannot mutate an existing version (registry immutability respected and surfaced in UI copy).",
+      "Approve-draft calls the MT-081 activate transition behind an explicit confirm that names the demotion of any prior active version; retire likewise explicit + confirmed.",
+      "Operator chat launch flow shows a role picker listing ACTIVE roles only (plus no-role), displaying id + version; the selection lands in the launch request payload.",
+      "React RolePicker lists the same active roles via the IPC read commands and feeds the swarm launch payload; React has no role write path.",
+      "All new controls are AccessKit-labeled and keyboard navigable.",
+      "Argus evidence exists for every argus_target; no foreground window popping or focus stealing during automated runs.",
+      "In-product UserManual role-manager entry updated in the same change with a self-consistency check against the shipped controls."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native role_manager -- --nocapture",
+      "cargo build -p handshake-native (pane + picker compile)",
+      "npm test -- RolePicker (React read-only surface tests)",
+      "Argus headless drive over the five argus_targets with screenshot artifacts written to the external artifacts root",
+      "UserManual self-consistency check for the role-manager entry"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/role_manager_pane.rs (new)",
+      "src/frontend/handshake_native/src/operator_chat_pane.rs (role picker seam)",
+      "app/src/components/swarm/RolePicker.tsx (new, read-only IPC surface)"
+    ],
+    "expected_tests": [
+      "pane state/logic unit tests (list filter, form validation, confirm gating)",
+      "launch-request payload test (role_id+version carried)",
+      "React RolePicker render + IPC mock tests (active-only, no write calls)",
+      "AccessKit id stability test",
+      "Argus visual evidence run"
+    ],
+    "implementation_notes": [
+      "Native GUI is egui (verified: src/frontend/handshake_native/src/operator_chat_pane.rs); follow its pane/state conventions rather than inventing a new pattern.",
+      "React siblings verified in app/src/components/swarm/: OperatorChat.tsx, SwarmControlRoom.tsx, SwarmBoard.tsx, swarm_spawn_visual_harness.tsx — add RolePicker beside them and reuse the existing visual-harness pattern for the React test surface.",
+      "Draft approval is THE operator-authority moment for roles (esp. MT-084 imports); friction here is deliberate — confirm dialogs must state consequences, never one-click approve.",
+      "Argus per .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md: unit tests alone cannot satisfy HBR-VIS rows; screenshots go to the external artifacts root, never into the repo worktree.",
+      "Quiet duty: automated GUI drives must be headless/non-intrusive (no focus stealing, no popup windows) per HBR-QUIET."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "native egui Role Manager pane (list/detail/create/edit/version-history/approve/retire)",
+      "operator_chat_pane launch-flow role picker (active roles only)",
+      "React RolePicker read-only list/pick in the swarm launch UI"
+    ],
+    "argus_targets": [
+      "role-manager-list (table + status filter + provenance badges)",
+      "role-manager-detail (overlay preview + version history + import report summary)",
+      "role-manager-create-draft (form + kebab validation state)",
+      "role-manager-approve-confirm (activate confirm naming prior-active demotion)",
+      "operator-chat-role-picker (active-only dropdown with id+version)"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "role-manager: purpose, navigation path, list/detail/create/edit walkthrough, draft->approve->active lifecycle incl. import review, retire, role picker at launch, failure/recovery (backend down, version conflict, prior-active demotion)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-004",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-QUIET-001",
+    "HBR-INT-009",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "role lifecycle operations driven from the GUI (create/edit/approve/retire) and role-carrying launch requests",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "GUI drives MT-081 store mutations whose ledger events are the Tier-1 surface; internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1."
+    }
+  ],
+  "risk_if_missed": "Roles have no operator surface: drafts (incl. imports) cannot be reviewed or approved, launches cannot pick roles, and the operator-authors/approves-models-consume contract collapses into API-only usage no operator will perform.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: One-click approval — an approve button without consequence-naming confirm lets an operator activate an unreviewed (possibly imported) prompt by misclick; injection then runs unvetted text.",
+      "RISK-2: Picker shows drafts/retired — launching with a non-active role either fails late (typed error after launch UX) or, worse, injects unapproved text if the backend guard is bypassed.",
+      "RISK-3: React write creep — the 'read-only' React surface grows a create/approve call, splitting role authority across two GUIs and bypassing the native confirm flow.",
+      "RISK-4: Stale list after mutation — approve/retire in the native pane not reflected in the picker/React list, so the operator launches with a role state that no longer exists."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): approve/retire behind explicit confirm dialogs naming consequences (prior-active demotion); Argus target captures the confirm state; no keyboard default-accept on the destructive action.",
+      "CTRL-2 (RISK-2): picker queries status=active only (test-pinned); backend NotActive guard (MT-082) remains the hard gate — GUI filtering is defense-in-depth, asserted in tests.",
+      "CTRL-3 (RISK-3): React tests assert only list/get IPC commands are invoked; no write IPC command for roles exists to call (MT-081 exposes read-only IPC).",
+      "CTRL-4 (RISK-4): list/picker refresh after every mutation round-trip; test drives approve then asserts picker reflects the new active version."
+    ]
+  },
+  "research_provenance": {
+    "source": "Inspected native GUI surface src/frontend/handshake_native/src/operator_chat_pane.rs (egui pane + launch flow) and React swarm components app/src/components/swarm/ (OperatorChat.tsx, SwarmControlRoom.tsx, visual harnesses) as integration patterns; MT-081 registry API + read-only IPC as the data plane; Argus protocol .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md for visual evidence discipline; operator context: roles are operator-authored/approved, model-consumed.",
+    "corrections": [
+      "Write surfaces (create/edit/approve/retire) are native-only; React is strictly read-only list/pick this MT.",
+      "Approve-draft is the operator-authority moment — deliberate confirm friction, informed by the MT-084 ImportReport for imported drafts.",
+      "Picker exposes only active roles; the backend NotActive guard stays the hard gate."
+    ]
+  }
+}

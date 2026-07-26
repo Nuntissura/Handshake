@@ -1,0 +1,140 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-103",
+  "title": "MM-MT103-ParentChildSessionRegistry",
+  "group": "MM Model-to-model orchestration",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-103.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-101"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Durable parent-child session lineage: a PostgreSQL-backed registry of who spawned whom, with a max-depth limit, cycle prevention, and a cascade policy when a parent terminates. This is the canonical lineage source consumed by MT-102 (steer scope), MT-105 (notification routing), MT-107 (session tree GUI), and MT-108 (cascade proof).\n\nEXPECTED DIFF SHAPE: One new numbered migration pair (up + .down.sql) in src/backend/handshake_core/migrations/ creating table `swarm_session_lineage`; a new module src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (store + queries + depth/cycle guards + cascade executor); wiring in the MT-101 spawn handler (attach on spawn) and coordinator terminal-state observation (detach + cascade on parent termination). Tests.\n\nDETAILED SPEC:\n1. Table `swarm_session_lineage` rows: `parent_session_id` (text, not null), `child_session_id` (text, not null, unique), `spawned_by_actor` (text: `model:<parent_session_id>` | `operator` | `scheduler`), `role_id` (text nullable), `created_at_utc` (timestamptz), `terminated_at_utc` (timestamptz nullable), plus `cascade_policy` (text: `orphan` | `cascade_cancel`) captured at attach time. Indexes on parent_session_id and child_session_id. Paired down migration.\n2. Max depth: config `model_to_model.max_spawn_depth` default 2 (operator > orchestrator model > worker; a worker may not spawn by default). Attach computes the chain depth by walking parents; exceeding depth returns typed `DepthExceeded` and the MT-101 handler rejects the spawn BEFORE calling spawn_session.\n3. Cycle prevention: attach rejects any row where child_session_id already appears in the caller's ancestor chain (typed `LineageCycle`). Because child ids are coordinator-minted fresh ids, a cycle indicates id reuse or spoofing and is also ledgered as an anomaly.\n4. Cascade policy on parent termination: default `cascade_cancel` — when a parent session reaches a terminal state, all live children are cancelled through the coordinator's existing cancellation/teardown path (never direct process kill), depth-first, each cancellation ledgered. `orphan` mode (per-spawn opt-in, policy-gated by MT-106) leaves children running with `spawned_by_actor` attribution intact and marks the row orphaned.\n5. FR events: stamp attach and detach using existing SwarmFrEventId events enriched with lineage payload fields (parent_session_id, depth, cascade_policy); NEW event kinds (e.g. a dedicated lineage-attach id) belong to MT-161's FR-kind seam — this MT only enriches payloads of existing SESSION-SPAWNED / SESSION-CANCELLED / SESSION-COMPLETED / SESSION-FAILED events and records registry rows.\n6. Read API for consumers: `children_of(parent)`, `parent_of(child)`, `ancestor_chain(child)`, `live_tree(root)` — used by MT-102 lineage checks and the MT-107 tree GUI.\n\nSECURITY FRAME (binding): lineage rows are attribution evidence — attach/detach happen server-side in the spawn/terminate paths only; no tool or model can write lineage rows directly. Depth limit and cycle guard bound recursive self-spawning (HBR-SWARM-001/002: a runaway orchestrator cannot build an unbounded tree even under the coordinator's global caps).\n\nSTEP-BY-STEP:\n1. Read the latest migration number in src/backend/handshake_core/migrations/ and take the next free prefix; author up + down SQL.\n2. Implement session_lineage.rs store with attach/detach/queries and depth/cycle guards; PostgreSQL only (no SQLite path on this write surface).\n3. Wire attach into the MT-101 spawn handler (after policy pass, before spawn_session; roll back the row if spawn_session rejects).\n4. Wire detach + cascade into the coordinator terminal-state event observation (subscribe to session terminal events; do not modify coordinator internals beyond the existing event/observer seam).\n5. Implement cascade_cancel depth-first cancellation via coordinator cancellation API; ledger each cancelled child.\n6. Tests per expected_tests.",
+    "allowed_paths": [
+      "src/backend/handshake_core/migrations/** (next free numeric prefix only; paired .down.sql)",
+      "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/**",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/session_lineage/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** (except named IPC/GUI surfaces for the GUI MT; this MT names none)",
+      ".GOV/**",
+      "src/frontend/**",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (observe via existing event seam only; no internal edits)"
+    ],
+    "acceptance_criteria": [
+      "Migration creates swarm_session_lineage with the specced columns/indexes and a working down migration; runs green against managed PostgreSQL.",
+      "Every MT-101 model-initiated spawn writes exactly one lineage row server-side; no tool surface can write lineage rows directly.",
+      "Spawn attempts beyond model_to_model.max_spawn_depth (default 2) are rejected with typed DepthExceeded BEFORE spawn_session is called.",
+      "Cycle attach attempts are rejected with typed LineageCycle and ledgered as an anomaly.",
+      "Parent termination with cascade_cancel cancels all live descendants depth-first via coordinator cancellation, each with a ledger row; orphan mode leaves children live and marks rows orphaned.",
+      "children_of / parent_of / ancestor_chain / live_tree queries return correct results for a 3-level fixture tree.",
+      "Attach/detach enrich existing FR-EVT-SWARM-* event payloads with lineage fields; no new event kinds are minted in this MT."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core session_lineage -- --nocapture",
+      "cargo test -p handshake_core lineage_depth_exceeded_rejected -- --nocapture",
+      "cargo test -p handshake_core lineage_cascade_cancel_depth_first -- --nocapture",
+      "cargo sqlx migrate run && cargo sqlx migrate revert (or the project's migration runner equivalent) green against managed PostgreSQL"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/migrations/<next>_swarm_session_lineage.sql (+ .down.sql) (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/session_lineage.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/model_tools/spawn_tool.rs (wire attach)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (reference: SwarmFrEventId payload enrichment)",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (reference: terminal-state event seam, cancellation API)"
+    ],
+    "expected_tests": [
+      "unit: depth calculation over a synthetic chain; cycle detection over a forged ancestor set",
+      "integration (managed PG): attach on spawn, row rolled back when spawn_session rejects",
+      "integration (managed PG): cascade_cancel on parent termination cancels grandchildren before children, all ledgered",
+      "integration (managed PG): orphan policy leaves child live with orphaned row state",
+      "negative: direct lineage write from a tool surface is impossible (no such API exported)"
+    ],
+    "implementation_notes": [
+      "Migration numbering: inspect the migrations directory at implementation time and take the next free numeric prefix; do not renumber existing migrations. The directory currently extends well past 0070 (verified 2026-07-21); the exact next number is decided at merge time.",
+      "spawned_by_actor also records operator- and scheduler-initiated spawns so the MT-107 tree can show the whole forest, but only model-initiated rows participate in MT-106 policy accounting.",
+      "Depth default 2 keeps workers leaf-only; raising it is an operator config decision surfaced through MT-106's override surface.",
+      "Cascade must tolerate already-terminated children (idempotent cancel), and a cascade failure on one child must not silently skip the rest (HBR-SWARM-002 no-silent-loss: record per-child outcome).",
+      "Cross-family seams (reference only): MT-001 session model, MT-161 FR kinds (any new lineage-specific event ids), MT-106 policy (orphan opt-in gating), MT-107 GUI consumer."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Headless persistence + lifecycle MT; the operator-visible tree ships in MT-107."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal registry with no direct operator-facing behavior change; MT-107 documents the visible session tree and cascade semantics in the same change as its GUI."
+  },
+  "hbr_obligations": [
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-STOP-002",
+    "HBR-INT-003"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "risk_if_missed": "No durable lineage: steer scoping (MT-102) has no canonical authority, terminated parents leak running children (silent loss + cost burn), recursive self-spawn depth is unbounded below the global caps, and the session-tree GUI has nothing truthful to render.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Orphan leak — parent dies, cascade fails midway or is skipped, children keep running unattributed and burning budget with nobody steering them.",
+      "RISK-2: Depth-limit bypass — depth computed from a stale or partial chain (e.g. missing intermediate row) lets a model spawn deeper than configured.",
+      "RISK-3: Lineage forgery — a code path other than the spawn handler writes lineage rows, poisoning steer-scope checks and the GUI tree.",
+      "RISK-4: Cascade as a weapon — a parent deliberately terminates to cascade-cancel children mid-write, corrupting worker output without trace.",
+      "RISK-5: Registry/coordinator drift — registry says live, coordinator says terminated (or vice versa), and consumers act on the wrong view."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Cascade executor records a per-child outcome row; any per-child failure is a typed, ledgered anomaly and the remaining children are still processed; test kills a mid-tree parent and asserts full descendant accounting.",
+      "CTRL-2 (RISK-2): Depth computed transactionally from the ancestor chain at attach time; missing-ancestor is a typed integrity error, not depth 0; unit test with a gapped chain.",
+      "CTRL-3 (RISK-3): attach/detach are crate-private and called only from the spawn/terminate paths; no public or tool-exposed write API (asserted by a negative test and API review).",
+      "CTRL-4 (RISK-4): Cascade cancellation is the coordinator's cooperative cancel (workers get their normal cancellation semantics, ledgered with reason=parent_cascade); MT-108 asserts the FR trail makes the cause attributable.",
+      "CTRL-5 (RISK-5): terminated_at is written from coordinator terminal events (single source); live_tree cross-checks coordinator state and flags divergence as a typed diagnostic."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-multi-model-orchestration-v1: migrations/ directory layout (numeric-prefix pairs, e.g. 0019_kernel_session_queue, 0021_kernel_process_lifecycle), ids.rs SpawnRequest.parent_session_id (existing lineage attribution field), coordinator.rs (terminal states, CancellationToken, teardown ownership), events.rs (SESSION-CANCELLED/COMPLETED/FAILED events to enrich). External precedent: process-group/cgroup cascade semantics and Claude Code subagent lifecycle (children bounded by parent lifetime by default).",
+    "corrections": []
+  }
+}

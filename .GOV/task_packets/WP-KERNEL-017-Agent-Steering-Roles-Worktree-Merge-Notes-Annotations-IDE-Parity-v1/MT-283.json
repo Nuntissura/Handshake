@@ -1,0 +1,182 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-283",
+  "title": "IP-MT283-EditorSymbolBreadcrumbs",
+  "group": "IP IDE parity gap closure",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-283.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-281"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Add the VS Code editor breadcrumb bar to the native code editor — the thin horizontal strip at the top of the editor showing the navigable path 'file › OuterSymbol › InnerSymbol' for the cursor's current position, where every crumb is clickable and opens a dropdown to jump to a sibling file/symbol. The MT-281 matrix marks this feature 'editor-symbol-breadcrumbs' PARTIAL: sticky_scroll (MT-053) pins the enclosing-scope declaration lines, but there is NO clickable path+symbol breadcrumb bar, and the only breadcrumb code in the crate is graph/sidebar_panel.rs (Loom block navigation — a DIFFERENT surface, different AccessKit namespace). This MT closes the code-editor breadcrumb gap by REUSING the MT-006 tree-sitter outline symbol tree (OutlineItem/OutlineProvider) for the symbol crumbs and the MT-053 sticky-scroll enclosing-scope computation for 'which symbols enclose the cursor' — it adds NO new parse and NO new symbol provider.\n\nEXPECTED DIFF SHAPE: (a) NEW module src/frontend/handshake_native/src/code_editor/breadcrumbs.rs (BreadcrumbBar widget + BreadcrumbCrumb + BreadcrumbState + the crumb dropdown + AccessKit author_ids); (b) `pub mod breadcrumbs;` + re-exports in code_editor/mod.rs; (c) wiring in code_editor/panel.rs: render the bar above the editor body (below the pane header), recompute the enclosing-symbol chain from the cursor position each frame the cursor or tree changes, and dispatch crumb clicks; (d) one integration test file. Reuses OutlineProvider + sticky_scroll enclosing-scope; no backend; no new tree-sitter query.\n\nDETAILED SPEC:\n1. breadcrumbs.rs: `pub struct BreadcrumbCrumb { label: String, kind: OutlineKind (reuse MT-006 kind), target_line: usize, target_col: usize, siblings: Vec<(String, usize)> (peer crumbs for the dropdown) }`; `pub struct BreadcrumbState { file_label: String, crumbs: Vec<BreadcrumbCrumb>, open_dropdown: Option<usize> }`. The crumb chain = [file crumb] + the enclosing OutlineItem chain from document root down to the innermost symbol containing the caret (root-to-leaf order), computed by walking the MT-006 OutlineProvider tree with the caret's buffer position.\n2. Rendering: a single-line strip; each crumb is `‹chevron-separated› label` with the OutlineKind icon (function/struct/module/etc., reuse the outline icon mapping). The strip truncates from the LEFT with an ellipsis crumb when it overflows the editor width (VS Code parity), always keeping the innermost (leaf) crumb visible. Colors/icons from theme tokens (no hardcoded hex).\n3. Interaction: clicking a crumb opens a dropdown listing that crumb's siblings (for the file crumb: sibling files in the same folder from the existing project tree / quick-switcher source, capped; for a symbol crumb: sibling symbols at the same outline depth). Selecting a dropdown entry navigates (reusing the existing jump path + MT-052 jump_history push). The bar updates live as the caret moves between symbols. Keyboard: a focus-and-navigate chord (default Ctrl+Shift+.) focuses the last crumb and opens its dropdown (VS Code 'Focus Breadcrumbs').\n4. Empty states (binding): a file with no resolvable symbols shows only the file crumb (never a fabricated symbol crumb); a position outside any symbol shows the path down to the nearest enclosing symbol only, or just the file crumb if none encloses. The bar never guesses a symbol it cannot derive from the outline tree.\n5. AccessKit: Role::Group container `code_editor_breadcrumbs` (instance-suffixed per panel.rs RISK-004), Role::Button per crumb `code_editor_breadcrumb_{depth}`, and the dropdown `code_editor_breadcrumb_dropdown_{depth}` with Role::ListItem entries. Distinct namespace from the Loom sidebar breadcrumb (sidebar.breadcrumb.*).\n6. Scope edge: breadcrumbs REUSE OutlineProvider (MT-006) + sticky_scroll enclosing-scope (MT-053) + the existing jump/jump_history; they do NOT add a new symbol source and do NOT modify outline.rs or sticky_scroll.rs.\n\nSTEP-BY-STEP:\n1. Read code_editor/outline.rs (OutlineItem, OutlineKind, OutlineProvider, the tree walk), code_editor/sticky_scroll.rs (enclosing-scope declaration-line computation from caret), code_editor/panel.rs (pane-header/body layout region, caret position, jump path, RISK-004 instance-suffix author_ids), code_editor/keymap.rs (add FocusBreadcrumbs chord), and graph/sidebar_panel.rs breadcrumb (to keep a DISTINCT namespace, not to reuse).\n2. Create breadcrumbs.rs: BreadcrumbState builder from (OutlineProvider tree + caret) computing the root-to-leaf enclosing chain; the BreadcrumbBar egui renderer with left-truncation + icons; the sibling dropdown; AccessKit nodes; unit-test the chain computation (nested symbols -> correct crumb list) and left-truncation.\n3. Wire panel.rs: render the bar above the body, recompute on caret/tree change, dispatch crumb + dropdown clicks to the jump path with jump_history push; add the FocusBreadcrumbs chord.\n4. Register `pub mod breadcrumbs;` + re-exports in code_editor/mod.rs.\n5. Integration test: a nested Rust file (module › impl › fn) shows the 3-symbol chain for a caret inside the fn; clicking the impl crumb dropdown lists sibling fns and navigating jumps + pushes jump_history; a symbol-less file shows only the file crumb; overflow truncates from the left keeping the leaf. Capture Argus screenshot + AccessKit tree.\n6. Update the UserManual (same change): the breadcrumb bar — what the crumbs mean, clicking to jump, the sibling dropdown, Focus Breadcrumbs chord, and that it derives from the symbol outline.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/code_editor/breadcrumbs.rs",
+      "src/frontend/handshake_native/src/code_editor/mod.rs",
+      "src/frontend/handshake_native/src/code_editor/panel.rs",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs",
+      "src/frontend/handshake_native/tests/test_editor_breadcrumbs.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/backend/** (no backend; pure UI over the outline tree)",
+      "src/frontend/handshake_native/src/code_editor/outline.rs (breadcrumbs CONSUME OutlineProvider; must not modify it)",
+      "src/frontend/handshake_native/src/graph/sidebar_panel.rs (the Loom breadcrumb is a distinct surface; do not touch it)"
+    ],
+    "acceptance_criteria": [
+      "code_editor/breadcrumbs.rs exists with BreadcrumbCrumb/BreadcrumbState, a BreadcrumbBar egui renderer, a sibling dropdown, and stable AccessKit author_ids (code_editor_breadcrumbs, code_editor_breadcrumb_{depth}, code_editor_breadcrumb_dropdown_{depth}) in a DISTINCT namespace from the Loom sidebar breadcrumb, instance-suffixed on multi-pane mount.",
+      "The crumb chain = file crumb + the root-to-leaf enclosing OutlineItem chain for the caret, computed from the MT-006 OutlineProvider tree (no new parse/symbol source).",
+      "Clicking a crumb opens a dropdown of siblings (files for the file crumb, same-depth symbols for a symbol crumb); selecting one navigates via the existing jump path AND pushes MT-052 jump_history.",
+      "The bar updates live as the caret moves between symbols; overflow truncates from the LEFT with an ellipsis crumb, always keeping the innermost crumb visible.",
+      "Empty states are honest: a symbol-less file shows only the file crumb; a caret outside all symbols shows the path to the nearest enclosing symbol or just the file crumb — never a fabricated symbol crumb.",
+      "Focus Breadcrumbs chord (default Ctrl+Shift+.) focuses the last crumb and opens its dropdown.",
+      "Icons/colors come from theme tokens (no hardcoded hex); breadcrumbs.rs does not modify outline.rs or sticky_scroll.rs (grep-provable).",
+      "UserManual updated in the same change: breadcrumb bar meaning, click-to-jump, sibling dropdown, Focus Breadcrumbs chord."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native editor_breadcrumbs -- --nocapture",
+      "rg -n 'code_editor_breadcrumb' src/frontend/handshake_native/src/code_editor/breadcrumbs.rs",
+      "rg -n 'sidebar.breadcrumb' src/frontend/handshake_native/src/code_editor/breadcrumbs.rs | wc -l | grep -q '^0$'",
+      "Argus evidence: argus.screenshot + AccessKit tree of (a) a 3-crumb chain (module › impl › fn) and (b) an open sibling dropdown, stored under $HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/code_editor/breadcrumbs.rs (new bar + state + dropdown)",
+      "src/frontend/handshake_native/src/code_editor/panel.rs (render above body + live recompute + click dispatch)",
+      "src/frontend/handshake_native/src/code_editor/keymap.rs (FocusBreadcrumbs chord)",
+      "src/frontend/handshake_native/src/code_editor/mod.rs (module wiring + re-exports)"
+    ],
+    "expected_tests": [
+      "unit: enclosing-chain computation for a caret in a nested symbol yields the correct root-to-leaf crumb list",
+      "unit: left-truncation keeps the innermost crumb and inserts an ellipsis crumb on overflow",
+      "unit: AccessKit node tree (container + crumbs + dropdown, stable suffixed ids, distinct namespace)",
+      "integration: clicking the impl crumb lists sibling fns; navigating jumps + pushes jump_history",
+      "integration: symbol-less file shows only the file crumb",
+      "integration: caret moves between two fns and the leaf crumb updates live",
+      "negative: caret outside all symbols shows no fabricated symbol crumb"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21: code_editor/outline.rs exports OutlineItem, OutlineKind, OutlineProvider (tree-sitter symbol tree, MT-006); sticky_scroll.rs computes the enclosing-scope declaration lines from the caret (MT-053) — the same enclosing computation the breadcrumb chain needs; panel.rs owns the pane-header/body layout + caret + jump + RISK-004 instance-suffix author_ids; graph/sidebar_panel.rs is the ONLY existing breadcrumb (Loom navigation, namespace sidebar.breadcrumb.*) and is a different surface.",
+      "Design basis (cite in code docs): VS Code editor breadcrumbs (breadcrumbs.enabled) — file-path + symbol-path crumbs, each with a sibling picker dropdown, left-truncation on overflow, 'Focus Breadcrumbs' command.",
+      "The gap is PARTIAL (per MT-281): sticky_scroll already pins enclosing lines; this MT adds the clickable navigable crumb bar on top of the SAME enclosing computation — do not duplicate the scope walk, reuse it.",
+      "Cross-family seams (reference only): MT-282 peek may be opened from a crumb target; MT-290 timeline is a separate top strip and must not overlap the breadcrumb bar's layout region."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "code_editor breadcrumb bar (file + symbol crumbs)",
+      "crumb sibling dropdown (files / same-depth symbols)",
+      "left-truncated overflow state",
+      "symbol-less / outside-symbol empty states"
+    ],
+    "argus_targets": [
+      "code_editor_breadcrumbs",
+      "code_editor_breadcrumb_0",
+      "code_editor_breadcrumb_dropdown_0"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "empty_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Editor breadcrumbs: the file + symbol path bar, clicking a crumb to jump, the sibling dropdown, Focus Breadcrumbs chord, and that crumbs come from the symbol outline"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-VIS-005",
+    "HBR-MAN-001",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Read-only navigation chrome; navigation events belong to the existing jump path, not this bar."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "The computed crumb chain and dropdown source are exposed as structured state for the visual_debugger so a no-context model can see why a given chain was derived."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Pure render/navigation chrome; no child process."
+    }
+  ],
+  "risk_if_missed": "The editor stays below professional-IDE parity for spatial orientation: an operator or agent deep in a large file has no at-a-glance, clickable sense of 'where am I in the symbol tree' and no fast lateral jump to sibling symbols/files, increasing navigation friction during multi-file agent edits.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Fabricated crumb — the bar shows a symbol crumb not derivable from the outline tree (e.g. a stale chain after an edit), pointing the operator at a symbol that no longer exists there.",
+      "RISK-2: Namespace collision — the editor breadcrumb reuses the Loom sidebar breadcrumb author_ids, breaking both AccessKit surfaces and the Argus path.",
+      "RISK-3: Layout overlap — the bar overlaps the pane header, sticky-scroll header, or the timeline strip, obscuring controls.",
+      "RISK-4: Overflow hides the leaf — truncation drops the innermost crumb, so the operator loses their most-relevant position marker.",
+      "RISK-5: Lost place on jump — a dropdown navigate does not push jump_history, so Alt+Left cannot return."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): The chain is recomputed from the live OutlineProvider tree on caret/tree change; a test asserts an edited-away symbol drops from the chain and no fabricated crumb appears.",
+      "CTRL-2 (RISK-2): breadcrumbs.rs uses the code_editor_breadcrumb* namespace only; a grep proof asserts no 'sidebar.breadcrumb' reference; a dual-mount test asserts non-colliding suffixed ids.",
+      "CTRL-3 (RISK-3): The bar occupies a dedicated layout row between header and body; an Argus overlap check confirms no control is obscured, including with sticky-scroll active.",
+      "CTRL-4 (RISK-4): Left-truncation always keeps the leaf crumb; a unit test asserts the innermost crumb survives overflow.",
+      "CTRL-5 (RISK-5): Dropdown navigation goes through the existing jump path + MT-052 jump_history; a test asserts Alt+Left returns."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1: code_editor/mod.rs module map has NO breadcrumb module; outline.rs (OutlineProvider/OutlineItem/OutlineKind, MT-006) and sticky_scroll.rs (enclosing-scope, MT-053) supply the symbol chain; grep confirmed the only breadcrumb code is graph/sidebar_panel.rs (Loom navigation, namespace sidebar.breadcrumb.*). Confirmed 'editor-symbol-breadcrumbs' is PARTIAL (sticky-scroll only) and not covered by WP-012/013/014/STUDIO/011. External design basis: VS Code editor breadcrumbs.",
+    "corrections": [
+      "This is a PARTIAL gap, not fully MISSING: sticky_scroll (MT-053) already pins enclosing lines; the missing piece is the clickable navigable crumb bar. Reuse the enclosing-scope computation rather than adding a second scope walk."
+    ]
+  }
+}

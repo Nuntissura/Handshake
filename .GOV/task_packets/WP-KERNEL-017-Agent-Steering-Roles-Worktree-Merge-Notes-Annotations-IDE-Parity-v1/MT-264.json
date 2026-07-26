@@ -1,0 +1,181 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-264",
+  "title": "TR-MT264-PostRemovalSweepAndProof",
+  "group": "TR Legacy TS notes editor removal",
+  "clause": "Final sweep + proof: repo-wide zero-reference scan for removed modules + CI grep gate so they cannot return; full app + src-tauri + native + backend builds/tests green; Argus visual smoke of the app shell and notes flow through the NATIVE editor; user manual + built-in model manual updated to name the native editor as the only notes surface; removal recorded as a portable evidence bundle. Hard-depends on MT-262 + MT-263.",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-264.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-262",
+      "MT-263"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Close out the legacy TS notes-editor removal with a final repo-wide correctness sweep, a CI guard that prevents the surface from ever returning, full green builds/tests across every affected crate, a direct visual smoke proving notes now open through the NATIVE editor, updated user + built-in model manuals stating the native editor is the only notes surface, and a single portable evidence bundle that a no-context validator can read to confirm the removal is complete and safe.\n\nEXPECTED DIFF SHAPE: (a) new guard script app/scripts/check-legacy-notes-editor-removed.mjs (fails non-zero if any removed module path or import re-appears); (b) new npm script check:no-legacy-notes-editor in app/package.json; (c) .github/workflows/ci.yml gains a step that runs the guard so a PR re-introducing the tiptap editor fails CI; (d) manual updates: app/MODEL_MANUAL.md and the backend user-manual seed content under src/backend/handshake_core/src/user_manual/ (plus any UserManualPanel-surfaced entry) revised so the notes workflow points at the native editor and the legacy TS editor is marked removed; (e) a portable removal evidence bundle written under the external artifacts root. Argus screenshots are captured as read-only evidence (no product GUI is created).\n\nDETAILED SPEC:\n1) REPO-WIDE REFERENCE SWEEP: grep all of app/src (and src/ where relevant) for any surviving import or usage of the removed modules — the tiptap dir, the deleted components (TiptapEditor, RichTextEditor, RichDocumentView, DocumentView, MonacoCodeBlockView, FindReplacePanel, HsLinkView, LoomTransclusionView), the deleted app/src/lib/editor/* modules (except any kept document_diff_merge.*), the deleted harnesses, and the removed deps (@tiptap/*, yjs). Expected result: ZERO hits. Any hit is a defect to fix (or, for a legitimately kept document_diff_merge.*, an explicit allowlisted exception in the guard).\n2) CI RE-INTRODUCTION GATE: author app/scripts/check-legacy-notes-editor-removed.mjs — a deterministic guard that (i) asserts the removed dirs/files do not exist, (ii) greps for forbidden imports/deps, (iii) honors a small explicit allowlist for any intentionally-kept file (e.g. document_diff_merge.* while the PD family still needs it), and exits non-zero on any violation. Wire it as npm script check:no-legacy-notes-editor and add a CI step in .github/workflows/ci.yml (alongside the existing check:* steps) so reintroducing the editor fails the build.\n3) FULL BUILD + TEST MATRIX (all must be green): app frontend `cd app && npm run build && npm test && npm run lint && npm run depcruise`; app visual `npm run test:visual` (playwright); Tauri shell `cargo build --manifest-path src-tauri/Cargo.toml` (and its tests if present); native editors `cargo test -p handshake-native` + `cargo build -p handshake-native`; backend `cargo build -p handshake_core` + relevant `cargo test -p handshake_core` (knowledge/loom/user_manual). Record each command's measured result.\n4) NATIVE-NOTES VISUAL SMOKE (Argus): launch the app shell, open a notes document, and confirm via direct visual inspection that it renders in the NATIVE editor (not the removed React DocumentView), the shell chrome is intact, no dependency-failure banner appears for the removed editor, and the notes flow (open -> edit -> save round-trip against the live backend) works. Capture Argus screenshots of the app shell and the native notes surface as evidence. Non-intrusive: use the app's headless/governed launch path; do not pop or focus-steal foreground windows.\n5) MANUALS (HBR-MAN, same-change): update app/MODEL_MANUAL.md so the built-in model manual describes opening/editing notes via the native editor and no longer references the TS/React notes editor; update the backend user-manual seed content (src/backend/handshake_core/src/user_manual/seed.rs and/or spec_seed.rs — locate the notes/editor entries) and any UserManualPanel-surfaced entry so the user manual names the native editor as the ONLY notes surface and records that the legacy TS editor was removed. A no-context model reading the manual must be able to open and edit a note without any reference to the removed editor.\n6) PORTABLE EVIDENCE BUNDLE: write ${HANDSHAKE_ARTIFACTS_ROOT:-../Handshake_Artifacts}/wp-kernel-017/tr-removal/removal_evidence_bundle.json aggregating: MT-261 gate GREEN result (verdict + head_sha), MT-262 deletion inventory (files removed, document_diff_merge disposition), MT-263 bundle_size_delta, this MT's build/test matrix results, the sweep result (zero references), the CI guard wiring, the Argus screenshot paths, and the manual-diff references. This bundle is the single durable proof of a safe, complete removal.\n\nSTEP-BY-STEP:\n1. Confirm MT-262 and MT-263 completed (removed dirs absent, deps gone) — else STOP.\n2. Run the repo-wide sweep; fix or allowlist every hit until zero unexpected references remain.\n3. Author the guard script + npm script; wire the CI step in ci.yml; prove the guard fails if a forbidden import is reintroduced (negative test) and passes on the clean tree.\n4. Run the full build/test matrix across app + src-tauri + native + backend; record every result.\n5. Launch the shell; perform the native-notes visual smoke; capture Argus screenshots and the open/edit/save round-trip evidence.\n6. Update app/MODEL_MANUAL.md + backend user-manual seed content; bump the manual version; verify self-consistency (no dangling reference to the removed editor).\n7. Write removal_evidence_bundle.json to the external artifacts root. Record measured output.",
+    "allowed_paths": [
+      "app/scripts/check-legacy-notes-editor-removed.mjs (new guard)",
+      "app/package.json (single scripts entry: check:no-legacy-notes-editor)",
+      ".github/workflows/ci.yml (add guard step)",
+      "app/MODEL_MANUAL.md (built-in model manual)",
+      "src/backend/handshake_core/src/user_manual/seed.rs (user-manual notes/editor entries)",
+      "src/backend/handshake_core/src/user_manual/spec_seed.rs (if the notes/editor entry is seeded here)",
+      "src/backend/handshake_core/src/user_manual/fixtures.rs (only if a test fixture asserts the changed manual entry)",
+      "app/src/components/UserManualPanel.tsx (only if a surfaced notes/editor entry references the removed editor)"
+    ],
+    "forbidden_paths": [
+      "app/src/lib/monaco/** (monaco stays for code surfaces)",
+      "src/backend/handshake_core/src/api/knowledge_documents.rs, src/backend/handshake_core/src/api/loom.rs (native-consumed routes; not touched)",
+      "src/frontend/handshake_native/src/rich_editor/**, src/frontend/handshake_native/src/code_editor/** (native product code; verified, not modified — visual smoke is read-only)",
+      ".GOV/** (product-code closeout MT)",
+      "app/src/lib/editor/**, app/src/lib/tiptap/**, app/src/components/{TiptapEditor,RichTextEditor,RichDocumentView,DocumentView,MonacoCodeBlockView,FindReplacePanel,HsLinkView,LoomTransclusionView}* (already removed in MT-262; must stay absent)"
+    ],
+    "acceptance_criteria": [
+      "A repo-wide sweep proves ZERO surviving imports/usages of the removed tiptap dir, the eight deleted notes components, the deleted app/src/lib/editor modules (except an allowlisted kept document_diff_merge.*), the deleted harnesses, and the removed @tiptap/*/yjs deps.",
+      "app/scripts/check-legacy-notes-editor-removed.mjs exists, is wired as npm run check:no-legacy-notes-editor, honors an explicit allowlist only for intentionally-kept files, and exits non-zero when a forbidden module/import/dep is present.",
+      ".github/workflows/ci.yml runs the guard so a PR reintroducing the legacy TS notes editor fails CI; a negative test proves the guard catches a reintroduced import.",
+      "Full build/test matrix is green: app (build + vitest + lint + depcruise + playwright visual), src-tauri (cargo build), native (cargo test/build -p handshake-native), backend (cargo build + relevant cargo test -p handshake_core).",
+      "Argus visual smoke confirms a notes document opens in the NATIVE editor with intact shell chrome, no dependency-failure banner for the removed editor, and a working open/edit/save round-trip; screenshots are captured as evidence.",
+      "app/MODEL_MANUAL.md and the backend user-manual seed content are updated so both name the native editor as the only notes surface and reference no removed TS editor; the manual is self-consistent and a no-context model can operate notes from it; manual version is bumped.",
+      "A portable removal_evidence_bundle.json under the external artifacts root aggregates the MT-261 gate result, MT-262 deletion inventory, MT-263 bundle delta, this MT's build/test matrix, sweep result, CI guard wiring, Argus screenshot paths, and manual-diff references.",
+      "No app/src/lib/monaco/ file and no native-consumed backend route file is modified; the native rich_editor/code_editor source is only inspected, not edited.",
+      "The removed modules and directories remain absent after this MT (the guard proves it)."
+    ],
+    "proof_targets": [
+      "cd app && node scripts/check-legacy-notes-editor-removed.mjs && echo LEGACY_NOTES_EDITOR_ABSENT",
+      "bash -lc \"grep -rnE \\\"from ['\\\\\\\"].*(lib/tiptap|components/(TiptapEditor|RichTextEditor|RichDocumentView|DocumentView|MonacoCodeBlockView|FindReplacePanel|HsLinkView|LoomTransclusionView))\\\" app/src | grep -v node_modules | wc -l | grep -q '^0$' && echo ZERO_REFERENCES\"",
+      "bash -lc \"grep -q 'check:no-legacy-notes-editor' .github/workflows/ci.yml && echo CI_GUARD_WIRED\"",
+      "cd app && npm run build 2>&1 | tail -2 && npm test 2>&1 | grep -E 'passed' && npm run test:visual 2>&1 | tail -3",
+      "cargo build --manifest-path src-tauri/Cargo.toml 2>&1 | tail -1 && cargo test -p handshake-native 2>&1 | grep -E 'test result: ok'",
+      "cargo build -p handshake_core 2>&1 | tail -1",
+      "bash -lc \"! grep -riE 'tiptap|RichTextEditor|legacy (TS|React) notes editor is (current|active)' app/MODEL_MANUAL.md && echo MODEL_MANUAL_UPDATED\"",
+      "bash -lc \"test -f ../Handshake_Artifacts/wp-kernel-017/tr-removal/removal_evidence_bundle.json && echo EVIDENCE_BUNDLE_WRITTEN\""
+    ],
+    "code_surfaces": [
+      "app/scripts/check-legacy-notes-editor-removed.mjs (new CI guard, app/scripts/*.mjs convention)",
+      "app/package.json (scripts.check:no-legacy-notes-editor)",
+      ".github/workflows/ci.yml (guard step)",
+      "app/MODEL_MANUAL.md (built-in model manual)",
+      "src/backend/handshake_core/src/user_manual/seed.rs + spec_seed.rs (user-manual notes/editor entries)",
+      "src/frontend/handshake_native/src/rich_editor/** (native notes surface under visual smoke; read-only)",
+      "app/src/App.tsx (shell under visual smoke; read-only unless a residual reference is found)"
+    ],
+    "expected_tests": [
+      "guard: check-legacy-notes-editor-removed passes on the clean tree and fails on a reintroduced tiptap import (negative test)",
+      "sweep: zero surviving references to removed modules/deps across app/src",
+      "matrix: app build + vitest + lint + depcruise + playwright visual all green",
+      "matrix: cargo build src-tauri + cargo test/build handshake-native + cargo build handshake_core green",
+      "visual smoke: native editor renders a note, open/edit/save round-trip succeeds (Argus screenshots captured)",
+      "manuals: MODEL_MANUAL.md + user-manual seed self-consistent, native editor named sole notes surface, version bumped"
+    ],
+    "implementation_notes": [
+      "This is the closeout: it must prove the whole removal is complete AND safe, not just compile. The CI guard is the durable prevention — without it a future PR silently re-adds @tiptap and the editor returns; with it, reintroduction fails the build.",
+      "The guard's allowlist is the ONLY sanctioned way document_diff_merge.* (if MT-262 kept it) stays without tripping the gate; keep the allowlist explicit and minimal, and note the PD-family closeout that will remove the allowlist entry when the native prose-diff suite no longer references the file.",
+      "Argus visual smoke is read-only proof of the native surface — do NOT edit src/frontend/handshake_native/src/rich_editor or code_editor here; if the smoke reveals a native defect, that is a finding for the owning WP-012 MT, not a fix in this removal MT.",
+      "HBR-MAN same-change: the manual updates ship in THIS MT (not deferred), because this is the change that makes the native editor the sole notes surface. Update both the built-in model manual (app/MODEL_MANUAL.md) and the user manual seed; verify self-consistency so no manual page still tells a user to use the removed editor.",
+      "Backend user-manual content lives in src/backend/handshake_core/src/user_manual/ (seed.rs/spec_seed.rs seed the entries surfaced by UserManualPanel and the /workspaces/{id}/... user_manual routes). Editing the seed is manual-content work, not a route change — the knowledge/loom API routes stay untouched.",
+      "Portability: the evidence bundle and Argus screenshots go under HANDSHAKE_ARTIFACTS_ROOT (default ../Handshake_Artifacts), never inside the repo worktree; the guard script uses no hardcoded absolute paths.",
+      "Run all builds/tests non-intrusively (HBR-QUIET): headless/governed launch, no foreground window pop or focus-steal during automated verification; the visual smoke uses the app's screenshot-capture path (app/scripts/handshake-screenshot-capture.mjs precedent)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "App shell chrome after legacy notes-editor removal",
+      "Native notes editor surface (the sole notes surface post-removal): open -> edit -> save round-trip"
+    ],
+    "argus_targets": [
+      "app-shell-post-removal (Argus screenshot of the running shell with no removed-editor dependency-failure banner)",
+      "native-notes-open (Argus screenshot of a notes document rendered in the native editor)",
+      "native-notes-edit-save (Argus evidence of the open/edit/save round-trip against the live backend)"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Notes > opening and editing a note (rewritten to the native editor; no reference to the removed TS/React editor)",
+      "Built-in model manual (app/MODEL_MANUAL.md): notes workflow via the native editor",
+      "Changelog/removed-features: legacy TypeScript/React notes editor removed; native editor is the only notes surface"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-MAN-001",
+    "HBR-MAN-004",
+    "HBR-VIS-001",
+    "HBR-VIS-003",
+    "HBR-QUIET-002",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED_OR_DEFERRED_WITH_REASON — the visual-smoke open/edit/save round-trip exercises the native editor's existing runtime events; if the native surface already emits editor/save events, cite them, else record DEFERRED-with-reason (no new event kinds are added by a removal closeout).",
+    "internal_diagnostics: WIRED — the CI guard, build/test matrix, and sweep surface typed failures; a dependency-failure banner appearing for the removed editor during the smoke is a typed diagnostic caught by the visual check.",
+    "Palmistry: NOT_APPLICABLE-with-reason — this MT verifies an existing native runtime posture rather than introducing one."
+  ],
+  "risk_if_missed": "Without the closeout sweep + CI guard, a future PR silently re-imports @tiptap and resurrects the removed editor; without the visual smoke, the app could ship with a broken or missing notes surface after removal; without the manual update, users and no-context models are directed to an editor that no longer exists.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: The build/test matrix is green but the app has no working notes surface (native editor not actually wired to the notes-open path), so removal shipped a dead feature — a compile-green regression the visual smoke exists to catch.",
+      "RISK-2: The CI guard is added but not actually wired into ci.yml (or is a no-op grep), so reintroduction of the editor still passes CI.",
+      "RISK-3: The sweep misses a dynamic import or a string-built module path, leaving a runtime-only reference that never fails the build.",
+      "RISK-4: The manual is left stale (still references the TS editor), so users/no-context models are misdirected after removal.",
+      "RISK-5: The visual smoke edits or 'fixes' native product code to make the screenshot pass, scope-creeping into WP-012 territory instead of reporting a native defect."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Argus visual smoke is mandatory and includes a live open/edit/save round-trip through the native editor; a compile-green matrix without the smoke is not acceptance.",
+      "CTRL-2 (RISK-2): A negative test reintroduces a forbidden import and proves CI fails; a proof target greps ci.yml for the guard step.",
+      "CTRL-3 (RISK-3): The sweep covers dynamic import() and string module paths, and the guard asserts the removed dirs/files are physically absent, not just un-imported.",
+      "CTRL-4 (RISK-4): HBR-MAN same-change manual update ships in this MT with a self-consistency check (no manual page references the removed editor) and a version bump.",
+      "CTRL-5 (RISK-5): Native rich_editor/code_editor source is in forbidden_paths for edits; a native defect found during smoke is reported as a WP-012 finding, not patched here."
+    ]
+  },
+  "research_provenance": {
+    "source": "Grounding audit 2026-07-21/22 of wtc-native-editors-v1: CI at .github/workflows/ci.yml (+ sandbox-cross-platform-gating-check.yml); built-in model manual at app/MODEL_MANUAL.md; user-manual content seeded in src/backend/handshake_core/src/user_manual/ (seed.rs, spec_seed.rs, fixtures.rs, projection.rs) and surfaced by app/src/components/UserManualPanel.tsx + the native src/frontend/handshake_native/src/manual_content_editors.rs. Removed-module inventory from MT-262; removed deps (@tiptap/* x9, yjs) from MT-263; monaco-editor + native-consumed knowledge/loom routes confirmed as KEEP. Build/test commands from app/package.json scripts (build, test, lint, depcruise, test:visual) and the Rust crates (handshake-native, handshake_core, src-tauri). Screenshot-capture precedent: app/scripts/handshake-screenshot-capture.mjs. Field practice: a CI 'do-not-reintroduce' guard is the standard durable control after removing a large surface.",
+    "corrections": [
+      "The closeout proof is operator-visible + Argus, not just green builds: a compile-green removal can still ship a dead notes surface, so the native open/edit/save round-trip is the acceptance evidence.",
+      "Manual updates ship in this MT (HBR-MAN same-change), covering BOTH the built-in model manual (app/MODEL_MANUAL.md) and the backend-seeded user manual, because this is the change that makes the native editor the sole notes surface.",
+      "The visual smoke is read-only over native product code; native defects are WP-012 findings, keeping this removal MT from scope-creeping into native editor implementation."
+    ]
+  }
+}

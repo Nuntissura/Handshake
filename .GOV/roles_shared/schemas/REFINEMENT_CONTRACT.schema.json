@@ -15,7 +15,13 @@
     "authority_files": { "type": "object", "required": ["refinement_contract", "refinement_projection", "packet_contract"], "additionalProperties": { "type": "string" } },
     "markdown_projection": { "$ref": "#/$defs/markdown_projection" },
     "activation_manager": { "type": "object", "required": ["required", "status"], "properties": { "required": { "type": "boolean" }, "status": { "type": "string" } }, "additionalProperties": true },
-    "refinement": { "type": "object" },
+    "refinement": {
+      "type": "object",
+      "properties": {
+        "resource_privacy_review": { "$ref": "#/$defs/resource_privacy_obligation" }
+      },
+      "additionalProperties": true
+    },
     "red_team": { "$ref": "#/$defs/red_team" }
   },
   "additionalProperties": true,
@@ -33,7 +39,18 @@
       "additionalProperties": true
     },
     "markdown_projection": { "type": "object", "required": ["path", "status"], "properties": { "path": { "type": "string" }, "status": { "enum": ["GENERATED_PENDING", "GENERATED_IN_SYNC", "LEGACY_AUTHORITY", "BLOCKED"] } }, "additionalProperties": true },
-    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" } }, "additionalProperties": true }
+    "red_team": { "type": "object", "required": ["required", "profile"], "properties": { "required": { "const": true }, "profile": { "const": "DETERMINISTIC_CONTRACT_MIGRATION_V1" } }, "additionalProperties": true },
+    "resource_privacy_obligation": {
+      "type": "object",
+      "required": ["required_for_every_product_refinement", "resource_inventory", "required_hbr_rows"],
+      "properties": {
+        "required_for_every_product_refinement": { "const": true },
+        "resource_inventory": { "type": "array" },
+        "required_hbr_rows": { "type": "array", "items": { "type": "string", "pattern": "^HBR-PRIV-" } },
+        "not_applicable_reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
   }
 }
 

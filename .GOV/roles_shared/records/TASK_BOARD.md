@@ -164,6 +164,7 @@ Note: This section is an **inventory list**, not a priority order. Do not infer 
 - **[WP-KERNEL-008-Principal-Profile-CRM-Layer-v1]** - [STUB]
 - **[WP-KERNEL-009-Project-Knowledge-Index-Loom-Rich-Editor-v1]** - [STUB]
 - **[WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1]** - [STUB]
+- **[WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1]** - [STUB]
 
 ## In Progress
 

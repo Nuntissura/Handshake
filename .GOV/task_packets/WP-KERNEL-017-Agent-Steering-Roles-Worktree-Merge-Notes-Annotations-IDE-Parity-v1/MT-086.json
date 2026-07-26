@@ -1,0 +1,171 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-086",
+  "title": "RO-MT086-ChildSessionRoleAssignment",
+  "group": "RO Handshake Roles",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-086.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-081",
+      "MT-082",
+      "MT-101",
+      "MT-106"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Let an ORCHESTRATING SESSION assign roles to the workers it spawns: the spawn tool surface (MT-101) accepts an optional role_id (+ optional role_version), the role is resolved and injected at child spawn time via the MT-082 engine, a parent-child role attribution row records which role was assigned and by whom, and role assignment is constrained by the model-to-model policy (MT-106) — a parent may only assign roles its policy allows. This is the productized form of the repo-gov pattern where the orchestrator launches Coder/Validator sessions under their protocol prompts.\n\nEXPECTED DIFF SHAPE: Spawn-request extension (role fields) through the MT-101 spawn tool surface into coordinator.rs spawn_session; role resolution + injection call in the spawn path; new migration for role_assignments attribution table + store methods (in handshake_roles.rs or a sibling role_assignment.rs); policy check against the MT-106 model-to-model policy; typed errors + FR events; tests. Optional read route GET /api/sessions/{id}/role for attribution lookup.\n\nDETAILED SPEC:\n- Spawn surface: the MT-101 spawn tool schema gains { role_id?: string, role_version?: u32 }. Omitted = spawn without role (unchanged behavior). Version omitted = current ACTIVE version at spawn time, and the RESOLVED version is what gets recorded (never a floating reference).\n- Resolution at spawn (coordinator.rs spawn_session seam): look up the role via HandshakeRoleStore; RoleNotFound / RoleNotActive -> typed spawn error BEFORE any process starts (fail-closed: no session spawns with a missing or unapproved role).\n- Policy gate (MT-106): before injection, evaluate the parent's model-to-model policy: may this parent (its lane/model/own role) assign THIS role to a child? Deny -> typed RoleAssignmentDenied error + FR policy-denial event with { parent_session, requested_role, policy_rule }. The policy surface is MT-106's; this MT consumes its check API and adds the role-assignment predicate wiring.\n- Injection: on allow, delegate to the MT-082 RoleInjectionEngine with the child's transport (claude/codex/acp); the child's spawn payload flows through the MT-083 composer when a task payload is present (composition consumes the same resolved role — one resolution, both consumers).\n- Attribution rows: table role_assignments { assignment_id uuid, child_instance_id, role_id, role_version, overlay_sha256, assigned_by_session, assigned_by_kind (operator|parent_model), policy_decision_ref, created_at } — answers 'which role, assigned by whom' for every role-carrying spawn. Operator-initiated launches (MT-085 picker) write the same rows with assigned_by_kind=operator, so attribution is uniform across operator and model spawns.\n- Eventing: role_assigned FR event per successful spawn-with-role (joined to the MT-082 role_injected event via session id + sha256); role_assignment_denied on policy denial.\n- Concurrency/attribution duties (HBR-SWARM): attribution rows are written in the same transaction scope as the spawn registration so a crash between spawn and attribution cannot yield an attributed-less role session; parallel spawns by multiple parents must not interleave attribution rows incorrectly (per-child uniqueness: one role assignment per child instance).\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-101 spawn tool surface contract and coordinator.rs spawn_session (verified seam: pub async fn spawn_session(&self, mut request: SpawnRequest)) to place the role fields and resolution hook.\n2. Extend SpawnRequest + the MT-101 tool schema with optional role_id/role_version; thread through operator_chat.rs build_spawn_request so the MT-085 picker path reuses the same fields.\n3. Implement spawn-time resolution with fail-closed typed errors (RoleNotFound/RoleNotActive) before process start.\n4. Wire the MT-106 policy check with the role-assignment predicate; implement RoleAssignmentDenied + denial FR event.\n5. Add the role_assignments migration + store methods (insert within spawn registration transaction; get_by_child; list_by_parent).\n6. Call the MT-082 injection engine on allow; pass the resolved role to the MT-083 composer when composing a task payload (single resolution object shared).\n7. Wire role_assigned FR event.\n8. Optional GET /api/sessions/{id}/role read route over the attribution store.\n9. Tests: spawn-with-role happy path (attribution row + both FR events, resolved version pinned); spawn-without-role unchanged; RoleNotActive fail-closed (no process spawned — assert via stub spawner); policy-deny path (typed error + denial event + no injection + no attribution row); version-resolution test (omitted version records the then-active version); parallel-spawn attribution test (two parents, two children, rows attributed correctly, one-assignment-per-child enforced).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (spawn_session seam)",
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs (build_spawn_request seam)",
+      "src/backend/handshake_core/src/swarm_orchestration/handshake_roles.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/role_assignment.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/src/api/handshake_roles.rs (attribution read route)",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/src/user_manual/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "app/src/** except named IPC read surfaces",
+      ".GOV/** (role protocols are read-only source material; importer reads, never writes)",
+      "src/frontend/handshake_native/** (picker UI owned by MT-085)"
+    ],
+    "acceptance_criteria": [
+      "MT-101 spawn tool surface accepts optional role_id/role_version; omitting them preserves existing spawn behavior byte-for-byte.",
+      "Spawn with a missing, draft, or retired role fails closed with a typed error before any child process starts.",
+      "Parent policy (MT-106) gates every model-initiated role assignment; denial yields RoleAssignmentDenied, a denial FR event, no injection, and no attribution row.",
+      "Successful role-carrying spawns produce exactly one role_assignments row per child with resolved role_version, overlay_sha256, assigned_by_session, and assigned_by_kind; operator-picker launches write the same rows with assigned_by_kind=operator.",
+      "Attribution row insertion shares the spawn-registration transaction scope; a simulated failure between spawn and attribution leaves no role-injected-but-unattributed session.",
+      "role_assigned FR events join to MT-082 role_injected events via session id + overlay_sha256.",
+      "Omitted role_version resolves and RECORDS the active version at spawn time (no floating references in attribution).",
+      "Parallel spawns from two parents attribute correctly under concurrency (test-proven); one role assignment per child instance is uniqueness-enforced.",
+      "UserManual documents the spawn role_id surface and attribution lookup in the same change."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core role_assignment -- --nocapture",
+      "cargo test -p handshake_core role_assignment_policy_deny -- --nocapture",
+      "cargo test -p handshake_core role_assignment_fail_closed -- --nocapture",
+      "cargo test -p handshake_core role_assignment_parallel_attribution -- --nocapture"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (spawn_session role resolution hook)",
+      "src/backend/handshake_core/src/swarm_orchestration/role_assignment.rs (new attribution store)",
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs (build_spawn_request role fields)",
+      "src/backend/handshake_core/migrations/NNNN_role_assignments.sql (+ .down.sql)"
+    ],
+    "expected_tests": [
+      "happy-path spawn-with-role (attribution + events + pinned version)",
+      "no-role spawn regression test",
+      "fail-closed not-active/not-found tests (stub spawner asserts no process)",
+      "policy-deny test (no injection, no row, denial event)",
+      "transactional attribution failure-injection test",
+      "parallel two-parent attribution + per-child uniqueness test"
+    ],
+    "implementation_notes": [
+      "Verified seam: coordinator.rs line ~548 pub async fn spawn_session(&self, mut request: SpawnRequest) -> SwarmResult<ModelInstanceId>; operator_chat.rs OperatorChatLaunchService::build_spawn_request is the operator-path producer of SpawnRequest — extend the request type once, both paths inherit.",
+      "One resolution, two consumers: resolve the role once per spawn and hand the same resolved object to injection (MT-082) and composition (MT-083); never resolve twice (version could change between resolutions).",
+      "MT-106 owns policy semantics; this MT only adds the role-assignment predicate call and the deny plumbing. If MT-106's check API lacks a role predicate, raise the seam gap to the packet rather than inventing local policy.",
+      "Repo-gov precedent being productized: orchestrator launches Coder/WP Validator sessions under role protocols with attributable session ids — role_assignments is the typed successor of that session-registry attribution.",
+      "Attribution rows are audit data: no delete route; retire/cleanup follows the session-lifecycle retention policy, not role lifecycle."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend spawn/policy/attribution MT; the operator-visible picker is MT-085 and attribution surfaces via the read route + FR events (trace projection)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "spawn-role-assignment: role_id/role_version spawn fields, fail-closed rules (active-only), parent policy gating, attribution lookup (GET /api/sessions/{id}/role), failure/recovery (RoleNotActive, RoleAssignmentDenied)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-002",
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-MAN-001",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "behavior": "role-carrying child spawn (resolution, policy gate, injection, attribution)",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "internal_diagnostics/Palmistry not yet shipped in wtc-multi-model-orchestration-v1; role_assigned/role_assignment_denied FR events + attribution rows are the Tier-1 evidence surface."
+    },
+    {
+      "behavior": "policy denial of a model-initiated role assignment",
+      "flight_recorder": "WIRED",
+      "internal_diagnostics": "DEFERRED_WITH_REASON",
+      "palmistry": "DEFERRED_WITH_REASON",
+      "reason": "Denials must be first-class evidence (who asked for what and which rule refused), not silent fallbacks; same Tier-2/3 deferral as above."
+    }
+  ],
+  "risk_if_missed": "Orchestrating sessions cannot delegate under roles: child workers spawn roleless (unsteered) or parents smuggle role text through ad-hoc prompts with no policy gate, no attribution, and no audit joins — the multi-agent steering premise of WP-017 fails at its main consumption point.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Privilege escalation via roles — a constrained parent assigns a child a powerful role (e.g. broad tool allow-list), laundering capabilities the parent itself was denied.",
+      "RISK-2: Unattributed role sessions — a crash or non-transactional write between injection and attribution leaves a running session whose role nobody can prove afterward.",
+      "RISK-3: Floating version resolution — recording 'current' instead of the resolved version means later activations silently rewrite what history claims was injected.",
+      "RISK-4: Fail-open on registry outage — if the role lookup errors and the spawn proceeds roleless (or worse, with a cached overlay), the operator believes a role ran that did not."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): MT-106 policy check runs on every model-initiated assignment with the parent's own identity/role as input; deny is typed + evented; test includes an escalation fixture (parent denied a role it requests for a child).",
+      "CTRL-2 (RISK-2): attribution insert shares the spawn-registration transaction; failure-injection test proves no injected-but-unattributed session can exist.",
+      "CTRL-3 (RISK-3): resolution pins and records the concrete version + overlay_sha256 in the attribution row; test asserts recorded version survives a subsequent activate of a newer version.",
+      "CTRL-4 (RISK-4): registry lookup errors abort the spawn with a typed error (fail-closed); no cached-overlay path exists; stub-spawner test asserts zero processes on lookup failure."
+    ]
+  },
+  "research_provenance": {
+    "source": "Inspected coordinator.rs spawn_session and operator_chat.rs OperatorChatLaunchService::build_spawn_request/launch as the two SpawnRequest producers; MT-101 spawn tool surface and MT-106 model-to-model policy as declared cross-family seams; MT-082 injection + MT-083 composition as consumers of one resolution; repo-gov precedent: orchestrator-managed role session launches with session-registry attribution (.GOV/roles/orchestrator protocol + session-control scripts).",
+    "corrections": [
+      "Fail-closed everywhere: no role-carrying spawn proceeds on lookup error, non-active status, or policy denial.",
+      "Attribution is uniform: operator-picker launches and model-initiated spawns write the same role_assignments rows, differing only in assigned_by_kind.",
+      "Versions are pinned at resolution time; attribution never stores floating 'current' references."
+    ]
+  }
+}

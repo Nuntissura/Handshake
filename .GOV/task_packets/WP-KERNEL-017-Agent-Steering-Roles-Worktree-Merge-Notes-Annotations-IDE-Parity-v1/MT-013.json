@@ -1,0 +1,135 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-013",
+  "title": "SC-MT013-SessionScheduling",
+  "group": "SC Session runtime core",
+  "created_at_utc": "2026-07-22T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-013.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": ["MT-006", "MT-007", "MT-012"],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Cron/scheduling for steerable agent sessions as a Handshake engine capability. The swarm layer already has a scheduler seam (swarm_orchestration/schedule.rs with FR-EVT-SWARM-SCHED-SPINUP-FIRED / SCHED-TEARDOWN-FIRED events, verified in the WP-1 worktree) that spins resources up and down; this MT extends it so OPERATOR-DEFINED SCHEDULES can launch full agent sessions - role injected, task payload composed, workspace bound - on cron expressions, on any lane, vendor-agnostically (Claude and GPT lanes first, future lanes automatically covered because scheduling targets the SC MT-007 session API, never a vendor CLI directly).\n\nEXPECTED DIFF SHAPE: New module src/backend/handshake_core/src/agent_sessions/schedule.rs (+ registry storage): SessionSchedule { schedule_id, version, cron_expr (5-field, evaluated in configured timezone), enabled, launch_spec { role_id, task_payload_ref (MT contract ref | prompt ref | none), lane_preference, workspace_mode (worktree|worktree_vm|none), budget }, overlap_policy (Skip|Queue|Concurrent(cap)), misfire_policy (RunOnce|Skip), teardown_policy (max_runtime, idle_timeout), provenance }; PG-backed registry (RO MT-081 registry pattern) with CRUD API + HTTP routes + IPC read; a scheduler loop integrated with the EXISTING swarm schedule seam (extend swarm_orchestration/schedule.rs; do not build a parallel scheduler).\n\nSEMANTICS: fire -> compose launch via RO MT-083 (role + task + workspace) -> spawn via the sanctioned coordinator path (SC MT-007 -> SwarmCoordinator) -> SessionStart hooks fire (SC MT-012, no special path) -> session is a normal steerable session (operator can attach/steer it live). Overlap policy governs the case where the previous scheduled run is still alive (default Skip with typed SKIPPED_OVERLAP event - bounded, HBR-SWARM-001). Misfires (Handshake down at fire time) follow misfire_policy with a typed event either way - never silent. Teardown: max_runtime enforced via supervisor (SC MT-005) graceful stop; every scheduled spawn/skip/misfire/teardown is FR-evented (reuse SCHED-* kinds + RD MT-161 additions where needed) and ledgered.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read swarm_orchestration/schedule.rs in the WP-1 worktree; record its current trigger/teardown model and extend rather than replace (verify the seam names at implementation time against post-merge main).\n2. Define SessionSchedule types + hsk.session_schedule@1 JSON schema + PG migration (additive); cron parsing via a maintained crate (e.g. croner/cron - select with a recorded comparison; deterministic next-fire computation, DST-safe in configured timezone).\n3. Registry CRUD (API + routes + IPC read) with ledgered mutations, enable/disable, version history.\n4. Scheduler loop: tick source integrated with the existing schedule seam; at fire: overlap check -> compose (RO MT-083) -> spawn (SC MT-007) -> record run row linking schedule_id -> session_id.\n5. Overlap/misfire/teardown policies implemented + typed events for every non-launch outcome.\n6. Tests: cron next-fire correctness incl. DST boundary, overlap Skip/Queue/Concurrent-cap, misfire both policies, teardown max_runtime via fake adapter, schedule->session ledger linkage; live proof: one real scheduled launch on an available lane (or typed NEEDS_MANAGED_RESOURCE_PROOF).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/agent_sessions/schedule.rs",
+      "src/backend/handshake_core/src/agent_sessions/mod.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/schedule.rs",
+      "src/backend/handshake_core/src/api/**",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/tests/session_schedule_tests.rs",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (schedule GUI deferred; API-first)"
+    ],
+    "acceptance_criteria": [
+      "hsk.session_schedule@1 registry with CRUD + ledgered mutations; cron next-fire deterministic and DST-safe (tested across a DST boundary).",
+      "A fired schedule launches a full session through the sanctioned path: role injected (RO MT-083), workspace bound per workspace_mode, SessionStart hooks fired, session steerable afterwards.",
+      "Overlap default Skip produces a typed SKIPPED_OVERLAP event; Queue and Concurrent(cap) behave per spec with bounded concurrency (HBR-SWARM-001).",
+      "Misfire handling follows policy with a typed event either way; nothing silent.",
+      "max_runtime teardown goes through the supervisor graceful-stop ladder; run rows link schedule_id to session_id in the ledger.",
+      "Scheduling targets the session API only - no vendor CLI reference anywhere in the module; the same schedule definition works on two lanes (fake adapter + one real lane, or typed blocker).",
+      "The existing swarm schedule seam is extended, not duplicated (no second scheduler loop)."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core session_schedule --nocapture 2>&1 | grep -E 'test result: ok'",
+      "cargo test -p handshake_core schedule_overlap_skip_typed --nocapture 2>&1 | grep -q 'SKIPPED_OVERLAP'",
+      "cargo test -p handshake_core schedule_live_fire -- --ignored --nocapture 2>&1 | grep -E 'SCHEDULED_SESSION_LAUNCHED|NEEDS_MANAGED_RESOURCE_PROOF'"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/agent_sessions/schedule.rs (new)",
+      "src/backend/handshake_core/src/swarm_orchestration/schedule.rs (extended; existing SCHED-* FR events)",
+      "src/backend/handshake_core/src/agent_sessions/ (MT-006/007 seams)"
+    ],
+    "expected_tests": [
+      "cron correctness + DST boundary",
+      "overlap policy matrix",
+      "misfire matrix",
+      "teardown ladder",
+      "schedule->session ledger linkage",
+      "live scheduled launch (ignored/typed-blocker)"
+    ],
+    "implementation_notes": [
+      "OPERATOR FRAMING 2026-07-22: cron is an engine capability of the wrapper; schedules must survive vendor swaps because they bind to roles + session API, never to a vendor CLI.",
+      "Verify schedule.rs seam names against post-merge main at activation (grounding re-check step in ACTIVATION_READINESS.json).",
+      "Cron crate selection: record a short comparison (croner vs cron vs saffron) in research_provenance at implementation; requirement = 5-field cron, timezone-aware, DST-correct next-fire, maintained.",
+      "Budget field feeds the same per-parent/budget policy surface as MM MT-106 (scheduled sessions have provenance=schedule, not a parent model session).",
+      "No wall-clock sleeps in tests: tick source must be injectable/mockable for determinism."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "API-first registry; scheduled runs appear in the MT lifecycle board (ML MT-125) and audit surface (RD MT-166); dedicated schedule GUI is deferred headroom scope."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Dexterity scheduled sessions: cron syntax, overlap/misfire/teardown policies",
+      "Linking a schedule to a role and task payload"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": ["HBR-INT-003", "HBR-INT-009", "HBR-SWARM-001", "HBR-SWARM-002", "HBR-QUIET-001", "HBR-STOP-001", "HBR-STOP-003"],
+  "hbr_int_009_tier_obligations": ["flight_recorder", "internal_diagnostics", "palmistry"],
+  "risk_if_missed": "Recurring governed work (nightly validation runs, scheduled maintenance sessions, future self-hosting routines) has no engine-level home and would be improvised per vendor or left manual.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Runaway schedule spawns unbounded concurrent sessions (cost + resource exhaustion).",
+      "RISK-2: DST/timezone bugs double-fire or skip fires silently.",
+      "RISK-3: A second scheduler loop drifts from the existing swarm scheduler (two sources of truth).",
+      "RISK-4: Scheduled sessions bypass policy/consent because no operator is present at fire time.",
+      "RISK-5: Misfires after downtime silently drop scheduled work."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): overlap_policy mandatory with bounded Concurrent(cap); coordinator caps still apply; test proves cap enforcement.",
+      "CTRL-2 (RISK-2): DST-boundary test mandatory; next-fire computation property-tested.",
+      "CTRL-3 (RISK-3): extend the existing schedule seam; acceptance criterion forbids a parallel loop.",
+      "CTRL-4 (RISK-4): scheduled launches evaluate the same ToolGate/consent/policy stack; cloud lanes without standing consent produce a typed ConsentRequired outcome, never a silent bypass.",
+      "CTRL-5 (RISK-5): misfire_policy explicit with typed events; downtime recovery test covers both policies."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator vendor-agnostic-engine directive 2026-07-22 (cron is a wrapper capability); verified existing seam swarm_orchestration/schedule.rs + FR-EVT-SWARM-SCHED-SPINUP/TEARDOWN-FIRED (WP-1 worktree); RO MT-083 composition + SC MT-007 session API as launch path.",
+    "corrections": []
+  }
+}

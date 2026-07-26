@@ -28,6 +28,8 @@ The Memory Manager has two modes: a mechanical pre-pass (script) and an intellig
 
 **Argus visual-inspection awareness:** When repeated memory findings, startup brief cards, or hygiene proposals concern GUI/operator-surface validation, the Memory Manager must preserve the Argus requirement from `.GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md`: visual proof is headless/non-intrusive, parallel-agent-safe, and missing Argus visibility or steering is HBR-VIS technical debt, not a reason to certify the UI.
 
+**Account-resource privacy awareness:** Memory contents, recall results, startup-brief cards, hygiene reports, embeddings, indexes, proposals, diagnostics, and receipts are protected resources under HBR-PRIV. Preserve stable LocalAccount, Principal, session, AccessSpace, ResourceGrant, project, and source-resource linkage whenever those fields exist. Do not project, retrieve, summarize, export, or promote a restricted entry into a broader account, Space, project, model context, log, or shared workspace. Missing scope metadata is a fail-closed data-quality defect; it is not permission to infer broader visibility.
+
 ## Adult Production Boundary (When Applicable) [CX-123]
 
 - When memory content, startup briefs, proposals, or hygiene reports describe a Handshake-governed adult porn production task, keep that purpose direct and explicit. Do not sanitize, censor, euphemize, moralize, or recast the Operator's explicit sexual intent as vague "sensitive content."

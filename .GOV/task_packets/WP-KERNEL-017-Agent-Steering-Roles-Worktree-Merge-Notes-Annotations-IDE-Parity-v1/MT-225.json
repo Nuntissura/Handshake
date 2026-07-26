@@ -1,0 +1,206 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-225",
+  "title": "NA-MT225-LiveModelAnnotationFlow",
+  "group": "NA Notes annotation UI",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-225.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "active": false,
+    "depends_on": [
+      "MT-221",
+      "MT-222",
+      "MT-223",
+      "MT-206"
+    ],
+    "blocks": [],
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Surface model-authored annotations that ARRIVE LIVE during a running session — non-intrusively. When an agent posts an annotation while the operator is working, the markers (MT-221/MT-222), the panel (MT-223), and the badge counts must update WITHOUT stealing focus, raising a window, or popping a dialog (HBR-QUIET-003). Model provenance must be unmistakable (model badge with robot_id + session link), and any annotation flagged by the injection-scan quarantine (MM MT-104) must appear ONLY in a dedicated quarantine section with an explicit warning — never inline in the editor and never mixed into the normal list. Interaction pattern reference: the VS Code Comments panel updating in place as threads arrive; the anti-pattern to avoid is a modal/toast that grabs focus.\n\nEXPECTED DIFF SHAPE: New annotations/live_flow.rs (subscription + non-intrusive surfacing state: pending-arrival buffer, per-scope increment, quarantine bucket); a new ShellEvent variant family in event_bus.rs (e.g. AnnotationArrived / AnnotationUpdated { annotation_id, document_id, author_kind, quarantined }) drained in the app.rs frame loop; MT-223 panel gains a live badge increment + a quarantine section (annotations/panel.rs); pub mod live_flow; in annotations/mod.rs; one integration test file. No new network stream is opened (the crate has NO websocket/SSE); arrivals ride the in-process ShellEventBus after the existing MCP action channel / backend refresh ingests them. No document_model change; no backend edits; no legacy React edits; no second thread/badge widget.\n\nDETAILED SPEC (subscription, surfacing, provenance, quarantine):\n1. SUBSCRIPTION (real mechanism, grounding-verified): the native crate has NO websocket/SSE/EventSource; live agent activity rides the in-process event_bus.rs ShellEventBus (mpsc; ShellEventSender clonable multi-producer, ShellEventReceiver app-owned, drained once per frame via ShellEventReceiver::drain()). Add annotation-arrival ShellEvent variant(s); the app's existing ingest path (the MCP action channel apply loop in mcp/action.rs + backend_client refresh) publishes them when the AC MT-206 live-annotation event (the SC MT-009 session-bus / RD MT-161 annotation-event seam) reaches the frontend. annotations/live_flow.rs subscribes by consuming these drained ShellEvents; cross-pane context uses interop/interaction_bus.rs InteractionBus. This MT does NOT invent a socket; it wires the drain->surface path honestly.\n2. NON-INTRUSIVE SURFACING (binding): on arrival, update (a) the MT-221/MT-222 marker set for the affected document on its next render, (b) the MT-223 panel list + per-state/per-author badge counts (increment), and (c) a subtle 'N new' indicator on the panel/tab. NONE of these may: call request_focus, raise or re-order a window/tab, open a popup/toast/modal, or move the caret. The operator's current editing focus is never disturbed (HBR-QUIET-003, HBR-QUIET-004). New arrivals are visually marked 'new' until the operator views them, then the mark clears.\n3. PROVENANCE (binding): live annotations render with the SAME model badge component as MT-221 — always showing robot_id and a session link (so the operator can trace which agent/session produced it). Operator-authored and model-authored items remain visually unmistakable; no arrival path can produce an item that reads as operator-authored.\n4. QUARANTINE (binding): annotations flagged by MM MT-104 (injection-scan quarantine) are NEVER rendered inline in the editor and NEVER placed in the normal panel list. They appear ONLY in a dedicated 'Quarantined annotations (N)' section of the MT-223 panel with an explicit warning (why quarantined, that content is untrusted, that it is not applied). The quarantine section is collapsed by default and clearly separated. A quarantined item cannot be resolved/replied-to as if trusted; releasing it from quarantine is out of scope here (operator/MM decision) — this MT only isolates and warns.\n5. ORDERING / DEDUP: arrivals for an annotation already shown update in place (AnnotationUpdated) rather than duplicating; the pending buffer coalesces bursts so a flurry of agent posts does not thrash the UI or the badge.\n6. LIVE VS STATIC: MT-221/MT-222 render whatever set the client returns on open/refresh; THIS MT adds the event-driven delta so an already-open document/panel reflects new arrivals without a manual refresh.\n\nSTEP-BY-STEP:\n1. Read event_bus.rs (ShellEvent enum, ShellEventSender/Receiver, new_shell_event_bus, drain()), app.rs (where ShellEventReceiver::drain() is consumed in the frame loop), mcp/action.rs (ActionChannel apply — where agent actions land) + backend_client.rs (refresh path), interop/interaction_bus.rs, annotations/panel.rs + thread_widget.rs (MT-223/MT-221 seams), AC MT-206 (live-annotation event subject) and MM MT-104 (quarantine flag shape).\n2. Add the annotation-arrival ShellEvent variant(s) to event_bus.rs and publish them from the existing ingest path (no new socket).\n3. Build annotations/live_flow.rs: consume drained events, coalesce bursts, maintain per-scope 'new' state and the quarantine bucket.\n4. Wire the MT-223 panel: badge increment, 'N new' indicator, quarantine section with warning; ensure marker sets refresh on next render.\n5. Enforce the no-focus-steal / no-popup rule everywhere; add tests (QUIET assertion, provenance, quarantine isolation, dedup/coalesce); add the manual topic; capture Argus evidence during a simulated live arrival.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/annotations/live_flow.rs",
+      "src/frontend/handshake_native/src/annotations/mod.rs",
+      "src/frontend/handshake_native/src/annotations/panel.rs",
+      "src/frontend/handshake_native/src/event_bus.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_annotation_live_flow.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React notes editor is scheduled for REMOVAL by MT-261..264 — never extend it)",
+      ".GOV/**",
+      "src/backend/** (annotation core + live-event source are AC MT-206 / RD MT-161 / SC MT-009; consume via the existing frontend ingest, do not add a backend stream)",
+      "src/frontend/handshake_native/src/annotations/thread_widget.rs (REUSE shared widget + model badge; no fork)",
+      "src/frontend/handshake_native/src/rich_editor/document_model/** (annotations are metadata, not content)",
+      "src/frontend/handshake_native/src/mcp/** (the MCP action channel is the existing ingest; do not re-architect it here)"
+    ],
+    "acceptance_criteria": [
+      "Live model-authored annotation arrivals reach the UI via the in-process event_bus.rs ShellEventBus (new annotation-arrival ShellEvent variant drained in the app.rs frame loop) — NOT via any new websocket/SSE; a grep proves no new socket/EventSource in the added code.",
+      "On arrival the affected markers (MT-221/MT-222) refresh, the MT-223 panel list + badge counts increment, and a subtle 'N new' indicator appears — with ZERO focus steal, window raise, popup/toast/modal, or caret move (HBR-QUIET-003/004), test-proven.",
+      "Live annotations render with the shared model badge showing robot_id + session link; no arrival path yields an item that reads as operator-authored (provenance test).",
+      "MM MT-104-quarantined annotations appear ONLY in a dedicated collapsed 'Quarantined annotations (N)' panel section with an explicit untrusted/not-applied warning; they NEVER render inline in the editor and NEVER in the normal list (isolation test).",
+      "A quarantined item cannot be interacted with as trusted (no resolve/reply-as-trusted); release-from-quarantine is out of scope and not implemented here.",
+      "Bursts coalesce and updates dedup in place (AnnotationUpdated updates, does not duplicate); a flurry of arrivals does not thrash the badge or the list.",
+      "'New' marks clear once the operator views the arrivals; already-open documents reflect arrivals without a manual refresh.",
+      "No fork of the thread/badge widget; annotations/live_flow.rs consumes drained events only (no anchor math, no document_model writes).",
+      "UserManual updated in the same change: live model annotations, the 'new' indicator, provenance/robot_id/session, and what quarantined annotations mean."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake-native annotation_live_flow -- --nocapture",
+      "cargo test -p handshake-native annotation_live_quiet_no_focus_steal -- --nocapture",
+      "cargo test -p handshake-native annotation_live_quarantine_isolation -- --nocapture",
+      "! rg -n \"websocket|EventSource|text/event-stream|TcpStream::connect\" src/frontend/handshake_native/src/annotations/live_flow.rs && rg -n \"ShellEvent|drain\" src/frontend/handshake_native/src/event_bus.rs",
+      "Argus evidence: argus.inspect + argus.screenshot of (a) panel before arrival, (b) mid-arrival with 'N new' + incremented badge and unchanged editor focus, (c) model badge with robot_id + session, (d) the collapsed quarantine section with warning, (e) a coalesced burst — stored under the external HANDSHAKE_ARTIFACTS_ROOT"
+    ],
+    "code_surfaces": [
+      "src/frontend/handshake_native/src/annotations/live_flow.rs (new, subscription + surfacing state + quarantine bucket + coalescing)",
+      "src/frontend/handshake_native/src/annotations/mod.rs (pub mod live_flow;)",
+      "src/frontend/handshake_native/src/annotations/panel.rs (live badge increment, 'N new' indicator, quarantine section)",
+      "src/frontend/handshake_native/src/event_bus.rs (annotation-arrival ShellEvent variant(s))",
+      "src/frontend/handshake_native/src/app.rs (publish arrivals from the existing ingest; drain-and-route in the frame loop; no focus move)",
+      "src/frontend/handshake_native/src/manual_content_editors.rs (live-annotation + quarantine manual topic)"
+    ],
+    "expected_tests": [
+      "unit: arrival coalescing dedups by annotation_id; AnnotationUpdated updates in place, AnnotationArrived adds once",
+      "unit: quarantine routing — a flagged annotation goes to the quarantine bucket, never the normal list or the editor marker set",
+      "integration: simulated live arrival increments panel badges + shows 'N new' with NO focus/window/caret change (QUIET assertion)",
+      "integration: model badge on a live arrival shows robot_id + session; no arrival produces an operator-badge item",
+      "integration: already-open document reflects a new arrival on next render without manual refresh",
+      "negative: a burst of arrivals does not raise a window, open a popup, or move focus, and produces exactly one coalesced badge update per annotation"
+    ],
+    "implementation_notes": [
+      "Verified grounding 2026-07-21 (wtc-native-editors-v1): there is NO websocket/SSE/EventSource anywhere in handshake_native/src; live agent activity rides the MCP steering server (mcp/server.rs TCP + named pipe JSON-RPC) -> ActionChannel (mcp/action.rs) applied in the egui frame loop, plus the in-process event_bus.rs ShellEventBus (mpsc; ShellEvent enum currently DocumentDeleted/CanvasDeleted/BookmarkRemoved/FavoriteRemoved; ShellEventSender/Receiver; new_shell_event_bus; drain() once per frame). Add annotation-arrival variant(s) to ShellEvent and publish from the existing ingest — do NOT open a network stream.",
+      "backend_client.rs is HTTP request-builder (reqwest RequestSpec), polling-style, no streaming subscription; cross-pane context = interop/interaction_bus.rs InteractionBus (SharedSelection). navigation stays MT-223's concern.",
+      "Provenance uses the shared model badge from thread_widget.rs (robot_id + session id already displayed per MT-221); live_flow adds no new badge. accesskit 0.21.1 role constraints apply (no ToggleButton — quarantine collapse uses Role::CheckBox or Button+action).",
+      "Quarantine flag comes from MM MT-104; this MT reads the flag and isolates+warns only — it does NOT scan, release, or adjudicate quarantine (operator/MM decision, out of scope).",
+      "The QUIET rule is the crux: no request_focus, no window raise/reorder, no egui popup/modal/toast, no caret move on any arrival path. Model this after the shell's existing quiet background updates; a focus-audit test (see tests/test_focus_audit_quiet.rs precedent) guards it.",
+      "Design basis (cite in code docs): VS Code Comments panel in-place update as threads arrive; explicit anti-pattern = focus-grabbing toast/modal.",
+      "Cross-family seams (reference only): AC MT-206 live-annotation event subject, RD MT-161 annotation FR events, SC MT-009 session event bus, MM MT-104 quarantine flag, MT-221/MT-222 marker refresh, MT-223 panel badge/quarantine section, MT-224 authoring (operator replies never triggered by arrivals)."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "live marker refresh in code editor / Notes on arrival",
+      "MT-223 panel live badge increment + 'N new' indicator",
+      "shared model provenance badge (robot_id + session) on live items",
+      "dedicated 'Quarantined annotations (N)' panel section with warning",
+      "non-intrusive (no popup/toast/focus-steal) arrival behavior"
+    ],
+    "argus_targets": [
+      "annotations.panel",
+      "annotation_panel_badgecounts",
+      "annotation_panel_new_indicator",
+      "annotation_panel_quarantine_section",
+      "annotation_thread_{annotation_id}"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "focus_no_steal_check",
+      "no_popup_no_window_raise_check",
+      "quarantine_isolation_capture",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Live model annotations: how arrivals surface non-intrusively, the 'new' indicator and badge counts, model provenance (robot_id + session), and what quarantined annotations mean"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-QUIET-001",
+    "HBR-QUIET-002",
+    "HBR-QUIET-003",
+    "HBR-QUIET-004",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-SWARM-004",
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-005",
+    "HBR-INT-003",
+    "HBR-STOP-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "Annotation arrival/lifecycle FR events originate at the AC MT-206 / RD MT-161 backend seam; the UI consumes them and adds no new business event."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "status": "WIRED",
+      "reason": "Arrival coalescing state, quarantine routing decisions, and the no-focus-steal assertions are exposed as structured state for the visual_debugger surface so a no-context model can prove a quiet, correctly-routed arrival."
+    },
+    {
+      "tier": "palmistry",
+      "status": "DEFERRED_WITH_REASON",
+      "reason": "The UI subscribes to session events but owns no long-running child process; agent/session liveness is tracked by the swarm runtime, not this render surface."
+    }
+  ],
+  "risk_if_missed": "Model annotations posted during a live session are invisible until a manual refresh, or worse they arrive via a focus-stealing popup that interrupts the operator; and injection-quarantined (MM MT-104) annotations could render inline as trusted feedback — a prompt-injection surface directly in the operator's review flow.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Focus theft on arrival — a live annotation raises a window, pops a toast/modal, moves the caret, or grabs keyboard focus while the operator is editing (HBR-QUIET-003/004 regression; interrupts work).",
+      "RISK-2: Quarantine bypass — an MM MT-104-flagged (injection-scanned) annotation renders inline in the editor or in the normal list as if trusted, turning agent-supplied text into a prompt-injection / authority-laundering surface.",
+      "RISK-3: Provenance laundering — a live model arrival renders without robot_id/session or with an operator-style badge, so agent output is mistaken for operator authorship.",
+      "RISK-4: Fabricated transport — the MT invents a websocket/SSE the crate does not have (or re-architects the MCP channel), creating a divergent, untested ingest path instead of the real ShellEventBus drain.",
+      "RISK-5: Badge/list thrash — an arrival burst duplicates entries or spams the badge, making counts unreliable (SOT) and the UI noisy."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): No arrival path calls request_focus, window raise/reorder, egui popup/modal/toast, or caret move; a focus-audit QUIET test asserts unchanged focus across a simulated arrival.",
+      "CTRL-2 (RISK-2): Quarantined annotations route to the quarantine bucket only; a test asserts they never appear in the editor marker set or the normal list, and render with an explicit untrusted/not-applied warning.",
+      "CTRL-3 (RISK-3): Every live item uses the shared model badge with robot_id + session; a test asserts no arrival yields an operator-badge item.",
+      "CTRL-4 (RISK-4): Grep proof — no websocket/EventSource/new TcpStream in live_flow.rs; arrivals ride the existing event_bus.rs ShellEventBus drain; the added ShellEvent variant is the only new transport surface.",
+      "CTRL-5 (RISK-5): Coalesce bursts and dedup by annotation_id (AnnotationUpdated in place); a test asserts one badge update per annotation under a burst and counts equal the backend set."
+    ]
+  },
+  "research_provenance": {
+    "source": "Direct source inspection 2026-07-21 of wtc-native-editors-v1 src/frontend/handshake_native/src/: event_bus.rs (ShellEvent enum, ShellEventSender/ShellEventReceiver, new_shell_event_bus, drain() once per frame; mpsc because tokio built without sync feature), app.rs (frame-loop drain of ShellEventReceiver), mcp/server.rs + mcp/action.rs (MCP steering ingest / ActionChannel apply — the real live-agent path), backend_client.rs (reqwest RequestSpec polling, no streaming), interop/interaction_bus.rs (InteractionBus/SharedSelection), annotations/panel.rs + thread_widget.rs (MT-223/MT-221 seams), tests/test_focus_audit_quiet.rs (focus-audit precedent). External design basis: VS Code Comments panel in-place live update; anti-pattern = focus-grabbing toast/modal. Seams: AC MT-206 live event, RD MT-161 annotation events, SC MT-009 session bus, MM MT-104 quarantine.",
+    "corrections": [
+      "There is NO websocket/SSE/EventSource in the native crate; a 'subscribe to a live annotation socket' design (as the WP stub phrasing suggests) is wrong — arrivals ride the in-process event_bus.rs ShellEventBus after the MCP action channel / backend refresh ingests them.",
+      "ShellEvent today only carries deletion/removal variants; an annotation-arrival variant family must be added to event_bus.rs, and it is the ONLY new transport surface (no parallel channel).",
+      "Quarantine is read-only isolation here: MM MT-104 owns scanning and release; this UI isolates + warns and must not adjudicate or release."
+    ]
+  }
+}

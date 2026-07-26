@@ -1,0 +1,150 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-202",
+  "title": "AC-MT202-AnchorModel",
+  "group": "AC Annotation core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-202.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-201"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Define the typed multi-selector anchor model `AnnotationAnchor` that makes annotations survive file edits: Hypothesis-style redundant selectors (position + exact quote + prefix/suffix context) over a Gerrit-style path/side/range base, with a content hash for the unchanged fast path. This MT replaces the MT-201 opaque AnchorRef payload with the typed model while keeping serialization stable. NEVER diff-relative offsets (GitHub's legacy `position` field is deprecated for exactly this fragility — the REJECTED design).\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/annotations/anchor.rs with the anchor types + construction helpers; (b) record.rs edit swapping the AnchorRef envelope payload from serde_json::Value to AnnotationAnchor (envelope shape unchanged: anchor_version stays the outer discriminator); (c) mod.rs re-exports; (d) unit tests. NO persistence, NO re-anchoring logic (MT-204), NO fuzzy-match crate added here.\n\nDETAILED SPEC — struct `AnnotationAnchor` (serde, deny_unknown_fields):\n1. `path: String` — workspace-relative, forward slashes (document the normalization rule; reject absolute paths and `..` traversal with a typed error).\n2. `side: AnchorSide` — enum old | new | live_file (serde lowercase). `old`/`new` are the two sides of a diff subject (Gerrit PARENT/REVISION mapped to Handshake's DiffMode old/new panes — see diff_editor_panel.rs DiffMode SideBySide/Inline/Merge); `live_file` anchors to the current working-copy content of a File subject.\n3. `line_range: LineRange { start: u32, end: u32 }` — 0-based, HALF-OPEN [start, end), matching the native diff engine's `DiffBlock { left_lines/right_lines: Range<usize> }` convention (diff_engine.rs) so hunk-selection construction is a direct copy, no off-by-one conversion. end > start required (typed error); end == start is invalid (an anchor always covers at least one line).\n4. `char_range: Option<CharRange { start_line_byte: u32, end_line_byte: u32 }>` — optional sub-line precision: UTF-8 byte offset within the FIRST line (start) and within the LAST line (end). Byte offsets must fall on char boundaries at construction time (typed error otherwise).\n5. `quote: String` — the exact text of the anchored region at anchor-creation time, truncated to 4 KiB max (if truncated, `quote_truncated: bool` is set and content_hash still covers the FULL region).\n6. `context: AnchorContext { prefix: String, suffix: String }` — up to 256 bytes of exact text immediately before/after the anchored region (Hypothesis TextQuoteSelector prefix/suffix), empty at file boundaries.\n7. `hunk_header: Option<String>` — the `@@ -a,b +c,d @@` header of the enclosing hunk when the anchor was made from a diff selection; None for live_file anchors. Informational/display only — NEVER used for resolution (that would reintroduce diff-relative fragility).\n8. `content_hash: String` — lowercase hex SHA-256 of the FULL anchored region bytes (before quote truncation). Use the hashing crate already in the handshake_core dependency tree (verify: grep sha2/blake3 in Cargo.toml; prefer the incumbent; if none exists, add sha2 as the boring field-standard choice and record it).\n9. `anchor_version: u32` — always 1 in this MT; the outer envelope discriminator from MT-201 continues to carry it.\n10. Construction helpers (pure functions, no I/O):\n    a. `AnnotationAnchor::from_diff_selection(path, side, hunk_header, full_side_text: &str, line_range) -> Result<Self, AnchorError>` — given the FULL text of one side of a diff and a selected line range, extracts quote/context/hash. Caller (diff GUI or tool surface) supplies the side text; this crate does not read files.\n    b. `AnnotationAnchor::from_live_selection(path, full_file_text: &str, line_range, char_range) -> Result<Self, AnchorError>` — same for a live-file selection; side = live_file.\n    c. `AnnotationAnchor::resolve_exact(&self, current_text: &str) -> ExactResolution` — the CHEAP resolution primitive MT-204 builds on: enum Match (region at recorded position hashes to content_hash) | MovedCandidate (hash mismatch at position; NOT a search — just the typed signal) | RangeOutOfBounds. No fuzzy logic here.\n11. `AnchorError` typed enum: PathNotWorkspaceRelative, EmptyLineRange, RangeOutOfBounds, CharOffsetNotOnBoundary, QuoteContextExtractionFailed.\n12. Stable serialization: a committed golden JSON fixture test asserts the serialized anchor byte-shape (field order via serde struct order, lowercase enums) so MT-203 rows and exported sidecars never drift silently.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read the MT-201 record.rs AnchorRef envelope docs and diff_engine.rs DiffBlock ranges (native-editors worktree) before writing types.\n2. Implement anchor.rs types + helpers with exhaustive rustdoc, including the 'never diff-relative offsets' law and the resolution-independence of hunk_header.\n3. Swap AnchorRef's payload type in record.rs; prove serialization compatibility with a fixture captured before the swap (an MT-201-era serialized annotation must still deserialize).\n4. Unit tests per expected_tests; include multi-byte UTF-8 content (CJK + emoji) in quote/context/char_range tests.\n5. Run proof targets; keep the module import-clean (seam law).",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/annotations/anchor.rs",
+      "src/backend/handshake_core/src/annotations/record.rs (AnchorRef payload swap only)",
+      "src/backend/handshake_core/src/annotations/mod.rs (re-exports)",
+      "src/backend/handshake_core/src/annotations/schema/hsk_annotation_v1.schema.json (anchor section fill-in)",
+      "src/backend/handshake_core/Cargo.toml (hash crate only if none incumbent)",
+      "src/backend/handshake_core/tests/annotation_anchor_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (GUI owned by NA family MT-221+)",
+      "src/backend/handshake_core/src/storage/** (persistence is MT-203)",
+      "src/backend/handshake_core/src/api/** (routes are MT-205)"
+    ],
+    "acceptance_criteria": [
+      "AnnotationAnchor exists with exactly: path, side (old|new|live_file), line_range (0-based half-open), optional char_range (UTF-8 byte, boundary-validated), quote (4 KiB cap + truncation flag), context prefix/suffix (256-byte cap), optional hunk_header, content_hash (SHA-256 hex of full region), anchor_version.",
+      "No field or code path expresses a diff-relative offset; hunk_header is provably display-only (grep: hunk_header never read inside resolve_exact or any resolution helper).",
+      "from_diff_selection and from_live_selection produce correct quote/context/hash for ASCII and multi-byte UTF-8 content, at file start/end boundaries, from caller-supplied text (no file I/O in the module).",
+      "resolve_exact returns Match on unchanged content, MovedCandidate on hash mismatch at the recorded position, RangeOutOfBounds when the range exceeds current content — and performs no searching.",
+      "An MT-201-era serialized annotation (opaque-envelope fixture) still deserializes after the typed swap; the golden anchor JSON fixture pins the serialized shape.",
+      "line_range convention matches diff_engine.rs DiffBlock half-open Range semantics, asserted by a test constructing an anchor directly from a DiffBlock-shaped range.",
+      "All invalid inputs (absolute path, .., empty range, out-of-bounds, non-boundary char offset) fail with typed AnchorError variants.",
+      "cargo build + clippy clean; annotations module still imports nothing from knowledge/loom/atelier/api/storage."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_anchor -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "grep -n 'hunk_header' src/backend/handshake_core/src/annotations/anchor.rs | grep -v '//' | grep -c 'resolve' | grep -q '^0$' (hunk_header never used in resolution)",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml annotation_record -- --nocapture 2>&1 | grep -E 'test result: ok' (MT-201 suite unbroken after payload swap)",
+      "grep -rn 'use crate::\\(knowledge\\|loom\\|atelier\\|api\\|storage\\)' src/backend/handshake_core/src/annotations/ | wc -l | grep -q '^0$'",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/annotations/anchor.rs (new)",
+      "src/backend/handshake_core/src/annotations/record.rs (AnchorRef payload swap)",
+      "src/backend/handshake_core/src/annotations/mod.rs (re-exports)"
+    ],
+    "expected_tests": [
+      "annotation_anchor::from_diff_selection_extracts_quote_context_hash",
+      "annotation_anchor::from_live_selection_utf8_multibyte_and_boundaries",
+      "annotation_anchor::resolve_exact_match_moved_out_of_bounds",
+      "annotation_anchor::rejects_invalid_paths_ranges_offsets_typed",
+      "annotation_anchor::golden_serialization_fixture_stable",
+      "annotation_anchor::mt201_envelope_fixture_still_deserializes",
+      "annotation_anchor::line_range_matches_diff_block_convention"
+    ],
+    "implementation_notes": [
+      "Multi-selector redundancy is the Hypothesis fuzzy-anchoring design: position selector (line_range/char_range) + TextQuoteSelector (quote) + context (prefix/suffix). MT-204 consumes them in that order; this MT only records them faithfully.",
+      "Known Hypothesis failure mode motivating the caps: short generic quotes in large documents cause pathological fuzzy searches. The 4 KiB quote cap + 256-byte context cap + content_hash fast path are the recorded mitigations; MT-204 adds the bounded search window.",
+      "GROUNDING FACT: diff_engine.rs (wtc-native-editors-v1, src/frontend/handshake_native/src/code_editor/) defines DiffBlock with half-open Range<usize> line ranges built from similar v2 TextDiff::from_lines (Myers); adopting the same convention makes the GUI's hunk-selection-to-anchor construction a field-for-field copy.",
+      "AnchorSide::old/new maps to Gerrit side=PARENT/REVISION; live_file has no Gerrit equivalent (Gerrit only anchors to revisions) and exists because Handshake annotates working copies during agent steering.",
+      "Do NOT add diff-match-patch-rs or dissimilar here — the fuzzy crate selection (with recorded benchmark) is MT-204's deliverable.",
+      "Helpers take full side/file text as &str by design: the annotations crate stays I/O-free, callers (MT-205 routes, MT-206 tools, NA GUI) own content retrieval."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend/core anchor model MT; operator GUI surfaces for annotations are owned by the NA family (MT-221+)."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "NO",
+    "manual_version_bump_required": "NO",
+    "target_entries": [],
+    "not_applicable_reason": "Internal data-model MT with no operator-visible behavior yet; the UserManual entries land with the MT-205 routes and MT-206 tool surface."
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-STOP-004"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: NOT_APPLICABLE-with-reason — pure anchor construction/resolution primitives emit no runtime events; MT-204 emits the re-anchor outcome events (MT-161 kinds).",
+    "internal_diagnostics: WIRED — every invalid construction input is a typed AnchorError variant; resolve_exact returns typed states, never a silent default.",
+    "Palmistry: NOT_APPLICABLE-with-reason — no long-running runtime posture; pure functions over caller-supplied text."
+  ],
+  "risk_if_missed": "Anchors collapse to single-selector line numbers or (worse) diff-relative offsets: any upstream edit silently shifts every annotation onto the wrong code (the GitHub legacy-position failure), the MT-204 fallback chain has no quote/context selectors to fall back to, and mis-attached model feedback poisons agent-steering decisions.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: char_range recorded in chars on one path and UTF-8 bytes on another; multi-byte content (CJK/emoji) silently shifts sub-line anchors or panics on slicing.",
+      "RISK-2: hunk_header quietly becomes a resolution input (cheap-looking shortcut), reintroducing the deprecated diff-relative-offset fragility the design explicitly rejects.",
+      "RISK-3: content_hash computed over the truncated 4 KiB quote instead of the full region — large anchored regions then hash-match after edits beyond the truncation point, defeating the MT-204 fast path.",
+      "RISK-4: The record.rs payload swap breaks deserialization of any annotation serialized during MT-201 (envelope shape drift), invalidating early fixtures and any pre-MT-203 exports."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): All offsets documented and validated as UTF-8 byte offsets on char boundaries; dedicated multi-byte tests cover CJK + emoji at range edges.",
+      "CTRL-2 (RISK-2): Grep proof target asserts hunk_header is never referenced in resolution code; rustdoc states the display-only law.",
+      "CTRL-3 (RISK-3): A test anchors a region larger than 4 KiB, asserts quote_truncated=true, and asserts resolve_exact still matches via the full-region hash — then flips one byte beyond 4 KiB and asserts MovedCandidate.",
+      "CTRL-4 (RISK-4): The MT-201-era envelope fixture is committed BEFORE the swap and must deserialize after it; the golden fixture pins the post-swap shape."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified annotation research 2026-07-21: Gerrit CommentInfo anchor base (path + side REVISION/PARENT + line OR range{start_line,start_character,end_line,end_character}); Hypothesis fuzzy anchoring multi-selector redundancy (position selector + TextQuoteSelector exact quote + prefix/suffix context) with the documented short-generic-quote perf failure; REJECTED: diff-relative offsets (GitHub legacy position field deprecated). Grounding audit of wtc-native-editors-v1: src/frontend/handshake_native/src/code_editor/diff_engine.rs (similar v2 Myers, TextDiff::from_lines, DiffBlock half-open Range<usize>, prose block-level entry point explicitly DEFERRED in mod docs lines 5-11) and diff_editor_panel.rs (DiffMode SideBySide/Inline/Merge, enum at line 74).",
+    "corrections": [
+      "Gerrit ranges are 1-based end-inclusive character positions; Handshake deliberately adopts 0-based half-open line ranges + UTF-8 byte columns instead, to be identical to the native DiffBlock convention — the divergence from Gerrit is intentional and documented in rustdoc.",
+      "hunk's live-comment one-of targeting (hunk|hunkNumber|oldLine|newLine) is superseded by this multi-selector anchor; hunk_header survives only as display metadata."
+    ]
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-147",
+  "title": "WM-MT147-PostMergeReclaim",
+  "group": "WM Worktree merge-back",
+  "clause": "Post-merge lifecycle: worktree removal, session branch deletion per policy, VM snapshot/reclaim via WorktreeVmRegistry, CLEANUP-FAILED surfacing, bounded logged orphan sweep",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-147.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json",
+    "packet_stub": ".GOV/task_packets/stubs/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1.contract.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-142",
+      "MT-145"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Close the resource lifecycle after a governed merge succeeds (MT-145 Executed): remove the session worktree, delete the session branch per the reclaim policy, snapshot-then-reclaim the worktree microVM, surface any cleanup failure through the existing FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED event, and provide a BOUNDED, LOGGED orphan sweep for merged-but-unreclaimed worktrees so leaks are visible and recoverable, never silent. Today cleanup_session_worktree (workspace_safety.rs ~418-440) removes a worktree with `worktree remove --force` under SESSION_WORKTREE_GIT_LOCK but knows nothing about merge state or branches, MT-141 added cleanup_session_worktree_with_policy + the KeepUntilMerged/DeleteOnReclaim SessionBranchReclaimPolicy (default KeepUntilMerged), and WorktreeVmRegistry (worktree_vm_registry.rs) exposes snapshot ~117 / restore ~134 / teardown_worktree_vm ~215 but nothing ties them to merge completion.\n\nEXPECTED DIFF SHAPE: New reclaim functions in src/backend/handshake_core/src/workspace_safety.rs (next to cleanup_session_worktree_with_policy) plus a bounded orphan-sweep function; a small async reclaim helper coupling the git reclaim to WorktreeVmRegistry snapshot+teardown. FR-EVT-SWARM-WORKTREE-RECLAIMED (success) and FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED (failure) are REUSED (events.rs SwarmFrEventId lines 75-78); NO new FR kinds. Tests under the handshake_core test tree.\n\nDETAILED SPEC:\n1. Types (workspace_safety.rs):\n   pub struct PostMergeReclaimPlan { pub session_id: String, pub worktree_path: PathBuf, pub branch: Option<String>, pub reclaim_policy: SessionBranchReclaimPolicy, pub vm_worktree_id: Option<String>, pub merged_into: String }  // merged_into = the target branch the session merged into (used to VERIFY merge before deleting the branch)\n   pub enum ReclaimFailure { WorktreeRemove { error: String }, BranchDelete { branch: String, error: String }, VmReclaim { worktree_id: String, error: String } }\n   pub enum PostMergeReclaimOutcome { Reclaimed { branch_deleted: bool, vm_snapshotted: bool, vm_reclaimed: bool }, PartiallyReclaimed { done: Vec<String>, failures: Vec<ReclaimFailure> }, Skipped { reason: String } }\n2. Reclaim function:\n   pub async fn reclaim_after_merge(repo_root: &Path, plan: &PostMergeReclaimPlan, vm_registry: Option<&WorktreeVmRegistry>) -> PostMergeReclaimOutcome\n   Order (each step independent; a failure records a ReclaimFailure and continues to the next, ending PartiallyReclaimed — reclaim is best-effort and never panics a merge that already succeeded):\n   a. MERGE VERIFICATION before any branch deletion: confirm the session branch is an ancestor of merged_into via `git -C <repo_root> -c core.longpaths=true merge-base --is-ancestor <branch> <merged_into>` (exit 0). If NOT merged, do NOT delete the branch (Skipped/kept) — deletion only ever follows proven merge.\n   b. VM snapshot + reclaim (when vm_registry + vm_worktree_id present): snapshot FIRST (vm_registry.snapshot -> SnapshotRef, portable recoverable state) THEN vm_registry.teardown_worktree_vm; a snapshot failure aborts the teardown (never tear down un-snapshotted state) and records VmReclaim failure.\n   c. Worktree removal: cleanup_session_worktree_with_policy(repo_root, worktree_path, policy) (MT-141) under SESSION_WORKTREE_GIT_LOCK.\n   d. Branch deletion: ONLY when reclaim_policy == DeleteOnReclaim AND (a) proved merged: `git -C <repo_root> -c core.longpaths=true branch -d <branch>` (MT-141 path, -d NEVER -D — a still-unmerged branch fails closed and is surfaced, never force-deleted). KeepUntilMerged leaves the branch.\n   e. Emit FR-EVT-SWARM-WORKTREE-RECLAIMED on success (payload: session_id, branch, branch_deleted, vm_snapshotted, vm_reclaimed) and FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED for each ReclaimFailure (payload: session_id, worktree_id, stage, error) through the existing SwarmEventSink; reuse the SwarmFrEventId ids (events.rs 75-78) — if the emitting SwarmEvent variant for worktree reclaim/cleanup was added by MT-141 reuse it, else add a WorktreeReclaimed/WorktreeCleanupFailed SwarmEvent variant carrying the payload, still with NO new FrEventId string.\n3. Orphan sweep:\n   pub async fn sweep_orphaned_merged_worktrees(repo_root: &Path, target_branches: &[String], max_reclaim: usize, vm_registry: Option<&WorktreeVmRegistry>) -> OrphanSweepReport\n   - Enumerate session worktrees via `git -C <repo_root> worktree list --porcelain`; for each session/<id> worktree whose branch is an ancestor of some target (merge-base --is-ancestor) but still present, it is a merged-but-unreclaimed ORPHAN.\n   - Reclaim orphans up to max_reclaim (BOUNDED — never an unbounded sweep), building a PostMergeReclaimPlan per orphan and calling reclaim_after_merge; LOG every considered/reclaimed/skipped orphan (structured log line) and every failure via CLEANUP-FAILED.\n   - OrphanSweepReport { scanned: usize, reclaimed: usize, skipped: usize, failures: Vec<ReclaimFailure>, hit_bound: bool } so a leak trend is observable; hit_bound=true means more orphans remain than max_reclaim (surface, do not silently drop).\n4. HARD RULES: branch deletion is `git branch -d` only (fail-closed on unmerged), NEVER -D / --force; VM state is SNAPSHOTTED before teardown (recoverable, portable evidence — pairs with the MT-144 patch-bundle recovery path); the sweep is bounded + fully logged (no unbounded/silent cleanup); worktree code reclaim is strictly separate from CRDT document state (kernel/crdt untouched); every git invocation carries -c core.longpaths=true under SESSION_WORKTREE_GIT_LOCK for worktree/branch mutation.\n5. BOUNDARY: this MT reclaims resources AFTER a proven merge; it does not merge, does not decide policy (MT-145 does), and does not push/fetch. It reuses MT-141 (cleanup_session_worktree_with_policy, SessionBranchReclaimPolicy, branch -d) and the WorktreeVmRegistry as-is.\n\nSTEP-BY-STEP:\n1. Read workspace_safety.rs cleanup_session_worktree (~418-440), the MT-141-added cleanup_session_worktree_with_policy + SessionBranchReclaimPolicy, session_worktree_path (~356), SESSION_WORKTREE_GIT_LOCK; worktree_vm_registry.rs snapshot ~117 / teardown_worktree_vm ~215; events.rs SwarmFrEventId WorktreeReclaimed/WorktreeCleanupFailed (75-78) + the SwarmEventSink emit path.\n2. Add the PostMergeReclaimPlan / ReclaimFailure / PostMergeReclaimOutcome types.\n3. Implement reclaim_after_merge with the merge-verification-before-delete order, snapshot-before-teardown VM handling, and per-stage failure recording.\n4. Implement sweep_orphaned_merged_worktrees with the porcelain scan, ancestor test, bound, and structured logging + OrphanSweepReport.\n5. Wire FR-EVT-SWARM-WORKTREE-RECLAIMED / -CLEANUP-FAILED emission (reuse ids; reuse or add the SwarmEvent payload variant without a new FrEventId).\n6. Tests (scratch git repo + fake WorktreeVmRegistry adapter, same FakeVmAdapter shape as worktree_vm_registry.rs tests): merged branch + DeleteOnReclaim => worktree removed, branch deleted, RECLAIMED emitted; KeepUntilMerged => worktree removed, branch KEPT; UNMERGED branch + DeleteOnReclaim => branch NOT deleted (fails closed), Skipped/kept + surfaced; VM snapshot failure => teardown NOT attempted, VmReclaim failure recorded, CLEANUP-FAILED emitted; worktree-remove failure => PartiallyReclaimed + CLEANUP-FAILED; orphan sweep over N merged orphans with max_reclaim=k reclaims exactly k and reports hit_bound=true with (N-k) remaining.\n7. Run proof targets; record measured output.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workspace_safety.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (read-only reuse of snapshot/teardown; no behavior change)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (reuse WORKTREE-RECLAIMED/-CLEANUP-FAILED ids; payload/variant only, NO new FrEventId)",
+      "src/backend/handshake_core/src/swarm_orchestration/mod.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "app/src/** (GUI IPC allowed only on the GUI MT, MT-146)",
+      ".GOV/**",
+      "src/backend/handshake_core/src/kernel/crdt/** (CRDT document merging is a separate domain; do not conflate with git worktree code merge)",
+      "src/backend/handshake_core/src/source_control_merge.rs (merge engine is MT-142; reclaim happens after it, not inside it)"
+    ],
+    "acceptance_criteria": [
+      "reclaim_after_merge verifies the session branch is merged into merged_into (`merge-base --is-ancestor`) BEFORE any branch deletion; an unmerged branch is never deleted.",
+      "Branch deletion uses `git branch -d` only (MT-141 path); a live test proves an unmerged branch under DeleteOnReclaim fails closed and survives, surfaced as a failure/Skipped, with zero '-D'/'--force' in the reclaim code.",
+      "VM reclaim snapshots FIRST then tears down via WorktreeVmRegistry; a snapshot failure aborts teardown (un-snapshotted state is never destroyed) and records a VmReclaim ReclaimFailure.",
+      "Worktree removal reuses cleanup_session_worktree_with_policy (MT-141) under SESSION_WORKTREE_GIT_LOCK with -c core.longpaths=true.",
+      "KeepUntilMerged (default) removes the worktree but KEEPS the branch; DeleteOnReclaim removes the worktree AND deletes the proven-merged branch.",
+      "Reclaim is best-effort: a failure in any stage records a ReclaimFailure and continues, returning PartiallyReclaimed, and never unwinds a merge that already succeeded.",
+      "Success emits FR-EVT-SWARM-WORKTREE-RECLAIMED and each failure emits FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED through the existing SwarmEventSink, reusing the events.rs ids (lines 75-78) with NO new FrEventId string.",
+      "sweep_orphaned_merged_worktrees is BOUNDED by max_reclaim and LOGS every considered/reclaimed/skipped orphan; OrphanSweepReport reports scanned/reclaimed/skipped/failures/hit_bound so leaks are observable, never silent.",
+      "Every git invocation added by this MT includes -c core.longpaths=true; worktree/branch mutation holds SESSION_WORKTREE_GIT_LOCK."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core reclaim_after_merge_deletes_merged_branch -- --nocapture",
+      "cargo test -p handshake_core reclaim_keep_until_merged_keeps_branch -- --nocapture",
+      "cargo test -p handshake_core reclaim_unmerged_branch_fails_closed -- --nocapture",
+      "cargo test -p handshake_core reclaim_vm_snapshot_before_teardown -- --nocapture",
+      "cargo test -p handshake_core orphan_sweep_bounded_and_reported -- --nocapture",
+      "bash -lc \"! grep -nE 'branch\\\", \\\"-D|\\\"-D\\\"|--force-with-lease' src/backend/handshake_core/src/workspace_safety.rs && echo NO_FORCE_BRANCH_DELETE\""
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/workspace_safety.rs (cleanup_session_worktree ~418-440, MT-141 cleanup_session_worktree_with_policy + SessionBranchReclaimPolicy, session_worktree_path ~356, SESSION_WORKTREE_GIT_LOCK; NEW reclaim_after_merge + sweep_orphaned_merged_worktrees)",
+      "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs (REUSE: snapshot ~117, teardown_worktree_vm ~215, is_bound ~224)",
+      "src/backend/handshake_core/src/swarm_orchestration/events.rs (REUSE ids: WorktreeReclaimed/WorktreeCleanupFailed lines 75-78; SwarmEventSink emit path; NO new FrEventId)"
+    ],
+    "expected_tests": [
+      "scratch-repo: merged branch + DeleteOnReclaim => worktree removed, branch deleted, RECLAIMED emitted",
+      "scratch-repo: KeepUntilMerged => worktree removed, branch KEPT",
+      "scratch-repo: unmerged branch + DeleteOnReclaim => branch NOT deleted (fails closed), surfaced, branch still exists",
+      "fake-VM: snapshot failure => teardown NOT attempted, VmReclaim failure recorded, CLEANUP-FAILED emitted",
+      "fake-VM: snapshot then teardown succeed => vm_snapshotted+vm_reclaimed true in the RECLAIMED payload",
+      "scratch-repo: worktree-remove failure => PartiallyReclaimed + CLEANUP-FAILED emitted",
+      "scratch-repo: orphan sweep over N merged orphans, max_reclaim=k => exactly k reclaimed, hit_bound=true, (N-k) remain and are logged"
+    ],
+    "implementation_notes": [
+      "MT-141 reuse is load-bearing: cleanup_session_worktree_with_policy, SessionBranchReclaimPolicy (KeepUntilMerged default), and the `git branch -d` fail-closed path all come from MT-141; this MT orchestrates them after merge and adds the VM + sweep, so despite depends_on listing MT-142/MT-145 the MT-141 primitives must exist in the implementing worktree.",
+      "Snapshot-before-teardown makes a lost VM recoverable and pairs with MT-144's ledgered patch bundle: between the snapshot and the patch bundle, merged session state is never stranded on a torn-down VM.",
+      "Merge verification uses git's own ancestry (`merge-base --is-ancestor`), not a cached merged flag, so a branch is deleted only when git itself proves it merged — belt-and-braces with the `branch -d` fail-closed safety.",
+      "The orphan sweep is a leak DETECTOR + bounded janitor, not an unbounded GC: hit_bound surfaces backlog so an operator/scheduler runs it again rather than the sweep quietly churning.",
+      "Reclaim is best-effort and non-fatal: a merge already committed must not be undone by a cleanup hiccup; failures are recorded + emitted, not propagated as merge failures.",
+      "Do not introduce push/fetch: reclaim is local worktree/branch/VM lifecycle only."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Backend post-merge lifecycle; reclaim outcomes and orphan-sweep leaks are reconstructable from FR-EVT-SWARM-WORKTREE-RECLAIMED / -CLEANUP-FAILED events and the OrphanSweepReport log (TraceProjection per HBR-VIS-004). Operator-visible merge state is MT-146."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Worktrees > Post-merge reclaim (worktree removal, branch deletion per reclaim policy, VM snapshot+reclaim)",
+      "Worktrees > Orphan sweep (bounded reclaim of merged-but-unreclaimed worktrees; reading the sweep report and CLEANUP-FAILED events)"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-001",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-SWARM-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "expected_disposition": "WIRED",
+      "note": "Reuse FR-EVT-SWARM-WORKTREE-RECLAIMED (success) and FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED (each ReclaimFailure) through the existing SwarmEventSink; no new kinds. The orphan sweep additionally emits CLEANUP-FAILED per failed orphan."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "expected_disposition": "WIRED_OR_DEFERRED_WITH_REASON",
+      "note": "Emit a diagnostic event on a VM snapshot/teardown error or a worktree-remove error via the open diagnostic-event API if present; else DEFERRED-with-reason. The OrphanSweepReport hit_bound is a structured-log diagnostic of backlog."
+    },
+    {
+      "tier": "PALMISTRY",
+      "expected_disposition": "NOT_APPLICABLE_WITH_REASON",
+      "note": "Reclaim is bounded git subprocesses + a snapshot call; the microVM's own liveness is the WorktreeVmRegistry's concern, not this reclaim path."
+    }
+  ],
+  "risk_if_missed": "Merged session worktrees, branches, and microVMs pile up unreclaimed: disk and VM slots leak, refs/heads fills with dead session branches, and lost-but-merged VM state is stranded with no recovery — the swarm silently degrades until it cannot spawn, with no visible signal.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: A session branch is deleted before it is actually merged (trusting a stale merged flag instead of git ancestry), destroying unmerged agent commits with no recovery.",
+      "RISK-2: Branch deletion uses -D / --force to 'just clean up', force-deleting an unmerged branch and losing work — the exact failure `branch -d` fail-closed exists to prevent.",
+      "RISK-3: The microVM is torn down before (or without) a snapshot, so a worktree whose merge later needs re-examination has no recoverable live state.",
+      "RISK-4: A reclaim failure propagates and unwinds or masks a merge that already succeeded, or fails silently so the leak is invisible (no CLEANUP-FAILED event).",
+      "RISK-5: The orphan sweep runs unbounded / unlogged, either churning the whole repo under the git lock or hiding a growing backlog with no signal."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Deletion is gated on `merge-base --is-ancestor <branch> <merged_into>` exit 0 at reclaim time; a test with an unmerged branch proves the branch is kept, not deleted.",
+      "CTRL-2 (RISK-2): Deletion path is `git branch -d` only (MT-141); grep proof target asserts no '-D'/'--force-with-lease' in the reclaim code, and the unmerged-branch test proves fail-closed survival.",
+      "CTRL-3 (RISK-3): VM reclaim snapshots first and aborts teardown on snapshot failure; a fake-adapter test asserts teardown is NOT called when snapshot errors, and vm_snapshotted precedes vm_reclaimed in the success payload.",
+      "CTRL-4 (RISK-4): Reclaim is best-effort and non-throwing: each stage records a ReclaimFailure + emits CLEANUP-FAILED and continues to PartiallyReclaimed; a test injects a worktree-remove failure and asserts the merge is untouched and the failure is emitted (not silent).",
+      "CTRL-5 (RISK-5): The sweep is hard-bounded by max_reclaim, logs every considered/reclaimed/skipped orphan, and reports hit_bound with the remaining count; a test with N>k orphans asserts exactly k reclaimed and the backlog surfaced."
+    ]
+  },
+  "research_provenance": {
+    "source": "Verified current code: wtc-multi-model-orchestration-v1 src/backend/handshake_core/src/workspace_safety.rs cleanup_session_worktree ~418-440 (`git worktree remove --force` under SESSION_WORKTREE_GIT_LOCK with -c core.longpaths=true), session_worktree_path ~356, collect_merge_back_artifact ~331; swarm_orchestration/worktree_vm_registry.rs snapshot ~117 / restore ~134 / teardown_worktree_vm ~215 (persistent CH microVM, TOCTOU-safe); swarm_orchestration/events.rs SwarmFrEventId WorktreeReclaimed/WorktreeCleanupFailed lines 75-78 + SwarmEventSink emit path. MT-141 supplies cleanup_session_worktree_with_policy, SessionBranchReclaimPolicy (KeepUntilMerged default), and the `git branch -d` fail-closed path this MT orchestrates. Field practice: post-merge branch cleanup gated on merged-ancestry (git's `branch -d` refusal on unmerged) is the standard safe-delete idiom; snapshot-before-teardown mirrors VM checkpoint-then-reclaim so state loss is recoverable; a bounded, reported janitor sweep is the field pattern for leak-detecting GC rather than unbounded churn.",
+    "corrections": [
+      "Operator/red-team hard rules baked in: branch deletion only after git-proven merge and only with `branch -d` (never -D/--force); VM snapshotted before teardown so merged state stays recoverable; orphan sweep bounded + fully logged (no silent/unbounded cleanup).",
+      "Reclaim is best-effort and never unwinds a completed merge; failures surface via FR-EVT-SWARM-WORKTREE-CLEANUP-FAILED (reused id, no new kind).",
+      "depends_on lists MT-142 and MT-145 per the family seam (reclaim runs after the governed merge Executes); the MT-141 worktree/branch primitives it reuses are a hard runtime prerequisite noted in implementation_notes. Git worktree CODE reclaim stays strictly separate from CRDT document state (kernel/crdt untouched)."
+    ]
+  }
+}

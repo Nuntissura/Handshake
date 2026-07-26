@@ -1,0 +1,168 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false
+  },
+  "wp_id": "WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1",
+  "mt_id": "MT-206",
+  "title": "AC-MT206-ModelAnnotationToolSurface",
+  "group": "AC Annotation core",
+  "created_at_utc": "2026-07-21T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/MT-206.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-017-Agent-Steering-Roles-Worktree-Merge-Notes-Annotations-IDE-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "generator": "NONE_JSON_AUTHORITY_ONLY"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-201",
+      "MT-202",
+      "MT-203",
+      "MT-204",
+      "MT-205",
+      "MT-104"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "GOAL: Give agent-steering models a GOVERNED tool surface to author annotations — annotation_create / annotation_list / annotation_reply — where provenance (robot_id / session_id / run_id) is AUTO-STAMPED from the calling session and NEVER accepted from model input, every annotation body is passed through the MM MT-104 injection-scan pipeline before persistence (quarantine on findings), rate limits bound a runaway agent, and the hunk-style agent-context sidecar can be IMPORTED (agent-context JSON v1 -> anchors via MT-202 helpers + provenance stamping). This is the model-facing analogue of the MT-205 operator routes, hardened with the mcp/gate.rs governance pattern.\n\nEXPECTED DIFF SHAPE: (a) new file src/backend/handshake_core/src/annotations/tools.rs (or src/backend/handshake_core/src/mcp/tools/annotations.rs following the incumbent tool-registration site) defining the three governed tools + the sidecar import; (b) registration into the mcp tool registry/gate (the single site where governed tools are declared, following mcp/gate.rs ToolPolicy); (c) DTOs; (d) integration tests. NO new record/anchor/store/route logic (call MT-201..205); NO GUI.\n\nDETAILED SPEC:\n1. GOVERNED TOOLS (mcp/gate.rs pattern — each declared with a ToolPolicy: required_capability, access_mode, consent posture; each call carries an McpContext with session_id/task_id/workflow_run_id/trace_id):\n   a. annotation_create(subject, anchor_selectors, body, kind, fix_suggestions?) -> annotation id. The author is FORCED to kind=model with provenance {robot_id, session_id, run_id} taken from the McpContext of the calling session; ANY provenance/author field in the model-supplied payload is IGNORED and, if present, rejected with a typed error (the model cannot spoof identity). The record is built through the MT-201 model constructor (provenance-required-by-signature), anchored through MT-202 helpers over caller-supplied file/side text, and persisted through the MT-203 store.\n   b. annotation_list(filter) -> records. Read-only, workspace-scoped from the McpContext; maps to the MT-203 AnnotationFilter (bounded keyset). A model may only list within its granted workspace.\n   c. annotation_reply(parent_id, body) -> reply id. Same forced-provenance + injection-scan path; inherits subject/anchor from the parent via Annotation::reply_to.\n2. INJECTION SCAN (MM MT-104): every model-supplied body (create + reply + every sidecar-imported annotation body/summary/rationale) is passed through the injection-scan pipeline (crate::ace::validators::injection surface / MT-104 pipeline) BEFORE persistence. On a finding, the annotation is QUARANTINED (persisted in a quarantined state with the scan verdict receipt, NOT surfaced to steering, NOT executable as a fix) rather than silently dropped or silently stored clean — the finding is observable and typed. Clean bodies persist normally.\n3. RATE LIMITS: per-session and per-workspace create/reply rate limits (a runaway agent cannot flood the annotation store); over-limit calls get a typed RateLimited error, not a silent drop. Limits are named constants overridable by policy.\n4. HUNK SIDECAR IMPORT: annotation_import_sidecar(agent_context_json) accepts the hunk agent-context v1 shape {version, summary, files:[{path, summary, annotations:[{newRange, summary, rationale, author}]}]} and, per imported annotation: builds an MT-202 anchor from newRange + the caller-supplied file text (path resolved workspace-relative), maps summary+rationale into the hsk.annotation@1 body, STAMPS provenance from the calling session (the sidecar's free-form `author` is discarded — hunk's weak authorship is exactly what this hardens), runs the injection scan, and persists via MT-203. Import is transactional per file and reports per-annotation outcome (imported | quarantined | rejected-bad-anchor).\n5. GOVERNANCE INVARIANTS: tool calls are observable (FR/EventLedger via the MT-203 receipts + mcp fr_events), attributable (session-stamped provenance), and safe to run in parallel (stable session ids, workspace scoping, no shared mutable global). No tool call pops a window, steals focus, or blocks the operator (HBR-QUIET): all work is quiet/bounded/background.\n\nSTEP-BY-STEP IMPLEMENTATION:\n1. Read mcp/gate.rs (McpContext, ConsentProvider, ToolPolicy, capability gating), mcp/fr_events.rs (tool-call FR events), the mcp tool-registration site, and ace/validators/injection.rs (the MT-104 injection-scan surface) BEFORE writing.\n2. Implement the three governed tools with FORCED session-stamped provenance (grep-provable: no path reads author/provenance from the model payload) calling MT-201..205.\n3. Wire the injection scan on every model-supplied body with the quarantine-on-finding state + receipt.\n4. Add per-session/per-workspace rate limits with a typed RateLimited error.\n5. Implement the hunk sidecar import with per-annotation outcome reporting and discarded sidecar authorship.\n6. Register the tools in the gate/registry with ToolPolicy; author integration tests (test-utils) incl. an injection-payload quarantine test and a provenance-spoof-rejected test; run proof targets. If PG/injection deps are unavailable, record a typed blocker.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/annotations/tools.rs (or src/mcp/tools/annotations.rs per the incumbent tool-registration site)",
+      "src/backend/handshake_core/src/mcp/ (single tool-registration/gate wiring line following mcp/gate.rs ToolPolicy)",
+      "src/backend/handshake_core/src/annotations/mod.rs (re-export of the tool entrypoints only)",
+      "src/backend/handshake_core/Cargo.toml ([[test]] registration for annotation_tools_tests only)",
+      "src/backend/handshake_core/tests/annotation_tools_tests.rs"
+    ],
+    "forbidden_paths": [
+      "app/src/** (legacy React, reference only)",
+      ".GOV/**",
+      "src/frontend/** (GUI owned by NA family MT-221+)",
+      "src/backend/handshake_core/src/annotations/record.rs / anchor.rs / reanchor.rs (owned by MT-201/202/204; call, do not edit)",
+      "src/backend/handshake_core/src/storage/** (persistence is MT-203; call the trait)",
+      "src/backend/handshake_core/src/api/** (operator routes are MT-205)",
+      "src/backend/handshake_core/src/ace/validators/injection.rs (MM MT-104 owns the injection pipeline; call it, do not edit)"
+    ],
+    "acceptance_criteria": [
+      "annotation_create / annotation_list / annotation_reply are registered as governed mcp tools with a ToolPolicy (required_capability, access_mode, consent) following the mcp/gate.rs pattern; each call carries an McpContext.",
+      "Provenance (robot_id/session_id/run_id) is AUTO-STAMPED from the calling session and NEVER read from the model payload; a model-supplied author/provenance field is ignored and, if present, typed-rejected (grep-provable: no code path reads author/provenance from tool input).",
+      "Every model-supplied body (create, reply, and each sidecar-imported body/summary/rationale) is passed through the MM MT-104 injection-scan BEFORE persistence; a finding QUARANTINES the annotation with a typed scan-verdict receipt (not surfaced to steering, not executable), a clean body persists normally.",
+      "Per-session and per-workspace create/reply rate limits return a typed RateLimited error over-limit (never a silent drop); limits are policy-overridable constants.",
+      "annotation_list is read-only and workspace-scoped from the McpContext, mapping to the MT-203 bounded keyset AnnotationFilter; a model cannot list outside its granted workspace.",
+      "annotation_import_sidecar ingests the hunk agent-context v1 JSON, builds MT-202 anchors from newRange + caller-supplied text, DISCARDS the sidecar's free-form author and stamps session provenance, runs the injection scan, persists via MT-203, and reports per-annotation outcome (imported|quarantined|rejected-bad-anchor).",
+      "Tool calls are observable (receipts/FR events), attributable (session provenance), parallel-safe (stable session ids, workspace scoping, no shared mutable global), and non-intrusive (no window pop / focus steal / operator block — HBR-QUIET).",
+      "cargo build + clippy clean; the tool module calls MT-201..205 and the MT-104 injection surface and reimplements none of them (no inline record/anchor/store/route/injection logic)."
+    ],
+    "proof_targets": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils annotation_tools -- --nocapture 2>&1 | grep -E 'test result: ok\\. [1-9][0-9]* passed'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils annotation_tools::provenance_spoof_rejected -- --nocapture 2>&1 | grep -q 'ok'",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils annotation_tools::injection_finding_quarantines -- --nocapture 2>&1 | grep -q 'ok'",
+      "grep -rniE 'payload\\.(author|provenance|robot_id|session_id|run_id)' src/backend/handshake_core/src/annotations/tools.rs | wc -l | grep -q '^0$' (provenance never read from model input)",
+      "cargo clippy --manifest-path src/backend/handshake_core/Cargo.toml -- -D warnings"
+    ],
+    "code_surfaces": [
+      "src/backend/handshake_core/src/annotations/tools.rs (or src/mcp/tools/annotations.rs) — governed tools + sidecar import",
+      "src/backend/handshake_core/src/mcp/ (tool registration + ToolPolicy)",
+      "src/backend/handshake_core/src/annotations/mod.rs (re-export)"
+    ],
+    "expected_tests": [
+      "annotation_tools::create_stamps_session_provenance_and_persists",
+      "annotation_tools::provenance_spoof_rejected",
+      "annotation_tools::injection_finding_quarantines_body_with_receipt",
+      "annotation_tools::rate_limit_over_session_and_workspace_typed_error",
+      "annotation_tools::list_read_only_workspace_scoped_bounded",
+      "annotation_tools::reply_inherits_parent_subject_anchor_stamps_provenance",
+      "annotation_tools::sidecar_import_discards_author_stamps_provenance_reports_outcomes",
+      "annotation_tools::sidecar_import_injection_and_bad_anchor_outcomes"
+    ],
+    "implementation_notes": [
+      "This is the Gerrit RobotCommentInfo hardening made executable: hunk's free-form `author` string is untrusted; the ONLY trusted identity is the calling session's McpContext, so provenance is stamped server-side and model input can never assert it. Grep-proving that no tool path reads author/provenance from the payload is the core control.",
+      "The injection scan is mandatory because annotation bodies are model-authored text that later feeds agent-steering decisions and (via fix_suggestions) the MT-207 apply path — an unscanned body is a prompt-injection vector into the steering loop. Quarantine (persist + flag + receipt), do not silently drop: the finding must be observable.",
+      "Rate limits protect the annotation store and the steering loop from a runaway agent; a typed RateLimited error (not a silent drop) keeps the behavior observable and lets the orchestrator back off.",
+      "The hunk sidecar import is the interop counterpart to the MT-203 hunk_sidecar EXPORT: import hardens (anchors + provenance + scan), export is lossy/projection. The two together let Handshake exchange agent-context with hunk-style tools without inheriting hunk's weak authorship.",
+      "Follow mcp/gate.rs: declare a ToolPolicy per tool (required_capability, access_mode, consent), carry the McpContext (session_id/task_id/workflow_run_id/trace_id), and emit tool-call FR events via mcp/fr_events.rs — the incumbent governed-tool contract, not a bespoke one.",
+      "HBR-QUIET: all tool work is background/bounded; no annotation tool may pop a window, steal focus, or block the operator — models operate the surface non-intrusively while the operator works."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "not_applicable_reason": "Model-facing governed tool surface MT (backend); the operator-visible rendering of model annotations is owned by the NA family (MT-221+). Observability is met by tool-call FR events + EventLedger receipts, not a GUI."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "YES",
+    "target_entries": [
+      "Model annotation tools: annotation_create / annotation_list / annotation_reply and their governed ToolPolicy",
+      "Auto-stamped session provenance and the provenance-spoof rejection rule",
+      "Injection-scan quarantine behavior and rate limits for model authors",
+      "hunk agent-context sidecar import (agent-context v1) and per-annotation outcomes"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT-003",
+    "HBR-INT-009",
+    "HBR-STOP-003",
+    "HBR-SWARM-001",
+    "HBR-SWARM-004",
+    "HBR-QUIET-001",
+    "HBR-MAN-001"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "FlightRecorder: WIRED — every tool call emits an mcp tool-call FR event (mcp/fr_events.rs) and every persisted/quarantined annotation leaves an EventLedger receipt (via the MT-203 store), so model authorship is fully observable and attributable.",
+    "internal_diagnostics: WIRED — provenance-spoof, injection-finding quarantine, rate-limit, and bad-anchor import outcomes are all typed results (never silent drops or silent clean-stores).",
+    "Palmistry: NOT_APPLICABLE-with-reason — tool calls are request-scoped and bounded; the runaway-agent posture is bounded by rate limits, not a long-running Palmistry loop owned here."
+  ],
+  "risk_if_missed": "Without a governed model tool surface, agent-steering models write annotations with self-asserted (spoofable) identity like hunk's free-form author, unscanned prompt-injection payloads reach the steering loop and the MT-207 apply path, a runaway agent floods the store, and imported hunk sidecars carry untrusted authorship — swarm attribution and steering integrity collapse.",
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "AGENT_STEERING_AND_ANNOTATION_V1",
+    "risks": [
+      "RISK-1: Provenance spoofing — a tool path reads robot_id/session_id/run_id (or author) from the model-supplied payload, so a model forges another session's identity and its annotations become unattributable or misattributed in the swarm.",
+      "RISK-2: Injection passthrough — a model-authored body carrying a prompt-injection payload is persisted unscanned and later feeds agent-steering (or an MT-207 fix apply), turning annotations into an injection vector into the steering loop.",
+      "RISK-3: Silent quarantine/drop — an injection finding silently drops or silently clean-stores the annotation instead of persisting a typed quarantined state with a receipt, so the finding is invisible to the operator and orchestrator.",
+      "RISK-4: Runaway-agent flood — no rate limit, so a looping agent creates unbounded annotations, exhausting the store and drowning the steering signal.",
+      "RISK-5: Sidecar author trust — the hunk sidecar import keeps the sidecar's free-form `author` (or skips the injection scan on imported bodies), reintroducing hunk's weak authorship and an unscanned import vector."
+    ],
+    "minimum_controls": [
+      "CTRL-1 (RISK-1): Provenance is stamped exclusively from the McpContext; a grep proof asserts no tool path reads author/provenance from the payload, and provenance_spoof_rejected feeds a payload with a forged author and asserts the typed rejection + session-stamped truth.",
+      "CTRL-2 (RISK-2): Every model-supplied body (create/reply/sidecar) is passed through the MM MT-104 injection scan before persistence; injection_finding_quarantines proves a payload with a finding never persists as a clean surfaced annotation.",
+      "CTRL-3 (RISK-3): A finding produces a typed quarantined state + scan-verdict receipt (observable), asserted by test; clean bodies persist normally — neither path is silent.",
+      "CTRL-4 (RISK-4): Per-session and per-workspace rate limits return a typed RateLimited error; a test drives over-limit calls and asserts the typed error, not a silent drop or a hang.",
+      "CTRL-5 (RISK-5): The sidecar import discards the sidecar author and stamps session provenance, runs the injection scan on every imported body, and reports per-annotation outcome; a test asserts discarded-author + quarantine-on-finding + rejected-bad-anchor."
+    ]
+  },
+  "research_provenance": {
+    "source": "Operator-verified annotation research 2026-07-21: modem-dev/hunk agent-context sidecar (import shape {version, summary, files:[{path, summary, annotations:[{newRange, summary, rationale, author}]}]}) with its free-form `author` identified as spoofable/untrusted; Gerrit RobotCommentInfo (robot_id/robot_run_id, server-attributed) is the hardening — provenance is server-stamped from the session, never model-asserted. Grounding audit of wtc-native-editors-v1 + wtc-multi-model-orchestration-v1: src/backend/handshake_core/src/mcp/gate.rs (McpContext with session_id/task_id/workflow_run_id/trace_id, ConsentProvider, ToolPolicy required_capability/access_mode governed-tool pattern), src/backend/handshake_core/src/mcp/fr_events.rs (tool-call FR events), src/backend/handshake_core/src/ace/validators/injection.rs (the MM MT-104 injection-scan surface); persistence + receipts via the MT-203 AnnotationStore.",
+    "corrections": [
+      "The hunk sidecar `author` field is DISCARDED on import; the only trusted identity is the calling session's McpContext (Gerrit robot attribution), so import cannot be used to launder unattributed authorship.",
+      "Injection findings QUARANTINE (persist + flag + receipt), they do not silently drop — the finding must be observable to the operator and orchestrator (umputun/revdiff explicit-state discipline applied to moderation).",
+      "This tool surface reuses MT-205's persistence/re-anchor seams; it is the model-facing analogue of the operator routes, not a parallel implementation — MT-208 proves both adopt the single annotation core."
+    ]
+  }
+}

@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "FAIL_V2",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,7 +37,7 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
     "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
     "proof_status": "PASS_REMEDIATION_V2: native-editor Flight Recorder ingestion/readback, storage-side filtering, deterministic ingest ordering, populated legacy migration, mounted loading/refresh lifecycle, and real Canvas-backed undo were implemented and adversarially re-reviewed. Focused DuckDB proofs passed 1/1 each for populated migration, pre-limit filtering beyond 200 rows, and equal-microsecond ordering. Historical FAIL_V1 remains preserved for independent V2 validation.",
@@ -425,5 +425,28 @@
       ],
       "no_context_instruction": "Read MT-036.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
-  }
+  },
+  "validation_v2": {
+  "schema_id": "hsk.mt_validation_verdict@1",
+  "verdict": "FAIL_V2",
+  "verdict_label": "FAIL V2",
+  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+  "session": "INTEGRATION_VALIDATOR-20260722-114045",
+  "fresh_run": true,
+  "product_only": true,
+  "repo_governance_paperwork_excluded": true,
+  "spec_version": "v02.201",
+  "source_state": {
+    "head_sha": "30d8657afaac31756852929291b669723f97234e",
+    "worktree": "wtc-native-editors-v1",
+    "dirty_final_source_review": true
+  },
+  "fail_report": "MT-036 FAIL V2. EventLedger extension-seam tests exercise recorder ingestion, but the MT lacks current proof that its observable loading/error/recovery behavior is wired and recorded across Flight Recorder/EventLedger, internal_diagnostics, and Palmistry. No canonical trace/Argus projection was produced.",
+  "remediation_plan": [
+    "Run the live ingestion/readback suite with injected recorder failure, restart ordering, filtering, undo lifecycle, and exact durable event assertions.",
+    "Wire or explicitly disposition all three diagnostic tiers and capture the applicable canonical Argus or TraceProjection evidence; make canonical UserManual entries code-truthful."
+  ],
+  "no_context_instruction": "Read MT-036.json, HBR-INT-009, packet, and current spec. Close the three-tier and projection proof gaps, then return READY_FOR_VALIDATION_V3."
+}
 }
