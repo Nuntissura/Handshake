@@ -9,6 +9,7 @@ use std::sync::Arc;
 use handshake_native::app::HandshakeApp;
 use handshake_native::mcp::{
     ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD, ARGUS_INSPECT_METHOD,
+    ARGUS_SET_VALUE_METHOD,
 };
 
 #[derive(Clone, Debug)]
@@ -92,7 +93,7 @@ pub struct CanonicalArgusDriver {
     token: String,
     client_session_id: String,
     next_id: u64,
-    clicked_targets: Vec<String>,
+    action_targets: Vec<(String, String)>,
 }
 
 impl CanonicalArgusDriver {
@@ -147,7 +148,7 @@ impl CanonicalArgusDriver {
             token,
             client_session_id: format!("{}-agent", sanitize(proof_id)),
             next_id: 1,
-            clicked_targets: Vec::new(),
+            action_targets: Vec::new(),
         }
     }
 
@@ -287,7 +288,8 @@ impl CanonicalArgusDriver {
             matches!(receipt_status.as_str(), "applied" | "indeterminate"),
             "Argus receipt is terminal and non-rejected: {receipt}"
         );
-        self.clicked_targets.push(author_id.to_owned());
+        self.action_targets
+            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned()));
         ArgusObservation {
             before,
             after,
@@ -362,7 +364,80 @@ impl CanonicalArgusDriver {
             matches!(receipt_status.as_str(), "applied" | "indeterminate"),
             "Argus parameterized receipt is terminal and non-rejected: {receipt}"
         );
-        self.clicked_targets.push(author_id.to_owned());
+        self.action_targets
+            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned()));
+        ArgusObservation {
+            before,
+            after,
+            receipt_id,
+            receipt_status,
+            agent_id,
+        }
+    }
+
+    pub fn set_value_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        value: &str,
+    ) -> ArgusObservation {
+        let before = self.inspect(harness);
+        assert!(
+            json_has_author_id(&before, author_id),
+            "canonical argus.inspect sees value target {author_id}"
+        );
+        let set_value = self.rpc(
+            ARGUS_SET_VALUE_METHOD,
+            serde_json::json!({ "target": author_id, "value": value }),
+        );
+        assert_eq!(set_value["result"]["queued"], true);
+        let agent_id = set_value["result"]["agent_id"]
+            .as_str()
+            .expect("Argus set-value returns caller attribution")
+            .to_owned();
+        assert!(
+            agent_id.ends_with(&format!(":client:{}", self.client_session_id)),
+            "Argus set-value must retain caller attribution: {set_value}"
+        );
+        let receipt_id = set_value["result"]["receipt_id"]
+            .as_u64()
+            .expect("Argus set-value returns a receipt id");
+
+        let mut raw_input = egui::RawInput::default();
+        <HandshakeApp as eframe::App>::raw_input_hook(
+            harness.state_mut(),
+            &egui::Context::default(),
+            &mut raw_input,
+        );
+        assert_eq!(
+            raw_input.events.len(),
+            1,
+            "one canonical Argus set-value drains as one production egui event"
+        );
+        for event in raw_input.events {
+            harness.event(event);
+        }
+        harness.run_steps(3);
+
+        let after = self.inspect(harness);
+        let receipt = after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+            })
+            .expect("fresh argus.inspect returns the set-value receipt");
+        let receipt_status = receipt["status"]
+            .as_str()
+            .expect("Argus receipt has a typed status")
+            .to_owned();
+        assert!(
+            matches!(receipt_status.as_str(), "applied" | "indeterminate"),
+            "Argus set-value receipt is terminal and non-rejected: {receipt}"
+        );
+        self.action_targets
+            .push((ARGUS_SET_VALUE_METHOD.to_owned(), author_id.to_owned()));
         ArgusObservation {
             before,
             after,
@@ -374,9 +449,9 @@ impl CanonicalArgusDriver {
 
     pub fn finish(mut self) {
         let entries = self.server.action_log().drain_log();
-        assert_eq!(entries.len(), self.clicked_targets.len());
-        for (entry, target) in entries.iter().zip(&self.clicked_targets) {
-            assert_eq!(entry.op_name, ARGUS_CLICK_METHOD);
+        assert_eq!(entries.len(), self.action_targets.len());
+        for (entry, (method, target)) in entries.iter().zip(&self.action_targets) {
+            assert_eq!(&entry.op_name, method);
             assert_eq!(&entry.target_key, target);
             assert!(entry
                 .agent_id

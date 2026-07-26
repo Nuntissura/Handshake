@@ -2221,12 +2221,28 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         json_has_author_id(&operator_menu.after, "menu.operator.settings"),
         "canonical Argus must expose OPERATOR -> Open Settings before navigating"
     );
-    let down_diagnostics_inspect = argus
+    let _settings_open_inspect = argus
         .click_and_reinspect(&mut harness, "menu.operator.settings")
         .after;
     assert!(
         harness.state().settings_open(),
         "canonical Argus OPERATOR -> Open Settings must open the real Settings overlay"
+    );
+    let down_diagnostics_inspect = argus
+        .set_value_and_reinspect(
+            &mut harness,
+            handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
+            "diagnostics",
+        )
+        .after;
+    assert_eq!(
+        json_author_value(
+            &down_diagnostics_inspect,
+            handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
+        )
+        .as_deref(),
+        Some("diagnostics"),
+        "canonical Argus must filter the mounted Settings overlay to the Diagnostics section before capture"
     );
     let mut down_diagnostics_author_ids = Vec::new();
     json_author_ids(&down_diagnostics_inspect, &mut down_diagnostics_author_ids);
