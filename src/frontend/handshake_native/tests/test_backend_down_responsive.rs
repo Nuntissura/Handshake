@@ -40,9 +40,17 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use egui_kittest::{kittest::NodeT, Harness};
+use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::Harness;
+use sha2::{Digest, Sha256};
 
-use handshake_diag_ring::DiagEventCode;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
+
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagRingReader, DiagRingWriter, DiagSeverity};
 use handshake_native::app::{
     HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID, HEARTBEAT_IDLE_REPAINT_INTERVAL,
 };
@@ -52,9 +60,317 @@ use handshake_native::backend_client::{
     BACKEND_REQUEST_TIMEOUT as CLIENT_REQUEST_TIMEOUT,
 };
 use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
-use handshake_native::diagnostics::{self, BUFFER_CAP};
+use handshake_native::diagnostics::{
+    self, control_socket_name, launch_palmistry_at, ShutdownOutcome, BUFFER_CAP, ENV_PALMISTRY_EXE,
+};
 use handshake_native::layout_persistence::LayoutTransport;
 use handshake_native::split_layout::SplitWeights;
+
+const BACKEND_STATUS_AUTHOR_ID: &str = "shell.chrome.status-bar";
+
+struct EnvGuard {
+    key: &'static str,
+    previous: Option<std::ffi::OsString>,
+}
+
+impl EnvGuard {
+    fn set_path(key: &'static str, value: &Path) -> Self {
+        let previous = std::env::var_os(key);
+        std::env::set_var(key, value);
+        Self { key, previous }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => std::env::set_var(self.key, value),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
+
+fn find_palmistry_binary() -> PathBuf {
+    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_EXE) {
+        let path = PathBuf::from(raw);
+        assert!(
+            path.is_file(),
+            "{ENV_PALMISTRY_EXE} must name the current-source palmistry binary: {}",
+            path.display()
+        );
+        return path;
+    }
+    let executable = if cfg!(windows) {
+        "palmistry.exe"
+    } else {
+        "palmistry"
+    };
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .expect("integrated MT-088 proof requires external CARGO_TARGET_DIR");
+    let path = target.join("debug").join(executable);
+    assert!(
+        path.is_file(),
+        "integrated MT-088 proof requires a built Palmistry binary at {}; build the sibling palmistry \
+         crate or set {ENV_PALMISTRY_EXE}",
+        path.display()
+    );
+    path
+}
+
+fn file_sha256(path: &Path) -> String {
+    let mut file = std::fs::File::open(path)
+        .unwrap_or_else(|error| panic!("open {} for SHA-256: {error}", path.display()));
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .unwrap_or_else(|error| panic!("read {} for SHA-256: {error}", path.display()));
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn repo_root() -> PathBuf {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .expect("resolve product repo root for MT-088 provenance");
+    assert!(
+        output.status.success(),
+        "git rev-parse --show-toplevel failed"
+    );
+    PathBuf::from(
+        String::from_utf8(output.stdout)
+            .expect("repo root is UTF-8")
+            .trim(),
+    )
+}
+
+fn current_binary_provenance(
+    binary: &Path,
+    tracked_source_pathspecs: &[&str],
+) -> serde_json::Value {
+    let metadata = std::fs::metadata(binary)
+        .unwrap_or_else(|error| panic!("read binary metadata {}: {error}", binary.display()));
+    let binary_modified = metadata
+        .modified()
+        .expect("binary modification time is available");
+    let mut command = std::process::Command::new("git");
+    command.args(["ls-files", "--full-name", "--"]);
+    command.args(tracked_source_pathspecs);
+    let output = command
+        .output()
+        .expect("list tracked current-source binary inputs");
+    assert!(
+        output.status.success(),
+        "git ls-files failed for binary source pathspecs {tracked_source_pathspecs:?}"
+    );
+    let tracked = String::from_utf8(output.stdout).expect("tracked source paths are UTF-8");
+    let root = repo_root();
+    let mut source_count = 0_usize;
+    let mut newest_source: Option<(String, std::time::SystemTime)> = None;
+    for repo_path in tracked.lines().filter(|path| !path.is_empty()) {
+        let source = root.join(repo_path);
+        let modified = std::fs::metadata(&source)
+            .unwrap_or_else(|error| {
+                panic!("read tracked source metadata {}: {error}", source.display())
+            })
+            .modified()
+            .expect("tracked source modification time is available");
+        source_count += 1;
+        if newest_source
+            .as_ref()
+            .map(|(_, newest)| modified > *newest)
+            .unwrap_or(true)
+        {
+            newest_source = Some((repo_path.to_owned(), modified));
+        }
+    }
+    let (newest_source_path, newest_source_modified) =
+        newest_source.expect("binary provenance pathspecs resolve at least one tracked source");
+    assert!(
+        binary_modified >= newest_source_modified,
+        "current-source binary {} ({binary_modified:?}) is older than tracked input \
+         {newest_source_path} ({newest_source_modified:?})",
+        binary.display()
+    );
+    let unix_millis = |time: std::time::SystemTime| {
+        time.duration_since(std::time::UNIX_EPOCH)
+            .expect("provenance timestamp is after epoch")
+            .as_millis()
+    };
+    serde_json::json!({
+        "path": binary,
+        "sha256": file_sha256(binary),
+        "size_bytes": metadata.len(),
+        "modified_unix_millis": unix_millis(binary_modified),
+        "tracked_source_count": source_count,
+        "newest_tracked_source": newest_source_path,
+        "newest_tracked_source_modified_unix_millis": unix_millis(newest_source_modified),
+        "not_older_than_all_tracked_sources": true,
+    })
+}
+
+#[cfg(windows)]
+struct SuspendedProcessGuard {
+    handle: windows_sys::Win32::Foundation::HANDLE,
+    resumed: bool,
+}
+
+#[cfg(windows)]
+impl SuspendedProcessGuard {
+    fn suspend(pid: u32) -> Self {
+        use windows_sys::Win32::System::Threading::OpenProcess;
+        const PROCESS_SUSPEND_RESUME: u32 = 0x0800;
+        #[link(name = "ntdll")]
+        extern "system" {
+            fn NtSuspendProcess(process_handle: windows_sys::Win32::Foundation::HANDLE) -> i32;
+        }
+        // SAFETY: the fixture supplies the PID of its own exact child. The requested right is limited
+        // to suspend/resume, the handle is checked, and Drop resumes then closes it exactly once.
+        let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
+        assert!(
+            !handle.is_null(),
+            "open fixture-owned backend pid {pid} for suspend: {}",
+            std::io::Error::last_os_error()
+        );
+        // SAFETY: `handle` is a live process handle with PROCESS_SUSPEND_RESUME.
+        let status = unsafe { NtSuspendProcess(handle) };
+        if status != 0 {
+            // SAFETY: suspension failed, but the handle was still opened successfully above.
+            unsafe {
+                let _ = windows_sys::Win32::Foundation::CloseHandle(handle);
+            }
+            panic!("NtSuspendProcess({pid}) failed with NTSTATUS {status:#x}");
+        }
+        Self {
+            handle,
+            resumed: false,
+        }
+    }
+
+    fn resume(mut self) {
+        self.try_resume()
+            .unwrap_or_else(|status| panic!("NtResumeProcess failed with NTSTATUS {status:#x}"));
+    }
+
+    fn try_resume(&mut self) -> Result<(), i32> {
+        if self.resumed {
+            return Ok(());
+        }
+        #[link(name = "ntdll")]
+        extern "system" {
+            fn NtResumeProcess(process_handle: windows_sys::Win32::Foundation::HANDLE) -> i32;
+        }
+        // SAFETY: this is the same live fixture-owned process handle suspended above.
+        let status = unsafe { NtResumeProcess(self.handle) };
+        if status != 0 {
+            return Err(status);
+        }
+        self.resumed = true;
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl Drop for SuspendedProcessGuard {
+    fn drop(&mut self) {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        // Never panic from cleanup while unwinding another assertion. Explicit `resume()` above remains
+        // fatal on failure; Drop makes the strongest best-effort recovery and always closes the handle.
+        let _ = self.try_resume();
+        // SAFETY: the handle was opened once by `suspend` and is closed once here.
+        unsafe {
+            let _ = CloseHandle(self.handle);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+struct SuspendedProcessGuard {
+    pid: u32,
+    resumed: bool,
+}
+
+#[cfg(not(windows))]
+impl SuspendedProcessGuard {
+    fn suspend(pid: u32) -> Self {
+        let status = std::process::Command::new("kill")
+            .args(["-STOP", &pid.to_string()])
+            .status()
+            .expect("suspend fixture-owned backend");
+        assert!(status.success(), "kill -STOP {pid} failed with {status}");
+        Self {
+            pid,
+            resumed: false,
+        }
+    }
+
+    fn resume(mut self) {
+        self.try_resume()
+            .unwrap_or_else(|error| panic!("resume fixture-owned backend failed: {error}"));
+    }
+
+    fn try_resume(&mut self) -> Result<(), String> {
+        if self.resumed {
+            return Ok(());
+        }
+        let status = std::process::Command::new("kill")
+            .args(["-CONT", &self.pid.to_string()])
+            .status()
+            .map_err(|error| format!("kill -CONT {}: {error}", self.pid))?;
+        if !status.success() {
+            return Err(format!("kill -CONT {} failed with {status}", self.pid));
+        }
+        self.resumed = true;
+        Ok(())
+    }
+}
+
+#[cfg(not(windows))]
+impl Drop for SuspendedProcessGuard {
+    fn drop(&mut self) {
+        // Avoid a double panic during cleanup; explicit `resume()` above still hard-fails.
+        let _ = self.try_resume();
+    }
+}
+
+#[cfg(windows)]
+fn process_is_running(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::{CloseHandle, WAIT_TIMEOUT};
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, WaitForSingleObject, PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    const SYNCHRONIZE_RIGHT: u32 = 0x0010_0000;
+    // SAFETY: read-only liveness query for the exact Palmistry pid; checked and closed below.
+    let handle = unsafe {
+        OpenProcess(
+            SYNCHRONIZE_RIGHT | PROCESS_QUERY_LIMITED_INFORMATION,
+            0,
+            pid,
+        )
+    };
+    if handle.is_null() {
+        return false;
+    }
+    // SAFETY: zero-time wait on a valid process handle.
+    let running = unsafe { WaitForSingleObject(handle, 0) } == WAIT_TIMEOUT;
+    // SAFETY: the handle was opened once above.
+    unsafe {
+        let _ = CloseHandle(handle);
+    }
+    running
+}
+
+#[cfg(not(windows))]
+fn process_is_running(pid: u32) -> bool {
+    Path::new("/proc").join(pid.to_string()).exists()
+}
 
 /// A backend base URL whose port is reliably NOT listening, so every connection is refused — a
 /// genuinely-down backend for the re-prove (NOT a mock; the TCP connect is really refused). Port 1 on
@@ -744,6 +1060,173 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
 
+const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
+    "tests/test_backend_down_responsive.rs",
+    "tests/pg_proof_support/mod.rs",
+    "tests/native_gui_support/canonical_argus_driver.rs",
+    "src/app.rs",
+    "src/backend_client.rs",
+    "src/diagnostics/recorder.rs",
+    "src/diagnostics/palmistry_launch.rs",
+    "diag_ring/src/ring.rs",
+    "diag_ring/src/schema.rs",
+    "src/mcp/server.rs",
+    "../palmistry/src/main.rs",
+    "../palmistry/src/lifecycle.rs",
+    "../palmistry/src/freeze_detect.rs",
+    "src/manual_content_editors.rs",
+    "tests/test_manual_content.rs",
+];
+
+fn current_source_sha() -> String {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("read current MT-088 source commit");
+    assert!(output.status.success(), "git rev-parse HEAD failed");
+    String::from_utf8(output.stdout)
+        .expect("source SHA is UTF-8")
+        .trim()
+        .to_owned()
+}
+
+fn repo_relative_tracked_path(path: &str) -> String {
+    let output = std::process::Command::new("git")
+        .args(["ls-files", "--full-name", "--", path])
+        .output()
+        .unwrap_or_else(|error| panic!("resolve tracked MT-088 proof path {path}: {error}"));
+    assert!(
+        output.status.success(),
+        "git ls-files failed for MT-088 proof path {path}"
+    );
+    let tracked = String::from_utf8(output.stdout).expect("tracked proof path is UTF-8");
+    let paths = tracked.lines().collect::<Vec<_>>();
+    assert_eq!(
+        paths.len(),
+        1,
+        "MT-088 proof path {path} must resolve to exactly one tracked repo path; got {paths:?}"
+    );
+    paths[0].to_owned()
+}
+
+fn git_blob_at_head(repo_path: &str) -> String {
+    let object = format!("HEAD:{repo_path}");
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", &object])
+        .output()
+        .unwrap_or_else(|error| panic!("resolve committed MT-088 proof blob {object}: {error}"));
+    assert!(
+        output.status.success(),
+        "git rev-parse failed for committed proof path {object}"
+    );
+    String::from_utf8(output.stdout)
+        .expect("committed proof blob is UTF-8")
+        .trim()
+        .to_owned()
+}
+
+fn current_integrated_proof_blobs() -> serde_json::Value {
+    let blobs = MT088_INTEGRATED_PROOF_PATHS
+        .iter()
+        .map(|path| {
+            let repo_path = repo_relative_tracked_path(path);
+            let output = std::process::Command::new("git")
+                .args(["hash-object", path])
+                .output()
+                .unwrap_or_else(|error| panic!("hash current MT-088 proof path {path}: {error}"));
+            assert!(output.status.success(), "git hash-object failed for {path}");
+            let blob = String::from_utf8(output.stdout)
+                .expect("proof blob is UTF-8")
+                .trim()
+                .to_owned();
+            let head_blob = git_blob_at_head(&repo_path);
+            (
+                repo_path.clone(),
+                serde_json::json!({
+                    "repo_path": repo_path,
+                    "head_blob": head_blob,
+                    "worktree_blob": blob,
+                    "matches_head": blob == head_blob,
+                }),
+            )
+        })
+        .collect::<serde_json::Map<_, _>>();
+    serde_json::Value::Object(blobs)
+}
+
+fn integrated_proof_paths_clean() -> bool {
+    let worktree_matches_head = std::process::Command::new("git")
+        .arg("diff")
+        .arg("--quiet")
+        .arg("HEAD")
+        .arg("--")
+        .args(MT088_INTEGRATED_PROOF_PATHS.iter().copied())
+        .status()
+        .expect("check MT-088 proof path provenance")
+        .success();
+    let index_matches_head = std::process::Command::new("git")
+        .args(["diff", "--cached", "--quiet", "HEAD", "--"])
+        .args(MT088_INTEGRATED_PROOF_PATHS.iter().copied())
+        .status()
+        .expect("check staged MT-088 proof path provenance")
+        .success();
+    let every_blob_matches_head = MT088_INTEGRATED_PROOF_PATHS.iter().all(|path| {
+        let repo_path = repo_relative_tracked_path(path);
+        let output = std::process::Command::new("git")
+            .args(["hash-object", path])
+            .output()
+            .unwrap_or_else(|error| panic!("hash current MT-088 proof path {path}: {error}"));
+        output.status.success()
+            && String::from_utf8(output.stdout)
+                .map(|blob| blob.trim() == git_blob_at_head(&repo_path))
+                .unwrap_or(false)
+    });
+    worktree_matches_head && index_matches_head && every_blob_matches_head
+}
+
+fn json_author_value<'a>(
+    value: &'a serde_json::Value,
+    expected_author_id: &str,
+) -> Option<&'a str> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.get("author_id").and_then(serde_json::Value::as_str)
+                == Some(expected_author_id)
+            {
+                return object
+                    .get("value")
+                    .or_else(|| object.get("name"))
+                    .and_then(serde_json::Value::as_str);
+            }
+            object
+                .values()
+                .find_map(|value| json_author_value(value, expected_author_id))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|value| json_author_value(value, expected_author_id)),
+        _ => None,
+    }
+}
+
+fn save_integrated_surface(
+    harness: &mut Harness<'_, HandshakeApp>,
+    artifact_dir: &Path,
+    state: &str,
+) -> PathBuf {
+    let path = artifact_dir.join(format!("mt088-{state}.png"));
+    harness
+        .render()
+        .expect("MT-088 integrated proof requires a material mounted-app render")
+        .save(&path)
+        .expect("save MT-088 integrated proof screenshot");
+    assert!(
+        path.is_file() && std::fs::metadata(&path).unwrap().len() > 0,
+        "MT-088 {state} screenshot must be a non-empty external artifact"
+    );
+    path
+}
+
 /// Fail if a repo-local `test_output/` OR `tests/screenshots/` dir exists — artifacts must go to the
 /// EXTERNAL `Handshake_Artifacts/handshake-test` root only (CX-212E). A tracked artifact under `src/`
 /// is a hygiene FAILURE the reviewer also catches with `git ls-files "src/**/*.png"`.
@@ -883,9 +1366,8 @@ fn backend_down_records_event_and_degrades_surface() {
     // AC-008-4: the debounced down state is set — the surface degraded (NOT a spinner, NOT a hang).
     assert!(
         harness.state().backend_is_down(),
-        "with nothing listening on 127.0.0.1:37501 the app must observe the backend as unreachable and \
-         enter the degraded state (NOT spin forever / hang). If this fails a real backend may be running \
-         on 37501 during the test."
+        "with nothing listening at {DEAD_BACKEND_URL} the app must observe the backend as unreachable and \
+         enter the degraded state (NOT spin forever / hang)"
     );
 
     // AC-008-3: exactly ONE new BackendUnreachable event (debounced to the down EDGE — not per frame).
@@ -897,6 +1379,15 @@ fn backend_down_records_event_and_degrades_surface() {
         "exactly ONE BackendUnreachable event is recorded on the down EDGE (debounced — not one per \
          frame, RISK-008-4): saw {} new (before={unreachable_before}, after={unreachable_after})",
         unreachable_after - unreachable_before
+    );
+    let unreachable_event = diagnostics::snapshot_last_n(BUFFER_CAP)
+        .into_iter()
+        .rev()
+        .find(|event| event.event_code == DiagEventCode::BackendUnreachable.as_u16())
+        .expect("the new BackendUnreachable edge remains in the bounded diagnostics buffer");
+    assert_eq!(
+        unreachable_event.counter_a, 1,
+        "the typed edge must carry the actual bound dead endpoint port, not a hardcoded default"
     );
 
     // AC-008-4 (corroboration): the status-bar health indicator text reflects the disconnected state.
@@ -1037,6 +1528,48 @@ fn frame_path_has_no_ui_thread_block_on() {
         "ui() drives the layout persistence lifecycle (so the off-thread audit above covers the frame path)"
     );
 
+    // Inventory every production `Runtime::block_on` in app.rs. A newly introduced call fails this audit
+    // until its reachability and completion guard are reviewed explicitly.
+    let production_end = app_src
+        .find("mod mt066_stage_route_admission_tests")
+        .expect("app.rs production code precedes the trailing test modules");
+    let production_app_src = &app_src[..production_end];
+    assert_eq!(
+        production_app_src.matches(".block_on(").count(),
+        4,
+        "every production app.rs block_on call must remain in the explicit MT-088 frame-safety inventory"
+    );
+    let workspace_poll = extract_fn_body(&app_src, "fn poll_workspaces(&mut self)")
+        .expect("app.rs declares poll_workspaces");
+    assert!(
+        workspace_poll.contains("is_finished()") && workspace_poll.contains(".block_on(handle)"),
+        "workspace polling may only drain an already-finished backend task"
+    );
+    assert!(
+        poll_health_fn.contains("is_finished()") && poll_health_fn.contains(".block_on(handle)"),
+        "health polling may only drain an already-finished backend task"
+    );
+    let abort_drain = extract_fn_body(&app_src, "fn abort_and_drain_runtime_task<T>(")
+        .expect("app.rs declares abort_and_drain_runtime_task");
+    let abort_position = abort_drain
+        .find(".abort()")
+        .expect("task-drain helper aborts the old task");
+    let drain_position = abort_drain
+        .find(".block_on(handle)")
+        .expect("task-drain helper drains the cancelled handle");
+    assert!(
+        abort_position < drain_position,
+        "task replacement must abort before draining the cancelled handle"
+    );
+    let mcp_startup = extract_fn_body(&app_src, "fn spawn_mcp_server(&mut self)")
+        .expect("app.rs declares spawn_mcp_server");
+    assert!(
+        mcp_startup.contains("SwarmMcpServer::bind")
+            && !mcp_startup.contains("fetch_health")
+            && !mcp_startup.contains("load_layout"),
+        "the remaining startup-only block_on is the local MCP bind, not backend I/O"
+    );
+
     assert_no_local_artifact_dir();
 }
 
@@ -1102,6 +1635,7 @@ fn reqwest_clients_carry_connect_and_request_timeouts() {
         ("LoomBlockClient", "shared_http_client"),
         ("SourceControlClient", "shared_http_client"),
         ("CanvasClient", "shared_http_client"),
+        ("CanvasTitleClient", "shared_http_client"),
         ("DrawerDataClient", "shared_http_client"),
         ("DrawerActionClient", "shared_http_client"),
         ("LoomGraphClient", "shared_http_client"),
@@ -1462,6 +1996,480 @@ fn recovery_fires_recovered_event() {
     recovered_server.stop();
 
     assert_no_local_artifact_dir();
+}
+
+/// V2 remediation gate: one exact current-source run binds every previously separate proof surface.
+/// It starts the real managed-PostgreSQL `handshake_core`, mounts the real `HandshakeApp`, launches the
+/// real out-of-process Palmistry watcher on the app's exact diagnostics ring, then suspends ONLY the
+/// fixture-owned backend process. Suspension leaves the real listener/sockets present but prevents the
+/// backend from answering, exercising the half-open/slow-response request deadline without a stub.
+/// The mounted app must remain responsive, emit one down edge, and expose the degraded status through
+/// canonical localhost Argus. The process is resumed and replaced by the current-source backend on the
+/// same listener; the same app must recover, emit one recovered edge, and expose the reconnected status.
+#[test]
+#[ignore = "LIVE MT-088 V3 proof: requires current-source handshake_core + palmistry binaries, isolated \
+            real PostgreSQL, and canonical Argus. Run the exact governed command documented in the \
+            UserManual; missing live prerequisites hard-fail and never silently skip."]
+fn backend_down_responsive_real_pg_palmistry_argus() {
+    let _guard = lock_backend_event_tests();
+    assert_no_local_artifact_dir();
+    assert!(
+        integrated_proof_paths_clean(),
+        "MT-088 integrated proof must run from committed proof sources"
+    );
+
+    let run_id = uuid::Uuid::new_v4().simple().to_string();
+    let run_started_unix_millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("proof start is after epoch")
+        .as_millis();
+    let owner_session = format!("mt088-v3-{run_id}");
+    let artifact_dir =
+        external_artifact_dir(&format!("wp-kernel-012-mt-088/integrated/run-{run_id}"));
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create MT-088 integrated external artifact directory");
+    let survivor_dir = artifact_dir.join("survivors");
+    std::fs::create_dir_all(&survivor_dir).expect("create scoped Palmistry survivor directory");
+    let _survivor_env = EnvGuard::set_path(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR, &survivor_dir);
+
+    let palmistry_exe = find_palmistry_binary();
+    let palmistry_binary_provenance = current_binary_provenance(
+        &palmistry_exe,
+        &[
+            "../palmistry/src",
+            "../palmistry/Cargo.toml",
+            "../palmistry/Cargo.lock",
+        ],
+    );
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let ring_path = artifact_dir.join(format!("handshake-diag-{session_id}.ring"));
+    let ring_writer = DiagRingWriter::create(&ring_path, handshake_diag_ring::DEFAULT_CAPACITY)
+        .expect("create durable same-run MT-088 diagnostics ring");
+    assert!(
+        diagnostics::install(ring_writer),
+        "MT-088 integrated proof must be run as the exact single test so it can install the real \
+         diagnostics ring before any process-global recorder use"
+    );
+    let session = diagnostics::DiagSession {
+        session_id,
+        ring_path,
+    };
+    diagnostics::set_preinstalled_diag_session(session.clone());
+    let control_socket = control_socket_name(&session.session_id);
+    let mut palmistry = launch_palmistry_at(
+        &palmistry_exe,
+        &session,
+        &session.ring_path,
+        &control_socket,
+    )
+    .expect("launch current-source Palmistry for MT-088 integrated proof");
+    assert!(
+        palmistry.handshake_acked(),
+        "Palmistry must acknowledge the exact MT-088 session/ring before backend fault injection; error={:?}",
+        palmistry.handshake_error()
+    );
+    let palmistry_pid = palmistry.child_id();
+    assert!(
+        process_is_running(palmistry_pid),
+        "Palmistry child {palmistry_pid} must be alive before the mounted scenario"
+    );
+
+    let mut backend = pg_proof_support::require_reachable_backend();
+    let backend_binary_provenance = current_binary_provenance(
+        backend.owned_binary_path(),
+        &[
+            "../../backend/handshake_core/src",
+            "../../backend/handshake_core/Cargo.toml",
+            "../../backend/handshake_core/Cargo.lock",
+        ],
+    );
+    let original_backend_pid = backend.owned_process_id();
+    let backend_base = backend.base.clone();
+    let mut harness: Harness<HandshakeApp> = Harness::builder()
+        .with_size(egui::vec2(1440.0, 900.0))
+        .build_eframe(|cc| HandshakeApp::new(cc));
+    assert_eq!(
+        harness.state().diag_session(),
+        Some(&session),
+        "the mounted app must reuse the exact diagnostics ring Palmistry watches"
+    );
+    harness
+        .state_mut()
+        .set_backend_unreachable_for_test(&backend_base);
+    step_until(&mut harness, Duration::from_secs(20), |app| {
+        !app.backend_is_down()
+            && app.status_bar_health_text().contains("Backend: OK")
+            && app.layout_workers_in_flight_for_test() == 0
+    });
+
+    let mut argus = CanonicalArgusDriver::bind(
+        harness.state(),
+        &format!("mt088-real-backend-loss-{run_id}"),
+    );
+    let live_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&live_inspect, BACKEND_STATUS_AUTHOR_ID),
+        "canonical Argus must address the mounted backend status node"
+    );
+    let live_status = json_author_value(&live_inspect, BACKEND_STATUS_AUTHOR_ID)
+        .expect("canonical Argus live status has text")
+        .to_owned();
+    assert!(
+        live_status.contains("Backend: OK"),
+        "canonical Argus must observe the real managed backend as connected: {live_status:?}"
+    );
+    let live_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "connected-before");
+    let live_screenshot_sha256 = file_sha256(&live_screenshot);
+
+    let ring =
+        DiagRingReader::open(&session.ring_path).expect("Palmistry-shared MT-088 ring is readable");
+    let heartbeat_live = ring
+        .read_heartbeat()
+        .expect("mounted app publishes a heartbeat before fault injection");
+    let (unreachable_before, recovered_before) = count_backend_events();
+    let frame_before_fault = harness.state().frame_counter();
+    let backend_port = reqwest::Url::parse(&backend_base)
+        .expect("fixture backend base is a URL")
+        .port()
+        .expect("fixture backend uses an explicit ephemeral port") as u64;
+
+    // The exact current-source backend process is suspended, not replaced by a mock. Its listening
+    // socket stays present, so real client connects become half-open/slow until the 10s request bound.
+    let suspended = SuspendedProcessGuard::suspend(original_backend_pid);
+    let fault_started_nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system time after epoch")
+        .as_nanos() as u64;
+    // Rebind to the same real endpoint after suspension. This deliberately starts a fresh production
+    // WorkbenchLayoutClient load as well as a health probe, so the integrated proof crosses the exact
+    // layout-load path that originally froze the frame loop.
+    harness
+        .state_mut()
+        .set_backend_endpoints_for_test(&backend_base, &backend_base);
+    let fault_layout_generation = harness.state().layout_load_ownership_for_test().0;
+    assert!(
+        harness.state().layout_load_ownership_for_test().2,
+        "real suspended-backend phase must begin with a fresh layout worker in flight"
+    );
+    let fault_deadline = Instant::now() + CLIENT_REQUEST_TIMEOUT + Duration::from_secs(8);
+    let mut worst_fault_frame = Duration::ZERO;
+    while (!harness.state().backend_is_down()
+        || harness.state().layout_workers_in_flight_for_test() != 0)
+        && Instant::now() < fault_deadline
+    {
+        let started = Instant::now();
+        harness.step();
+        let elapsed = started.elapsed();
+        worst_fault_frame = worst_fault_frame.max(elapsed);
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "a suspended real backend must not stall a mounted UI frame"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(
+        harness.state().backend_is_down(),
+        "suspended real backend must resolve to finite degraded state within the request deadline"
+    );
+    assert_eq!(
+        harness.state().layout_workers_in_flight_for_test(),
+        0,
+        "suspended real backend must leave no app-owned layout worker after the request deadline"
+    );
+    assert!(
+        harness.state().frame_counter() > frame_before_fault,
+        "the mounted UI heartbeat must advance during real backend suspension"
+    );
+    assert!(
+        process_is_running(palmistry_pid),
+        "out-of-process Palmistry must survive and remain live during backend suspension"
+    );
+
+    let down_inspect = argus.inspect(&mut harness);
+    let down_status = json_author_value(&down_inspect, BACKEND_STATUS_AUTHOR_ID)
+        .expect("canonical Argus degraded status has text")
+        .to_owned();
+    assert!(
+        down_status.contains("Disconnected") && down_status.contains("UI responsive"),
+        "canonical Argus must observe the finite degraded status, got {down_status:?}"
+    );
+    harness.state_mut().open_settings();
+    harness.step();
+    let settings_search = harness.get_by_label("Search settings");
+    settings_search.focus();
+    harness.step();
+    harness
+        .get_by_label("Search settings")
+        .type_text("diagnostics");
+    harness.run_steps(3);
+    let down_diagnostics_inspect = argus.inspect(&mut harness);
+    for author_id in [
+        diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID,
+        diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID,
+        diagnostics::DIAGNOSTICS_PALMISTRY_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&down_diagnostics_inspect, author_id),
+            "canonical Argus must observe affected Settings -> Diagnostics node {author_id} while down"
+        );
+    }
+    let down_diagnostics_json =
+        serde_json::to_string(&down_diagnostics_inspect).expect("serialize down diagnostics tree");
+    assert!(
+        down_diagnostics_json.contains("BackendUnreachable"),
+        "canonical Argus Settings diagnostics tree must project the typed down-edge label"
+    );
+    assert!(
+        down_diagnostics_json.contains("Shared-memory ring active"),
+        "canonical Argus Settings diagnostics tree must expose Tier-3 ring visibility"
+    );
+    let down_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "disconnected");
+    let down_screenshot_sha256 = file_sha256(&down_screenshot);
+    assert_ne!(
+        down_screenshot_sha256, live_screenshot_sha256,
+        "the mounted disconnected Diagnostics state must render differently from the connected surface"
+    );
+    let heartbeat_down = ring
+        .read_heartbeat()
+        .expect("Palmistry-shared heartbeat remains readable during backend suspension");
+    assert!(
+        heartbeat_down.counter > heartbeat_live.counter,
+        "the exact Palmistry-shared heartbeat must advance during backend suspension"
+    );
+    let ring_down_events = ring.read_last_n(64);
+    let ring_down_event = ring_down_events
+        .iter()
+        .filter(|event| {
+            event.event_code == DiagEventCode::BackendUnreachable.as_u16()
+                && event.counter_a == backend_port
+                && event.phase_marker == DiagPhase::Degraded.as_u8()
+                && event.severity == DiagSeverity::Error.as_u8()
+                && event.timestamp_nanos >= fault_started_nanos
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ring_down_event.len(),
+        1,
+        "same-run ring must contain exactly one newly timestamped BackendUnreachable edge for real port \
+         {backend_port}; events={ring_down_events:?}"
+    );
+    let (unreachable_down, recovered_down) = count_backend_events();
+    assert_eq!(
+        unreachable_down - unreachable_before,
+        1,
+        "real suspended-backend transition emits exactly one BackendUnreachable"
+    );
+    assert_eq!(
+        recovered_down - recovered_before,
+        0,
+        "backend suspension cannot emit recovery"
+    );
+
+    // Resume the exact owned process only long enough to make termination safe, then restart the
+    // current-source backend with the same PostgreSQL authority and exact listener. The app retains its
+    // URL throughout; no test seam fabricates the recovered state.
+    suspended.resume();
+    let recovery_started_nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system time after epoch")
+        .as_nanos() as u64;
+    let (old_base, new_base) = backend.restart_owned();
+    let restarted_backend_pid = backend.owned_process_id();
+    assert_eq!(old_base, backend_base);
+    assert_eq!(new_base, backend_base);
+    assert_ne!(
+        restarted_backend_pid, original_backend_pid,
+        "real backend restart must replace the exact process"
+    );
+    step_until(&mut harness, Duration::from_secs(20), |app| {
+        !app.backend_is_down() && app.status_bar_health_text().contains("Backend: OK")
+    });
+    assert!(
+        process_is_running(palmistry_pid),
+        "out-of-process Palmistry must survive through backend restart and reconnect"
+    );
+
+    let recovered_inspect = argus.inspect(&mut harness);
+    let recovered_status = json_author_value(&recovered_inspect, BACKEND_STATUS_AUTHOR_ID)
+        .expect("canonical Argus recovered status has text")
+        .to_owned();
+    assert!(
+        recovered_status.contains("Backend: OK"),
+        "canonical Argus must re-observe the same mounted status as recovered: {recovered_status:?}"
+    );
+    for author_id in [
+        diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID,
+        diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID,
+        diagnostics::DIAGNOSTICS_PALMISTRY_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&recovered_inspect, author_id),
+            "canonical Argus must retain affected Settings -> Diagnostics node {author_id} after recovery"
+        );
+    }
+    let recovered_diagnostics_json =
+        serde_json::to_string(&recovered_inspect).expect("serialize recovered diagnostics tree");
+    assert!(
+        recovered_diagnostics_json.contains("BackendRecovered"),
+        "canonical Argus Settings diagnostics tree must project the typed recovery-edge label"
+    );
+    assert!(
+        recovered_diagnostics_json.contains("Shared-memory ring active"),
+        "canonical Argus Settings diagnostics tree must retain Tier-3 ring visibility after recovery"
+    );
+    let recovered_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "reconnected");
+    let recovered_screenshot_sha256 = file_sha256(&recovered_screenshot);
+    assert_ne!(
+        recovered_screenshot_sha256, down_screenshot_sha256,
+        "the mounted recovered Diagnostics state must render differently from the disconnected surface"
+    );
+    let heartbeat_recovered = ring
+        .read_heartbeat()
+        .expect("Palmistry-shared heartbeat remains readable after reconnect");
+    assert!(
+        heartbeat_recovered.counter > heartbeat_down.counter,
+        "the exact Palmistry-shared heartbeat must advance after reconnect"
+    );
+    let ring_recovered_events = ring.read_last_n(64);
+    let ring_recovered_event = ring_recovered_events
+        .iter()
+        .filter(|event| {
+            event.event_code == DiagEventCode::BackendRecovered.as_u16()
+                && event.counter_a == backend_port
+                && event.phase_marker == DiagPhase::Recovered.as_u8()
+                && event.severity == DiagSeverity::Info.as_u8()
+                && event.timestamp_nanos >= recovery_started_nanos
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ring_recovered_event.len(),
+        1,
+        "same-run ring must contain exactly one newly timestamped BackendRecovered edge for real port \
+         {backend_port}; events={ring_recovered_events:?}"
+    );
+    let (unreachable_after, recovered_after) = count_backend_events();
+    assert_eq!(unreachable_after - unreachable_before, 1);
+    assert_eq!(
+        recovered_after - recovered_before,
+        1,
+        "real backend restart/reconnect emits exactly one BackendRecovered"
+    );
+
+    argus.finish();
+    drop(harness);
+    let palmistry_shutdown = palmistry.request_shutdown_and_wait(Duration::from_secs(10));
+    match palmistry_shutdown {
+        ShutdownOutcome::ExitedCleanly(status) => {
+            assert!(
+                status.success(),
+                "Palmistry clean shutdown failed: {status:?}"
+            )
+        }
+        other => panic!("Palmistry must persist a clean same-run survivor receipt: {other:?}"),
+    }
+    assert!(
+        !process_is_running(palmistry_pid),
+        "clean Palmistry shutdown must reap the exact proof-owned child"
+    );
+    let palmistry_survivor =
+        artifact_dir.join(format!("palmistry-survivor-{}.json", session.session_id));
+    let survivor_json: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&palmistry_survivor)
+            .unwrap_or_else(|error| panic!("read {}: {error}", palmistry_survivor.display())),
+    )
+    .expect("decode same-run Palmistry survivor receipt");
+    assert_eq!(survivor_json["session_id"], session.session_id);
+    assert_eq!(survivor_json["exit_reason"], "CleanShutdown");
+    assert_eq!(survivor_json["abnormal_parent_exit"], false);
+    assert_eq!(survivor_json["shutdown_received"], true);
+    backend.assert_cleanup();
+    assert!(
+        !process_is_running(restarted_backend_pid),
+        "backend cleanup must reap the exact restarted proof-owned child"
+    );
+
+    let evidence_path = artifact_dir.join("mt088-integrated-canonical-evidence.json");
+    let evidence = serde_json::json!({
+        "schema_id": "handshake.mt088-integrated-proof.v1",
+        "run_id": run_id,
+        "ownership": {
+            "owner_session": owner_session,
+            "owner_wp": "WP-KERNEL-012",
+            "owner_mt": "MT-088",
+            "owner_role": "KERNEL_BUILDER",
+            "started_at_unix_millis": run_started_unix_millis,
+            "palmistry_child_reaped": true,
+            "backend_child_reaped": true,
+            "orphan_reclamation_verified": true,
+        },
+        "source_sha": current_source_sha(),
+        "proof_source_blobs": current_integrated_proof_blobs(),
+        "proof_paths_clean_against_source_sha": true,
+        "managed_postgresql": true,
+        "current_source_backend": {
+            "base_url": backend_base,
+            "binary": backend_binary_provenance,
+            "suspended_pid": original_backend_pid,
+            "restarted_pid": restarted_backend_pid,
+            "restart_reused_exact_listener": old_base == new_base,
+            "cleanup_verified": true,
+        },
+        "fault": {
+            "mechanism": "OS suspension of the fixture-owned current-source handshake_core process",
+            "network_effect": "real listener remains present while accepted requests receive no application bytes until the bounded client deadline",
+            "slowest_ui_frame_millis": worst_fault_frame.as_millis(),
+            "request_deadline_millis": CLIENT_REQUEST_TIMEOUT.as_millis(),
+            "fresh_layout_generation": fault_layout_generation,
+            "fresh_layout_worker_drained": true,
+        },
+        "internal_diagnostics": {
+            "session_id": session.session_id,
+            "ring_path": session.ring_path,
+            "heartbeat_connected": heartbeat_live.counter,
+            "heartbeat_disconnected": heartbeat_down.counter,
+            "heartbeat_reconnected": heartbeat_recovered.counter,
+            "backend_unreachable_delta": unreachable_after - unreachable_before,
+            "backend_recovered_delta": recovered_after - recovered_before,
+        },
+        "palmistry": {
+            "binary": palmistry_binary_provenance,
+            "pid": palmistry_pid,
+            "handshake_acked": true,
+            "alive_during_backend_suspension": true,
+            "alive_after_backend_restart": true,
+            "survivor_receipt": palmistry_survivor,
+            "survivor": survivor_json,
+        },
+        "canonical_argus": {
+            "transport": "SwarmMcpServer localhost JSON-RPC",
+            "author_id": BACKEND_STATUS_AUTHOR_ID,
+            "connected_before": {"status": live_status, "inspect": live_inspect},
+            "disconnected": {
+                "status": down_status,
+                "status_inspect": down_inspect,
+                "settings_diagnostics_inspect": down_diagnostics_inspect,
+            },
+            "reconnected": {"status": recovered_status, "inspect": recovered_inspect},
+            "teardown_verified": true,
+        },
+        "mounted_surface_renders": [
+            {"state": "connected-before", "path": live_screenshot, "sha256": live_screenshot_sha256},
+            {"state": "disconnected-settings-diagnostics", "path": down_screenshot, "sha256": down_screenshot_sha256},
+            {"state": "reconnected-settings-diagnostics", "path": recovered_screenshot, "sha256": recovered_screenshot_sha256},
+        ],
+    });
+    std::fs::write(
+        &evidence_path,
+        serde_json::to_vec_pretty(&evidence).expect("serialize MT-088 integrated evidence"),
+    )
+    .expect("write MT-088 integrated evidence");
+    assert!(evidence_path.is_file());
+    assert_no_local_artifact_dir();
+    eprintln!(
+        "MT-088 INTEGRATED PASS: real PG/backend suspension+restart, mounted heartbeat/events, \
+         Palmistry survivor, canonical Argus down/recovered; evidence={}",
+        evidence_path.display()
+    );
 }
 
 /// A 2xx body is not healthy merely because it is valid JSON. Both `/health` and the layout route must

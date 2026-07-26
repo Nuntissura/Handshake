@@ -43,6 +43,7 @@ pub struct LiveBackend {
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
     owned_backend: Option<Child>,
+    owned_binary: Option<PathBuf>,
     owned_data_dir: Option<PathBuf>,
     _fixture_lock: FileLock,
 }
@@ -153,6 +154,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
 
     let mut base = configured_base.clone();
     let mut owned_backend = None;
+    let mut owned_binary = None;
     let mut owned_data_dir = None;
     if force_owned || !healthy(&rt, &client, &configured_base) {
         if !force_owned {
@@ -167,6 +169,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         base = wait_for_listen_report(pending.child_mut(), &report_path);
         wait_for_health(&rt, &client, &base, pending.child_mut());
         owned_backend = Some(pending.take());
+        owned_binary = Some(binary);
         owned_data_dir = Some(data_dir);
     }
 
@@ -176,6 +179,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         client,
         rt,
         owned_backend,
+        owned_binary,
         owned_data_dir,
         _fixture_lock: lock,
     };
@@ -450,6 +454,24 @@ fn wait_for_health(
 }
 
 impl LiveBackend {
+    /// OS process id of the exact current-source backend owned by this fixture. Live fault-injection
+    /// proofs use this identity to suspend only their own backend process; attached/root-managed
+    /// backends are never eligible.
+    pub fn owned_process_id(&self) -> u32 {
+        self.owned_backend
+            .as_ref()
+            .expect("owned_process_id requires a fixture-owned backend")
+            .id()
+    }
+
+    /// Exact executable used to spawn this fixture-owned backend. The live proof hashes this file and
+    /// `restart_owned` reuses it rather than re-resolving mutable environment state mid-scenario.
+    pub fn owned_binary_path(&self) -> &Path {
+        self.owned_binary
+            .as_deref()
+            .expect("owned_binary_path requires a fixture-owned backend")
+    }
+
     /// Restart the exact backend process owned by this fixture while preserving its PostgreSQL
     /// authority. The replacement is spawned from the same current-source executable and private
     /// binding root, then health-gated before the new ephemeral base URL is returned.
@@ -473,7 +495,10 @@ impl LiveBackend {
             }
         }
 
-        let binary = resolve_backend_binary();
+        let binary = self
+            .owned_binary
+            .clone()
+            .expect("restart_owned requires the fixture's original backend executable");
         let listen_addr = old_base
             .strip_prefix("http://")
             .expect("owned backend base is an HTTP listener");

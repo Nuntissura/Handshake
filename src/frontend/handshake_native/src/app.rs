@@ -24302,12 +24302,12 @@ impl HandshakeApp {
         if reachable && was_down {
             // Recovery edge: unreachable -> reachable.
             self.backend_down = false;
-            Self::record_backend_event(false);
+            self.record_backend_event(false);
             tracing::info!("backend recovered (BackendRecovered emitted; degraded state cleared)");
         } else if !reachable && !was_down {
             // Down edge: reachable -> unreachable.
             self.backend_down = true;
-            Self::record_backend_event(true);
+            self.record_backend_event(true);
             tracing::warn!(
                 "backend unreachable (BackendUnreachable emitted; surfaces degrade, frame loop stays \
                  responsive — §5.8.5 HARD)"
@@ -24317,13 +24317,18 @@ impl HandshakeApp {
 
     /// WP-KERNEL-012 MT-088: record one typed backend transition event through the OPEN MT-082 recorder.
     /// `down == true` records [`DiagEventCode::BackendUnreachable`]; `down == false` records
-    /// [`DiagEventCode::BackendRecovered`]. The numeric backend port (37501) rides `counter_a` — there is
-    /// NO free-text field (the typed-allowlist invariant, §5.8.3). Timestamp is monotonic-ish wall nanos
-    /// (consistent with the other transition markers); the event is for the panel + Palmistry, not the
-    /// heartbeat staleness math (which uses the dedicated monotonic heartbeat slot).
-    fn record_backend_event(down: bool) {
-        // The native backend port (from BACKEND_BASE_URL `http://127.0.0.1:37501`). Numeric only.
-        const BACKEND_PORT: u64 = 37501;
+    /// [`DiagEventCode::BackendRecovered`]. The numeric port parsed from the active health endpoint rides
+    /// `counter_a` — there is NO free-text field (the typed-allowlist invariant, §5.8.3). A malformed or
+    /// portless endpoint records `0` rather than falsely attributing the edge to the production default.
+    /// Timestamp is monotonic-ish wall nanos (consistent with the other transition markers); the event is
+    /// for the panel + Palmistry, not the heartbeat staleness math (which uses the dedicated monotonic
+    /// heartbeat slot).
+    fn record_backend_event(&self, down: bool) {
+        let backend_port = reqwest::Url::parse(&self.backend_health_url)
+            .ok()
+            .and_then(|url| url.port_or_known_default())
+            .map(u64::from)
+            .unwrap_or(0);
         let now_nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos() as u64)
@@ -24347,7 +24352,7 @@ impl HandshakeApp {
             severity,
             /* thread_id    */ 0,
             /* sequence_id  */ 0,
-            /* counter_a    */ BACKEND_PORT,
+            /* counter_a    */ backend_port,
             /* counter_b    */ 0,
             /* metric_micros*/ 0,
             now_nanos,

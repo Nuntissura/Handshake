@@ -1028,9 +1028,36 @@ records one BackendUnreachable row on the down edge instead of flooding every fr
 HTTP pool bounds connection setup at 1.5 seconds and a silent accepted request at 10 seconds; these are \
 fixed safety bounds, not operator preferences, so this WP adds no timeout setting. Handshake continues \
 bounded health probes; after the backend responds again the surface reconnects, the degraded state clears, \
-and exactly one BackendRecovered edge is recorded. A model diagnosing backend loss should read the status \
-bar plus diagnostics_events, keep editing local buffers, avoid repeated commands while a write outcome is \
-unknown, and verify BackendRecovered before retrying a mutation."
+and exactly one BackendRecovered edge is recorded. Operators reach this surface through Operator -> Open \
+Settings… (or Help -> Open Settings…), then search for diagnostics. A model diagnosing backend loss should \
+read the status bar plus diagnostics_events, keep editing local buffers, avoid repeated commands while a write outcome is \
+unknown, and verify BackendRecovered before retrying a mutation.\n\nThe exact V3 integrated recovery \
+proof uses committed current source and one mounted run: it starts a fixture-owned handshake_core against \
+real PostgreSQL, launches the real out-of-process Palmistry binary on the app's exact shared diagnostics \
+ring, observes the connected status through canonical localhost Argus, OS-suspends only that owned backend \
+process so its real listener becomes half-open/silent, starts a fresh production layout load against that \
+silent listener, and proves the layout worker drains while frames plus the Palmistry-shared heartbeat \
+continue and one endpoint-attributed BackendUnreachable edge plus the finite Disconnected state appear. \
+Canonical Argus also opens Settings -> Diagnostics and observes diagnostics_panel, diagnostics_events, \
+diagnostics_palmistry, the BackendUnreachable row, and the active shared-memory ring. It then resumes and \
+restarts handshake_core on the exact listener and PostgreSQL authority, proves one BackendRecovered edge, \
+and has canonical Argus re-observe Backend: OK plus the recovered Diagnostics projection. Palmistry must \
+stay alive across both phases and persist a CleanShutdown survivor receipt beside the exact ring for the \
+same session. From src/frontend/handshake_native, set an external \
+CARGO_TARGET_DIR, HANDSHAKE_TEST_PG_DSN for an isolated real database, HSK_TEST_BACKEND_BIN to that target's \
+current-source handshake_core binary, HANDSHAKE_PALMISTRY_EXE to its current-source Palmistry binary, and \
+HANDSHAKE_TEST_STAGE_BINDING_ROOT to a fresh external binding root; then run `cargo test --test \
+test_backend_down_responsive backend_down_responsive_real_pg_palmistry_argus -- --ignored --exact \
+--nocapture --test-threads=1`. Evidence is written under \
+Handshake_Artifacts/handshake-test/wp-kernel-012-mt-088/integrated/run-*/ and includes status and Settings \
+Diagnostics Argus trees, connected/disconnected/reconnected render hashes, HEAD-matched source blobs, binary \
+SHA-256/freshness records, backend process identities, heartbeat counters, endpoint-attributed typed event \
+deltas, ownership/orphan-reclamation metadata, cleanup, and the Palmistry survivor receipt. HBR-INT-009 posture for backend \
+reachability is explicit: Tier 1 Flight Recorder/EventLedger is NOT_APPLICABLE-with-reason for local \
+reachability edges because it remains the PostgreSQL-backed business-event ledger and is not repurposed as \
+a health log; Tier 2 internal_diagnostics is WIRED through the shared heartbeat plus BackendUnreachable and \
+BackendRecovered; Tier 3 Palmistry is WIRED as the external child reading that exact ring and surviving the \
+backend fault/restart."
         .to_owned()
 }
 
