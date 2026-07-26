@@ -431,14 +431,19 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
 
             // Search input, pinned to the fixed search id so its AccessKit NodeId is stable.
             ui.label(egui::RichText::new("Search settings").small().weak());
+            // Drain a target-specific model replacement before TextEdit builds its value/tree for
+            // this frame. Reading it after `ui.add(edit)` leaves the current widget snapshot on the
+            // pre-action value and can cause the action channel's post-render receipt to reject an
+            // otherwise valid canonical Argus SetValue.
+            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, search_egui_id) {
+                state.query = value;
+                ui.ctx().request_repaint();
+            }
             let edit = egui::TextEdit::singleline(&mut state.query)
                 .id(search_egui_id)
                 .hint_text("Theme, quick switcher, terminal...")
                 .desired_width(f32::INFINITY);
             let _edit_response = ui.add(edit);
-            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, search_egui_id) {
-                state.query = value;
-            }
             if !state.focus_requested {
                 _edit_response.request_focus();
                 state.focus_requested = true;

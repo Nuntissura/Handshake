@@ -703,6 +703,31 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
             .supports_action(egui::accesskit::Action::SetValue),
         "settings.search must advertise SetValue for the documented model route"
     );
+    let search_node_id = search_accesskit.id();
+
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::SetValue,
+            target: search_node_id,
+            data: Some(egui::accesskit::ActionData::Value(
+                "diagnostics".to_owned().into(),
+            )),
+        },
+    ));
+    harness.run_steps(2);
+    let search_value = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id()
+                == Some(handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID)
+        })
+        .and_then(|node| node.accesskit_node().value());
+    assert_eq!(
+        search_value.as_deref(),
+        Some("diagnostics"),
+        "settings.search SetValue must mutate the mounted query through its real AccessKit node"
+    );
 
     println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
 }
