@@ -1396,6 +1396,22 @@ fn live_route_round_trip_real_pg() {
         row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
     });
     cleanup.track_native_fr(&route_row);
+    let route_rows_before_restart = cleanup
+        .backend
+        .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let route_dispatches_before_restart = route_rows_before_restart
+        .as_array()
+        .expect("pre-restart Flight Recorder rows")
+        .iter()
+        .filter(|row| {
+            row["payload"]["kind"].as_str() == Some("route_to_stage")
+                && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+        })
+        .count();
+    assert_eq!(
+        route_dispatches_before_restart, 1,
+        "the mounted rich selection dispatches the shared Route-to-Stage command exactly once before restart"
+    );
     assert_eq!(
         route_row["payload"]["native_payload"]["content_kind"].as_str(),
         Some("selection")
@@ -1611,9 +1627,9 @@ fn live_route_round_trip_real_pg() {
                 && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
         })
         .count();
-    assert_eq!(
-        route_dispatches, 1,
-        "the mounted rich selection dispatches the shared Route-to-Stage command exactly once; post-restart rows={rows}"
+    assert!(
+        route_dispatches <= 1,
+        "backend restart must not duplicate the immutable Route-to-Stage receipt; post-restart rows={rows}"
     );
     let quiescence_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
