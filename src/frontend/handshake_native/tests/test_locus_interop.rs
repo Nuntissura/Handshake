@@ -700,7 +700,8 @@ fn sql_literal(value: &str) -> String {
 }
 
 fn managed_pg_url() -> String {
-    std::env::var("HSK_PROOF_DATABASE_URL")
+    std::env::var("HANDSHAKE_TEST_PG_DSN")
+        .or_else(|_| std::env::var("HSK_PROOF_DATABASE_URL"))
         .or_else(|_| std::env::var("POSTGRES_TEST_URL"))
         .or_else(|_| std::env::var("DATABASE_URL"))
         .unwrap_or_else(|_| "postgres://postgres@127.0.0.1:5544/handshake".to_owned())
