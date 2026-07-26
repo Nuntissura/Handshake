@@ -839,6 +839,42 @@ fn current_source_sha() -> String {
         .to_owned()
 }
 
+fn current_runtime_source_tree() -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native");
+    let status = std::process::Command::new("git")
+        .args(["status", "--porcelain=v1", "--untracked-files=all"])
+        .current_dir(repo_root)
+        .output()
+        .expect("inspect complete MT-066 runtime source cleanliness");
+    assert!(status.status.success());
+    let unexpected = String::from_utf8(status.stdout)
+        .expect("git status UTF-8")
+        .lines()
+        .filter(|line| {
+            let path = line.get(3..).unwrap_or_default();
+            !matches!(path, "AGENTS.md" | "CLAUDE.md")
+        })
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    assert!(
+        unexpected.is_empty(),
+        "MT-066 canonical proof refuses dirty/untracked transitive runtime source outside the known authority files: {unexpected:?}"
+    );
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD^{tree}"])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve complete committed runtime source tree");
+    assert!(output.status.success());
+    String::from_utf8(output.stdout)
+        .expect("runtime source tree UTF-8")
+        .trim()
+        .to_owned()
+}
+
 fn current_proof_source_blob() -> String {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -1187,6 +1223,7 @@ fn live_route_round_trip_real_pg() {
         .expect("real dead-owner evidence")
         .clone();
     let source_sha = current_source_sha();
+    let runtime_source_tree = current_runtime_source_tree();
     let proof_source_blob = current_proof_source_blob();
     let proof_source_blobs = current_proof_source_blobs();
     let artifact_dir = external_artifact_dir(&format!(
@@ -1770,9 +1807,11 @@ fn live_route_round_trip_real_pg() {
             "recorded_at": chrono::Utc::now().to_rfc3339(),
             "source": {
                 "source_sha": source_sha,
+                "runtime_source_tree": runtime_source_tree,
                 "proof_source_blob": proof_source_blob,
                 "proof_source_blobs": proof_source_blobs,
                 "relevant_source_clean": true,
+                "transitive_runtime_source_clean": true,
                 "global_worktree_clean": false,
                 "known_unrelated_dirty_paths": ["AGENTS.md", "CLAUDE.md"],
             },
