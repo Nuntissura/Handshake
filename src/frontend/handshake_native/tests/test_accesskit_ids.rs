@@ -65,6 +65,43 @@ fn ok_app() -> HandshakeApp {
     }))
 }
 
+#[derive(Clone)]
+struct RecoveringSettingsTransport {
+    load_calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl handshake_native::workspace_settings::SettingsTransport for RecoveringSettingsTransport {
+    fn load(
+        &self,
+        _workspace_id: &str,
+    ) -> Result<
+        Option<serde_json::Value>,
+        handshake_native::workspace_settings::SettingsTransportError,
+    > {
+        if self
+            .load_calls
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            == 0
+        {
+            Err(
+                handshake_native::workspace_settings::SettingsTransportError(
+                    "backend temporarily unavailable".to_owned(),
+                ),
+            )
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn save(
+        &self,
+        _workspace_id: &str,
+        _settings_state: serde_json::Value,
+    ) -> Result<(), handshake_native::workspace_settings::SettingsTransportError> {
+        Ok(())
+    }
+}
+
 /// Run the REAL shell for exactly one frame on a plain `egui::Context` with AccessKit enabled, and
 /// return the live `accesskit::TreeUpdate` egui produced — the exact value the out-of-process
 /// Windows UIA adapter receives each frame (egui builds it in `Context::run` end-of-pass). This is
@@ -738,4 +775,81 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
     );
 
     println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
+}
+
+#[test]
+fn settings_persistence_retry_is_enabled_and_recovers_through_accesskit() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build settings retry runtime");
+    let load_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut app = ok_app();
+    app.set_runtime_handle(runtime.handle().clone());
+    app.set_settings_transport(std::sync::Arc::new(RecoveringSettingsTransport {
+        load_calls: std::sync::Arc::clone(&load_calls),
+    }));
+    app.open_settings();
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    for _ in 0..50 {
+        harness.run_steps(1);
+        if harness.state().settings_persist_error().is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(
+        harness.state().settings_persist_error(),
+        Some("backend temporarily unavailable")
+    );
+
+    let retry = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id()
+                == Some(handshake_native::settings_dialog::SETTINGS_PERSIST_RETRY_AUTHOR_ID)
+        })
+        .expect("visible Settings failure exposes its stable retry control");
+    let retry_node = retry.accesskit_node();
+    assert!(
+        !retry_node.is_disabled(),
+        "the visible Settings retry button must remain steerable through canonical AccessKit"
+    );
+    assert!(
+        retry_node
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        "the Settings retry button must advertise Click"
+    );
+    let retry_id = retry_node.id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: retry_id,
+            data: None,
+        },
+    ));
+
+    for _ in 0..50 {
+        harness.run_steps(1);
+        if harness.state().settings_persist_error().is_none()
+            && load_calls.load(std::sync::atomic::Ordering::SeqCst) >= 2
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        harness.state().settings_persist_error().is_none(),
+        "the AccessKit retry must dispatch the real Settings recovery path"
+    );
+    assert_eq!(
+        load_calls.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "one failed load plus one operator retry"
+    );
 }

@@ -479,7 +479,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
                         None => unreachable!(),
                     };
                     let retry = ui.button(retry_label);
-                    set_author_id(ui, retry.id, SETTINGS_PERSIST_RETRY_AUTHOR_ID);
+                    emit_enabled_retry_node(ui, retry.id);
                     if retry.clicked() && outcome == SettingsOutcome::None {
                         outcome = SettingsOutcome::RetryPersistence;
                     }
@@ -1158,6 +1158,17 @@ fn set_author_id(ui: &egui::Ui, widget_id: egui::Id, author_id: &str) {
     let author_id = author_id.to_owned();
     ui.ctx()
         .accesskit_node_builder(widget_id, move |node| node.set_author_id(author_id));
+}
+
+/// Publish the visible persistence retry as the enabled button it is on screen. As with the fixed-id
+/// search field, egui can retain a disabled bit while a node builder augments the widget for AccessKit;
+/// leaving that stale bit makes canonical Argus reject the operator's documented recovery action.
+fn emit_enabled_retry_node(ui: &egui::Ui, widget_id: egui::Id) {
+    set_author_id(ui, widget_id, SETTINGS_PERSIST_RETRY_AUTHOR_ID);
+    ui.ctx().accesskit_node_builder(widget_id, |node| {
+        node.clear_disabled();
+        node.add_action(accesskit::Action::Click);
+    });
 }
 
 /// Attach a stable author_id AND an accessible label to an already-interactive live node. Used for
