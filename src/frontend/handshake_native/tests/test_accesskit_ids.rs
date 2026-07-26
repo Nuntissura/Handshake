@@ -685,6 +685,24 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
         "Button",
         "keybinding reset button role"
     );
+    let search_node = root
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id()
+                == Some(handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID)
+        })
+        .expect("settings search node remains present in the live tree");
+    let search_accesskit = search_node.accesskit_node();
+    assert!(
+        !search_accesskit.is_disabled(),
+        "settings.search is a real editable field and must be enabled for canonical Argus"
+    );
+    assert!(
+        search_accesskit
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "settings.search must advertise SetValue for the documented model route"
+    );
 
     println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
 }

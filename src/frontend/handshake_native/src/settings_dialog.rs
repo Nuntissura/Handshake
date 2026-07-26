@@ -1153,6 +1153,11 @@ fn emit_dialog_node(ctx: &egui::Context, dialog_id: egui::Id) {
 fn emit_search_node(ctx: &egui::Context, search_id: egui::Id) {
     crate::accessibility::emit_interactive_node(ctx, search_id, SETTINGS_SEARCH_AUTHOR_ID);
     ctx.accesskit_node_builder(search_id, |node| {
+        // This node is the real editable TextEdit above. egui can retain a disabled bit on the
+        // augmented fixed-id node even though the widget is enabled, which makes canonical Argus
+        // reject the documented SetValue route. Keep the accessibility state aligned with the live
+        // control instead of exposing an honestly editable field as disabled out-of-process.
+        node.clear_disabled();
         node.add_action(accesskit::Action::SetValue);
     });
 }
