@@ -280,6 +280,10 @@ fn assert_backend_binary_is_current_source(binary: &Path) {
 }
 
 fn spawn_backend(binary: &Path) -> (Child, PathBuf) {
+    spawn_backend_at(binary, "127.0.0.1:0")
+}
+
+fn spawn_backend_at(binary: &Path, listen_addr: &str) -> (Child, PathBuf) {
     let run_id = uuid::Uuid::new_v4();
     let run_root = external_artifact_root()
         .join("backend-runtime")
@@ -307,7 +311,7 @@ fn spawn_backend(binary: &Path) -> (Child, PathBuf) {
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
-        .env("HANDSHAKE_BACKEND_LISTEN_ADDR", "127.0.0.1:0")
+        .env("HANDSHAKE_BACKEND_LISTEN_ADDR", listen_addr)
         .env("HANDSHAKE_BACKEND_LISTEN_REPORT_FILE", &report_path)
         .env("HANDSHAKE_DATA_DIR", &data_dir)
         .env("DATABASE_URL", database_url)
@@ -453,16 +457,19 @@ impl LiveBackend {
         }
 
         let binary = resolve_backend_binary();
-        let (replacement, report_path) = spawn_backend(&binary);
+        let listen_addr = old_base
+            .strip_prefix("http://")
+            .expect("owned backend base is an HTTP listener");
+        let (replacement, report_path) = spawn_backend_at(&binary, listen_addr);
         let mut pending = PendingChild::new(replacement);
         let new_base = wait_for_listen_report(pending.child_mut(), &report_path);
         wait_for_health(&self.rt, &self.client, &new_base, pending.child_mut());
         self.base = new_base.clone();
         self.owned_backend = Some(pending.take());
         self.assert_healthy();
-        assert_ne!(
+        assert_eq!(
             old_base, new_base,
-            "owned restart must publish a fresh ephemeral listener"
+            "owned restart must reclaim the exact app-bound listener"
         );
         (old_base, new_base)
     }
