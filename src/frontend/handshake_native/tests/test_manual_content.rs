@@ -373,9 +373,12 @@ fn mt068_locus_manual_covers_persisted_argus_recovery_and_three_tier_posture() {
         "reverse lookup is read-only",
         "record NotFound from LocusReadApiUnavailable",
         "HBR-INT-009 diagnostic posture for Locus",
-        "Flight Recorder/EventLedger = DEFERRED-with-reason",
-        "read-only navigation",
-        "knowledge-document save still returns its existing EventLedger receipt",
+        "Flight Recorder/EventLedger = WIRED",
+        "locus_ref_resolved",
+        "locus_reverse_lookup",
+        "workspace and locus_uri",
+        "failed resolution emits no fabricated success event",
+        "knowledge-document save remains a separate operation",
         "internal_diagnostics = DEFERRED-with-reason",
         "no Locus-specific diagnostic row",
         "Palmistry = DEFERRED-with-reason",
@@ -386,6 +389,12 @@ fn mt068_locus_manual_covers_persisted_argus_recovery_and_three_tier_posture() {
             "MT-068 Locus manual must preserve '{required}'"
         );
     }
+    assert!(
+        !interop.contains(
+            "Flight Recorder/EventLedger = DEFERRED-with-reason because this MT's Locus edge"
+        ),
+        "MT-068 Locus manual must not regress the wired Tier-1 event family to a deferral"
+    );
 }
 
 fn body_marker(heading: &str) -> &'static str {

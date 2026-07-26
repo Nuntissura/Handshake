@@ -4378,8 +4378,9 @@ impl RichEditorWidget {
 
     /// Paint ONE inline wikilink chip: a colored rounded rect at the (scroll-adjusted) glyph span +
     /// the label text on top, an interactive occurrence-scoped AccessKit node
-    /// (`editor.rich.wikilink.chip.v{target-utf8-hex}.path.{model-path}`, Role::Link), and
-    /// click handling that returns a `WikilinkActivated` event (the caller enqueues it). `origin` is
+    /// (`editor.rich.wikilink.chip.v{target-utf8-hex}.path.{model-path}`, with generic/tag links as
+    /// `Role::Link` and code/Locus controls as `Role::Button`), and click handling that returns a
+    /// `WikilinkActivated` event (the caller enqueues it). `origin` is
     /// the block's painted screen top-left (already scroll-adjusted — RISK-1 / MC-001).
     ///
     /// WP-KERNEL-012 MT-110: the chip's paint outcome — see [`ChipPaintOutcome`]. When `allow_swarm_edit`
@@ -4468,11 +4469,12 @@ impl RichEditorWidget {
                 egui::Sense::click()
             },
         );
-        // MT-034 names code-ref chips as executable controls, so their stable `code-ref-chip-*`
-        // nodes are Buttons. Generic wikilinks, tags, and locus refs retain the shared Link role.
+        // MT-034 and MT-068 name code-ref and Locus chips as executable controls, so their stable
+        // `code-ref-chip-*` / `locus-ref-chip-*` nodes are Buttons. Generic wikilinks and tags retain
+        // the shared Link role.
         let role = if spec.ambiguity_matches.is_some() {
             accesskit::Role::Alert
-        } else if is_code_reference {
+        } else if is_code_reference || is_locus_ref(&spec.link) {
             accesskit::Role::Button
         } else {
             CHIP_ROLE

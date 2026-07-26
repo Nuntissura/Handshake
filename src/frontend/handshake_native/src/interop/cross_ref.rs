@@ -866,6 +866,29 @@ pub trait FindNotesSearch: Send + Sync {
             )))
         })
     }
+
+    /// Resolve one exact Loom search-hit block to the persisted rich document content it
+    /// transcludes. Locus reverse lookup uses this block-scoped readback so a structured
+    /// link in another block that happens to share a document cannot validate the candidate.
+    fn load_block_content<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        block_id: &'a str,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<(String, serde_json::Value), CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let workspace_id = workspace_id.to_owned();
+        let block_id = block_id.to_owned();
+        Box::pin(async move {
+            Err(CrossRefError::Backend(format!(
+                "exact Loom block readback is unavailable for {workspace_id}/{block_id}"
+            )))
+        })
+    }
 }
 
 /// The production [`FindNotesSearch`]: a thin reqwest wrapper over the VERIFIED
@@ -966,6 +989,77 @@ impl FindNotesSearch for FindNotesHttp {
                         "document {document_id} omitted object content_json"
                     ))
                 })
+        })
+    }
+
+    fn load_block_content<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        block_id: &'a str,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<(String, serde_json::Value), CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        #[derive(serde::Deserialize)]
+        struct LoomTransclusionWire {
+            source_document_id: Option<String>,
+            content_json: Option<serde_json::Value>,
+            resolved: bool,
+        }
+
+        let url = format!(
+            "{}/workspaces/{}/loom/blocks/{}/transclusion",
+            self.base_url,
+            percent_encode_symbol(workspace_id),
+            percent_encode_symbol(block_id)
+        );
+        let client = self.client.clone();
+        let block_id = block_id.to_owned();
+        Box::pin(async move {
+            let response = client.get(&url).send().await.map_err(|error| {
+                CrossRefError::Backend(format!(
+                    "exact Loom block {block_id} readback failed: {error}"
+                ))
+            })?;
+            let status = response.status();
+            if status.as_u16() == 404 {
+                return Err(CrossRefError::NotFound(format!("Loom block {block_id}")));
+            }
+            if !status.is_success() {
+                return Err(CrossRefError::Backend(format!(
+                    "exact Loom block {block_id} readback returned HTTP {status}"
+                )));
+            }
+            let body = response
+                .json::<LoomTransclusionWire>()
+                .await
+                .map_err(|error| {
+                    CrossRefError::Backend(format!(
+                        "exact Loom block {block_id} readback body invalid: {error}"
+                    ))
+                })?;
+            if !body.resolved {
+                return Err(CrossRefError::NotFound(format!(
+                    "Loom block {block_id} rich document"
+                )));
+            }
+            let document_id = body.source_document_id.ok_or_else(|| {
+                CrossRefError::Backend(format!(
+                    "exact Loom block {block_id} readback omitted source_document_id"
+                ))
+            })?;
+            let content_json = body
+                .content_json
+                .filter(serde_json::Value::is_object)
+                .ok_or_else(|| {
+                    CrossRefError::Backend(format!(
+                        "exact Loom block {block_id} readback omitted object content_json"
+                    ))
+                })?;
+            Ok((document_id, content_json))
         })
     }
 }

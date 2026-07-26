@@ -595,26 +595,20 @@ impl LocusInteropService {
         .await
         .map_err(LocusInteropError::from)?;
         // Search is a bounded candidate generator, not proof of a structured reference: operator-visible
-        // text can contain the same URI without carrying an hsLink. Read each candidate from the rich-document
-        // authority and retain only the exact normalized Locus ref, failing closed if any candidate cannot be
-        // verified. This mirrors MT-034's exact code-ref readback while keeping the shared search substrate.
-        let mut verified_documents = std::collections::HashMap::new();
+        // text can contain the same URI without carrying an hsLink. Resolve every exact Loom block through
+        // its canonical transclusion read, verify the returned document identity matches the search pair,
+        // then inspect that persisted content for the structured ref. This prevents a structured link in one
+        // block from validating a plain-text candidate in another block that shares a document id.
         let mut seen = std::collections::HashSet::new();
         let mut out = Vec::new();
         for note in notes {
-            let exact = if let Some(exact) = verified_documents.get(&note.document_id) {
-                *exact
-            } else {
-                let content = self
-                    .reverse_lookup
-                    .load_document_content(&note.document_id)
-                    .await
-                    .map_err(LocusInteropError::from)?;
-                let exact = content_has_exact_locus_ref(&content, r);
-                verified_documents.insert(note.document_id.clone(), exact);
-                exact
-            };
-            if !exact {
+            let block_id = note.block_id.as_str();
+            let (bound_document_id, content) = self
+                .reverse_lookup
+                .load_block_content(&self.workspace_id, block_id)
+                .await
+                .map_err(LocusInteropError::from)?;
+            if bound_document_id != note.document_id || !content_has_exact_locus_ref(&content, r) {
                 continue;
             }
             let key = (note.document_id.clone(), note.block_id.clone());

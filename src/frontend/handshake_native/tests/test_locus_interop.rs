@@ -25,7 +25,7 @@
 //!   live-404 renders a greyed `unresolved` chip without panic.
 //! - AC-007 / PT-007: grep proof — MT-032 normalizer reused, MT-034 CrossRef node/chip + search reused,
 //!   `open-locus-ref` via the existing command/nav seam, AccessKit ids via the WP-011 registry; no duplicates.
-//! - AC-008: kittest AccessKit dump — `locus-ref-chip-{kind}-{id}` (Link/Button) + `locus-refby-{document_id}`
+//! - AC-008: kittest AccessKit dump — `locus-ref-chip-{kind}-{id}` (Button) + `locus-refby-{document_id}`
 //!   (ListItem) present with correct roles + no duplicate author_id.
 //! - AC-009: diff/dependency gate — frontend resolution is GET-only, backend routes are read-only PostgreSQL,
 //!   and no SQLite authority is introduced.
@@ -109,10 +109,12 @@ const MT068_RELEVANT_SOURCE_PATHS: &[&str] = &[
     "src/backend/handshake_core/src/api/locus.rs",
     "src/frontend/handshake_native/src/accessibility/registry.rs",
     "src/frontend/handshake_native/src/app.rs",
+    "src/frontend/handshake_native/src/event_emitter.rs",
     "src/frontend/handshake_native/src/interop/cross_ref.rs",
     "src/frontend/handshake_native/src/interop/interaction_bus.rs",
     "src/frontend/handshake_native/src/interop/locus_interop.rs",
     "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
     "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
     "src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs",
     "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
@@ -531,6 +533,7 @@ fn doc_with_locus_ref(locus_uri: &str, label: &str, resolved: bool) -> BlockNode
 struct CountingReverseLookup {
     hits: Vec<LoomSearchV2Hit>,
     contents: std::collections::HashMap<String, serde_json::Value>,
+    block_contents: std::collections::HashMap<String, (String, serde_json::Value)>,
     last_query: std::sync::Mutex<Option<String>>,
     calls: AtomicUsize,
 }
@@ -540,6 +543,7 @@ impl CountingReverseLookup {
         Self {
             hits,
             contents: std::collections::HashMap::new(),
+            block_contents: std::collections::HashMap::new(),
             last_query: std::sync::Mutex::new(None),
             calls: AtomicUsize::new(0),
         }
@@ -571,6 +575,28 @@ impl CountingReverseLookup {
     fn with_content(mut self, document_id: &str, content: serde_json::Value) -> Self {
         self.contents.insert(document_id.to_owned(), content);
         self
+    }
+
+    fn with_block_content(
+        mut self,
+        block_id: &str,
+        document_id: &str,
+        content: serde_json::Value,
+    ) -> Self {
+        self.block_contents
+            .insert(block_id.to_owned(), (document_id.to_owned(), content));
+        self
+    }
+
+    fn document_id_for_block(&self, block_id: &str) -> Option<String> {
+        self.hits.iter().find_map(|hit| {
+            (hit.block.block_id == block_id).then(|| {
+                hit.block
+                    .document_id
+                    .clone()
+                    .unwrap_or_else(|| block_id.to_owned())
+            })
+        })
     }
 }
 
@@ -622,6 +648,38 @@ impl FindNotesSearch for CountingReverseLookup {
             content.ok_or_else(|| {
                 CrossRefError::NotFound(format!("counted reverse-lookup document {document_id}"))
             })
+        })
+    }
+
+    fn load_block_content<'a>(
+        &'a self,
+        _workspace_id: &'a str,
+        block_id: &'a str,
+    ) -> Pin<
+        Box<
+            dyn std::future::Future<Output = Result<(String, serde_json::Value), CrossRefError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let exact_block = self.block_contents.get(block_id).cloned();
+        let document_id = exact_block
+            .as_ref()
+            .map(|(document_id, _)| document_id.clone())
+            .or_else(|| self.document_id_for_block(block_id));
+        let content = exact_block.map(|(_, content)| content).or_else(|| {
+            document_id
+                .as_deref()
+                .and_then(|document_id| self.contents.get(document_id))
+                .cloned()
+        });
+        Box::pin(async move {
+            let document_id = document_id
+                .ok_or_else(|| CrossRefError::NotFound(format!("counted Loom block {block_id}")))?;
+            let content = content.ok_or_else(|| {
+                CrossRefError::NotFound(format!("counted reverse-lookup document {document_id}"))
+            })?;
+            Ok((document_id, content))
         })
     }
 }
@@ -764,6 +822,51 @@ fn locus_sql_output(sql: &str) -> Result<std::process::Output, String> {
 
 fn run_locus_sql(sql: &str) {
     locus_sql_output(sql).expect("MT-068 canonical Locus fixture SQL");
+}
+
+fn wait_for_native_fr_with_frames(
+    backend: &LiveBackend,
+    harness: &mut Harness<'_, HandshakeApp>,
+    kind: &str,
+    matches_fixture: impl Fn(&serde_json::Value) -> bool,
+) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(1);
+        let rows = backend.get_json(&format!(
+            "/api/flight_recorder?wsid={}",
+            backend.workspace_id
+        ));
+        if let Some(row) = rows.as_array().and_then(|rows| {
+            rows.iter()
+                .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
+        }) {
+            let event_id = row["event_id"]
+                .as_str()
+                .expect("native Flight Recorder row carries event_id");
+            uuid::Uuid::parse_str(event_id).expect("native Flight Recorder event_id is a UUID");
+            return row.clone();
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "automatic {kind} Flight Recorder row did not arrive within ten seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+fn assert_causal_fr_order(first: &serde_json::Value, second: &serde_json::Value, label: &str) {
+    let first_ts = first["payload"]["ts_utc"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{label}: first event has ts_utc"));
+    let second_ts = second["payload"]["ts_utc"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{label}: second event has ts_utc"));
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(second_ts).unwrap()
+            > chrono::DateTime::parse_from_rfc3339(first_ts).unwrap(),
+        "{label}: reverse lookup must be strictly later than its resolved event"
+    );
 }
 
 fn bounded_command_output(
@@ -1162,9 +1265,23 @@ fn resolve_locus_ref_against_real_pg_live() {
     // exact WP/MT identity through the existing shell navigator; no direct navigation function is called
     // by the proof.
     let mut argus_state_matrix = Vec::new();
-    for (state_label, uri, expected_content_id) in [
-        ("work-packet", wp_uri.as_str(), format!("WP:{wp_id}")),
-        ("microtask", mt_uri.as_str(), format!("MT::{mt_id}")),
+    let mut flight_recorder_matrix = Vec::new();
+    let mut native_fr_event_ids = Vec::new();
+    for (state_label, uri, expected_kind, expected_id, expected_content_id) in [
+        (
+            "work-packet",
+            wp_uri.as_str(),
+            "work_packet",
+            wp_id.as_str(),
+            format!("WP:{wp_id}"),
+        ),
+        (
+            "microtask",
+            mt_uri.as_str(),
+            "microtask",
+            mt_id.as_str(),
+            format!("MT::{mt_id}"),
+        ),
     ] {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
@@ -1266,11 +1383,8 @@ fn resolve_locus_ref_against_real_pg_live() {
         let missing_chip =
             harness.get_by(|node| node.author_id() == Some(missing_chip_id.as_str()));
         assert!(
-            matches!(
-                missing_chip.accesskit_node().role(),
-                egui::accesskit::Role::Button | egui::accesskit::Role::Link
-            ),
-            "the persisted missing Locus ref remains an addressable grey/unresolved chip"
+            missing_chip.accesskit_node().role() == egui::accesskit::Role::Button,
+            "the persisted missing Locus ref remains an addressable grey/unresolved Button"
         );
         let before_screenshot_path =
             artifact_dir.join(format!("mt068-locus-{state_label}-before.png"));
@@ -1304,6 +1418,7 @@ fn resolve_locus_ref_against_real_pg_live() {
             Some(expected_content_id.as_str()),
             "the active-pane navigator inserts and focuses the exact Locus target after canonical Argus steering; source_chip_rect={chip_rect:?}"
         );
+        let observed_navigation_content_id = active_tab.content_id.clone();
         let after_screenshot_path =
             artifact_dir.join(format!("mt068-locus-{state_label}-after.png"));
         harness
@@ -1319,11 +1434,48 @@ fn resolve_locus_ref_against_real_pg_live() {
         let after_dimensions = image::GenericImageView::dimensions(
             &image::load_from_memory(&after_png).expect("decode post-navigation PNG"),
         );
+        let resolved_row =
+            wait_for_native_fr_with_frames(&be, &mut harness, "locus_ref_resolved", |row| {
+                row["payload"]["native_payload"]["locus_uri"].as_str() == Some(uri)
+                    && row["payload"]["native_payload"]["target_id"].as_str() == Some(expected_id)
+            });
+        let reverse_row =
+            wait_for_native_fr_with_frames(&be, &mut harness, "locus_reverse_lookup", |row| {
+                row["payload"]["native_payload"]["locus_uri"].as_str() == Some(uri)
+                    && row["payload"]["native_payload"]["document_ids"]
+                        .as_array()
+                        .is_some_and(|ids| {
+                            ids.iter()
+                                .filter(|id| id.as_str() == Some(document_id.as_str()))
+                                .count()
+                                == 1
+                        })
+            });
+        assert_eq!(
+            resolved_row["payload"]["native_payload"]["target_kind"].as_str(),
+            Some(expected_kind)
+        );
+        assert_causal_fr_order(&resolved_row, &reverse_row, state_label);
+        for row in [&resolved_row, &reverse_row] {
+            let event_id = row["event_id"].as_str().unwrap().to_owned();
+            assert!(
+                !native_fr_event_ids.contains(&event_id),
+                "each automatic Locus event has a distinct producer identity"
+            );
+            native_fr_event_ids.push(event_id);
+        }
+        flight_recorder_matrix.push(serde_json::json!({
+            "state": state_label,
+            "resolved": resolved_row,
+            "reverse_lookup": reverse_row,
+            "causal_order": "resolved_then_reverse_lookup",
+        }));
         let action_log = argus.finish();
         argus_state_matrix.push(serde_json::json!({
             "state": state_label,
             "persisted_uri": uri,
             "expected_navigation_content_id": expected_content_id,
+            "observed_navigation_content_id": observed_navigation_content_id,
             "observation": argus_observation,
             "action_log": action_log,
             "screenshots": {
@@ -1351,10 +1503,45 @@ fn resolve_locus_ref_against_real_pg_live() {
     ));
     let missing_outcome = "NotFound";
 
+    assert_eq!(
+        native_fr_event_ids.len(),
+        4,
+        "two canonical clicks emit resolved + reverse lookup exactly once per URI"
+    );
+    let eventledger_keys = native_fr_event_ids
+        .iter()
+        .flat_map(|event_id| {
+            [
+                format!("native-editor-fr-pending:{event_id}"),
+                format!("native-editor-fr-complete:{event_id}"),
+            ]
+        })
+        .collect::<Vec<_>>();
+    let eventledger_key_sql = eventledger_keys
+        .iter()
+        .map(|key| sql_literal(key))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let expected_eventledger_rows = eventledger_keys.len();
+    run_locus_sql(&format!(
+        "DO $mt068_eventledger_proof$ BEGIN \
+         IF (SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql})) \
+            <> {expected_eventledger_rows} \
+         THEN RAISE EXCEPTION 'MT-068 expected {expected_eventledger_rows} native FR EventLedger mirror rows'; \
+         END IF; END $mt068_eventledger_proof$;"
+    ));
+
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
     records_cleanup.assert_cleanup();
     drop(records_cleanup);
+    run_locus_sql(&format!(
+        "DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql}); \
+         DO $mt068_eventledger_cleanup$ BEGIN \
+         IF EXISTS (SELECT 1 FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql})) \
+         THEN RAISE EXCEPTION 'MT-068 native FR EventLedger mirror residue remains'; \
+         END IF; END $mt068_eventledger_cleanup$;"
+    ));
     be.assert_cleanup();
     locus_sql_output(&format!(
         "DO $$ BEGIN \
@@ -1418,6 +1605,18 @@ fn resolve_locus_ref_against_real_pg_live() {
                 }
             },
             "reverse_lookup_matching_document_counts": reverse_lookup_counts,
+            "flight_recorder": {
+                "diagnostic_tier": "Tier 1 WIRED",
+                "events": flight_recorder_matrix,
+                "event_ids": native_fr_event_ids,
+                "causal_order_verified": true,
+            },
+            "eventledger": {
+                "mirror": "PostgreSQL kernel_event_ledger",
+                "idempotency_keys": eventledger_keys,
+                "pre_cleanup_rows": expected_eventledger_rows,
+                "expected_rows": expected_eventledger_rows,
+            },
             "missing_and_stale": {
                 "live_route_outcome": missing_outcome,
                 "mounted_unresolved_chip": true,
@@ -1430,6 +1629,7 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "persisted_document_absent": true,
                 "work_packet_rows_zero": true,
                 "microtask_rows_zero": true,
+                "eventledger_mirror_rows_zero": true,
                 "runtime_quiescent": true,
             }
         }))
@@ -1671,6 +1871,62 @@ fn ac004_reverse_lookup_unreadable_candidate_fails_closed() {
         matches!(error, LocusInteropError::ReverseLookup(_)),
         "unreadable candidates fail closed through the typed reverse-lookup error: {error:?}"
     );
+}
+
+#[test]
+fn ac004_reverse_lookup_verifies_each_document_block_pair() {
+    let structured = serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "paragraph",
+            "content": [{
+                "type": "hsLink",
+                "attrs": {
+                    "refKind": "locus",
+                    "refValue": "locus://mt/MT-034",
+                    "label": "MT-034"
+                }
+            }]
+        }]
+    });
+    let plain_text = serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "paragraph",
+            "content": [{
+                "type": "text",
+                "text": "plain locus://mt/MT-034 mention"
+            }]
+        }]
+    });
+    let mut exact_hit = hit(
+        "BLOCK-STRUCTURED",
+        Some("Structured ref"),
+        "note",
+        "locus://mt/MT-034",
+    );
+    exact_hit.block.document_id = Some("DOC-SHARED".to_owned());
+    let mut plain_hit = hit(
+        "BLOCK-PLAIN",
+        Some("Plain text"),
+        "note",
+        "locus://mt/MT-034",
+    );
+    plain_hit.block.document_id = Some("DOC-SHARED".to_owned());
+    let backend: Arc<dyn FindNotesSearch> = Arc::new(
+        CountingReverseLookup::new(vec![exact_hit, plain_hit])
+            .with_block_content("BLOCK-STRUCTURED", "DOC-SHARED", structured)
+            .with_block_content("BLOCK-PLAIN", "DOC-SHARED", plain_text),
+    );
+    let svc = LocusInteropService::with_base_url("http://unused", "WS-1", backend);
+    let mt = parse_locus_ref("locus://mt/MT-034").unwrap();
+    let docs = rt()
+        .block_on(async { svc.find_documents_referencing(&mt).await })
+        .expect("block-scoped reverse lookup");
+
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0].document_id, "DOC-SHARED");
+    assert_eq!(docs[0].block_id.as_deref(), Some("BLOCK-STRUCTURED"));
 }
 
 #[test]
@@ -1964,16 +2220,16 @@ fn ac008_accesskit_ids_present_with_roles_no_duplicates() {
     harness.run();
 
     let root = harness.root();
-    // The two locus chips are present with the contract author_ids + the chip role (Link).
+    // The two locus chips are present with the contract author_ids + required Button role.
     assert_eq!(
         role_of(&root, "locus-ref-chip-wp-WP-KERNEL-012").as_deref(),
-        Some("Link"),
-        "AC-008: locus-ref-chip-wp-WP-KERNEL-012 is a Role::Link (the chip role)"
+        Some("Button"),
+        "AC-008: locus-ref-chip-wp-WP-KERNEL-012 is a Role::Button"
     );
     assert_eq!(
         role_of(&root, "locus-ref-chip-mt-MT-034").as_deref(),
-        Some("Link"),
-        "AC-008: locus-ref-chip-mt-MT-034 is a Role::Link"
+        Some("Button"),
+        "AC-008: locus-ref-chip-mt-MT-034 is a Role::Button"
     );
     // The reverse-lookup row is the contract `locus-refby-{document_id}` ListItem.
     assert_eq!(

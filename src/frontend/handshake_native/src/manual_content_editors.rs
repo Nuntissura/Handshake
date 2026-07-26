@@ -732,8 +732,11 @@ WP:{WP_ID} or MT::{MT_ID}. For a grey unresolved chip, inspect it but do not inf
 querying the live ref distinguishes record NotFound from LocusReadApiUnavailable. Restore an unavailable \
 route and reload the document; repair or remove a genuinely stale record id instead of retrying it as a \
 transport failure. HBR-INT-009 diagnostic posture for Locus: Flight Recorder/EventLedger = \
-DEFERRED-with-reason because this MT's Locus edge is read-only navigation and defines no Locus-specific \
-business-event family; the knowledge-document save still returns its existing EventLedger receipt. \
+WIRED through the structured locus_ref_resolved event after successful forward resolution and the \
+locus_reverse_lookup event when persisted referencing documents are found. Inspect those events by \
+workspace and locus_uri to confirm the read sequence; failed resolution emits no fabricated success event, \
+so restore the route or record and repeat the canonical click/re-observation flow. The knowledge-document \
+save remains a separate operation with its existing EventLedger receipt. \
 internal_diagnostics = DEFERRED-with-reason because the current generic backend-health surface has no \
 Locus-specific diagnostic row. Palmistry = DEFERRED-with-reason because the global process watcher has no \
 Locus-scoped tracker or recovery proof. These diagnostic deferrals do not weaken the operator-visible typed \
