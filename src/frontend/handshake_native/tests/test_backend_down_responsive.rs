@@ -1050,6 +1050,9 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
 }
 
 const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
+    "../../../justfile",
+    "../../../.cargo/config.toml",
+    ".cargo/config.toml",
     "tests/test_backend_down_responsive.rs",
     "tests/pg_proof_support/mod.rs",
     "tests/native_gui_support/canonical_argus_driver.rs",

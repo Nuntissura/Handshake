@@ -1044,7 +1044,10 @@ restarts handshake_core on the exact listener and PostgreSQL authority, proves o
 and has canonical Argus re-observe Backend: OK plus the recovered Diagnostics projection. Palmistry must \
 stay alive across both phases and persist a CleanShutdown survivor receipt beside the exact ring for the \
 same session. From src/frontend/handshake_native, use the configured single \
-Handshake_Artifacts/handshake-cargo-target and do not set CARGO_TARGET_DIR or pass --target-dir. Set \
+Handshake_Artifacts/handshake-cargo-target and never set CARGO_TARGET_DIR or pass --target-dir to another, \
+nested, or per-run target. On Windows, canonical just recipes resolve that same target with absolute_path \
+so a literal worktree\\.. segment cannot cross MSVC MAX_PATH; a direct command may pass --target-dir only \
+to the normalized absolute form of that exact canonical root. Set \
 HANDSHAKE_TEST_PG_DSN for an isolated real database, HSK_TEST_BACKEND_BIN to that canonical target's \
 current-source handshake_core binary, HANDSHAKE_PALMISTRY_EXE to its current-source Palmistry binary, and \
 HANDSHAKE_TEST_STAGE_BINDING_ROOT to a fresh external binding root; then run `cargo test --test \

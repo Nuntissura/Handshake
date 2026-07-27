@@ -9,7 +9,9 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NonInteractive", "-Command"
 GOV_ROOT := env_var_or_default('HANDSHAKE_GOV_ROOT', '.GOV')
 
 # External build/test artifacts (Cargo target dir) MUST live outside the repo working tree.
-CARGO_TARGET_DIR := "../Handshake_Artifacts/handshake-cargo-target"
+# Resolve the sibling path before passing it to Cargo: leaving the literal `worktree\..`
+# segment in MSVC include paths can cross MAX_PATH even though the normalized path does not.
+CARGO_TARGET_DIR := absolute_path("../Handshake_Artifacts/handshake-cargo-target")
 
 # Command-receipt artifact root for governance recipes wrapped with
 # `handshake command receipt run`. Stable filenames are produced via `--slug`.
