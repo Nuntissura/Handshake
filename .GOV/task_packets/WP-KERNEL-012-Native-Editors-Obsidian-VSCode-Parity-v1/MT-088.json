@@ -14,7 +14,7 @@
   "title": "D8-MT-088-BackendDown-GracefulDegradation-FreezeFix",
   "group": "D2 internal_diagnostics (Tier 2 — backend-down HARD requirement)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-26T07:37:49.5952536Z",
+  "updated_at_utc": "2026-07-27T20:17:29.921Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [
       "MT-082",
       "MT-084"
@@ -41,8 +41,38 @@
     "claimed_by": "KERNEL_BUILDER-20260726-052638",
     "claimed_at_utc": "2026-07-26T07:37:49.5952536Z",
     "completed_by": null,
-    "remediation_v3_in_progress": true,
-    "remediation_v3_status": "CLAIMED_FOR_FAIL_V2_REMEDIATION"
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "remediation_v3_review_hardening_completed_at_utc": "2026-07-27T20:17:29.921Z",
+    "ready_for_validation_at_utc": "2026-07-27T20:17:29.921Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260726-052638",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_TECHNICAL_REVIEWS_NO_PRODUCT_BLOCKER_FORMAL_ACCEPTANCE_RESERVED_TO_VALIDATOR",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-27T20:17:29.921Z",
+      "actor_session": "KERNEL_BUILDER-20260726-052638",
+      "overall_verdict": "PASS"
+    },
+    "ready_for_validation_summary": "MT-088 V3: product commits b19c2093 through b17225db close the FAIL_V2 mounted-proof gap with current-source backend loss/recovery against isolated real PostgreSQL, exact same-listener restart, bounded 63 ms worst UI frame under a 10 s half-open request deadline, heartbeat 7 -> 330 -> 403, exactly one endpoint-attributed BackendUnreachable and BackendRecovered ring event, mounted Settings -> Diagnostics degraded/recovered canonical Argus state, same-session out-of-process Palmistry survival/CleanShutdown/reaping, current-source binary/blob provenance, built-in UserManual recovery, and canonical Cargo-target normalization. The live proof, 22-test MT binary, Settings AccessKit tests, manual contract, and native lib+bins build pass. Two independent reviewers found no remaining product defect; one correctly reserved formal PASS and WP-wide HBR closure to the official validator. validator_verdict remains FAIL_V2 and completed_by remains null pending official V3 validation.",
+    "remediation_v3_scope_authority": {
+      "kind": "OPERATOR_DIRECTIVE_CORRELATED_GAPS_INSIDE_SAME_MT_AND_EXPLICIT_TARGET_HARDENING",
+      "source": "Operator live directives plus operator-provided pasted-text-1.txt read before continuation",
+      "directive": "Finish MT-088 implementation, review, and hardening before any other MT; update its status immediately after remediation; close correlated gaps inside the same MT; permanently prevent alternate or nested Cargo target roots and clean the allocated target after use.",
+      "reason": "FAIL_V2 required a mounted canonical Argus and external Palmistry recovery proof. Truthful execution required narrow same-MT Settings steering, AccessKit regressions, PostgreSQL/current-source proof helpers, UserManual recovery, and proof-driver changes. The Operator separately required permanent canonical-target enforcement after repeated nested/illegal target creation. No backend product source or other MT contract was changed.",
+      "paths": [
+        "justfile",
+        "src/frontend/handshake_native/.cargo/config.toml",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/src/settings_dialog.rs",
+        "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
+        "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+        "src/frontend/handshake_native/tests/test_accesskit_ids.rs",
+        "src/frontend/handshake_native/tests/test_backend_down_responsive.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs"
+      ]
+    }
   },
   "scope": {
     "summary": "Goal: FIX THE LATENT BACKEND-DOWN FREEZE — the concrete bug from the 2026-06-26 live session — and enforce the HARD spec requirement that the native app DEGRADES, NOT FREEZES when a backend route is unreachable (Master Spec v02.196 §5.8.5 'Backend-down graceful degradation (HARD)': 'a UI path that can freeze the frame loop on an unreachable backend is a spec defect'). When the backend on 127.0.0.1:37501 is down, a mounted-pane load / backend call that runs `Handle::block_on` (or locks waiting on a backend result) ON THE UI THREAD stalls the egui frame loop — the app stops responding (Responding=false, CPU->0) instead of showing a 'disconnected' state. This MT makes those UI-thread backend interactions NON-BLOCKING (off-thread spawn + poll-if-finished), records a typed `BackendUnreachable` internal_diagnostics event, and RE-PROVES the 2026-06-26 repro: launch with the backend down, the app stays responsive and the heartbeat keeps advancing.\n\nROOT-CAUSE LOCATION (verified in this codebase — the coder MUST audit + confirm the exact live frame-path offenders, do not assume): `src/frontend/handshake_native/src/app.rs` contains BOTH the CORRECT pattern and the buggy one:\n- CORRECT reference (reuse this exact shape): the health poll at app.rs ~line 1189-1190 spawns `rt.spawn(async { backend_client::fetch_health(...) })` returning a `JoinHandle` stored in `health_handle`, and polls it each frame, folding the result in when it resolves (the doc at ~line 221 says 'stalls the render loop; polled each frame and folded ... when it resolves'). This is the off-thread + poll-if-finished pattern the whole fix must follow.\n- OFFENDERS (audit + fix the ones reachable on the UI/frame path): `self.runtime.block_on(...)` at app.rs ~lines 979 and 1011 (and any other `block_on` / blocking backend call reachable from `fn update` / `ui()` / a `PaneFactory::render` / a mount path). A `block_on` on the UI thread that awaits a backend round-trip will hang the frame loop for the full connect-timeout (or forever if there is no timeout) when the backend is down. Convert each UI-thread-reachable backend call to the spawn+poll pattern, OR ensure it carries a short connect/request timeout AND cannot be on the frame path. (Backend calls that run on a worker thread / spawn_blocking, e.g. the transport doc at backend_client.rs ~line 82 'short-lived tokio worker (NOT the egui UI thread)', are already safe — leave them; focus on UI-thread-reachable ones.)\n- Also add a short `connect_timeout` + request `timeout` to the reqwest clients used for these calls (reqwest is already a dep) so even a backend that accepts the TCP connection but never responds cannot hang a worker indefinitely.\n\nExact edits:\n- EDIT `src/frontend/handshake_native/src/app.rs` — (1) audit every backend interaction reachable from `fn update` / `ui()` / pane mount / `PaneFactory::render`; (2) convert each UI-thread `block_on`/blocking-lock-on-backend-result to the existing spawn-handle + poll-each-frame pattern (model it on `health_handle`); (3) when a backend call is in-flight or has failed, render a 'disconnected'/degraded state for that surface (not a spinner-forever, not a hang); (4) on a detected backend-unreachable condition, call `diagnostics::record_with(DiagEventCode::BackendUnreachable, ...)` once per transition (debounced — not every frame), and `DiagEventCode::BackendRecovered` on recovery. The status bar already shows live /health — reuse its disconnected display for the global indicator.\n- EDIT `src/frontend/handshake_native/src/backend_client.rs` — add a short `connect_timeout` (e.g. 1-2s) + request `timeout` to the reqwest `ClientBuilder` used by the affected clients so a dead/half-open backend cannot hang a worker forever (this is reuse-config of the EXISTING client, not a backend change; src/backend is untouched).\n- CREATE `src/frontend/handshake_native/tests/test_backend_down_responsive.rs` — the 2026-06-26 repro.\n\nTHE RE-PROVE (the deliverable proof, AC-008-1): a test launches the real HandshakeApp with NO backend listening on 127.0.0.1:37501 (or a bogus base_url that refuses connections), drives the frame loop (egui_kittest `step()` repeatedly), and asserts: (a) the app stays RESPONSIVE — frames keep completing within a tight per-frame time bound (no frame blocks for the connect-timeout), (b) the MT-084 heartbeat counter keeps ADVANCING across frames (proving the UI thread is not stalled, the exact CPU->0 symptom is gone), (c) a `BackendUnreachable` DiagEvent was recorded, (d) the affected surface shows a disconnected/degraded state, not a hang or a perpetual spinner. This directly contradicts the 2026-06-26 symptom (Responding=false, CPU->0, frozen).\n\nReuse note: the spawn-handle + poll-each-frame pattern ALREADY EXISTS (health_handle, app.rs ~1190) — this MT generalizes it to the offending call sites; it does NOT invent a new async pattern. The heartbeat (MT-084) is the responsiveness oracle. The MT-082 recorder provides BackendUnreachable. src/backend is reuse-via-API only (forbidden to edit) — the fix is entirely client-side / frame-path.\n\nRisk if missed: the exact 2026-06-26 freeze recurs (app hangs when the backend is down); §5.8.5 HARD requirement unmet (a spec defect by definition); Palmistry would then have to catch a freeze that should never have happened. This is the single highest-value bug-fix in the WP.",
@@ -395,5 +425,40 @@
     "Capture internal_diagnostics heartbeat/events and an out-of-process Palmistry survivor for the same run, then use canonical Argus to inspect degradation and recovered state; update canonical UserManual recovery steps."
   ],
   "no_context_instruction": "Read MT-088.json and HBR-INT-009. Prove the real backend-loss/recovery path with internal_diagnostics, Palmistry, and canonical Argus before READY_FOR_VALIDATION_V3."
-}
+},
+  "ready_for_validation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260726-052638",
+    "prepared_at_utc": "2026-07-27T20:17:29.921Z",
+    "v1_v2_verdicts_preserved": true,
+    "source_head": "b17225dbf6d4fb7f58990357a910175627877da0",
+    "product_commits": [
+      "b19c2093",
+      "8765d5a2",
+      "5431b52a",
+      "02a031fe",
+      "05e89fe6",
+      "214f6c77",
+      "de195889",
+      "9a9c22fc",
+      "870a1080",
+      "040203fd",
+      "bf0dec99",
+      "b17225db"
+    ],
+    "canonical_evidence": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-088/integrated/run-a267643987504cf2a5dcb459ca2bdfb9/mt088-integrated-canonical-evidence.json",
+    "proof_results": {
+      "live_real_postgresql_backend_loss_recovery_palmistry_argus": "PASS_1_OF_1",
+      "mt088_default_binary": "PASS_22_OF_22_ZERO_FAILED_ONE_GOVERNED_LIVE_TEST_IGNORED_AND_RUN_SEPARATELY",
+      "settings_accesskit_recovery": "PASS_2_OF_2",
+      "manual_contract": "PASS_1_OF_1",
+      "native_build_lib_bins": "PASS_EXIT_0",
+      "current_source_provenance": "PASS_19_OF_19_PROOF_BLOBS_MATCH_HEAD",
+      "visual_inspection": "PASS_3_OF_3_EXACT_CURRENT_SOURCE_PNGS",
+      "clippy_baseline": "NONZERO_64_PREEXISTING_LINTS_ZERO_BLAMED_TO_MT088_COMMITS_DIAGNOSTIC_GATE_NO_NEW_REGRESSION"
+    },
+    "adversarial_review": "TWO_INDEPENDENT_REVIEWS_TECHNICAL_REMEDIATION_PASS_NO_PRODUCT_BLOCKER_FORMAL_PASS_RESERVED_TO_OFFICIAL_VALIDATOR_AND_WP_HBR_CLOSURE",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-27T20:17:29.921Z",
+    "validator_boundary": "validator_verdict remains FAIL_V2 and completed_by remains null. This is an implementer READY_FOR_VALIDATION_V3 handoff, not self-validation. WP-wide packet_acceptance_matrix HBR rows remain validator/WP closure surfaces and were not falsely marked complete by this single MT."
+  }
 }
