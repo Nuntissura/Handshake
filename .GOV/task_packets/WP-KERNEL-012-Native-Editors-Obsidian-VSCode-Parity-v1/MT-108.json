@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-19T03:45:00Z",
+  "updated_at_utc": "2026-07-27T20:27:22.495Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,10 +35,10 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "CLAIMED",
     "depends_on": [],
     "blocks": [],
-    "active": false,
+    "active": true,
     "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
@@ -85,7 +85,10 @@
     "reopened_by": "KERNEL_BUILDER",
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "completed_by": null,
-    "claimed_by": "KERNEL_BUILDER-20260710-residual",
+    "claimed_by": "KERNEL_BUILDER-20260726-052638",
+    "claimed_at_utc": "2026-07-27T20:27:22.495Z",
+    "remediation_v3_in_progress": true,
+    "remediation_v3_status": "CLAIMED_FOR_FAIL_V2_REMEDIATION",
     "ready_for_validation_at_utc": "2026-07-10T22:43:12.889Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-10)",
     "rfv_evidence_2026_07_10": "WaveA residual hardening addressed (product commit b289993f), each a real fix + real test. DONE: MT-004 (REPLACE_ALL_CAP=1000 + replace_all_capped + auto-scroll match below find-bar + Ctrl+F focus), MT-006 (outline raw-click nav + fold-adjusted landing), MT-013 (offset-0 backspace comment fix + Bold click + overflow popup 2-frame), MT-016 (Code Block description), MT-018 (find keystroke scan + replace-one/all clicks + tall-doc scan), MT-098 (runtime_chat /api route verified + live Send observes EndpointMissing), MT-105 (operation-watchdog hard total-runtime cap), MT-106 palmistry (child-stall NoBaseline observability + poll_observations + main.rs emits Suspected/NoBaseline diagnostics), AC-108-2 systemic (typed screenshot_marker CAPTURED/DEFERRED/BLOCKED so headless sites never silent-GREEN). Proven KERNEL_BUILDER authoritative: test_find_replace 9/0, test_formatting_toolbar 9/0, test_operation_watchdog 12/0, test_outline_provider 4/0, test_screenshot_deferred_marker 3/0 (handshake-native lib clean); palmistry MT-106 child-stall coder-verified 75/75. HONEST SKIPs (typed gaps, not faked): MT-100 terminal cwd (needs a canonical workspace-root plumbing subsystem that does not exist -> NEEDS_WORKSPACE_ROOT_PLUMBING), MT-102 real-GPU worksurface screenshot (headless host -> now covered by the typed DEFERRED marker; run on a real-GPU host for PT-102-B)."

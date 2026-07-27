@@ -12,7 +12,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "base_wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-27T20:17:29.921Z",
+  "updated_at_utc": "2026-07-27T20:27:22.495Z",
   "title": "Native Editors: Obsidian + VS Code parity + interconnection (Rust)",
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -443,8 +443,8 @@
       "MT-108",
       "MT-109"
     ],
-    "active_id": null,
-    "next_id": "MT-108",
+    "active_id": "MT-108",
+    "next_id": null,
     "mt_status": {
       "MT-001": "READY_FOR_VALIDATION",
       "MT-002": "OPEN",
@@ -553,7 +553,7 @@
       "MT-105": "READY_FOR_VALIDATION",
       "MT-106": "OPEN",
       "MT-107": "OPEN",
-      "MT-108": "OPEN",
+      "MT-108": "CLAIMED",
       "MT-109": "READY_FOR_VALIDATION"
     },
     "kernel_builder_sequence_note": "KERNEL_BUILDER re-sequence 2026-06-24: the E8 proof capstones MT-044 (parity suite, depends_on 001-043+047-062), MT-045 (perf proof), MT-046 (interconnection proof) are DEFERRED to the END of the WP - they prove the whole editor set + most of their proofs need a live managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF). Build the remaining FEATURE MTs first in numeric order: E1-deepening 047-054, E2-deepening 055-059, E3-deepening 060-062, E9 063-065, E10 066-068+074, E11 host-mount 069-071 (the convergence point that mounts the editors live + clears the carry-forwards), E12 072-073, E13 i18n 075-078. THEN run the 044-046 capstones last for a truthful comprehensive parity manifest.",
@@ -773,7 +773,8 @@
       "MT-068": "READY_FOR_VALIDATION",
       "MT-074": "READY_FOR_VALIDATION",
       "MT-088": "READY_FOR_VALIDATION",
-      "MT-101": "READY_FOR_VALIDATION"
+      "MT-101": "READY_FOR_VALIDATION",
+      "MT-108": "CLAIMED"
     },
     "status_sync_note_2026_07_04_mt021_repair": "MT-021 READY_FOR_VALIDATION evidence refreshed at 2026-07-04T21:50:52.481Z by KERNEL_BUILDER-20260704-195953 after current repair proof: manual MT-021 tests 2/2, wave5 manual guard 1/1, graph_view lib 8/8, graph_view kittest filter 7/7 including pan, zoom, AccessKit, click-open, empty/error, and screenshot; app-host graph delivery 1/1; mounted secondary pane screenshot 1/1; loom_graph_ backend-client tests 5/5; AddEdge request-shape proof 1/1; cargo check --lib PASS; scoped rustfmt/diff PASS; post-review Lorentz PASS_WITH_TYPED_EXTERNAL_BLOCKER, Cicero PASS, Hypatia READY_AFTER_RECEIPT; KB_READY_CHECKLIST PASS emitted at 2026-07-04T21:48:29.828Z. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL AC1/AC2 and live PROOF2/PROOF3 remain NEEDS_MANAGED_RESOURCE_PROOF due absent seeded managed backend env.",
     "status_sync_note_2026_07_04_mt022_repair": "MT-022 READY_FOR_VALIDATION evidence refreshed at 2026-07-04T22:49:35.989Z by KERNEL_BUILDER-20260704-195953: folder tree host mount/event persistence and AC4 row right-click Change color deterministic pick-flow are implemented; proof4 right-click 1/1, folder_tree lib 13/13, full test_folder_tree 11/11, app-host folder tab 1/1, cargo check --lib PASS, scoped rustfmt/diff PASS, screenshot inspected, Leibniz subagent PASS, KB_READY_CHECKLIST PASS emitted at 2026-07-04T22:46:42.761Z. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL folder list/children/recolor persistence remains NEEDS_MANAGED_RESOURCE_PROOF due absent seeded managed backend env.",
@@ -796,7 +797,8 @@
     "status_sync_note_2026_07_26_mt074_v3_claim": "MT-074 claimed for FAIL_V2 remediation by KERNEL_BUILDER-20260726-052638 only after MT-068 completed implementation, independent review, hardening, KB readiness, runtime receipt, and full status synchronization. Packet active_id and both MT-074 status projections now show CLAIMED; next_id points to MT-088. validator_verdict remains FAIL_V2 and completed_by remains null pending independent V3 validation.",
     "status_sync_note_2026_07_26_mt074_v3_repair": "MT-074 completed implementation, three independent adversarial reviews, hardening, exact declared proof-filter repair, real PostgreSQL/canonical Argus proof, direct inspection of seven current-source screenshots, and KB_READY_CHECKLIST PASS. Lifecycle is READY_FOR_VALIDATION_V3 with validator_verdict PENDING_V3 and completed_by null. Packet plan/tracker project READY_FOR_VALIDATION, active_id is cleared, and next_id remains MT-088.",
     "status_sync_note_2026_07_26_mt088_v3_claim": "MT-088 claimed for FAIL_V2 remediation by KERNEL_BUILDER-20260726-052638 only after MT-074 completed implementation, three independent reviews, hardening, KB readiness, runtime receipt, exact contract/packet status synchronization, isolated PostgreSQL cleanup, and removal of all MT-074-scoped Cargo targets. Packet active_id and both MT-088 status projections show CLAIMED; next_id points to MT-108. validator_verdict remains FAIL_V2 and completed_by remains null pending independent V3 validation.",
-    "status_sync_note_2026_07_27_mt088_v3_repair": "MT-088 moved FAIL_V2 -> READY_FOR_VALIDATION_V3 at product head b17225db after implementation, independent review, and hardening. Exact current-source proof used isolated real PostgreSQL, OS suspension of the fixture-owned backend with the listener still present, exact same-listener restart, mounted Settings -> Diagnostics canonical Argus degraded/recovered observations, typed one-per-edge internal_diagnostics events, advancing heartbeat, same-session out-of-process Palmistry survival/CleanShutdown/reaping, 19-of-19 source-blob provenance, and direct inspection of three current-source screenshots. The default MT binary passed 22/22, Settings AccessKit 2/2, UserManual 1/1, native lib+bins build passed, and canonical Cargo-target normalization prevents alternate/nested per-run targets. Project-wide clippy remains red on 64 baseline lints, all MT-touched-file findings blamed to ancestors of the MT-088 base; the packet diagnostic gate records zero new MT-088 regression without changing other MT code. Two independent reviewers found no product blocker; KB_READY_CHECKLIST PASS emitted at 2026-07-27T20:17:29.921Z. validator_verdict remains FAIL_V2 and completed_by remains null pending official V3 validation. Both packet MT-088 projections are READY_FOR_VALIDATION, active_id is cleared, and next_id remains MT-108."
+    "status_sync_note_2026_07_27_mt088_v3_repair": "MT-088 moved FAIL_V2 -> READY_FOR_VALIDATION_V3 at product head b17225db after implementation, independent review, and hardening. Exact current-source proof used isolated real PostgreSQL, OS suspension of the fixture-owned backend with the listener still present, exact same-listener restart, mounted Settings -> Diagnostics canonical Argus degraded/recovered observations, typed one-per-edge internal_diagnostics events, advancing heartbeat, same-session out-of-process Palmistry survival/CleanShutdown/reaping, 19-of-19 source-blob provenance, and direct inspection of three current-source screenshots. The default MT binary passed 22/22, Settings AccessKit 2/2, UserManual 1/1, native lib+bins build passed, and canonical Cargo-target normalization prevents alternate/nested per-run targets. Project-wide clippy remains red on 64 baseline lints, all MT-touched-file findings blamed to ancestors of the MT-088 base; the packet diagnostic gate records zero new MT-088 regression without changing other MT code. Two independent reviewers found no product blocker; KB_READY_CHECKLIST PASS emitted at 2026-07-27T20:17:29.921Z. validator_verdict remains FAIL_V2 and completed_by remains null pending official V3 validation. Both packet MT-088 projections are READY_FOR_VALIDATION, active_id is cleared, and next_id remains MT-108.",
+    "status_sync_note_2026_07_27_mt108_v3_claim": "MT-108 claimed for FAIL_V2 remediation by KERNEL_BUILDER-20260726-052638 only after MT-088 completed implementation, independent review, hardening, KB readiness, runtime receipt, exact contract/packet status synchronization, and WP-scoped build/test cleanup. Packet active_id and MT-108 plan status show CLAIMED; next_id is null because MT-109 is already READY_FOR_VALIDATION_V3 and no further MT is authorized. validator_verdict remains FAIL_V2 pending independent V3 validation."
   },
   "status_sync_note_2026_07_05_mt101_repair": "MT-101 moved OPEN -> READY_FOR_VALIDATION by KERNEL_BUILDER-20260705-025228 after focused hardcode/local-load repair: ordinary operator model-session /jobs requests omit wp_id, mt_id, prompt, and simulate_duration_ms; promptless bootstrap/manual wording is updated; local GGUF load is now surfaced as LocalModelLoadEndpointMissing kernel_model_runtime_load while direct spawn remains kernel_swarm_spawn_session IPC-only. Proofs passed: model_session_launch 14/14 with external screenshots, manual_content 19/19, cargo fmt --check, scoped git diff --check, cargo check --lib, CONTROL-4 no_hardcoded_color32 1/1, and git ls-files src/**/*.png empty. Official validator has not run; validator_verdict remains PENDING. Full suite/clippy/live local+cloud managed backend execution remain unproven/NEEDS_MANAGED_RESOURCE_PROOF. Contract under-scoped manual_content_editors.rs and tests/test_manual_content.rs for HBR-MAN same-change proof; operator waiver required."
 }
