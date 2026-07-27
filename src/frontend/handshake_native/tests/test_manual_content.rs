@@ -301,6 +301,8 @@ fn mt088_manual_documents_backend_down_operation_and_recovery() {
         "keep editing local buffers",
         "verify BackendRecovered before retrying a mutation",
         "backend_down_responsive_real_pg_palmistry_argus",
+        "configured single",
+        "do not set CARGO_TARGET_DIR or pass --target-dir",
         "HANDSHAKE_TEST_PG_DSN",
         "HSK_TEST_BACKEND_BIN",
         "HANDSHAKE_PALMISTRY_EXE",

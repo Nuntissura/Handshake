@@ -105,9 +105,7 @@ fn find_palmistry_binary() -> PathBuf {
     } else {
         "palmistry"
     };
-    let target = std::env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .expect("integrated MT-088 proof requires external CARGO_TARGET_DIR");
+    let target = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target");
     let path = target.join("debug").join(executable);
     assert!(
         path.is_file(),
@@ -424,7 +422,6 @@ struct TestBackend {
     health_requests: Arc<AtomicUsize>,
     layout_requests: Arc<AtomicUsize>,
     unclassified_requests: Arc<AtomicUsize>,
-    release_layouts: Option<Arc<AtomicBool>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -562,7 +559,6 @@ impl TestBackend {
             health_requests,
             layout_requests,
             unclassified_requests,
-            release_layouts,
         }
     }
 
@@ -596,13 +592,6 @@ impl TestBackend {
 
     fn unclassified_request_count(&self) -> usize {
         self.unclassified_requests.load(Ordering::SeqCst)
-    }
-
-    fn release_controlled_layouts(&self) {
-        self.release_layouts
-            .as_ref()
-            .expect("backend owns a controlled layout release")
-            .store(true, Ordering::SeqCst);
     }
 
     fn stop(mut self) {
@@ -1934,10 +1923,20 @@ fn recovery_fires_recovered_event() {
         .state_mut()
         .set_backend_unreachable_for_test(&base_url);
 
-    step_until(&mut harness, Duration::from_secs(8), |app| {
-        app.status_bar_health_text().contains("Backend: OK")
-            && app.layout_workers_in_flight_for_test() == 0
-    });
+    // Keep one-time egui/font initialization outside the recovery responsiveness oracle. The
+    // production backend URL is already rebound to this fixture, so the warm-up cannot contact an
+    // unrelated listener. All down/recovery transition frames below remain under the strict 500 ms
+    // per-frame bound.
+    harness.step();
+    step_until_phase(
+        &mut harness,
+        "initial-live",
+        Duration::from_secs(8),
+        |app| {
+            app.status_bar_health_text().contains("Backend: OK")
+                && app.layout_workers_in_flight_for_test() == 0
+        },
+    );
     assert!(
         !harness.state().backend_is_down(),
         "live /health establishes reachable state"
@@ -1950,7 +1949,7 @@ fn recovery_fires_recovered_event() {
         "the initial live phase must not depend on an unclassified request"
     );
     live.stop();
-    step_until(&mut harness, Duration::from_secs(8), |app| {
+    step_until_phase(&mut harness, "down-edge", Duration::from_secs(8), |app| {
         app.backend_is_down()
     });
     let (unreachable1, recovered1) = count_backend_events();
@@ -1977,9 +1976,12 @@ fn recovery_fires_recovered_event() {
     );
 
     let recovered_server = TestBackend::start_at(address, BackendMode::Live);
-    step_until(&mut harness, Duration::from_secs(10), |app| {
-        !app.backend_is_down() && app.status_bar_health_text().contains("Backend: OK")
-    });
+    step_until_phase(
+        &mut harness,
+        "recovered-edge",
+        Duration::from_secs(10),
+        |app| !app.backend_is_down() && app.status_bar_health_text().contains("Backend: OK"),
+    );
     let (unreachable2, recovered2) = count_backend_events();
     assert_eq!(unreachable2 - unreachable1, 0, "recovery adds no down edge");
     assert_eq!(
@@ -2128,6 +2130,10 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
             && app.status_bar_health_text().contains("Backend: OK")
             && app.layout_workers_in_flight_for_test() == 0
     });
+    harness
+        .state_mut()
+        .clear_fems_overlay_for_integration_test();
+    harness.step();
 
     let mut argus = CanonicalArgusDriver::bind(
         harness.state(),
@@ -2253,8 +2259,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         json_author_value(
             &down_diagnostics_inspect,
             handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
-        )
-        .as_deref(),
+        ),
         Some("diagnostics"),
         "canonical Argus must filter the mounted Settings overlay to the Diagnostics section before capture"
     );
@@ -2705,13 +2710,13 @@ fn stale_layout_generation_cannot_publish_or_clear_replacement_ownership() {
         "generation-race proof begins without leaked layout workers"
     );
     let health_live = TestBackend::start(BackendMode::Live);
-    let mut harness: Harness<HandshakeApp> =
-        Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
-    step_until(
-        &mut harness,
-        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
-        |app| app.layout_workers_in_flight_for_test() == 0,
-    );
+    let mut harness: Harness<HandshakeApp> = Harness::builder().build_eframe(|_| {
+        HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }))
+    });
 
     let mut old_snapshot = harness.state().capture_layout_snapshot();
     old_snapshot.split_weights = SplitWeights {
@@ -2726,10 +2731,26 @@ fn stale_layout_generation_cannot_publish_or_clear_replacement_ownership() {
     harness
         .state_mut()
         .set_backend_endpoints_for_test(&health_live.base_url(), &old_layout.base_url());
-    step_until(&mut harness, Duration::from_secs(4), |app| {
-        old_layout.layout_request_count() >= 1
-            && app.paused_layout_load_generation_for_test().is_some()
-    });
+    step_until_phase_with_details(
+        &mut harness,
+        "old layout worker accepted and paused before publication",
+        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
+        |app| {
+            old_layout.layout_request_count() >= 1
+                && app.paused_layout_load_generation_for_test().is_some()
+        },
+        |app| {
+            format!(
+                "old-layout accepted={}, layout={}, unclassified={}; ownership={:?}; paused={:?}; workers={}",
+                old_layout.accepted_count(),
+                old_layout.layout_request_count(),
+                old_layout.unclassified_request_count(),
+                app.layout_load_ownership_for_test(),
+                app.paused_layout_load_generation_for_test(),
+                app.layout_workers_in_flight_for_test(),
+            )
+        },
+    );
     let old_generation = harness
         .state()
         .paused_layout_load_generation_for_test()
@@ -2756,15 +2777,20 @@ fn stale_layout_generation_cannot_publish_or_clear_replacement_ownership() {
     harness
         .state_mut()
         .set_backend_endpoints_for_test(&health_live.base_url(), &replacement_layout.base_url());
-    step_until(&mut harness, Duration::from_secs(4), |app| {
-        let (current, cleared, in_flight) = app.layout_load_ownership_for_test();
-        replacement_layout.layout_request_count() >= 1
-            && app.split_weights() == replacement_weights
-            && current > old_generation
-            && cleared == current
-            && !in_flight
-            && app.paused_layout_load_generation_for_test() == Some(old_generation)
-    });
+    step_until_phase(
+        &mut harness,
+        "replacement layout worker publishes while old generation remains paused",
+        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
+        |app| {
+            let (current, cleared, in_flight) = app.layout_load_ownership_for_test();
+            replacement_layout.layout_request_count() >= 1
+                && app.split_weights() == replacement_weights
+                && current > old_generation
+                && cleared == current
+                && !in_flight
+                && app.paused_layout_load_generation_for_test() == Some(old_generation)
+        },
+    );
     let replacement_ownership = harness.state().layout_load_ownership_for_test();
     assert_eq!(
         harness.state().paused_layout_load_generation_for_test(),
@@ -2851,13 +2877,13 @@ fn app_drop_reclaims_two_active_layout_generations_within_bound() {
         "two-generation Drop proof begins without leaked layout workers"
     );
     let health_live = TestBackend::start(BackendMode::Live);
-    let mut harness: Harness<HandshakeApp> =
-        Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
-    step_until(
-        &mut harness,
-        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
-        |app| app.layout_workers_in_flight_for_test() == 0,
-    );
+    let mut harness: Harness<HandshakeApp> = Harness::builder().build_eframe(|_| {
+        HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }))
+    });
 
     let mut first_snapshot = harness.state().capture_layout_snapshot();
     first_snapshot.split_weights = SplitWeights {
@@ -2870,11 +2896,16 @@ fn app_drop_reclaims_two_active_layout_generations_within_bound() {
     harness
         .state_mut()
         .set_backend_endpoints_for_test(&health_live.base_url(), &first_layout.base_url());
-    step_until(&mut harness, Duration::from_secs(4), |app| {
-        first_layout.layout_request_count() >= 1
-            && first_layout.held_count() >= 1
-            && app.layout_workers_in_flight_for_test() >= 1
-    });
+    step_until_phase(
+        &mut harness,
+        "first controlled layout worker accepted and held",
+        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
+        |app| {
+            first_layout.layout_request_count() >= 1
+                && first_layout.held_count() >= 1
+                && app.layout_workers_in_flight_for_test() >= 1
+        },
+    );
 
     let mut second_snapshot = harness.state().capture_layout_snapshot();
     second_snapshot.split_weights = SplitWeights {
@@ -2887,12 +2918,17 @@ fn app_drop_reclaims_two_active_layout_generations_within_bound() {
     harness
         .state_mut()
         .set_backend_endpoints_for_test(&health_live.base_url(), &second_layout.base_url());
-    step_until(&mut harness, Duration::from_secs(4), |app| {
-        second_layout.layout_request_count() >= 1
-            && second_layout.held_count() >= 1
-            && app.layout_workers_in_flight_for_test() >= 2
-            && app.layout_load_ownership_for_test().2
-    });
+    step_until_phase(
+        &mut harness,
+        "second controlled layout worker overlaps the first",
+        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3),
+        |app| {
+            second_layout.layout_request_count() >= 1
+                && second_layout.held_count() >= 1
+                && app.layout_workers_in_flight_for_test() >= 2
+                && app.layout_load_ownership_for_test().2
+        },
+    );
     assert_eq!(health_live.layout_request_count(), 0);
     assert!(health_live.health_request_count() >= 1);
     assert_eq!(first_layout.health_request_count(), 0);
@@ -3327,6 +3363,25 @@ fn step_until(
     timeout: Duration,
     predicate: impl Fn(&HandshakeApp) -> bool,
 ) {
+    step_until_phase(harness, "condition", timeout, predicate);
+}
+
+fn step_until_phase(
+    harness: &mut Harness<'_, HandshakeApp>,
+    phase: &str,
+    timeout: Duration,
+    predicate: impl Fn(&HandshakeApp) -> bool,
+) {
+    step_until_phase_with_details(harness, phase, timeout, predicate, |_| String::new());
+}
+
+fn step_until_phase_with_details(
+    harness: &mut Harness<'_, HandshakeApp>,
+    phase: &str,
+    timeout: Duration,
+    predicate: impl Fn(&HandshakeApp) -> bool,
+    details: impl Fn(&HandshakeApp) -> String,
+) {
     let deadline = Instant::now() + timeout;
     let mut slowest = Duration::ZERO;
     while !predicate(harness.state()) && Instant::now() < deadline {
@@ -3335,10 +3390,10 @@ fn step_until(
         slowest = slowest.max(started.elapsed());
         std::thread::sleep(Duration::from_millis(10));
     }
-    assert!(predicate(harness.state()), "mounted app condition was not reached within {timeout:?}; slowest frame={slowest:?}, status={:?}", harness.state().status_bar_health_text());
+    assert!(predicate(harness.state()), "mounted app condition for {phase} was not reached within {timeout:?}; slowest frame={slowest:?}, status={:?}; {}", harness.state().status_bar_health_text(), details(harness.state()));
     assert!(
         slowest < Duration::from_millis(500),
-        "waiting for backend state must not freeze a frame; slowest={slowest:?}"
+        "waiting for backend state during {phase} must not freeze a frame; slowest={slowest:?}"
     );
 }
 

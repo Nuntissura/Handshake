@@ -1043,8 +1043,9 @@ diagnostics_palmistry, the BackendUnreachable row, and the active shared-memory 
 restarts handshake_core on the exact listener and PostgreSQL authority, proves one BackendRecovered edge, \
 and has canonical Argus re-observe Backend: OK plus the recovered Diagnostics projection. Palmistry must \
 stay alive across both phases and persist a CleanShutdown survivor receipt beside the exact ring for the \
-same session. From src/frontend/handshake_native, set an external \
-CARGO_TARGET_DIR, HANDSHAKE_TEST_PG_DSN for an isolated real database, HSK_TEST_BACKEND_BIN to that target's \
+same session. From src/frontend/handshake_native, use the configured single \
+Handshake_Artifacts/handshake-cargo-target and do not set CARGO_TARGET_DIR or pass --target-dir. Set \
+HANDSHAKE_TEST_PG_DSN for an isolated real database, HSK_TEST_BACKEND_BIN to that canonical target's \
 current-source handshake_core binary, HANDSHAKE_PALMISTRY_EXE to its current-source Palmistry binary, and \
 HANDSHAKE_TEST_STAGE_BINDING_ROOT to a fresh external binding root; then run `cargo test --test \
 test_backend_down_responsive backend_down_responsive_real_pg_palmistry_argus -- --ignored --exact \

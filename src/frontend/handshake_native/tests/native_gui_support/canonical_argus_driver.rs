@@ -103,7 +103,7 @@ impl CanonicalArgusDriver {
             .join(format!("{}-argus-binding", sanitize(proof_id)))
             .join(format!("run-{unique}"));
         let app_data = ScopedArgusAppData::install(binding_root);
-        let session_token = SessionToken::from_hex(&format!("{}-{unique}", sanitize(proof_id)));
+        let session_token = SessionToken::from_hex(format!("{}-{unique}", sanitize(proof_id)));
         Self::bind_inner(app, proof_id, session_token, Some(app_data))
     }
 

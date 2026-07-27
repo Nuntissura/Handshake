@@ -225,16 +225,12 @@ fn resolve_backend_binary() -> PathBuf {
         Some(executable_name),
         "HSK_TEST_BACKEND_BIN must name the handshake_core product executable"
     );
-    let target = std::env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            panic!("owned backend requires the isolated current-source CARGO_TARGET_DIR")
-        })
+    let target = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target")
         .canonicalize()
-        .expect("canonicalize isolated CARGO_TARGET_DIR");
+        .expect("canonicalize configured canonical Cargo target");
     assert!(
         binary.starts_with(&target),
-        "HSK_TEST_BACKEND_BIN {} is outside isolated CARGO_TARGET_DIR {}",
+        "HSK_TEST_BACKEND_BIN {} is outside configured canonical Cargo target {}",
         binary.display(),
         target.display()
     );
@@ -350,8 +346,23 @@ fn wait_for_listen_report(child: &mut Child, report_path: &Path) -> String {
     loop {
         match std::fs::read(report_path) {
             Ok(bytes) => {
-                let report: serde_json::Value = serde_json::from_slice(&bytes)
-                    .unwrap_or_else(|error| panic!("parse {}: {error}", report_path.display()));
+                let report: serde_json::Value = match serde_json::from_slice(&bytes) {
+                    Ok(report) => report,
+                    Err(error)
+                        if error.classify() == serde_json::error::Category::Eof
+                            && Instant::now() < deadline =>
+                    {
+                        if let Some(status) = child.try_wait().expect("poll owned backend") {
+                            panic!(
+                                "owned handshake_core exited while publishing listen report with \
+                                 {status}: {error}"
+                            );
+                        }
+                        thread::sleep(Duration::from_millis(50));
+                        continue;
+                    }
+                    Err(error) => panic!("parse {}: {error}", report_path.display()),
+                };
                 assert_eq!(
                     report["schema_id"], "handshake.backend-listen-report.v1",
                     "owned backend listen report schema drifted"
@@ -1144,6 +1155,7 @@ impl FileLock {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)
             .ok()?;
         let started = Instant::now();
