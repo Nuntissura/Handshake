@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-27T20:27:22.495Z",
+  "updated_at_utc": "2026-07-28T11:32:54.134Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,10 +35,10 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "CLAIMED",
+    "status": "READY_FOR_VALIDATION_V3",
     "depends_on": [],
     "blocks": [],
-    "active": true,
+    "active": false,
     "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
@@ -87,9 +87,46 @@
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260726-052638",
     "claimed_at_utc": "2026-07-27T20:27:22.495Z",
-    "remediation_v3_in_progress": true,
-    "remediation_v3_status": "CLAIMED_FOR_FAIL_V2_REMEDIATION",
-    "ready_for_validation_at_utc": "2026-07-10T22:43:12.889Z",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260726-052638",
+    "ready_for_validation_at_utc": "2026-07-28T11:32:54.134Z",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_WITH_TYPED_SUITE_BLOCKER_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "ACCEPTED_BY_TWO_INDEPENDENT_REVIEWERS_NO_HIGH_OR_MEDIUM_2026-07-28",
+    "rfv_evidence_2026_07_28": {
+      "by": "KERNEL_BUILDER-20260726-052638",
+      "mode": "FAIL_V2_REMEDIATION_MANIFEST_DRIVEN_ALL_SURFACE_ARGUS_GPU_AND_BOUNDED_PROCESS_HARDENING",
+      "source_head": "e4148ca9d5b676a3d32399d89b9b944497df95a0",
+      "product_commits": [
+        "8cf0fa20",
+        "c794b59f",
+        "c3d80991",
+        "fd709807",
+        "bd511881",
+        "4838aca5",
+        "f3c451fc",
+        "b1c8c7a6",
+        "20466e8f",
+        "ed16fec0",
+        "3d4df62e",
+        "e4148ca9"
+      ],
+      "headless_proof_run": "mt108-headless-e4148ca9-20260728T111239Z",
+      "gpu_proof_run": "mt108-gpu-e4148ca9-20260728T111916Z",
+      "proof": "Both exact-source manifest runs passed the aggregate verifier. Each run contains 33 matrix scenarios plus one manifest-verifier process, 68 STARTED/COMPLETED lifecycle receipts, 34 zero-exit process-observation acknowledgements, and zero blocked/failed lifecycle rows. The headless run contains 38 typed DEFERRED markers and no frames. The real-GPU run contains 38 CAPTURED PNG markers and 38 frames; minimum dimensions are 360x220 and the remediated formatting-toolbar frame is 900x240.",
+      "phase_and_identity_hardening": "Screenshot schema hsk.native_gui.screenshot_marker@5 binds post-action frames to a process-local monotonic terminal-reinspection sequence, permits receipt-less markers only as pre-action phases before a later valid bound frame, and rejects queue-window or stale-receipt closure. The runner-only hsk.native_gui.process_observation_ack@1 handshake prevents short-lived test executables from exiting before external PID/start/executable observation. All 68 final acknowledgements were independently joined exactly to COMPLETED receipts and all 76 final markers joined to acknowledged process identities.",
+      "visual_inspection": "The retained GPU formatting-toolbar, FEMS proposal, command-palette post-action, and Locus resolved frames were directly opened. The toolbar shows the active Bold state at 900x240; FEMS shows the persisted proposal dialog; the palette action reaches the User Manual state; Locus shows the resolved pane and tab.",
+      "targeted_verification": "The MT-108 matrix verifier phase/counterfactual tests, screenshot-marker tests, UserManual contract test, command-palette and quick-switcher exact tests, and Locus compile gate passed using the allocated canonical external Cargo target. Independent code and final-evidence reviews report no remaining HIGH or MEDIUM finding.",
+      "typed_suite_blocker": {
+        "status": "BLOCKED_BY_PRE_EXISTING_NON_MT108_DELTA_TEST_FAILURE",
+        "test": "test_loom_address::mounted_backlink_event_retries_when_bus_is_contended",
+        "exact_final_head_result": "FAILED 0 passed; 1 failed; 15 filtered out",
+        "failure": "retry proof: contended bus surfaces a retrying status, not a silent drop",
+        "scope_boundary": "The failure was already reproduced in the prior full-suite sweep and reproduces at final head e4148ca9. It is not changed or suppressed in this MT-108 remediation; the operator authorized only MT-108 and instructed this session to stop after MT-108.",
+        "acceptance_truth": "AC-108-3 is not claimed GREEN. The contract ready gate permits handoff when declared proof blockers are typed; the independent validator must adjudicate this existing suite blocker."
+      },
+      "validator_boundary": "validator_verdict remains FAIL_V2 as preserved official history; completed_by remains null. This is an implementer READY_FOR_VALIDATION_V3 handoff, not self-validation."
+    },
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-10)",
     "rfv_evidence_2026_07_10": "WaveA residual hardening addressed (product commit b289993f), each a real fix + real test. DONE: MT-004 (REPLACE_ALL_CAP=1000 + replace_all_capped + auto-scroll match below find-bar + Ctrl+F focus), MT-006 (outline raw-click nav + fold-adjusted landing), MT-013 (offset-0 backspace comment fix + Bold click + overflow popup 2-frame), MT-016 (Code Block description), MT-018 (find keystroke scan + replace-one/all clicks + tall-doc scan), MT-098 (runtime_chat /api route verified + live Send observes EndpointMissing), MT-105 (operation-watchdog hard total-runtime cap), MT-106 palmistry (child-stall NoBaseline observability + poll_observations + main.rs emits Suspected/NoBaseline diagnostics), AC-108-2 systemic (typed screenshot_marker CAPTURED/DEFERRED/BLOCKED so headless sites never silent-GREEN). Proven KERNEL_BUILDER authoritative: test_find_replace 9/0, test_formatting_toolbar 9/0, test_operation_watchdog 12/0, test_outline_provider 4/0, test_screenshot_deferred_marker 3/0 (handshake-native lib clean); palmistry MT-106 child-stall coder-verified 75/75. HONEST SKIPs (typed gaps, not faked): MT-100 terminal cwd (needs a canonical workspace-root plumbing subsystem that does not exist -> NEEDS_WORKSPACE_ROOT_PLUMBING), MT-102 real-GPU worksurface screenshot (headless host -> now covered by the typed DEFERRED marker; run on a real-GPU host for PT-102-B)."
   },
