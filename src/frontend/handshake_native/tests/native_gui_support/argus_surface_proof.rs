@@ -269,9 +269,11 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
     // use the same binding implementation but redirect that root to this run's external proof area,
     // so they neither overwrite nor contend with a live Handshake process. The guard restores the
     // process environment after the server is dropped, including during panic unwinding.
-    let binding_root = screenshot_marker::marker_dir()
-        .join("argus-bindings")
-        .join(sanitize(surface));
+    // The run directory and process/scenario receipts already provide isolation and attribution.
+    // Keep this private app-data leaf compact: the production binding's atomic temporary filename
+    // adds PID and nanosecond components, and a descriptive surface leaf can cross legacy Windows
+    // MAX_PATH when the test PID has six digits.
+    let binding_root = isolated_argus_binding_root(&screenshot_marker::marker_dir());
     let _app_data = ScopedAppData::install(binding_root);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -1256,6 +1258,10 @@ impl Drop for ScopedAppData {
     }
 }
 
+fn isolated_argus_binding_root(marker_dir: &std::path::Path) -> std::path::PathBuf {
+    marker_dir.join("argus-binding")
+}
+
 fn sanitize(value: &str) -> String {
     value
         .chars()
@@ -1623,5 +1629,16 @@ mod aggregate_tests {
         assert!(runner.contains("Capture one final process-table snapshot immediately after exit"));
         assert!(runner.contains("identity changed: expected start"));
         assert!(!runner.contains("ParentPid = 0"));
+    }
+
+    #[test]
+    fn isolated_binding_root_uses_a_fixed_compact_leaf() {
+        let run_root = std::path::Path::new("allocated-run-root");
+        let binding_root = isolated_argus_binding_root(run_root);
+        assert_eq!(binding_root, run_root.join("argus-binding"));
+        assert_eq!(
+            binding_root.file_name().and_then(std::ffi::OsStr::to_str),
+            Some("argus-binding")
+        );
     }
 }
