@@ -275,7 +275,7 @@
     "budget_mb": null,
     "budget_ms": 2000,
     "category": "knowledge",
-    "description": "Tag hub query, 5000 blocks tagged: query the tag hub for a tag attached to 5000 blocks (GET /loom/tags/{tag}/blocks); measure query only; assert hit_count == 5000. BINDS handshake_core loom tags -> requires live managed PostgreSQL.",
+    "description": "Tag hub query, 5000 blocks tagged: query the tag hub for a tag attached to 5000 blocks (GET /loom/tags/{tag_id}); measure query only; assert hit_count == 5000. BINDS handshake_core loom tags -> requires live managed PostgreSQL.",
     "effective_budget": 2000,
     "env_override": "PERF_BUDGET_LK03_MS",
     "gated": false,

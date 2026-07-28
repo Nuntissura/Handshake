@@ -117,33 +117,64 @@ impl PendingChild {
 impl Drop for PendingChild {
     fn drop(&mut self) {
         if let Some(child) = self.0.as_mut() {
-            let _ = child.kill();
-            let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
-            while Instant::now() < deadline {
-                match child.try_wait() {
-                    Ok(Some(_)) | Err(_) => return,
-                    Ok(None) => thread::sleep(Duration::from_millis(50)),
-                }
+            if let Err(error) = force_kill_tree_and_reap(child, "drop pending fixture backend") {
+                eprintln!("FATAL: {error}");
+                std::process::abort();
             }
         }
     }
 }
 
 fn kill_and_reap(child: &mut Child, operation: &str) {
+    force_kill_tree_and_reap(child, operation).unwrap_or_else(|error| panic!("{error}"));
+}
+
+fn force_kill_tree_and_reap(child: &mut Child, operation: &str) -> Result<(), String> {
     let pid = child.id();
+    if child
+        .try_wait()
+        .map_err(|error| format!("{operation}: poll owned backend pid {pid}: {error}"))?
+        .is_some()
+    {
+        return Ok(());
+    }
     child
         .kill()
-        .unwrap_or_else(|error| panic!("{operation}: kill owned backend pid {pid}: {error}"));
-    let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
+        .map_err(|error| format!("{operation}: kill owned backend pid {pid}: {error}"))?;
+    if wait_for_owned_exit(child, SHUTDOWN_TIMEOUT)? {
+        return Ok(());
+    }
+    #[cfg(windows)]
+    {
+        let mut command = Command::new("taskkill");
+        let output = no_window(&mut command)
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .output()
+            .map_err(|error| format!("{operation}: force-kill tree for pid {pid}: {error}"))?;
+        if !output.status.success() {
+            return Err(format!(
+                "{operation}: taskkill for owned pid {pid} failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+        if wait_for_owned_exit(child, SHUTDOWN_TIMEOUT)? {
+            return Ok(());
+        }
+    }
+    Err(format!(
+        "{operation}: owned backend pid {pid} remained alive after bounded force termination"
+    ))
+}
+
+fn wait_for_owned_exit(child: &mut Child, timeout: Duration) -> Result<bool, String> {
+    let pid = child.id();
+    let deadline = Instant::now() + timeout;
     loop {
         match child.try_wait() {
-            Ok(Some(_)) => return,
+            Ok(Some(_)) => return Ok(true),
             Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(50)),
-            Ok(None) => panic!(
-                "{operation}: owned backend pid {pid} did not exit within {}s",
-                SHUTDOWN_TIMEOUT.as_secs()
-            ),
-            Err(error) => panic!("{operation}: failed to reap owned backend pid {pid}: {error}"),
+            Ok(None) => return Ok(false),
+            Err(error) => return Err(format!("reap owned backend pid {pid}: {error}")),
         }
     }
 }
@@ -663,17 +694,29 @@ impl LiveBackend {
     /// succeed (or report already absent), and an owned backend must be killed and reaped within the hard
     /// shutdown deadline. Attached root-managed processes are never touched.
     pub fn assert_cleanup(&mut self) {
-        if !self.workspace_id.is_empty() {
+        let workspace_cleanup = if !self.workspace_id.is_empty() {
             let workspace_id = std::mem::take(&mut self.workspace_id);
-            let status = self.delete_workspace(&workspace_id);
-            assert!(
-                (200..300).contains(&status) || status == 404,
-                "managed fixture workspace cleanup {workspace_id} returned {status}"
-            );
-        }
+            Some((
+                workspace_id.clone(),
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    self.delete_workspace(&workspace_id)
+                })),
+            ))
+        } else {
+            None
+        };
         if let Some(child) = self.owned_backend.as_mut() {
             kill_and_reap(child, "clean up fixture-owned backend");
             self.owned_backend = None;
+        }
+        if let Some((workspace_id, result)) = workspace_cleanup {
+            match result {
+                Ok(status) => assert!(
+                    (200..300).contains(&status) || status == 404,
+                    "managed fixture workspace cleanup {workspace_id} returned {status}"
+                ),
+                Err(payload) => std::panic::resume_unwind(payload),
+            }
         }
     }
 
@@ -1061,40 +1104,29 @@ impl LiveBackend {
 impl Drop for LiveBackend {
     fn drop(&mut self) {
         if !self.workspace_id.is_empty() {
-            let status = self.delete_workspace(&self.workspace_id);
-            if !(200..300).contains(&status) && status != 404 {
-                eprintln!(
-                    "WARN: managed fixture workspace cleanup {} returned {status}",
-                    self.workspace_id
-                );
-            }
-        }
-        if let Some(mut child) = self.owned_backend.take() {
-            let _ = child.kill();
-            let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
-            loop {
-                match child.try_wait() {
-                    Ok(Some(_)) => break,
-                    Ok(None) if Instant::now() < deadline => {
-                        thread::sleep(Duration::from_millis(50));
-                    }
-                    Ok(None) => {
-                        eprintln!(
-                            "WARN: owned backend pid {} did not exit within {}s",
-                            child.id(),
-                            SHUTDOWN_TIMEOUT.as_secs()
-                        );
-                        break;
-                    }
-                    Err(error) => {
-                        eprintln!(
-                            "WARN: failed to reap owned backend pid {}: {error}",
-                            child.id()
-                        );
-                        break;
-                    }
+            let workspace_id = std::mem::take(&mut self.workspace_id);
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.delete_workspace(&workspace_id)
+            })) {
+                Ok(status) if (200..300).contains(&status) || status == 404 => {}
+                Ok(status) => {
+                    eprintln!(
+                        "WARN: managed fixture workspace cleanup {workspace_id} returned {status}"
+                    );
+                }
+                Err(_) => {
+                    eprintln!(
+                        "WARN: managed fixture workspace cleanup {workspace_id} panicked during Drop"
+                    );
                 }
             }
+        }
+        if let Some(child) = self.owned_backend.as_mut() {
+            if let Err(error) = force_kill_tree_and_reap(child, "drop fixture-owned backend") {
+                eprintln!("FATAL: {error}");
+                std::process::abort();
+            }
+            self.owned_backend = None;
         }
     }
 }

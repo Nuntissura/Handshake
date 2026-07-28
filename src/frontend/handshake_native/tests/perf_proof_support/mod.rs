@@ -393,7 +393,8 @@ fn write_entry(
             "total_memory_bytes": system.total_memory(),
             "rust_debug_assertions": cfg!(debug_assertions),
         },
-        "provenance": current_run["provenance"],
+        "run_provenance": current_run["provenance"],
+        "attempt_process": current_test_binary_provenance(scenario_id),
     });
     let mut out = serde_json::to_string_pretty(&receipt)
         .unwrap_or_else(|error| panic!("serialize perf receipt {scenario_id}: {error}"));
@@ -456,13 +457,25 @@ fn expected_proof_ids(scenario_id: &str) -> HashSet<&'static str> {
     }
 }
 
-const SOURCE_BINDING_PATHS: [&str; 10] = [
+const SOURCE_BINDING_PATHS: [&str; 22] = [
+    ".cargo/config.toml",
+    "src/backend/handshake_core/build.rs",
+    "src/backend/handshake_core/Cargo.toml",
+    "src/backend/handshake_core/Cargo.lock",
+    "src/backend/handshake_core/mechanical_engines.json",
+    "src/backend/handshake_core/src",
+    "src/backend/handshake_core/migrations",
+    "src/backend/handshake_core/schemas",
+    "src/frontend/palmistry",
     "src/frontend/handshake_native/build.rs",
     "src/frontend/handshake_native/Cargo.toml",
     "src/frontend/handshake_native/Cargo.lock",
+    "src/frontend/handshake_native/diag_ring",
     "src/frontend/handshake_native/src",
     "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
     "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/test_heartbeat.rs",
+    "src/frontend/handshake_native/tests/test_diagnostics_panel.rs",
     "src/frontend/handshake_native/tests/test_perf_large_code.rs",
     "src/frontend/handshake_native/tests/test_perf_large_rich.rs",
     "src/frontend/handshake_native/tests/test_perf_large_knowledge.rs",
@@ -560,9 +573,8 @@ fn canonical_run_provenance() -> serde_json::Value {
             (key.starts_with("PERF_BUDGET_") && !value.trim().is_empty()).then_some(key)
         })
         .collect();
-    let source_blobs = SOURCE_BINDING_PATHS
+    let source_objects = SOURCE_BINDING_PATHS
         .iter()
-        .filter(|path| !path.ends_with("/src"))
         .map(|path| {
             let object = format!("HEAD:{path}");
             (
@@ -574,8 +586,6 @@ fn canonical_run_provenance() -> serde_json::Value {
             )
         })
         .collect::<serde_json::Map<_, _>>();
-    let current_exe = std::env::current_exe().expect("resolve current MT-045 test executable");
-    let args = std::env::args().collect::<Vec<_>>();
     let diagnostics_receipt = std::env::var_os("HSK_MT045_DIAGNOSTIC_RECEIPT")
         .map(PathBuf::from)
         .expect("canonical MT-045 proof requires HSK_MT045_DIAGNOSTIC_RECEIPT");
@@ -594,6 +604,16 @@ fn canonical_run_provenance() -> serde_json::Value {
         diagnostics["status"].as_str(),
         Some("PASS"),
         "MT-045 canonical run requires heartbeat/diagnostics preflight PASS"
+    );
+    assert_eq!(
+        diagnostics["run_id"].as_str(),
+        std::env::var("HSK_MT045_RUN_ID").ok().as_deref(),
+        "MT-045 diagnostics receipt must belong to the active suite run"
+    );
+    assert_eq!(
+        diagnostics["source_sha"].as_str(),
+        Some(expected_sha.as_str()),
+        "MT-045 diagnostics receipt must bind to the active source SHA"
     );
     let backend_binary = std::env::var_os("HSK_TEST_BACKEND_BIN")
         .map(PathBuf::from)
@@ -619,6 +639,11 @@ fn canonical_run_provenance() -> serde_json::Value {
         Some(5544),
         "canonical MT-045 proof requires Handshake's internal PostgreSQL port"
     );
+    assert_eq!(
+        postgres_url.path().trim_start_matches('/'),
+        "handshake",
+        "canonical MT-045 proof requires the Handshake database"
+    );
 
     serde_json::json!({
         "source_sha": actual_sha,
@@ -626,15 +651,13 @@ fn canonical_run_provenance() -> serde_json::Value {
             &["rev-parse", "HEAD:src/frontend/handshake_native"],
             "resolve MT-045 committed crate tree"
         ),
-        "source_blobs": source_blobs,
+        "source_objects": source_objects,
         "source_paths_match_head": true,
         "cargo_profile": current_profile(),
+        "compiled_source_sha": env!("HANDSHAKE_MT045_BUILD_SOURCE_SHA"),
         "canonical_supervisor": std::env::var("HSK_MT045_CANONICAL_RUN").as_deref() == Ok("1"),
         "applied_budget_overrides": applied_budget_overrides,
         "artifact_root": artifact_root.to_string_lossy(),
-        "test_executable": current_exe.to_string_lossy(),
-        "test_executable_sha256": sha256_file(&current_exe),
-        "command_args": args,
         "diagnostics_receipt": diagnostics_receipt.to_string_lossy(),
         "diagnostics_receipt_sha256": sha256_file(&diagnostics_receipt),
         "backend_binary": backend_binary.to_string_lossy(),
@@ -645,6 +668,39 @@ fn canonical_run_provenance() -> serde_json::Value {
             "database": postgres_url.path().trim_start_matches('/'),
             "managed_by_test": false,
         },
+    })
+}
+
+fn current_test_binary_provenance(scenario_id: &str) -> serde_json::Value {
+    let expected_stem = match scenario_id {
+        id if id.starts_with("LC-") => "test_perf_large_code",
+        id if id.starts_with("LR-") => "test_perf_large_rich",
+        id if id.starts_with("LK-") => "test_perf_large_knowledge",
+        _ => panic!("unknown MT-045 scenario binary mapping: {scenario_id}"),
+    };
+    let executable = std::env::current_exe().expect("resolve current MT-045 test executable");
+    let executable_name = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("MT-045 test executable has a UTF-8 filename");
+    assert!(
+        executable_name.starts_with(&format!("{expected_stem}-")),
+        "scenario {scenario_id} must run in {expected_stem}, got {executable_name}"
+    );
+    let supervisor_sha =
+        std::env::var("HSK_MT045_SOURCE_SHA").expect("MT-045 supervisor source SHA");
+    assert_eq!(
+        env!("HANDSHAKE_MT045_BUILD_SOURCE_SHA"),
+        supervisor_sha,
+        "MT-045 executable must embed the active supervisor source SHA"
+    );
+    serde_json::json!({
+        "expected_test_binary": expected_stem,
+        "path": executable.to_string_lossy(),
+        "filename": executable_name,
+        "sha256": sha256_file(&executable),
+        "compiled_source_sha": env!("HANDSHAKE_MT045_BUILD_SOURCE_SHA"),
+        "command_args": std::env::args().collect::<Vec<_>>(),
     })
 }
 
@@ -665,6 +721,11 @@ fn assert_canonical_provenance(provenance: &serde_json::Value) {
             .map(Vec::len),
         Some(0),
         "immutable MT-045 completion forbids PERF_BUDGET_* overrides"
+    );
+    assert_eq!(
+        provenance["compiled_source_sha"].as_str(),
+        provenance["source_sha"].as_str(),
+        "MT-045 test executable must embed the exact supervisor source SHA"
     );
 }
 
@@ -703,6 +764,11 @@ fn begin_scenario_run(
         .as_ref()
         .and_then(|state| state.get("completed_at"))
         .is_some_and(|value| !value.is_null());
+    let existing_supervisor_preflight = existing
+        .as_ref()
+        .and_then(|state| state.get("supervisor_preflight"))
+        .and_then(serde_json::Value::as_bool)
+        == Some(true);
     let existing_proof_terminal = existing
         .as_ref()
         .and_then(|state| {
@@ -721,6 +787,7 @@ fn begin_scenario_run(
         .is_some_and(|requested| existing_run_id != Some(requested))
         || existing_run_id.is_none()
         || existing_completed
+        || existing_supervisor_preflight
         || existing_proof_terminal;
     let run_id = if must_start {
         requested_run.unwrap_or_else(|| format!("MT045-RUN-{}", uuid::Uuid::now_v7().simple()))
@@ -761,6 +828,10 @@ fn begin_scenario_run(
     });
     refresh_scenario_status(&mut state, scenario_id);
     refresh_run_projection(&mut state);
+    // Invalidate both mutable summary projections before the manifest reset or any other fallible
+    // preflight. The supervisor has already published its own RUNNING marker; this transition ensures a
+    // reset failure cannot expose a prior run as current.
+    publish_and_assert_incomplete_projections(&directory, &state);
     if must_start {
         assert_eq!(
             state["status"].as_str(),
@@ -774,9 +845,6 @@ fn begin_scenario_run(
         // with one result from this run.
         reset_manifest_for_run(&run_id);
     }
-    // Invalidate a previous PASS on BOTH mutable projections after the contract-authoritative manifest
-    // is already RUNNING. If a later preflight fails, all three projections fail closed.
-    publish_and_assert_incomplete_projections(&directory, &state);
     if must_start {
         state["file_lock_contract_proof"] =
             assert_file_lock_contention_and_recovery(&directory.join("file-lock-contract.lock"));
@@ -801,17 +869,15 @@ fn begin_scenario_run(
             "every MT-045 scenario must run from one exact committed crate tree"
         );
     }
-    let executable_name = Path::new(
-        provenance["test_executable"]
-            .as_str()
-            .expect("MT-045 provenance carries test executable"),
-    )
-    .file_name()
-    .and_then(|name| name.to_str())
-    .expect("MT-045 test executable has a UTF-8 filename");
+    let test_binary = current_test_binary_provenance(scenario_id);
+    let executable_name = test_binary["filename"]
+        .as_str()
+        .expect("MT-045 test executable has a UTF-8 filename");
     state["test_binaries"][executable_name] = serde_json::json!({
-        "path": provenance["test_executable"],
-        "sha256": provenance["test_executable_sha256"],
+        "expected_test_binary": test_binary["expected_test_binary"],
+        "path": test_binary["path"],
+        "sha256": test_binary["sha256"],
+        "compiled_source_sha": test_binary["compiled_source_sha"],
     });
     publish_and_assert_incomplete_projections(&directory, &state);
     assert_canonical_provenance(&provenance);
@@ -1255,10 +1321,16 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
         .as_object()
         .expect("completed MT-045 PASS requires test binary provenance");
     assert!(
-        binaries.len() >= 3,
+        binaries.len() == 3,
         "completed MT-045 PASS requires all three exact perf test binaries"
     );
+    let mut expected_binaries = HashSet::new();
     for (name, binary) in binaries {
+        expected_binaries.insert(
+            binary["expected_test_binary"]
+                .as_str()
+                .unwrap_or_else(|| panic!("completed MT-045 PASS binary {name} lacks mapping")),
+        );
         assert!(
             binary["path"].as_str().is_some_and(|path| !path.is_empty()),
             "completed MT-045 PASS binary {name} lacks a path"
@@ -1268,7 +1340,23 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
             Some(64),
             "completed MT-045 PASS binary {name} lacks a SHA-256 digest"
         );
+        assert_eq!(
+            binary["compiled_source_sha"].as_str(),
+            state
+                .pointer("/provenance/source_sha")
+                .and_then(serde_json::Value::as_str),
+            "completed MT-045 PASS binary {name} is not built from the active source"
+        );
     }
+    assert_eq!(
+        expected_binaries,
+        HashSet::from([
+            "test_perf_large_code",
+            "test_perf_large_rich",
+            "test_perf_large_knowledge",
+        ]),
+        "completed MT-045 PASS requires the exact code/rich/knowledge binary set"
+    );
     let rows = read_manifest_rows_checked();
     for row in rows {
         let scenario_id = row["scenario_id"].as_str().unwrap_or("UNKNOWN");
@@ -1282,9 +1370,12 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
             Some("release"),
             "completed MT-045 PASS requires manifest row {scenario_id} in the release profile"
         );
+        let measured_value = row["measured_value"].as_f64().unwrap_or_else(|| {
+            panic!("completed MT-045 PASS requires {scenario_id} measured_value")
+        });
         assert!(
-            row["measured_value"].is_number(),
-            "completed MT-045 PASS requires manifest row {scenario_id} measured_value"
+            measured_value.is_finite() && measured_value >= 0.0,
+            "completed MT-045 PASS requires a finite non-negative value for {scenario_id}"
         );
         assert_eq!(
             row["gated"].as_bool(),
@@ -1304,6 +1395,10 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
             row["effective_budget"].as_u64(),
             Some(contract_budget),
             "completed MT-045 PASS requires the contract-default budget for {scenario_id}"
+        );
+        assert!(
+            measured_value <= contract_budget as f64,
+            "completed MT-045 PASS rejects over-budget {scenario_id}: {measured_value} > {contract_budget}"
         );
         assert_eq!(
             row["suite_run_id"].as_str(),

@@ -35,6 +35,14 @@ fn main() {
     println!("cargo:rustc-env=HANDSHAKE_BUILD_DATE={build_date}");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
 
+    // MT-045 canonical performance proofs bind the compiled test executable to the exact committed
+    // source SHA supplied by the source-controlled supervisor. Cargo must rerun this build script when
+    // the binding changes so a stale release test binary cannot inherit a newer checkout's runtime SHA.
+    let mt045_source_sha =
+        std::env::var("HSK_MT045_SOURCE_SHA").unwrap_or_else(|_| "UNBOUND".to_owned());
+    println!("cargo:rustc-env=HANDSHAKE_MT045_BUILD_SOURCE_SHA={mt045_source_sha}");
+    println!("cargo:rerun-if-env-changed=HSK_MT045_SOURCE_SHA");
+
     // Fail-fast guard: when bundled-fonts is enabled the include_bytes! in app.rs needs the assets
     // to exist. Emit a clear build error here (before the opaque include_bytes! error) so a missing
     // asset is diagnosable by a no-context model (RISK-6 / CONTROL-6).

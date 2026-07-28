@@ -30,7 +30,7 @@ mod pg_proof_support;
 
 use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
 use pg_proof_support::LiveBackend;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
 
@@ -216,19 +216,75 @@ fn perf_proof_perf_lk01_graph_load() {
                 .map(|n| n as usize)
         })
         .unwrap_or(0);
+    let returned_edges = graph
+        .get("edges")
+        .and_then(serde_json::Value::as_array)
+        .expect("LK-01: graph response must expose edges");
+    let returned_edge_pairs: HashSet<(String, String)> = returned_edges
+        .iter()
+        .map(|edge| {
+            let source = edge
+                .pointer("/edge/source_block_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("LK-01: returned edge source_block_id");
+            let target = edge
+                .pointer("/edge/target_block_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("LK-01: returned edge target_block_id");
+            assert_ne!(source, target, "LK-01: returned graph contains a self edge");
+            (source.to_owned(), target.to_owned())
+        })
+        .collect();
+    let expected_edge_pairs: HashSet<(String, String)> = edge_pairs
+        .iter()
+        .map(|&(source, target)| (block_ids[source].clone(), block_ids[target].clone()))
+        .collect();
+    let mut returned_out_degree = HashMap::<&str, usize>::new();
+    for (source, _) in &returned_edge_pairs {
+        *returned_out_degree.entry(source.as_str()).or_default() += 1;
+    }
+    let returned_min_out_degree = block_ids
+        .iter()
+        .map(|id| returned_out_degree.get(id.as_str()).copied().unwrap_or(0))
+        .min()
+        .expect("LK-01 returned degree set");
+    let returned_max_out_degree = block_ids
+        .iter()
+        .map(|id| returned_out_degree.get(id.as_str()).copied().unwrap_or(0))
+        .max()
+        .expect("LK-01 returned degree set");
     attempt.stage(
         serde_json::json!([measurement("graph_load", elapsed_ms as f64, "ms")]),
         serde_json::json!({
             "nodes": node_count,
-            "edges_seeded": 2000,
+            "edges_seeded": edge_pairs.len(),
+            "edges_returned": returned_edges.len(),
             "fixture_strategy": "deterministic_varied_sparse_public_loom_routes",
-            "min_out_degree": min_out_degree,
-            "max_out_degree": max_out_degree,
+            "min_out_degree": returned_min_out_degree,
+            "max_out_degree": returned_max_out_degree,
         }),
     );
     assert!(
         node_count >= 1000,
         "LK-01: the graph must report >= 1000 nodes (got {node_count})"
+    );
+    assert_eq!(
+        returned_edges.len(),
+        2_000,
+        "LK-01: graph response must contain exactly 2000 edges"
+    );
+    assert_eq!(
+        returned_edge_pairs.len(),
+        returned_edges.len(),
+        "LK-01: graph response edges must be unique"
+    );
+    assert_eq!(
+        returned_edge_pairs, expected_edge_pairs,
+        "LK-01: graph response must preserve the exact deterministic sparse edge set"
+    );
+    assert!(
+        returned_max_out_degree > returned_min_out_degree,
+        "LK-01: returned graph must preserve varied node degree"
     );
     assert!(
         budget.passes(elapsed_ms),
@@ -245,10 +301,11 @@ fn perf_proof_perf_lk01_graph_load() {
         serde_json::json!([measurement("graph_load", elapsed_ms as f64, "ms")]),
         serde_json::json!({
             "nodes": node_count,
-            "edges_seeded": 2000,
+            "edges_seeded": edge_pairs.len(),
+            "edges_returned": returned_edges.len(),
             "fixture_strategy": "deterministic_varied_sparse_public_loom_routes",
-            "min_out_degree": min_out_degree,
-            "max_out_degree": max_out_degree,
+            "min_out_degree": returned_min_out_degree,
+            "max_out_degree": returned_max_out_degree,
         }),
     );
 }
@@ -544,15 +601,64 @@ fn perf_proof_perf_lk05_folder_tree() {
         .as_array()
         .or_else(|| resp.get("folders").and_then(serde_json::Value::as_array))
         .expect("LK-05: folder query returns a folder array");
-    let root_count = folder_rows
+    let parent_by_id: HashMap<String, Option<String>> = folder_rows
         .iter()
-        .filter(|folder| {
-            folder
+        .map(|folder| {
+            let id = folder
+                .get("folder_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("LK-05: returned folder_id")
+                .to_owned();
+            let parent = folder
                 .get("parent_folder_id")
-                .is_none_or(serde_json::Value::is_null)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned);
+            (id, parent)
         })
+        .collect();
+    assert_eq!(
+        parent_by_id.len(),
+        folder_rows.len(),
+        "LK-05: returned folder ids must be unique"
+    );
+    let root_count = parent_by_id
+        .values()
+        .filter(|parent| parent.is_none())
         .count();
     let nested_count = folder_rows.len() - root_count;
+    let mut depth_histogram = [0usize; 10];
+    let mut max_parent_depth = 0usize;
+    for folder_id in parent_by_id.keys() {
+        let mut cursor = folder_id.as_str();
+        let mut visited = HashSet::new();
+        let mut depth = 0usize;
+        loop {
+            assert!(
+                visited.insert(cursor.to_owned()),
+                "LK-05: returned folder tree contains a cycle at {cursor}"
+            );
+            match parent_by_id
+                .get(cursor)
+                .unwrap_or_else(|| panic!("LK-05: returned tree lacks folder {cursor}"))
+            {
+                Some(parent) => {
+                    assert!(
+                        parent_by_id.contains_key(parent),
+                        "LK-05: folder {cursor} references missing parent {parent}"
+                    );
+                    depth += 1;
+                    assert!(
+                        depth < 10,
+                        "LK-05: returned hierarchy exceeds expected depth"
+                    );
+                    cursor = parent;
+                }
+                None => break,
+            }
+        }
+        depth_histogram[depth] += 1;
+        max_parent_depth = max_parent_depth.max(depth);
+    }
     attempt.stage(
         serde_json::json!([measurement("folder_tree", elapsed_ms as f64, "ms")]),
         serde_json::json!({
@@ -560,8 +666,9 @@ fn perf_proof_perf_lk05_folder_tree() {
             "children_seeded": 1000,
             "root_folders": root_count,
             "nested_folders": nested_count,
-            "tree_levels": 10,
-            "max_parent_depth": 9,
+            "depth_histogram": depth_histogram,
+            "tree_levels": max_parent_depth + 1,
+            "max_parent_depth": max_parent_depth,
         }),
     );
     assert_eq!(
@@ -572,6 +679,14 @@ fn perf_proof_perf_lk05_folder_tree() {
     assert_eq!(
         nested_count, 180,
         "LK-05 must return exactly 180 nested folders"
+    );
+    assert_eq!(
+        depth_histogram, [20; 10],
+        "LK-05 must return exactly 20 folders at each of 10 levels"
+    );
+    assert_eq!(
+        max_parent_depth, 9,
+        "LK-05 must preserve a maximum parent depth of 9"
     );
     assert!(
         budget.passes(elapsed_ms),
@@ -588,8 +703,9 @@ fn perf_proof_perf_lk05_folder_tree() {
             "children_seeded": 1000,
             "root_folders": root_count,
             "nested_folders": nested_count,
-            "tree_levels": 10,
-            "max_parent_depth": 9,
+            "depth_histogram": depth_histogram,
+            "tree_levels": max_parent_depth + 1,
+            "max_parent_depth": max_parent_depth,
         }),
     );
 }
