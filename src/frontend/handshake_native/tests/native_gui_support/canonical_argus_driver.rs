@@ -6,6 +6,7 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::screenshot_harness::screenshot_marker;
 use egui_kittest::kittest::NodeT;
 use handshake_native::app::HandshakeApp;
 use handshake_native::mcp::{
@@ -20,6 +21,7 @@ pub struct ArgusObservation {
     pub receipt_id: u64,
     pub receipt_status: String,
     pub agent_id: String,
+    pub terminal_observed_sequence: u64,
     pub target_selected_before: Option<bool>,
     pub target_selected_after: Option<bool>,
 }
@@ -280,8 +282,6 @@ impl CanonicalArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus click returns a receipt id");
-        bind_screenshot_to_matrix_receipt(receipt_id);
-
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -316,6 +316,8 @@ impl CanonicalArgusDriver {
             matches!(receipt_status.as_str(), "applied" | "indeterminate"),
             "Argus receipt is terminal and non-rejected: {receipt}"
         );
+        let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
+        bind_screenshot_to_matrix_receipt(receipt_id);
         self.action_targets
             .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned(), None));
         let observation = ArgusObservation {
@@ -324,6 +326,7 @@ impl CanonicalArgusDriver {
             receipt_id,
             receipt_status,
             agent_id,
+            terminal_observed_sequence,
             target_selected_before,
             target_selected_after,
         };
@@ -363,8 +366,6 @@ impl CanonicalArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus parameterized click returns a receipt id");
-        bind_screenshot_to_matrix_receipt(receipt_id);
-
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -399,6 +400,8 @@ impl CanonicalArgusDriver {
             matches!(receipt_status.as_str(), "applied" | "indeterminate"),
             "Argus parameterized receipt is terminal and non-rejected: {receipt}"
         );
+        let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
+        bind_screenshot_to_matrix_receipt(receipt_id);
         self.action_targets
             .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned(), None));
         let observation = ArgusObservation {
@@ -407,6 +410,7 @@ impl CanonicalArgusDriver {
             receipt_id,
             receipt_status,
             agent_id,
+            terminal_observed_sequence,
             target_selected_before,
             target_selected_after,
         };
@@ -442,8 +446,6 @@ impl CanonicalArgusDriver {
         let receipt_id = set_value["result"]["receipt_id"]
             .as_u64()
             .expect("Argus set-value returns a receipt id");
-        bind_screenshot_to_matrix_receipt(receipt_id);
-
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -478,6 +480,8 @@ impl CanonicalArgusDriver {
             matches!(receipt_status.as_str(), "applied" | "indeterminate"),
             "Argus set-value receipt is terminal and non-rejected: {receipt}"
         );
+        let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
+        bind_screenshot_to_matrix_receipt(receipt_id);
         self.action_targets.push((
             ARGUS_SET_VALUE_METHOD.to_owned(),
             author_id.to_owned(),
@@ -489,6 +493,7 @@ impl CanonicalArgusDriver {
             receipt_id,
             receipt_status,
             agent_id,
+            terminal_observed_sequence,
             target_selected_before,
             target_selected_after,
         };
@@ -566,6 +571,7 @@ fn write_matrix_trace(
             "receipt_id": observation.receipt_id,
             "receipt_status": &observation.receipt_status,
             "agent_id": &observation.agent_id,
+            "terminal_observed_sequence": observation.terminal_observed_sequence,
             "before": &observation.before,
             "after": &observation.after,
         });

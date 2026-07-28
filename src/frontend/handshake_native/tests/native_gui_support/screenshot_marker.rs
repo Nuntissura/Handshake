@@ -17,7 +17,7 @@
 //!
 //! ## Schema
 //!
-//! `schema_id = "hsk.native_gui.screenshot_marker@4"`. Serialised with serde_json so each JSONL line is
+//! `schema_id = "hsk.native_gui.screenshot_marker@5"`. Serialised with serde_json so each JSONL line is
 //! parseable with `serde_json::from_str`. Lives under `tests/native_gui_support/` and is `#[path]`
 //! -included by the screenshot proof test binaries, mirroring the sibling `proof_report.rs` convention.
 
@@ -25,13 +25,14 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 /// The stable schema id for the screenshot-marker artifact.
-pub const SCREENSHOT_MARKER_SCHEMA_ID: &str = "hsk.native_gui.screenshot_marker@4";
+pub const SCREENSHOT_MARKER_SCHEMA_ID: &str = "hsk.native_gui.screenshot_marker@5";
 
 /// The screenshot-marker JSONL artifact file name. One marker is appended per screenshot-proof outcome.
 pub const SCREENSHOT_MARKER_FILE: &str = "screenshot_marker.jsonl";
@@ -43,6 +44,13 @@ pub const SCREENSHOT_MARKER_FILE: &str = "screenshot_marker.jsonl";
 /// so we must NOT probe by attempting a render in an always-run test.
 pub const GPU_SCREENSHOT_ENV: &str = "HANDSHAKE_GPU_SCREENSHOT";
 pub const SCREENSHOT_RUN_ID_ENV: &str = "HANDSHAKE_SCREENSHOT_RUN_ID";
+static PROOF_EVENT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
+
+/// Return the next process-local monotonic proof event sequence. Argus terminal observations and
+/// screenshot markers share this sequence so proof ordering never relies on wall-clock time.
+pub fn next_proof_event_sequence() -> u64 {
+    PROOF_EVENT_SEQUENCE.fetch_add(1, Ordering::SeqCst)
+}
 
 /// Whether pixel screenshots are declared available on this host (see [`GPU_SCREENSHOT_ENV`]).
 pub fn gpu_screenshot_enabled() -> bool {
@@ -101,6 +109,8 @@ pub struct ScreenshotMarker {
     pub gpu_screenshot_enabled: bool,
     pub frame_width: Option<u32>,
     pub frame_height: Option<u32>,
+    /// Process-local monotonic event order shared with terminal Argus trace observations.
+    pub proof_event_sequence: u64,
     pub timestamp_nanos: u128,
 }
 
@@ -132,6 +142,7 @@ impl ScreenshotMarker {
             gpu_screenshot_enabled: gpu_screenshot_enabled(),
             frame_width: frame_dimensions.map(|dimensions| dimensions.0),
             frame_height: frame_dimensions.map(|dimensions| dimensions.1),
+            proof_event_sequence: next_proof_event_sequence(),
             timestamp_nanos: now_nanos(),
         }
     }

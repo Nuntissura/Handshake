@@ -403,13 +403,6 @@ impl LocusArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus click returns a receipt id");
-        if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
-            .ok()
-            .is_some_and(|run_id| !run_id.trim().is_empty())
-        {
-            std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
-        }
-
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -445,6 +438,14 @@ impl LocusArgusDriver {
             .as_str()
             .expect("Argus receipt status")
             .to_owned();
+        let terminal_observed_sequence =
+            screenshot_harness::screenshot_marker::next_proof_event_sequence();
+        if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+            .ok()
+            .is_some_and(|run_id| !run_id.trim().is_empty())
+        {
+            std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
+        }
         let agent_id = click["result"]["agent_id"]
             .as_str()
             .expect("Argus click agent id")
@@ -456,6 +457,7 @@ impl LocusArgusDriver {
             receipt_id,
             &receipt_status,
             &agent_id,
+            terminal_observed_sequence,
             &before,
             &after,
         );
@@ -504,6 +506,7 @@ fn write_mt108_locus_matrix_trace(
     receipt_id: u64,
     receipt_status: &str,
     agent_id: &str,
+    terminal_observed_sequence: u64,
     before: &serde_json::Value,
     after: &serde_json::Value,
 ) {
@@ -540,6 +543,7 @@ fn write_mt108_locus_matrix_trace(
         "receipt_id": receipt_id,
         "receipt_status": receipt_status,
         "agent_id": agent_id,
+        "terminal_observed_sequence": terminal_observed_sequence,
         "before": before,
         "after": after,
     });

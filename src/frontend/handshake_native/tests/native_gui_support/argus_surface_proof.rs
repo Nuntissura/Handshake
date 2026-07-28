@@ -179,6 +179,7 @@ struct ArgusSurfaceEvidence {
     action_seq: u64,
     receipt_id: u64,
     receipt_status: String,
+    terminal_observed_sequence: u64,
     reinspect_author_present: bool,
     observed_post_state: serde_json::Value,
     process_correlation_id: String,
@@ -328,12 +329,6 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
     let receipt_id = mutation_response["result"]["receipt_id"]
         .as_u64()
         .expect("mutation response carries a real receipt_id");
-    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
-        .ok()
-        .is_some_and(|run_id| !run_id.trim().is_empty())
-    {
-        std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
-    }
     let agent_id = mutation_response["result"]["agent_id"]
         .as_str()
         .expect("mutation response carries actual agent_id")
@@ -407,6 +402,13 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
         !observed_post_state.is_null(),
         "{surface}: mutation predicate must return a concrete observed post-state"
     );
+    let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
+    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .is_some_and(|run_id| !run_id.trim().is_empty())
+    {
+        std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
+    }
 
     let screenshot_request = request(
         4,
@@ -508,6 +510,7 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
         action_seq: action.seq,
         receipt_id,
         receipt_status,
+        terminal_observed_sequence,
         reinspect_author_present,
         observed_post_state,
         process_correlation_id,
@@ -767,6 +770,7 @@ fn validate_argus_rows(
         }
         if row.action_seq == 0
             || row.receipt_id == 0
+            || row.terminal_observed_sequence == 0
             || !matches!(row.receipt_status.as_str(), "applied" | "indeterminate")
             || row
                 .observed_post_state
@@ -888,6 +892,8 @@ fn validate_screenshot_rows(
             || argus.screenshot_scenario_id != marker.scenario_id
             || argus.screenshot_frame_path != marker.frame_path
             || argus.gpu_screenshot_enabled != marker.gpu_screenshot_enabled
+            || marker.action_receipt_id != Some(argus.receipt_id)
+            || marker.proof_event_sequence <= argus.terminal_observed_sequence
         {
             return Err(std::io::Error::other(format!(
                 "surface {:?} does not correlate to its exact screenshot marker",
@@ -1303,6 +1309,7 @@ mod aggregate_tests {
             action_seq: index as u64 + 1,
             receipt_id: index as u64 + 1,
             receipt_status: "applied".to_owned(),
+            terminal_observed_sequence: index as u64 + 1,
             reinspect_author_present: contract.reinspect_author_present,
             observed_post_state: serde_json::json!({ "index": index }),
             process_correlation_id: format!("correlation-{}", contract.process_scenario),
@@ -1343,6 +1350,7 @@ mod aggregate_tests {
                 gpu_screenshot_enabled: false,
                 frame_width: None,
                 frame_height: None,
+                proof_event_sequence: row.terminal_observed_sequence + 100,
                 timestamp_nanos: 1,
             })
             .collect()

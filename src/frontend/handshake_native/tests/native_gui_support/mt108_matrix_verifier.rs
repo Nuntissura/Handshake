@@ -91,6 +91,7 @@ struct LegacyArgusEvidence {
     process_id: u32,
     receipt_id: u64,
     receipt_status: String,
+    terminal_observed_sequence: u64,
     screenshot_outcome_id: String,
     screenshot_status: String,
     screenshot_frame_path: Option<String>,
@@ -114,6 +115,7 @@ struct MatrixTrace {
     target_selected_after: Option<bool>,
     receipt_id: u64,
     receipt_status: String,
+    terminal_observed_sequence: u64,
     agent_id: String,
     before: serde_json::Value,
     after: serde_json::Value,
@@ -474,6 +476,7 @@ fn validate_legacy(
             || evidence.process_correlation_id != process.process_correlation_id
             || Some(evidence.process_id) != process.test_process_pid
             || evidence.receipt_id == 0
+            || evidence.terminal_observed_sequence == 0
             || !matches!(
                 evidence.receipt_status.as_str(),
                 "applied" | "indeterminate"
@@ -599,6 +602,7 @@ fn validate_traces(
                 || row.target.trim().is_empty()
                 || !json_has_author_id(&row.before, &row.target)
                 || row.receipt_id == 0
+                || row.terminal_observed_sequence == 0
                 || !matches!(row.receipt_status.as_str(), "applied" | "indeterminate")
                 || row.agent_id.trim().is_empty()
                 || row.before.is_null()
@@ -634,6 +638,7 @@ fn validate_screenshots(
     let canonical_run_dir = std::fs::canonicalize(run_dir)?;
     let capture_expected = crate::screenshot_harness::screenshot_marker::gpu_screenshot_enabled();
     let mut outcomes = HashSet::new();
+    let mut process_event_sequences = HashSet::new();
     for contract in &matrix.rows {
         let expected_scenario = format!("matrix:{}", contract.scenario_id);
         let matching = rows
@@ -646,23 +651,32 @@ fn validate_screenshots(
                 contract.scenario_id
             )));
         }
-        let receipt_is_bound = |marker: &screenshot_marker::ScreenshotMarker| {
+        let receipt_terminal_sequence = |marker: &screenshot_marker::ScreenshotMarker| {
             if contract.proof_kind == "legacy_surface" {
-                legacy.iter().any(|evidence| {
-                    evidence.process_scenario_id == contract.scenario_id
-                        && Some(evidence.receipt_id) == marker.action_receipt_id
-                })
+                legacy
+                    .iter()
+                    .find(|evidence| {
+                        evidence.process_scenario_id == contract.scenario_id
+                            && Some(evidence.receipt_id) == marker.action_receipt_id
+                    })
+                    .map(|evidence| evidence.terminal_observed_sequence)
             } else {
-                traces.iter().any(|trace| {
-                    trace.scenario_id == contract.scenario_id
-                        && Some(trace.receipt_id) == marker.action_receipt_id
-                })
+                traces
+                    .iter()
+                    .find(|trace| {
+                        trace.scenario_id == contract.scenario_id
+                            && Some(trace.receipt_id) == marker.action_receipt_id
+                    })
+                    .map(|trace| trace.terminal_observed_sequence)
             }
         };
-        let first_bound_timestamp = matching
+        let first_bound_event_sequence = matching
             .iter()
-            .filter(|marker| receipt_is_bound(marker))
-            .map(|marker| marker.timestamp_nanos)
+            .filter_map(|marker| {
+                receipt_terminal_sequence(marker)
+                    .filter(|terminal| marker.proof_event_sequence > *terminal)
+                    .map(|_| marker.proof_event_sequence)
+            })
             .min()
             .ok_or_else(|| {
                 std::io::Error::other(format!(
@@ -674,9 +688,9 @@ fn validate_screenshots(
             let process = completed_process(processes, &contract.scenario_id)?;
             let receipt_valid = screenshot_receipt_phase_is_valid(
                 marker.action_receipt_id,
-                receipt_is_bound(marker),
-                marker.timestamp_nanos,
-                first_bound_timestamp,
+                receipt_terminal_sequence(marker),
+                marker.proof_event_sequence,
+                first_bound_event_sequence,
             );
             if marker.schema_id != screenshot_marker::SCREENSHOT_MARKER_SCHEMA_ID
                 || marker.run_id != run_id
@@ -686,6 +700,8 @@ fn validate_screenshots(
                     != Some(process.process_correlation_id.as_str())
                 || marker.process_scenario_id.as_deref() != Some(contract.scenario_id.as_str())
                 || Some(marker.process_id) != process.test_process_pid
+                || marker.proof_event_sequence == 0
+                || !process_event_sequences.insert((marker.process_id, marker.proof_event_sequence))
                 || !receipt_valid
                 || marker.gpu_screenshot_enabled != capture_expected
                 || !outcomes.insert(marker.outcome_id.as_str())
@@ -872,14 +888,14 @@ fn json_observes_expected_author_state(
 
 fn screenshot_receipt_phase_is_valid(
     action_receipt_id: Option<u64>,
-    receipt_is_bound: bool,
-    marker_timestamp: u128,
-    first_bound_timestamp: u128,
+    terminal_observed_sequence: Option<u64>,
+    marker_event_sequence: u64,
+    first_bound_event_sequence: u64,
 ) -> bool {
     if action_receipt_id.is_some() {
-        receipt_is_bound
+        terminal_observed_sequence.is_some_and(|terminal| marker_event_sequence > terminal)
     } else {
-        marker_timestamp < first_bound_timestamp
+        marker_event_sequence < first_bound_event_sequence
     }
 }
 
@@ -917,9 +933,15 @@ mod tests {
 
     #[test]
     fn screenshot_phase_requires_a_bound_action_or_an_earlier_pre_action_marker() {
-        assert!(screenshot_receipt_phase_is_valid(None, false, 10, 20));
-        assert!(!screenshot_receipt_phase_is_valid(None, false, 20, 20));
-        assert!(!screenshot_receipt_phase_is_valid(Some(7), false, 30, 20));
-        assert!(screenshot_receipt_phase_is_valid(Some(7), true, 30, 20));
+        assert!(screenshot_receipt_phase_is_valid(None, None, 10, 20));
+        assert!(!screenshot_receipt_phase_is_valid(None, None, 20, 20));
+        assert!(!screenshot_receipt_phase_is_valid(Some(7), None, 30, 20));
+        assert!(!screenshot_receipt_phase_is_valid(
+            Some(7),
+            Some(25),
+            24,
+            30
+        ));
+        assert!(screenshot_receipt_phase_is_valid(Some(7), Some(25), 26, 26));
     }
 }

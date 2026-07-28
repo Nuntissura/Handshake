@@ -2210,7 +2210,7 @@ fn mt108_manual_documents_replace_cap_watchdog_recovery_and_three_tier_posture()
         "Tier 1 Flight Recorder",
         "Tier 2 internal_diagnostics is WIRED",
         "Tier 3 Palmistry is WIRED",
-        "hsk.native_gui.screenshot_marker@4",
+        "hsk.native_gui.screenshot_marker@5",
         "33 required GUI scenarios",
         "tests/run_mt108_argus_proof.ps1",
         "hsk.native_gui.external_process_receipt@3",
