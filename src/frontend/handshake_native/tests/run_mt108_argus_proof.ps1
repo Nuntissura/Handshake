@@ -322,11 +322,22 @@ function Add-ProcessTreeSnapshot {
     }
 }
 
+function Add-ProcessInventoryError {
+    param(
+        [Parameter(Mandatory = $true)][Collections.IDictionary]$ProcessContext,
+        [Parameter(Mandatory = $true)][string]$Message
+    )
+
+    if (@($ProcessContext.ProcessInventoryErrors) -notcontains $Message) {
+        $ProcessContext.ProcessInventoryErrors = @($ProcessContext.ProcessInventoryErrors) + $Message
+    }
+}
+
 function Get-LiveOwnedProcessInventory {
     param([Parameter(Mandatory = $true)][Collections.IDictionary]$ProcessContext)
 
     $live = @()
-    $errors = @()
+    $errors = @($ProcessContext.ProcessInventoryErrors)
     try {
         $live += @(Get-OwnedProcessTreeSnapshot -RootPid $ProcessContext.ChildPid `
             -ExpectedRootStartUtc $ProcessContext.StartedAtUtc -AllowMissingRoot)
@@ -454,6 +465,7 @@ exit ([int]$cargoExitCode)
         CorrelationId = $correlationId
         ChildPid = $process.Id
         OwnedProcessTree = @($rootIdentity)
+        ProcessInventoryErrors = @()
         TestBinary = $testBinary
         TestProcessIdentity = $null
         CleanupVerified = $false
@@ -472,9 +484,10 @@ exit ([int]$cargoExitCode)
     while ([DateTimeOffset]::UtcNow -lt $deadline) {
         try {
             Add-ProcessTreeSnapshot -ProcessContext $context -Snapshot @(Get-OwnedProcessTreeSnapshot -RootPid $process.Id `
-                -ExpectedRootStartUtc $context.StartedAtUtc)
+                -ExpectedRootStartUtc $context.StartedAtUtc -AllowMissingRoot)
         } catch {
-            # A transient process-table read failure is recorded by the final lifecycle if it prevents proof.
+            Add-ProcessInventoryError -ProcessContext $context `
+                -Message "owned process-tree capture was indeterminate: $($_.Exception.Message)"
         }
         if ($process.WaitForExit(25)) {
             $exited = $true
@@ -482,10 +495,10 @@ exit ([int]$cargoExitCode)
                 # Capture one final process-table snapshot immediately after exit so
                 # short-lived cargo test executables are attributable when possible.
                 Add-ProcessTreeSnapshot -ProcessContext $context -Snapshot @(Get-OwnedProcessTreeSnapshot -RootPid $process.Id `
-                    -ExpectedRootStartUtc $context.StartedAtUtc)
+                    -ExpectedRootStartUtc $context.StartedAtUtc -AllowMissingRoot)
             } catch {
-                # The root may already have disappeared; the prior snapshots remain
-                # authoritative and the verifier must fail closed if identity is absent.
+                Add-ProcessInventoryError -ProcessContext $context `
+                    -Message "final owned process-tree capture was indeterminate: $($_.Exception.Message)"
             }
             break
         }
