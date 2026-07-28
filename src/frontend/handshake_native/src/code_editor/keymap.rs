@@ -769,8 +769,10 @@ impl Keymap {
     /// Merge operator overrides over the default table (the MT `Keymap::from_settings`). A valid
     /// override REPLACES every built-in binding for that action before its new single chord is installed;
     /// the old default must not remain secretly active. If several persisted rows name the same action,
-    /// the last valid row wins. A chord collision is also deterministic: the newly installed override
-    /// owns the chord and the displaced action remains available through any other binding it has.
+    /// the last valid row wins. An occupied single chord is displaced by the operator override, matching
+    /// MT-010 AC-004. A two-chord prefix is reserved because the dispatcher consumes it before resolving
+    /// single chords; an override targeting such a prefix is rejected and leaves the current effective
+    /// map intact.
     /// Invalid chord/action names are skipped with a warning and leave the working default intact.
     pub fn from_settings(settings: &super::keymap_settings::KeymapSettings) -> Self {
         let mut bindings = Self::default_vscode().bindings;
@@ -780,6 +782,19 @@ impl Keymap {
                 CodeEditorAction::from_name(&ov.action),
             ) {
                 (Ok(chord), Some(action)) => {
+                    if let Some(existing) = bindings
+                        .iter()
+                        .rev()
+                        .find(|binding| binding.chord == chord && binding.second.is_some())
+                    {
+                        tracing::warn!(
+                            chord = %ov.chord,
+                            action = %ov.action,
+                            existing_action = %existing.action.name(),
+                            "skipping keymap override: chord is a reserved sequence prefix"
+                        );
+                        continue;
+                    }
                     bindings.retain(|binding| {
                         binding.action != action
                             && !(binding.second.is_none() && binding.chord == chord)
@@ -987,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    fn operator_chord_collision_keeps_both_working_defaults() {
+    fn operator_single_chord_override_displaces_previous_binding() {
         use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
 
         let keymap = Keymap::from_settings(&KeymapSettings {
@@ -999,13 +1014,114 @@ mod tests {
 
         assert_eq!(
             keymap.resolve(mod_chord(Key::F, false, false)),
-            Some(CodeEditorAction::OpenFind),
-            "the occupied chord retains its original command"
+            Some(CodeEditorAction::OpenReplace),
+            "the operator override owns the occupied single chord"
         );
         assert_eq!(
             keymap.resolve(mod_chord(Key::H, false, false)),
-            Some(CodeEditorAction::OpenReplace),
-            "the rejected override does not disable the requested action's default"
+            None,
+            "the requested action's prior default is replaced"
+        );
+        assert!(
+            keymap
+                .bindings_for_action(CodeEditorAction::OpenFind)
+                .is_empty(),
+            "the displaced action no longer owns the overridden chord"
+        );
+    }
+
+    #[test]
+    fn operator_override_cannot_shadow_a_two_chord_prefix() {
+        use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
+
+        let keymap = Keymap::from_settings(&KeymapSettings {
+            overrides: vec![KeymapOverride {
+                action: CodeEditorAction::OpenFind.name().to_owned(),
+                chord: "Mod+K".to_owned(),
+            }],
+        });
+        let mod_k = mod_chord(Key::K, false, false);
+
+        assert_eq!(
+            keymap.resolve(mod_chord(Key::F, false, false)),
+            Some(CodeEditorAction::OpenFind),
+            "the rejected prefix collision keeps the requested action's default"
+        );
+        assert_eq!(
+            keymap.resolve(mod_k),
+            None,
+            "a sequence prefix must not also become a single-chord override"
+        );
+        assert!(keymap.resolve_prefix(mod_k));
+        assert_eq!(
+            keymap.resolve_second(mod_k, mod_chord(Key::Num0, false, false)),
+            Some(CodeEditorAction::FoldAll)
+        );
+        assert_eq!(
+            keymap.resolve_second(mod_k, mod_chord(Key::J, false, false)),
+            Some(CodeEditorAction::UnfoldAll)
+        );
+    }
+
+    #[test]
+    fn rejected_prefix_row_preserves_an_earlier_valid_override() {
+        use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
+
+        let keymap = Keymap::from_settings(&KeymapSettings {
+            overrides: vec![
+                KeymapOverride {
+                    action: CodeEditorAction::OpenFind.name().to_owned(),
+                    chord: "Mod+Alt+F".to_owned(),
+                },
+                KeymapOverride {
+                    action: CodeEditorAction::OpenFind.name().to_owned(),
+                    chord: "Mod+K".to_owned(),
+                },
+            ],
+        });
+
+        assert_eq!(
+            keymap.resolve(mod_chord(Key::F, true, false)),
+            Some(CodeEditorAction::OpenFind),
+            "a rejected later prefix row leaves the prior valid row effective"
+        );
+        assert_eq!(keymap.resolve(mod_chord(Key::F, false, false)), None);
+        assert!(keymap.resolve_prefix(mod_chord(Key::K, false, false)));
+    }
+
+    #[test]
+    fn later_cross_action_row_owns_an_occupied_single_chord() {
+        use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
+
+        let chord = mod_chord(Key::F, true, false);
+        let keymap = Keymap::from_settings(&KeymapSettings {
+            overrides: vec![
+                KeymapOverride {
+                    action: CodeEditorAction::OpenFind.name().to_owned(),
+                    chord: "Mod+Alt+F".to_owned(),
+                },
+                KeymapOverride {
+                    action: CodeEditorAction::GoToLine.name().to_owned(),
+                    chord: "Mod+Alt+F".to_owned(),
+                },
+            ],
+        });
+
+        assert_eq!(
+            keymap.resolve(chord),
+            Some(CodeEditorAction::GoToLine),
+            "the later row deterministically owns an occupied single chord"
+        );
+        assert!(keymap
+            .bindings_for_action(CodeEditorAction::OpenFind)
+            .is_empty());
+        assert_eq!(
+            keymap.bindings_for_action(CodeEditorAction::GoToLine),
+            vec![KeyBinding::single(
+                chord,
+                CodeEditorAction::GoToLine,
+                "Operator override"
+            )]
         );
     }
 }
