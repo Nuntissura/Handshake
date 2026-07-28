@@ -646,9 +646,8 @@ fn validate_screenshots(
                 contract.scenario_id
             )));
         }
-        for marker in matching {
-            let process = completed_process(processes, &contract.scenario_id)?;
-            let receipt_bound = if contract.proof_kind == "legacy_surface" {
+        let receipt_is_bound = |marker: &screenshot_marker::ScreenshotMarker| {
+            if contract.proof_kind == "legacy_surface" {
                 legacy.iter().any(|evidence| {
                     evidence.process_scenario_id == contract.scenario_id
                         && Some(evidence.receipt_id) == marker.action_receipt_id
@@ -658,7 +657,27 @@ fn validate_screenshots(
                     trace.scenario_id == contract.scenario_id
                         && Some(trace.receipt_id) == marker.action_receipt_id
                 })
-            };
+            }
+        };
+        let first_bound_timestamp = matching
+            .iter()
+            .filter(|marker| receipt_is_bound(marker))
+            .map(|marker| marker.timestamp_nanos)
+            .min()
+            .ok_or_else(|| {
+                std::io::Error::other(format!(
+                    "scenario {:?} has no screenshot bound to a canonical action receipt",
+                    contract.scenario_id
+                ))
+            })?;
+        for marker in matching {
+            let process = completed_process(processes, &contract.scenario_id)?;
+            let receipt_valid = screenshot_receipt_phase_is_valid(
+                marker.action_receipt_id,
+                receipt_is_bound(marker),
+                marker.timestamp_nanos,
+                first_bound_timestamp,
+            );
             if marker.schema_id != screenshot_marker::SCREENSHOT_MARKER_SCHEMA_ID
                 || marker.run_id != run_id
                 || marker.mt_id != "MT-108"
@@ -667,8 +686,7 @@ fn validate_screenshots(
                     != Some(process.process_correlation_id.as_str())
                 || marker.process_scenario_id.as_deref() != Some(contract.scenario_id.as_str())
                 || Some(marker.process_id) != process.test_process_pid
-                || marker.action_receipt_id.is_none()
-                || !receipt_bound
+                || !receipt_valid
                 || marker.gpu_screenshot_enabled != capture_expected
                 || !outcomes.insert(marker.outcome_id.as_str())
             {
@@ -852,9 +870,22 @@ fn json_observes_expected_author_state(
     })
 }
 
+fn screenshot_receipt_phase_is_valid(
+    action_receipt_id: Option<u64>,
+    receipt_is_bound: bool,
+    marker_timestamp: u128,
+    first_bound_timestamp: u128,
+) -> bool {
+    if action_receipt_id.is_some() {
+        receipt_is_bound
+    } else {
+        marker_timestamp < first_bound_timestamp
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::json_observes_expected_author_state;
+    use super::{json_observes_expected_author_state, screenshot_receipt_phase_is_valid};
 
     #[test]
     fn multi_action_scenario_accepts_navigation_rows_before_one_contract_state_row() {
@@ -882,5 +913,13 @@ mod tests {
             &navigation,
             &contract_state,
         ));
+    }
+
+    #[test]
+    fn screenshot_phase_requires_a_bound_action_or_an_earlier_pre_action_marker() {
+        assert!(screenshot_receipt_phase_is_valid(None, false, 10, 20));
+        assert!(!screenshot_receipt_phase_is_valid(None, false, 20, 20));
+        assert!(!screenshot_receipt_phase_is_valid(Some(7), false, 30, 20));
+        assert!(screenshot_receipt_phase_is_valid(Some(7), true, 30, 20));
     }
 }

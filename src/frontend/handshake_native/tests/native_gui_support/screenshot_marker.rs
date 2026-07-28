@@ -87,7 +87,9 @@ pub struct ScreenshotMarker {
     pub process_correlation_id: Option<String>,
     pub process_scenario_id: Option<String>,
     pub process_id: u32,
-    /// Exact Argus action receipt whose post-action state this frame or deferral follows.
+    /// Exact Argus action receipt whose post-action state this frame or deferral follows. A governed
+    /// pre-action frame may be `None`, but it cannot close scenario proof and must precede that
+    /// scenario's first receipt-bound marker.
     pub action_receipt_id: Option<u64>,
     pub status: ScreenshotStatus,
     /// Why the screenshot was deferred/blocked, or a short capture note.
