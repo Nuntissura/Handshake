@@ -322,6 +322,36 @@ function Add-ProcessTreeSnapshot {
     }
 }
 
+function Write-ProcessObservationAck {
+    param([Parameter(Mandatory = $true)][Collections.IDictionary]$ProcessContext)
+
+    if ($null -eq $ProcessContext.TestProcessIdentity -or
+        (Test-Path -LiteralPath $ProcessContext.ProcessObservationAckPath)) {
+        return
+    }
+    $identity = $ProcessContext.TestProcessIdentity
+    $ack = [ordered]@{
+        schema_id = 'hsk.native_gui.process_observation_ack@1'
+        process_correlation_id = $ProcessContext.CorrelationId
+        process_id = [int]$identity.Pid
+        process_start_time_utc = [string]$identity.StartUtc
+        process_executable = [string]$identity.Executable
+    }
+    $payload = [Text.Encoding]::UTF8.GetBytes(
+        (($ack | ConvertTo-Json -Compress) + [Environment]::NewLine))
+    $stream = [IO.File]::Open(
+        $ProcessContext.ProcessObservationAckPath,
+        [IO.FileMode]::CreateNew,
+        [IO.FileAccess]::Write,
+        [IO.FileShare]::Read)
+    try {
+        $stream.Write($payload, 0, $payload.Length)
+        $stream.Flush($true)
+    } finally {
+        $stream.Dispose()
+    }
+}
+
 function Add-ProcessInventoryError {
     param(
         [Parameter(Mandatory = $true)][Collections.IDictionary]$ProcessContext,
@@ -393,14 +423,19 @@ function Invoke-BoundedCargoTest {
     $stderrPath = Join-Path $runDir "$Scenario.stderr.log"
     $correlationId = "cargo-$Scenario-$([guid]::NewGuid().ToString('N'))"
     $exitCodePath = Join-Path $runDir "$correlationId.exit-code"
+    $processObservationAckPath = Join-Path $runDir "$correlationId.process-observed.json"
     if (Test-Path -LiteralPath $exitCodePath) {
         throw "${Scenario}: Cargo exit-code sidecar is not fresh: $exitCodePath"
+    }
+    if (Test-Path -LiteralPath $processObservationAckPath) {
+        throw "${Scenario}: process-observation acknowledgement is not fresh: $processObservationAckPath"
     }
     $env:HANDSHAKE_PROOF_PROCESS_CORRELATION_ID = $correlationId
     $env:HANDSHAKE_PROOF_PROCESS_SCENARIO_ID = $Scenario
     $env:HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID = $Scenario
     $env:HANDSHAKE_ARGUS_MATRIX_SURFACE = $Surface
     $env:HANDSHAKE_ARGUS_MATRIX_EDGE_STATE = $EdgeStateTag
+    $env:HANDSHAKE_PROOF_PROCESS_OBSERVATION_ACK = $processObservationAckPath
     $cargoCommand = Get-Command cargo -CommandType Application -ErrorAction Stop
     $wrapperSpecJson = [ordered]@{
         CargoPath = $cargoCommand.Source
@@ -468,6 +503,7 @@ exit ([int]$cargoExitCode)
         ProcessInventoryErrors = @()
         TestBinary = $testBinary
         TestProcessIdentity = $null
+        ProcessObservationAckPath = $processObservationAckPath
         CleanupVerified = $false
         SurvivorCountAtReceipt = 0
         StartedAtUtc = $rootIdentity.StartUtc
@@ -485,6 +521,7 @@ exit ([int]$cargoExitCode)
         try {
             Add-ProcessTreeSnapshot -ProcessContext $context -Snapshot @(Get-OwnedProcessTreeSnapshot -RootPid $process.Id `
                 -ExpectedRootStartUtc $context.StartedAtUtc -AllowMissingRoot)
+            Write-ProcessObservationAck -ProcessContext $context
         } catch {
             Add-ProcessInventoryError -ProcessContext $context `
                 -Message "owned process-tree capture was indeterminate: $($_.Exception.Message)"
@@ -496,6 +533,7 @@ exit ([int]$cargoExitCode)
                 # short-lived cargo test executables are attributable when possible.
                 Add-ProcessTreeSnapshot -ProcessContext $context -Snapshot @(Get-OwnedProcessTreeSnapshot -RootPid $process.Id `
                     -ExpectedRootStartUtc $context.StartedAtUtc -AllowMissingRoot)
+                Write-ProcessObservationAck -ProcessContext $context
             } catch {
                 Add-ProcessInventoryError -ProcessContext $context `
                     -Message "final owned process-tree capture was indeterminate: $($_.Exception.Message)"

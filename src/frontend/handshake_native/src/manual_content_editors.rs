@@ -450,6 +450,10 @@ fn mt108_hardening_body() -> String {
         "`hsk.native_gui.screenshot_marker@4` with the same source SHA, scenario, correlation id, test PID, and exact preceding Argus action receipt id.",
         "`hsk.native_gui.screenshot_marker@5` with the same source SHA, scenario, correlation id, test PID, and a process-local monotonic proof-event sequence. A post-action frame must follow the joined Argus receipt's terminal reinspection event; a pre-action frame cannot close scenario proof.",
     )
+    .replace(
+        "COMPLETED is legal only after an identity-aware post-exit inventory proves zero owned survivors;",
+        "The runner-only `hsk.native_gui.process_observation_ack@1` handshake keeps a short-lived test executable alive until the external supervisor has captured its PID/start/executable identity. COMPLETED is legal only after an identity-aware post-exit inventory proves zero owned survivors;",
+    )
 }
 
 fn purpose_body() -> String {

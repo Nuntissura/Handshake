@@ -44,6 +44,7 @@ pub const SCREENSHOT_MARKER_FILE: &str = "screenshot_marker.jsonl";
 /// so we must NOT probe by attempting a render in an always-run test.
 pub const GPU_SCREENSHOT_ENV: &str = "HANDSHAKE_GPU_SCREENSHOT";
 pub const SCREENSHOT_RUN_ID_ENV: &str = "HANDSHAKE_SCREENSHOT_RUN_ID";
+pub const PROCESS_OBSERVATION_ACK_ENV: &str = "HANDSHAKE_PROOF_PROCESS_OBSERVATION_ACK";
 static PROOF_EVENT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 /// Return the next process-local monotonic proof event sequence. Argus terminal observations and
@@ -307,7 +308,15 @@ pub fn record_screenshot_outcome(
     outcome_id: &str,
     render_result: Result<String, String>,
 ) -> std::io::Result<ScreenshotMarker> {
-    record_screenshot_outcome_to_dir(&marker_dir(), mt_id, scenario_id, outcome_id, render_result)
+    let marker = record_screenshot_outcome_to_dir(
+        &marker_dir(),
+        mt_id,
+        scenario_id,
+        outcome_id,
+        render_result,
+    )?;
+    await_external_process_observation(&marker)?;
+    Ok(marker)
 }
 
 /// The injectable-directory variant used by marker-contract tests. Synthetic outcomes must never be
@@ -338,6 +347,57 @@ fn now_nanos() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0)
+}
+
+fn await_external_process_observation(marker: &ScreenshotMarker) -> std::io::Result<()> {
+    let Some(ack_path) = non_empty_env(PROCESS_OBSERVATION_ACK_ENV).map(PathBuf::from) else {
+        return Ok(());
+    };
+    let expected_dir = marker_dir();
+    if ack_path.parent() != Some(expected_dir.as_path()) {
+        return Err(std::io::Error::other(format!(
+            "{PROCESS_OBSERVATION_ACK_ENV} must name a direct child of the exact proof run directory"
+        )));
+    }
+    let expected_correlation = marker.process_correlation_id.as_deref().ok_or_else(|| {
+        std::io::Error::other(
+            "process-observation acknowledgement requires a marker correlation identity",
+        )
+    })?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        match std::fs::read_to_string(&ack_path) {
+            Ok(payload) => {
+                let ack: serde_json::Value =
+                    serde_json::from_str(&payload).map_err(std::io::Error::other)?;
+                if ack["schema_id"] != "hsk.native_gui.process_observation_ack@1"
+                    || ack["process_correlation_id"] != expected_correlation
+                    || ack["process_id"].as_u64() != Some(u64::from(marker.process_id))
+                    || ack["process_start_time_utc"]
+                        .as_str()
+                        .is_none_or(str::is_empty)
+                    || ack["process_executable"].as_str().is_none_or(str::is_empty)
+                {
+                    return Err(std::io::Error::other(
+                        "external process-observation acknowledgement identity is invalid",
+                    ));
+                }
+                return Ok(());
+            }
+            Err(error)
+                if error.kind() == std::io::ErrorKind::NotFound
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Err(std::io::Error::other(
+                    "external supervisor did not acknowledge the exact test process within 10s",
+                ));
+            }
+            Err(error) => return Err(error),
+        }
+    }
 }
 
 fn non_empty_env(name: &str) -> Option<String> {

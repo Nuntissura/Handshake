@@ -2214,6 +2214,7 @@ fn mt108_manual_documents_replace_cap_watchdog_recovery_and_three_tier_posture()
         "33 required GUI scenarios",
         "tests/run_mt108_argus_proof.ps1",
         "hsk.native_gui.external_process_receipt@3",
+        "hsk.native_gui.process_observation_ack@1",
         "zero owned survivors",
         "test-executable PID/start identity",
         "RECLAIM_FAILED",
