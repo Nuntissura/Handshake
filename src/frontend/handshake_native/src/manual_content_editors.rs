@@ -782,10 +782,12 @@ CodeEditorPanel. The rich editor parses persisted content_json into the native D
 1,000 blocks through editor.rich.text, finds through FindReplaceState, saves with an exact \
 KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt, and detects both a live 50-hop transclusion chain and a \
 persisted cyclic-5 as cycle_detected. Knowledge proofs exercise a 1,000-node/~2,000-edge LoomGraphView pass, \
-5,000-block tags/search, and a 200-folder/1,000-child tree. RSS is a hard median-of-three process delta; an \
+5,000-block tags/search, and a 10-level 200-folder/1,000-child tree. RSS is the hard worst-of-three process \
+delta, so allocator reuse cannot hide the cold-load cost; an \
 unavailable RSS sample or receipt write fails validation instead of recording zero or PASS. Checked-in \
-manifests are scenario catalogs, not current runtime verdicts; only the current external receipt from an \
-actually executed command can carry the run result. \
+perf_manifest.json is the contract-authoritative runtime-updated projection, and the current external \
+receipt plus immutable run summary bind its result to one committed source SHA and the exact release test \
+binaries. A canonical PASS forbids PERF_BUDGET overrides and requires all 20 scenarios from one run id. \
 Operator controls remain the normal Editor settings: settings-editor-font-size, settings-editor-word-wrap, \
 settings-editor-wrap-column, settings-editor-minimap, and settings-editor-sticky-scroll. These affect the \
 mounted editors immediately; they do not widen validation budgets. Open the operator-facing VIEW menu and \
@@ -804,8 +806,11 @@ pane through the canonical Ctrl+Z key-command route. Rich undo proof saves EDIT_
 AccessKit-focused rich surface, saves the restored snapshot, and \
 confirms absence with a backend GET. Save and cross-surface receipts are PostgreSQL/EventLedger authority, \
 never a cached widget. \
-For validation, set CARGO_TARGET_DIR to the standardized outside-repo Handshake_Artifacts folder, then run \
-the focused test binaries test_perf_large_code, test_perf_large_rich, test_perf_large_knowledge, and the \
+For MT-045 validation, run tests/run_mt045_perf_proof.ps1 from src/frontend/handshake_native. The \
+source-controlled supervisor uses the existing sibling Handshake_Artifacts/handshake-cargo-target, builds \
+the exact committed product backend, requires the existing internal PostgreSQL authority, and invokes \
+test_perf_large_code, test_perf_large_rich, and test_perf_large_knowledge serially in Cargo release mode. \
+For broader WP-012 validation, run those focused binaries and the \
 four test_interconnect_* binaries from src/frontend/handshake_native. The `perf_proof` test-name filter runs \
 the performance proof suite; `perf_lr05_transclusion_chain` selects separate linear and cycle-detected LR05 \
 paths. IC-13 skips only when SKIP_AI_TESTS is exactly 1; when unset or any other value it runs the real AI + \
@@ -814,10 +819,11 @@ or start the already-built HSK_TEST_BACKEND_BIN, create one owned workspace, and
 backend. Current run receipts live outside the repo under Handshake_Artifacts/wp-kernel-012/mt-045/measurements \
 and Handshake_Artifacts/wp-kernel-012/mt-046/measurements. Each rerun writes RUNNING with a unique attempt id \
 before any skip gate, health/setup work, or assertion, then terminal PASS/SKIPPED or FAIL; an exact skip is \
-terminal SKIPPED, while panic/drop records FAIL. This current receipt supersedes the checked-in scenario \
-catalog, so a stale PASS cannot survive a failed rerun. Large 1,000/5,000-row fixtures use one canonical \
-PostgreSQL transaction through psql instead of sequential HTTP setup; every setup process has a hard 60-second \
-ceiling (HSK_PROOF_SETUP_TIMEOUT_SECS may lower it), is killed/reaped on timeout, and PASS is written only after workspace/process/temp-dir \
+terminal SKIPPED, while panic/drop records FAIL. This current receipt supersedes an earlier verdict, so a \
+stale PASS cannot survive a failed rerun. Large fixtures traverse production HTTP mutation routes against \
+real PostgreSQL; fixture setup is outside measured query time and has a hard 1,200-second ceiling \
+(HSK_PROOF_SETUP_TIMEOUT_SECS may lower it). Owned product backends are killed and reaped on timeout, but the \
+existing internal PostgreSQL process is never stopped. PASS is written only after workspace/process/temp-dir \
 cleanup assertions succeed. Recovery: a budget miss, missing EventLedger receipt, unavailable RSS sample, \
 fixture timeout, malformed native parse, unresolved drag payload, missing graph root, or absent search hit is \
 a failing proof. Fix the product/backend cause and rerun the exact scenario; do not edit the catalog or \

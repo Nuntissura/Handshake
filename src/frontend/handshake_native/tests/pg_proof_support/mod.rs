@@ -28,11 +28,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
 // Contract-sized 5k-row corpora traverse public validation, PostgreSQL, EventLedger, projections, and
 // search refresh at the product's measured ~12-writes/s write ceiling, so large corpora (LK-03's 10k
-// rows) legitimately need more than the 300s default to SEED. Setup is explicitly OUTSIDE measured query
-// time (it never affects a budget). DEFAULT_SETUP_TIMEOUT keeps fast scenarios tight; the env override
-// HSK_PROOF_SETUP_TIMEOUT_SECS raises it per-scenario up to the MAX_SETUP_TIMEOUT ceiling for the
-// heavy-seed knowledge scenarios (adversarial review: seeding blew the fixed 300s cap on the real path).
-const DEFAULT_SETUP_TIMEOUT: Duration = Duration::from_secs(300);
+// rows) legitimately need the full bounded setup window to SEED. Setup is explicitly OUTSIDE measured
+// query time (it never affects a budget). The default and maximum are identical for the canonical proof;
+// an optional lower value can fail faster locally but can never widen the canonical setup allowance.
+const DEFAULT_SETUP_TIMEOUT: Duration = Duration::from_secs(1200);
 const MAX_SETUP_TIMEOUT: Duration = Duration::from_secs(1200);
 
 pub const DEFAULT_BASE: &str = "http://127.0.0.1:37501";
@@ -119,7 +118,32 @@ impl Drop for PendingChild {
     fn drop(&mut self) {
         if let Some(child) = self.0.as_mut() {
             let _ = child.kill();
-            let _ = child.wait();
+            let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
+            while Instant::now() < deadline {
+                match child.try_wait() {
+                    Ok(Some(_)) | Err(_) => return,
+                    Ok(None) => thread::sleep(Duration::from_millis(50)),
+                }
+            }
+        }
+    }
+}
+
+fn kill_and_reap(child: &mut Child, operation: &str) {
+    let pid = child.id();
+    child
+        .kill()
+        .unwrap_or_else(|error| panic!("{operation}: kill owned backend pid {pid}: {error}"));
+    let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return,
+            Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(50)),
+            Ok(None) => panic!(
+                "{operation}: owned backend pid {pid} did not exit within {}s",
+                SHUTDOWN_TIMEOUT.as_secs()
+            ),
+            Err(error) => panic!("{operation}: failed to reap owned backend pid {pid}: {error}"),
         }
     }
 }
@@ -430,12 +454,7 @@ fn healthy(rt: &tokio::runtime::Runtime, client: &reqwest::Client, base: &str) -
                 .json::<serde_json::Value>()
                 .await
                 .ok()
-                .is_some_and(|value| {
-                    value["status"] == "ok"
-                        && value
-                            .get("db_status")
-                            .is_none_or(|db_status| db_status == "ok")
-                }),
+                .is_some_and(|value| value["status"] == "ok" && value["db_status"] == "ok"),
             _ => false,
         }
     })
@@ -487,24 +506,13 @@ impl LiveBackend {
     /// authority. The replacement is spawned from the same current-source executable and private
     /// binding root, then health-gated before the new ephemeral base URL is returned.
     pub fn restart_owned(&mut self) -> (String, String) {
-        let mut child = self
+        let child = self
             .owned_backend
-            .take()
+            .as_mut()
             .expect("restart_owned requires a fixture-owned backend");
         let old_base = self.base.clone();
-        child.kill().expect("stop exact fixture-owned backend");
-        let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
-        loop {
-            match child.try_wait().expect("poll exact fixture-owned backend") {
-                Some(_) => break,
-                None if Instant::now() < deadline => thread::sleep(Duration::from_millis(50)),
-                None => panic!(
-                    "fixture-owned backend pid {} did not exit within {}s",
-                    child.id(),
-                    SHUTDOWN_TIMEOUT.as_secs()
-                ),
-            }
-        }
+        kill_and_reap(child, "restart exact fixture-owned backend");
+        self.owned_backend = None;
 
         let binary = self
             .owned_binary
@@ -663,27 +671,9 @@ impl LiveBackend {
                 "managed fixture workspace cleanup {workspace_id} returned {status}"
             );
         }
-        if let Some(mut child) = self.owned_backend.take() {
-            child
-                .kill()
-                .unwrap_or_else(|error| panic!("kill owned backend pid {}: {error}", child.id()));
-            let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
-            loop {
-                match child.try_wait() {
-                    Ok(Some(_)) => break,
-                    Ok(None) if Instant::now() < deadline => {
-                        thread::sleep(Duration::from_millis(50));
-                    }
-                    Ok(None) => panic!(
-                        "owned backend pid {} did not exit within {}s",
-                        child.id(),
-                        SHUTDOWN_TIMEOUT.as_secs()
-                    ),
-                    Err(error) => {
-                        panic!("failed to reap owned backend pid {}: {error}", child.id())
-                    }
-                }
-            }
+        if let Some(child) = self.owned_backend.as_mut() {
+            kill_and_reap(child, "clean up fixture-owned backend");
+            self.owned_backend = None;
         }
     }
 
@@ -752,47 +742,26 @@ impl LiveBackend {
                     let method = method.clone();
                     pending.spawn(async move {
                         let url = format!("{base}{path}");
-                        // Bounded retry for TRANSIENT send failures only. Under sustained high-concurrency
-                        // seeding the reqwest connection layer intermittently drops a connect ("error
-                        // sending request for url") even though the backend is healthy; the seed writes
-                        // carry deterministic ids so a fresh send is safe. A response that arrives (any
-                        // status, including a non-2xx product rejection) is NEVER retried below, so a
-                        // duplicate-id create can never be masked (adversarial review: the no-retry batch
-                        // aborted an entire scenario on a single transient drop mid-seed).
-                        let mut response = None;
-                        let mut last_send_err = String::new();
-                        for attempt in 0u32..5 {
-                            if attempt > 0 {
-                                tokio::time::sleep(Duration::from_millis(150 * u64::from(attempt)))
-                                    .await;
-                            }
-                            match client
-                                .request(method.clone(), &url)
-                                .header("x-hsk-actor-id", "wp-kernel-012-native-proof")
-                                .header("x-hsk-kernel-task-run-id", "wp-kernel-012-native-proof")
-                                .header(
-                                    "x-hsk-session-run-id",
-                                    "wp-kernel-012-native-proof-session",
+                        // A send failure has commit-unknown semantics: the server may have accepted the
+                        // mutation before the transport failed. Blindly replaying it can duplicate
+                        // non-idempotent writes or hide a product error, so the canonical proof aborts
+                        // this run and requires a fresh workspace/run identity.
+                        let response = client
+                            .request(method.clone(), &url)
+                            .header("x-hsk-actor-id", "wp-kernel-012-native-proof")
+                            .header("x-hsk-kernel-task-run-id", "wp-kernel-012-native-proof")
+                            .header("x-hsk-session-run-id", "wp-kernel-012-native-proof-session")
+                            .header("x-hsk-actor-kind", "operator")
+                            .json(&body)
+                            .timeout(request_timeout)
+                            .send()
+                            .await
+                            .map_err(|error| {
+                                format!(
+                                    "{method} {path} send failed with commit-unknown semantics; \
+                                     abandon this workspace and start a fresh suite run: {error}"
                                 )
-                                .header("x-hsk-actor-kind", "operator")
-                                .json(&body)
-                                .timeout(request_timeout)
-                                .send()
-                                .await
-                            {
-                                Ok(resp) => {
-                                    response = Some(resp);
-                                    break;
-                                }
-                                Err(error) => {
-                                    last_send_err = format!(
-                                        "{method} {path} send failed (attempt {}/5): {error}",
-                                        attempt + 1
-                                    );
-                                }
-                            }
-                        }
-                        let response = response.ok_or(last_send_err)?;
+                            })?;
                         let status = response.status();
                         let text = response
                             .text()

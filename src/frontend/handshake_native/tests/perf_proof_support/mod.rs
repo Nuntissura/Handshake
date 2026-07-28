@@ -10,9 +10,9 @@
 //!   just PASS, into both the contract-authoritative manifest and an external machine-readable receipt.
 //! - [`record`] — atomically updates the matching `perf_manifest.json` row on every attempt and writes
 //!   additional immutable/current receipts under `Handshake_Artifacts/wp-kernel-012/mt-045/measurements/`.
-//! - [`measure_rss_delta_median`] — measures the process RSS delta (after a workload minus before) as
-//!   the MEDIAN of 3 runs via the `sysinfo` crate (RISK-5 / CTRL-5: RSS is noisy — allocator page
-//!   pre-reservation varies run to run, so a single sample near the budget edge is unreliable).
+//! - [`measure_rss_delta_worst`] — measures the process RSS delta (after a workload minus before) as
+//!   the WORST of 3 runs via the `sysinfo` crate (RISK-5 / CTRL-5: RSS is noisy, and selecting the
+//!   largest observed delta prevents allocator reuse from hiding the cold-load cost).
 //! - [`assert_no_local_artifact_dir`] — fails the suite if a repo-local `test_output/` or
 //!   `tests/screenshots/` directory exists (CX-212E artifact hygiene). The perf suites write NO image
 //!   artifacts (they emit only the external manifest record), but the guard is called so a future
@@ -28,8 +28,12 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
+use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{Duration, Instant};
+
+use sha2::{Digest, Sha256};
 
 const EXPECTED_SCENARIO_IDS: [&str; 20] = [
     "LC-01", "LC-02", "LC-03", "LC-04", "LC-05", "LC-06", "LC-07", "LC-08", "LR-01", "LR-02",
@@ -156,13 +160,12 @@ pub struct ScenarioAttempt {
 
 impl ScenarioAttempt {
     pub fn begin(scenario_id: &str, proof_id: &str, budgets: &[(&str, &Budget, &str)]) -> Self {
-        // Adversarial review B5: run the repo-local artifact-hygiene guard on EVERY scenario attempt (not
-        // only the two scenarios that called it explicitly), so any scenario that regresses into writing a
-        // repo-local artifact directory is caught universally.
-        assert_no_local_artifact_dir();
         let attempt_id = uuid::Uuid::new_v4().to_string();
         let started_at = chrono::Utc::now().to_rfc3339();
+        // Publish RUNNING before any hygiene assertion. A repo-local artifact violation must invalidate a
+        // stale PASS instead of panicking before the fail-closed run projection exists.
         let suite_run_id = begin_scenario_run(scenario_id, proof_id, &attempt_id, &started_at);
+        assert_no_local_artifact_dir();
         let attempt = Self {
             scenario_id: scenario_id.to_owned(),
             proof_id: proof_id.to_owned(),
@@ -348,6 +351,18 @@ fn write_entry(
 
     let mut system = sysinfo::System::new_all();
     system.refresh_all();
+    let current_run_path = directory.join("current-run.json");
+    let current_run: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(&current_run_path).unwrap_or_else(|error| {
+            panic!("read MT-045 current run {current_run_path:?}: {error}")
+        }),
+    )
+    .unwrap_or_else(|error| panic!("parse MT-045 current run {current_run_path:?}: {error}"));
+    assert_eq!(
+        current_run["run_id"].as_str(),
+        Some(suite_run_id),
+        "attempt receipt must bind to the current MT-045 suite run"
+    );
     let receipt = serde_json::json!({
         "schema_id": "hsk.wp_kernel_012.performance_measurement@2",
         "work_packet_id": "WP-KERNEL-012",
@@ -377,7 +392,8 @@ fn write_entry(
             "logical_cpus": std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1),
             "total_memory_bytes": system.total_memory(),
             "rust_debug_assertions": cfg!(debug_assertions),
-        }
+        },
+        "provenance": current_run["provenance"],
     });
     let mut out = serde_json::to_string_pretty(&receipt)
         .unwrap_or_else(|error| panic!("serialize perf receipt {scenario_id}: {error}"));
@@ -438,6 +454,218 @@ fn expected_proof_ids(scenario_id: &str) -> HashSet<&'static str> {
     } else {
         HashSet::from(["primary"])
     }
+}
+
+const SOURCE_BINDING_PATHS: [&str; 10] = [
+    "src/frontend/handshake_native/build.rs",
+    "src/frontend/handshake_native/Cargo.toml",
+    "src/frontend/handshake_native/Cargo.lock",
+    "src/frontend/handshake_native/src",
+    "src/frontend/handshake_native/tests/perf_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/test_perf_large_code.rs",
+    "src/frontend/handshake_native/tests/test_perf_large_rich.rs",
+    "src/frontend/handshake_native/tests/test_perf_large_knowledge.rs",
+    "src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1",
+];
+
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live three levels below the repository root")
+        .to_path_buf()
+}
+
+fn git_output(args: &[&str], label: &str) -> String {
+    let output = Command::new("git")
+        .current_dir(repo_root())
+        .args(args)
+        .output()
+        .unwrap_or_else(|error| panic!("{label}: start git: {error}"));
+    assert!(
+        output.status.success(),
+        "{label}: git {} failed: {}",
+        args.join(" "),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .unwrap_or_else(|error| panic!("{label}: git output is not UTF-8: {error}"))
+        .trim()
+        .to_owned()
+}
+
+fn assert_source_paths_clean() {
+    for staged in [false, true] {
+        let mut command = Command::new("git");
+        command.current_dir(repo_root()).arg("diff");
+        if staged {
+            command.arg("--cached");
+        }
+        command.arg("--quiet").arg("HEAD").arg("--");
+        command.args(SOURCE_BINDING_PATHS);
+        let status = command
+            .status()
+            .unwrap_or_else(|error| panic!("check MT-045 source cleanliness: {error}"));
+        assert!(
+            status.success(),
+            "canonical MT-045 proof requires every source-binding path to match committed HEAD \
+             (staged={staged})"
+        );
+    }
+}
+
+fn sha256_file(path: &Path) -> String {
+    let mut file = File::open(path)
+        .unwrap_or_else(|error| panic!("open {} for SHA-256: {error}", path.display()));
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let count = file
+            .read(&mut buffer)
+            .unwrap_or_else(|error| panic!("read {} for SHA-256: {error}", path.display()));
+        if count == 0 {
+            break;
+        }
+        hasher.update(&buffer[..count]);
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn canonical_run_provenance() -> serde_json::Value {
+    let expected_sha = std::env::var("HSK_MT045_SOURCE_SHA")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .expect("canonical MT-045 proof requires HSK_MT045_SOURCE_SHA from the supervisor");
+    let actual_sha = git_output(&["rev-parse", "HEAD"], "resolve MT-045 source SHA");
+    assert_eq!(
+        actual_sha, expected_sha,
+        "compiled MT-045 proof source is not bound to the supervisor's committed HEAD"
+    );
+    assert_source_paths_clean();
+
+    let artifact_root = external_artifact_root()
+        .parent()
+        .expect("WP artifact root has a parent")
+        .canonicalize()
+        .expect("canonical MT-045 proof requires the existing Handshake_Artifacts root");
+    assert_eq!(
+        artifact_root.file_name().and_then(|name| name.to_str()),
+        Some("Handshake_Artifacts"),
+        "MT-045 proof artifacts must use the existing sibling Handshake_Artifacts root"
+    );
+
+    let applied_budget_overrides: Vec<String> = std::env::vars()
+        .filter_map(|(key, value)| {
+            (key.starts_with("PERF_BUDGET_") && !value.trim().is_empty()).then_some(key)
+        })
+        .collect();
+    let source_blobs = SOURCE_BINDING_PATHS
+        .iter()
+        .filter(|path| !path.ends_with("/src"))
+        .map(|path| {
+            let object = format!("HEAD:{path}");
+            (
+                (*path).to_owned(),
+                serde_json::json!(git_output(
+                    &["rev-parse", &object],
+                    "resolve MT-045 committed source blob"
+                )),
+            )
+        })
+        .collect::<serde_json::Map<_, _>>();
+    let current_exe = std::env::current_exe().expect("resolve current MT-045 test executable");
+    let args = std::env::args().collect::<Vec<_>>();
+    let diagnostics_receipt = std::env::var_os("HSK_MT045_DIAGNOSTIC_RECEIPT")
+        .map(PathBuf::from)
+        .expect("canonical MT-045 proof requires HSK_MT045_DIAGNOSTIC_RECEIPT");
+    let diagnostics_receipt = diagnostics_receipt
+        .canonicalize()
+        .expect("canonicalize MT-045 diagnostics receipt");
+    assert!(
+        diagnostics_receipt.starts_with(&artifact_root),
+        "MT-045 diagnostics receipt must live under the existing Handshake_Artifacts root"
+    );
+    let diagnostics: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(&diagnostics_receipt).expect("read MT-045 diagnostics receipt"),
+    )
+    .expect("parse MT-045 diagnostics receipt");
+    assert_eq!(
+        diagnostics["status"].as_str(),
+        Some("PASS"),
+        "MT-045 canonical run requires heartbeat/diagnostics preflight PASS"
+    );
+    let backend_binary = std::env::var_os("HSK_TEST_BACKEND_BIN")
+        .map(PathBuf::from)
+        .expect("canonical MT-045 proof requires HSK_TEST_BACKEND_BIN");
+    let backend_binary = backend_binary
+        .canonicalize()
+        .expect("canonicalize MT-045 backend binary");
+    assert!(
+        backend_binary.starts_with(artifact_root.join("handshake-cargo-target")),
+        "MT-045 backend binary must come from the existing canonical Cargo target"
+    );
+    let postgres_dsn = std::env::var("HANDSHAKE_TEST_PG_DSN")
+        .expect("canonical MT-045 proof requires HANDSHAKE_TEST_PG_DSN");
+    let postgres_url =
+        reqwest::Url::parse(&postgres_dsn).expect("parse canonical MT-045 PostgreSQL DSN");
+    assert_eq!(
+        postgres_url.host_str(),
+        Some("127.0.0.1"),
+        "canonical MT-045 proof requires Handshake's loopback PostgreSQL"
+    );
+    assert_eq!(
+        postgres_url.port(),
+        Some(5544),
+        "canonical MT-045 proof requires Handshake's internal PostgreSQL port"
+    );
+
+    serde_json::json!({
+        "source_sha": actual_sha,
+        "crate_tree_at_head": git_output(
+            &["rev-parse", "HEAD:src/frontend/handshake_native"],
+            "resolve MT-045 committed crate tree"
+        ),
+        "source_blobs": source_blobs,
+        "source_paths_match_head": true,
+        "cargo_profile": current_profile(),
+        "canonical_supervisor": std::env::var("HSK_MT045_CANONICAL_RUN").as_deref() == Ok("1"),
+        "applied_budget_overrides": applied_budget_overrides,
+        "artifact_root": artifact_root.to_string_lossy(),
+        "test_executable": current_exe.to_string_lossy(),
+        "test_executable_sha256": sha256_file(&current_exe),
+        "command_args": args,
+        "diagnostics_receipt": diagnostics_receipt.to_string_lossy(),
+        "diagnostics_receipt_sha256": sha256_file(&diagnostics_receipt),
+        "backend_binary": backend_binary.to_string_lossy(),
+        "backend_binary_sha256": sha256_file(&backend_binary),
+        "postgres_authority": {
+            "host": postgres_url.host_str(),
+            "port": postgres_url.port(),
+            "database": postgres_url.path().trim_start_matches('/'),
+            "managed_by_test": false,
+        },
+    })
+}
+
+fn assert_canonical_provenance(provenance: &serde_json::Value) {
+    assert_eq!(
+        provenance["canonical_supervisor"].as_bool(),
+        Some(true),
+        "immutable MT-045 completion requires the source-controlled canonical supervisor"
+    );
+    assert_eq!(
+        provenance["cargo_profile"].as_str(),
+        Some("release"),
+        "immutable MT-045 completion requires the exact Cargo release profile"
+    );
+    assert_eq!(
+        provenance["applied_budget_overrides"]
+            .as_array()
+            .map(Vec::len),
+        Some(0),
+        "immutable MT-045 completion forbids PERF_BUDGET_* overrides"
+    );
 }
 
 fn begin_scenario_run(
@@ -515,6 +743,10 @@ fn begin_scenario_run(
             "expected_scenario_count": 20,
             "manifest_reference": "tests/perf_proof/perf_manifest.json",
             "manifest_semantics": "contract_authoritative_runtime_updated_on_every_attempt",
+            "provenance": {
+                "status": "PENDING_PREFLIGHT"
+            },
+            "test_binaries": {},
             "scenarios": {},
         })
     } else {
@@ -536,20 +768,53 @@ fn begin_scenario_run(
             "a fresh MT-045 run must publish current-run.json as RUNNING"
         );
     }
-    // Invalidate a previous PASS on BOTH mutable projections before any other fallible publication. If
-    // manifest reset or a preflight proof then fails, neither operator-facing projection can retain a
-    // prior PASS. Read both files back before proceeding so the invalidation itself is a proof gate.
-    publish_and_assert_incomplete_projections(&directory, &state);
     if must_start {
         // A run is an exact 20-scenario lineage unit. Reset and stamp every manifest row before a
         // single scenario can publish a current result, preventing 19 stale PASS rows from combining
         // with one result from this run.
         reset_manifest_for_run(&run_id);
+    }
+    // Invalidate a previous PASS on BOTH mutable projections after the contract-authoritative manifest
+    // is already RUNNING. If a later preflight fails, all three projections fail closed.
+    publish_and_assert_incomplete_projections(&directory, &state);
+    if must_start {
         state["file_lock_contract_proof"] =
             assert_file_lock_contention_and_recovery(&directory.join("file-lock-contract.lock"));
         state["failure_measurement_contract_proof"] = assert_staged_failure_measurement_retention();
         publish_and_assert_incomplete_projections(&directory, &state);
     }
+    // Expensive/fallible source and executable checks happen only after the mutable projections and
+    // manifest have been invalidated. A dirty source, missing supervisor binding, or hash failure can
+    // therefore never leave a stale PASS authoritative.
+    let provenance = canonical_run_provenance();
+    if must_start {
+        state["provenance"] = provenance.clone();
+    } else {
+        assert_eq!(
+            state.pointer("/provenance/source_sha"),
+            provenance.pointer("/source_sha"),
+            "every MT-045 scenario must run from one exact source SHA"
+        );
+        assert_eq!(
+            state.pointer("/provenance/crate_tree_at_head"),
+            provenance.pointer("/crate_tree_at_head"),
+            "every MT-045 scenario must run from one exact committed crate tree"
+        );
+    }
+    let executable_name = Path::new(
+        provenance["test_executable"]
+            .as_str()
+            .expect("MT-045 provenance carries test executable"),
+    )
+    .file_name()
+    .and_then(|name| name.to_str())
+    .expect("MT-045 test executable has a UTF-8 filename");
+    state["test_binaries"][executable_name] = serde_json::json!({
+        "path": provenance["test_executable"],
+        "sha256": provenance["test_executable_sha256"],
+    });
+    publish_and_assert_incomplete_projections(&directory, &state);
+    assert_canonical_provenance(&provenance);
     update_manifest_from_run_state(&state, scenario_id);
     write_json_atomic(&state_path, &state);
     assert_incomplete_projections(
@@ -978,6 +1243,32 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
         Some(true),
         "completed MT-045 PASS requires the post-measurement failure retention negative proof"
     );
+    assert_canonical_provenance(&state["provenance"]);
+    assert!(
+        state
+            .pointer("/provenance/source_paths_match_head")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true),
+        "completed MT-045 PASS requires committed source-path binding"
+    );
+    let binaries = state["test_binaries"]
+        .as_object()
+        .expect("completed MT-045 PASS requires test binary provenance");
+    assert!(
+        binaries.len() >= 3,
+        "completed MT-045 PASS requires all three exact perf test binaries"
+    );
+    for (name, binary) in binaries {
+        assert!(
+            binary["path"].as_str().is_some_and(|path| !path.is_empty()),
+            "completed MT-045 PASS binary {name} lacks a path"
+        );
+        assert_eq!(
+            binary["sha256"].as_str().map(str::len),
+            Some(64),
+            "completed MT-045 PASS binary {name} lacks a SHA-256 digest"
+        );
+    }
     let rows = read_manifest_rows_checked();
     for row in rows {
         let scenario_id = row["scenario_id"].as_str().unwrap_or("UNKNOWN");
@@ -988,8 +1279,8 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
         );
         assert_eq!(
             row["measured_profile"].as_str(),
-            Some(current_profile()),
-            "completed MT-045 PASS requires manifest row {scenario_id} in the current profile"
+            Some("release"),
+            "completed MT-045 PASS requires manifest row {scenario_id} in the release profile"
         );
         assert!(
             row["measured_value"].is_number(),
@@ -999,6 +1290,20 @@ fn assert_manifest_all_pass_current(state: &serde_json::Value) {
             row["gated"].as_bool(),
             Some(false),
             "completed MT-045 PASS requires manifest row {scenario_id} ungated"
+        );
+        assert_eq!(
+            row["override_applied"].as_bool(),
+            Some(false),
+            "completed MT-045 PASS forbids a budget override for manifest row {scenario_id}"
+        );
+        let contract_budget = row["budget_ms"]
+            .as_u64()
+            .or_else(|| row["budget_mb"].as_u64())
+            .unwrap_or_else(|| panic!("manifest row {scenario_id} lacks a contract budget"));
+        assert_eq!(
+            row["effective_budget"].as_u64(),
+            Some(contract_budget),
+            "completed MT-045 PASS requires the contract-default budget for {scenario_id}"
         );
         assert_eq!(
             row["suite_run_id"].as_str(),
@@ -1028,6 +1333,28 @@ fn write_json_immutable(path: &Path, value: &serde_json::Value) {
     // The hard-linked target is already the durable immutable publication. Temp-name cleanup is not
     // allowed to turn that successful publication into a false failure or trigger a duplicate retry.
     let _ = std::fs::remove_file(&temporary);
+    let digest = sha256_file(path);
+    let digest_path = PathBuf::from(format!("{}.sha256", path.display()));
+    let digest_line = format!(
+        "{digest}  {}\n",
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .expect("immutable MT-045 artifact filename is UTF-8")
+    );
+    write_synced_new(&digest_path, digest_line.as_bytes())
+        .unwrap_or_else(|error| panic!("write immutable JSON digest {digest_path:?}: {error}"));
+    let mut artifact_permissions = std::fs::metadata(path)
+        .unwrap_or_else(|error| panic!("inspect immutable JSON artifact {path:?}: {error}"))
+        .permissions();
+    artifact_permissions.set_readonly(true);
+    std::fs::set_permissions(path, artifact_permissions)
+        .unwrap_or_else(|error| panic!("lock immutable JSON artifact {path:?}: {error}"));
+    let mut digest_permissions = std::fs::metadata(&digest_path)
+        .unwrap_or_else(|error| panic!("inspect immutable JSON digest {digest_path:?}: {error}"))
+        .permissions();
+    digest_permissions.set_readonly(true);
+    std::fs::set_permissions(&digest_path, digest_permissions)
+        .unwrap_or_else(|error| panic!("lock immutable JSON digest {digest_path:?}: {error}"));
 }
 
 fn write_json_atomic(path: &Path, value: &serde_json::Value) {
@@ -1193,11 +1520,17 @@ pub fn measure_rss_delta_worst<T>(mut workload: impl FnMut() -> T) -> f64 {
 /// Fail if a repo-local artifact directory exists (`test_output/` OR `tests/screenshots/`). The perf
 /// suites write NO image artifacts; this guard catches a future regression that adds a repo-local one.
 pub fn assert_no_local_artifact_dir() {
-    for local in ["test_output", "tests/screenshots"] {
-        let p = Path::new(local);
+    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repository_root = repo_root();
+    for p in [
+        crate_root.join("test_output"),
+        crate_root.join("tests/screenshots"),
+        repository_root.join("test_output"),
+        repository_root.join("tests/screenshots"),
+    ] {
         assert!(
             !p.exists(),
-            "CX-212E artifact hygiene: no repo-local '{local}' dir may exist — perf artifacts/records go \
+            "CX-212E artifact hygiene: no repo-local artifact dir may exist — perf artifacts/records go \
              to the external Handshake_Artifacts/wp-kernel-012 root only \
              (found {})",
             p.display()

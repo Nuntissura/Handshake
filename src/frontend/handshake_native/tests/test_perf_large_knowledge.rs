@@ -30,6 +30,7 @@ mod pg_proof_support;
 
 use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
 use pg_proof_support::LiveBackend;
+use std::collections::HashSet;
 
 use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
 
@@ -144,9 +145,9 @@ fn perf_proof_perf_lk01_graph_load() {
     };
     let mut be = require_be();
 
-    // FIXTURE (NOT timed): create 1000 blocks + 2000 ring edges through the public Loom mutation
-    // routes. The bounded client keeps setup within the pool budget while preserving every product-owned
-    // write side effect (knowledge bridge, EventLedger, and index projections).
+    // FIXTURE (NOT timed): create 1000 blocks + exactly 2000 deterministic, varied-degree sparse edges
+    // through the public Loom mutation routes. This avoids a synthetic fixed-degree ring while preserving
+    // reproducibility and every product-owned write side effect.
     let setup_deadline = pg_proof_support::SetupDeadline::begin("LK-01-product-import");
     let prefix = format!("lk01-{}", uuid::Uuid::new_v4().simple());
     let block_ids = create_note_blocks(&be, &setup_deadline, &prefix, 1_000, |index| {
@@ -154,21 +155,46 @@ fn perf_proof_perf_lk01_graph_load() {
     });
     setup_deadline.check();
     let edge_path = format!("/workspaces/{}/loom/edges", be.workspace_id);
-    let mut edge_requests = Vec::with_capacity(2_000);
-    for index in 0..1_000usize {
-        for delta in [1usize, 2] {
-            edge_requests.push((
+    let mut edge_pairs = HashSet::with_capacity(2_000);
+    let mut out_degree = vec![0usize; block_ids.len()];
+    let mut seed = 0x4d54_3034_354c_4b01_u64;
+    while edge_pairs.len() < 2_000 {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        let source = (seed as usize) % block_ids.len();
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        let target = (seed as usize) % block_ids.len();
+        if source != target && edge_pairs.insert((source, target)) {
+            out_degree[source] += 1;
+        }
+    }
+    let mut edge_pairs: Vec<(usize, usize)> = edge_pairs.into_iter().collect();
+    edge_pairs.sort_unstable();
+    let edge_requests = edge_pairs
+        .iter()
+        .enumerate()
+        .map(|(edge_index, &(source, target))| {
+            (
                 edge_path.clone(),
                 serde_json::json!({
-                    "edge_id": format!("{prefix}-edge-{index}-{delta}"),
-                    "source_block_id": block_ids[index],
-                    "target_block_id": block_ids[(index + delta) % block_ids.len()],
+                    "edge_id": format!("{prefix}-edge-{edge_index:04}"),
+                    "source_block_id": block_ids[source],
+                    "target_block_id": block_ids[target],
                     "edge_type": "mention",
                     "created_by": "user",
                 }),
-            ));
-        }
-    }
+            )
+        })
+        .collect();
+    let min_out_degree = *out_degree.iter().min().expect("LK-01 degree set");
+    let max_out_degree = *out_degree.iter().max().expect("LK-01 degree set");
+    assert!(
+        max_out_degree > min_out_degree,
+        "LK-01 fixture must have varied node degree"
+    );
     be.post_json_batch_bounded(edge_requests, fixture_concurrency(), &setup_deadline);
     setup_deadline.check();
 
@@ -195,7 +221,9 @@ fn perf_proof_perf_lk01_graph_load() {
         serde_json::json!({
             "nodes": node_count,
             "edges_seeded": 2000,
-            "fixture_strategy": "bounded_public_loom_routes",
+            "fixture_strategy": "deterministic_varied_sparse_public_loom_routes",
+            "min_out_degree": min_out_degree,
+            "max_out_degree": max_out_degree,
         }),
     );
     assert!(
@@ -215,7 +243,13 @@ fn perf_proof_perf_lk01_graph_load() {
     be.assert_cleanup();
     attempt.pass(
         serde_json::json!([measurement("graph_load", elapsed_ms as f64, "ms")]),
-        serde_json::json!({"nodes": node_count, "edges_seeded": 2000, "fixture_strategy": "bounded_public_loom_routes"}),
+        serde_json::json!({
+            "nodes": node_count,
+            "edges_seeded": 2000,
+            "fixture_strategy": "deterministic_varied_sparse_public_loom_routes",
+            "min_out_degree": min_out_degree,
+            "max_out_degree": max_out_degree,
+        }),
     );
 }
 
@@ -405,13 +439,14 @@ fn perf_proof_perf_lk05_folder_tree() {
     let setup_deadline = pg_proof_support::SetupDeadline::begin("LK-05-product-import");
     let prefix = format!("lk05-{}", uuid::Uuid::new_v4().simple());
     let folder_path = format!("/workspaces/{}/loom/folders", be.workspace_id);
-    let folder_responses = be.post_json_batch_bounded(
-        (0..200usize)
+    let root_responses = be.post_json_batch_bounded(
+        (0..20usize)
             .map(|index| {
                 (
                     folder_path.clone(),
                     serde_json::json!({
-                        "name": format!("{prefix}-folder-{index:03}"),
+                        "name": format!("{prefix}-root-{index:02}"),
+                        "parent_folder_id": null,
                         "sort_mode": "manual",
                         "sort_order": index as i32,
                     }),
@@ -421,16 +456,53 @@ fn perf_proof_perf_lk05_folder_tree() {
         fixture_concurrency(),
         &setup_deadline,
     );
-    let folder_ids: Vec<String> = folder_responses
+    let mut previous_level: Vec<String> = root_responses
         .iter()
         .map(|folder| {
             folder
                 .get("folder_id")
                 .and_then(serde_json::Value::as_str)
-                .expect("LK-05: create folder returns folder_id")
+                .expect("LK-05: create root folder returns folder_id")
                 .to_owned()
         })
         .collect();
+    let mut folder_ids = previous_level.clone();
+    for depth in 1..10usize {
+        let level_responses = be.post_json_batch_bounded(
+            previous_level
+                .iter()
+                .enumerate()
+                .map(|(index, parent_folder_id)| {
+                    (
+                        folder_path.clone(),
+                        serde_json::json!({
+                            "name": format!("{prefix}-depth-{depth:02}-{index:02}"),
+                            "parent_folder_id": parent_folder_id,
+                            "sort_mode": "manual",
+                            "sort_order": index as i32,
+                        }),
+                    )
+                })
+                .collect(),
+            fixture_concurrency(),
+            &setup_deadline,
+        );
+        previous_level = level_responses
+            .iter()
+            .map(|folder| {
+                folder
+                    .get("folder_id")
+                    .and_then(serde_json::Value::as_str)
+                    .expect("LK-05: create nested folder returns folder_id")
+                    .to_owned()
+            })
+            .collect();
+        folder_ids.extend(previous_level.iter().cloned());
+        setup_deadline.check();
+    }
+    assert_eq!(folder_ids.len(), 200, "LK-05 fixture folder count");
+    // Levels are serial because each child needs the authoritative parent id returned by the previous
+    // level. Mutations within each level remain bounded and parallel.
     let block_ids = create_note_blocks(
         &be,
         &setup_deadline,
@@ -468,13 +540,38 @@ fn perf_proof_perf_lk05_folder_tree() {
                 .map(|a| a.len())
         })
         .unwrap_or(0);
+    let folder_rows = resp
+        .as_array()
+        .or_else(|| resp.get("folders").and_then(serde_json::Value::as_array))
+        .expect("LK-05: folder query returns a folder array");
+    let root_count = folder_rows
+        .iter()
+        .filter(|folder| {
+            folder
+                .get("parent_folder_id")
+                .is_none_or(serde_json::Value::is_null)
+        })
+        .count();
+    let nested_count = folder_rows.len() - root_count;
     attempt.stage(
         serde_json::json!([measurement("folder_tree", elapsed_ms as f64, "ms")]),
-        serde_json::json!({"folders": folder_count, "children_seeded": 1000}),
+        serde_json::json!({
+            "folders": folder_count,
+            "children_seeded": 1000,
+            "root_folders": root_count,
+            "nested_folders": nested_count,
+            "tree_levels": 10,
+            "max_parent_depth": 9,
+        }),
     );
     assert_eq!(
         folder_count, 200,
         "LK-05: the folder tree must return exactly 200 folders (got {folder_count})"
+    );
+    assert_eq!(root_count, 20, "LK-05 must return exactly 20 roots");
+    assert_eq!(
+        nested_count, 180,
+        "LK-05 must return exactly 180 nested folders"
     );
     assert!(
         budget.passes(elapsed_ms),
@@ -486,7 +583,14 @@ fn perf_proof_perf_lk05_folder_tree() {
     be.assert_cleanup();
     attempt.pass(
         serde_json::json!([measurement("folder_tree", elapsed_ms as f64, "ms")]),
-        serde_json::json!({"folders": folder_count, "children_seeded": 1000}),
+        serde_json::json!({
+            "folders": folder_count,
+            "children_seeded": 1000,
+            "root_folders": root_count,
+            "nested_folders": nested_count,
+            "tree_levels": 10,
+            "max_parent_depth": 9,
+        }),
     );
 }
 
@@ -500,7 +604,7 @@ fn require_be() -> LiveBackend {
 // default 5-connection PostgreSQL pool (leaving one connection for Flight Recorder/background work); the
 // previous 24-way burst timed out around chunk 170 against that default pool. HSK_MT045_FIXTURE_CONCURRENCY
 // raises it when the attached backend is started with a larger HANDSHAKE_POSTGRES_MAX_CONNECTIONS pool, so
-// large-corpus seeding (LK-03's 10k requests) completes within the 300s setup deadline instead of aborting
+// large-corpus seeding (LK-03's 10k requests) completes within the 1200s setup deadline instead of aborting
 // it (adversarial review H2: the const could not be tuned to the available pool). Setup is never the
 // measured value, so faster seeding does not affect any budget's honesty.
 fn fixture_concurrency() -> usize {

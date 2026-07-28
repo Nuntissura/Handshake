@@ -171,7 +171,12 @@ fn mt045_mt046_manual_covers_large_documents_interconnection_settings_and_menu()
         "test_perf_large_rich",
         "test_interconnect_*",
         "Handshake_Artifacts/wp-kernel-012/mt-046/measurements",
-        "scenario catalogs, not current runtime verdicts",
+        "worst-of-three process",
+        "contract-authoritative runtime-updated projection",
+        "run_mt045_perf_proof.ps1",
+        "Cargo release mode",
+        "1,200-second ceiling",
+        "existing internal PostgreSQL process is never stopped",
     ] {
         assert!(
             manual_body_contains(body, needle),
