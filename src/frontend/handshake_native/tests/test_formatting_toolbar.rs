@@ -202,7 +202,7 @@ fn mt108_argus_formatting_toolbar_real_server_loop() {
     let state = Arc::new(Mutex::new(hello_selected_state()));
     let state_for_ui = Arc::clone(&state);
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(900.0, 120.0))
+        .with_size(egui::vec2(900.0, 240.0))
         .build_ui(move |ui| {
             handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
             let mut st = state_for_ui.lock().unwrap();
