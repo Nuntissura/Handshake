@@ -13008,6 +13008,48 @@ fn required_event_payload_string(
         })
 }
 
+/// Reconcile the CRDT-taxonomy actor recorded on a CRDT authority row
+/// (`kernel_crdt_updates` / `kernel_crdt_snapshots`) with the kernel-taxonomy
+/// actor recorded on its EventLedger event.
+///
+/// CRDT authority rows persist `actor.kind().as_str()` (`operator`,
+/// `local_model`, `cloud_model`, `validator`, `system`), while every EventLedger
+/// event persists `event.actor.actor_kind()`, and `KnowledgeActorIdV1::to_kernel_actor`
+/// projects `LocalModel`/`CloudModel` -> `model_adapter` and `Validator` ->
+/// `validation_runner`. Comparing the two raw strings denies every model- or
+/// validator-authored CRDT update even though the same actor authored both rows.
+///
+/// This verifies, fail-closed, that (1) the row's CRDT `actor_kind` is exactly
+/// the kind encoded by its canonical `actor_id`, and (2) the EventLedger
+/// `actor_kind` is exactly the kernel projection of that actor. The caller still
+/// cross-checks `actor_id` verbatim between row and event, so actor identity is
+/// fully preserved; only the redundant taxonomy label is compared in the correct
+/// space.
+fn reconcile_crdt_and_ledger_actor_kind(
+    crdt_actor_id: &str,
+    crdt_actor_kind: &str,
+    ledger_actor_kind: &str,
+    reference: &str,
+) -> ModelLaneResult<()> {
+    let actor = KnowledgeActorIdV1::parse(crdt_actor_id).map_err(|error| {
+        crdt_authority_denied(format!(
+            "{reference} actor_id {crdt_actor_id} is invalid: {error}"
+        ))
+    })?;
+    if actor.kind().as_str() != crdt_actor_kind {
+        return Err(crdt_authority_denied(format!(
+            "{reference} actor_kind {crdt_actor_kind} does not match canonical actor_id {crdt_actor_id}"
+        )));
+    }
+    let expected_ledger_actor_kind = actor.to_kernel_actor().actor_kind();
+    if ledger_actor_kind != expected_ledger_actor_kind {
+        return Err(crdt_authority_denied(format!(
+            "{reference} EventLedger actor_kind {ledger_actor_kind} does not match kernel projection {expected_ledger_actor_kind} of CRDT actor {crdt_actor_id}"
+        )));
+    }
+    Ok(())
+}
+
 async fn resolve_model_lane_crdt_authority_tx(
     tx: &mut Transaction<'_, Postgres>,
     update_bytes_ref: &str,
@@ -13157,12 +13199,17 @@ async fn resolve_model_lane_crdt_authority_tx(
     let ledger_payload: Value = update_row.try_get("ledger_payload")?;
     let computed_payload_hash = dexterity_sha256_hex(&canonical_json_bytes(&ledger_payload));
     let expected_crdt_stream_id = format!("knowledge-crdt:{crdt_document_id}");
+    reconcile_crdt_and_ledger_actor_kind(
+        &actor_id,
+        &actor_kind,
+        &ledger_actor_kind,
+        &format!("crdt_update_ref {update_bytes_ref}"),
+    )?;
     if event_ledger_stream_id != expected_crdt_stream_id
         || session_id != ledger_session_run_id
         || ledger_event_type != "KNOWLEDGE_CRDT_UPDATE_RECORDED"
         || ledger_aggregate_type != "knowledge_crdt_document"
         || ledger_aggregate_id != crdt_document_id
-        || ledger_actor_kind != actor_kind
         || ledger_actor_id != actor_id
         || ledger_correlation_id.as_deref() != Some(trace_id.as_str())
         || ledger_payload_hash != computed_payload_hash
@@ -13326,11 +13373,16 @@ async fn resolve_model_lane_crdt_authority_tx(
     let snapshot_ledger_payload: Value = snapshot_row.try_get("ledger_payload")?;
     let computed_snapshot_payload_hash =
         dexterity_sha256_hex(&canonical_json_bytes(&snapshot_ledger_payload));
+    reconcile_crdt_and_ledger_actor_kind(
+        &snapshot_actor_id,
+        &snapshot_actor_kind,
+        &snapshot_ledger_actor_kind,
+        &format!("crdt_base_snapshot_ref {base_snapshot_ref}"),
+    )?;
     if snapshot_event_stream_id != expected_crdt_stream_id
         || snapshot_event_type != "KNOWLEDGE_CRDT_SNAPSHOT_RECORDED"
         || snapshot_aggregate_type != "knowledge_crdt_document"
         || snapshot_aggregate_id != crdt_document_id
-        || snapshot_actor_kind != snapshot_ledger_actor_kind
         || snapshot_actor_id != snapshot_ledger_actor_id
         || snapshot_ledger_payload_hash != computed_snapshot_payload_hash
     {
@@ -13584,11 +13636,16 @@ async fn resolve_model_lane_crdt_authority_tx(
         let ledger_correlation_id: Option<String> = row.try_get("ledger_correlation_id")?;
         let ledger_payload_hash: String = row.try_get("ledger_payload_hash")?;
         let ledger_payload: Value = row.try_get("ledger_payload")?;
+        reconcile_crdt_and_ledger_actor_kind(
+            &chain_actor_id,
+            &chain_actor_kind,
+            &ledger_actor_kind,
+            &format!("crdt_update_ref {chain_ref}"),
+        )?;
         if ledger_session != chain_session_id
             || ledger_event_type != "KNOWLEDGE_CRDT_UPDATE_RECORDED"
             || ledger_aggregate_type != "knowledge_crdt_document"
             || ledger_aggregate_id != crdt_document_id
-            || ledger_actor_kind != chain_actor_kind
             || ledger_actor_id != chain_actor_id
             || ledger_correlation_id.as_deref() != Some(chain_trace_id.as_str())
             || ledger_payload_hash != dexterity_sha256_hex(&canonical_json_bytes(&ledger_payload))
