@@ -677,7 +677,7 @@ async fn model_lane_launch_user_manual_entry_is_current() {
         "unsupported tool capability",
         "Flight Recorder/EventLedger",
         "Palmistry",
-        "DEFERRED-with-reason",
+        "internal_diagnostics",
         "model_lane_launch_all_lane_kinds_through_rust_registry",
         "model_lane_launch_rejects_direct_endpoint_frontend_tauri_and_terminal_bypass",
         "model_lane_launch_cancellation_reclaim_contracts_all_lane_kinds",

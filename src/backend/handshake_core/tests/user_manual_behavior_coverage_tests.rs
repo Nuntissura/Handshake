@@ -172,17 +172,17 @@ async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route()
     assert_coverage_error_contains(&errors, "wp1.model_lane.run", "UserManual page");
 
     let mut missing_diagnostic = baseline.clone();
-    missing_diagnostic[0].internal_diagnostics_posture = DiagnosticTierPosture::Wired;
+    // Inject a REAL fault: a model_lane behavior whose internal_diagnostics tier
+    // is not WIRED must fail the MT-011 coverage proof (native diagnostics
+    // producer + Palmistry watcher recovery path require WIRED). A prior freeze
+    // had set this to `Wired` on an already-WIRED row, making the fault a no-op.
+    missing_diagnostic[0].internal_diagnostics_posture = DiagnosticTierPosture::DeferredWithReason;
     let errors =
         verify_model_lane_behavior_coverage(&missing_diagnostic, &schema_registry, &pages, &tools)
             .expect_err(
-                "false-green wired internal_diagnostics posture must fail MT-011 coverage proof",
+                "non-WIRED internal_diagnostics posture must fail MT-011 coverage proof",
             );
-    assert_coverage_error_contains(
-        &errors,
-        "wp1.model_lane.run",
-        "internal_diagnostics posture",
-    );
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "must be WIRED");
 
     let mut missing_runtime = baseline.clone();
     missing_runtime[0].runtime_surface_id = "";
