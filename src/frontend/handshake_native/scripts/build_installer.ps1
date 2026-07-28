@@ -5,8 +5,7 @@
   WHAT IT DOES
     1. Builds the single self-contained native binary:
          cargo build --profile release-native --bin handshake-native
-       into a SHORT CARGO_TARGET_DIR (Windows MAX_PATH workaround for the release-native profile;
-       see installer/windows/BUNDLED_DEPS_POLICY.md "release-native + Windows MAX_PATH").
+       into the project-allocated external Handshake_Artifacts root.
     2. Stages the binary + all bundled assets (fonts, grammars dir, postgres binaries) into
          <target>/release-native/staging/   matching the exe-relative bundle layout that
          installer::check_bundle_integrity verifies.
@@ -18,8 +17,9 @@
        line: "INSTALLER_ARTIFACT=<path> SIZE_BYTES=<n>".
 
   DISK-AGNOSTIC (AC-031-07 / GLOBAL-PORTABILITY-004): contains NO hardcoded absolute paths or drive
-  letters. All paths derive from $PSScriptRoot, $env:CARGO_TARGET_DIR, $env:TEMP, or Join-Path. The
-  short target dir is chosen from env, never a hardcoded drive-letter path.
+  letters. The canonical build target derives from $PSScriptRoot and remains inside the project-owned
+  Handshake_Artifacts root after the worktree or project moves. An explicit override is accepted only
+  when it also resolves inside that allocated root.
 
   PLACEMENT NOTE (DEVIATION): the MT-031 contract lists scripts/build_installer.ps1 at the repo root.
   This crate (src/frontend/handshake_native) is the build unit and the proof commands run from it, so
@@ -36,7 +36,7 @@
 
 [CmdletBinding()]
 param(
-    # Override the short build target dir (else derived from env). Useful in CI.
+    # Override the release build target dir. It must remain inside Handshake_Artifacts.
     [string]$ShortTargetDir = $env:HANDSHAKE_SHORT_TARGET_DIR,
     # Force the zip fallback even if WiX is present (used by the smoke to stay deterministic).
     [switch]$ForceZip
@@ -54,22 +54,22 @@ if (-not (Test-Path (Join-Path $CrateRoot 'Cargo.toml'))) {
 }
 Write-Step "Crate root: $CrateRoot"
 
-# --- Choose a SHORT CARGO_TARGET_DIR (MAX_PATH workaround for release-native) -----------------------
-# Priority: explicit param/env -> existing CARGO_TARGET_DIR if already short -> a short dir under TEMP.
-# No literal drive letters: every candidate comes from an env var.
+# --- Choose the project-allocated release CARGO_TARGET_DIR -----------------------------------------
+$ArtifactRoot = [System.IO.Path]::GetFullPath(
+    (Join-Path $CrateRoot '../../../../Handshake_Artifacts'))
+$CanonicalReleaseTargetDir = Join-Path $ArtifactRoot 'handshake-release-target'
 if ([string]::IsNullOrWhiteSpace($ShortTargetDir)) {
-    if (-not [string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR) -and $env:CARGO_TARGET_DIR.Length -lt 40) {
-        $ShortTargetDir = $env:CARGO_TARGET_DIR
-    }
-    else {
-        $tempRoot = if ($env:TEMP) { $env:TEMP } elseif ($env:TMP) { $env:TMP } else { [System.IO.Path]::GetTempPath() }
-        # Climb to the drive root of TEMP to keep the path maximally short, then a fixed short name.
-        $driveRoot = [System.IO.Path]::GetPathRoot($tempRoot)
-        $ShortTargetDir = Join-Path $driveRoot 'hsk-rn'
-    }
+    $ShortTargetDir = $CanonicalReleaseTargetDir
+}
+$ShortTargetDir = [System.IO.Path]::GetFullPath($ShortTargetDir)
+$artifactPrefix = $ArtifactRoot.TrimEnd(
+    [System.IO.Path]::DirectorySeparatorChar,
+    [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+if (-not $ShortTargetDir.StartsWith($artifactPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "HANDSHAKE_SHORT_TARGET_DIR must stay inside the allocated artifact root $ArtifactRoot; got $ShortTargetDir"
 }
 New-Item -ItemType Directory -Force -Path $ShortTargetDir | Out-Null
-Write-Step "Short CARGO_TARGET_DIR: $ShortTargetDir"
+Write-Step "Allocated release CARGO_TARGET_DIR: $ShortTargetDir"
 
 # --- 1. Build the single self-contained binary -----------------------------------------------------
 $env:CARGO_TARGET_DIR = $ShortTargetDir

@@ -34,15 +34,9 @@ panic = "abort"
 # .exe), so the shipped .exe is already lean; strip="symbols" is honored here.
 strip = "symbols"
 opt-level = 3
-# BUILD PATH NOTE (MAX_PATH): the `release-native` profile name is longer than `release`, which
-# pushes the deepest build-script output paths (icu_*, parking_lot_core, windows_x86_64_msvc) past
-# the Windows 260-char MAX_PATH limit when the crate's external target-dir (.cargo/config.toml) is
-# used, causing link.exe LNK1104 ("cannot open file build_script_build.exe"). link.exe does not
-# honor the registry LongPathsEnabled opt-in. The fix is to build release-native into a SHORT target
-# dir: build_installer.ps1 sets CARGO_TARGET_DIR to a short path, and the single-binary proof test
-# resolves the binary from CARGO_TARGET_DIR. This is an environment/path constraint, NOT a profile
-# defect — the contract profile settings (fat LTO, codegen-units=1, panic=abort, strip=symbols) all
-# build cleanly once the path is short. Documented in installer/windows/BUNDLED_DEPS_POLICY.md.
+# BUILD PATH NOTE: build_installer.ps1 pins release-native output to the project-allocated external
+# Handshake_Artifacts/handshake-release-target directory and rejects overrides that escape that root.
+# This keeps release output relocatable and prevents hidden TEMP/drive-root build trees.
 
 [workspace.metadata.handshake-native]
 # Bundled-deps + installer metadata for no-context tooling. Authoritative human-readable policy is

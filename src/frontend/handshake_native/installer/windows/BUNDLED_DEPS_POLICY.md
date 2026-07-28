@@ -112,19 +112,14 @@ of `handshake_native.wxs`.
 
 </topic>
 
-<topic id="build-path-max-path" wp="WP-KERNEL-011" summary="Why release-native builds into a short target dir">
+<topic id="build-path-max-path" wp="WP-KERNEL-011" summary="Where release-native build output is allocated">
 
-# release-native + Windows MAX_PATH (build constraint, not a defect)
+# release-native artifact allocation
 
-The `release-native` profile name is longer than `release`, which pushes the deepest build-script output
-paths (`icu_*`, `parking_lot_core`, `windows_x86_64_msvc`) past the Windows 260-char MAX_PATH limit when
-the crate's external target-dir (`.cargo/config.toml`) is used, causing `link.exe` LNK1104 ("cannot open
-file build_script_build.exe"). `link.exe` does not honor the registry `LongPathsEnabled` opt-in.
-
-Fix (applied by `build_installer.ps1`): build `release-native` into a SHORT `CARGO_TARGET_DIR` (e.g.
-`C:\hsk-rn`). The single-binary proof test resolves the binary from `CARGO_TARGET_DIR`. The profile
-settings themselves (fat LTO, codegen-units=1, panic=abort, strip=symbols) build cleanly once the path is
-short — this is an environment/path constraint, not a profile defect.
+`build_installer.ps1` derives its canonical release target from the crate location and writes only to
+`Handshake_Artifacts/handshake-release-target`. It rejects `HANDSHAKE_SHORT_TARGET_DIR` values that
+resolve outside the allocated `Handshake_Artifacts` root. Installer builds must never fall back to a
+TEMP directory, drive root, repo-local `target`, or another machine-global path.
 
 </topic>
 
@@ -147,7 +142,7 @@ font is caught:
 
 - Rust stable toolchain (rustc 1.91.1 pin), `cargo` on PATH.
 - PowerShell 7 (`pwsh`) for `build_installer.ps1`.
-- A short writable drive path for `CARGO_TARGET_DIR` (MAX_PATH; the script picks one).
+- A writable project-allocated `Handshake_Artifacts` root; the script derives the release target.
 - OPTIONAL: WiX 4/5 (`dotnet tool install --global wix`) for the `.msi`. Absent it, the script emits a zip.
 - OPTIONAL: PostgreSQL binaries to stage under `bundled/postgres/`. If the host has no postgres toolchain,
   `build_installer.ps1` stages a minimal placeholder so the bundle layout is correct and the smoke can
