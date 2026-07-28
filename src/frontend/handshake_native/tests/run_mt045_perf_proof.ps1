@@ -579,6 +579,35 @@ function Write-JsonAtomic {
     Move-Item -LiteralPath $temporary -Destination $Path -Force
 }
 
+function Get-FileSha256 {
+    param(
+        [Parameter(Mandatory)][string]$Path
+    )
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($hasher.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+    }
+    finally {
+        $hasher.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Get-StringSha256 {
+    param(
+        [Parameter(Mandatory)][string]$Value
+    )
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [Text.UTF8Encoding]::new($false).GetBytes($Value)
+        return ([BitConverter]::ToString($hasher.ComputeHash($bytes))).Replace("-", "").ToLowerInvariant()
+    }
+    finally {
+        $hasher.Dispose()
+    }
+}
+
 function Write-ImmutableJson {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -595,7 +624,7 @@ function Write-ImmutableJson {
     finally {
         $stream.Dispose()
     }
-    $digest = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    $digest = Get-FileSha256 -Path $Path
     $digestPath = "$Path.sha256"
     if (Test-Path -LiteralPath $digestPath) {
         throw "Immutable digest path already exists: $digestPath"
@@ -651,9 +680,9 @@ function Invoke-BoundedCargo {
         root_process_id = $nativeResult.RootProcessId
         process_containment = "windows_job_object_kill_on_close"
         stdout = $stdoutPath
-        stdout_sha256 = (Get-FileHash -LiteralPath $stdoutPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        stdout_sha256 = Get-FileSha256 -Path $stdoutPath
         stderr = $stderrPath
-        stderr_sha256 = (Get-FileHash -LiteralPath $stderrPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        stderr_sha256 = Get-FileSha256 -Path $stderrPath
     }
 }
 
@@ -732,11 +761,13 @@ $manifestRepoPath = "src/frontend/handshake_native/tests/perf_proof/perf_manifes
 $manifestPath = Join-Path $repoRoot $manifestRepoPath
 $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
 Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
-Assert-SourceBindingClean -Repository $repoRoot -Paths @($manifestRepoPath)
 $initialManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
     "rev-parse", "${sourceSha}:$manifestRepoPath"
 )
-$initialManifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$headManifestJson = Invoke-GitText -Repository $repoRoot -Arguments @(
+    "show", "${sourceSha}:$manifestRepoPath"
+)
+$initialManifestSha256 = Get-StringSha256 -Value $headManifestJson
 
 $forbiddenBudgetOverrides = Get-ChildItem Env: |
     Where-Object { $_.Name -like "PERF_BUDGET_*" -and -not [string]::IsNullOrWhiteSpace($_.Value) }
@@ -820,7 +851,7 @@ function Set-ManifestTerminalState {
     param(
         [Parameter(Mandatory)][ValidateSet("RUNNING", "FAIL")][string]$Status
     )
-    $parsedRows = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $parsedRows = $headManifestJson | ConvertFrom-Json
     $rows = @()
     foreach ($entry in $parsedRows) {
         $rows += $entry
@@ -884,7 +915,7 @@ try {
         throw "Release backend build did not produce $backendBinary"
     }
     $env:HSK_TEST_BACKEND_BIN = (Resolve-Path -LiteralPath $backendBinary).Path
-    $backendSha256 = (Get-FileHash -LiteralPath $env:HSK_TEST_BACKEND_BIN -Algorithm SHA256).Hash.ToLowerInvariant()
+    $backendSha256 = Get-FileSha256 -Path $env:HSK_TEST_BACKEND_BIN
 
     $diagnosticCommands = @(
         @("test_heartbeat", "heartbeat_advances_by_n_over_n_frames"),
@@ -968,7 +999,7 @@ try {
             throw "MT-045 current/immutable run projection is not an exact canonical PASS for $RunId"
         }
     }
-    $immutableDigest = (Get-FileHash -LiteralPath $immutableRunPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $immutableDigest = Get-FileSha256 -Path $immutableRunPath
     $recordedImmutableDigest = ((Get-Content -LiteralPath $immutableRunDigestPath -Raw).Trim() -split "\s+")[0]
     if ($recordedImmutableDigest -cne $immutableDigest) {
         throw "MT-045 immutable run digest sidecar does not match its JSON"
@@ -1004,7 +1035,7 @@ try {
     }
 
     Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
-    $backendFinalSha256 = (Get-FileHash -LiteralPath $env:HSK_TEST_BACKEND_BIN -Algorithm SHA256).Hash.ToLowerInvariant()
+    $backendFinalSha256 = Get-FileSha256 -Path $env:HSK_TEST_BACKEND_BIN
     if ($backendFinalSha256 -cne $backendSha256) {
         throw "MT-045 backend binary changed during the canonical run"
     }
