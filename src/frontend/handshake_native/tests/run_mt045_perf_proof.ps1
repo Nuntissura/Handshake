@@ -728,8 +728,15 @@ $sourcePaths = @(
     "src/frontend/handshake_native/tests/test_perf_large_knowledge.rs",
     "src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1"
 )
+$manifestRepoPath = "src/frontend/handshake_native/tests/perf_proof/perf_manifest.json"
+$manifestPath = Join-Path $repoRoot $manifestRepoPath
 $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
 Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
+Assert-SourceBindingClean -Repository $repoRoot -Paths @($manifestRepoPath)
+$initialManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
+    "rev-parse", "${sourceSha}:$manifestRepoPath"
+)
+$initialManifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
 $forbiddenBudgetOverrides = Get-ChildItem Env: |
     Where-Object { $_.Name -like "PERF_BUDGET_*" -and -not [string]::IsNullOrWhiteSpace($_.Value) }
@@ -780,7 +787,6 @@ function Assert-PostgresPreserved {
 [void][IO.Directory]::CreateDirectory($runRoot)
 $measurementRoot = Join-Path $artifactRoot "wp-kernel-012\mt-045\measurements"
 [void][IO.Directory]::CreateDirectory($measurementRoot)
-$manifestPath = Join-Path $crateRoot "tests\perf_proof\perf_manifest.json"
 $supervisorCurrentPath = Join-Path $measurementRoot "supervisor-current.json"
 $currentRunPath = Join-Path $measurementRoot "current-run.json"
 $latestRunPath = Join-Path $measurementRoot "latest-run-summary.json"
@@ -814,7 +820,11 @@ function Set-ManifestTerminalState {
     param(
         [Parameter(Mandatory)][ValidateSet("RUNNING", "FAIL")][string]$Status
     )
-    $rows = @(Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json)
+    $parsedRows = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $rows = @()
+    foreach ($entry in $parsedRows) {
+        $rows += $entry
+    }
     $actualIds = @($rows | ForEach-Object { $_.scenario_id } | Sort-Object)
     $expectedIds = @($expectedScenarioIds | Sort-Object)
     if (($actualIds -join "`n") -cne ($expectedIds -join "`n")) {
@@ -964,7 +974,11 @@ try {
         throw "MT-045 immutable run digest sidecar does not match its JSON"
     }
 
-    $manifest = @(Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json)
+    $parsedManifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest = @()
+    foreach ($entry in $parsedManifest) {
+        $manifest += $entry
+    }
     if ($manifest.Count -ne 20) {
         throw "MT-045 manifest must contain exactly 20 rows, found $($manifest.Count)"
     }
@@ -1030,6 +1044,11 @@ try {
         immutable_run_summary_sha256 = $immutableDigest
         immutable_manifest_snapshot = $manifestSnapshotPath
         immutable_manifest_snapshot_sha256 = $manifestSnapshotSha256
+        initial_manifest_source = [ordered]@{
+            repo_path = $manifestRepoPath
+            git_object = $initialManifestGitObject
+            sha256 = $initialManifestSha256
+        }
         commands = $commands
         completed_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
