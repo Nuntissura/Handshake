@@ -3027,7 +3027,10 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
             let is_memory_pack = request.lines().next().is_some_and(|line| {
                 line.starts_with("GET /workspaces/") && line.contains("/memory/pack")
             });
-            let body = r#"{"error":"not_found"}"#;
+            // `{"error":"not_found"}` is the backend's canonical missing-workspace response and is
+            // intentionally classified as `Http 404`. This fixture proves the distinct missing-route
+            // contract, so return a non-resource 404 sentinel that maps to `EndpointMissing`.
+            let body = r#"{"error":"route_not_found"}"#;
             write!(
                 stream,
                 "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",

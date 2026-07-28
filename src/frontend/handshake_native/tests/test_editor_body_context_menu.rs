@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::panel::CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID;
@@ -63,9 +63,7 @@ fn open_editor_body_menu(harness: &mut Harness<'_>) {
     harness
         .root()
         .children_recursive()
-        .find(|n| {
-            n.accesskit_node().author_id().as_deref() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID)
-        })
+        .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID))
         .expect("the editor-body context surface node is live")
         .click_secondary();
     harness.run();
@@ -90,7 +88,7 @@ fn click_menu_item(harness: &mut Harness<'_>, ctx_menu_author_id: &str) {
     harness
         .root()
         .children_recursive()
-        .find(|n| n.accesskit_node().author_id().as_deref() == Some(ctx_menu_author_id))
+        .find(|n| n.accesskit_node().author_id() == Some(ctx_menu_author_id))
         .unwrap_or_else(|| panic!("open menu item {ctx_menu_author_id} is live"))
         .click();
     harness.run();
@@ -232,7 +230,7 @@ fn live_editor_body_menu_copy_as_note_reference_is_disabled_for_unsaved_buffer()
     let menu_item = harness
         .root()
         .children_recursive()
-        .find(|node| node.accesskit_node().author_id().as_deref() == Some(author_id.as_str()))
+        .find(|node| node.accesskit_node().author_id() == Some(author_id.as_str()))
         .expect("the unsaved-buffer Copy as note reference item remains visible");
     assert!(
         menu_item.accesskit_node().is_disabled(),
@@ -320,8 +318,7 @@ fn assert_ambiguous_link_create_is_disabled_without_intent(
         .root()
         .children_recursive()
         .find(|node| {
-            node.accesskit_node().author_id().as_deref()
-                == Some("ctx-menu.ctxmenu-editor-create-note")
+            node.accesskit_node().author_id() == Some("ctx-menu.ctxmenu-editor-create-note")
         })
         .expect("create-note menu item remains perceivable while disabled");
     assert_eq!(

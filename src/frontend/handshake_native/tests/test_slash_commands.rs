@@ -394,6 +394,7 @@ fn accesskit_menu_and_item_roles() {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_slash_menu_real_server_loop() {
     let doc = BlockNode::doc(vec![BlockNode::paragraph("/")]);
     let state = Arc::new(Mutex::new(RichEditorState::new(doc)));

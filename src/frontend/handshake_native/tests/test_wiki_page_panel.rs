@@ -61,8 +61,12 @@ use handshake_native::backend_client::HealthInfo;
 use handshake_native::backend_client::{LoomWikiClient, WikiProjection};
 use handshake_native::graph::wiki_page_panel::{
     cancel_author_id, content_author_id, edit_area_author_id, edit_author_id, error_author_id,
-    metadata_author_id, overlay_author_id, overlays_author_id, rebuild_author_id, retry_author_id,
-    save_author_id, stale_author_id, title_author_id, LoomWikiPagePanel, WikiPageEvent,
+    metadata_author_id, save_author_id, stale_author_id, title_author_id, LoomWikiPagePanel,
+    WikiPageEvent,
+};
+#[cfg(feature = "integration")]
+use handshake_native::graph::wiki_page_panel::{
+    overlay_author_id, overlays_author_id, rebuild_author_id, retry_author_id,
 };
 #[cfg(feature = "integration")]
 use handshake_native::quick_switcher::ShellNavigator;

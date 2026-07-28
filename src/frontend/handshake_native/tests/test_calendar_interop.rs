@@ -561,10 +561,9 @@ fn spawn_transient_mounted_calendar_server(
                     stream
                         .set_write_timeout(Some(std::time::Duration::from_secs(2)))
                         .expect("bound transient calendar response write");
-                    loop {
                     let (request_line, request_body) = read_http_request(&mut stream);
                     if request_line.is_empty() {
-                        break;
+                        return;
                     }
                     server_request_lines
                         .lock()
@@ -721,11 +720,9 @@ fn spawn_transient_mounted_calendar_server(
                         "{status_line}\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
                         body.len()
                     );
-                    if stream.write_all(response.as_bytes()).is_err() || stream.flush().is_err() {
-                        break;
-                    }
-                    break;
-                    }
+                    let _ = stream
+                        .write_all(response.as_bytes())
+                        .and_then(|()| stream.flush());
                 });
             }
         });

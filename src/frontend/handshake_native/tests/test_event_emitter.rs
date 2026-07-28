@@ -26,6 +26,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
@@ -1398,8 +1400,8 @@ fn no_repo_local_artifact_dir() {
 
 #[test]
 fn event_emitter_native_editor_round_trip() {
-    let base =
-        std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let managed_backend = pg_proof_support::require_reachable_backend();
+    let base = managed_backend.base.clone();
     let marker = uuid::Uuid::new_v4().to_string();
     let session_id = uuid::Uuid::new_v4().to_string();
     let actor = format!("mt036-live-human-{marker}");
@@ -1508,6 +1510,8 @@ fn event_emitter_native_editor_round_trip() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
+    app.set_native_editor_participant_actor_id(handshake_native::event_emitter::DEFAULT_ACTOR_ID)
+        .expect("MT-036 proof binds the contract-required native_editor_human actor before mount");
     app.set_backend_base_url_for_test(&base, runtime.handle().clone());
     app.set_active_project_id_for_test(workspace.clone());
     assert!(

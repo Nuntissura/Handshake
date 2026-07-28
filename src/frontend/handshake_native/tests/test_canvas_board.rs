@@ -41,7 +41,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
-use handshake_native::backend_client::{CanvasBoardClient, LOOM_CANVAS_BOARD_SCHEMA_ID};
+use handshake_native::backend_client::CanvasBoardClient;
+#[cfg(feature = "integration")]
+use handshake_native::backend_client::LOOM_CANVAS_BOARD_SCHEMA_ID;
 use handshake_native::graph::canvas_board::{
     placement_author_id, placement_remove_author_id, CanvasDragPayload, CanvasEvent,
     CanvasPlacementCard, EdgeMode, LoomCanvasBoard, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H,

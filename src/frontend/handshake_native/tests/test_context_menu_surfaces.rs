@@ -21,7 +21,6 @@
 //! that was only built in memory (never opened via a real `secondary_clicked()`) would be absent here.
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
 use handshake_native::app::{ExplorerRenameTarget, HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::context_menu_surfaces::EXPLORER_RENAME_INPUT_AUTHOR_ID;
@@ -33,6 +32,19 @@ use std::sync::Arc;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+
+fn capture_mt108_matrix_frame_if_selected(harness: &mut Harness<'_, HandshakeApp>) {
+    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .is_some_and(|run_id| !run_id.trim().is_empty())
+    {
+        let _ = harness
+            .render_proof_frame("MT-108 context-menu matrix requires a material captured frame");
+    }
+}
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -1463,17 +1475,18 @@ fn mt070_mounted_editor_body_localhost_argus_action_matrix() {
     panel.set_workspace_id("workspace-editor");
     panel.set_single_cursor(4);
 
-    // Make the mounted rich runtime authoritative for an empty title index and keep the real create
-    // request observably in-flight without touching the network.
+    let mut harness = harness_for(app);
+    // Let the production mount install workspace/runtime context first. Injecting the pending backend
+    // before this frame would be overwritten by canonical mount wiring and would race a real backend.
+    harness.run_steps(2);
+    // Keep the create request observably in flight while retaining the mounted production runtime.
     {
-        let rich = app.mounted_rich_state();
+        let rich = harness.state().mounted_rich_state();
         let mut rich = rich.lock().unwrap();
         rich.wikilinks.set_context("workspace-editor", "note-host");
         rich.wikilinks.set_create_backend(Arc::new(PendingCreate));
         rich.wikilinks.stage_resolver_seed(Vec::new());
     }
-
-    let mut harness = harness_for(app);
     harness.run_steps(2);
     assert!(harness
         .state()
@@ -1543,6 +1556,7 @@ fn mt070_mounted_editor_body_localhost_argus_action_matrix() {
         .wikilinks
         .is_creating("Missing Note"));
 
+    capture_mt108_matrix_frame_if_selected(&mut harness);
     argus.finish();
 }
 
@@ -1834,6 +1848,7 @@ fn mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful() {
     assert!(!panel.quick_fix_request_armed_for_test());
     assert!(!panel.format_request_armed_for_test());
     assert_eq!(panel.take_pending_create_note_link(), None);
+    capture_mt108_matrix_frame_if_selected(&mut harness);
     argus.finish();
 }
 

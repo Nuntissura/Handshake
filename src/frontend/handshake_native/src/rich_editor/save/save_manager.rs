@@ -589,6 +589,8 @@ impl SaveManager {
 
 /// The outcome `drain` reports for one frame's save result.
 #[derive(Debug, Clone, PartialEq)]
+// Saved carries the exact persisted snapshot and immutable attribution required by recovery/audit.
+#[allow(clippy::large_enum_variant)]
 pub enum SaveOutcome {
     /// The save succeeded; the new `doc_version` is adopted. The caller should clear the draft.
     Saved {

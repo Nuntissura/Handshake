@@ -17,7 +17,7 @@
 //!
 //! ## Schema
 //!
-//! `schema_id = "hsk.native_gui.screenshot_marker@2"`. Serialised with serde_json so each JSONL line is
+//! `schema_id = "hsk.native_gui.screenshot_marker@4"`. Serialised with serde_json so each JSONL line is
 //! parseable with `serde_json::from_str`. Lives under `tests/native_gui_support/` and is `#[path]`
 //! -included by the screenshot proof test binaries, mirroring the sibling `proof_report.rs` convention.
 
@@ -31,7 +31,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 /// The stable schema id for the screenshot-marker artifact.
-pub const SCREENSHOT_MARKER_SCHEMA_ID: &str = "hsk.native_gui.screenshot_marker@2";
+pub const SCREENSHOT_MARKER_SCHEMA_ID: &str = "hsk.native_gui.screenshot_marker@4";
 
 /// The screenshot-marker JSONL artifact file name. One marker is appended per screenshot-proof outcome.
 pub const SCREENSHOT_MARKER_FILE: &str = "screenshot_marker.jsonl";
@@ -81,6 +81,14 @@ pub struct ScreenshotMarker {
     pub mt_id: String,
     /// Stable scenario id (e.g. `"MT-004-find-highlight"`, `"MT-079-editors-mounted"`).
     pub scenario_id: String,
+    /// Exact committed source and supervised process identity when this marker belongs to a governed
+    /// matrix run. Ordinary hermetic tests leave the optional supervisor fields absent.
+    pub source_sha: Option<String>,
+    pub process_correlation_id: Option<String>,
+    pub process_scenario_id: Option<String>,
+    pub process_id: u32,
+    /// Exact Argus action receipt whose post-action state this frame or deferral follows.
+    pub action_receipt_id: Option<u64>,
     pub status: ScreenshotStatus,
     /// Why the screenshot was deferred/blocked, or a short capture note.
     pub reason: String,
@@ -89,6 +97,8 @@ pub struct ScreenshotMarker {
     /// Snapshot of [`gpu_screenshot_enabled`] at write time, so a reader sees the host posture without
     /// re-deriving it.
     pub gpu_screenshot_enabled: bool,
+    pub frame_width: Option<u32>,
+    pub frame_height: Option<u32>,
     pub timestamp_nanos: u128,
 }
 
@@ -100,6 +110,7 @@ impl ScreenshotMarker {
         status: ScreenshotStatus,
         reason: impl Into<String>,
         frame_path: Option<String>,
+        frame_dimensions: Option<(u32, u32)>,
     ) -> Self {
         Self {
             schema_id: SCREENSHOT_MARKER_SCHEMA_ID.to_owned(),
@@ -107,10 +118,18 @@ impl ScreenshotMarker {
             outcome_id: outcome_id.into(),
             mt_id: mt_id.into(),
             scenario_id: scenario_id.into(),
+            source_sha: non_empty_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+            process_correlation_id: non_empty_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID"),
+            process_scenario_id: non_empty_env("HANDSHAKE_PROOF_PROCESS_SCENARIO_ID"),
+            process_id: std::process::id(),
+            action_receipt_id: non_empty_env("HANDSHAKE_PROOF_ACTION_RECEIPT_ID")
+                .and_then(|value| value.parse::<u64>().ok()),
             status,
             reason: reason.into(),
             frame_path,
             gpu_screenshot_enabled: gpu_screenshot_enabled(),
+            frame_width: frame_dimensions.map(|dimensions| dimensions.0),
+            frame_height: frame_dimensions.map(|dimensions| dimensions.1),
             timestamp_nanos: now_nanos(),
         }
     }
@@ -167,6 +186,7 @@ impl ScreenshotMarker {
             ScreenshotStatus::Captured,
             "frame rendered and saved",
             Some(frame_path.display().to_string()),
+            Some((decoded.width(), decoded.height())),
         ))
     }
 
@@ -183,6 +203,7 @@ impl ScreenshotMarker {
             outcome_id,
             ScreenshotStatus::Deferred,
             reason,
+            None,
             None,
         )
     }
@@ -202,6 +223,7 @@ impl ScreenshotMarker {
             ScreenshotStatus::Blocked,
             reason,
             None,
+            None,
         )
     }
 
@@ -220,7 +242,7 @@ impl ScreenshotMarker {
             .read(true)
             .append(true)
             .open(&path)?;
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         loop {
             match file.try_lock() {
                 Ok(()) => break,
@@ -229,7 +251,7 @@ impl ScreenshotMarker {
                 }
                 Err(error) => {
                     return Err(std::io::Error::other(format!(
-                        "lock shared screenshot marker within 2s: {error}"
+                        "lock shared screenshot marker within 10s: {error}"
                     )));
                 }
             }
@@ -303,6 +325,12 @@ fn now_nanos() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0)
+}
+
+fn non_empty_env(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
 }
 
 /// Stable for the lifetime of this process, operator/CI-overridable for a multi-binary cargo run.

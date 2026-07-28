@@ -1374,7 +1374,7 @@ mod tests {
         );
         // MT-069 REMEDIATION: no GO id is pending anymore (the code-nav commands are registered).
         assert!(
-            EDITOR_GO_NAV_PENDING_IDS.is_empty(),
+            EDITOR_GO_NAV_PENDING_IDS.iter().next().is_none(),
             "GO-nav pending list is empty (code-nav commands registered)"
         );
         assert!(

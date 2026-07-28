@@ -2480,7 +2480,9 @@ mod tests {
         });
         harness.run();
 
-        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS", "OPERATOR"] {
+        for label in [
+            "FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS", "OPERATOR",
+        ] {
             let _ = harness.get_by_label(label);
         }
         let menu_nodes = harness

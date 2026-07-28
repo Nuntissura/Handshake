@@ -14,10 +14,8 @@ use handshake_native::mcp::{
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
+use crate::screenshot_harness::screenshot_marker;
 use crate::screenshot_harness::ScreenshotHarness;
-
-#[path = "screenshot_marker.rs"]
-mod screenshot_marker;
 
 const PROBE_ACTIONS: &[accesskit::Action] = &[
     accesskit::Action::Click,
@@ -328,6 +326,12 @@ pub fn prove_argus_surface<'h, State, VerifyMutation>(
     let receipt_id = mutation_response["result"]["receipt_id"]
         .as_u64()
         .expect("mutation response carries a real receipt_id");
+    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .is_some_and(|run_id| !run_id.trim().is_empty())
+    {
+        std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
+    }
     let agent_id = mutation_response["result"]["agent_id"]
         .as_str()
         .expect("mutation response carries actual agent_id")
@@ -762,10 +766,10 @@ fn validate_argus_rows(
         if row.action_seq == 0
             || row.receipt_id == 0
             || !matches!(row.receipt_status.as_str(), "applied" | "indeterminate")
-            || !row
+            || row
                 .observed_post_state
                 .as_object()
-                .is_some_and(|state| !state.is_empty())
+                .is_none_or(|state| state.is_empty())
         {
             return Err(std::io::Error::other(format!(
                 "Argus aggregate surface {:?} lacks a terminal receipt or concrete post-state",
@@ -1322,10 +1326,17 @@ mod aggregate_tests {
                 outcome_id: row.screenshot_outcome_id.clone(),
                 mt_id: "MT-108".to_owned(),
                 scenario_id: row.screenshot_scenario_id.clone(),
+                source_sha: None,
+                process_correlation_id: None,
+                process_scenario_id: None,
+                process_id: std::process::id(),
+                action_receipt_id: Some(row.receipt_id),
                 status: screenshot_marker::ScreenshotStatus::Deferred,
                 reason: "unit headless proof".to_owned(),
                 frame_path: None,
                 gpu_screenshot_enabled: false,
+                frame_width: None,
+                frame_height: None,
                 timestamp_nanos: 1,
             })
             .collect()

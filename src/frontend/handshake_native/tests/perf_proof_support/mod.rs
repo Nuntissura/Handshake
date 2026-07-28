@@ -1242,6 +1242,7 @@ impl FileLock {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(path)
             .ok()?;
         let started = Instant::now();

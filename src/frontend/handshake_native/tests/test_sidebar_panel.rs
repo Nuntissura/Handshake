@@ -57,10 +57,12 @@ use egui_kittest::kittest::{NodeT, Queryable};
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
+#[cfg(feature = "integration")]
+use handshake_native::graph::sidebar_panel::section_header_author_id;
 use handshake_native::graph::sidebar_panel::{
     backlink_row_author_id, breadcrumb_author_id, favorite_row_author_id, pin_remove_author_id,
-    pin_row_author_id, section_header_author_id, section_retry_author_id, unlinked_row_author_id,
-    BacklinkRow, LoomSidebarPanel, SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow,
+    pin_row_author_id, section_retry_author_id, unlinked_row_author_id, BacklinkRow,
+    LoomSidebarPanel, SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow,
     BACKLINK_ROW_AUTHOR_ID_PREFIX, BREADCRUMB_AUTHOR_ID_PREFIX, PIN_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
@@ -270,8 +272,7 @@ fn proof3_remove_pin_request_shapes() {
 
     let remove = client.remove_pin_request("ws1", "block-001");
     assert_eq!(
-        remove.url,
-        "http://test.local:1234/workspaces/ws1/loom/blocks/block-001/remove-pin",
+        remove.url, "http://test.local:1234/workspaces/ws1/loom/blocks/block-001/remove-pin",
         "PROOF3: pin removal hits the atomic /remove-pin route"
     );
     assert_eq!(
@@ -834,40 +835,25 @@ fn await_sidebar_unlinked(
 }
 
 #[cfg(feature = "integration")]
-fn await_sidebar_action(
-    cell: &handshake_native::backend_client::SidebarActionCell,
-    expected_workspace: &str,
-    expected_section: SectionKind,
-    expected_block: &str,
-) -> Result<(), String> {
-    for _ in 0..200 {
-        if let Some((workspace, epoch, section, block, sequence, result)) =
-            cell.lock().unwrap().pop_front()
-        {
-            assert_eq!(workspace, expected_workspace);
-            assert_eq!(section, expected_section);
-            assert_eq!(block, expected_block);
-            assert_eq!((epoch, sequence), (0, 0));
-            return result;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
-    panic!("sidebar mutation did not resolve within 10 seconds")
-}
-
-#[cfg(feature = "integration")]
 fn dispatch_mounted_click(
     harness: &mut Harness<'_, handshake_native::app::HandshakeApp>,
     author_id: &str,
 ) {
-    let target = harness
-        .root()
-        .children_recursive()
-        .find_map(|node| {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let target = loop {
+        if let Some(target) = harness.root().children_recursive().find_map(|node| {
             let accesskit = node.accesskit_node();
             (accesskit.author_id() == Some(author_id)).then(|| accesskit.id())
-        })
-        .unwrap_or_else(|| panic!("mounted AccessKit node {author_id} is present"));
+        }) {
+            break target;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "mounted AccessKit node {author_id} becomes present within five seconds"
+        );
+        harness.step();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
     harness.event(egui::Event::AccessKitActionRequest(
         egui::accesskit::ActionRequest {
             action: egui::accesskit::Action::Click,

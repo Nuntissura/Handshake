@@ -6,19 +6,22 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use egui_kittest::kittest::NodeT;
 use handshake_native::app::HandshakeApp;
 use handshake_native::mcp::{
     ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD, ARGUS_INSPECT_METHOD,
     ARGUS_SET_VALUE_METHOD,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ArgusObservation {
     pub before: serde_json::Value,
     pub after: serde_json::Value,
     pub receipt_id: u64,
     pub receipt_status: String,
     pub agent_id: String,
+    pub target_selected_before: Option<bool>,
+    pub target_selected_after: Option<bool>,
 }
 
 struct ScopedArgusAppData {
@@ -84,6 +87,26 @@ pub fn json_has_author_id(value: &serde_json::Value, expected: &str) -> bool {
     }
 }
 
+pub fn live_author_id_selected(
+    harness: &egui_kittest::Harness<'_, HandshakeApp>,
+    author_id: &str,
+) -> Option<bool> {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .map(|node| node.accesskit_node().is_selected().unwrap_or(false))
+}
+
+fn bind_screenshot_to_matrix_receipt(receipt_id: u64) {
+    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .is_some_and(|run_id| !run_id.trim().is_empty())
+    {
+        std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
+    }
+}
+
 /// Real localhost JSON-RPC Argus transport bound to the exact snapshot and action channel owned by a
 /// mounted `HandshakeApp`.
 pub struct CanonicalArgusDriver {
@@ -93,7 +116,8 @@ pub struct CanonicalArgusDriver {
     token: String,
     client_session_id: String,
     next_id: u64,
-    action_targets: Vec<(String, String)>,
+    action_targets: Vec<(String, String, Option<String>)>,
+    observations: Vec<ArgusObservation>,
 }
 
 impl CanonicalArgusDriver {
@@ -149,6 +173,7 @@ impl CanonicalArgusDriver {
             client_session_id: format!("{}-agent", sanitize(proof_id)),
             next_id: 1,
             action_targets: Vec::new(),
+            observations: Vec::new(),
         }
     }
 
@@ -234,6 +259,7 @@ impl CanonicalArgusDriver {
         author_id: &str,
         before: serde_json::Value,
     ) -> ArgusObservation {
+        let target_selected_before = live_author_id_selected(harness, author_id);
         assert!(
             json_has_author_id(&before, author_id),
             "canonical argus.inspect sees mounted target {author_id}"
@@ -254,6 +280,7 @@ impl CanonicalArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus click returns a receipt id");
+        bind_screenshot_to_matrix_receipt(receipt_id);
 
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
@@ -272,6 +299,7 @@ impl CanonicalArgusDriver {
         harness.run_steps(3);
 
         let after = self.inspect(harness);
+        let target_selected_after = live_author_id_selected(harness, author_id);
         let receipt = after["action_receipts"]
             .as_array()
             .and_then(|receipts| {
@@ -289,14 +317,18 @@ impl CanonicalArgusDriver {
             "Argus receipt is terminal and non-rejected: {receipt}"
         );
         self.action_targets
-            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned()));
-        ArgusObservation {
+            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned(), None));
+        let observation = ArgusObservation {
             before,
             after,
             receipt_id,
             receipt_status,
             agent_id,
-        }
+            target_selected_before,
+            target_selected_after,
+        };
+        self.observations.push(observation.clone());
+        observation
     }
 
     /// Click a target carrying a parameterized JSON payload (`argus.click { target, payload }` ->
@@ -310,6 +342,7 @@ impl CanonicalArgusDriver {
         payload: serde_json::Value,
     ) -> ArgusObservation {
         let before = self.inspect(harness);
+        let target_selected_before = live_author_id_selected(harness, author_id);
         assert!(
             json_has_author_id(&before, author_id),
             "canonical argus.inspect sees parameterized target {author_id}"
@@ -330,6 +363,7 @@ impl CanonicalArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus parameterized click returns a receipt id");
+        bind_screenshot_to_matrix_receipt(receipt_id);
 
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
@@ -348,6 +382,7 @@ impl CanonicalArgusDriver {
         harness.run_steps(3);
 
         let after = self.inspect(harness);
+        let target_selected_after = live_author_id_selected(harness, author_id);
         let receipt = after["action_receipts"]
             .as_array()
             .and_then(|receipts| {
@@ -365,14 +400,18 @@ impl CanonicalArgusDriver {
             "Argus parameterized receipt is terminal and non-rejected: {receipt}"
         );
         self.action_targets
-            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned()));
-        ArgusObservation {
+            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned(), None));
+        let observation = ArgusObservation {
             before,
             after,
             receipt_id,
             receipt_status,
             agent_id,
-        }
+            target_selected_before,
+            target_selected_after,
+        };
+        self.observations.push(observation.clone());
+        observation
     }
 
     pub fn set_value_and_reinspect(
@@ -382,6 +421,7 @@ impl CanonicalArgusDriver {
         value: &str,
     ) -> ArgusObservation {
         let before = self.inspect(harness);
+        let target_selected_before = live_author_id_selected(harness, author_id);
         assert!(
             json_has_author_id(&before, author_id),
             "canonical argus.inspect sees value target {author_id}"
@@ -402,6 +442,7 @@ impl CanonicalArgusDriver {
         let receipt_id = set_value["result"]["receipt_id"]
             .as_u64()
             .expect("Argus set-value returns a receipt id");
+        bind_screenshot_to_matrix_receipt(receipt_id);
 
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
@@ -420,6 +461,7 @@ impl CanonicalArgusDriver {
         harness.run_steps(3);
 
         let after = self.inspect(harness);
+        let target_selected_after = live_author_id_selected(harness, author_id);
         let receipt = after["action_receipts"]
             .as_array()
             .and_then(|receipts| {
@@ -436,21 +478,29 @@ impl CanonicalArgusDriver {
             matches!(receipt_status.as_str(), "applied" | "indeterminate"),
             "Argus set-value receipt is terminal and non-rejected: {receipt}"
         );
-        self.action_targets
-            .push((ARGUS_SET_VALUE_METHOD.to_owned(), author_id.to_owned()));
-        ArgusObservation {
+        self.action_targets.push((
+            ARGUS_SET_VALUE_METHOD.to_owned(),
+            author_id.to_owned(),
+            Some(value.to_owned()),
+        ));
+        let observation = ArgusObservation {
             before,
             after,
             receipt_id,
             receipt_status,
             agent_id,
-        }
+            target_selected_before,
+            target_selected_after,
+        };
+        self.observations.push(observation.clone());
+        observation
     }
 
     pub fn finish(mut self) {
         let entries = self.server.action_log().drain_log();
         assert_eq!(entries.len(), self.action_targets.len());
-        for (entry, (method, target)) in entries.iter().zip(&self.action_targets) {
+        assert_eq!(self.observations.len(), self.action_targets.len());
+        for (entry, (method, target, _)) in entries.iter().zip(&self.action_targets) {
             assert_eq!(&entry.op_name, method);
             assert_eq!(&entry.target_key, target);
             assert!(entry
@@ -458,10 +508,80 @@ impl CanonicalArgusDriver {
                 .ends_with(&format!(":client:{}", self.client_session_id)));
             assert_ne!(entry.node_id, 0);
         }
+        write_matrix_trace(
+            &self.client_session_id,
+            &self.action_targets,
+            &self.observations,
+        );
         assert_eq!(self.server.leases().active_resource_count(), 0);
         self.server.shutdown();
         drop(self.runtime);
     }
+}
+
+fn write_matrix_trace(
+    client_session_id: &str,
+    action_targets: &[(String, String, Option<String>)],
+    observations: &[ArgusObservation],
+) {
+    let Ok(run_id) = std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID") else {
+        return;
+    };
+    let scenario_id = required_matrix_env("HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID");
+    let surface = required_matrix_env("HANDSHAKE_ARGUS_MATRIX_SURFACE");
+    let edge_state_tag = required_matrix_env("HANDSHAKE_ARGUS_MATRIX_EDGE_STATE");
+    let source_sha = required_matrix_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA");
+    let process_correlation_id = required_matrix_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
+    let artifact_root = PathBuf::from(required_matrix_env("HANDSHAKE_PROOF_ARTIFACT_DIR"));
+    let run_dir = artifact_root.join(&run_id);
+    std::fs::create_dir_all(&run_dir).expect("create canonical Argus matrix run directory");
+    let trace_path = run_dir.join("canonical-argus-matrix.jsonl");
+
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&trace_path)
+        .unwrap_or_else(|error| {
+            panic!(
+                "open canonical Argus matrix trace {}: {error}",
+                trace_path.display()
+            )
+        });
+    for ((method, target, action_value), observation) in action_targets.iter().zip(observations) {
+        let row = serde_json::json!({
+            "schema_id": "hsk.native_gui.canonical_argus_matrix_trace@1",
+            "run_id": &run_id,
+            "scenario_id": &scenario_id,
+            "surface": &surface,
+            "edge_state_tag": &edge_state_tag,
+            "source_sha": &source_sha,
+            "process_correlation_id": &process_correlation_id,
+            "process_id": std::process::id(),
+            "client_session_id": client_session_id,
+            "method": method,
+            "target": target,
+            "action_value": action_value,
+            "target_selected_before": observation.target_selected_before,
+            "target_selected_after": observation.target_selected_after,
+            "receipt_id": observation.receipt_id,
+            "receipt_status": &observation.receipt_status,
+            "agent_id": &observation.agent_id,
+            "before": &observation.before,
+            "after": &observation.after,
+        });
+        writeln!(
+            file,
+            "{}",
+            serde_json::to_string(&row).expect("serialize canonical Argus matrix trace")
+        )
+        .expect("append canonical Argus matrix trace row");
+    }
+    file.sync_all()
+        .expect("flush canonical Argus matrix trace durably");
+}
+
+fn required_matrix_env(name: &str) -> String {
+    std::env::var(name).unwrap_or_else(|_| panic!("{name} is required for the MT-108 matrix run"))
 }
 
 fn sanitize(value: &str) -> String {

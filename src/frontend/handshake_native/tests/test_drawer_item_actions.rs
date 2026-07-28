@@ -321,9 +321,12 @@ struct CapturedReq {
     request_line: String,
 }
 
-fn capture_one(listener: std::net::TcpListener) -> CapturedReq {
+fn capture_one_connection(listener: &std::net::TcpListener) -> CapturedReq {
     use std::io::{Read, Write};
     let (mut stream, _) = listener.accept().expect("accept");
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+        .expect("bound capture read timeout");
     let mut buf = [0u8; 8192];
     let mut data = Vec::new();
     loop {
@@ -355,6 +358,20 @@ fn capture_one(listener: std::net::TcpListener) -> CapturedReq {
     let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}");
     let _ = stream.flush();
     CapturedReq { request_line }
+}
+
+fn capture_until(listener: std::net::TcpListener, expected_request_line: &str) -> CapturedReq {
+    // `set_backend_base_url_for_test` deliberately binds every mounted-shell client to one backend.
+    // A frame may therefore start an unrelated document/resolver read before the drawer action reaches
+    // the wire. Respond to those real requests and keep reading until the exact action under proof
+    // arrives; never mistake "first connection" for "action connection".
+    for _ in 0..16 {
+        let captured = capture_one_connection(&listener);
+        if captured.request_line == expected_request_line {
+            return captured;
+        }
+    }
+    panic!("expected request {expected_request_line:?} was not observed within 16 connections");
 }
 
 fn capture_server() -> (std::net::TcpListener, String) {
@@ -416,7 +433,12 @@ fn confirm_ok_fires_the_real_delete_on_the_wire() {
 
     // Capture the wire request on a background thread so the UI thread can keep pumping frames while the
     // off-thread tokio DELETE task connects (avoids a deadlock if accept() blocked the test thread).
-    let cap_handle = std::thread::spawn(move || capture_one(listener));
+    let cap_handle = std::thread::spawn(move || {
+        capture_until(
+            listener,
+            "DELETE /workspaces/ws-1/loom/blocks/blk-del HTTP/1.1",
+        )
+    });
 
     // Press OK: the SINGLE DELETE call site fires the real request. The menu is closed, so the only
     // "Discard"-labelled live node is the confirm window's OK button.
@@ -479,7 +501,11 @@ fn successful_action_clears_error_and_shows_success_state() {
 
     // The capture server replies 200 {}; the off-thread task delivers Ok into the cell. Pump frames so
     // the receipt drain runs and folds the success in.
-    let _cap = capture_one(listener);
+    let cap = capture_until(listener, "POST /workspaces/ws-1/loom/edges HTTP/1.1");
+    assert_eq!(
+        cap.request_line, "POST /workspaces/ws-1/loom/edges HTTP/1.1",
+        "the real Stow request reached the wire"
+    );
     for _ in 0..8 {
         harness.run();
     }

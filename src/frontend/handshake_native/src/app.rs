@@ -66,7 +66,7 @@ struct PreparedStageEmbed {
 /// Exact immutable EventLedger receipt retained after the rich document has already saved. Every
 /// failure replays this same event/event_id; none may re-run capture or insert another hsLink.
 struct PendingStageLedgerEmission {
-    in_flight_lease: Option<crate::stage_pane::StageEmbedInFlightLease>,
+    _in_flight_lease: Option<crate::stage_pane::StageEmbedInFlightLease>,
     emitter: crate::event_emitter::NativeEditorEventEmitter,
     receipt: crate::event_emitter::NativeEditorEvent,
     artifact_id: String,
@@ -311,6 +311,9 @@ struct CodeRefNavigationOperation {
     explicit_byte_offset: Option<usize>,
     preserve_origin: bool,
     workspace_id: String,
+    /// Exact rich pane/document that emitted the clicked chip. Navigation focuses Code before the
+    /// async resolve returns, so completion must never derive its mutation target from active focus.
+    origin_rich_view: Option<(String, Option<String>)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -479,6 +482,7 @@ mod code_ref_nav_delivery_tests {
                 explicit_byte_offset: None,
                 preserve_origin: false,
                 workspace_id: "workspace".to_owned(),
+                origin_rich_view: None,
             },
             resolved: Err(crate::interop::cross_ref::CrossRefError::Backend(format!(
                 "delivery-{generation}"
@@ -879,7 +883,7 @@ mod mt033_canvas_completion_identity_tests {
         assert!(!canvas_identity_matches(Some(&b), &a.0, &a.1));
         errors.insert(a.clone(), "A placement failed".to_owned());
         assert!(
-            errors.get(&b).is_none(),
+            !errors.contains_key(&b),
             "canvas B receives no canvas A error"
         );
         assert!(canvas_identity_matches(Some(&a), &a.0, &a.1));
@@ -899,7 +903,7 @@ mod mt033_canvas_completion_identity_tests {
         ]);
         assert!(!canvas_identity_matches(Some(&b), &a.0, &a.1));
         errors.remove(&a);
-        assert!(errors.get(&a).is_none());
+        assert!(!errors.contains_key(&a));
         assert_eq!(
             errors.get(&b).map(String::as_str),
             Some("existing B failure")
@@ -1230,10 +1234,7 @@ mod replace_file_failure_tests {
         ) -> std::io::Result<()> {
             if self.restore_moves_before_error {
                 std::fs::rename(source, target)?;
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "injected post-move restore failure",
-                ));
+                return Err(std::io::Error::other("injected post-move restore failure"));
             }
             if self.restore_fails {
                 return Err(std::io::Error::new(
@@ -1556,6 +1557,8 @@ fn sync_recovered_code_save_pair(
 }
 
 #[cfg(windows)]
+// The recovery helper keeps the complete ReplaceFile failure context and all three snapshots explicit.
+#[allow(clippy::too_many_arguments)]
 fn reconcile_partial_code_save<A: Win32CodeSaveApi>(
     api: &mut A,
     temp_path: &std::path::Path,
@@ -1608,8 +1611,7 @@ fn reconcile_partial_code_save<A: Win32CodeSaveApi>(
                 ));
             }
             Ok(()) => {
-                let state_error = std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                let state_error = std::io::Error::other(
                     "restore move completed without restoring the original bytes",
                 );
                 let _ = sync_code_save_snapshot(temp_path);
@@ -1689,44 +1691,44 @@ fn replace_code_save_temp_with_api<A: Win32CodeSaveApi>(
     expected: &[u8],
     original: Option<&[u8]>,
 ) -> std::io::Result<()> {
-    if original.is_some()
-        && CODE_SAVE_REPLACEFILE_AVAILABLE.load(std::sync::atomic::Ordering::Relaxed)
-    {
-        match api.replace(path, temp_path, backup_path) {
-            Ok(()) => {
-                sync_code_save_snapshot(path)?;
-                let _ = std::fs::remove_file(temp_path);
-                let _ = std::fs::remove_file(backup_path);
-                return Ok(());
-            }
-            Err(replace_error) => {
-                if code_save_bytes_match(path, expected) {
+    if let Some(original) = original {
+        if CODE_SAVE_REPLACEFILE_AVAILABLE.load(std::sync::atomic::Ordering::Relaxed) {
+            match api.replace(path, temp_path, backup_path) {
+                Ok(()) => {
                     sync_code_save_snapshot(path)?;
                     let _ = std::fs::remove_file(temp_path);
                     let _ = std::fs::remove_file(backup_path);
                     return Ok(());
                 }
-                match classify_replace_file_failure(replace_error.raw_os_error()) {
-                    ReplaceFileFailureClass::Unsupported => {
-                        CODE_SAVE_REPLACEFILE_AVAILABLE
-                            .store(false, std::sync::atomic::Ordering::Relaxed);
+                Err(replace_error) => {
+                    if code_save_bytes_match(path, expected) {
+                        sync_code_save_snapshot(path)?;
+                        let _ = std::fs::remove_file(temp_path);
+                        let _ = std::fs::remove_file(backup_path);
+                        return Ok(());
                     }
-                    ReplaceFileFailureClass::RetryableSharing => {}
-                    partial @ (ReplaceFileFailureClass::UnableToRemoveReplaced
-                    | ReplaceFileFailureClass::UnableToMoveReplacement
-                    | ReplaceFileFailureClass::UnableToMoveReplacementTwo) => {
-                        return reconcile_partial_code_save(
-                            api,
-                            temp_path,
-                            path,
-                            backup_path,
-                            expected,
-                            original.expect("existing target has an original snapshot"),
-                            &replace_error,
-                            partial,
-                        );
+                    match classify_replace_file_failure(replace_error.raw_os_error()) {
+                        ReplaceFileFailureClass::Unsupported => {
+                            CODE_SAVE_REPLACEFILE_AVAILABLE
+                                .store(false, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        ReplaceFileFailureClass::RetryableSharing => {}
+                        partial @ (ReplaceFileFailureClass::UnableToRemoveReplaced
+                        | ReplaceFileFailureClass::UnableToMoveReplacement
+                        | ReplaceFileFailureClass::UnableToMoveReplacementTwo) => {
+                            return reconcile_partial_code_save(
+                                api,
+                                temp_path,
+                                path,
+                                backup_path,
+                                expected,
+                                original,
+                                &replace_error,
+                                partial,
+                            );
+                        }
+                        ReplaceFileFailureClass::Fatal => return Err(replace_error),
                     }
-                    ReplaceFileFailureClass::Fatal => return Err(replace_error),
                 }
             }
         }
@@ -1836,6 +1838,9 @@ fn atomic_save_code_document(path: &std::path::Path, text: &str) -> Result<(), S
             })?;
             let mut writable = std::fs::metadata(&temp_path)?.permissions();
             if writable.readonly() {
+                // This function is Windows-only; clearing READONLY restores the writable clone without
+                // the Unix world-writable behavior guarded by this cross-platform Clippy lint.
+                #[allow(clippy::permissions_set_readonly_false)]
                 writable.set_readonly(false);
                 std::fs::set_permissions(&temp_path, writable).map_err(|error| {
                     std::io::Error::new(
@@ -3311,7 +3316,7 @@ struct EditorMountHandles {
     /// the mounted code panel + rich state at mount build (previously `install_editor_action_registry`
     /// had zero production callers, so the canonical `editor.code.*`/`editor.rich.*` action nodes existed
     /// only in kittests).
-    editor_action_registry:
+    _editor_action_registry:
         Arc<Mutex<crate::accessibility::editor_action_registry::EditorActionRegistry>>,
 }
 
@@ -3393,6 +3398,7 @@ struct SecondaryMountHandles {
     /// Exact row snapshots retained until the matching mutation receipt arrives. A failed mutation is
     /// restored immediately, before any authoritative re-fetch, so a simultaneous backend outage cannot
     /// leave the optimistic disappearance looking successful.
+    #[allow(clippy::type_complexity)]
     sidebar_action_rollback: Mutex<
         HashMap<
             (crate::graph::sidebar_panel::SectionKind, String),
@@ -3431,7 +3437,7 @@ struct SecondaryMountHandles {
         >,
     >,
     wiki_requests: Arc<Mutex<Vec<crate::editor_pane_factories::WikiPaneRequest>>>,
-    wiki_pane_generation: Arc<std::sync::atomic::AtomicU64>,
+    _wiki_pane_generation: Arc<std::sync::atomic::AtomicU64>,
     wiki_cell: crate::backend_client::WikiProjectionDeliveryCell,
     wiki_save_cell: crate::backend_client::WikiSaveDeliveryCell,
     #[cfg(any(test, feature = "integration"))]
@@ -3462,6 +3468,7 @@ struct SecondaryMountHandles {
     /// In-flight create/rename/move/delete requests: operation label + mutation target + delivery.
     folder_write_cells: Arc<Mutex<Vec<(String, String, crate::backend_client::FolderWriteCell)>>>,
     /// Latest write sequence per (workspace, mutation class, mutation target).
+    #[allow(clippy::type_complexity)]
     folder_write_latest_seq: Arc<Mutex<std::collections::HashMap<(String, String, String), u64>>>,
     #[cfg(any(test, feature = "integration"))]
     folder_backend_base_url: Arc<Mutex<Option<String>>>,
@@ -3481,7 +3488,7 @@ struct SecondaryMountHandles {
 
     /// MT-042: the ONE shared knowledge AccessKit action registry installed on every mounted knowledge
     /// pane (canvas / graph / block collections).
-    knowledge_registry:
+    _knowledge_registry:
         Arc<Mutex<crate::accessibility::knowledge_action_registry::KnowledgeActionRegistry>>,
 }
 
@@ -3649,7 +3656,7 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
         command_rx,
         rich_events,
         secondary,
-        editor_action_registry,
+        _editor_action_registry: editor_action_registry,
     }
 }
 
@@ -4007,7 +4014,7 @@ fn install_secondary_mounts(
         outline_panel,
         wiki_bound,
         wiki_requests,
-        wiki_pane_generation,
+        _wiki_pane_generation: wiki_pane_generation,
         wiki_cell: Arc::new(Mutex::new(VecDeque::new())),
         wiki_save_cell: Arc::new(Mutex::new(VecDeque::new())),
         #[cfg(any(test, feature = "integration"))]
@@ -4034,7 +4041,7 @@ fn install_secondary_mounts(
         fr_fetch_started: std::sync::atomic::AtomicBool::new(false),
         fr_delivered: std::sync::atomic::AtomicBool::new(false),
         journal_slot,
-        knowledge_registry,
+        _knowledge_registry: knowledge_registry,
     }
 }
 
@@ -4345,9 +4352,9 @@ impl HandshakeApp {
             ));
         // MT-072 (FAIL_V2): the REAL canonical PreferenceRecord transport (§10.17), same bridge pattern.
         let preference_transport: Option<Arc<dyn crate::preference_client::PreferenceTransport>> =
-            Some(Arc::new(crate::preference_client::PreferenceClient::production(
-                rt_handle.clone(),
-            )));
+            Some(Arc::new(
+                crate::preference_client::PreferenceClient::production(rt_handle.clone()),
+            ));
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
@@ -7980,10 +7987,11 @@ impl HandshakeApp {
                     crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
                     runtime.clone(),
                 );
-                state.set_wikilink_context(
+                state.set_wikilink_context_with_base_url(
                     self.active_project_id.clone(),
                     document_id.clone(),
                     runtime,
+                    self.rich_doc_base_url.clone(),
                 );
             }
             let canonical = self
@@ -8102,10 +8110,11 @@ impl HandshakeApp {
             crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
             runtime.clone(),
         );
-        state.set_wikilink_context(
+        state.set_wikilink_context_with_base_url(
             self.active_project_id.clone(),
             document_id.clone(),
             runtime.clone(),
+            self.rich_doc_base_url.clone(),
         );
         drop(state);
         for view_state in self
@@ -8132,10 +8141,11 @@ impl HandshakeApp {
                 crate::rich_editor::properties::metadata_client::DocMetadata::from(&doc),
                 runtime.clone(),
             );
-            view.set_wikilink_context(
+            view.set_wikilink_context_with_base_url(
                 self.active_project_id.clone(),
                 document_id.clone(),
                 runtime.clone(),
+                self.rich_doc_base_url.clone(),
             );
         }
         // WP-KERNEL-012 MT-062 REMEDIATION: the outgoing-links RESOLVER-INDEX FEED, driven from the
@@ -8240,7 +8250,7 @@ impl HandshakeApp {
             .iter()
             .find_map(|((_, loaded_document_id), load)| {
                 (loaded_document_id == document_id)
-                    .then(|| load.failure.as_ref())
+                    .then_some(load.failure.as_ref())
                     .flatten()
             })
             .map(|failure| failure.message.clone())
@@ -8461,7 +8471,7 @@ impl HandshakeApp {
                     std::sync::Arc::new(crate::code_editor::lsp_client::LspClient::new(config));
                 self.editor_mounts
                     .code_documents
-                    .install_lsp_client_for_language(&language_id, client);
+                    .install_lsp_client_for_language(language_id, client);
                 // A fresh client means any previous doc-sync watermark is stale.
                 tracing::info!("MT-008 LSP attach: discovered '{command}' for '{language_id}'");
                 LspAttachState::Configured {
@@ -11128,6 +11138,15 @@ impl HandshakeApp {
         // silently point-get that same id from the production default instead.
         self.install_mounted_code_nav_client_for_test(CodeNavClient::new(base_url));
         self.rich_doc_base_url = base_url.to_owned();
+        if let Ok(mut session) = self.editor_mounts.session.lock() {
+            session.backend_base_url = base_url.to_owned();
+        }
+        for rich_state in self.editor_mounts.rich_documents.states() {
+            rich_state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .rebind_wikilink_backend_for_test(base_url);
+        }
         if let Ok(mut slot) = self.rich_doc_load_cell.lock() {
             slot.clear();
         }
@@ -12447,9 +12466,10 @@ impl HandshakeApp {
         if self.preference_write_queue.is_empty() {
             return;
         }
-        let (Some(transport), Some(handle)) =
-            (self.preference_transport.clone(), self.runtime_handle.clone())
-        else {
+        let (Some(transport), Some(handle)) = (
+            self.preference_transport.clone(),
+            self.runtime_handle.clone(),
+        ) else {
             // Headless / no-runtime shell (no injected transport): preference writes cannot be
             // delivered. Drop them rather than accumulating a queue that would spin `request_repaint`
             // forever (an idle-wait `run()` would then never settle).
@@ -12474,7 +12494,8 @@ impl HandshakeApp {
         let cell = self.preference_io_cell.clone();
         let in_flight = self.preference_io_in_flight.clone();
         handle.spawn_blocking(move || {
-            let delivery = crate::preference_client::run_preference_write(transport.as_ref(), &write);
+            let delivery =
+                crate::preference_client::run_preference_write(transport.as_ref(), &write);
             let mut slot = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             *slot = Some(delivery);
             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
@@ -12485,7 +12506,9 @@ impl HandshakeApp {
     /// editors, or surface a set/reset validation / unavailable error on the dialog status row. Then keep
     /// flushing the queue.
     fn drain_preference_delivery(&mut self) {
-        use crate::preference_client::{PreferenceDeliveryOutcome as Out, PreferenceTransportError};
+        use crate::preference_client::{
+            PreferenceDeliveryOutcome as Out, PreferenceTransportError,
+        };
         let delivery = {
             let Ok(mut cell) = self.preference_io_cell.try_lock() else {
                 return;
@@ -12497,11 +12520,15 @@ impl HandshakeApp {
                 Out::Hydrate(Ok(rows)) => {
                     // Only apply to the workspace still bound (the binding may have changed mid-flight).
                     if delivery.workspace_id == self.active_project_id {
-                        crate::preference_client::apply_projection(&rows, &mut self.workspace_settings);
+                        crate::preference_client::apply_projection(
+                            &rows,
+                            &mut self.workspace_settings,
+                        );
                         // Push the hydrated values into the live mounted editors this frame.
                         self.sync_editor_prefs_to_panel();
                         for panel in self.editor_mounts.code_documents.panels() {
-                            panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
+                            panel
+                                .set_syntax_palette(self.workspace_settings.syntax_palette.clone());
                         }
                         self.sync_editor_keymap_to_panel();
                     }
@@ -12990,15 +13017,13 @@ impl HandshakeApp {
                 // WIRE-INTO-LIVE (AC-005 live side): rebind both mounted editor keymaps so code and
                 // rich-editor chord overrides take effect immediately, not only in the Settings table.
                 self.sync_editor_keymap_to_panel();
-                self.enqueue_preference_write(
-                    crate::preference_client::PreferenceWriteKind::Set {
-                        preference_id: crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES
-                            .to_owned(),
-                        value: crate::preference_client::keybinding_overrides_value(
-                            &self.workspace_settings,
-                        ),
-                    },
-                );
+                self.enqueue_preference_write(crate::preference_client::PreferenceWriteKind::Set {
+                    preference_id: crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES
+                        .to_owned(),
+                    value: crate::preference_client::keybinding_overrides_value(
+                        &self.workspace_settings,
+                    ),
+                });
                 true
             }
             O::EditorKeybindingReset { action_id } => {
@@ -13007,8 +13032,9 @@ impl HandshakeApp {
                     self.sync_editor_keymap_to_panel();
                     self.enqueue_preference_write(
                         crate::preference_client::PreferenceWriteKind::Set {
-                            preference_id: crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES
-                                .to_owned(),
+                            preference_id:
+                                crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES
+                                    .to_owned(),
                             value: crate::preference_client::keybinding_overrides_value(
                                 &self.workspace_settings,
                             ),
@@ -16076,6 +16102,8 @@ impl HandshakeApp {
     /// A snapshot-capture pass must NOT consume these channels (the real frame owns the drain), so all
     /// are skipped while `capturing_snapshot`. All bus access is via `with_try_lock` so it never blocks
     /// the egui frame thread (HBR-QUIET).
+    // The load boundary carries independent origin, target, generation, runtime, and repaint authority.
+    #[allow(clippy::too_many_arguments)]
     fn begin_code_document_load(
         &mut self,
         origin_content_id: String,
@@ -16822,9 +16850,10 @@ impl HandshakeApp {
 
         // ── 2. Rich pane event queue (Wikilink / Backlink / Tag activated) ──────────────────────────
         let events = self.editor_mounts.rich_events.take();
-        for event in events {
+        for routed_event in events {
+            let origin_rich_view = (routed_event.pane_id, routed_event.document_id);
             use crate::rich_editor::wikilinks::inline_view::EditorEvent;
-            match event {
+            match routed_event.event {
                 EditorEvent::CodeBlockOpenRequested {
                     document_id,
                     document_snapshot,
@@ -16920,16 +16949,15 @@ impl HandshakeApp {
                             })
                             .flatten();
                             match staged {
-                                Some(symbol_entity_id) => {
-                                    crate::quick_switcher::ShellNavigator::open_code_symbol(
-                                        self,
-                                        &symbol_entity_id,
-                                    )
-                                }
+                                Some(symbol_entity_id) => self.open_code_symbol_from_rich_view(
+                                    &symbol_entity_id,
+                                    origin_rich_view.clone(),
+                                ),
                                 // Bus contended this frame: the dispatch did not stage; fall back to
                                 // routing the raw ref directly so the click is never dropped.
-                                None => crate::quick_switcher::ShellNavigator::open_code_symbol(
-                                    self, &ref_value,
+                                None => self.open_code_symbol_from_rich_view(
+                                    &ref_value,
+                                    origin_rich_view.clone(),
                                 ),
                             }
                         }
@@ -17144,10 +17172,11 @@ impl HandshakeApp {
                         .state_for_view(Some(&document_id), pane_id.as_ref());
                     let mut destination = destination.lock().unwrap_or_else(|e| e.into_inner());
                     if let Some(runtime) = self.runtime_handle.clone() {
-                        destination.set_wikilink_context(
+                        destination.set_wikilink_context_with_base_url(
                             self.active_project_id.clone(),
                             document_id.clone(),
                             runtime,
+                            self.rich_doc_base_url.clone(),
                         );
                     }
                     destination.wikilinks.resolver_index = resolver_index;
@@ -17204,6 +17233,7 @@ impl HandshakeApp {
     /// 4. **Relevant-memory nav** (AC-080-5 / MT-063). A "Go to source" click routes to the nav bus; the
     ///    FEMS read route is ABSENT, so the panel shows the `EndpointMissing` empty-state (surfaced once).
     /// 5. **Daily-journal date** (AC-080-5 / MT-067). A `DateNavigated` maps to `open_or_create_daily_note`.
+    ///
     /// Snapshot the retained target before off-thread Stage IO. The prepared result returns to the UI
     /// queue, where epoch + canonical live target are revalidated immediately before final mutation.
     fn stage_embed_back_inputs(&self) -> Option<crate::stage_pane::EmbedTarget> {
@@ -17554,7 +17584,7 @@ impl HandshakeApp {
                         .clone()
                         .or_else(|| self.runtime_handle.clone());
                     let ledger_pending = PendingStageLedgerEmission {
-                        in_flight_lease: pending.in_flight_lease,
+                        _in_flight_lease: pending.in_flight_lease,
                         emitter: pending.emitter,
                         receipt: pending.receipt,
                         artifact_id: pending.artifact_id,
@@ -18817,17 +18847,15 @@ impl HandshakeApp {
                     favorites_sequence,
                     Arc::clone(&sec.sidebar_favorites_cell),
                 );
-            } else {
-                if let Ok(mut panel) = sec.sidebar_panel.lock() {
-                    panel.set_error(
-                        SectionKind::Pins,
-                        "Runtime unavailable; cannot load pins. Retry when the backend runtime is available.",
-                    );
-                    panel.set_error(
-                        SectionKind::Favorites,
-                        "Runtime unavailable; cannot load favorites. Retry when the backend runtime is available.",
-                    );
-                }
+            } else if let Ok(mut panel) = sec.sidebar_panel.lock() {
+                panel.set_error(
+                    SectionKind::Pins,
+                    "Runtime unavailable; cannot load pins. Retry when the backend runtime is available.",
+                );
+                panel.set_error(
+                    SectionKind::Favorites,
+                    "Runtime unavailable; cannot load favorites. Retry when the backend runtime is available.",
+                );
             }
         }
 
@@ -21841,7 +21869,8 @@ impl HandshakeApp {
             // Production must validate the exact source against current mounted tab state. The pure
             // builder is intentionally insufficient here because a queued menu event can outlive a
             // closed Canvas tab.
-            let routed = crate::interop::build_from_canvas_node_live(&node, &[pane_id.clone()]);
+            let routed =
+                crate::interop::build_from_canvas_node_live(&node, std::slice::from_ref(&pane_id));
             match routed {
                 Ok(payload) => {
                     let retained_route = crate::interop::PendingStageRoute::new(
@@ -22293,18 +22322,17 @@ impl HandshakeApp {
         );
         if self.any_tab_of_type(&graph_type)
             && self.graph_fetched_ws.as_deref() != Some(workspace.as_str())
+            && self.runtime_handle.is_some()
         {
-            if self.runtime_handle.is_some() {
-                let depth = self
-                    .editor_mounts
-                    .secondary
-                    .graph_view
-                    .lock()
-                    .map(|view| view.controls.link_depth)
-                    .unwrap_or(crate::backend_client::DEFAULT_BACKLINK_DEPTH);
-                if self.dispatch_graph_fetch(workspace.clone(), GraphMode::Global, depth, ctx) {
-                    self.graph_fetched_ws = Some(workspace.clone());
-                }
+            let depth = self
+                .editor_mounts
+                .secondary
+                .graph_view
+                .lock()
+                .map(|view| view.controls.link_depth)
+                .unwrap_or(crate::backend_client::DEFAULT_BACKLINK_DEPTH);
+            if self.dispatch_graph_fetch(workspace.clone(), GraphMode::Global, depth, ctx) {
+                self.graph_fetched_ws = Some(workspace.clone());
             }
         }
 
@@ -22370,25 +22398,23 @@ impl HandshakeApp {
                 }
             }
             self.graph_op_cells = unresolved;
-            if resolved_any {
-                if self.runtime_handle.is_some() {
-                    let refetch = self
-                        .editor_mounts
-                        .secondary
-                        .graph_view
-                        .lock()
-                        .ok()
-                        .map(|v| {
-                            (
-                                v.workspace_id.clone(),
-                                v.mode.clone(),
-                                v.controls.link_depth,
-                            )
-                        });
-                    if let Some((ws, mode, depth)) = refetch {
-                        if !ws.is_empty() {
-                            self.dispatch_graph_fetch(ws, mode, depth, ctx);
-                        }
+            if resolved_any && self.runtime_handle.is_some() {
+                let refetch = self
+                    .editor_mounts
+                    .secondary
+                    .graph_view
+                    .lock()
+                    .ok()
+                    .map(|v| {
+                        (
+                            v.workspace_id.clone(),
+                            v.mode.clone(),
+                            v.controls.link_depth,
+                        )
+                    });
+                if let Some((ws, mode, depth)) = refetch {
+                    if !ws.is_empty() {
+                        self.dispatch_graph_fetch(ws, mode, depth, ctx);
                     }
                 }
             }
@@ -22454,7 +22480,7 @@ impl HandshakeApp {
         let delivered = deliveries
             .into_iter()
             .filter(|delivery| self.canvas_expected_request.as_ref() == Some(&delivery.request))
-            .last();
+            .next_back();
         if let Some(crate::backend_client::CanvasBoardDelivery { request, result }) = delivered {
             let mut resolve_after_board = None;
             let request_key = (
@@ -22658,11 +22684,30 @@ impl HandshakeApp {
                         .map(|b| (b.workspace_id.clone(), b.canvas_block_id.clone()));
                     if let Some((ws, canvas_block_id)) = board_key {
                         if !ws.is_empty() {
+                            let request_key = (ws.clone(), canvas_block_id.clone());
+                            let remembered_error = self
+                                .canvas_board_errors
+                                .get(&request_key)
+                                .cloned()
+                                .or_else(|| {
+                                    self.canvas_compensation_errors.get(&request_key).cloned()
+                                });
                             let client = crate::backend_client::CanvasBoardClient::new(
                                 &self.rich_doc_base_url,
                                 rt,
                             );
                             self.queue_canvas_board_fetch(&client, &ws, &canvas_block_id, ctx);
+                            if let Some(error) = remembered_error {
+                                if let Ok(mut board) =
+                                    self.editor_mounts.secondary.canvas_board.lock()
+                                {
+                                    if board.workspace_id == ws
+                                        && board.canvas_block_id == canvas_block_id
+                                    {
+                                        board.error = Some(error);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -22729,6 +22774,7 @@ impl HandshakeApp {
         source_panel: Arc<CodeEditorPanel>,
         explicit_byte_offset: Option<usize>,
         preserve_origin: bool,
+        origin_rich_view: Option<(String, Option<String>)>,
     ) {
         let navigation_scope =
             CodeNavigationScope::new(origin_pane.clone(), origin_content_id.clone());
@@ -22779,6 +22825,7 @@ impl HandshakeApp {
             explicit_byte_offset,
             preserve_origin,
             workspace_id: workspace_id.clone(),
+            origin_rich_view,
         };
         let wake_ctx = self.frame_ctx.clone();
         runtime.spawn(async move {
@@ -22798,6 +22845,30 @@ impl HandshakeApp {
                 ctx.request_repaint();
             }
         });
+    }
+
+    fn open_code_symbol_from_rich_view(
+        &mut self,
+        symbol_entity_id: &str,
+        origin_rich_view: (String, Option<String>),
+    ) -> crate::quick_switcher::NavDispatchOutcome {
+        match self.focus_code_navigation_surface() {
+            Some(surface) => {
+                let origin_pane = self.active_pane.clone();
+                let (origin_content_id, source_panel) = self.active_code_panel_and_content_id();
+                self.start_code_ref_navigation(
+                    symbol_entity_id,
+                    origin_pane,
+                    origin_content_id,
+                    source_panel,
+                    None,
+                    false,
+                    Some(origin_rich_view),
+                );
+                crate::quick_switcher::NavDispatchOutcome::Opened { surface }
+            }
+            None => crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+        }
     }
 
     fn invalidate_code_document_loads_for_code_ref_dispatch(
@@ -22842,9 +22913,14 @@ impl HandshakeApp {
         self.code_ref_nav_pending.remove(&navigation_scope);
         match resolved {
             Ok(code_ref) => {
-                let rich_state = self.active_rich_state();
-                if let Ok(mut rich) = rich_state.lock() {
-                    rich.set_code_ref_resolved(&symbol_entity_id, true);
+                if let Some((pane_id, document_id)) = operation.origin_rich_view.as_ref() {
+                    let rich_state = self
+                        .editor_mounts
+                        .rich_documents
+                        .state_for_view(document_id.as_deref(), pane_id);
+                    if let Ok(mut rich) = rich_state.lock() {
+                        rich.set_code_ref_resolved(&symbol_entity_id, true);
+                    };
                 }
                 if code_ref.file_path.trim().is_empty() {
                     self.quick_switcher_nav_status = Some(format!(
@@ -22865,13 +22941,13 @@ impl HandshakeApp {
                         && (source_identity == target_identity
                             || source_identity.ends_with(&format!("/{target_identity}")))
                     {
-                        if !origin_content_id.is_empty() {
-                            if !operation.workspace_id.trim().is_empty() {
-                                self.code_document_source_ids.insert(
-                                    (operation.workspace_id.clone(), origin_content_id),
-                                    code_ref.source_id.clone(),
-                                );
-                            }
+                        if !origin_content_id.is_empty()
+                            && !operation.workspace_id.trim().is_empty()
+                        {
+                            self.code_document_source_ids.insert(
+                                (operation.workspace_id.clone(), origin_content_id),
+                                code_ref.source_id.clone(),
+                            );
                         }
                         navigate_code_panel_to_target(
                             &source_panel,
@@ -22927,10 +23003,15 @@ impl HandshakeApp {
             }
             Err(error) => {
                 if error.is_unresolved() {
-                    let rich_state = self.active_rich_state();
-                    if let Ok(mut rich) = rich_state.lock() {
-                        rich.set_code_ref_resolved(&symbol_entity_id, false);
-                    };
+                    if let Some((pane_id, document_id)) = operation.origin_rich_view.as_ref() {
+                        let rich_state = self
+                            .editor_mounts
+                            .rich_documents
+                            .state_for_view(document_id.as_deref(), pane_id);
+                        if let Ok(mut rich) = rich_state.lock() {
+                            rich.set_code_ref_resolved(&symbol_entity_id, false);
+                        };
+                    }
                 }
                 tracing::warn!(symbol_entity_id, %error, "open-code-symbol resolve failed");
                 self.quick_switcher_nav_status = Some(format!(
@@ -25305,7 +25386,11 @@ impl HandshakeApp {
             if !self.capturing_snapshot {
                 if let (Some(ws), Some(rt)) = (workspace_id, self.runtime_handle.clone()) {
                     if let Ok(mut sess) = self.editor_mounts.session.lock() {
-                        *sess = EditorSessionContext::new(ws.clone(), rt.clone());
+                        *sess = EditorSessionContext::with_backend(
+                            ws.clone(),
+                            rt.clone(),
+                            self.rich_doc_base_url.clone(),
+                        );
                     }
                     // WP-KERNEL-012 MT-036 REMEDIATION: install the ONE native-editor event emitter on
                     // the shared InteractionBus at shell startup (the first frame with a bound workspace
@@ -25323,15 +25408,20 @@ impl HandshakeApp {
                     // workspace (the old emitter would otherwise attribute every native-editor event to
                     // the stale workspace forever).
                     // The app currently stores only the last launch request, not a live-session lease.
-                    // Do not misattribute later human edits to that stale historical id.
-                    let emitter_binding = format!("{}|human", ws);
+                    // Bind the shared emitter to the same durable host participant used by mounted rich
+                    // saves. Otherwise one operator action stream splits across a UUID-backed save actor
+                    // and the legacy fallback actor for canvas/undo events.
+                    let emitter_binding =
+                        format!("{}|{}", ws, self.native_editor_participant_actor_id);
                     if self.event_emitter_bound_ws.as_deref() != Some(emitter_binding.as_str()) {
-                        let emitter = crate::event_emitter::NativeEditorEventEmitter::production_with_error_ring(
-                            ws.clone(),
-                            self.rich_doc_base_url.clone(),
-                            rt.clone(),
-                            self.native_editor_error_ring.clone(),
-                        );
+                        let mut emitter =
+                            crate::event_emitter::NativeEditorEventEmitter::production_with_error_ring(
+                                ws.clone(),
+                                self.rich_doc_base_url.clone(),
+                                rt.clone(),
+                                self.native_editor_error_ring.clone(),
+                            );
+                        emitter.set_actor_id(self.native_editor_participant_actor_id.clone());
                         let ring = emitter.error_ring().clone();
                         crate::event_emitter::install_frame_error_ring(ctx, ring.clone());
                         let bus = crate::interop::InteractionBus::get_or_init(ctx);
@@ -26655,7 +26745,7 @@ mod mt035_popout_undo_tests {
         );
         let expected_event_id = receipt.event_id.clone();
         let pending = PendingStageLedgerEmission {
-            in_flight_lease: None,
+            _in_flight_lease: None,
             emitter: crate::event_emitter::NativeEditorEventEmitter::new(
                 "workspace-1",
                 transport,
@@ -26740,7 +26830,7 @@ mod mt035_popout_undo_tests {
             .unwrap()
             .push(StageEmbedUiCompletion::Ledger {
                 pending: PendingStageLedgerEmission {
-                    in_flight_lease: None,
+                    _in_flight_lease: None,
                     emitter: crate::event_emitter::NativeEditorEventEmitter::new(
                         "workspace-stale",
                         Arc::new(UnusedTransport),
@@ -26831,7 +26921,7 @@ mod mt035_popout_undo_tests {
                 .unwrap()
                 .push(StageEmbedUiCompletion::Ledger {
                     pending: PendingStageLedgerEmission {
-                        in_flight_lease: None,
+                        _in_flight_lease: None,
                         emitter: crate::event_emitter::NativeEditorEventEmitter::new(
                             "workspace-1",
                             Arc::new(UnusedTransport),
@@ -26901,7 +26991,7 @@ mod mt035_popout_undo_tests {
         );
         let expected_event_id = receipt.event_id.clone();
         app.stage_embed_ledger_retry = Some(PendingStageLedgerEmission {
-            in_flight_lease: None,
+            _in_flight_lease: None,
             emitter: crate::event_emitter::NativeEditorEventEmitter::new(
                 "workspace-1",
                 Arc::new(UnusedTransport),
@@ -27029,7 +27119,7 @@ mod mt035_popout_undo_tests {
         );
         let event_id = receipt.event_id.clone();
         let mut pending = PendingStageLedgerEmission {
-            in_flight_lease: None,
+            _in_flight_lease: None,
             emitter: stale,
             receipt,
             artifact_id: "artifact-1".to_owned(),
@@ -27266,6 +27356,20 @@ mod mt035_popout_undo_tests {
         let expected_event_id = receipt.event_id.clone();
         let stage = Arc::new(Mutex::new(StagePane::new()));
         let queue: StageEmbedUiQueue = Arc::new(Mutex::new(Vec::new()));
+        let take_completion = |label: &str| {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            loop {
+                if let Some(completion) = queue.lock().unwrap().pop() {
+                    break completion;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "{label} within two seconds"
+                );
+                runtime.block_on(tokio::task::yield_now());
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        };
 
         assert!(dispatch_or_retain_stage_route_receipt(
             &ctx,
@@ -27275,14 +27379,7 @@ mod mt035_popout_undo_tests {
             receipt,
         ));
         assert!(stage.lock().unwrap().has_pending_route_receipt());
-        runtime.block_on(async {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        });
-        let first = queue
-            .lock()
-            .unwrap()
-            .pop()
-            .expect("failed persistence returns to UI authority");
+        let first = take_completion("failed persistence returns to UI authority");
         let StageEmbedUiCompletion::RouteLedger {
             receipt,
             emitter,
@@ -27309,15 +27406,7 @@ mod mt035_popout_undo_tests {
             Some(runtime.handle().clone()),
             retained,
         ));
-        runtime.block_on(async {
-            tokio::task::yield_now().await;
-            tokio::task::yield_now().await;
-        });
-        let second = queue
-            .lock()
-            .unwrap()
-            .pop()
-            .expect("successful persistence returns to UI authority");
+        let second = take_completion("successful persistence returns to UI authority");
         let StageEmbedUiCompletion::RouteLedger {
             receipt,
             emitter,
@@ -27476,10 +27565,12 @@ mod mt035_popout_undo_tests {
 
     #[test]
     fn raw_input_operator_priority_covers_ime_accesskit_and_drag_frames() {
-        let mut raw_input = egui::RawInput::default();
-        raw_input.events = vec![egui::Event::Ime(egui::ImeEvent::Commit(
-            "operator text".to_owned(),
-        ))];
+        let mut raw_input = egui::RawInput {
+            events: vec![egui::Event::Ime(egui::ImeEvent::Commit(
+                "operator text".to_owned(),
+            ))],
+            ..Default::default()
+        };
         assert!(raw_input_contains_operator_mutation(&raw_input));
 
         raw_input.events = vec![egui::Event::AccessKitActionRequest(
@@ -27675,7 +27766,7 @@ mod mt035_popout_undo_tests {
         for _ in 0..100 {
             harness.run_steps(1);
             if harness.root().children_recursive().any(|node| {
-                node.accesskit_node().author_id().as_deref()
+                node.accesskit_node().author_id()
                     == Some(crate::fems::memory_proposal::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID)
             }) {
                 break;
@@ -27686,7 +27777,7 @@ mod mt035_popout_undo_tests {
             .root()
             .children_recursive()
             .find(|node| {
-                node.accesskit_node().author_id().as_deref()
+                node.accesskit_node().author_id()
                     == Some(crate::fems::memory_proposal::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID)
             })
             .expect("failed canonical refresh mounts the stable FEMS retry control");
@@ -27726,7 +27817,7 @@ mod mt035_popout_undo_tests {
         );
         assert!(
             !harness.root().children_recursive().any(|node| {
-                node.accesskit_node().author_id().as_deref()
+                node.accesskit_node().author_id()
                     == Some(crate::fems::memory_proposal::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID)
             }),
             "the successful retry removes the conditional AccessKit retry control"
@@ -28129,8 +28220,10 @@ mod mt035_popout_undo_tests {
         })
         .expect("publish detached owner");
 
-        let mut detached_input = egui::RawInput::default();
-        detached_input.focused = false;
+        let mut detached_input = egui::RawInput {
+            focused: false,
+            ..Default::default()
+        };
         detached_input
             .viewports
             .get_mut(&egui::ViewportId::ROOT)
@@ -28141,8 +28234,10 @@ mod mt035_popout_undo_tests {
         });
         drop(detached_output);
 
-        let mut root_input = egui::RawInput::default();
-        root_input.focused = true;
+        let mut root_input = egui::RawInput {
+            focused: true,
+            ..Default::default()
+        };
         root_input
             .viewports
             .get_mut(&egui::ViewportId::ROOT)
@@ -28204,6 +28299,7 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
                     source_panel,
                     None,
                     true,
+                    None,
                 );
                 crate::quick_switcher::NavDispatchOutcome::Opened { surface }
             }
@@ -28230,6 +28326,7 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
                     source_panel,
                     Some(byte_offset),
                     true,
+                    None,
                 );
                 crate::quick_switcher::NavDispatchOutcome::Opened { surface }
             }
@@ -28337,6 +28434,7 @@ impl crate::quick_switcher::ShellNavigator for HandshakeApp {
                     source_panel,
                     None,
                     false,
+                    None,
                 );
                 crate::quick_switcher::NavDispatchOutcome::Opened { surface }
             }

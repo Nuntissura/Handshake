@@ -667,6 +667,50 @@ fn ac01_every_action_node_declares_at_least_one_action() {
     panic!("AC-041-01: no AccessKit update produced over 2 frames");
 }
 
+#[test]
+fn ac01_code_text_click_activates_the_live_editor() {
+    let (panel, _registry, mut harness) = code_harness();
+    harness.run();
+    harness.run();
+    assert!(
+        !panel.live_text_has_focus(&harness.ctx),
+        "precondition: the code text surface must start unfocused"
+    );
+
+    let text = find_node(&harness.root(), "editor.code.text")
+        .expect("the stable code text node is present");
+    harness.event(click_event(text.node_id));
+    harness.run();
+
+    assert!(
+        panel.live_text_has_focus(&harness.ctx),
+        "AC-041-01: clicking editor.code.text must focus the real live editor surface"
+    );
+}
+
+#[test]
+fn ac01_rich_root_click_activates_the_live_editor() {
+    let (_state, _registry, mut harness) = rich_harness();
+    harness.run();
+    harness.run();
+
+    let root = find_node(&harness.root(), "editor.rich.root")
+        .expect("the stable rich editor root node is present");
+    harness.event(click_event(root.node_id));
+    // A focused rich editor intentionally schedules caret-blink repaints, so use a bounded number
+    // of frames instead of `run()` (which waits for quiescence).
+    harness.run_steps(2);
+
+    let focused = harness.root().children_recursive().any(|node| {
+        let accesskit = node.accesskit_node();
+        accesskit.author_id() == Some("editor.rich.text") && accesskit.is_focused()
+    });
+    assert!(
+        focused,
+        "AC-041-01: clicking editor.rich.root must focus the real rich editor surface"
+    );
+}
+
 // ── AC-041-08: language-picker gap is present-but-disabled (typed limitation, not a mock no-op) ───
 
 #[test]

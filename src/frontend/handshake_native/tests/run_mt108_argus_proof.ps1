@@ -17,6 +17,31 @@ param(
 $ErrorActionPreference = 'Stop'
 $crateRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $artifactSibling = [IO.Path]::GetFullPath((Join-Path $crateRoot '..\..\..\..\Handshake_Artifacts'))
+$repoRoot = (& git -C $crateRoot rev-parse --show-toplevel).Trim()
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($repoRoot)) {
+    throw 'Unable to resolve the product repository root for MT-108 source binding'
+}
+$sourceSha = (& git -C $repoRoot rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceSha -notmatch '^[0-9a-f]{40}$') {
+    throw "Unable to resolve an exact committed source SHA; got '$sourceSha'"
+}
+$relevantStatus = @(& git -C $repoRoot status --porcelain --untracked-files=all -- `
+        '.' `
+        ':(exclude)AGENTS.md' `
+        ':(exclude)CLAUDE.md')
+if ($LASTEXITCODE -ne 0) {
+    throw 'Unable to inspect MT-108 relevant source cleanliness'
+}
+if (@($relevantStatus | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -ne 0) {
+    throw "MT-108 proof requires every compiled/configured repository input to match committed HEAD; dirty rows: $($relevantStatus -join '; ')"
+}
+$matrixPath = Join-Path $PSScriptRoot 'mt108_argus_matrix.json'
+$matrix = Get-Content -LiteralPath $matrixPath -Raw | ConvertFrom-Json
+if ($matrix.schema_id -ne 'hsk.native_gui.argus_surface_matrix@1' -or
+    $matrix.wp_id -ne 'WP-KERNEL-012' -or $matrix.mt_id -ne 'MT-108' -or
+    @($matrix.rows).Count -eq 0) {
+    throw 'MT-108 Argus manifest schema/ownership is invalid'
+}
 
 function Resolve-ExternalPath {
     param(
@@ -40,14 +65,54 @@ function Resolve-ExternalPath {
     return $absolute
 }
 
+function Assert-NoReparsePointEscape {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Root,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd('\')
+    $cursor = [IO.Path]::GetFullPath($Path)
+    while ($cursor.Length -ge $rootFull.Length) {
+        if (Test-Path -LiteralPath $cursor) {
+            $item = Get-Item -Force -LiteralPath $cursor
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "$Label must not traverse a junction, symlink, or other reparse point: '$cursor'"
+            }
+        }
+        if ($cursor.Equals($rootFull, [StringComparison]::OrdinalIgnoreCase)) {
+            return
+        }
+        $parent = [IO.Directory]::GetParent($cursor)
+        if ($null -eq $parent) {
+            break
+        }
+        $cursor = $parent.FullName
+    }
+    throw "$Label is not rooted beneath the canonical Handshake_Artifacts directory"
+}
+
 $CargoTargetDir = Resolve-ExternalPath -ConfiguredPath $CargoTargetDir `
     -DefaultPath (Join-Path $artifactSibling 'handshake-cargo-target') -Label 'CargoTargetDir'
 $ProofArtifactDir = Resolve-ExternalPath -ConfiguredPath $ProofArtifactDir `
-    -DefaultPath (Join-Path $artifactSibling 'handshake-test\native_gui') -Label 'ProofArtifactDir'
+    -DefaultPath (Join-Path $artifactSibling 'handshake-test\wp-kernel-012-mt-108\integrated') -Label 'ProofArtifactDir'
+$canonicalCargoTarget = [IO.Path]::GetFullPath((Join-Path $artifactSibling 'handshake-cargo-target'))
+$canonicalProofRoot = [IO.Path]::GetFullPath((Join-Path $artifactSibling 'handshake-test\wp-kernel-012-mt-108\integrated'))
+if (-not $CargoTargetDir.Equals($canonicalCargoTarget, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "CargoTargetDir must equal the allocated canonical target '$canonicalCargoTarget'; got '$CargoTargetDir'"
+}
+if (-not $ProofArtifactDir.Equals($canonicalProofRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "ProofArtifactDir must equal the allocated MT-108 proof root '$canonicalProofRoot'; got '$ProofArtifactDir'"
+}
+Assert-NoReparsePointEscape -Path $CargoTargetDir -Root $artifactSibling -Label 'CargoTargetDir'
+Assert-NoReparsePointEscape -Path $ProofArtifactDir -Root $artifactSibling -Label 'ProofArtifactDir'
 
 $env:CARGO_TARGET_DIR = $CargoTargetDir
 $env:HANDSHAKE_PROOF_ARTIFACT_DIR = $ProofArtifactDir
 $env:HANDSHAKE_SCREENSHOT_RUN_ID = $RunId
+$env:HANDSHAKE_ARGUS_MATRIX_RUN_ID = $RunId
+$env:HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA = $sourceSha
 if ($Headless) {
     [Environment]::SetEnvironmentVariable('HANDSHAKE_GPU_SCREENSHOT', $null, 'Process')
 } else {
@@ -60,6 +125,7 @@ if (Test-Path -LiteralPath $runDir) {
 }
 New-Item -ItemType Directory -Force -Path $ProofArtifactDir | Out-Null
 New-Item -ItemType Directory -Path $runDir | Out-Null
+Copy-Item -LiteralPath $matrixPath -Destination (Join-Path $runDir 'mt108_argus_matrix.json')
 $externalReceiptPath = Join-Path $runDir 'external_process_receipts.jsonl'
 
 function Format-CanonicalUtc {
@@ -83,8 +149,9 @@ function Write-ExternalReceipt {
     )
 
     $receipt = [ordered]@{
-        schema_id = 'hsk.native_gui.external_process_receipt@2'
+        schema_id = 'hsk.native_gui.external_process_receipt@3'
         run_id = $RunId
+        source_sha = $sourceSha
         outcome_id = "$($ProcessContext.CorrelationId)-$($Status.ToLowerInvariant())-$([guid]::NewGuid().ToString('N'))"
         process_correlation_id = $ProcessContext.CorrelationId
         mt_id = 'MT-108'
@@ -119,6 +186,8 @@ function Write-ExternalReceipt {
         reason = $Reason
         exit_code = if ($null -eq $ExitCode) { $null } else { [int]$ExitCode }
         cleanup_method = if ([string]::IsNullOrWhiteSpace($CleanupMethod)) { $null } else { $CleanupMethod }
+        cleanup_verified = [bool]$ProcessContext.CleanupVerified
+        survivor_count_at_receipt = [int]$ProcessContext.SurvivorCountAtReceipt
         gpu_screenshot_enabled = -not $Headless.IsPresent
         timestamp_utc = Format-CanonicalUtc ([DateTimeOffset]::UtcNow)
     }
@@ -279,6 +348,8 @@ function Stop-OwnedProcessIdentities {
 function Invoke-BoundedCargoTest {
     param(
         [Parameter(Mandatory = $true)][string]$Scenario,
+        [Parameter(Mandatory = $true)][string]$Surface,
+        [Parameter(Mandatory = $true)][string]$EdgeStateTag,
         [Parameter(Mandatory = $true)][string[]]$CargoArguments
     )
 
@@ -287,6 +358,9 @@ function Invoke-BoundedCargoTest {
     $correlationId = "cargo-$Scenario-$([guid]::NewGuid().ToString('N'))"
     $env:HANDSHAKE_PROOF_PROCESS_CORRELATION_ID = $correlationId
     $env:HANDSHAKE_PROOF_PROCESS_SCENARIO_ID = $Scenario
+    $env:HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID = $Scenario
+    $env:HANDSHAKE_ARGUS_MATRIX_SURFACE = $Surface
+    $env:HANDSHAKE_ARGUS_MATRIX_EDGE_STATE = $EdgeStateTag
     $process = Start-Process -FilePath 'cargo' -ArgumentList $CargoArguments -WorkingDirectory $crateRoot `
         -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
     $rootIdentity = $null
@@ -330,6 +404,8 @@ function Invoke-BoundedCargoTest {
         OwnedProcessTree = @($rootIdentity)
         TestBinary = $testBinary
         TestProcessIdentity = $null
+        CleanupVerified = $false
+        SurvivorCountAtReceipt = 0
         StartedAtUtc = $rootIdentity.StartUtc
         DeadlineAtUtc = Format-CanonicalUtc ($startedAt.AddSeconds($PerProcessTimeoutSeconds))
         Executable = 'cargo'
@@ -430,8 +506,60 @@ function Invoke-BoundedCargoTest {
             -Reason "Cargo exited $exitCode" -ExitCode $exitCode
         throw "$Scenario failed with exit code $exitCode; stderr=$stderrPath"
     }
+    $closureDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
+    $closureInventory = $null
+    do {
+        $closureInventory = Get-LiveOwnedProcessInventory -ProcessContext $context
+        if (-not $closureInventory.InventoryHealthy -or @($closureInventory.Identities).Count -eq 0) {
+            break
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTimeOffset]::UtcNow -lt $closureDeadline)
+    $context.SurvivorCountAtReceipt = @($closureInventory.Identities).Count
+    if (-not $closureInventory.InventoryHealthy -or $context.SurvivorCountAtReceipt -ne 0) {
+        Stop-OwnedProcessIdentities -ProcessContext $context
+        $reason = if (-not $closureInventory.InventoryHealthy) {
+            "successful Cargo exit had an indeterminate owned-process inventory: $($closureInventory.InventoryError)"
+        } else {
+            "successful Cargo exit left $($context.SurvivorCountAtReceipt) owned PID/start identities alive"
+        }
+        Write-ExternalReceipt -ProcessContext $context -Status 'FAILED' -ReasonCode 'PROCESS_TREE_NOT_CLOSED' `
+            -Reason $reason -ExitCode $exitCode -CleanupMethod 'identity-aware post-exit reclamation'
+        $reclaimDeadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
+        $survivors = @()
+        $inventoryHealthError = $null
+        do {
+            $inventory = Get-LiveOwnedProcessInventory -ProcessContext $context
+            $survivors = @($inventory.Identities)
+            if (-not $inventory.InventoryHealthy) {
+                $inventoryHealthError = $inventory.InventoryError
+                break
+            }
+            if ($survivors.Count -eq 0) {
+                break
+            }
+            Stop-OwnedProcessIdentities -ProcessContext $context
+            Start-Sleep -Milliseconds 100
+        } while ([DateTimeOffset]::UtcNow -lt $reclaimDeadline)
+        if ($survivors.Count -eq 0 -and [string]::IsNullOrWhiteSpace($inventoryHealthError)) {
+            $context.SurvivorCountAtReceipt = 0
+            Write-ExternalReceipt -ProcessContext $context -Status 'RECLAIMED' -ReasonCode 'PROCESS_TREE_RECLAIMED' `
+                -Reason "$reason; all owned PID/start identities were reclaimed after the zero exit" `
+                -ExitCode $exitCode -CleanupMethod 'identity-aware post-exit reclamation'
+            throw "${Scenario}: $reason; process tree reclaimed; receipt=$externalReceiptPath"
+        }
+        $reclaimFailure = if (-not [string]::IsNullOrWhiteSpace($inventoryHealthError)) {
+            "$reason; reclamation inventory was indeterminate: $inventoryHealthError"
+        } else {
+            "$reason; owned PID/start identities survived the 10s reclamation bound: $(($survivors | ForEach-Object { \"$($_.Pid)/$($_.StartUtc)\" }) -join ',')"
+        }
+        Write-ExternalReceipt -ProcessContext $context -Status 'RECLAIM_FAILED' -ReasonCode 'PROCESS_TREE_RECLAIM_FAILED' `
+            -Reason $reclaimFailure -ExitCode $exitCode -CleanupMethod 'identity-aware post-exit reclamation'
+        throw "${Scenario}: $reclaimFailure; receipt=$externalReceiptPath"
+    }
+    $context.CleanupVerified = $true
     Write-ExternalReceipt -ProcessContext $context -Status 'COMPLETED' -ReasonCode 'PROCESS_EXIT_ZERO' `
-        -Reason 'Cargo proof process exited successfully within the supervisor bound' -ExitCode $exitCode
+        -Reason 'Cargo proof process exited successfully within the supervisor bound and no owned PID/start identity survived' -ExitCode $exitCode
 }
 
 function Assert-FinalProcessReceipts {
@@ -454,7 +582,9 @@ function Assert-FinalProcessReceipts {
         }
         if ($started[0].process_correlation_id -ne $completed[0].process_correlation_id -or
             $started[0].child_pid -ne $completed[0].child_pid -or
-            $completed[0].exit_code -ne 0) {
+            $completed[0].exit_code -ne 0 -or
+            -not [bool]$completed[0].cleanup_verified -or
+            [int]$completed[0].survivor_count_at_receipt -ne 0) {
             throw "$scenario process lifecycle correlation/PID/exit proof is invalid"
         }
         $expected = @($ExpectedCommands[$scenario])
@@ -468,28 +598,30 @@ function Assert-FinalProcessReceipts {
     }
 }
 
-$surfaceTests = @(
-    @{ Scenario = 'find_bar'; Binary = 'test_find_bar_accesskit'; Test = 'mt108_argus_find_bar_real_server_loop' },
-    @{ Scenario = 'formatting_toolbar'; Binary = 'test_formatting_toolbar'; Test = 'mt108_argus_formatting_toolbar_real_server_loop' },
-    @{ Scenario = 'slash_menu'; Binary = 'test_slash_commands'; Test = 'mt108_argus_slash_menu_real_server_loop' },
-    @{ Scenario = 'outline_pane'; Binary = 'test_outline'; Test = 'mt108_argus_outline_real_server_loop' },
-    @{ Scenario = 'rich_find_replace'; Binary = 'test_rich_find_replace'; Test = 'mt108_argus_rich_find_replace_real_server_loop' },
-    @{ Scenario = 'runtime_chat'; Binary = 'test_runtime_chat_pane'; Test = 'mt108_argus_runtime_chat_real_server_loop' },
-    @{ Scenario = 'diagnostics_panel'; Binary = 'test_diagnostics_panel'; Test = 'mt108_argus_diagnostics_panel_real_server_loop' }
-)
 $expectedCommands = [ordered]@{}
 
-foreach ($surface in $surfaceTests) {
-    $arguments = @('test', '--test', $surface.Binary, $surface.Test, '--', '--exact', '--nocapture')
-    $expectedCommands[$surface.Scenario] = $arguments
-    Invoke-BoundedCargoTest -Scenario $surface.Scenario -CargoArguments $arguments
+foreach ($surface in @($matrix.rows)) {
+    $arguments = @('test', '--test', [string]$surface.test_binary, [string]$surface.test_name, '--')
+    if ([bool]$surface.ignored) {
+        $arguments += '--ignored'
+    }
+    $arguments += @('--exact', '--nocapture')
+    $expectedCommands[[string]$surface.scenario_id] = $arguments
+    Invoke-BoundedCargoTest -Scenario ([string]$surface.scenario_id) `
+        -Surface ([string]$surface.surface) -EdgeStateTag ([string]$surface.edge_state_tag) `
+        -CargoArguments $arguments
 }
 
 $verifierArguments = @(
-    'test', '--test', 'test_mt108_argus_aggregate', 'mt108_verify_argus_evidence_exact_seven', '--', '--ignored', '--exact', '--nocapture'
+    'test', '--test', 'test_mt108_argus_aggregate', 'mt108_verify_argus_evidence_manifest', '--', '--ignored', '--exact', '--nocapture'
 )
-$expectedCommands['exact_seven_verifier'] = $verifierArguments
-Invoke-BoundedCargoTest -Scenario 'exact_seven_verifier' -CargoArguments $verifierArguments
+$expectedCommands['manifest_verifier'] = $verifierArguments
+Invoke-BoundedCargoTest -Scenario 'manifest_verifier' -Surface 'matrix verifier' `
+    -EdgeStateTag 'closure' -CargoArguments $verifierArguments
 Assert-FinalProcessReceipts -ExpectedCommands $expectedCommands
 
-Write-Output "MT-108 Argus proof closed for run_id=$RunId; artifacts=$runDir; successful_processes=8"
+if ($Headless) {
+    Write-Output "MT-108 headless typed-marker proof complete (NOT pixel closure) for run_id=$RunId; source_sha=$sourceSha; artifacts=$runDir; successful_processes=$($expectedCommands.Count)"
+} else {
+    Write-Output "MT-108 Argus pixel proof closed for run_id=$RunId; source_sha=$sourceSha; artifacts=$runDir; successful_processes=$($expectedCommands.Count)"
+}

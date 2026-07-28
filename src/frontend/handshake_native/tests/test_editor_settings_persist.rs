@@ -546,7 +546,9 @@ fn failed_editor_preference_write_retries_and_redispatches_the_exact_edit() {
     // The transient failure surfaces a visible, addressable Retry. Its label ("Retry saving preference")
     // is emitted ONLY for the typed Preference retry lane, so its presence proves the lane is armed.
     assert!(
-        run_until(&mut harness, 120, |app| app.settings_persist_error().is_some()),
+        run_until(&mut harness, 120, |app| app
+            .settings_persist_error()
+            .is_some()),
         "a transient preference-write failure surfaces a visible persist error"
     );
     harness.run_steps(3);
@@ -564,7 +566,11 @@ fn failed_editor_preference_write_retries_and_redispatches_the_exact_edit() {
     );
     // The optimistic edit is retained (no data loss) and nothing reached the record store yet.
     assert_eq!(
-        harness.state().workspace_settings().editor_prefs.editor_font_size,
+        harness
+            .state()
+            .workspace_settings()
+            .editor_prefs
+            .editor_font_size,
         20.0
     );
     assert!(
@@ -824,7 +830,9 @@ fn repeated_failed_put_survives_close_reopen_and_keeps_retry_addressable() {
 
     // MT-072 FAIL_V2: editor prefs migrated OFF the opaque /settings PUT, so this generic opaque-doc
     // retry-mechanism proof is now driven by a NON-editor setting (theme) that still rides /settings.
-    let next_theme = if harness.state().workspace_settings().theme == handshake_native::workspace_settings::WorkspaceTheme::Dark {
+    let next_theme = if harness.state().workspace_settings().theme
+        == handshake_native::workspace_settings::WorkspaceTheme::Dark
+    {
         handshake_native::workspace_settings::WorkspaceTheme::Light
     } else {
         handshake_native::workspace_settings::WorkspaceTheme::Dark
@@ -1757,8 +1765,8 @@ fn user_wrap_toggle_persists_and_is_not_clobbered_by_sync() {
 
 use handshake_native::preference_client::{
     PreferenceProjectionRow, PreferenceRecord, PreferenceTransport, PreferenceTransportError,
-    PreferenceValidationError, PREF_EDITOR_FONT_SIZE,
-    PREF_EDITOR_KEYBINDING_OVERRIDES, PREF_EDITOR_SYNTAX_PALETTE_MODE, PREF_EDITOR_TAB_SIZE,
+    PreferenceValidationError, PREF_EDITOR_FONT_SIZE, PREF_EDITOR_KEYBINDING_OVERRIDES,
+    PREF_EDITOR_SYNTAX_PALETTE_MODE, PREF_EDITOR_TAB_SIZE,
 };
 
 /// A scriptable in-memory preference transport: records every set/reset/list, and can be scripted to
@@ -1869,8 +1877,10 @@ impl PreferenceTransport for StubPreferenceTransport {
         &self,
         _workspace_id: &str,
         _preference_id: &str,
-    ) -> Result<Vec<handshake_native::preference_client::PreferenceChangeReceipt>, PreferenceTransportError>
-    {
+    ) -> Result<
+        Vec<handshake_native::preference_client::PreferenceChangeReceipt>,
+        PreferenceTransportError,
+    > {
         Ok(Vec::new())
     }
 }
@@ -1892,7 +1902,8 @@ fn pref_wired_app(
 #[test]
 fn editor_pref_edit_puts_to_canonical_preference_route() {
     let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     // Edit only tab-size via the same outcome path the mounted DragValue produces.
     let mut prefs = harness.state().workspace_settings().editor_prefs;
     prefs.tab_size = 8;
@@ -1907,14 +1918,22 @@ fn editor_pref_edit_puts_to_canonical_preference_route() {
         1,
         "exactly one targeted PUT for the single edited field, got {sets:?}"
     );
-    assert_eq!(sets[0].0, PREF_EDITOR_TAB_SIZE, "PUT targets the stable tab-size id");
-    assert_eq!(sets[0].1, serde_json::json!(8), "PUT carries the typed value");
+    assert_eq!(
+        sets[0].0, PREF_EDITOR_TAB_SIZE,
+        "PUT targets the stable tab-size id"
+    );
+    assert_eq!(
+        sets[0].1,
+        serde_json::json!(8),
+        "PUT carries the typed value"
+    );
 }
 
 #[test]
 fn editor_keybinding_edit_puts_overrides_map_to_preference_route() {
     let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness
         .state_mut()
         .apply_settings_outcome_for_test(SettingsOutcome::EditorKeybindingChanged {
@@ -1938,7 +1957,8 @@ fn editor_keybinding_edit_puts_overrides_map_to_preference_route() {
 #[test]
 fn editor_prefs_reset_posts_reset_route_for_every_scalar() {
     let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness
         .state_mut()
         .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsReset);
@@ -1957,12 +1977,14 @@ fn editor_prefs_reset_posts_reset_route_for_every_scalar() {
 #[test]
 fn syntax_palette_reset_posts_reset_route() {
     let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness
         .state_mut()
         .apply_settings_outcome_for_test(SettingsOutcome::SyntaxPaletteReset);
     run_until(&mut harness, 120, |_| {
-        stub.resets().contains(&PREF_EDITOR_SYNTAX_PALETTE_MODE.to_owned())
+        stub.resets()
+            .contains(&PREF_EDITOR_SYNTAX_PALETTE_MODE.to_owned())
     });
     assert!(stub
         .resets()
@@ -1975,7 +1997,8 @@ fn backend_unavailable_preference_write_degrades_visibly_without_freeze() {
         "connection refused".to_owned(),
     ));
     let (app, _stub) = pref_wired_app(stub);
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let mut prefs = harness.state().workspace_settings().editor_prefs;
     prefs.tab_size = 6;
     harness
@@ -1989,7 +2012,10 @@ fn backend_unavailable_preference_write_degrades_visibly_without_freeze() {
         "an unreachable preference backend surfaces a visible persist error (no freeze)"
     );
     // The optimistic local edit is retained so the UI does not lose the operator's change.
-    assert_eq!(harness.state().workspace_settings().editor_prefs.tab_size, 6);
+    assert_eq!(
+        harness.state().workspace_settings().editor_prefs.tab_size,
+        6
+    );
 }
 
 #[test]
@@ -2002,19 +2028,29 @@ fn structured_validation_rejection_surfaces_on_status_row() {
         },
     ));
     let (app, _stub) = pref_wired_app(stub);
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let mut prefs = harness.state().workspace_settings().editor_prefs;
     prefs.editor_font_size = 40.0;
     harness
         .state_mut()
         .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
-    run_until(&mut harness, 120, |app| app.settings_persist_error().is_some());
-    let err = harness.state().settings_persist_error().unwrap_or("").to_owned();
+    run_until(&mut harness, 120, |app| {
+        app.settings_persist_error().is_some()
+    });
+    let err = harness
+        .state()
+        .settings_persist_error()
+        .unwrap_or("")
+        .to_owned();
     assert!(
         err.contains("out of the allowed range") || err.contains("outside the allowed range"),
         "the structured 400 validation message is surfaced verbatim: {err}"
     );
-    assert!(err.contains(PREF_EDITOR_FONT_SIZE), "names the rejected preference id");
+    assert!(
+        err.contains(PREF_EDITOR_FONT_SIZE),
+        "names the rejected preference id"
+    );
 }
 
 #[test]
@@ -2037,7 +2073,8 @@ fn opening_settings_hydrates_editor_prefs_from_the_projection() {
     ];
     let (mut app, stub) = pref_wired_app(StubPreferenceTransport::with_projection(rows));
     app.open_settings();
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let hydrated = run_until(&mut harness, 200, |app| {
         app.workspace_settings().editor_prefs.editor_font_size == 24.0
     });
@@ -2045,7 +2082,10 @@ fn opening_settings_hydrates_editor_prefs_from_the_projection() {
         hydrated && stub.list_calls() >= 1,
         "the dialog reads resolved editor values from the PreferenceRecord projection on open"
     );
-    assert_eq!(harness.state().workspace_settings().editor_prefs.tab_size, 2);
+    assert_eq!(
+        harness.state().workspace_settings().editor_prefs.tab_size,
+        2
+    );
 }
 
 #[test]
@@ -2056,7 +2096,8 @@ fn argus_set_value_on_mounted_font_size_reaches_preference_put_and_tree_has_ids(
     let stub = StubPreferenceTransport::new();
     let (mut app, stub) = pref_wired_app(stub);
     app.open_settings();
-    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(3);
     // AccessKit-tree evidence: the migrated controls are addressable by their stable author_ids.
     let tree = snapshot_harness(&mut harness);
@@ -2075,7 +2116,9 @@ fn argus_set_value_on_mounted_font_size_reaches_preference_put_and_tree_has_ids(
         Some("18"),
     );
     let put = run_until(&mut harness, 200, |_| {
-        stub.sets().iter().any(|(id, _)| id == PREF_EDITOR_FONT_SIZE)
+        stub.sets()
+            .iter()
+            .any(|(id, _)| id == PREF_EDITOR_FONT_SIZE)
     });
     assert!(
         put,

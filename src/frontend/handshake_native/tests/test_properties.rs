@@ -79,13 +79,16 @@ fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
 
 // ── Mock metadata backend (no live backend) ─────────────────────────────────────────────────────
 
+type OptionalMetadataRefUpdate = Option<Option<String>>;
+type MoveUpdate = (OptionalMetadataRefUpdate, OptionalMetadataRefUpdate);
+
 /// A counted mock backend: rename returns the same metadata with the new title + a bumped version +
 /// refreshed `updated_at`; load/move return a fixed document; backlinks-count returns a fixed N.
 struct MockMetadataBackend {
     backlinks: usize,
     rename_calls: Mutex<u32>,
     move_calls: Mutex<u32>,
-    last_move: Mutex<Option<(Option<Option<String>>, Option<Option<String>>)>>,
+    last_move: Mutex<Option<MoveUpdate>>,
 }
 
 impl MockMetadataBackend {

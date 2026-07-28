@@ -45,6 +45,7 @@ use handshake_native::backend_client::{
     FindInFilesOperation, FindInFilesStamp, LoomGraphSearchHit, RichDocClient, SearchMatchOptions,
     WorkspaceSearchClient,
 };
+#[cfg(feature = "integration")]
 use handshake_native::editor_pane_factories::{
     placeholder_pane_type, BLOCK_COLLECTIONS_PANE_LABEL, WIKI_PAGE_PANE_LABEL,
 };
@@ -53,10 +54,14 @@ use handshake_native::find_in_files::{
     hit_identity_from_result_author_id, preview_author_id, replace_in_content, result_author_id,
     shell_open_target_from_hit, show, FindInFilesCallbacks, FindInFilesOpenTarget,
     FindInFilesPaneFactory, FindInFilesPaneShared, FindInFilesPanelState, KindFilter, MatchOptions,
-    MatchPreview, ReplacementPlan, SearchBookmark, APPLY_AUTHOR_ID, BOOKMARK_RETRY_AUTHOR_ID,
-    KIND_FILTER_AUTHOR_ID, PATH_FILTER_AUTHOR_ID, PREVIEW_REPLACE_AUTHOR_ID, QUERY_AUTHOR_ID,
-    REPLACE_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID, SEARCH_AUTHOR_ID, TAG_FILTER_AUTHOR_ID,
-    TOGGLE_CASE_AUTHOR_ID, TOGGLE_REGEX_AUTHOR_ID, TOGGLE_WORD_AUTHOR_ID,
+    MatchPreview, ReplacementPlan, SearchBookmark, APPLY_AUTHOR_ID, KIND_FILTER_AUTHOR_ID,
+    PREVIEW_REPLACE_AUTHOR_ID, QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, TOGGLE_CASE_AUTHOR_ID,
+    TOGGLE_REGEX_AUTHOR_ID, TOGGLE_WORD_AUTHOR_ID,
+};
+#[cfg(feature = "integration")]
+use handshake_native::find_in_files::{
+    BOOKMARK_RETRY_AUTHOR_ID, PATH_FILTER_AUTHOR_ID, REPLACE_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID,
+    TAG_FILTER_AUTHOR_ID,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneRecord, PaneRegistry,
@@ -494,6 +499,7 @@ fn click_author_id<State>(harness: &Harness<'_, State>, author_id: &str) {
     node.click_accesskit();
 }
 
+#[cfg(feature = "integration")]
 fn focus_author_id<State>(harness: &mut Harness<'_, State>, author_id: &str) {
     harness
         .root()

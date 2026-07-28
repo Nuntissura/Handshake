@@ -478,7 +478,7 @@ impl StagePane {
         &mut self,
         fetch_result: Result<crate::interop::StageArtifactRef, crate::interop::StageInteropError>,
         target: &EmbedTarget,
-        mut is_target_live: L,
+        is_target_live: L,
         mut insert: I,
     ) -> EmbedBackOutcome
     where

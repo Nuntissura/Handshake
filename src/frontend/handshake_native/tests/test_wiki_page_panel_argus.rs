@@ -171,7 +171,10 @@ fn mt025_mounted_wiki_canonical_argus_edit_save_reload_surface() {
     harness.run_steps(3);
     // Seed the projection onto the bound panel (clears the no-runtime error).
     let bound_proj = seed_bound_wiki_page(&mut harness);
-    assert_eq!(bound_proj, PROJ, "the factory bound the pane's content_id projection");
+    assert_eq!(
+        bound_proj, PROJ,
+        "the factory bound the pane's content_id projection"
+    );
     harness.run_steps(2);
 
     // Guard: the mounted binding now holds the seeded page in read-only mode and
@@ -259,7 +262,10 @@ fn mt025_mounted_wiki_canonical_argus_edit_save_reload_surface() {
     assert!(
         !after_ids.iter().any(|id| id == &edit_area_author_id(PROJ)),
         "after Cancel the edit area is gone from the AccessKit tree; got {:?}",
-        after_ids.iter().filter(|id| id.starts_with("wiki.")).collect::<Vec<_>>()
+        after_ids
+            .iter()
+            .filter(|id| id.starts_with("wiki."))
+            .collect::<Vec<_>>()
     );
 
     // (5) Evidence: before/after canonical trees + a screenshot marker.

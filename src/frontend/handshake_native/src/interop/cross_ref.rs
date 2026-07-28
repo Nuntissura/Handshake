@@ -871,6 +871,7 @@ pub trait FindNotesSearch: Send + Sync {
     /// The returned content is the complete source rich document, not a block-local slice;
     /// callers must also enforce the canonical native projection identity (`block_id ==
     /// source_document_id`) before treating it as exact block evidence.
+    #[allow(clippy::type_complexity)]
     fn load_block_transclusion<'a>(
         &'a self,
         workspace_id: &'a str,

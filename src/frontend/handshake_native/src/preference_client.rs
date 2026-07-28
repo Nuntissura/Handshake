@@ -457,8 +457,7 @@ async fn parse_record_response(
     let body: Value = resp.json().await.unwrap_or(Value::Null);
     if status.as_u16() == 400 {
         if let Some(validation) = body.get("validation") {
-            if let Ok(err) =
-                serde_json::from_value::<PreferenceValidationError>(validation.clone())
+            if let Ok(err) = serde_json::from_value::<PreferenceValidationError>(validation.clone())
             {
                 return Err(PreferenceTransportError::Validation(err));
             }
@@ -619,7 +618,10 @@ pub fn syntax_palette_value_map(palette: &SyntaxPalette) -> Vec<(&'static str, V
         }
     }
     vec![
-        (PREF_EDITOR_SYNTAX_PALETTE_MODE, json!(palette.mode.as_str())),
+        (
+            PREF_EDITOR_SYNTAX_PALETTE_MODE,
+            json!(palette.mode.as_str()),
+        ),
         (PREF_EDITOR_SYNTAX_CUSTOM_COLORS, Value::Object(custom)),
     ]
 }
@@ -652,8 +654,7 @@ pub fn changed_syntax_palette_writes(
     prev: &SyntaxPalette,
     next: &SyntaxPalette,
 ) -> Vec<(&'static str, Value)> {
-    let before: HashMap<&'static str, Value> =
-        syntax_palette_value_map(prev).into_iter().collect();
+    let before: HashMap<&'static str, Value> = syntax_palette_value_map(prev).into_iter().collect();
     syntax_palette_value_map(next)
         .into_iter()
         .filter(|(id, value)| before.get(id) != Some(value))
@@ -680,7 +681,10 @@ pub fn apply_projection(rows: &[PreferenceProjectionRow], settings: &mut Workspa
     if let Some(v) = by_id.get(PREF_EDITOR_TAB_SIZE).and_then(|v| v.as_u64()) {
         prefs.tab_size = (v as u8).clamp(*TAB_SIZE_RANGE.start(), *TAB_SIZE_RANGE.end());
     }
-    if let Some(v) = by_id.get(PREF_EDITOR_INSERT_SPACES).and_then(|v| v.as_bool()) {
+    if let Some(v) = by_id
+        .get(PREF_EDITOR_INSERT_SPACES)
+        .and_then(|v| v.as_bool())
+    {
         prefs.insert_spaces = v;
     }
     // word-wrap enum + optional bounded column (resolve the column first so `bounded` can use it).
@@ -702,13 +706,22 @@ pub fn apply_projection(rows: &[PreferenceProjectionRow], settings: &mut Workspa
     {
         prefs.render_whitespace = mode;
     }
-    if let Some(v) = by_id.get(PREF_EDITOR_MINIMAP_ENABLED).and_then(|v| v.as_bool()) {
+    if let Some(v) = by_id
+        .get(PREF_EDITOR_MINIMAP_ENABLED)
+        .and_then(|v| v.as_bool())
+    {
         prefs.minimap_enabled = v;
     }
-    if let Some(v) = by_id.get(PREF_EDITOR_STICKY_SCROLL).and_then(|v| v.as_bool()) {
+    if let Some(v) = by_id
+        .get(PREF_EDITOR_STICKY_SCROLL)
+        .and_then(|v| v.as_bool())
+    {
         prefs.sticky_scroll = v;
     }
-    if let Some(v) = by_id.get(PREF_EDITOR_LINE_NUMBERS).and_then(|v| v.as_bool()) {
+    if let Some(v) = by_id
+        .get(PREF_EDITOR_LINE_NUMBERS)
+        .and_then(|v| v.as_bool())
+    {
         prefs.line_numbers = v;
     }
     if let Some(v) = by_id.get(PREF_EDITOR_LINE_HEIGHT).and_then(|v| v.as_f64()) {
@@ -723,7 +736,10 @@ pub fn apply_projection(rows: &[PreferenceProjectionRow], settings: &mut Workspa
     {
         prefs.bracket_matching = v;
     }
-    if let Some(v) = by_id.get(PREF_EDITOR_INDENT_GUIDES).and_then(|v| v.as_bool()) {
+    if let Some(v) = by_id
+        .get(PREF_EDITOR_INDENT_GUIDES)
+        .and_then(|v| v.as_bool())
+    {
         prefs.indent_guides = v;
     }
     if let Some(v) = by_id
@@ -809,7 +825,11 @@ mod tests {
         let mut ids: Vec<&str> = editor_prefs_value_map(&prefs)
             .into_iter()
             .map(|(id, _)| id)
-            .chain(syntax_palette_value_map(&palette).into_iter().map(|(id, _)| id))
+            .chain(
+                syntax_palette_value_map(&palette)
+                    .into_iter()
+                    .map(|(id, _)| id),
+            )
             .collect();
         // The default word-wrap is Off, so the column id is omitted by design; add it for the cover set.
         ids.push(PREF_EDITOR_WORD_WRAP_COLUMN);
@@ -819,7 +839,10 @@ mod tests {
         ids.dedup();
         let mut expected = EDITOR_PREFERENCE_IDS.to_vec();
         expected.sort_unstable();
-        assert_eq!(ids, expected, "value maps must cover every editor preference id");
+        assert_eq!(
+            ids, expected,
+            "value maps must cover every editor preference id"
+        );
     }
 
     #[test]
@@ -840,7 +863,10 @@ mod tests {
         next.word_wrap = WordWrapMode::BoundedColumn(100);
         let writes = changed_editor_pref_writes(&prev, &next);
         let ids: Vec<&str> = writes.iter().map(|(id, _)| *id).collect();
-        assert!(ids.contains(&PREF_EDITOR_WORD_WRAP), "mode changes to bounded");
+        assert!(
+            ids.contains(&PREF_EDITOR_WORD_WRAP),
+            "mode changes to bounded"
+        );
         assert!(
             ids.contains(&PREF_EDITOR_WORD_WRAP_COLUMN),
             "the bounded column is written as its own preference"
@@ -854,8 +880,10 @@ mod tests {
 
     #[test]
     fn font_size_value_satisfies_backend_float_encoding() {
-        let mut prefs = EditorPrefs::default();
-        prefs.editor_font_size = 20.0;
+        let prefs = EditorPrefs {
+            editor_font_size: 20.0,
+            ..Default::default()
+        };
         let map: HashMap<_, _> = editor_prefs_value_map(&prefs).into_iter().collect();
         assert_eq!(map[PREF_EDITOR_FONT_SIZE].as_f64(), Some(20.0));
     }

@@ -1949,8 +1949,7 @@ impl LoomCanvasBoard {
                 // `CanvasEvent::MovePlacement` the drag-stop gesture fires (canvas_board.rs drag drop),
                 // so a canonical Argus click-with-payload persists the new x/y via the real placement
                 // PATCH. Missing placement / malformed payload -> None (no panic, no fake dispatch).
-                let p =
-                    knowledge_action_registry::parse_payload::<MovePlacementPayload>(payload)?;
+                let p = knowledge_action_registry::parse_payload::<MovePlacementPayload>(payload)?;
                 let idx = self
                     .placements
                     .iter()

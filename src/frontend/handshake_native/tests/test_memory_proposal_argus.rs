@@ -449,7 +449,7 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
     // this KSRC/code-file authority before persisting the proposal.
     let code_fixture = seed_code_authority(
         &live.base,
-        &app.mcp_token().as_hex(),
+        app.mcp_token().as_hex(),
         &workspace_id,
         app_rt.handle(),
     );

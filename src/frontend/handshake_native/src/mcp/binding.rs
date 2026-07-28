@@ -355,6 +355,7 @@ fn acquire_binding_lock(binding_path: &std::path::Path) -> Result<std::fs::File,
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&lock_path)
         .map_err(|error| {
             BindingError(format!(
@@ -362,7 +363,10 @@ fn acquire_binding_lock(binding_path: &std::path::Path) -> Result<std::fs::File,
                 lock_path.display()
             ))
         })?;
-    const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);
+    // Publishing holds this lock through owner-only ACL application plus a durable atomic replace.
+    // On a loaded Windows host that bounded filesystem/ACL work can exceed 500 ms; competing app
+    // startup/shutdown must serialize instead of falsely reporting a coordination failure.
+    const LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
     const LOCK_RETRY: std::time::Duration = std::time::Duration::from_millis(10);
     let deadline = std::time::Instant::now() + LOCK_TIMEOUT;
     loop {
@@ -939,7 +943,7 @@ mod tests {
 
         for _ in 0..2 {
             let (operation, result) = done_rx
-                .recv_timeout(std::time::Duration::from_secs(5))
+                .recv_timeout(std::time::Duration::from_secs(15))
                 .expect("both operations complete after lock release");
             result.unwrap_or_else(|error| panic!("{operation} failed: {error}"));
         }

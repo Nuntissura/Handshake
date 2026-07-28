@@ -11,11 +11,11 @@
 //!     Atelier payload is projected through the real Loom block API and then placed by block id (never a
 //!     fake `atelier_item_id`). The live-PG proof asserts the projected block and placement after reload.
 //!   - AC-4 (kittest): the Route-to-Stage command (bus + palette) opens the Stage pane and displays the
-//!     routed content; the `stage-pane` AccessKit Region node carries the staged summary.
+//!     routed content; the `stage-pane` AccessKit GenericContainer node carries the staged summary.
 //!   - AC-5 (gated live-PG): the AtelierSidePanel loads batches + corpus from the REAL atelier backend
 //!     (no mocks) — at least one batch row when the backend has a seeded batch.
 //!   - AC-6 (AccessKit dump): `atelier-side-panel` (List), `atelier-item-{id}` (ListItem, draggable),
-//!     `stage-pane` (Region) are present in the live AccessKit tree.
+//!     `stage-pane` (GenericContainer) are present in the live AccessKit tree.
 //!   - AC-7: `cargo test -p handshake-native --test test_ckc_embed -- --nocapture` passes (this file).
 //!
 //! ## Artifact hygiene (CX-212E, HARD)
@@ -32,9 +32,12 @@ mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
+#[cfg(feature = "integration")]
 use handshake_native::atelier_side_panel::{
-    batch_author_id, corpus_author_id, item_author_id, item_canvas_author_id,
-    item_insert_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
+    batch_author_id, corpus_author_id, item_canvas_author_id, item_insert_author_id,
+};
+use handshake_native::atelier_side_panel::{
+    item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
 };
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow, HealthInfo};
 use handshake_native::interop::{
@@ -113,6 +116,7 @@ fn request_click_by_author<S>(harness: &Harness<'_, S>, author_id: &str) {
     ));
 }
 
+#[cfg(feature = "integration")]
 fn pointer_click_by_author<S>(harness: &Harness<'_, S>, author_id: &str) {
     harness
         .root()
@@ -204,7 +208,9 @@ fn ac1_real_panel_drag_source_drops_on_real_rich_editor() {
                 RichEditorWidget::new(std::sync::Arc::clone(&editor)).show(&mut columns[1]);
             });
         });
-    harness.run();
+    // A mounted rich editor intentionally repaints for its caret and async draft status; drive a
+    // deterministic bounded frame count instead of requiring global UI quiescence.
+    harness.run_steps(2);
     let source = center_by_author(&harness, &item_author_id("item-aaa"));
     let target = center_by_author(&harness, "editor.rich.text");
     harness.drag_at(source);
@@ -222,8 +228,7 @@ fn ac1_real_panel_drag_source_drops_on_real_rich_editor() {
         "counterfactual producer gate: the actual Atelier dnd_drag_source must stage DragPayload before release"
     );
     harness.drop_at(target);
-    harness.run();
-    harness.run();
+    harness.run_steps(2);
     assert_eq!(
         first_hs_link(&editor_check.lock().unwrap().current_content_json()),
         Some(("media".to_owned(), "item-aaa".to_owned())),
@@ -261,8 +266,7 @@ fn ac1_failed_editor_drop_is_visible_instead_of_silent() {
         pressed: false,
         modifiers: egui::Modifiers::default(),
     });
-    harness.run();
-    harness.run();
+    harness.run_steps(2);
     assert!(author_ids(&harness).contains("rich-editor-interop-status"));
 }
 
@@ -280,7 +284,8 @@ fn ac1_drop_atelier_ref_on_editor_inserts_hs_link_embed() {
         .build_ui(move |ui| {
             RichEditorWidget::new(std::sync::Arc::clone(&state)).show(ui);
         });
-    harness.run();
+    // The active rich editor has intentional caret/draft repaint sources.
+    harness.run_steps(2);
 
     // Count the hsLink atoms before the drop (the demo doc has none).
     let before = count_hs_links(&state_ck.lock().unwrap().current_content_json());
@@ -290,7 +295,8 @@ fn ac1_drop_atelier_ref_on_editor_inserts_hs_link_embed() {
     // pointer over the editor, then release. The editor's drop zone takes the payload + inserts the atom.
     let drop_pos = egui::pos2(400.0, 300.0);
     harness.event(egui::Event::PointerMoved(drop_pos));
-    harness.run();
+    // The active rich editor has intentional caret/draft repaint sources.
+    harness.run_steps(2);
     egui::DragAndDrop::set_payload(
         &harness.ctx,
         DragPayload::AtelierRef(AtelierRef::new(
@@ -510,8 +516,7 @@ fn ac3_real_panel_drag_source_drops_on_real_canvas() {
         "counterfactual producer gate: the actual Atelier dnd_drag_source must stage DragPayload before canvas release"
     );
     harness.drop_at(target);
-    harness.run();
-    harness.run();
+    harness.run_steps(2);
     let events = events_check.lock().unwrap();
     let resolved = events
         .iter()
@@ -538,7 +543,7 @@ fn ac3_real_panel_drag_source_drops_on_real_canvas() {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-4 (kittest): the Route-to-Stage command opens the Stage pane and displays the routed content; the
-// stage-pane AccessKit Region node is visible with the routed summary as its value.
+// stage-pane AccessKit GenericContainer node is visible with the routed summary as its value.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -576,7 +581,7 @@ fn ac4_route_to_stage_displays_routed_selection() {
         });
     harness.run();
 
-    // Before routing: the Stage pane shows the empty prompt; its Region value summarizes "nothing routed".
+    // Before routing: the Stage pane shows the empty prompt; its container value summarizes "nothing routed".
     assert!(stage_value(&harness)
         .unwrap_or_default()
         .contains("nothing routed"));
@@ -600,8 +605,9 @@ fn ac4_route_to_stage_displays_routed_selection() {
     harness.run();
     harness.run(); // one more frame so the drain + display settle
 
-    // The Stage pane now displays the routed selection; the stage-pane Region value carries the summary.
-    let val = stage_value(&harness).expect("AC-4: stage-pane Region node must be present");
+    // The Stage pane now displays the routed selection; the stage-pane container value carries the summary.
+    let val =
+        stage_value(&harness).expect("AC-4: stage-pane GenericContainer node must be present");
     assert!(
         val.contains("DOC-42"),
         "AC-4: the routed selection's source document is shown ({val})"
@@ -621,7 +627,7 @@ fn ac4_route_to_stage_displays_routed_selection() {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-6 (AccessKit dump): atelier-side-panel (List), atelier-item-{id} (ListItem, draggable), stage-pane
-// (Region) are present in the live AccessKit tree.
+// (GenericContainer) are present in the live AccessKit tree.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -702,7 +708,7 @@ fn ac6_accesskit_nodes_present() {
         )) if reference.item_id == "item-aaa"
     ));
 
-    // (b) The Stage pane: Region container node.
+    // (b) The Stage pane: GenericContainer node.
     let stage = std::sync::Arc::new(std::sync::Mutex::new(StagePane::new()));
     let stage_h = std::sync::Arc::clone(&stage);
     let mut stage_harness = Harness::builder()
@@ -715,23 +721,26 @@ fn ac6_accesskit_nodes_present() {
     let stage_ids = author_ids(&stage_harness);
     assert!(
         stage_ids.contains(STAGE_PANE_AUTHOR_ID),
-        "AC-6: stage-pane Region node present ({stage_ids:?})"
+        "AC-6: stage-pane GenericContainer node present ({stage_ids:?})"
     );
-    let mut saw_region = false;
+    let mut saw_container = false;
     for node in stage_harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(STAGE_PANE_AUTHOR_ID) {
             assert_eq!(
                 ak.role(),
-                egui::accesskit::Role::Region,
-                "AC-6: stage-pane is a Region"
+                egui::accesskit::Role::GenericContainer,
+                "AC-6: stage-pane is a GenericContainer"
             );
-            saw_region = true;
+            saw_container = true;
         }
     }
-    assert!(saw_region, "AC-6: the Region node was inspected");
+    assert!(
+        saw_container,
+        "AC-6: the GenericContainer node was inspected"
+    );
     println!(
-        "AC-6: atelier-side-panel(List), injective atelier-item hex id(ListItem+draggable), stage-pane(Region) present"
+        "AC-6: atelier-side-panel(List), injective atelier-item hex id(ListItem+draggable), stage-pane(GenericContainer) present"
     );
 }
 
@@ -765,6 +774,56 @@ fn live_shell() -> HandshakeApp {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }))
+}
+
+/// Positive rich-route proofs must use production Notes navigation to activate an exact document. A
+/// generic shell intentionally starts on another editor, and production correctly rejects Route to
+/// Stage when no rich document is active.
+fn live_rich_shell(document_id: &str) -> (HandshakeApp, tokio::runtime::Runtime) {
+    use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build rich-route test runtime");
+    let mut app = live_shell();
+    app.set_backend_base_url_for_test("http://127.0.0.1:1", runtime.handle().clone());
+    assert!(
+        matches!(
+            app.open_document(document_id),
+            NavDispatchOutcome::Opened { .. }
+        ),
+        "production Notes navigation opens and activates the routed document"
+    );
+    let pane_id = app
+        .active_pane()
+        .expect("production Notes navigation focuses the rich pane")
+        .clone();
+
+    let demo = RichEditorState::demo();
+    let content_json =
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(&demo.doc);
+    app.apply_loaded_rich_document_to_view_for_test(
+        pane_id.as_ref(),
+        handshake_native::backend_client::RichDocBody {
+            document_id: document_id.to_owned(),
+            workspace_id: "ws-ckc-test".to_owned(),
+            doc_version: 1,
+            title: document_id.to_owned(),
+            content_json,
+            crdt_document_id: None,
+            authority_label: "AUTHORITATIVE".to_owned(),
+            owner_actor_kind: Some("operator".to_owned()),
+            owner_actor_id: Some("operator".to_owned()),
+            project_ref: None,
+            folder_ref: None,
+            created_at: "2026-07-26T00:00:00Z".to_owned(),
+            updated_at: "2026-07-26T00:00:00Z".to_owned(),
+        },
+    )
+    .expect("install ready demo document in exact active rich view");
+    (app, runtime)
 }
 
 fn cross_pane_undo_modifiers() -> egui::Modifiers {
@@ -824,7 +883,7 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
     // Drive the REAL shell. Initially the Stage pane is closed (nothing routed). Stage a selection on the
     // shared bus + dispatch the Route-to-Stage command (exactly what the context-menu / palette path does);
     // the shell's per-frame `drive_ckc_interop` drain must open the Stage pane and display the routed
-    // content, and the live tree must then carry the `stage-pane` Region node. This is the production drain
+    // content, and the live tree must then carry the `stage-pane` GenericContainer node. This is the production drain
     // loop the isolated AC-4 harness only simulated.
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
@@ -851,15 +910,16 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
         dispatched,
         "AC-4 live: the route-to-stage command dispatched on the shell bus"
     );
-    harness.run(); // frame 1: the shell drain pulls the staged content + opens the Stage panel
-    harness.run(); // frame 2: the now-open Stage pane renders + emits its Region node
+    // The shell intentionally keeps repainting while the route opens/focuses Stage, so use an explicit
+    // bounded frame count instead of `run()`, which requires quiescence.
+    harness.run_steps(2);
 
     let ids = author_ids(&harness);
     assert!(
         ids.contains(STAGE_PANE_AUTHOR_ID),
-        "AC-4 live: the shell drain opened the Stage pane (stage-pane Region node present) ({ids:?})"
+        "AC-4 live: the shell drain opened the Stage pane (stage-pane GenericContainer node present) ({ids:?})"
     );
-    let val = stage_value(&harness).expect("AC-4 live: stage-pane Region node present");
+    let val = stage_value(&harness).expect("AC-4 live: stage-pane GenericContainer node present");
     assert!(
         val.contains("DOC-42"),
         "AC-4 live: routed selection's source document shown ({val})"
@@ -957,7 +1017,7 @@ fn ac4_view_stage_then_route_uses_one_docked_stage_region() {
     );
     assert_eq!(
         format!("{:?}", stage_nodes[0].accesskit_node().role()),
-        "Region"
+        "GenericContainer"
     );
     assert!(stage_nodes[0]
         .accesskit_node()
@@ -1097,7 +1157,7 @@ fn ac4_mounted_canvas_context_route_uses_live_pane_guard_and_rejects_closed_sour
 fn ac4_real_rich_selection_context_menu_routes_to_stage_in_mounted_shell() {
     use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 
-    let app = live_shell();
+    let (app, _runtime) = live_rich_shell("DOC-CONTEXT-33");
     {
         let rich = app.mounted_rich_state();
         let mut state = rich.lock().unwrap();
@@ -1114,22 +1174,20 @@ fn ac4_real_rich_selection_context_menu_routes_to_stage_in_mounted_shell() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    harness.run();
+    harness.run_steps(2);
     harness
         .root()
         .children_recursive()
         .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
         .expect("mounted editor.rich.text")
         .click_secondary();
-    harness.run();
-    harness.run();
+    harness.run_steps(2);
     assert!(
         author_ids(&harness).contains("rich-editor.route-to-stage"),
         "the required rich-selection context-menu action has a stable author id"
     );
     harness.get_by_label("Route to Stage").click();
-    harness.run();
-    harness.run();
+    harness.run_steps(3);
     let value = stage_value(&harness).expect("context-menu route opens mounted Stage");
     assert!(value.contains("DOC-CONTEXT-33"), "{value}");
     assert!(value.contains("Hello"), "{value}");
@@ -1160,7 +1218,7 @@ fn ac4_cross_block_selection_materializes_exact_text() {
 fn ac4_palette_routes_exact_cross_block_selection_in_mounted_shell() {
     use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 
-    let app = live_shell();
+    let (app, _runtime) = live_rich_shell("DOC-PALETTE-CROSS-33");
     {
         let rich = app.mounted_rich_state();
         let mut state = rich.lock().unwrap();
@@ -1173,7 +1231,7 @@ fn ac4_palette_routes_exact_cross_block_selection_in_mounted_shell() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    harness.run();
+    harness.run_steps(2);
     let ctx = harness.ctx.clone();
     assert!(
         harness
@@ -1195,7 +1253,7 @@ fn ac4_palette_routes_exact_cross_block_selection_in_mounted_shell() {
 
 #[test]
 fn ac4_no_selection_context_menu_routes_whole_active_document() {
-    let app = live_shell();
+    let (app, _runtime) = live_rich_shell("DOC-NO-SELECTION");
     {
         let rich = app.mounted_rich_state();
         rich.lock().unwrap().wikilinks.document_id = "DOC-NO-SELECTION".to_owned();
@@ -1203,18 +1261,16 @@ fn ac4_no_selection_context_menu_routes_whole_active_document() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    harness.run();
+    harness.run_steps(2);
     harness
         .root()
         .children_recursive()
         .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
         .expect("mounted editor.rich.text")
         .click_secondary();
-    harness.run();
-    harness.run();
+    harness.run_steps(2);
     harness.get_by_label("Route to Stage").click();
-    harness.run();
-    harness.run();
+    harness.run_steps(3);
     let value = stage_value(&harness).expect("whole document routed to mounted Stage");
     assert!(value.contains("DOC-NO-SELECTION"), "{value}");
     assert!(value.contains("Document:"), "{value}");
@@ -1242,20 +1298,25 @@ fn ac4_palette_route_without_active_selection_visibly_fails() {
 fn route_to_stage_bus_contention_retains_visible_retry_and_recovers() {
     use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 
-    let app = live_shell();
+    // The neighboring mounted-shell tests prove the app drain and Stage mount. Exercise the widget's
+    // actual non-blocking contention branch here without app-level bus consumers swallowing the
+    // synthetic click before it reaches the context-menu handler.
+    let state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::demo()));
     {
-        let rich = app.mounted_rich_state();
-        let mut state = rich.lock().unwrap();
+        let mut state = state.lock().unwrap();
         state.wikilinks.document_id = "DOC-BUSY-33".to_owned();
         state.selection = Selection::text(
             DocPosition::new(vec![1, 0], 0),
             DocPosition::new(vec![1, 0], 5),
         );
     }
+    let rendered_state = std::sync::Arc::clone(&state);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    harness.run();
+        .build_ui(move |ui| {
+            RichEditorWidget::new(std::sync::Arc::clone(&rendered_state)).show(ui);
+        });
+    harness.run_steps(2);
     harness
         .root()
         .children_recursive()
@@ -1266,18 +1327,31 @@ fn route_to_stage_bus_contention_retains_visible_retry_and_recovers() {
     let bus = InteractionBus::get_or_init(&harness.ctx);
     let guard = bus.lock().expect("hold InteractionBus to force contention");
     harness.get_by_label("Route to Stage").click();
-    harness.run();
+    harness.run_steps(2);
+    let (retained_while_contended, error_while_contended) = {
+        let state = state.lock().unwrap();
+        (
+            state.pending_stage_route_retry.is_some(),
+            state.interop_error.clone(),
+        )
+    };
+    assert!(
+        retained_while_contended,
+        "the contended context-menu action retains the exact request before the bus is released; \
+         interop_error={error_while_contended:?}"
+    );
     drop(guard);
     harness.run_steps(2);
-    assert!(author_ids(&harness).contains("rich-editor-stage-route-retry"));
-    assert!(author_ids(&harness).contains("rich-editor-interop-status"));
-    let retained = harness
-        .state()
-        .mounted_rich_state()
-        .lock()
-        .unwrap()
-        .pending_stage_route_retry
-        .clone();
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains("rich-editor-stage-route-retry"),
+        "the retained route exposes its retry control: {ids:?}"
+    );
+    assert!(
+        ids.contains("rich-editor-interop-status"),
+        "the contended route exposes its typed status: {ids:?}"
+    );
+    let retained = state.lock().unwrap().pending_stage_route_retry.clone();
     assert!(matches!(
         retained,
         Some(handshake_native::interop::PendingStageRoute {
@@ -1288,9 +1362,17 @@ fn route_to_stage_bus_contention_retains_visible_retry_and_recovers() {
     ));
     harness.get_by_label("Retry Route to Stage").click();
     harness.run_steps(3);
-    let value = stage_value(&harness).expect("retained route reaches Stage after retry");
-    assert!(value.contains("DOC-BUSY-33"), "{value}");
-    assert!(value.contains("Hello"), "{value}");
+    {
+        let state = state.lock().unwrap();
+        assert!(state.pending_stage_route_retry.is_none());
+        assert!(state.interop_error.is_none());
+    }
+    let bus = bus.lock().expect("inspect retried shared-bus route");
+    assert!(matches!(
+        bus.pending_stage_content(),
+        Some(StageContent::Selection(text, source))
+            if text == "Hello" && source == "DOC-BUSY-33"
+    ));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1391,16 +1473,17 @@ fn no_local_artifact_dir_in_default_suite() {
 fn declared_test_command_targets_this_nonzero_integration_binary() {
     const DECLARED: &str = "cargo test -p handshake-native --test test_ckc_embed -- --nocapture";
     assert!(DECLARED.contains("--test test_ckc_embed"));
-    let mandatory_runtime_proofs = [
+    let mandatory_runtime_proofs = std::collections::BTreeSet::from([
         "real-panel-to-rich-editor-dnd",
         "real-panel-to-canvas-dnd",
         "mounted-selection-context-menu-to-stage",
         "managed-backend-mounted-panel",
         "managed-backend-save-and-canvas-reload",
-    ];
-    assert!(
-        !mandatory_runtime_proofs.is_empty(),
-        "the declared integration binary must execute a nonzero proof set"
+    ]);
+    assert_eq!(
+        mandatory_runtime_proofs.len(),
+        5,
+        "the declared integration binary must retain five uniquely named runtime proofs"
     );
 }
 
@@ -1608,8 +1691,8 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
     use std::sync::{Arc, Mutex};
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let base = std::env::var("HANDSHAKE_TEST_DB_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let base =
+        std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
     let suffix = integration_suffix();
     let source_label = format!("MT-033 managed proof {suffix}");
     let corpus_action_id = format!("mt033.proof.{suffix}");
@@ -1729,7 +1812,9 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
     harness.get_by_label("VIEW").click();
     harness.run();
     harness.get_by_label("Toggle Atelier / CKC Panel").click();
-    harness.run();
+    // Opening the live panel intentionally keeps repainting while the HTTP load is in flight. Drive the
+    // first mounted frame explicitly; the bounded loop below owns the async completion deadline.
+    harness.step();
     let expected_batch = batch_author_id(&batch_id);
     let expected_corpus = corpus_author_id(&corpus_entry_id);
     for _ in 0..60 {
@@ -1856,9 +1941,12 @@ impl Drop for WorkspacePgCleanup {
 #[test]
 #[cfg(feature = "integration")]
 fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
+    use handshake_native::command_registry::CMD_EDITOR_FILE_SAVE;
+    use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
+
     let runtime = tokio::runtime::Runtime::new().expect("integration runtime");
     runtime.block_on(async {
-        let base = std::env::var("HANDSHAKE_TEST_DB_URL")
+        let base = std::env::var("HSK_TEST_BASE")
             .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
         let client = reqwest::Client::builder()
             .pool_max_idle_per_host(2)
@@ -1970,9 +2058,20 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             migration_version: Some(1),
         }));
         rich_app.set_backend_base_url_for_test(&base, runtime.handle().clone());
+        assert!(
+            matches!(
+                rich_app.open_document(&document_id),
+                NavDispatchOutcome::Opened { .. }
+            ),
+            "production Notes navigation opens and activates the persisted document"
+        );
+        let rich_pane_id = rich_app
+            .active_pane()
+            .expect("production Notes navigation focuses the rich pane")
+            .clone();
         rich_app
-            .apply_loaded_rich_document_for_test(loaded_body)
-            .expect("install mounted document + SaveManager");
+            .apply_loaded_rich_document_to_view_for_test(rich_pane_id.as_ref(), loaded_body)
+            .expect("install the mounted document and canonical SaveManager in its active view");
         rich_app.set_atelier_panel_open(true);
         let rich_state = rich_app.mounted_rich_state();
         let mut rich_harness = Harness::builder()
@@ -2006,9 +2105,12 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             Some(("media".into(), item_id.clone())),
             "mounted panel action must mutate the shared rich state; interop_error={interop_error:?}; content={saved_content}"
         );
+        let save_ctx = rich_harness.ctx.clone();
         assert!(
-            rich_state.lock().unwrap().request_save_for_host(),
-            "mounted SaveManager accepted panel-originated edit"
+            rich_harness
+                .state_mut()
+                .dispatch_palette_action_for_test_with_ctx(&save_ctx, CMD_EDITOR_FILE_SAVE),
+            "mounted host published the panel-originated edit to the canonical SaveManager"
         );
         for _ in 0..100 {
             rich_harness.step();
@@ -2246,7 +2348,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
 
 // ── helpers ────────────────────────────────────────────────────────────────────────────────────────
 
-/// The Stage pane's AccessKit Region value (the routed-content summary), or `None` when absent. Generic
+/// The Stage pane's AccessKit GenericContainer value (the routed-content summary), or `None` when absent. Generic
 /// over the harness state type (works for both the widget harnesses and the live-shell harness).
 fn stage_value<S>(harness: &Harness<'_, S>) -> Option<String> {
     for node in harness.root().children_recursive() {

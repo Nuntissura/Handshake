@@ -251,6 +251,7 @@ impl PaneHeader {
     /// shared MT-019 context menu (Lock/Unlock + Pop Out when enabled; split/set-type/close
     /// future-target, disabled+disclosed). A confirmed item is recorded into the returned
     /// [`PaneHeaderResponse`] for the caller to apply (single source of truth for pane state).
+    #[allow(clippy::too_many_arguments)]
     pub fn show(
         ui: &mut egui::Ui,
         pane_id: &str,

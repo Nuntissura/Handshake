@@ -859,11 +859,11 @@ impl StageClient {
                 detail,
             });
         }
-        if !response
+        if response
             .headers()
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
-            .is_some_and(|value| value.split(';').next() == Some("application/json"))
+            .is_none_or(|value| value.split(';').next() != Some("application/json"))
         {
             return Err(StageInteropError::ContentIntegrityMismatch);
         }
@@ -918,11 +918,11 @@ impl StageClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(StageInteropError::Transport(format!("HTTP {code}: {body}")));
         }
-        if !resp
+        if resp
             .headers()
             .get(reqwest::header::CONTENT_TYPE)
             .and_then(|value| value.to_str().ok())
-            .is_some_and(|value| value.split(';').next() == Some("application/json"))
+            .is_none_or(|value| value.split(';').next() != Some("application/json"))
         {
             return Err(StageInteropError::ContentIntegrityMismatch);
         }

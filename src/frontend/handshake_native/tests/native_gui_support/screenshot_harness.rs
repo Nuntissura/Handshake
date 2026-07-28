@@ -13,7 +13,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[path = "screenshot_marker.rs"]
-mod screenshot_marker;
+pub(crate) mod screenshot_marker;
 
 use screenshot_marker::{
     gpu_screenshot_enabled, marker_dir, record_screenshot_outcome, ScreenshotMarker,
@@ -80,7 +80,11 @@ impl<State> ScreenshotHarness<'_, State> {
             std::process::id(),
             sanitize(&test_name)
         );
-        let scenario_id = format!("runtime:{test_name}");
+        let scenario_id = std::env::var("HANDSHAKE_PROOF_PROCESS_SCENARIO_ID")
+            .ok()
+            .filter(|scenario| !scenario.trim().is_empty())
+            .map(|scenario| format!("matrix:{scenario}"))
+            .unwrap_or_else(|| format!("runtime:{test_name}"));
 
         if !gpu_screenshot_enabled() {
             let marker = record_screenshot_outcome(
@@ -152,6 +156,31 @@ impl<State> ScreenshotHarness<'_, State> {
         .map_err(|error| format!("durable CAPTURED marker write failed: {error}"))?;
         self.last_screenshot_outcome = Some(marker.into());
         Ok(image)
+    }
+
+    /// Require a material frame on a declared GPU run while accepting only a durably recorded
+    /// `DEFERRED` outcome on a headless run. This is the canonical matrix call path: marker-write
+    /// failures and GPU render failures remain hard test failures instead of being mistaken for an
+    /// environment deferral.
+    #[track_caller]
+    pub fn render_proof_frame(&mut self, expectation: &str) -> Option<image::RgbaImage> {
+        let gpu_expected = gpu_screenshot_enabled();
+        match self.render() {
+            Ok(image) if gpu_expected => Some(image),
+            Ok(_) => panic!(
+                "{expectation}: render unexpectedly returned pixels while GPU screenshots were disabled"
+            ),
+            Err(_)
+                if !gpu_expected
+                    && self
+                        .last_screenshot_outcome
+                        .as_ref()
+                        .is_some_and(|outcome| outcome.status == "DEFERRED") =>
+            {
+                None
+            }
+            Err(error) => panic!("{expectation}: {error}"),
+        }
     }
 
     pub fn last_screenshot_outcome(&self) -> Option<&ScreenshotOutcomeEvidence> {

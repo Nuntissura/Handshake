@@ -19,13 +19,17 @@
 //! The shell is built with `HandshakeApp::with_health(...)` (no runtime spawn, no network).
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::command_palette::{
     PALETTE_DIALOG_AUTHOR_ID, PALETTE_LIST_AUTHOR_ID, PALETTE_SEARCH_AUTHOR_ID,
 };
 use handshake_native::pane_registry::PaneType;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -65,6 +69,43 @@ fn any_pane_has_usermanual_tab(app: &HandshakeApp) -> bool {
     app.tab_bar_states()
         .values()
         .any(|bar| bar.tabs.iter().any(|t| t.pane_type == PaneType::UserManual))
+}
+
+#[test]
+fn mt108_command_palette_canonical_argus_action() {
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+
+    let matrix_selected = std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID").is_ok();
+    let mut harness = shell_harness();
+    harness.run_steps(2);
+    harness.state_mut().open_command_palette();
+    harness.run_steps(2);
+    let target = "command-palette.option.hs-usermanual-palette-open";
+    if matrix_selected {
+        let _ = harness.render_proof_frame(
+            "MT-108 Command Palette matrix requires a material pre-action frame",
+        );
+    }
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt108-command-palette");
+    let before = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&before, PALETTE_DIALOG_AUTHOR_ID));
+    assert!(json_has_author_id(&before, target));
+    let observation = argus.click_from_snapshot_and_reinspect(&mut harness, target, before);
+    assert!(matches!(
+        observation.receipt_status.as_str(),
+        "applied" | "indeterminate"
+    ));
+    assert!(!json_has_author_id(
+        &observation.after,
+        PALETTE_DIALOG_AUTHOR_ID
+    ));
+    assert!(any_pane_has_usermanual_tab(harness.state()));
+    if matrix_selected {
+        let _ = harness.render_proof_frame(
+            "MT-108 Command Palette matrix requires a material post-action frame",
+        );
+    }
+    argus.finish();
 }
 
 // ── AC1 / AC10 / AC11: opening via the flag renders the Dialog/SearchBox/ListBox in the live tree ─────
@@ -317,8 +358,20 @@ fn disabled_editor_row_cannot_run() {
     harness.run();
     harness.run();
 
-    // The Bold row is present and marked disabled.
-    let bold = harness.get_by_label("Bold");
+    // Address the palette option by its stable row id. The mounted rich editor also exposes a live
+    // "Bold" checkbox, so a label-only query no longer identifies the command-palette consumer.
+    let bold = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id()
+                == Some("command-palette.option.hs-editor-command-format-bold")
+        })
+        .expect("the disabled Bold command-palette option");
+    assert_eq!(
+        bold.accesskit_node().role(),
+        egui::accesskit::Role::ListBoxOption
+    );
     assert!(
         bold.accesskit_node().is_disabled(),
         "editor Bold row is disabled"

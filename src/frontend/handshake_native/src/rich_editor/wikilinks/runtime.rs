@@ -603,10 +603,8 @@ impl WikilinkRuntime {
         self.backlinks_index_warnings = log
             .current_warnings
             .iter()
-            .filter_map(|((workspace_id, source_document_id), warning)| {
-                (workspace_id == &self.workspace_id)
-                    .then(|| (source_document_id.clone(), warning.clone()))
-            })
+            .filter(|entry| (entry.0).0 == self.workspace_id)
+            .map(|((_, source_document_id), warning)| (source_document_id.clone(), warning.clone()))
             .collect();
         let observed = workspace_revision != self.backlinks_invalidation_revision
             || self.backlinks_index_warnings != previous_warnings;

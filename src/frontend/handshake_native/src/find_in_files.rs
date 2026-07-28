@@ -130,7 +130,7 @@ fn encode_author_id_component(value: &str) -> String {
 }
 
 fn decode_author_id_component(value: &str) -> Option<String> {
-    if value.len() % 2 != 0 || !value.is_ascii() {
+    if !value.len().is_multiple_of(2) || !value.is_ascii() {
         return None;
     }
     let bytes = (0..value.len())

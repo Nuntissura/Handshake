@@ -491,6 +491,8 @@ pub fn author_node_value<S>(harness: &Harness<'_, S>, author_id: &str) -> Option
 #[path = "../pg_proof_support/mod.rs"]
 mod pg_proof_support;
 
+#[allow(unused_imports)]
+// Each integration test crate consumes a different fixture entrypoint.
 pub use pg_proof_support::{
     require_live_backend, require_reachable_backend, LiveBackend, DEFAULT_BASE,
 };

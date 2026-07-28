@@ -16,14 +16,12 @@ use std::path::PathBuf;
 
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
-#[path = "native_gui_support/screenshot_marker.rs"]
-mod screenshot_marker;
 
-use screenshot_harness::ScreenshotHarness as Harness;
-use screenshot_marker::{
+use screenshot_harness::screenshot_marker::{
     gpu_screenshot_enabled, marker_dir, record_screenshot_outcome_to_dir, ScreenshotMarker,
     ScreenshotStatus, SCREENSHOT_MARKER_FILE, SCREENSHOT_MARKER_SCHEMA_ID,
 };
+use screenshot_harness::ScreenshotHarness as Harness;
 
 const MT_ID: &str = "MT-108";
 

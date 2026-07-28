@@ -181,6 +181,7 @@ impl TerminalLaunchClient {
 
     /// Attempt to open a terminal session in `cwd`. Today this returns the honest typed blocker because
     /// the PTY session runtime is reachable only through Tauri IPC, not through native HTTP.
+    #[allow(clippy::result_large_err)]
     pub fn open_workspace_terminal(
         &self,
         cwd: impl Into<String>,
@@ -326,6 +327,7 @@ impl ModelSessionLaunchRequest {
         self
     }
 
+    #[allow(clippy::result_large_err)]
     fn validate(&self) -> Result<(), ModelSessionLaunchError> {
         if self.session_id.trim().is_empty() {
             return Err(ModelSessionLaunchError::InvalidRequest {
@@ -499,6 +501,7 @@ impl ModelSessionLaunchClient {
         format!("{base_url}{MODEL_SESSION_DIRECT_SPAWN_PROBED_PATH}")
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn jobs_request(
         &self,
         request: &ModelSessionLaunchRequest,
@@ -509,6 +512,7 @@ impl ModelSessionLaunchClient {
     /// Enqueue the real reachable `POST /jobs` request off the UI thread. The returned [`RequestSpec`] is
     /// the exact request being sent, so the caller can report "POST /jobs issued" without duplicating
     /// serialization logic.
+    #[allow(clippy::result_large_err)]
     pub fn launch_workspace_model_job(
         &self,
         request: ModelSessionLaunchRequest,
@@ -539,6 +543,7 @@ impl ModelSessionLaunchClient {
 
     /// The direct repo-folder-bound spawn remains IPC-only. This path intentionally never returns a fake
     /// session id.
+    #[allow(clippy::result_large_err)]
     pub fn direct_spawn_workspace(
         base_url: &str,
         request: &ModelSessionLaunchRequest,
@@ -561,6 +566,8 @@ pub struct ModelSessionDirectSpawn {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+// EndpointMissing deliberately retains the full typed launch request for operator recovery.
+#[allow(clippy::large_enum_variant)]
 pub enum ModelSessionLaunchError {
     InvalidRequest {
         field: &'static str,
@@ -611,6 +618,7 @@ impl fmt::Display for ModelSessionLaunchError {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn model_session_jobs_request(
     base_url: &str,
     request: &ModelSessionLaunchRequest,
@@ -4446,6 +4454,8 @@ impl LoomFolderClient {
         });
     }
 
+    // Folder mutations retain explicit workspace/generation/sequence authority at the call boundary.
+    #[allow(clippy::too_many_arguments)]
     pub fn create_folder(
         &self,
         workspace_id: &str,
@@ -4483,6 +4493,7 @@ impl LoomFolderClient {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn move_folder(
         &self,
         workspace_id: &str,
@@ -5577,13 +5588,6 @@ impl LoomSidebarClient {
         )
     }
 
-    fn pin_order_url(&self, workspace_id: &str, block_id: &str) -> String {
-        format!(
-            "{}/workspaces/{}/loom/blocks/{}/pin-order",
-            self.base_url, workspace_id, block_id
-        )
-    }
-
     /// WP-KERNEL-012 MT-024 FAIL_V2: the single atomic pin-removal endpoint.
     fn remove_pin_url(&self, workspace_id: &str, block_id: &str) -> String {
         format!(
@@ -6049,7 +6053,8 @@ pub fn parse_sidebar_backlinks(value: &serde_json::Value) -> Result<Vec<Backlink
 
 /// `GET {url}` and parse the verified `Vec<LoomUnlinkedMention>` shape into [`UnlinkedRow`]s. Each mention
 /// is `{ source_block:{ block_id, title, .. }, matched_term, snippet, match_offset }`; the row's open key
-/// + title come from `source_block` (AC5); matched term and snippet are retained. A present empty array
+/// The row's open key and title come from `source_block` (AC5); matched term and snippet are retained.
+/// A present empty array
 /// is valid; malformed rows fail closed.
 async fn fetch_unlinked_rows(
     client: &reqwest::Client,
@@ -7145,6 +7150,7 @@ impl BlockViewClient {
 
     /// Query only if `generation` remains current at delivery time. See
     /// [`Self::fetch_view_for_generation`] for the mounted-host race this closes.
+    #[allow(clippy::too_many_arguments)]
     pub fn query_results_for_generation(
         &self,
         workspace_id: &str,
@@ -11226,7 +11232,13 @@ mod tests {
             "the structured mirror pins the same external wire keys"
         );
         assert_eq!(
-            (&body["title"], &body["x"], &body["y"], &body["w"], &body["h"]),
+            (
+                &body["title"],
+                &body["x"],
+                &body["y"],
+                &body["w"],
+                &body["h"]
+            ),
             (
                 &serde_json::json!("Stage capture artifact-9"),
                 &serde_json::json!(40.0),

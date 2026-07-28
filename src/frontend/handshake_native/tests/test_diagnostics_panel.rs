@@ -105,6 +105,7 @@ fn open_diagnostics_section(harness: &mut Harness<'_, HandshakeApp>) {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_diagnostics_panel_real_server_loop() {
     let mut harness: Harness<HandshakeApp> = Harness::builder()
         .with_size(egui::vec2(1000.0, 1800.0))

@@ -575,7 +575,7 @@ impl LoomGraphView {
     /// production path that makes AC3 group-colouring live in the running app — NOT a test-only builder.
     /// WP-KERNEL-012 MT-080 FIX B wired the live caller: `app.rs::apply_graph_group_identity` invokes this
     /// after every graph `set_graph`, passing the membership the host holds (loaded folder `child_blocks`
-    /// + the open tag hub's members). Empty maps (nothing loaded yet) leave nodes at their content_type
+    /// together with the open tag hub's members). Empty maps (nothing loaded yet) leave nodes at their content_type
     /// colour — honest, since the client cannot colour by memberships it has not loaded.
     ///
     /// - `tag_membership`: `{tag identity (the MT-023 tag-hub title) -> the hub's member block_ids}`, exactly

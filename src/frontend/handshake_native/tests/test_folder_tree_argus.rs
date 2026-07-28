@@ -142,8 +142,7 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-022/canonical-argus");
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-022 Argus artifact dir");
 
-    let mut argus =
-        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-022-folder-tree");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-022-folder-tree");
 
     // (1) Canonical inspect: the mounted folder nodes are addressable by stable author_id.
     let before = argus.inspect(&mut harness);
@@ -204,7 +203,9 @@ fn mt022_mounted_folder_tree_canonical_argus_inspect_steer_reobserve() {
     let screenshot_marker = match harness.render() {
         Ok(image) => {
             let path = artifact_dir.join("mt022-mounted-folder-tree.png");
-            image.save(&path).expect("save mounted folder-tree screenshot");
+            image
+                .save(&path)
+                .expect("save mounted folder-tree screenshot");
             format!("CAPTURED {}", path.display())
         }
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),

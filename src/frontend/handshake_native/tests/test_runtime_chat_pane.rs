@@ -103,6 +103,7 @@ fn ok_app() -> HandshakeApp {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_runtime_chat_real_server_loop() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
@@ -963,9 +964,7 @@ fn argus_any_label_equals(tree: &serde_json::Value, label: &str) -> bool {
             map.get("label").and_then(|v| v.as_str()) == Some(label)
                 || map.values().any(|v| argus_any_label_equals(v, label))
         }
-        serde_json::Value::Array(items) => {
-            items.iter().any(|v| argus_any_label_equals(v, label))
-        }
+        serde_json::Value::Array(items) => items.iter().any(|v| argus_any_label_equals(v, label)),
         _ => false,
     }
 }
@@ -1019,7 +1018,8 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     let chat = harness.state().mounted_runtime_chat_panel_for_test();
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-098/canonical-argus");
-    std::fs::create_dir_all(&artifact_dir).expect("create external MT-098 canonical-Argus artifact dir");
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-098 canonical-Argus artifact dir");
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-098-chat");
 
@@ -1058,7 +1058,10 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     seed_chat_draft(&mut harness, &chat, "argus send one");
     let send_one = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
     assert!(
-        matches!(send_one.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            send_one.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical send receipt is terminal and non-rejected: {}",
         send_one.receipt_status
     );
@@ -1097,7 +1100,10 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     seed_chat_draft(&mut harness, &chat, "argus send two retry");
     let send_two = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
     assert!(
-        matches!(send_two.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            send_two.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical retry send receipt is terminal: {}",
         send_two.receipt_status
     );
@@ -1133,7 +1139,10 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     seed_chat_draft(&mut harness, &chat, "argus cancel me");
     let cancel_send = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
     assert!(
-        matches!(cancel_send.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            cancel_send.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical in-flight send receipt is terminal: {}",
         cancel_send.receipt_status
     );
@@ -1169,7 +1178,10 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     seed_chat_draft(&mut harness, &chat, "argus recovery send");
     let recovery = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
     assert!(
-        matches!(recovery.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            recovery.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical recovery send receipt is terminal: {}",
         recovery.receipt_status
     );

@@ -870,6 +870,7 @@ pub struct CodeEditorPanel {
     /// contention can precede the first highlighted-range emission.
     initial_highlight_job: Mutex<Option<InitialHighlightJob>>,
     initial_highlight_rx: Mutex<Option<mpsc::Receiver<InitialHighlightDelivery>>>,
+    #[allow(clippy::type_complexity)]
     initial_highlight_source: Mutex<Option<(Arc<[u8]>, u64, u64)>>,
     initial_highlight_cancel: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
     initial_highlight_generation: AtomicU64,
@@ -1681,7 +1682,7 @@ type CompletionResultCell = Arc<Mutex<Option<CompletionDelivery>>>;
 type HoverResultCell = Arc<Mutex<Option<HoverDelivery>>>;
 
 /// MT-008 explicit raw code-nav symbol injection queue, drained on the next frame for staleness markers
-/// + cache. Workspace identity is captured at enqueue time so a later workspace switch cannot attribute
+/// and cache. Workspace identity is captured at enqueue time so a later workspace switch cannot attribute
 /// the batch to the wrong cache key. Live fallback batches travel with their request identity.
 type CodeNavSymbolsResultCell = Arc<Mutex<Vec<(String, String, Vec<CodeSymbolNavProjection>)>>>;
 
@@ -8930,6 +8931,7 @@ impl CodeEditorPanel {
     ///   ([`take_pending_create_note_link`](Self::take_pending_create_note_link)),
     /// - Copy as note reference -> stages the `[[code:…]]` ref the factory render writes to the SHARED
     ///   InteractionBus clipboard (MT-046).
+    ///
     /// Availability is read FRESH from the live panel at right-click time (RISK-070-1 — a stale snapshot
     /// never enables a dead entry). Also emits the always-present `code_editor_ctx_rename_symbol` /
     /// `code_editor_ctx_quick_fix` MenuItem AccessKit nodes (AC-005 / HBR-SWARM) exactly as before.
@@ -10396,6 +10398,10 @@ impl CodeEditorPanel {
                     node.add_action(accesskit::Action::SetValue);
                     node.add_action(accesskit::Action::ReplaceSelectedText);
                     node.add_action(accesskit::Action::Focus);
+                    // MT-041 swarm activation: clicking the stable text surface focuses the real
+                    // editor, matching the pointer activation semantics and the editor.* action
+                    // contract. `consume_swarm_text_actions` drains this request at the live node id.
+                    node.add_action(accesskit::Action::Click);
                 });
 
                 // MT-003 AC-004: emit one `Role::Caret` AccessKit node per cursor (capped at
@@ -10706,6 +10712,7 @@ impl CodeEditorPanel {
                     node.add_action(accesskit::Action::SetValue);
                     node.add_action(accesskit::Action::ReplaceSelectedText);
                     node.add_action(accesskit::Action::Focus);
+                    node.add_action(accesskit::Action::Click);
                 });
 
                 // MT-054 Task-B: emit one `Role::Caret` AccessKit node per cursor under wrap too (position-
@@ -13094,27 +13101,7 @@ impl CodeEditorPanel {
         // They therefore own every keyboard event while focused. Preserve only the find lifecycle keys
         // that the product handles itself; all other events must reach the TextEdit without also moving
         // a code caret or editing the code buffer.
-        if self.find_text_surface_owns_keyboard() {
-            for event in ui.input(|i| i.events.clone()) {
-                let egui::Event::Key {
-                    key,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } = event
-                else {
-                    continue;
-                };
-                if matches!(key, egui::Key::Escape | egui::Key::Enter) {
-                    if let ContextOutcome::Dispatch(action) =
-                        self.resolve_contextual(key, &modifiers)
-                    {
-                        self.dispatch_action(action);
-                    }
-                }
-            }
-            return;
-        }
+        let find_text_surface_owns_keyboard = self.find_text_surface_owns_keyboard();
 
         // Clear a stale two-chord prefix BEFORE reading events so a timed-out Ctrl+K never wedges
         // single-chord shortcuts (RISK-001 / MC-001 / AC-002 timeout case).
@@ -13144,6 +13131,16 @@ impl CodeEditorPanel {
             else {
                 continue;
             };
+            if find_text_surface_owns_keyboard {
+                if matches!(key, egui::Key::Escape | egui::Key::Enter) {
+                    if let ContextOutcome::Dispatch(action) =
+                        self.resolve_contextual(*key, modifiers)
+                    {
+                        self.dispatch_action(action);
+                    }
+                }
+                continue;
+            }
             let chord = KeyChord::from_modifiers(*key, modifiers);
 
             // 1) If a two-chord prefix is pending, this chord must be the SECOND chord.
@@ -14718,10 +14715,15 @@ impl CodeEditorPanel {
         let mut set_value: Option<String> = None;
         let mut replace_values: Vec<String> = Vec::new();
         ui.input(|input| {
-            focus = input
+            let focus_requested = input
                 .accesskit_action_requests(text_id, accesskit::Action::Focus)
                 .next()
                 .is_some();
+            let click_requested = input
+                .accesskit_action_requests(text_id, accesskit::Action::Click)
+                .next()
+                .is_some();
+            focus = focus_requested || click_requested;
             for request in input.accesskit_action_requests(text_id, accesskit::Action::SetValue) {
                 if let Some(accesskit::ActionData::Value(v)) = &request.data {
                     set_value = Some(v.to_string());

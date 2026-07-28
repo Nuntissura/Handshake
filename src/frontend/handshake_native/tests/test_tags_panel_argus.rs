@@ -155,7 +155,11 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
         json_has_author_id(&before, "tags.search"),
         "canonical argus.inspect must see the mounted tags search box 'tags.search'"
     );
-    for author in ["tags.row.tag-rust", "tags.row.tag-python", "tags.row.tag-design"] {
+    for author in [
+        "tags.row.tag-rust",
+        "tags.row.tag-python",
+        "tags.row.tag-design",
+    ] {
         assert!(
             json_has_author_id(&before, author),
             "canonical argus.inspect must see the mounted tag row '{author}' in the live tree"
@@ -224,7 +228,9 @@ fn mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve() {
     let screenshot_marker = match harness.render() {
         Ok(image) => {
             let path = artifact_dir.join("mt023-mounted-tags-panel.png");
-            image.save(&path).expect("save mounted tags-panel screenshot");
+            image
+                .save(&path)
+                .expect("save mounted tags-panel screenshot");
             format!("CAPTURED {}", path.display())
         }
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),

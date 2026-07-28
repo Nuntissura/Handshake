@@ -11,8 +11,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
 use sha2::{Digest, Sha256};
+
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 // REUSE: the MT-066 Stage round-trip (pane + embed-back provenance) — imported, never re-created.
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
@@ -111,6 +114,7 @@ mod stage_binding_proof {
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(&lock_path)
                 .unwrap_or_else(|error| {
                     panic!("open canonical Stage lock {}: {error}", lock_path.display())
@@ -3173,10 +3177,10 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
     let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
-        if rich_state.lock().unwrap().save.is_some() {
-            if find_node(&harness.root(), &chip_id).is_some() {
-                break;
-            }
+        if rich_state.lock().unwrap().save.is_some()
+            && find_node(&harness.root(), &chip_id).is_some()
+        {
+            break;
         }
         assert!(std::time::Instant::now() < load_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));

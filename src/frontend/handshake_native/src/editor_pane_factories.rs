@@ -66,14 +66,30 @@ pub struct EditorSessionContext {
     /// The tokio runtime handle the editors spawn their off-thread backend work onto. `None` until the
     /// shell installs it (the production shell always does; a current-thread test harness may not).
     pub runtime: Option<tokio::runtime::Handle>,
+    /// Backend authority threaded with the workspace/runtime so a managed or relocated backend is not
+    /// lost when the factory refreshes an already-mounted rich editor context.
+    pub backend_base_url: String,
 }
 
 impl EditorSessionContext {
     /// A bound context (the production wiring point: `workspace_id` + the app runtime handle).
     pub fn new(workspace_id: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self::with_backend(
+            workspace_id,
+            runtime,
+            crate::backend_client::BACKEND_BASE_URL,
+        )
+    }
+
+    pub fn with_backend(
+        workspace_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        backend_base_url: impl Into<String>,
+    ) -> Self {
         Self {
             workspace_id: workspace_id.into(),
             runtime: Some(runtime),
+            backend_base_url: backend_base_url.into(),
         }
     }
 
@@ -92,15 +108,24 @@ impl EditorSessionContext {
 /// not a `&mut self`).
 pub type SharedSessionContext = Arc<Mutex<EditorSessionContext>>;
 
+/// One rich-editor event plus the exact mounted view that produced it. Async consumers must retain
+/// this identity because navigation can move focus before their delivery returns; using the then-active
+/// rich state would mutate a different split pane or document.
+pub struct RoutedRichPaneEvent {
+    pub event: EditorEvent,
+    pub pane_id: String,
+    pub document_id: Option<String>,
+}
+
 /// A FNV-1a / lock-free outbound queue of the rich editor's drained [`EditorEvent`]s. The rich pane
-/// factory drains `RichEditorState.pending_events` after the editor renders and pushes them here; the
-/// shell drains THIS queue once per frame (after the pane host) and routes each event to the MT-030
-/// navigation bus (AC-079-5). Keeping the queue here (not inside the editor state) means the editor
-/// stays a pure widget and the routing stays the shell's responsibility — the exact ownership split the
-/// MT-015 `pending_events` doc comment already names ("routing is owned by the shell").
+/// factory drains `RichEditorState.pending_events` after the editor renders and pushes them here with
+/// their exact pane/document origin; the shell drains THIS queue once per frame (after the pane host)
+/// and routes each event to the MT-030 navigation bus (AC-079-5). Keeping the queue here (not inside
+/// the editor state) means the editor stays a pure widget and the routing stays the shell's
+/// responsibility — the exact ownership split the MT-015 `pending_events` doc comment already names.
 #[derive(Clone, Default)]
 pub struct RichPaneEvents {
-    inner: Arc<Mutex<Vec<EditorEvent>>>,
+    inner: Arc<Mutex<Vec<RoutedRichPaneEvent>>>,
 }
 
 impl RichPaneEvents {
@@ -109,18 +134,22 @@ impl RichPaneEvents {
     }
 
     /// Append the events the rich pane drained this frame (called by [`RichEditorPaneMount::render`]).
-    fn push_all(&self, events: Vec<EditorEvent>) {
+    fn push_all(&self, events: Vec<EditorEvent>, pane_id: &str, document_id: Option<&str>) {
         if events.is_empty() {
             return;
         }
         if let Ok(mut q) = self.inner.lock() {
-            q.extend(events);
+            q.extend(events.into_iter().map(|event| RoutedRichPaneEvent {
+                event,
+                pane_id: pane_id.to_owned(),
+                document_id: document_id.map(str::to_owned),
+            }));
         }
     }
 
     /// Take every queued event (the shell calls this once per frame to route them). Leaves the queue
     /// empty so an event is routed exactly once (no double-route, no leak).
-    pub fn take(&self) -> Vec<EditorEvent> {
+    pub fn take(&self) -> Vec<RoutedRichPaneEvent> {
         match self.inner.lock() {
             Ok(mut q) => std::mem::take(&mut *q),
             Err(p) => std::mem::take(&mut *p.into_inner()),
@@ -161,6 +190,7 @@ pub struct RichEditorDocumentStore {
     base_state: Arc<Mutex<RichEditorState>>,
     /// `(document_id, pane_id)` keeps two split views of the same document from sharing selection,
     /// scroll, popup, or accessibility-registration state.
+    #[allow(clippy::type_complexity)]
     states: Mutex<BTreeMap<(String, String), Arc<Mutex<RichEditorState>>>>,
     /// One document-level authority view per document. Its `doc`, `undo`, `save`, and `draft` fields
     /// are the canonical shared editing core; every other split view keeps only view-local state.
@@ -341,6 +371,7 @@ impl RichEditorDocumentStore {
             }
         }
 
+        #[allow(clippy::type_complexity)]
         let states: Vec<((String, String), Arc<Mutex<RichEditorState>>)> = self
             .states
             .lock()
@@ -518,9 +549,8 @@ impl RichEditorDocumentStore {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .keys()
-            .filter_map(|(state_document_id, pane_id)| {
-                (state_document_id == document_id).then(|| pane_id.clone())
-            })
+            .filter(|key| key.0 == document_id)
+            .map(|key| key.1.clone())
             .collect();
         let mut ready = self.ready_views.lock().unwrap_or_else(|e| e.into_inner());
         ready.extend(
@@ -745,9 +775,8 @@ impl RichEditorDocumentStore {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .iter()
-            .filter_map(|((document_id, _), state)| {
-                (document_id == content_id).then(|| Arc::clone(state))
-            })
+            .filter(|entry| (entry.0).0 == content_id)
+            .map(|(_, state)| Arc::clone(state))
             .collect()
     }
 
@@ -756,9 +785,8 @@ impl RichEditorDocumentStore {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .keys()
-            .filter_map(|(document_id, pane_id)| {
-                (document_id == content_id).then(|| (pane_id.clone(), document_id.clone()))
-            })
+            .filter(|key| key.0 == content_id)
+            .map(|key| (key.1.clone(), key.0.clone()))
             .collect()
     }
 
@@ -1558,7 +1586,12 @@ impl RichEditorPaneMount {
         }
         if let Ok(mut s) = state.lock() {
             s.set_embed_context(ctx.workspace_id.clone(), runtime.clone());
-            s.set_wikilink_context(ctx.workspace_id, document_id.to_owned(), runtime);
+            s.set_wikilink_context_with_base_url(
+                ctx.workspace_id,
+                document_id.to_owned(),
+                runtime,
+                ctx.backend_base_url,
+            );
         } else {
             return;
         }
@@ -1572,12 +1605,17 @@ impl RichEditorPaneMount {
     /// Drain the editor's `pending_events` into the shared outbound queue (AC-079-5). Called AFTER the
     /// inner render so a click handled THIS frame is routed THIS frame. Pushing them to the shared queue
     /// (rather than routing here) keeps the editor a pure widget and the routing the shell's job.
-    fn drain_events(&self, state: &Arc<Mutex<RichEditorState>>) {
+    fn drain_events(
+        &self,
+        state: &Arc<Mutex<RichEditorState>>,
+        pane_id: &str,
+        document_id: Option<&str>,
+    ) {
         let drained = match state.lock() {
             Ok(mut s) => std::mem::take(&mut s.pending_events),
             Err(p) => std::mem::take(&mut p.into_inner().pending_events),
         };
-        self.events.push_all(drained);
+        self.events.push_all(drained, pane_id, document_id);
     }
 }
 
@@ -1650,7 +1688,7 @@ impl PaneFactory for RichEditorPaneMount {
                 // leave events queued on it before the next GET completes. Drain those events even
                 // across the loading gate so stale link/tag activations are routed instead of being
                 // stranded until the view becomes ready (MT-079 remediation).
-                self.drain_events(&state);
+                self.drain_events(&state, pane_id, content_id);
                 return;
             }
         }
@@ -1702,7 +1740,7 @@ impl PaneFactory for RichEditorPaneMount {
         // TagActivated this frame; move them to the shell's outbound queue so the shell routes them to
         // the nav bus after the pane host. No event is left unrouted (reading mode keeps link chips
         // interactive, so the drain runs in both branches).
-        self.drain_events(&state);
+        self.drain_events(&state, pane_id, content_id);
         if let Some(document_id) = content_id {
             self.documents
                 .publish_view_to_canonical(document_id, pane_id);
@@ -2457,10 +2495,7 @@ impl PaneFactory for OutlinePaneMount {
             // Sync the outline from the live document FIRST (cheap hash-guarded rebuild), then render.
             // The sync borrow is dropped before `show` re-locks the state for the click path.
             {
-                let state = match rich_state.lock() {
-                    Ok(s) => Some(s),
-                    Err(_) => None,
-                };
+                let state = rich_state.lock().ok();
                 if let Some(state) = state {
                     panel.sync(&state);
                 }
@@ -3384,14 +3419,16 @@ mod tests {
         assert!(!EditorSessionContext::default().is_bound());
         assert!(!EditorSessionContext {
             workspace_id: "ws".into(),
-            runtime: None
+            runtime: None,
+            backend_base_url: crate::backend_client::BACKEND_BASE_URL.to_owned(),
         }
         .is_bound());
         assert!(EditorSessionContext::new("ws-1", rt.handle().clone()).is_bound());
         // Empty workspace + a runtime is still UNbound (a half-built context never installs wired state).
         assert!(!EditorSessionContext {
             workspace_id: String::new(),
-            runtime: Some(rt.handle().clone())
+            runtime: Some(rt.handle().clone()),
+            backend_base_url: crate::backend_client::BACKEND_BASE_URL.to_owned(),
         }
         .is_bound());
     }
@@ -3825,7 +3862,7 @@ mod tests {
                 ref_value: "DOC-2".into(),
                 resolved: true,
             });
-        mount.drain_events(&state);
+        mount.drain_events(&state, "pane-notes", Some("DOC-1"));
         assert!(
             state.lock().unwrap().pending_events.is_empty(),
             "drained from the editor state"
@@ -3836,6 +3873,12 @@ mod tests {
             1,
             "the event reached the shell's outbound queue"
         );
+        assert_eq!(routed[0].pane_id, "pane-notes");
+        assert_eq!(routed[0].document_id.as_deref(), Some("DOC-1"));
+        assert!(matches!(
+            &routed[0].event,
+            EditorEvent::WikilinkActivated { ref_value, .. } if ref_value == "DOC-2"
+        ));
         assert!(
             events.is_empty(),
             "take() leaves the queue empty (routed exactly once)"

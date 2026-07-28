@@ -196,7 +196,8 @@ fn bracket_pair_colors_in_segments_single_segment_matches_whole_window() {
     let palette = HsTheme::Dark.palette().bracket_pair_palette;
     let buf = TextBuffer::new("([{x}])");
     let whole = bracket_pair_colors(&buf, 0..buf.len_bytes(), &palette);
-    let seg = bracket_pair_colors_in_segments(&buf, &[0..buf.len_bytes()], &palette);
+    let full_buffer = 0..buf.len_bytes();
+    let seg = bracket_pair_colors_in_segments(&buf, std::slice::from_ref(&full_buffer), &palette);
     assert_eq!(
         seg, whole,
         "single whole-window segment must equal bracket_pair_colors"
@@ -230,7 +231,9 @@ fn bracket_pair_colors_in_segments_skips_hidden_bytes_and_carries_depth() {
     );
 
     // Bounds safety: segments past the buffer end are clamped, never a panic.
-    let clamped = bracket_pair_colors_in_segments(&buf, &[100..200], &palette);
+    let outside_buffer = 100..200;
+    let clamped =
+        bracket_pair_colors_in_segments(&buf, std::slice::from_ref(&outside_buffer), &palette);
     assert!(
         clamped.is_empty(),
         "out-of-range segment -> empty, no panic"

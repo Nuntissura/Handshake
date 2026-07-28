@@ -100,6 +100,8 @@ pub struct PendingStageEmbedSave {
 }
 
 /// One-shot shell delivery produced only after the save state machine resolves the pending Stage embed.
+// PendingStageEmbedSave retains the full immutable persistence/event receipt across the save boundary.
+#[allow(clippy::large_enum_variant)]
 pub enum StageEmbedSaveCompletion {
     Persisted(PendingStageEmbedSave),
     Failed(String),
@@ -825,8 +827,57 @@ impl RichEditorState {
         document_id: impl Into<String>,
         runtime: tokio::runtime::Handle,
     ) {
+        self.finish_wikilink_context(workspace_id.into(), document_id.into(), runtime);
+    }
+
+    /// Install the complete wikilink context against an explicitly selected Handshake backend.
+    /// Managed-runtime shells use this path so context refreshes cannot silently reset create,
+    /// autocomplete, backlinks, or transclusion traffic to the production default endpoint.
+    pub fn set_wikilink_context_with_base_url(
+        &mut self,
+        workspace_id: impl Into<String>,
+        document_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        base_url: impl Into<String>,
+    ) {
         let workspace_id = workspace_id.into();
         let document_id = document_id.into();
+        let base_url = base_url.into();
+        self.rebind_wikilink_backend(base_url, &document_id);
+        self.finish_wikilink_context(workspace_id, document_id, runtime);
+    }
+
+    fn rebind_wikilink_backend(&mut self, base_url: String, document_id: &str) {
+        let backend: std::sync::Arc<dyn crate::rich_editor::wikilinks::client::WikilinkBackend> =
+            std::sync::Arc::new(
+                crate::rich_editor::wikilinks::client::ReqwestWikilinkBackend::new(
+                    base_url.clone(),
+                ),
+            );
+        self.wikilinks.backend = std::sync::Arc::clone(&backend);
+        self.wikilinks.autocomplete.backend = backend;
+        self.wikilinks.set_create_backend(std::sync::Arc::new(
+            crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::with_base_url(
+                base_url,
+                format!("native-editor-{document_id}"),
+            ),
+        ));
+    }
+
+    /// Rebind already-mounted rich editor traffic without changing its document/workspace context.
+    /// The shell's managed-backend test seam calls this before its next per-frame context refresh.
+    #[doc(hidden)]
+    pub fn rebind_wikilink_backend_for_test(&mut self, base_url: impl Into<String>) {
+        let document_id = self.wikilinks.document_id.clone();
+        self.rebind_wikilink_backend(base_url.into(), &document_id);
+    }
+
+    fn finish_wikilink_context(
+        &mut self,
+        workspace_id: String,
+        document_id: String,
+        runtime: tokio::runtime::Handle,
+    ) {
         if let Some(save) = self.save.as_mut() {
             save.set_workspace_id(workspace_id.clone());
         }
@@ -834,14 +885,16 @@ impl RichEditorState {
         self.wikilinks.autocomplete.runtime = Some(runtime.clone());
         self.wikilinks
             .set_context(workspace_id, document_id.clone());
-        // WP-KERNEL-012 MT-057 (1): install the production create backend so the create-from-unresolved
-        // POST path is LIVE. The session run id folds the document id (matching the MT-037 attribution
-        // convention `native-editor-doc-{id}`), so each create is attributable (HBR-SWARM).
-        self.wikilinks.set_create_backend(std::sync::Arc::new(
-            crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::production(
-                format!("native-editor-{document_id}"),
-            ),
-        ));
+        // WP-KERNEL-012 MT-057 (1): install the production create backend once. Explicit managed
+        // bindings install their own endpoint-aware adapter before this shared context finalizer; a
+        // later per-frame factory refresh must not silently replace it with the production default.
+        if self.wikilinks.create_backend.is_none() {
+            self.wikilinks.set_create_backend(std::sync::Arc::new(
+                crate::rich_editor::wikilinks::runtime::KnowledgeCreateNoteBackend::production(
+                    format!("native-editor-{document_id}"),
+                ),
+            ));
+        }
         // WP-KERNEL-012 MT-057 (2): seed the resolver index from the EXISTING Loom search binding so a
         // `[[Title]]` resolves at runtime (AC-003). A broad empty query lists the workspace's blocks by
         // the backend's FTS; the (block_id, title) pairs land off-thread and `drain` folds them in. No
@@ -1797,6 +1850,9 @@ impl RichEditorWidget {
                         node.set_role(ROOT_ROLE);
                         node.set_value(value.clone());
                         node.add_action(accesskit::Action::Focus);
+                        // MT-041 swarm activation: clicking the stable rich root focuses the real
+                        // editable surface on the next frame through `editor_focus_pending`.
+                        node.add_action(accesskit::Action::Click);
                         // WP-KERNEL-012 MT-110 (AC / MT-043 STEP 3, the MT-080 mirror for the rich pane):
                         // advertise the two text-edit actions a swarm agent uses to AUTHOR rich content by
                         // id, exactly as `editor.code.text` advertises them. `SetValue` replaces the WHOLE
@@ -2310,11 +2366,21 @@ impl RichEditorWidget {
         // whole-doc set followed by a selection-insert in the same frame composes deterministically.
         let root_id = state.live_root_node_id;
         let chip_nodes = state.live_wikilink_chip_nodes.clone();
+        let mut activate_root = false;
         let mut set_value: Option<String> = None;
         let mut replace_values: Vec<String> = Vec::new();
         let mut wikilink_targets: Vec<(Vec<usize>, String)> = Vec::new();
         ui.input(|input| {
             if let Some(root_id) = root_id {
+                let focus_requested = input
+                    .accesskit_action_requests(root_id, accesskit::Action::Focus)
+                    .next()
+                    .is_some();
+                let click_requested = input
+                    .accesskit_action_requests(root_id, accesskit::Action::Click)
+                    .next()
+                    .is_some();
+                activate_root = focus_requested || click_requested;
                 for request in input.accesskit_action_requests(root_id, accesskit::Action::SetValue)
                 {
                     if let Some(accesskit::ActionData::Value(v)) = &request.data {
@@ -2341,6 +2407,11 @@ impl RichEditorWidget {
         });
 
         let mut changed = false;
+
+        if activate_root {
+            state.editor_focus_pending = true;
+            ui.ctx().request_repaint();
+        }
 
         // (1) Root SetValue — replace the whole document body with the agent text as paragraph content.
         if let Some(value) = set_value {
@@ -4390,6 +4461,7 @@ impl RichEditorWidget {
     /// the `(node id -> atom path)` mapping the headless wikilink-target-by-id consume needs. In reading
     /// mode (or for a specialized chip) `swarm_node_id` is `None` (RISK-005 — a read-only doc advertises no
     /// editable action).
+    #[allow(clippy::too_many_arguments)]
     fn paint_one_wikilink_chip(
         ui: &mut egui::Ui,
         spec: &WikilinkChipSpec,
@@ -5049,28 +5121,25 @@ impl RichEditorWidget {
                                     ActorKind::Operator,
                                     state.actor_id.as_str(),
                                 );
-                                match apply_transaction(&mut state.doc, tx) {
-                                    Ok(receipt) => {
-                                        state.undo.push(receipt);
-                                        let after =
-                                            crate::rich_editor::document_model::doc_json::to_content_json_value(
-                                                &state.doc,
-                                            );
-                                        state.pending_bus_undo.push((before, after));
-                                        // The removal changed the persisted document: mark the save/draft
-                                        // coordinators dirty so Ctrl+S / the 5s auto-draft persist it
-                                        // (silent-data-loss guard, same as the transactional inserts).
-                                        if let Some(save) = state.save.as_mut() {
-                                            save.mark_dirty();
-                                        }
-                                        if let Some(draft) = state.draft.as_mut() {
-                                            draft.mark_dirty(std::time::Instant::now());
-                                        }
+                                if let Ok(receipt) = apply_transaction(&mut state.doc, tx) {
+                                    state.undo.push(receipt);
+                                    let after =
+                                        crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                            &state.doc,
+                                        );
+                                    state.pending_bus_undo.push((before, after));
+                                    // The removal changed the persisted document: mark the save/draft
+                                    // coordinators dirty so Ctrl+S / the 5s auto-draft persist it
+                                    // (silent-data-loss guard, same as the transactional inserts).
+                                    if let Some(save) = state.save.as_mut() {
+                                        save.mark_dirty();
                                     }
-                                    // Rolled back: the doc is untouched and nothing was pushed onto
-                                    // either undo surface (never a phantom undo entry).
-                                    Err(_) => {}
+                                    if let Some(draft) = state.draft.as_mut() {
+                                        draft.mark_dirty(std::time::Instant::now());
+                                    }
                                 }
+                                // On failure, the transaction rolled back: the doc is untouched and
+                                // neither undo surface receives a phantom entry.
                             }
                             ui.ctx().request_repaint();
                         }

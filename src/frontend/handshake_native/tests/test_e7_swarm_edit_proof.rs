@@ -586,7 +586,7 @@ impl ProofLog {
                 .unwrap_or_else(|error| panic!("create {label} directory: {error}"));
         }
         let _lock = ProofLogLock::acquire(&path.with_extension("lock"), lock_budget);
-        if proof_log_generation(&path).is_some_and(|current| current > self.generation) {
+        if proof_log_generation(path).is_some_and(|current| current > self.generation) {
             println!(
                 "MT-043 {label} ignored stale attempt_id={} generation={} (newer generation already committed)",
                 self.attempt_id, self.generation,
@@ -1669,44 +1669,46 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .with_size(egui::vec2(1280.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
 
-    let mut create_note = |note_title: &str, previous: Option<&str>| -> String {
-        let request = AgentRequest {
-            author_id: "editor.rich.insert-slash-command".to_owned(),
-            action: UiAction::ClickWithPayload {
-                payload: serde_json::json!({"kind":"note","title":note_title}).to_string(),
-            },
-        };
-        dispatch_from_spawned_agent(
-            &mut app_harness,
-            &mut live_log,
-            request,
-            "mounted slash-note request accepted",
-        );
-        let create_deadline = Instant::now() + Duration::from_secs(5);
-        loop {
-            app_harness.run_steps(1);
-            if let Some(value) = app_harness
-                .root()
-                .children_recursive()
-                .find(|node| {
-                    node.accesskit_node().author_id() == Some("editor.rich.created-document")
-                })
-                .and_then(|node| node.accesskit_node().value())
-                .filter(|value| previous != Some(value.as_str()))
-            {
-                return value;
-            }
-            assert!(
-                Instant::now() < create_deadline,
-                "mounted slash-note create did not expose its backend id within five seconds"
-            );
-            std::thread::sleep(Duration::from_millis(10));
-        }
-    };
     let target_title = format!("SwarmProofTarget-{nonce}");
-    let target_document_id = create_note(&target_title, None);
-    let document_id = create_note(&title, Some(&target_document_id));
-    drop(create_note);
+    let (target_document_id, document_id) = {
+        let mut create_note = |note_title: &str, previous: Option<&str>| -> String {
+            let request = AgentRequest {
+                author_id: "editor.rich.insert-slash-command".to_owned(),
+                action: UiAction::ClickWithPayload {
+                    payload: serde_json::json!({"kind":"note","title":note_title}).to_string(),
+                },
+            };
+            dispatch_from_spawned_agent(
+                &mut app_harness,
+                &mut live_log,
+                request,
+                "mounted slash-note request accepted",
+            );
+            let create_deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                app_harness.run_steps(1);
+                if let Some(value) = app_harness
+                    .root()
+                    .children_recursive()
+                    .find(|node| {
+                        node.accesskit_node().author_id() == Some("editor.rich.created-document")
+                    })
+                    .and_then(|node| node.accesskit_node().value())
+                    .filter(|value| previous != Some(value.as_str()))
+                {
+                    return value;
+                }
+                assert!(
+                    Instant::now() < create_deadline,
+                    "mounted slash-note create did not expose its backend id within five seconds"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        };
+        let target_document_id = create_note(&target_title, None);
+        let document_id = create_note(&title, Some(&target_document_id));
+        (target_document_id, document_id)
+    };
 
     // Read-only verification may inspect canonical identities, but it does not create or mutate them.
     let target = runtime
@@ -2364,50 +2366,53 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .timeout(Duration::from_secs(5))
         .build()
         .expect("bounded MT-043 HTTP client");
-    let mut poll_flight_recorder = |actor_id: &str, receipt: &str| {
-        let fr_deadline = Instant::now() + Duration::from_secs(5);
-        loop {
-            app_harness.run_steps(1);
-            let rows: serde_json::Value = runtime.block_on(async {
-                http.get(format!(
-                    "{}/api/flight_recorder?wsid={workspace_id}&actor_id={actor_id}",
-                    live.base
-                ))
-                .send()
-                .await
-                .expect("FR GET")
-                .error_for_status()
-                .expect("FR GET status")
-                .json()
-                .await
-                .expect("FR GET JSON")
-            });
-            let matching: Vec<&serde_json::Value> = rows
-                .as_array()
-                .expect("Flight Recorder response is an array")
-                .iter()
-                .filter(|row| {
-                    row["payload"]["native_payload"]["save_receipt_event_id"].as_str()
-                        == Some(receipt)
-                })
-                .collect();
-            assert!(
-                matching.len() <= 1,
-                "automatic Flight Recorder projection duplicated receipt {receipt}"
-            );
-            if let Some(row) = matching.first() {
-                break (**row).clone();
+    let (automatic_fr, automatic_merge_fr) = {
+        let mut poll_flight_recorder = |actor_id: &str, receipt: &str| {
+            let fr_deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                app_harness.run_steps(1);
+                let rows: serde_json::Value = runtime.block_on(async {
+                    http.get(format!(
+                        "{}/api/flight_recorder?wsid={workspace_id}&actor_id={actor_id}",
+                        live.base
+                    ))
+                    .send()
+                    .await
+                    .expect("FR GET")
+                    .error_for_status()
+                    .expect("FR GET status")
+                    .json()
+                    .await
+                    .expect("FR GET JSON")
+                });
+                let matching: Vec<&serde_json::Value> = rows
+                    .as_array()
+                    .expect("Flight Recorder response is an array")
+                    .iter()
+                    .filter(|row| {
+                        row["payload"]["native_payload"]["save_receipt_event_id"].as_str()
+                            == Some(receipt)
+                    })
+                    .collect();
+                assert!(
+                    matching.len() <= 1,
+                    "automatic Flight Recorder projection duplicated receipt {receipt}"
+                );
+                if let Some(row) = matching.first() {
+                    break (**row).clone();
+                }
+                assert!(
+                    Instant::now() < fr_deadline,
+                    "automatic authentic document_saved row for actor {actor_id} receipt {receipt} did not arrive within five seconds"
+                );
+                std::thread::sleep(Duration::from_millis(10));
             }
-            assert!(
-                Instant::now() < fr_deadline,
-                "automatic authentic document_saved row for actor {actor_id} receipt {receipt} did not arrive within five seconds"
-            );
-            std::thread::sleep(Duration::from_millis(10));
-        }
+        };
+        (
+            poll_flight_recorder(&app_attribution.actor_id, &app_receipt),
+            poll_flight_recorder(&merge_attribution.actor_id, &merge_receipt),
+        )
     };
-    let automatic_fr = poll_flight_recorder(&app_attribution.actor_id, &app_receipt);
-    let automatic_merge_fr = poll_flight_recorder(&merge_attribution.actor_id, &merge_receipt);
-    drop(poll_flight_recorder);
     assert_ne!(
         automatic_fr["event_id"].as_str(),
         Some(app_receipt.as_str())

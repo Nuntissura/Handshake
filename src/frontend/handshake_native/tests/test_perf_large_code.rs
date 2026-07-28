@@ -352,8 +352,9 @@ fn perf_proof_perf_lc02_scroll_to_bottom() {
             "visible_range": format!("{visible:?}"),
         }),
     );
-    if !visible.contains(&last_line)
-        || !(stats.frame_lines_rendered > 0 && stats.frame_lines_rendered <= painted_row_cap)
+    if !(visible.contains(&last_line)
+        && stats.frame_lines_rendered > 0
+        && stats.frame_lines_rendered <= painted_row_cap)
     {
         attempt.fail(
             serde_json::json!([measurement("scroll_paint", elapsed_ms as f64, "ms")]),

@@ -187,7 +187,7 @@ fn interconnect_ic05_route_selection_to_stage() {
     harness
         .root()
         .children_recursive()
-        .find(|node| node.accesskit_node().author_id().as_deref() == Some("editor.rich.text"))
+        .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
         .expect("IC-05: mounted rich editor AccessKit text surface is live")
         .focus();
     harness.run_steps(2);
@@ -230,7 +230,7 @@ fn interconnect_ic05_route_selection_to_stage() {
     let editors_menu_id = harness
         .root()
         .children_recursive()
-        .find(|node| node.accesskit_node().author_id().as_deref() == Some("menu-editors"))
+        .find(|node| node.accesskit_node().author_id() == Some("menu-editors"))
         .map(|node| node.accesskit_node().id())
         .expect("IC-05: mounted EDITORS MenuItem has stable author_id");
     harness.event(egui::Event::AccessKitActionRequest(
@@ -244,9 +244,7 @@ fn interconnect_ic05_route_selection_to_stage() {
     let route_menu = harness
         .root()
         .children_recursive()
-        .find(|node| {
-            node.accesskit_node().author_id().as_deref() == Some("menu.editors.route-to-stage")
-        })
+        .find(|node| node.accesskit_node().author_id() == Some("menu.editors.route-to-stage"))
         .map(|node| {
             (
                 node.accesskit_node().id(),

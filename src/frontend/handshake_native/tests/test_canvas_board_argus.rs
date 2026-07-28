@@ -332,8 +332,9 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         "the sibling real-PG placement card '{author_two}' remains addressable after the removal"
     );
     // Source retention: the placement removal keeps the source LoomBlock (getLoomBlock still 200).
-    let source_status =
-        live.get_status(&format!("/workspaces/{workspace_id}/loom/blocks/{source_one}"));
+    let source_status = live.get_status(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{source_one}"
+    ));
     assert_eq!(
         source_status, 200,
         "removing a placement must NOT delete its source LoomBlock (source retention)"
@@ -391,7 +392,10 @@ fn global_edge_count(client: &LoomGraphClient, workspace_id: &str, generation: u
     let expected = LoomGraphRequestIdentity::global(generation, workspace_id);
     for _ in 0..200 {
         if let Some(delivery) = cell.lock().unwrap().pop_front() {
-            assert_eq!(&delivery.request, &expected, "global fetch identity matches");
+            assert_eq!(
+                &delivery.request, &expected,
+                "global fetch identity matches"
+            );
             return delivery
                 .result
                 .expect("global graph fetch from real PG succeeds")
@@ -472,11 +476,16 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         0,
         "baseline: real PG has zero loom edges before the semantic-edge dispatch"
     );
-    assert_eq!(board.lock().unwrap().visual_edges.len(), 0, "baseline: no visual edges");
+    assert_eq!(
+        board.lock().unwrap().visual_edges.len(),
+        0,
+        "baseline: no visual edges"
+    );
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-026 Argus artifact dir");
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-edges");
+    let mut argus =
+        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-edges");
 
     let before = argus.inspect(&mut harness);
     assert!(
@@ -495,7 +504,10 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         }),
     );
     assert!(
-        matches!(semantic.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            semantic.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical semantic add-edge receipt is terminal: {}",
         semantic.receipt_status
     );
@@ -542,8 +554,9 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         "mounted canvas re-fetch reflects the persisted visual edge from real PG",
     );
     // Independent backend confirmation of the persisted visual edge.
-    let board_json =
-        live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"));
+    let board_json = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+    ));
     let visual_count = board_json["visual_edges"]
         .as_array()
         .map(|a| a.len())
@@ -594,7 +607,9 @@ fn backend_placement(board_json: &serde_json::Value, placement_id: &str) -> serd
         .expect("backend canvas board GET returns placements array")
         .iter()
         .find(|p| p["placement_id"].as_str() == Some(placement_id))
-        .unwrap_or_else(|| panic!("backend board is missing placement {placement_id}: {board_json}"))
+        .unwrap_or_else(|| {
+            panic!("backend board is missing placement {placement_id}: {board_json}")
+        })
         .clone()
 }
 
@@ -626,17 +641,25 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
         &serde_json::json!({ "title": format!("MT-026 Argus move canvas {unique}") }),
     );
-    let canvas_id = canvas["block_id"].as_str().expect("canvas block_id").to_owned();
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas block_id")
+        .to_owned();
     let placement_id = {
         let placement = live.post_json(
             &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
             &serde_json::json!({ "placed_block_id": source, "x": 40.0, "y": 40.0, "w": 200.0, "h": 120.0 }),
         );
-        placement["placement_id"].as_str().expect("placement_id").to_owned()
+        placement["placement_id"]
+            .as_str()
+            .expect("placement_id")
+            .to_owned()
     };
     // Baseline persisted coordinates.
     let baseline = backend_placement(
-        &live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}")),
+        &live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+        )),
         &placement_id,
     );
     assert!(
@@ -687,8 +710,9 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
     let deadline = Instant::now() + Duration::from_secs(30);
     let persisted = loop {
         harness.run_steps(2);
-        let board_json =
-            live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"));
+        let board_json = live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+        ));
         let pl = backend_placement(&board_json, &placement_id);
         let x = pl["x"].as_f64().unwrap_or(0.0);
         let y = pl["y"].as_f64().unwrap_or(0.0);
@@ -766,13 +790,19 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
         &serde_json::json!({ "title": format!("MT-026 Argus group canvas {unique}") }),
     );
-    let canvas_id = canvas["block_id"].as_str().expect("canvas block_id").to_owned();
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas block_id")
+        .to_owned();
     let place = |placed_block_id: &str, x: f64, y: f64| {
         let placement = live.post_json(
             &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
             &serde_json::json!({ "placed_block_id": placed_block_id, "x": x, "y": y, "w": 200.0, "h": 120.0 }),
         );
-        placement["placement_id"].as_str().expect("placement_id").to_owned()
+        placement["placement_id"]
+            .as_str()
+            .expect("placement_id")
+            .to_owned()
     };
     let placement_one = place(&source_one, 40.0, 40.0);
     let placement_two = place(&source_two, 360.0, 260.0);
@@ -790,7 +820,8 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-026 Argus artifact dir");
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-group");
+    let mut argus =
+        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-group");
 
     let before = argus.inspect(&mut harness);
     assert!(
@@ -820,8 +851,9 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
     let deadline = Instant::now() + Duration::from_secs(30);
     let (g1, g2) = loop {
         harness.run_steps(2);
-        let board_json =
-            live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"));
+        let board_json = live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+        ));
         let one = backend_placement(&board_json, &placement_one);
         let two = backend_placement(&board_json, &placement_two);
         let g1 = one["group_id"].as_str().map(str::to_owned);
@@ -835,7 +867,10 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
         );
         std::thread::sleep(Duration::from_millis(25));
     };
-    assert_eq!(g1, g2, "both placements persist the SAME group id in real PG");
+    assert_eq!(
+        g1, g2,
+        "both placements persist the SAME group id in real PG"
+    );
 
     let after = argus.inspect(&mut harness);
     for pid in [&placement_one, &placement_two] {

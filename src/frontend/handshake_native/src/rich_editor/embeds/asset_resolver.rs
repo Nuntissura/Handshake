@@ -289,6 +289,8 @@ pub const COLLECTION_REF_PREFIX: &str = "collection:";
 /// The resolution state of ONE embed target, cached per asset id so a repeated render does
 /// not re-fetch (AC-9). This is the value stored in the per-editor resolution cache.
 #[derive(Debug, Clone)]
+// The resolved asset stays inline so steady-state rendering avoids an extra allocation and indirection.
+#[allow(clippy::large_enum_variant)]
 pub enum EmbedResolutionState {
     /// The fetch is in flight (the view shows an `egui::Spinner`).
     Resolving,
@@ -1154,6 +1156,9 @@ mod tests {
                         Err(error) => panic!("accept scripted request failed: {error}"),
                     }
                 };
+                stream
+                    .set_nonblocking(false)
+                    .expect("scripted request stream must use bounded blocking reads");
                 stream
                     .set_read_timeout(Some(std::time::Duration::from_secs(3)))
                     .expect("bound scripted request read");

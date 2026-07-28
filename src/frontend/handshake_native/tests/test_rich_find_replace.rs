@@ -502,6 +502,7 @@ fn accesskit_ids_present_when_panel_open() {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_rich_find_replace_real_server_loop() {
     let state = Arc::new(Mutex::new(RichEditorState::new(foo_doc())));
     {

@@ -236,6 +236,7 @@ fn pt002_click_entry_scrolls_and_selects_via_caret_model() {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_outline_real_server_loop() {
     let state = Arc::new(Mutex::new(RichEditorState::new(seeded_doc())));
     let panel = Arc::new(Mutex::new(OutlinePanel::new()));

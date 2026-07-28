@@ -458,7 +458,10 @@ fn mt014_runtime_decode_pipeline_uploads_texture() {
     // fails fast (it never resolves) rather than hanging.
     let mut uploaded = false;
     for _ in 0..200 {
-        harness.run();
+        // The loading spinner intentionally requests another repaint. Advance one
+        // bounded frame instead of requiring the UI to settle while polling the
+        // asynchronous thumbnail deliveries.
+        harness.run_steps(1);
         if state
             .lock()
             .unwrap()
@@ -1303,7 +1306,8 @@ fn mt014_seeded_asset_real_backend_decode_aspect_missing_corrupt() {
         .block_on(fetcher.fetch_content(&workspace_id, &good_asset_id))
         .expect("real content fetch returns the seeded bytes");
     assert!(!bytes.is_empty(), "managed content route returned bytes");
-    let decoded = decode_rgba(&bytes).expect("real seeded asset decodes through the production path");
+    let decoded =
+        decode_rgba(&bytes).expect("real seeded asset decodes through the production path");
     assert_eq!(
         decoded.size,
         [48, 24],
@@ -1451,7 +1455,10 @@ fn mt014_seeded_asset_real_backend_decode_aspect_missing_corrupt() {
                 .save(&path)
                 .unwrap_or_else(|e| panic!("save seeded-asset screenshot {}: {e}", path.display()));
             assert!(path.is_file(), "seeded-asset screenshot exists externally");
-            format!("CAPTURED {} colored_pixels={colored_pixels}", path.display())
+            format!(
+                "CAPTURED {} colored_pixels={colored_pixels}",
+                path.display()
+            )
         }
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };

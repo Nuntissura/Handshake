@@ -151,6 +151,7 @@ fn find_bar_accesskit_ctrl_f_makes_find_bar_node() {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_find_bar_real_server_loop() {
     let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
     panel.open_find(false);
@@ -290,7 +291,7 @@ fn replace_all_refreshes_live_matches_after_intervening_mounted_edit() {
 
     // Shift every cached byte range through the mounted panel's ordinary whole-buffer edit path.
     // The next click must search this live document before rebuilding its continuation plan.
-    let shifted = format!("guard-prefix {}", panel.buffer().to_string());
+    let shifted = format!("guard-shift {}", panel.buffer());
     panel.set_text(&shifted);
     harness.run_steps(2);
     harness.get_by_label("Replace All").click();
@@ -298,7 +299,7 @@ fn replace_all_refreshes_live_matches_after_intervening_mounted_edit() {
 
     assert_eq!(
         panel.buffer().to_string(),
-        format!("guard-prefix {}", "y ".repeat(count)),
+        format!("guard-shift {}", "y ".repeat(count)),
         "the second mounted click used refreshed live ranges and preserved the intervening edit"
     );
     let state = panel.find_state().expect("replace bar remains open");

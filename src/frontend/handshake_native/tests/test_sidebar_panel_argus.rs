@@ -221,7 +221,10 @@ fn mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve() {
     // The Pins section now renders its error banner + Retry control (its rows are
     // replaced by the error state), while the other three sections stay intact.
     assert!(
-        json_has_author_id(&observation.after, &section_retry_author_id(SectionKind::Pins)),
+        json_has_author_id(
+            &observation.after,
+            &section_retry_author_id(SectionKind::Pins)
+        ),
         "after the remove steer the Pins section exposes its Retry control (AC9)"
     );
     let mut after_ids = Vec::new();
@@ -304,7 +307,8 @@ fn mt024_mounted_sidebar_empty_and_error_states_canonical_argus() {
     }
     harness.run_steps(2);
 
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-024-sidebar-empty");
+    let mut argus =
+        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-024-sidebar-empty");
     let tree = argus.inspect(&mut harness);
 
     let mut ids = Vec::new();
@@ -312,7 +316,9 @@ fn mt024_mounted_sidebar_empty_and_error_states_canonical_argus() {
     assert!(
         !ids.iter().any(|id| id.starts_with("sidebar.pin.")),
         "empty Pins must expose NO pin rows; got {:?}",
-        ids.iter().filter(|id| id.starts_with("sidebar.")).collect::<Vec<_>>()
+        ids.iter()
+            .filter(|id| id.starts_with("sidebar."))
+            .collect::<Vec<_>>()
     );
     assert!(
         !ids.iter().any(|id| id.starts_with("sidebar.favorite.")),

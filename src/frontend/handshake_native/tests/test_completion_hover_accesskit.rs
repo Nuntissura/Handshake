@@ -28,10 +28,12 @@ use handshake_native::code_editor::code_nav::{
     CodeNavClient, CodeStaleness, CodeSymbolDefinition, CodeSymbolNavProjection, CompletionItem,
     CompletionKind, HOVER_DWELL_MS,
 };
+#[cfg(feature = "integration")]
+use handshake_native::code_editor::editor_view::CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX;
 use handshake_native::code_editor::editor_view::{
-    CodeNavigationLocation, CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX,
-    CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID, CODE_EDITOR_HOVER_AUTHOR_ID,
+    CodeNavigationLocation, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID, CODE_EDITOR_HOVER_AUTHOR_ID,
 };
+#[cfg(feature = "integration")]
 use handshake_native::code_editor::lsp_client::{LspClient, LspServerConfig};
 use handshake_native::code_editor::{CodeEditorPanel, HoverState};
 

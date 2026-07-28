@@ -41,8 +41,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
 use sha2::{Digest, Sha256};
+
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;

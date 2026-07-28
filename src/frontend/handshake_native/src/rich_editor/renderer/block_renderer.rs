@@ -343,6 +343,7 @@ fn paint_inline_block(
 /// inner content is the block's first inline paragraph child (vertical-slice scope: a
 /// blockquote wraps a paragraph). Falls back to treating the blockquote's own inline
 /// children as text if it directly holds text (defensive).
+#[allow(clippy::too_many_arguments)]
 fn paint_blockquote(
     painter: &egui::Painter,
     block: &BlockNode,
@@ -390,6 +391,7 @@ fn paint_blockquote(
 /// Paint a code block: a rounded tinted rect (theme `surface` over the editor `bg`) with
 /// monospace content (the block style forces monospace for every run — RISK control: a
 /// stray mark cannot escape monospace).
+#[allow(clippy::too_many_arguments)]
 fn paint_code_block(
     painter: &egui::Painter,
     block: &BlockNode,

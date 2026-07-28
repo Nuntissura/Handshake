@@ -46,8 +46,11 @@ use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
 use sha2::{Digest as _, Sha256};
+
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 // REUSE (AC-065-07): the MT-063 FEMS read client + Relevant Memory panel, the MT-064 propose dialog +
 // proposal model, and the MT-041 AccessKit-id conventions — all imported, never re-created here.
@@ -622,49 +625,6 @@ impl LiveBackend {
             let text = response.text().await.unwrap_or_default();
             (status, text)
         })
-    }
-
-    fn seed_document_and_loom_source(&self, workspace_id: &str, content: &str) -> (String, String) {
-        let document = self.post_json(
-            "/knowledge/documents",
-            &serde_json::json!({
-                "workspace_id": workspace_id,
-                "title": unique_name("mt065-canonical-document"),
-                "content_json": {
-                    "type": "doc",
-                    "content": [{"type":"paragraph","content":[{"type":"text","text":content}]}]
-                }
-            }),
-        );
-        let document_id = document["document"]["rich_document_id"]
-            .as_str()
-            .expect("canonical document create returns rich_document_id")
-            .to_owned();
-        let source = self.post_json(
-            &format!("/workspaces/{workspace_id}/loom/blocks"),
-            &serde_json::json!({
-                "content_type": "note",
-                "title": unique_name("mt065-memory-source")
-            }),
-        );
-        let block_id = source["block_id"]
-            .as_str()
-            .expect("canonical Loom create returns block_id")
-            .to_owned();
-        assert_eq!(
-            self.get_json(&format!("/knowledge/documents/{document_id}"))["document"]
-                ["rich_document_id"],
-            document_id,
-            "canonical document is readable before mounted selection"
-        );
-        assert_eq!(
-            self.get_json(&format!(
-                "/workspaces/{workspace_id}/loom/blocks/{block_id}"
-            ))["block_id"],
-            block_id,
-            "canonical Loom provenance target is readable before mounted navigation"
-        );
-        (document_id, block_id)
     }
 
     fn seed_code_authority(&self, workspace_id: &str) -> CodeAuthorityFixture {

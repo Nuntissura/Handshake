@@ -401,7 +401,9 @@ fn mt042_knowledge_graph_error_state_canonical_argus() {
     assert!(
         !ids.iter().any(|id| id.starts_with("graph.node.")),
         "the error-state knowledge graph exposes NO nodes through canonical Argus; got {:?}",
-        ids.iter().filter(|id| id.starts_with("graph.")).collect::<Vec<_>>()
+        ids.iter()
+            .filter(|id| id.starts_with("graph."))
+            .collect::<Vec<_>>()
     );
     assert!(
         json_has_author_id(&tree, RETRY_AUTHOR_ID),

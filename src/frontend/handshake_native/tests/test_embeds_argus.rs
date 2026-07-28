@@ -192,7 +192,8 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-014/canonical-argus");
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-014 Argus artifact dir");
 
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-014-embed-states");
+    let mut argus =
+        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-014-embed-states");
 
     // (1) Canonical inspect: all FOUR mounted embed states are addressable by stable author_id.
     let before = argus.inspect(&mut harness);
@@ -269,7 +270,9 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
     let screenshot_marker = match harness.render() {
         Ok(image) => {
             let path = artifact_dir.join("mt014-mounted-embed-states.png");
-            image.save(&path).expect("save mounted embed-states screenshot");
+            image
+                .save(&path)
+                .expect("save mounted embed-states screenshot");
             format!("CAPTURED {}", path.display())
         }
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),

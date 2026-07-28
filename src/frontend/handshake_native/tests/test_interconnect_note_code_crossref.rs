@@ -366,9 +366,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     let unsaved_copy_item = harness
         .root()
         .children_recursive()
-        .find(|node| {
-            node.accesskit_node().author_id().as_deref() == Some(copy_menu_author_id.as_str())
-        })
+        .find(|node| node.accesskit_node().author_id() == Some(copy_menu_author_id.as_str()))
         .expect("IC-07: unsaved-buffer Copy as note reference item remains mounted");
     assert!(
         unsaved_copy_item.accesskit_node().is_disabled(),
@@ -394,9 +392,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     let _copy_menu_item = harness
         .root()
         .children_recursive()
-        .find(|node| {
-            node.accesskit_node().author_id().as_deref() == Some(copy_menu_author_id.as_str())
-        })
+        .find(|node| node.accesskit_node().author_id() == Some(copy_menu_author_id.as_str()))
         .unwrap_or_else(|| {
             panic!(
                 "IC-07: Copy as note reference is a live mounted MenuItem; live author ids: {:?}",
@@ -450,7 +446,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     harness
         .root()
         .children_recursive()
-        .find(|node| node.accesskit_node().author_id().as_deref() == Some("editor.rich.text"))
+        .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
         .expect("IC-07: mounted rich editor AccessKit text surface is live")
         .focus();
     harness.run_steps(2);

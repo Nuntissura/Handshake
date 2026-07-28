@@ -43,7 +43,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
-use handshake_native::backend_client::{BlockViewClient, BLOCK_VIEW_ACTOR_ID};
+use handshake_native::backend_client::BlockViewClient;
+#[cfg(feature = "integration")]
+use handshake_native::backend_client::BLOCK_VIEW_ACTOR_ID;
 use handshake_native::graph::block_collection_view::{
     calendar_day_author_id, calendar_entry_author_id, kanban_card_author_id, kanban_lane_author_id,
     table_row_author_id, table_sort_author_id, BlockCollectionView, BlockViewDefinition,

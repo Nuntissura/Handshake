@@ -24,7 +24,7 @@
 
 use std::path::{Path, PathBuf};
 use std::{
-    io::{ErrorKind, Read, Write},
+    io::{Read, Write},
     net::TcpListener,
     time::{Duration, Instant},
 };
@@ -246,26 +246,15 @@ fn spawn_code_symbol_server(
     line_start_one_based: usize,
 ) -> (String, std::thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-034 code-nav mock server");
-    listener
-        .set_nonblocking(true)
-        .expect("nonblocking MT-034 code-nav mock server");
     let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
     let file_path = file_path.to_owned();
     let handle = std::thread::spawn(move || {
-        let deadline = Instant::now() + Duration::from_secs(3);
-        let (mut stream, _) = loop {
-            match listener.accept() {
-                Ok(pair) => break pair,
-                Err(e) if e.kind() == ErrorKind::WouldBlock && Instant::now() < deadline => {
-                    std::thread::sleep(Duration::from_millis(10));
-                }
-                Err(e) if e.kind() == ErrorKind::WouldBlock => return "NO_REQUEST".to_owned(),
-                Err(e) => return format!("ACCEPT_ERROR:{e}"),
-            }
-        };
-        stream
-            .set_nonblocking(false)
-            .expect("blocking accepted code-symbol stream");
+        // The listener is bound before app/harness construction, but the request is intentionally
+        // triggered only after that setup. Keep accept blocking so a slow all-target run cannot expire
+        // the mock before the action under test; the UI navigation assertion remains bounded below.
+        let (mut stream, _) = listener
+            .accept()
+            .expect("accept MT-034 code-symbol request");
         let mut request = Vec::new();
         let mut buf = [0_u8; 1024];
         loop {
@@ -299,26 +288,10 @@ fn spawn_code_symbol_lookup_server(
     line_start_one_based: usize,
 ) -> (String, std::thread::JoinHandle<String>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind MT-034 lookup mock server");
-    listener
-        .set_nonblocking(true)
-        .expect("nonblocking MT-034 lookup mock server");
     let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
     let file_path = file_path.to_owned();
     let handle = std::thread::spawn(move || {
-        let deadline = Instant::now() + Duration::from_secs(3);
-        let (mut stream, _) = loop {
-            match listener.accept() {
-                Ok(pair) => break pair,
-                Err(e) if e.kind() == ErrorKind::WouldBlock && Instant::now() < deadline => {
-                    std::thread::sleep(Duration::from_millis(10));
-                }
-                Err(e) if e.kind() == ErrorKind::WouldBlock => return "NO_REQUEST".to_owned(),
-                Err(e) => return format!("ACCEPT_ERROR:{e}"),
-            }
-        };
-        stream
-            .set_nonblocking(false)
-            .expect("blocking accepted lookup stream");
+        let (mut stream, _) = listener.accept().expect("accept MT-034 lookup request");
         let mut request = Vec::new();
         let mut buf = [0_u8; 1024];
         loop {
@@ -1463,6 +1436,7 @@ mod live_backend {
     use handshake_native::backend::knowledge_documents::{
         CreateDocumentRequest, HskDocumentHeaders, KnowledgeDocumentsClient, SaveDocumentRequest,
     };
+    use handshake_native::backend_client::RichDocClient;
     use handshake_native::code_editor::code_nav::CodeNavClient;
     use handshake_native::code_editor::note_refs_panel::{
         row_author_id, NoteRefsState, PANEL_AUTHOR_ID,
@@ -1471,7 +1445,7 @@ mod live_backend {
     use handshake_native::interop::cross_ref::{
         find_code_ref_notes_with, resolve_code_ref_with, FindNotesHttp, FindNotesSearch,
     };
-    use handshake_native::rich_editor::document_model::doc_json::from_json_string;
+    use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
     use handshake_native::rich_editor::document_model::position::DocPosition;
     use handshake_native::rich_editor::document_model::selection::Selection;
     use handshake_native::rich_editor::renderer::rich_editor_widget::{
@@ -1830,9 +1804,6 @@ mod live_backend {
             .expect("reload real rich document");
         let loaded_content = loaded.document["content_json"].clone();
         assert_persisted_code_ref(&loaded_content, &symbol_id);
-        let reloaded_doc =
-            from_json_string(&loaded_content.to_string()).expect("parse reloaded DocJson");
-
         // The reverse lookup must find the real document through its transactional Loom note/search
         // projection, then the mounted code pane must render the exact NoteRefs AccessKit nodes.
         let find_notes = FindNotesHttp::new(live.base.clone());
@@ -1895,18 +1866,49 @@ mod live_backend {
         // shell must resolve via real CodeNav and focus the exact symbol line. The opaque source_id
         // assertion above ensures this only passes when symbol_key path extraction is correct.
         let delete_status = {
-            let (mut app, _app_runtime) = code_note_editor_shell();
+            let mounted_body = runtime
+                .block_on(
+                    RichDocClient::new(live.base.clone(), runtime.handle().clone())
+                        .load_document(&document_id),
+                )
+                .expect("load mounted rich document through the production client");
+            let (mut app, app_runtime) = code_note_editor_shell();
+            app.set_backend_base_url_for_test(&live.base, app_runtime.handle().clone());
             app.install_mounted_code_nav_client_for_test(code_nav.clone());
+            assert!(
+                matches!(
+                    app.open_document(&document_id),
+                    NavDispatchOutcome::Opened { .. }
+                ),
+                "production Notes navigation opens and activates the persisted document"
+            );
+            let rich_pane_id = app
+                .active_pane()
+                .expect("production Notes navigation focuses the rich pane")
+                .clone();
+            app.apply_loaded_rich_document_to_view_for_test(rich_pane_id.as_ref(), mounted_body)
+                .expect("install the mounted document in its canonical pane binding");
             let rich_state = app.mounted_rich_state();
-            rich_state.lock().expect("mounted rich state").doc = reloaded_doc.clone();
             let code_panel = app.mounted_code_panel();
             code_panel.set_text("pub fn unrelated() {}\n");
             code_panel.set_file_path(unrelated_path.to_string_lossy().to_string());
             let mut app_harness = Harness::builder()
                 .with_size(egui::vec2(1100.0, 700.0))
                 .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-            app_harness.run_steps(3);
-            assert!(author_ids(&app_harness).contains(&chip_id));
+            let chip_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            loop {
+                let ids = author_ids(&app_harness);
+                if ids.contains(&chip_id) {
+                    break;
+                }
+                assert!(
+                    std::time::Instant::now() < chip_deadline,
+                    "mounted rich code-ref chip `{chip_id}` did not appear within the bounded wait; \
+                     present ids: {ids:?}"
+                );
+                app_harness.step();
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
             app_harness
                 .get_by(|node| node.author_id() == Some(chip_id.as_str()))
                 .click();

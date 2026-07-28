@@ -127,6 +127,7 @@ mod stage_binding_proof {
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(&lock_path)
                 .unwrap_or_else(|error| {
                     panic!("open canonical Stage lock {}: {error}", lock_path.display())
@@ -218,10 +219,6 @@ mod stage_binding_proof {
             let mut guard = Self::reserve(scenario);
             guard.publish(session_token);
             guard
-        }
-
-        pub fn binding_path(&self) -> &Path {
-            &self.binding_path
         }
 
         pub fn recovered_dead_owner(&self) -> bool {
@@ -912,7 +909,9 @@ fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
                 .args(["rev-parse", &spec])
                 .current_dir(repo_root)
                 .output()
-                .unwrap_or_else(|error| panic!("resolve committed MT-066 source blob {path}: {error}"));
+                .unwrap_or_else(|error| {
+                    panic!("resolve committed MT-066 source blob {path}: {error}")
+                });
             assert!(
                 output.status.success(),
                 "resolve committed MT-066 source blob {path}: {}",
@@ -1682,9 +1681,14 @@ fn live_route_round_trip_real_pg() {
     assert!(mounted_json.contains(&artifact_id));
     assert!(mounted_json.contains(STAGE_CAPTURE_REF_KIND));
 
-    let embed_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "stage_embed_back", |row| {
-        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
-    });
+    let embed_row = wait_for_native_fr(
+        &*cleanup.backend,
+        &workspace_id,
+        "stage_embed_back",
+        |row| {
+            row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+        },
+    );
     cleanup.track_native_fr(&embed_row);
     assert_eq!(
         embed_row["payload"]["native_payload"]["artifact_id"].as_str(),

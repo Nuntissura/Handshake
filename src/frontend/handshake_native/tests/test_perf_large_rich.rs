@@ -480,7 +480,7 @@ fn perf_proof_perf_lr04_save_large_doc() {
     );
     assert!(
         resp.get("receipt_error")
-            .map_or(true, serde_json::Value::is_null),
+            .is_none_or(serde_json::Value::is_null),
         "LR-04: a committed perf-proof save must not report an EventLedger receipt failure: {resp}"
     );
     let receipt_id = resp

@@ -114,6 +114,7 @@ pub struct DeclaredIdentity {
 /// Stable author ids backed by egui's hashed id space rather than a hand-assigned numeric NodeId.
 /// They still belong in the WP-011 registry so independently mounted surfaces cannot silently reuse
 /// one address and force agents to depend on tree order.
+#[allow(dead_code)]
 pub const DECLARED_HASHED_AUTHOR_IDS: &[&str] = &[
     STAGE_PANE_AUTHOR_ID,
     STAGE_ROUTED_CONTENT_AUTHOR_ID,
@@ -153,6 +154,7 @@ pub const DECLARED_HASHED_AUTHOR_IDS: &[&str] = &[
 ];
 
 /// Registered prefixes for date-dependent AccessKit rows in the two mounted date navigators.
+#[allow(dead_code)]
 pub const DECLARED_HASHED_AUTHOR_ID_PREFIXES: &[&str] = &[
     JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_day_prefix,
     DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_day_prefix,

@@ -632,6 +632,7 @@ fn render_single_image(
 ///      [`EmbedRuntime::ensure_image_content`] and show the "decoding pixels" spinner while it is
 ///      in flight (never blank). A decode/fetch failure becomes `Err` in the resolution cache
 ///      (drained in step 2's sibling path), so the NEXT frame shows the typed error chip (MC-005).
+#[allow(clippy::too_many_arguments)]
 fn render_resolved_image(
     ui: &mut egui::Ui,
     kind: MediaEmbedKind,
@@ -1354,6 +1355,24 @@ mod tests {
         EmbedRuntime::new("ws", "http://b", Arc::new(NeverFetcher), None)
     }
 
+    fn drain_delivery_within(
+        rt: &mut EmbedRuntime,
+        async_runtime: &tokio::runtime::Runtime,
+        label: &str,
+    ) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while !rt.drain_deliveries() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "{label} did not deliver within the bounded test deadline"
+            );
+            async_runtime.block_on(async {
+                tokio::task::yield_now().await;
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            });
+        }
+    }
+
     fn ok_resolved(asset_id: &str) -> ResolvedAsset {
         ResolvedAsset {
             asset: EmbedAssetMetadata {
@@ -1498,10 +1517,7 @@ mod tests {
             rt.resolutions.get("images:hung-asset"),
             Some(EmbedResolutionState::Resolving)
         ));
-        async_runtime.block_on(async {
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        });
-        assert!(rt.drain_deliveries());
+        drain_delivery_within(&mut rt, &async_runtime, "hung asset timeout");
         assert!(matches!(
             rt.resolutions.get("images:hung-asset"),
             Some(EmbedResolutionState::Err(EmbedError::TimedOut(_)))
@@ -1524,10 +1540,7 @@ mod tests {
         rt.work_budget = Arc::new(tokio::sync::Semaphore::new(0));
 
         rt.ensure_single(MediaEmbedKind::Images, "queued-asset");
-        async_runtime.block_on(async {
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        });
-        assert!(rt.drain_deliveries());
+        drain_delivery_within(&mut rt, &async_runtime, "queued asset timeout");
         assert!(matches!(
             rt.resolutions.get("images:queued-asset"),
             Some(EmbedResolutionState::Err(EmbedError::TimedOut(_)))
@@ -1554,10 +1567,7 @@ mod tests {
             "queued-pixels",
             MediaTier::Thumbnail,
         );
-        async_runtime.block_on(async {
-            tokio::time::sleep(Duration::from_millis(20)).await;
-        });
-        assert!(rt.drain_deliveries());
+        drain_delivery_within(&mut rt, &async_runtime, "queued pixel timeout");
         let key = EmbedRuntime::media_key(
             MediaEmbedKind::Images,
             MediaTier::Thumbnail,

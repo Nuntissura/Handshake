@@ -475,17 +475,17 @@ fn code_pane_create_note_from_link_routes_through_host_drain() {
     let context_surface = harness
         .root()
         .children_recursive()
-        .find(|n| {
-            n.accesskit_node().author_id().as_deref() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID)
-        })
+        .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID))
         .expect("the mounted code pane's context surface node is live");
     context_surface.click_secondary();
     let mut clicked_create = false;
     for _ in 0..20 {
         harness.run_steps(1);
-        if let Some(node) = harness.root().children_recursive().find(|n| {
-            n.accesskit_node().author_id().as_deref() == Some("ctx-menu.ctxmenu-editor-create-note")
-        }) {
+        if let Some(node) = harness
+            .root()
+            .children_recursive()
+            .find(|n| n.accesskit_node().author_id() == Some("ctx-menu.ctxmenu-editor-create-note"))
+        {
             node.click();
             clicked_create = true;
             break;
@@ -713,8 +713,7 @@ fn managed_postgres_code_create_note_opens_exact_durable_rich_document() {
         .root()
         .children_recursive()
         .find(|node| {
-            node.accesskit_node().author_id().as_deref()
-                == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID)
+            node.accesskit_node().author_id() == Some(CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID)
         })
         .expect("mounted code context surface");
     context_surface.click_secondary();
@@ -722,8 +721,7 @@ fn managed_postgres_code_create_note_opens_exact_durable_rich_document() {
     for _ in 0..20 {
         harness.run_steps(1);
         if let Some(node) = harness.root().children_recursive().find(|node| {
-            node.accesskit_node().author_id().as_deref()
-                == Some("ctx-menu.ctxmenu-editor-create-note")
+            node.accesskit_node().author_id() == Some("ctx-menu.ctxmenu-editor-create-note")
         }) {
             node.click();
             clicked = true;
@@ -3137,7 +3135,8 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
     harness.run_steps(4);
 
     let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
-    std::fs::create_dir_all(&artifact_dir).expect("create external MT-079 canonical-Argus artifact dir");
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-079 canonical-Argus artifact dir");
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-editors");
 
@@ -3161,7 +3160,10 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
     let code_focus =
         argus.click_and_reinspect(&mut harness, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID);
     assert!(
-        matches!(code_focus.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            code_focus.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical code-editor wrap-toggle steer receipt is terminal and non-rejected: {}",
         code_focus.receipt_status
     );
@@ -3181,7 +3183,10 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
     // back in its editable state (editor.rich.root present) for the downstream lifecycle observations.
     let rich_focus = argus.click_and_reinspect(&mut harness, TOGGLE_READING_AUTHOR_ID);
     assert!(
-        matches!(rich_focus.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            rich_focus.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical rich-editor reading-toggle steer receipt is terminal and non-rejected: {}",
         rich_focus.receipt_status
     );
@@ -3191,7 +3196,10 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
     );
     let rich_restore = argus.click_and_reinspect(&mut harness, TOGGLE_EDIT_AUTHOR_ID);
     assert!(
-        matches!(rich_restore.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            rich_restore.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical rich-editor edit-restore steer receipt is terminal and non-rejected: {}",
         rich_restore.receipt_status
     );
@@ -3227,9 +3235,7 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
     // remains canonically Argus-addressable + steerable in its own window (so an out-of-process agent can
     // still drive a popped-out editor), and the sibling panes stay addressable (the popout is scoped, not a
     // global teardown).
-    harness
-        .state_mut()
-        .request_pop_out(PaneId::from("pane-a"));
+    harness.state_mut().request_pop_out(PaneId::from("pane-a"));
     harness.run_steps(3);
     assert!(
         harness.state().is_popped_out(&PaneId::from("pane-a")),
@@ -3301,7 +3307,8 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
     harness.run_steps(2);
 
     let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
-    std::fs::create_dir_all(&artifact_dir).expect("create external MT-079 canonical-Argus artifact dir");
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-079 canonical-Argus artifact dir");
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-menu");
 
@@ -3333,7 +3340,10 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
     // closed) -> fresh inspect re-observes the mounted chat pane, and the active work surface hosts it.
     let open_chat = argus.click_and_reinspect(&mut harness, "menu.view.open-runtime-chat");
     assert!(
-        matches!(open_chat.receipt_status.as_str(), "applied" | "indeterminate"),
+        matches!(
+            open_chat.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
         "the canonical Open-Runtime-Chat receipt is terminal and non-rejected: {}",
         open_chat.receipt_status
     );
@@ -3358,7 +3368,10 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
             .state()
             .tab_bar_states()
             .get(&active)
-            .map(|bar| bar.tabs.iter().any(|t| t.pane_type == PaneType::RuntimeChat))
+            .map(|bar| bar
+                .tabs
+                .iter()
+                .any(|t| t.pane_type == PaneType::RuntimeChat))
             .unwrap_or(false),
         "Open Runtime Chat opened the RuntimeChat pane on the active work surface (not a no-op)"
     );

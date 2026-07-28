@@ -67,7 +67,10 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
     // --- SET-REC-002: a typed-invalid value is rejected with a structured 400, never persisted. ---
     let (status, body) =
         backend.put_json_response(&format!("{base}/{FONT_SIZE}"), &json!({ "value": 100.0 }));
-    assert_eq!(status, 400, "out-of-range font-size must be rejected: {body}");
+    assert_eq!(
+        status, 400,
+        "out-of-range font-size must be rejected: {body}"
+    );
     assert_eq!(body["error"], "preference_validation_failed");
     assert_eq!(body["validation"]["preference_id"], FONT_SIZE);
     assert_eq!(body["validation"]["code"], "out_of_range");
@@ -78,7 +81,10 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
 
     let (wrong_type_status, _) =
         backend.put_json_response(&format!("{base}/{TAB_SIZE}"), &json!({ "value": "four" }));
-    assert_eq!(wrong_type_status, 400, "string for an int preference is rejected");
+    assert_eq!(
+        wrong_type_status, 400,
+        "string for an int preference is rejected"
+    );
 
     let (unknown_status, _) = backend.put_json_response(
         &format!("{base}/view-defaults.editor.does-not-exist"),
@@ -129,13 +135,19 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
     // Enum preference set + validation domain.
     let wrap = backend.put_json(&format!("{base}/{WORD_WRAP}"), &json!({ "value": "on" }));
     assert_eq!(wrap["record"]["value"], json!("on"));
-    let (bad_enum, _) =
-        backend.put_json_response(&format!("{base}/{WORD_WRAP}"), &json!({ "value": "diagonal" }));
+    let (bad_enum, _) = backend.put_json_response(
+        &format!("{base}/{WORD_WRAP}"),
+        &json!({ "value": "diagonal" }),
+    );
     assert_eq!(bad_enum, 400, "an unknown enum member is rejected");
 
     // --- SET-UI-002: reset-to-default is a mutation (source=operator) with its own receipt. ---
     let reset = backend.post_json(&format!("{base}/{FONT_SIZE}/reset"), &json!({}));
-    assert_eq!(reset["record"]["value"], json!(13.0), "reset restores the default");
+    assert_eq!(
+        reset["record"]["value"],
+        json!(13.0),
+        "reset restores the default"
+    );
     assert_eq!(reset["record"]["source"], "operator");
     assert_eq!(reset["record"]["revision"], 2, "reset bumps the revision");
     let reset_receipt = &reset["receipt"];
@@ -149,7 +161,11 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
     let receipts = history["receipts"]
         .as_array()
         .expect("history has a receipts array");
-    assert_eq!(receipts.len(), 2, "font-size has a set + a reset in its history");
+    assert_eq!(
+        receipts.len(),
+        2,
+        "font-size has a set + a reset in its history"
+    );
     assert_eq!(receipts[0]["after_revision"], 2, "newest (reset) first");
     assert_eq!(receipts[0]["new_value"], json!(13.0));
     assert_eq!(receipts[1]["after_revision"], 1, "then the original set");

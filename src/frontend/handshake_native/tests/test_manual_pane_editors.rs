@@ -604,14 +604,14 @@ fn has_live_author_id<S>(harness: &Harness<'_, S>, author_id: &str) -> bool {
     harness
         .root()
         .children_recursive()
-        .any(|node| node.accesskit_node().author_id().as_deref() == Some(author_id))
+        .any(|node| node.accesskit_node().author_id() == Some(author_id))
 }
 
 fn click_live_author_id<S>(harness: &mut Harness<'_, S>, author_id: &str) {
     harness
         .root()
         .children_recursive()
-        .find(|node| node.accesskit_node().author_id().as_deref() == Some(author_id))
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
         .unwrap_or_else(|| panic!("actual mounted widget '{author_id}' is absent"))
         .click_accesskit();
     harness.run_steps(3);
@@ -858,9 +858,7 @@ fn manual_rename_rows_drive_the_actual_context_popup_and_inline_widget() {
     let value = harness
         .root()
         .children_recursive()
-        .find(|node| {
-            node.accesskit_node().author_id().as_deref() == Some(CODE_EDITOR_RENAME_INPUT_AUTHOR_ID)
-        })
+        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_RENAME_INPUT_AUTHOR_ID))
         .and_then(|node| node.accesskit_node().value());
     assert_eq!(value.as_deref(), Some("renamed_by_argus"));
 }

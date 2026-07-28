@@ -183,8 +183,8 @@ fn live_tree_contains_chrome_and_panes_by_author_id() {
     );
 
     let expected_panes = [
-        ("pane-a", "GenericContainer", "Code Symbol"),
-        ("pane-b", "TextInput", "Loom Wiki Page"),
+        ("pane-a", "Document", "Code Symbol"),
+        ("pane-b", "Document", "Loom Wiki Page"),
         ("pane-c", "Region", "Chat"),
     ];
     for (pane_id, expected_role, expected_label) in expected_panes {
@@ -576,7 +576,7 @@ fn live_frame_snapshot_contains_chrome_panes_and_toggle_in_stable_order() {
         snapshot.by_author_id(THEME_TOGGLE_AUTHOR_ID).unwrap().role,
         "Button"
     );
-    for (pane, expected_role) in [("pane-a", "GenericContainer"), ("pane-b", "TextInput")] {
+    for (pane, expected_role) in [("pane-a", "Document"), ("pane-b", "Document")] {
         assert_eq!(
             snapshot.by_author_id(pane).unwrap().role,
             expected_role,

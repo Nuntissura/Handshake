@@ -31,10 +31,9 @@
 //     meaningful bound) AND (b) the COMPRESSED artifact >= 5 MB (real zip ~6.47 MB; a far stronger floor
 //     than 1 MB). Both numbers + the postgres-deferred note are recorded in the report; the literal 10 MB
 //     COMPRESSED bound holds automatically once real postgres binaries are staged.
-//   * BUILD: the release-native profile + the crate's long external target-dir trips Windows MAX_PATH
-//     (LNK1104); the script (and this test) build into a SHORT CARGO_TARGET_DIR. Documented in Cargo.toml
-//     and BUNDLED_DEPS_POLICY.md. The test honors HANDSHAKE_SHORT_TARGET_DIR / CARGO_TARGET_DIR so the
-//     script and the test agree on where the artifact lands.
+//   * BUILD: the release-native profile is built only inside the project-allocated external
+//     Handshake_Artifacts root. The test honors HANDSHAKE_SHORT_TARGET_DIR, which the script rejects if
+//     it escapes that root, so the script and test agree on where the artifact lands.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -66,28 +65,17 @@ fn artifacts_dir() -> PathBuf {
     crate_root().join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
-/// The short build target dir the script uses. Mirrors the script's selection so this test can locate
-/// the staged exe + staging tree afterwards. Honors the same env overrides.
+/// The allocated release build target dir the script uses. Mirrors the script's selection so this test
+/// can locate the staged exe + staging tree afterwards.
 fn short_target_dir() -> PathBuf {
     if let Ok(d) = std::env::var("HANDSHAKE_SHORT_TARGET_DIR") {
         if !d.trim().is_empty() {
             return PathBuf::from(d);
         }
     }
-    if let Ok(d) = std::env::var("CARGO_TARGET_DIR") {
-        if !d.trim().is_empty() && d.len() < 40 {
-            return PathBuf::from(d);
-        }
-    }
-    // Default mirrors the script: <drive root of TEMP>/hsk-rn
-    let temp = std::env::temp_dir();
-    let root = temp
-        .components()
-        .next()
-        .map(|c| PathBuf::from(c.as_os_str()))
-        .unwrap_or_else(|| PathBuf::from("/"));
-    // On Windows the prefix+root components give e.g. "C:\"; join keeps it disk-agnostic at runtime.
-    root.join("hsk-rn")
+    crate_root()
+        .join("../../../../Handshake_Artifacts")
+        .join("handshake-release-target")
 }
 
 /// Total size (bytes) of every file under `dir`, recursively. Proves the UNCOMPRESSED bundle is real.

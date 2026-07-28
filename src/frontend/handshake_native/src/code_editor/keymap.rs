@@ -780,22 +780,10 @@ impl Keymap {
                 CodeEditorAction::from_name(&ov.action),
             ) {
                 (Ok(chord), Some(action)) => {
-                    if let Some(existing) = bindings
-                        .iter()
-                        .rev()
-                        .find(|binding| binding.second.is_none() && binding.chord == chord)
-                    {
-                        if existing.action != action {
-                            tracing::warn!(
-                                chord = %ov.chord,
-                                action = %ov.action,
-                                existing_action = %existing.action.name(),
-                                "skipping keymap override: chord is already bound"
-                            );
-                            continue;
-                        }
-                    }
-                    bindings.retain(|binding| binding.action != action);
+                    bindings.retain(|binding| {
+                        binding.action != action
+                            && !(binding.second.is_none() && binding.chord == chord)
+                    });
                     bindings.push(KeyBinding::single(chord, action, "Operator override"));
                 }
                 (Err(e), _) => {

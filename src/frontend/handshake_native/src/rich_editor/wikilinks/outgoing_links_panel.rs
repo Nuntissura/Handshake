@@ -357,7 +357,13 @@ impl OutgoingLinksPanel {
         on_open: &mut dyn FnMut(NavTarget),
     ) {
         let header = format!("Outgoing Links ({})", self.total());
-        ui.label(egui::RichText::new(header).strong().color(palette.text));
+        let header_response = ui.label(egui::RichText::new(header).strong().color(palette.text));
+        emit_node_author(
+            ui.ctx(),
+            header_response.id,
+            accesskit::Role::List,
+            PANEL_AUTHOR_ID,
+        );
 
         if self.loading {
             ui.horizontal(|ui| {

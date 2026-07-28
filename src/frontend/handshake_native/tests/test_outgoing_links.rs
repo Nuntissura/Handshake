@@ -38,7 +38,8 @@ use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::rich_editor::wikilinks::outgoing_links_panel::{
     bucket_links, extract_outgoing_links, resolved_author_id, unresolved_author_id, NavTarget,
-    OutgoingLinksPanel, EMPTY_TEXT, RESOLVED_SECTION_AUTHOR_ID, UNRESOLVED_SECTION_AUTHOR_ID,
+    OutgoingLinksPanel, EMPTY_TEXT, PANEL_AUTHOR_ID, RESOLVED_SECTION_AUTHOR_ID,
+    UNRESOLVED_SECTION_AUTHOR_ID,
 };
 use handshake_native::rich_editor::wikilinks::resolver::ResolverIndex;
 use handshake_native::theme::HsTheme;
@@ -137,6 +138,10 @@ fn pt003_accesskit_entry_and_section_nodes_present_and_deduped() {
     harness.run();
 
     let ids = author_ids(&harness);
+    assert!(
+        ids.iter().any(|a| a == PANEL_AUTHOR_ID),
+        "outgoing-links panel root node present ({ids:?})"
+    );
     // Section containers present (AC-005).
     assert!(
         ids.iter().any(|a| a == RESOLVED_SECTION_AUTHOR_ID),

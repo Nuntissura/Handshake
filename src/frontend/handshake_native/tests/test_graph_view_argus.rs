@@ -115,10 +115,7 @@ impl Drop for LiveWorkspaceCleanup<'_> {
 /// Mount a production `HandshakeApp` shell bound to the live backend + the seeded workspace, with the
 /// Graph View pane opened on the active work surface. The multi-thread runtime is returned so it outlives
 /// the harness (the per-frame graph feed dispatches onto it).
-fn graph_shell(
-    base: &str,
-    workspace_id: &str,
-) -> (HandshakeApp, tokio::runtime::Runtime) {
+fn graph_shell(base: &str, workspace_id: &str) -> (HandshakeApp, tokio::runtime::Runtime) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -389,7 +386,8 @@ fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
 
     let artifact_dir = external_artifact_dir("wp-kernel-012-mt-021/canonical-argus");
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-021 Argus artifact dir");
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-021-graph-switch");
+    let mut argus =
+        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-021-graph-switch");
 
     // (1) Global inspect: all four seeded nodes are addressable, including the disconnected `isolated`.
     let global_before = argus.inspect(&mut harness);

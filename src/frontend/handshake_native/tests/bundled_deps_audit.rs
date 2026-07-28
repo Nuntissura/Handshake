@@ -42,25 +42,16 @@ fn artifacts_dir() -> PathBuf {
     crate_root().join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
-/// Mirror build_installer.ps1's short-target-dir selection so the audit finds the staging tree.
+/// Mirror build_installer.ps1's allocated release-target selection so the audit finds the staging tree.
 fn short_target_dir() -> PathBuf {
     if let Ok(d) = std::env::var("HANDSHAKE_SHORT_TARGET_DIR") {
         if !d.trim().is_empty() {
             return PathBuf::from(d);
         }
     }
-    if let Ok(d) = std::env::var("CARGO_TARGET_DIR") {
-        if !d.trim().is_empty() && d.len() < 40 {
-            return PathBuf::from(d);
-        }
-    }
-    let temp = std::env::temp_dir();
-    let root = temp
-        .components()
-        .next()
-        .map(|c| PathBuf::from(c.as_os_str()))
-        .unwrap_or_else(|| PathBuf::from("/"));
-    root.join("hsk-rn")
+    crate_root()
+        .join("../../../../Handshake_Artifacts")
+        .join("handshake-release-target")
 }
 
 /// Recursively collect every file path under `dir`, relative to `dir` (forward-slash strings).

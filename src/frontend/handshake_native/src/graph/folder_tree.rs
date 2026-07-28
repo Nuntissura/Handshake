@@ -781,6 +781,7 @@ fn set_accessible_text_input(ui: &egui::Ui, id: egui::Id, author_id: &str, label
 /// Render one folder subtree at `depth`, returning `(event, any_spinner_active)`. Mutates the node's
 /// `expanded` flag on a disclosure-triangle click. A `depth >= MAX_RENDER_DEPTH` row is replaced by a
 /// single `…(deep)` truncation label (RISK-1 render guard) so a deep tree can never hang the layout.
+#[allow(clippy::too_many_arguments)]
 fn render_folder(
     node: &mut FolderNode,
     ui: &mut egui::Ui,

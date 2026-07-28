@@ -318,7 +318,25 @@ fn mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state(
     harness
         .state_mut()
         .set_active_project_id_for_test("workspace-argus");
-    harness.state_mut().open_quick_switcher();
+    let matrix_scenario = std::env::var("HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID").ok();
+    if matrix_scenario.as_deref() == Some("wiki_projection_host") {
+        let ctx = harness.ctx.clone();
+        assert!(harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(
+                &ctx,
+                handshake_native::command_registry::CMD_VIEW_WIKI_PROJECTION,
+            ));
+        assert!(
+            harness
+                .state()
+                .quick_switcher_nav_status()
+                .is_some_and(|status| status.contains("No active wiki projection")),
+            "the unbound wiki route opens truthful discovery instead of a fake projection"
+        );
+    } else {
+        harness.state_mut().open_quick_switcher();
+    }
     harness.run_steps(2);
     switcher_search(&harness).type_text("argus");
     assert!(step_until(&mut harness, |app| !app
@@ -327,6 +345,11 @@ fn mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state(
     harness.run_steps(2);
 
     let target = "quick-switcher.option.document.krd-argus";
+    if matrix_scenario.is_some() {
+        let _ = harness.render_proof_frame(
+            "MT-108 Quick Switcher matrix requires a material pre-action frame",
+        );
+    }
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-quick-switcher");
     let before = argus.inspect(&mut harness);
     assert!(json_has_author_id(&before, target));
@@ -346,6 +369,11 @@ fn mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state(
         })));
     let after = argus.inspect(&mut harness);
     assert!(!json_has_author_id(&after, SWITCHER_DIALOG_AUTHOR_ID));
+    if matrix_scenario.is_some() {
+        let _ = harness.render_proof_frame(
+            "MT-108 Quick Switcher matrix requires a material post-action frame",
+        );
+    }
     argus.finish();
 }
 

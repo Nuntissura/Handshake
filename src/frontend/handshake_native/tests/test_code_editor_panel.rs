@@ -135,7 +135,7 @@ fn code_editor_panel_accesskit() {
             let panel = CodeEditorPanel::new(SNIPPET, "rs");
             panel.show(ui);
         });
-    harness.run();
+    harness.step();
 
     let root = harness.root();
     let mut container_found = false;
@@ -374,8 +374,10 @@ fn large_file_frame_time() {
             panel_for_ui.show(ui);
         });
 
-    // Warm-up frame (first frame measures line height, builds galleys), excluded from timing.
-    harness.run();
+    // Warm up exactly one frame. The panel may schedule another repaint while its initial syntax
+    // highlight is still publishing; `run()` incorrectly requires quiescence and turns that valid
+    // asynchronous repaint into a max-steps failure under a loaded all-target run.
+    harness.step();
 
     // Time 60 frames around the egui step (CPU layout+paint prep; GPU readback is excluded — this is
     // the per-frame work budget the contract targets).

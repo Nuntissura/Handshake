@@ -240,7 +240,9 @@ fn duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved() {
     // land the durable conflicting chords before asserting (the GET completes on a runtime worker).
     assert!(
         run_until(&mut harness, 60, |app| {
-            app.workspace_settings().chord_for("app.command_palette.open") == Some("Mod-Alt-p")
+            app.workspace_settings()
+                .chord_for("app.command_palette.open")
+                == Some("Mod-Alt-p")
         }),
         "durable reload restored the seeded conflicting command-palette chord"
     );

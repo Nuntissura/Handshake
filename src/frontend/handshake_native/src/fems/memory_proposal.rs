@@ -549,10 +549,10 @@ fn validate_review_ack(
             "correlation_id expected {expected_correlation}, received {}",
             ack.correlation_id
         ))
-    } else if !ack
+    } else if ack
         .event_ledger_event_id
         .strip_prefix("KE-")
-        .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+        .is_none_or(|id| uuid::Uuid::parse_str(id).is_err())
     {
         Some("event_ledger_event_id expected KE-<uuid>".to_owned())
     } else if uuid::Uuid::parse_str(&ack.flight_recorder_event_id).is_err() {
@@ -1942,7 +1942,8 @@ mod tests {
             Ok(())
         );
 
-        let mutations: Vec<Box<dyn Fn(&mut ProposalReviewAck)>> = vec![
+        type AckMutation = Box<dyn Fn(&mut ProposalReviewAck)>;
+        let mutations: Vec<AckMutation> = vec![
             Box::new(|ack| ack.proposal_id = "other".to_owned()),
             Box::new(|ack| ack.decision = ProposalReviewDecision::Rejected),
             Box::new(|ack| ack.status = "pending_review".to_owned()),

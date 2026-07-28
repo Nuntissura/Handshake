@@ -113,6 +113,26 @@ pub fn tab_author_id_for(pane_id: &str, index: usize, pane_type: &PaneType) -> S
     }
 }
 
+/// Whether an AccessKit author id is one emitted by the production tab-bar contract.
+///
+/// Consumers must use this instead of inventing a prefix: ordinary tabs are
+/// `tab-{pane_id}-{index}`, while the User Manual has one deliberate stable-id override.
+pub fn is_tab_author_id(author_id: &str) -> bool {
+    if author_id == USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID {
+        return true;
+    }
+    if author_id.starts_with("tab-close-") {
+        return false;
+    }
+    let Some(rest) = author_id.strip_prefix("tab-") else {
+        return false;
+    };
+    let Some((pane_id, index)) = rest.rsplit_once('-') else {
+        return false;
+    };
+    !pane_id.is_empty() && index.parse::<usize>().is_ok()
+}
+
 /// Stable out-of-process author_id for a tab's close button (`tab-close-{pane_id}-{index}`).
 pub fn tab_close_author_id(pane_id: &str, index: usize) -> String {
     format!("tab-close-{pane_id}-{index}")
@@ -1067,6 +1087,15 @@ mod tests {
 
     fn named_bar(types: &[PaneType]) -> TabBarState {
         TabBarState::new(pid(), types.iter().cloned().map(TabState::new).collect())
+    }
+
+    #[test]
+    fn production_tab_author_id_recognizer_matches_both_emission_paths() {
+        assert!(is_tab_author_id(&tab_author_id("pane-a", 12)));
+        assert!(is_tab_author_id(USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID));
+        assert!(!is_tab_author_id("shell.tab.pane-a.12"));
+        assert!(!is_tab_author_id("tab-close-pane-a-12"));
+        assert!(!is_tab_author_id("tab-pane-a-not-an-index"));
     }
 
     #[test]

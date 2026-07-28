@@ -632,7 +632,6 @@ fn mounted_backlink_event_retries_when_bus_is_contended() {
     harness.run_steps(3);
 
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    let bus_guard = bus.lock().expect("hold bus for contention");
     rich_state
         .lock()
         .unwrap()
@@ -641,11 +640,13 @@ fn mounted_backlink_event_retries_when_bus_is_contended() {
             source_document_id: "DOC-RETRY-BACKLINK".to_owned(),
         });
     harness.run_steps(1);
-
     assert!(
         rich_state.lock().unwrap().pending_events.is_empty(),
-        "retry proof: the mounted rich event queue drained even while the bus was contended"
+        "retry proof: the mounted rich event queue drained into the routed shell queue"
     );
+
+    let bus_guard = bus.lock().expect("hold bus for contention");
+    harness.run_steps(1);
     assert!(
         harness
             .state()

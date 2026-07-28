@@ -887,7 +887,7 @@ fn lsp_reader_rejects_oversized_headers_and_content_length_before_body_allocatio
         let mut total_header = Vec::new();
         while total_header.len() <= MAX_LSP_HEADER_BYTES {
             total_header.extend_from_slice(b"X-Test: ");
-            total_header.extend(std::iter::repeat(b'x').take(4096));
+            total_header.extend(std::iter::repeat_n(b'x', 4096));
             total_header.extend_from_slice(b"\r\n");
         }
         reader_finishes_for(total_header).await;
@@ -1619,7 +1619,7 @@ fn lsp_diagnostics_fan_out_to_every_panel_and_reject_stale_document_versions() {
         panel_b.set_file_path("shared.rs");
         let client = Arc::new(LspClient::disabled());
         let (client_read, mut mock_write) = tokio::io::duplex(16 * 1024);
-        let _reader = client.spawn_reader_for_test(client_read);
+        client.spawn_reader_for_test(client_read);
         panel_a.set_lsp_client(Arc::clone(&client));
         panel_b.set_lsp_client(Arc::clone(&client));
 

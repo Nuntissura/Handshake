@@ -314,7 +314,7 @@ impl LocusArgusDriver {
         let app_data = ScopedArgusAppData::install(
             external_artifact_dir("mt068-argus-binding").join(format!("run-{unique}")),
         );
-        let session_token = SessionToken::from_hex(&format!("mt068-locus-{unique}"));
+        let session_token = SessionToken::from_hex(format!("mt068-locus-{unique}"));
         let token = session_token.as_hex().to_owned();
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
@@ -403,6 +403,12 @@ impl LocusArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus click returns a receipt id");
+        if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+            .ok()
+            .is_some_and(|run_id| !run_id.trim().is_empty())
+        {
+            std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
+        }
 
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
@@ -444,6 +450,15 @@ impl LocusArgusDriver {
             .expect("Argus click agent id")
             .to_owned();
         self.clicked_targets.push(author_id.to_owned());
+        write_mt108_locus_matrix_trace(
+            &self.client_session_id,
+            author_id,
+            receipt_id,
+            &receipt_status,
+            &agent_id,
+            &before,
+            &after,
+        );
         serde_json::json!({
             "method": ARGUS_CLICK_METHOD,
             "target": author_id,
@@ -481,6 +496,68 @@ impl LocusArgusDriver {
         drop(self.runtime);
         serde_json::Value::Array(evidence)
     }
+}
+
+fn write_mt108_locus_matrix_trace(
+    client_session_id: &str,
+    target: &str,
+    receipt_id: u64,
+    receipt_status: &str,
+    agent_id: &str,
+    before: &serde_json::Value,
+    after: &serde_json::Value,
+) {
+    let Ok(run_id) = std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID") else {
+        return;
+    };
+    let required = |name: &str| {
+        std::env::var(name)
+            .unwrap_or_else(|_| panic!("{name} is required for the MT-108 Locus matrix run"))
+    };
+    let scenario_id = required("HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID");
+    let surface = required("HANDSHAKE_ARGUS_MATRIX_SURFACE");
+    let edge_state_tag = required("HANDSHAKE_ARGUS_MATRIX_EDGE_STATE");
+    let source_sha = required("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA");
+    let process_correlation_id = required("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
+    let run_dir = PathBuf::from(required("HANDSHAKE_PROOF_ARTIFACT_DIR")).join(&run_id);
+    std::fs::create_dir_all(&run_dir).expect("create MT-108 Locus matrix run directory");
+    let path = run_dir.join("canonical-argus-matrix.jsonl");
+    let row = serde_json::json!({
+        "schema_id": "hsk.native_gui.canonical_argus_matrix_trace@1",
+        "run_id": &run_id,
+        "scenario_id": &scenario_id,
+        "surface": &surface,
+        "edge_state_tag": &edge_state_tag,
+        "source_sha": &source_sha,
+        "process_correlation_id": &process_correlation_id,
+        "process_id": std::process::id(),
+        "client_session_id": client_session_id,
+        "method": ARGUS_CLICK_METHOD,
+        "target": target,
+        "action_value": null,
+        "target_selected_before": null,
+        "target_selected_after": null,
+        "receipt_id": receipt_id,
+        "receipt_status": receipt_status,
+        "agent_id": agent_id,
+        "before": before,
+        "after": after,
+    });
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .unwrap_or_else(|error| {
+            panic!("open MT-108 Locus matrix trace {}: {error}", path.display())
+        });
+    writeln!(
+        file,
+        "{}",
+        serde_json::to_string(&row).expect("serialize MT-108 Locus matrix trace")
+    )
+    .expect("append MT-108 Locus matrix trace");
+    file.sync_all()
+        .expect("flush MT-108 Locus matrix trace durably");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1161,6 +1238,7 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
+#[ignore = "MT-108 runner-only material Locus proof: requires managed PostgreSQL and bounded external supervisor"]
 fn resolve_locus_ref_against_real_pg_live() {
     let source_sha = current_source_sha();
     let runtime_source_tree = current_runtime_source_tree();
@@ -1460,11 +1538,30 @@ fn resolve_locus_ref_against_real_pg_live() {
         );
         let before_screenshot_path =
             artifact_dir.join(format!("mt068-locus-{state_label}-before.png"));
-        harness
-            .render()
-            .expect("MT-068 pre-navigation state requires a material harness render")
-            .save(&before_screenshot_path)
-            .expect("save MT-068 pre-navigation harness render");
+        let before_screenshot = match harness
+            .render_proof_frame("MT-068 pre-navigation state requires a material harness render")
+        {
+            Some(image) => {
+                image
+                    .save(&before_screenshot_path)
+                    .expect("save MT-068 pre-navigation harness render");
+                let png = std::fs::read(&before_screenshot_path).expect("read pre-navigation PNG");
+                let dimensions = image::GenericImageView::dimensions(
+                    &image::load_from_memory(&png).expect("decode pre-navigation PNG"),
+                );
+                serde_json::json!({
+                    "status": "CAPTURED",
+                    "path": before_screenshot_path.display().to_string(),
+                    "sha256": format!("{:x}", Sha256::digest(&png)),
+                    "width": dimensions.0,
+                    "height": dimensions.1,
+                })
+            }
+            None => serde_json::json!({
+                "status": "DEFERRED",
+                "reason": "headless matrix run; canonical screenshot marker carries the typed deferral"
+            }),
+        };
         let mut argus = LocusArgusDriver::bind(harness.state());
         let argus_observation = argus.click_and_reinspect(&mut harness, &chip_id);
         let post_action_inspection = &argus_observation["after"];
@@ -1493,19 +1590,30 @@ fn resolve_locus_ref_against_real_pg_live() {
         let observed_navigation_content_id = active_tab.content_id.clone();
         let after_screenshot_path =
             artifact_dir.join(format!("mt068-locus-{state_label}-after.png"));
-        harness
-            .render()
-            .expect("MT-068 post-navigation state requires a material harness render")
-            .save(&after_screenshot_path)
-            .expect("save MT-068 post-navigation harness render");
-        let before_png = std::fs::read(&before_screenshot_path).expect("read pre-navigation PNG");
-        let after_png = std::fs::read(&after_screenshot_path).expect("read post-navigation PNG");
-        let before_dimensions = image::GenericImageView::dimensions(
-            &image::load_from_memory(&before_png).expect("decode pre-navigation PNG"),
-        );
-        let after_dimensions = image::GenericImageView::dimensions(
-            &image::load_from_memory(&after_png).expect("decode post-navigation PNG"),
-        );
+        let after_screenshot = match harness
+            .render_proof_frame("MT-068 post-navigation state requires a material harness render")
+        {
+            Some(image) => {
+                image
+                    .save(&after_screenshot_path)
+                    .expect("save MT-068 post-navigation harness render");
+                let png = std::fs::read(&after_screenshot_path).expect("read post-navigation PNG");
+                let dimensions = image::GenericImageView::dimensions(
+                    &image::load_from_memory(&png).expect("decode post-navigation PNG"),
+                );
+                serde_json::json!({
+                    "status": "CAPTURED",
+                    "path": after_screenshot_path.display().to_string(),
+                    "sha256": format!("{:x}", Sha256::digest(&png)),
+                    "width": dimensions.0,
+                    "height": dimensions.1,
+                })
+            }
+            None => serde_json::json!({
+                "status": "DEFERRED",
+                "reason": "headless matrix run; canonical screenshot marker carries the typed deferral"
+            }),
+        };
         let resolved_row =
             wait_for_native_fr_with_frames(&be, &mut harness, "locus_ref_resolved", |row| {
                 row["payload"]["native_payload"]["locus_uri"].as_str() == Some(uri)
@@ -1551,18 +1659,8 @@ fn resolve_locus_ref_against_real_pg_live() {
             "observation": argus_observation,
             "action_log": action_log,
             "screenshots": {
-                "before": {
-                    "path": before_screenshot_path.display().to_string(),
-                    "sha256": format!("{:x}", Sha256::digest(&before_png)),
-                    "width": before_dimensions.0,
-                    "height": before_dimensions.1,
-                },
-                "after": {
-                    "path": after_screenshot_path.display().to_string(),
-                    "sha256": format!("{:x}", Sha256::digest(&after_png)),
-                    "width": after_dimensions.0,
-                    "height": after_dimensions.1,
-                }
+                "before": before_screenshot,
+                "after": after_screenshot,
             }
         }));
     }

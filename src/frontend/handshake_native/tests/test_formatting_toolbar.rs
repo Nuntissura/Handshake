@@ -197,6 +197,7 @@ fn bold_toolbar_button_click_toggles_bold_on_selection() {
 }
 
 #[test]
+#[ignore = "MT-108 runner-only proof: bounded supervisor supplies source/process identity and capture root"]
 fn mt108_argus_formatting_toolbar_real_server_loop() {
     let state = Arc::new(Mutex::new(hello_selected_state()));
     let state_for_ui = Arc::clone(&state);
