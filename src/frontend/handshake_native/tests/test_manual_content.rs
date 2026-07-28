@@ -2308,6 +2308,11 @@ fn mt108_supervisor_is_hard_bounded_and_invokes_the_mandatory_verifier() {
     let runner = include_str!("run_mt108_argus_proof.ps1");
     for needle in [
         "$process.WaitForExit(25)",
+        "$correlationId.exit-code",
+        "wrapper-owned Cargo exit-code sidecar",
+        "[int]::TryParse(",
+        "$childStartedAt -lt $parentStartedAt",
+        "Chronologically impossible",
         "$process.Kill($true)",
         "taskkill.exe",
         "'/PID', $process.Id, '/T', '/F'",

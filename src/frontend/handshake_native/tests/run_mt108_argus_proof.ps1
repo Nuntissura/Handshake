@@ -240,13 +240,38 @@ function Get-OwnedProcessTreeSnapshot {
         throw "owned process-tree root PID $RootPid identity changed: expected start '$ExpectedRootStartUtc', observed '$observedRootStartUtc'"
     }
     $owned = New-Object 'System.Collections.Generic.HashSet[int]'
+    $ownedStartUtc = @{}
     [void]$owned.Add($RootPid)
+    $ownedStartUtc[$RootPid] = $observedRootStartUtc
     do {
         $added = $false
         foreach ($row in $processRows) {
-            if ($owned.Contains([int]$row.ParentProcessId) -and $owned.Add([int]$row.ProcessId)) {
-                $added = $true
+            $candidatePid = [int]$row.ProcessId
+            $candidateParentPid = [int]$row.ParentProcessId
+            if (-not $owned.Contains($candidateParentPid) -or $owned.Contains($candidatePid)) {
+                continue
             }
+            $candidateStartUtc = Get-ProcessStartTimeUtc $row
+            if ([string]::IsNullOrWhiteSpace($candidateStartUtc)) {
+                throw "owned process-tree candidate PID $candidatePid has no verifiable start-time identity"
+            }
+            $parentStartedAt = [DateTimeOffset]::Parse(
+                [string]$ownedStartUtc[$candidateParentPid],
+                [Globalization.CultureInfo]::InvariantCulture,
+                [Globalization.DateTimeStyles]::AssumeUniversal)
+            $childStartedAt = [DateTimeOffset]::Parse(
+                $candidateStartUtc,
+                [Globalization.CultureInfo]::InvariantCulture,
+                [Globalization.DateTimeStyles]::AssumeUniversal)
+            if ($childStartedAt -lt $parentStartedAt) {
+                # Win32_Process.ParentProcessId is only a PID number and may
+                # point at a later reused PID. Chronologically impossible
+                # ancestry must never claim or reclaim an unrelated process.
+                continue
+            }
+            [void]$owned.Add($candidatePid)
+            $ownedStartUtc[$candidatePid] = $candidateStartUtc
+            $added = $true
         }
     } while ($added)
     return @($processRows | Where-Object { $owned.Contains([int]$_.ProcessId) } | ForEach-Object {
@@ -356,12 +381,39 @@ function Invoke-BoundedCargoTest {
     $stdoutPath = Join-Path $runDir "$Scenario.stdout.log"
     $stderrPath = Join-Path $runDir "$Scenario.stderr.log"
     $correlationId = "cargo-$Scenario-$([guid]::NewGuid().ToString('N'))"
+    $exitCodePath = Join-Path $runDir "$correlationId.exit-code"
+    if (Test-Path -LiteralPath $exitCodePath) {
+        throw "${Scenario}: Cargo exit-code sidecar is not fresh: $exitCodePath"
+    }
     $env:HANDSHAKE_PROOF_PROCESS_CORRELATION_ID = $correlationId
     $env:HANDSHAKE_PROOF_PROCESS_SCENARIO_ID = $Scenario
     $env:HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID = $Scenario
     $env:HANDSHAKE_ARGUS_MATRIX_SURFACE = $Surface
     $env:HANDSHAKE_ARGUS_MATRIX_EDGE_STATE = $EdgeStateTag
-    $process = Start-Process -FilePath 'cargo' -ArgumentList $CargoArguments -WorkingDirectory $crateRoot `
+    $cargoCommand = Get-Command cargo -CommandType Application -ErrorAction Stop
+    $wrapperSpecJson = [ordered]@{
+        CargoPath = $cargoCommand.Source
+        WorkingDirectory = $crateRoot
+        Arguments = @($CargoArguments)
+        ExitCodePath = $exitCodePath
+    } | ConvertTo-Json -Compress -Depth 4
+    $wrapperSpecBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($wrapperSpecJson))
+    $wrapperCommand = @'
+$specJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__SPEC_BASE64__'))
+$spec = $specJson | ConvertFrom-Json
+Set-Location -LiteralPath ([string]$spec.WorkingDirectory)
+& ([string]$spec.CargoPath) @($spec.Arguments)
+$cargoExitCode = $LASTEXITCODE
+if ($null -eq $cargoExitCode) {
+    $cargoExitCode = 9009
+}
+[IO.File]::WriteAllText([string]$spec.ExitCodePath, [string][int]$cargoExitCode)
+exit ([int]$cargoExitCode)
+'@ -replace '__SPEC_BASE64__', $wrapperSpecBase64
+    $wrapperCommandBase64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($wrapperCommand))
+    $process = Start-Process -FilePath 'powershell.exe' `
+        -ArgumentList @('-NoProfile', '-NonInteractive', '-EncodedCommand', $wrapperCommandBase64) `
+        -WorkingDirectory $crateRoot `
         -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
     $rootIdentity = $null
     try {
@@ -372,19 +424,19 @@ function Invoke-BoundedCargoTest {
         } catch {
             # Best-effort termination before failing closed on a missing root identity.
         }
-        throw "${Scenario}: unable to read the supervised Cargo root identity for PID $($process.Id): $($_.Exception.Message)"
+        throw "${Scenario}: unable to read the supervised Cargo wrapper root identity for PID $($process.Id): $($_.Exception.Message)"
     }
     $rootExecutableName = if ($null -eq $rootIdentity) { '' } else {
         [IO.Path]::GetFileNameWithoutExtension([string]$rootIdentity.Executable)
     }
     if ($null -eq $rootIdentity -or [string]::IsNullOrWhiteSpace($rootIdentity.StartUtc) -or
-        -not $rootExecutableName.Equals('cargo', [StringComparison]::OrdinalIgnoreCase)) {
+        -not $rootExecutableName.Equals('powershell', [StringComparison]::OrdinalIgnoreCase)) {
         try {
             $process.Kill($true)
         } catch {
             # Best-effort termination before failing closed on an invalid root identity.
         }
-        throw "${Scenario}: supervised Cargo root identity unavailable or non-Cargo for PID $($process.Id)"
+        throw "${Scenario}: supervised Cargo wrapper root identity unavailable or non-PowerShell for PID $($process.Id)"
     }
     $startedAt = [DateTimeOffset]::Parse(
         $rootIdentity.StartUtc,
@@ -500,7 +552,18 @@ function Invoke-BoundedCargoTest {
         throw "${Scenario}: $failure; PID=$($process.Id); receipt=$externalReceiptPath"
     }
 
-    $exitCode = $process.ExitCode
+    if (-not (Test-Path -LiteralPath $exitCodePath -PathType Leaf)) {
+        throw "$Scenario exited without the wrapper-owned Cargo exit-code sidecar: $exitCodePath"
+    }
+    $rawExitCode = (Get-Content -LiteralPath $exitCodePath -Raw).Trim()
+    $exitCode = 0
+    if (-not [int]::TryParse(
+            $rawExitCode,
+            [Globalization.NumberStyles]::Integer,
+            [Globalization.CultureInfo]::InvariantCulture,
+            [ref]$exitCode)) {
+        throw "$Scenario wrote an invalid Cargo exit-code sidecar value '$rawExitCode'"
+    }
     if ($exitCode -ne 0) {
         Write-ExternalReceipt -ProcessContext $context -Status 'FAILED' -ReasonCode 'PROCESS_EXIT_NONZERO' `
             -Reason "Cargo exited $exitCode" -ExitCode $exitCode

@@ -1611,6 +1611,11 @@ mod aggregate_tests {
         assert!(runner.contains("$rootIdentity = Get-ProcessIdentityByPid -TargetPid $process.Id"));
         assert!(runner.contains("-ExpectedRootStartUtc $context.StartedAtUtc"));
         assert!(runner.contains("$process.WaitForExit(25)"));
+        assert!(runner.contains("$correlationId.exit-code"));
+        assert!(runner.contains("wrapper-owned Cargo exit-code sidecar"));
+        assert!(runner.contains("[int]::TryParse("));
+        assert!(runner.contains("$childStartedAt -lt $parentStartedAt"));
+        assert!(runner.contains("Chronologically impossible"));
         assert!(runner.contains("Capture one final process-table snapshot immediately after exit"));
         assert!(runner.contains("identity changed: expected start"));
         assert!(!runner.contains("ParentPid = 0"));
