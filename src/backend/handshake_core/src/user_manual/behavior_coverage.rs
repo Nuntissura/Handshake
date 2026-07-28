@@ -1493,9 +1493,67 @@ pub fn model_lane_behavior_coverage_matrix(
     ];
 
     for row in &mut templates {
+        // MT-011 wired the native internal_diagnostics producer and the
+        // authenticated Palmistry watcher as WIRED observers of these rows; the
+        // reason must name them as "wired observers" and each row must carry a
+        // family-scoped `palmistry://wp1/model-lane/...` correlation ref alongside
+        // its EventLedger/Flight Recorder authority.
         row.deferred_reason = Some(
-            "Tier-2 internal_diagnostics is produced by the native panic/heartbeat/frame/resource/open-event ring and Problems projection. Tier-3 Palmistry is the authenticated separate watcher with durable survivor recovery. The lane pane consumes their observation evidence but does not replace either producer.",
+            "Tier-2 internal_diagnostics is produced by the native panic/heartbeat/frame/resource/open-event ring and Problems projection. Tier-3 Palmistry is the authenticated separate watcher with durable survivor recovery. Both are wired observers of these rows; the lane pane consumes their observation evidence without replacing either producer's EventLedger/Flight Recorder authority.",
         );
+        row.follow_up_ref = Some(match row.behavior_id {
+            "wp1.model_lane.run" => "palmistry://wp1/model-lane/run",
+            "wp1.model_lane.launch" => "palmistry://wp1/model-lane/launch",
+            "wp1.model_lane.official_cli_spawn" => {
+                "palmistry://wp1/model-lane/official-cli-spawn"
+            }
+            "wp1.model_lane.official_cli_attached_sandbox" => {
+                "palmistry://wp1/model-lane/official-cli-attached-sandbox"
+            }
+            "wp1.model_lane.message" => "palmistry://wp1/model-lane/message",
+            "wp1.model_lane.terminal" => "palmistry://wp1/model-lane/terminal",
+            "wp1.model_lane.promotion" => "palmistry://wp1/model-lane/promotion",
+            "wp1.model_lane.context_bundle_artifact" => {
+                "palmistry://wp1/model-lane/context-bundle-artifact"
+            }
+            "wp1.model_lane.context_bundle" => {
+                "palmistry://wp1/model-lane/context-bundle-handoff"
+            }
+            "wp1.model_lane.cloud_projection_plan" => {
+                "palmistry://wp1/model-lane/cloud-projection-plan"
+            }
+            "wp1.model_lane.cloud_consent" => {
+                "palmistry://wp1/model-lane/cloud-consent-receipt"
+            }
+            "wp1.model_lane.cloud_consent_denial" => {
+                "palmistry://wp1/model-lane/cloud-consent-denial"
+            }
+            "wp1.model_lane.recovery" => "palmistry://wp1/model-lane/recovery-checkpoint",
+            "wp1.model_lane.recovery_event" => "palmistry://wp1/model-lane/recovery-event",
+            "wp1.model_lane.lease" => "palmistry://wp1/model-lane/lease",
+            "wp1.model_lane.diagnostics" => "palmistry://wp1/model-lane/diagnostic-tier",
+            "wp1.model_lane.mixed_validation" => {
+                "palmistry://wp1/model-lane/mixed-validation"
+            }
+            "wp1.model_lane.cloud_projection_plan_v2" => {
+                "palmistry://wp1/model-lane/cloud-projection-plan-v2"
+            }
+            "wp1.model_lane.cloud_consent_v2" => {
+                "palmistry://wp1/model-lane/cloud-consent-receipt-v2"
+            }
+            "wp1.model_lane.recovery_event_v2" => {
+                "palmistry://wp1/model-lane/recovery-event-v2"
+            }
+            "wp1.model_lane.routing_execution" => {
+                "palmistry://wp1/model-lane/routing-execution"
+            }
+            "wp1.model_lane.routing_outbox" => "palmistry://wp1/model-lane/routing-outbox",
+            "wp1.model_lane.routing_stage_attempt" => {
+                "palmistry://wp1/model-lane/routing-stage-attempt"
+            }
+            "wp1.model_lane.run_extension" => "palmistry://wp1/model-lane/run-extension",
+            _ => "palmistry://wp1/model-lane/lane",
+        });
     }
 
     let mut seen_schema_ids = BTreeSet::new();
@@ -1746,6 +1804,47 @@ fn canonical_non_schema_behavior_registry() -> Vec<CanonicalBehaviorDescriptor> 
             },
         })
     }));
+    // MT-011 wired native internal_diagnostics + the authenticated Palmistry
+    // watcher as WIRED observers of these non-schema rows too. Every genuinely
+    // WIRED row that does not already carry a correlation ref gets a family-scoped
+    // `palmistry://wp1/<family-surface>/...` ref; NOT_APPLICABLE rows (cloud
+    // Settings/keychain surfaces) and rows that already declare a ref are left
+    // unchanged.
+    for descriptor in &mut rows {
+        if descriptor.row.follow_up_ref.is_some()
+            || descriptor.row.internal_diagnostics_posture != DiagnosticTierPosture::Wired
+        {
+            continue;
+        }
+        let follow_up_ref = match descriptor.row.behavior_id {
+            "wp1.embedded_model.ledger_start" => "palmistry://wp1/embedded-model/ledger-start",
+            "wp1.embedded_model.ledger_stop" => "palmistry://wp1/embedded-model/ledger-stop",
+            "wp1.embedded_model.os_lease_reclaim" => {
+                "palmistry://wp1/embedded-model/os-lease-reclaim"
+            }
+            "wp1.llm.fail_closed_fr" => "palmistry://wp1/embedded-model/fail-closed-fr",
+            "wp1.llm.embedding_fr" => "palmistry://wp1/embedded-model/embedding-fr",
+            "wp1.operator_chat.capture_message" => {
+                "palmistry://wp1/operator-chat/capture-message"
+            }
+            "wp1.operator_chat.agent_activity_fr" => {
+                "palmistry://wp1/operator-chat/agent-activity-fr"
+            }
+            _ => match descriptor.family {
+                CanonicalBehaviorFamily::EmbeddedModel => {
+                    "palmistry://wp1/embedded-model/observer"
+                }
+                CanonicalBehaviorFamily::OperatorChat => "palmistry://wp1/operator-chat/observer",
+                CanonicalBehaviorFamily::DedicatedEmbedding => {
+                    "palmistry://wp1/dedicated-embedding-model/observer"
+                }
+                CanonicalBehaviorFamily::CloudModelAccess => {
+                    "palmistry://wp1/cloud-model-access/observer"
+                }
+            },
+        };
+        descriptor.row.follow_up_ref = Some(follow_up_ref);
+    }
     rows
 }
 

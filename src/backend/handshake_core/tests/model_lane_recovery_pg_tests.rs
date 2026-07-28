@@ -1135,48 +1135,26 @@ async fn model_lane_recovery_rejects_missing_payload_stale_crdt_and_duplicate_id
         "lane-mt007-replayed-message-stale-crdt",
     );
     stale_message.crdt_stale_base_ref = Some("crdt-stale-base://mt007/replayed-message".into());
-    let stale_message = store
-        .record_message(stale_message.clone())
+    // A stale-base-only CRDT posture fails closed at ADMISSION, not at recovery.
+    // `validate_message_crdt_authority_tx` (swarm_orchestration/model_lane.rs
+    // ~13709) denies partial CRDT metadata that lacks a `crdt_update_ref`, and a
+    // `crdt_update_ref` presented together with `crdt_stale_base_ref` is denied
+    // too. `crdt_stale_base_ref` is therefore a dead field on the admission path:
+    // the admittable-marked-stale alternative is deferred design (tracked in the
+    // MT-018 CRDT-admission context). Because admission is the earliest
+    // fail-closed point, no stale message row ever persists to be replayed, so the
+    // former admit-then-recovery-reject shape is not reachable and this arm now
+    // proves the admission-time denial directly.
+    let stale_admission_err = store
+        .record_message(stale_message)
         .await
-        .expect("record stale CRDT message");
-    store
-        .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(
-            &stale_message.inner,
-        ))
-        .await
-        .expect("record stale CRDT message payload authority");
-    let stale_replay_event = store
-        .record_recovery_event(sample_recovery_event(
-            "recovery-event-replayed-message-stale-crdt",
-            "run-mt007-replayed-message-stale-crdt",
-            Some("lane-mt007-replayed-message-stale-crdt"),
-            ModelLaneRecoveryEventKind::CheckpointRestored,
-            1,
-            None,
-            None,
-        ))
-        .await
-        .expect("record recovery event without CRDT refs");
-    store
-        .record_recovery_checkpoint(sample_checkpoint(
-            "checkpoint-replayed-message-stale-crdt",
-            "run-mt007-replayed-message-stale-crdt",
-            Some("lane-mt007-replayed-message-stale-crdt"),
-            Some("msg-mt007-replayed-message-stale-crdt"),
-            None,
-            stale_replay_event
-                .event_ledger_seq
-                .max(stale_message.event_ledger_seq),
-            vec![],
-        ))
-        .await
-        .expect("record checkpoint that replays stale CRDT message");
-    assert_recovery_failure(
-        &store,
-        "run-mt007-replayed-message-stale-crdt",
-        ModelLaneRecoveryFailureKind::StaleCrdtBase,
-    )
-    .await;
+        .expect_err("a stale-base-only CRDT message must fail closed at admission");
+    assert!(
+        stale_admission_err
+            .to_string()
+            .contains("partial CRDT metadata cannot be admitted without crdt_update_ref"),
+        "stale-base must be denied at the CRDT completeness gate during admission, got {stale_admission_err}"
+    );
 
     seed_run_lane_message(
         &store,

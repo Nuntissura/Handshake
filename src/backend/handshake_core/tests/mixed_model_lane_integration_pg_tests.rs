@@ -2051,6 +2051,13 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
             record.update_seq as i64,
         );
         message.kind = ModelLaneMessageKind::Status;
+        // `authority=PromotionCandidate` requires a proposal_ref (an advisory
+        // routing proposal id, distinct from crdt_proposal_ref). Without it,
+        // `validate_message_authority` rejects the message before the durable
+        // CRDT resolver runs. It is NOT a CRDT authority field: STATUS-kind CRDT
+        // messages carry `crdt_proposal_ref=None` (a Proposal-kind message would
+        // require an approved applied-proposal row, currently unsatisfiable).
+        message.proposal_ref = Some(format!("proposal://mt009/real-yjs/{message_id}"));
         message.crdt_update_ref = Some(record.update_bytes_ref.clone());
         message.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
         message.crdt_state_vector = Some(record.state_vector_after.clone());
@@ -2112,6 +2119,11 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         7,
     );
     state_vector_mismatch.kind = ModelLaneMessageKind::Status;
+    // proposal_ref makes the PromotionCandidate message pass the synchronous
+    // authority check so the FABRICATED state vector is denied at the durable
+    // CRDT resolver (its intended failure), not earlier on a missing proposal_ref.
+    state_vector_mismatch.proposal_ref =
+        Some("proposal://mt009/real-yjs/state-vector-mismatch".into());
     state_vector_mismatch.crdt_update_ref = Some(records[3].update_bytes_ref.clone());
     state_vector_mismatch.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
     state_vector_mismatch.crdt_state_vector = Some("hsk-sv1:fabricated-state".into());
@@ -2479,6 +2491,171 @@ async fn mt009_seed_real_crdt_document(
         post_update_bytes_ref: post.update_bytes_ref.clone(),
         post_update_state_vector_after: post.state_vector_after.clone(),
     }
+}
+
+/// Everything a caller needs to drive one ADMISSIBLE CRDT-bearing
+/// ModelLaneMessage through the shared `ModelLaneStore::record_message*`
+/// admission boundary, produced by [`mt009_build_admissible_crdt_message`].
+struct Mt009AdmissibleCrdtMessage {
+    /// A STATUS-kind ModelLaneMessage that PASSES admission as-is: it references
+    /// a real persisted Yjs update + real base snapshot, carries the server
+    /// derived post-update state vector, links the update's CRDT trace, and is
+    /// authorised by the active lease below. Record it with `record_message` (or
+    /// recompute `payload_sha256` first if using the payload-binding variant).
+    message: NewModelLaneMessage,
+    /// The active `knowledge_crdt_agent_lane_leases` lease that authorises the
+    /// message. Release it with `release_lease` after recording if desired.
+    lease_id: String,
+    /// The real CRDT receipts the message references.
+    receipts: Mt009RealCrdtReceipts,
+    run_id: String,
+    lane_id: String,
+    crdt_document_id: String,
+}
+
+/// The single canonical way to build ONE admissible CRDT-bearing
+/// ModelLaneMessage. Future tests that need a message that PASSES CRDT admission
+/// should reuse this instead of hand-wiring the CRDT identity triangle, which is
+/// easy to get subtly wrong:
+///   * the seeded update's `session_id` must equal the source lane's
+///     `session_id` (`validate_crdt_lane_session_uniqueness_tx`),
+///   * the lease's `correlation_id` must equal the update's `trace_id`
+///     (`trace-{update_id}`) and its actor/session/scope must match
+///     (`resolve_active_crdt_actor_lane_lease_tx`), and
+///   * the message must link that trace in `linked_span_contexts`
+///     (`bind_crdt_authority_to_lane`).
+///
+/// It (1) seeds a real ModelLaneRun + local lane whose `session_id` is
+/// `session-{label}` via [`seed_run_lane`] (using `label` as the lane id so
+/// `sample_lane`'s `session-{lane_id}` matches the seeded update session),
+/// (2) seeds a real Yjs document (pre-update, snapshot, post-update) via
+/// [`mt009_seed_real_crdt_document`], (3) claims the exact active
+/// knowledge-agent lane lease, and (4) returns a STATUS-kind message carrying
+/// the real update/snapshot/state-vector refs plus the CRDT trace link.
+///
+/// STATUS kind (not Proposal) is deliberate: a Proposal-kind CRDT message would
+/// require an approved applied-proposal row whose `applied_update_sha256` equals
+/// the Yjs-update hash, which is currently unsatisfiable (diff-hash vs
+/// update-hash conflation, deferred to the MT-018 CRDT-admission context), so
+/// `crdt_proposal_ref` is left `None`. `proposal_ref` is a routing-advisory id
+/// required by `authority=PromotionCandidate`, not a CRDT authority field.
+async fn mt009_build_admissible_crdt_message(
+    store: &ModelLaneStore,
+    db: &(dyn Database + '_),
+    pool: &PgPool,
+    workspace_id: &str,
+    label: &str,
+    message_id: &str,
+) -> Mt009AdmissibleCrdtMessage {
+    let run_id = format!("run-{label}");
+    let lane_id = label.to_string();
+    seed_run_lane(store, &run_id, &lane_id, RuntimeBinding::Local).await;
+
+    let document_id = format!("doc-{label}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{label}-{workspace_id}");
+    let receipts =
+        mt009_seed_real_crdt_document(db, workspace_id, &document_id, &crdt_document_id, label)
+            .await;
+
+    // The seeded update's identity is deterministic in `label` (see
+    // `mt009_seed_real_crdt_document`): actor = LocalModel `{label}-local`,
+    // session = `session-{label}`, post-update id = `{label}-yjs-post`, and its
+    // trace = `trace-{label}-yjs-post`. `sample_lane` stamps the lane session as
+    // `session-{lane_id}` = `session-{label}`, so the update session is owned by
+    // exactly this lane.
+    let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, &format!("{label}-local"))
+        .expect("typed local model actor matching the seeded CRDT document");
+    let session_id = format!("session-{label}");
+    let update_trace_id = format!("trace-{label}-yjs-post");
+
+    let lease = match claim_lease(
+        db,
+        pool,
+        LeaseClaimRequestV1 {
+            lane_id: lane_id.clone(),
+            actor: actor.clone(),
+            session_id: session_id.clone(),
+            correlation_id: update_trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim the exact active knowledge-agent lane lease for the admissible message")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("admissible CRDT message lease must claim, got {other:?}"),
+    };
+
+    // seq 2 == the post-snapshot update sequence produced by the seed helper.
+    let mut message = sample_message(message_id, &run_id, &lane_id, "local", 2);
+    message.kind = ModelLaneMessageKind::Status;
+    message.proposal_ref = Some(format!("proposal://mt009/admissible/{message_id}"));
+    message.crdt_update_ref = Some(receipts.post_update_bytes_ref.clone());
+    message.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
+    message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+    message.crdt_proposal_ref = None;
+    message.crdt_stale_base_ref = None;
+    message.linked_span_contexts.push(update_trace_id);
+
+    Mt009AdmissibleCrdtMessage {
+        message,
+        lease_id: lease.lease_id,
+        receipts,
+        run_id,
+        lane_id,
+        crdt_document_id,
+    }
+}
+
+/// Proof that the canonical [`mt009_build_admissible_crdt_message`] helper
+/// actually PASSES the shared CRDT admission boundary and produces a resolved
+/// CRDT lease authority binding on the stored message.
+#[tokio::test]
+async fn mt009_admissible_crdt_message_helper_records_and_binds() {
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        eprintln!(
+            "SKIP mt009_admissible_crdt_message_helper_records_and_binds: PostgreSQL binaries absent"
+        );
+        return;
+    };
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .expect("connect isolated schema for the admissible CRDT helper proof");
+    let store = ModelLaneStore::new(pool.clone());
+
+    let admissible = mt009_build_admissible_crdt_message(
+        &store,
+        &db,
+        &pool,
+        &workspace_id,
+        "mt009-admissible-helper",
+        "msg-mt009-admissible-helper",
+    )
+    .await;
+
+    let stored = store
+        .record_message(admissible.message.clone())
+        .await
+        .expect("the canonical admissible CRDT message must pass the shared admission boundary");
+    let binding = stored
+        .crdt_authority_binding
+        .as_ref()
+        .expect("an admitted CRDT message must carry a resolved CRDT lease authority binding");
+    assert_eq!(binding.lease_id, admissible.lease_id);
+    assert_eq!(
+        binding.update_bytes_ref,
+        admissible.receipts.post_update_bytes_ref
+    );
+    assert_eq!(binding.crdt_document_id, admissible.crdt_document_id);
+    assert_eq!(binding.lane_id, admissible.lane_id);
+    assert_eq!(stored.run_id, admissible.run_id);
 }
 
 /// Count MODEL_RESPONSE_RECORDED EventLedger appends for one ModelLane message
@@ -3234,7 +3411,14 @@ async fn mt004_all_six_policies_reject_duplicate_idempotency_keys() {
     for probe in &probes {
         let policy = probe.policy.as_str();
         let baseline_id = format!("msg-mt004-{CASE}-baseline-{policy}");
-        let baseline = sample_message(&baseline_id, &probe.run_id, &probe.lane_id, "local", 2);
+        // The mixed-file `sample_message` is `authority=PromotionCandidate,
+        // proposal_ref=None`, which `validate_message_authority` (~model_lane.rs
+        // 15196) rejects with "proposal_ref is required" before the duplicate
+        // gate can run. This test isolates the idempotency-key conflict, so the
+        // baseline (and the conflicting retry below) carry a proposal_ref to
+        // become admissible without any CRDT authority. No `crdt_*` field is set.
+        let mut baseline = sample_message(&baseline_id, &probe.run_id, &probe.lane_id, "local", 2);
+        baseline.proposal_ref = Some(format!("proposal://mt004/{CASE}/baseline/{policy}"));
         let baseline_key = baseline.idempotency_key.clone();
         let stored = store
             .record_message_with_payload_binding(
@@ -3251,6 +3435,7 @@ async fn mt004_all_six_policies_reject_duplicate_idempotency_keys() {
         let conflicting_id = format!("msg-mt004-{CASE}-conflict-{policy}");
         let mut conflicting =
             sample_message(&conflicting_id, &probe.run_id, &probe.lane_id, "local", 3);
+        conflicting.proposal_ref = Some(format!("proposal://mt004/{CASE}/conflict/{policy}"));
         conflicting.idempotency_key = baseline_key.clone();
         assert_ne!(
             conflicting.payload_sha256, baseline.payload_sha256,
