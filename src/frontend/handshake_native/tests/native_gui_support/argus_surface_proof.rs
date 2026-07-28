@@ -1619,6 +1619,7 @@ mod aggregate_tests {
         assert!(runner.contains("ProcessInventoryErrors = @()"));
         assert!(runner.contains("owned process-tree capture was indeterminate"));
         assert!(runner.contains("$errors = @($ProcessContext.ProcessInventoryErrors)"));
+        assert!(runner.contains("[AllowEmptyCollection()][object[]]$Snapshot"));
         assert!(runner.contains("Capture one final process-table snapshot immediately after exit"));
         assert!(runner.contains("identity changed: expected start"));
         assert!(!runner.contains("ParentPid = 0"));

@@ -2316,6 +2316,7 @@ fn mt108_supervisor_is_hard_bounded_and_invokes_the_mandatory_verifier() {
         "ProcessInventoryErrors = @()",
         "owned process-tree capture was indeterminate",
         "$errors = @($ProcessContext.ProcessInventoryErrors)",
+        "[AllowEmptyCollection()][object[]]$Snapshot",
         "$process.Kill($true)",
         "taskkill.exe",
         "'/PID', $process.Id, '/T', '/F'",

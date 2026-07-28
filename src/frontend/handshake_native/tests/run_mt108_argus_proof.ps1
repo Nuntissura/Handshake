@@ -302,7 +302,7 @@ function Get-ProcessIdentityByPid {
 function Add-ProcessTreeSnapshot {
     param(
         [Parameter(Mandatory = $true)][Collections.IDictionary]$ProcessContext,
-        [Parameter(Mandatory = $true)][object[]]$Snapshot
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Snapshot
     )
 
     foreach ($identity in $Snapshot) {
