@@ -532,6 +532,7 @@ fn validate_traces(
                 contract.scenario_id
             )));
         }
+        let mut contract_state_observed = false;
         for row in scenario_rows {
             let expected_method = if contract.action_value.is_some() {
                 "argus.set_value"
@@ -576,6 +577,12 @@ fn validate_traces(
             } else {
                 true
             };
+            let row_observes_contract_state = json_observes_expected_author_state(
+                &contract.expected_author_ids,
+                &contract.expected_author_id_prefixes,
+                &row.before,
+                &row.after,
+            ) && host_action_is_bound;
             if row.schema_id != "hsk.native_gui.canonical_argus_matrix_trace@1"
                 || row.run_id != run_id
                 || row.surface != contract.surface
@@ -597,21 +604,19 @@ fn validate_traces(
                 || row.before.is_null()
                 || row.after.is_null()
                 || !declared_host_semantic
-                || !contract.expected_author_ids.iter().all(|author_id| {
-                    json_has_author_id(&row.before, author_id)
-                        || json_has_author_id(&row.after, author_id)
-                })
-                || !contract.expected_author_id_prefixes.iter().all(|prefix| {
-                    json_has_author_id_prefix(&row.before, prefix)
-                        || json_has_author_id_prefix(&row.after, prefix)
-                })
-                || !host_action_is_bound
             {
                 return Err(std::io::Error::other(format!(
                     "scenario {:?} has an invalid source/process/action/reinspection trace",
                     contract.scenario_id
                 )));
             }
+            contract_state_observed |= row_observes_contract_state;
+        }
+        if !contract_state_observed {
+            return Err(std::io::Error::other(format!(
+                "scenario {:?} has no trace row proving its declared expected state and action",
+                contract.scenario_id
+            )));
         }
     }
     Ok(())
@@ -831,5 +836,51 @@ fn json_has_author_id_prefix(value: &serde_json::Value, expected_prefix: &str) -
             .iter()
             .any(|child| json_has_author_id_prefix(child, expected_prefix)),
         _ => false,
+    }
+}
+
+fn json_observes_expected_author_state(
+    expected_author_ids: &[String],
+    expected_author_id_prefixes: &[String],
+    before: &serde_json::Value,
+    after: &serde_json::Value,
+) -> bool {
+    expected_author_ids.iter().all(|author_id| {
+        json_has_author_id(before, author_id) || json_has_author_id(after, author_id)
+    }) && expected_author_id_prefixes.iter().all(|prefix| {
+        json_has_author_id_prefix(before, prefix) || json_has_author_id_prefix(after, prefix)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::json_observes_expected_author_state;
+
+    #[test]
+    fn multi_action_scenario_accepts_navigation_rows_before_one_contract_state_row() {
+        let expected_ids = vec![
+            "fems-propose-dialog".to_owned(),
+            "fems-propose-confirm".to_owned(),
+        ];
+        let navigation = serde_json::json!({"author_id": "menu-edit"});
+        let contract_state = serde_json::json!({
+            "children": [
+                {"author_id": "fems-propose-dialog"},
+                {"author_id": "fems-propose-confirm"}
+            ]
+        });
+
+        assert!(!json_observes_expected_author_state(
+            &expected_ids,
+            &[],
+            &navigation,
+            &navigation,
+        ));
+        assert!(json_observes_expected_author_state(
+            &expected_ids,
+            &[],
+            &navigation,
+            &contract_state,
+        ));
     }
 }
