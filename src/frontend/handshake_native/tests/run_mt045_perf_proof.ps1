@@ -9,10 +9,11 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260729-v4"
+$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260729-v5"
 $mt045JobRunnerSource = @'
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -27,7 +28,7 @@ public sealed class Mt045JobRunResult
 
 public static class Mt045JobRunner
 {
-    public const string SourceId = "mt045-job-runner-20260729-v4";
+    public const string SourceId = "mt045-job-runner-20260729-v5";
     private const uint CREATE_SUSPENDED = 0x00000004;
     private const uint CREATE_NO_WINDOW = 0x08000000;
     private const uint STARTF_USESTDHANDLES = 0x00000100;
@@ -268,10 +269,10 @@ public static class Mt045JobRunner
 
     private static void WaitForJobDrain(IntPtr job, int timeoutMilliseconds, string operation)
     {
-        var deadline = Environment.TickCount64 + timeoutMilliseconds;
+        var timer = Stopwatch.StartNew();
         while (QueryActiveProcessCount(job) != 0)
         {
-            if (Environment.TickCount64 >= deadline)
+            if (timer.ElapsedMilliseconds >= timeoutMilliseconds)
             {
                 throw new TimeoutException(operation + " did not drain the Windows Job Object");
             }
@@ -444,11 +445,13 @@ public static class Mt045JobRunner
             uint activeProcesses = 0;
             if (!timedOut)
             {
-                var descendantDeadline = Environment.TickCount64 + descendantExitGraceMilliseconds;
+                var descendantTimer = Stopwatch.StartNew();
                 while (true)
                 {
                     activeProcesses = QueryActiveProcessCount(job);
-                    if (activeProcesses == 0 || Environment.TickCount64 >= descendantDeadline)
+                    if (
+                        activeProcesses == 0 ||
+                        descendantTimer.ElapsedMilliseconds >= descendantExitGraceMilliseconds)
                     {
                         break;
                     }
