@@ -317,6 +317,13 @@ async fn build_registry_projection(
                 .map_err(ModelRegistryPersistenceError::Database)?,
         );
     }
+    // Compute the application/default selection receipt, but defer the
+    // absent-selection integrity error until AFTER the structural catalog vs
+    // durable-authority checks below. Reporting "selection receipt is absent"
+    // first would mask more fundamental registry corruption (duplicate SHA,
+    // adapter/capability drift, orphaned catalog rows, uncommitted READY
+    // observation), leaving those fail-closed guards unreachable whenever no
+    // application/default has been selected yet.
     let selection_receipt_ref = active_selections
         .iter()
         .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
@@ -325,12 +332,7 @@ async fn build_registry_projection(
                 "eventledger://kernel/{}",
                 selection.selection_updated_event_id
             )
-        })
-        .ok_or_else(|| {
-            ModelRuntimeRegistryApiError::integrity(
-                "PostgreSQL application/default selection receipt is absent",
-            )
-        })?;
+        });
     let mut active_by_artifact = BTreeMap::<String, Vec<PersistedActiveModelSelection>>::new();
     let mut active_by_purpose = BTreeMap::new();
     for active in active_selections {
@@ -607,6 +609,15 @@ async fn build_registry_projection(
                 .unwrap_or("unknown")
         )));
     }
+
+    // Deferred (see the receipt computation above): only after the structural
+    // catalog/durable-authority integrity guards have passed do we require that
+    // an application/default selection exists.
+    let selection_receipt_ref = selection_receipt_ref.ok_or_else(|| {
+        ModelRuntimeRegistryApiError::integrity(
+            "PostgreSQL application/default selection receipt is absent",
+        )
+    })?;
 
     Ok(ModelRuntimeRegistryProjection {
         schema_id: MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID.to_owned(),

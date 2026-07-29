@@ -849,6 +849,20 @@ async fn mt014_selection_post_prevalidates_then_returns_audited_projection() {
         )])
         .await
         .expect("persist current application/default before route exposure");
+    // The audited projection surfaces the target model's ProcessOwnershipLedger
+    // link. Record a real kernel_process_lifecycle row for the target artifact
+    // so the projection's SHA-256 join populates process_ownership_ledger_link
+    // (the projection reads process ownership from PostgreSQL, not the catalog).
+    sqlx::query(
+        "INSERT INTO kernel_process_lifecycle \
+         (process_uuid, engine_kind, started_at, owner_role, model_artifact_sha256) \
+         VALUES ($1::uuid, 'candle', now(), 'KERNEL_BUILDER', $2)",
+    )
+    .bind(target_id.as_uuid())
+    .bind(hex::encode([0x62u8; 32]))
+    .execute(&pool)
+    .await
+    .expect("record target ProcessOwnershipLedger lifecycle row");
 
     let mut registry = ModelRegistry::default();
     for registration in registrations {
