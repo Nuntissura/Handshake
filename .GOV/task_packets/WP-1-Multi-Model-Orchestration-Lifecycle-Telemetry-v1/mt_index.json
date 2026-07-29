@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T02:09:13Z",
+  "generated_at_utc": "2026-07-29T02:25:17Z",
   "total": 18,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
@@ -211,7 +211,7 @@
     },
     {
       "mt_id": "MT-009",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -224,7 +224,7 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "FAIL_V4: Real Yjs/PostgreSQL compaction tests exist, but ModelLane admission/recovery still accepts syntactically valid fabricated CRDT references without resolving the referenced update, hash, or state vector. Historical diagnostics artifacts also do not bind the current dirty schema-v3 source.",
+      "proof_status": "READY_FOR_VALIDATION_V5: the V4 blocker (admission/recovery accepting syntactically valid fabricated CRDT references without resolving the referenced update/hash/state-vector) is resolved via the resolver actor_kind taxonomy fix 644dee55 plus Layer-1 proposal_ref admissibility. All declared backend proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544): [0]-backend mixed_local_cloud, [1] negative_guards (fabricated CRDT now denied with 'CRDT authority resolution failed'; run on a dedicated 32MiB-stack thread so it passes at DEFAULT cargo-test stack, no RUST_MIN_STACK), [2] concurrent_converge, [3] midstream, [4] yjs compaction receipts, [5] yjs atomic cross-connection race, [6] ac9_all_six, [7] ac9_bounded_retry, [8][9][10] operator_chat_capture, [11] validation_harness user_manual, [12] mixed_model_lane behavior coverage. NOT RUN (validator-gated): the frontend half of target [0] (src/frontend/handshake_native test_swarm_lane_diagnostics_argus::mixed_model_lane_run_is_inspectable_through_argus) requires a live GUI host + Palmistry backend and must be run by INTEGRATION_VALIDATOR. Source at 27c07f13.",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",

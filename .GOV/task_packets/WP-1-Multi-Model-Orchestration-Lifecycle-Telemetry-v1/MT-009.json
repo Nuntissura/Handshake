@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-29T02:25:17Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -27,15 +27,15 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
-    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-022517",
+    "ready_for_validation_at_utc": "2026-07-29T02:25:17Z",
     "completed_by": null,
-    "blocker": "Real Yjs/PostgreSQL compaction tests exist, but ModelLane admission/recovery still accepts syntactically valid fabricated CRDT references without resolving the referenced update, hash, or state vector. Historical diagnostics artifacts also do not bind the current dirty schema-v3 source.",
+    "blocker": "Frontend live-GUI Argus proof only (validator-gated): the frontend half of proof target [0] needs a live GUI host + Palmistry backend on 127.0.0.1:37501; all backend targets pass.",
     "missing_resource": null,
-    "proof_status": "FAIL_V4: Real Yjs/PostgreSQL compaction tests exist, but ModelLane admission/recovery still accepts syntactically valid fabricated CRDT references without resolving the referenced update, hash, or state vector. Historical diagnostics artifacts also do not bind the current dirty schema-v3 source.",
+    "proof_status": "READY_FOR_VALIDATION_V5: the V4 blocker (admission/recovery accepting syntactically valid fabricated CRDT references without resolving the referenced update/hash/state-vector) is resolved via the resolver actor_kind taxonomy fix 644dee55 plus Layer-1 proposal_ref admissibility. All declared backend proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544): [0]-backend mixed_local_cloud, [1] negative_guards (fabricated CRDT now denied with 'CRDT authority resolution failed'; run on a dedicated 32MiB-stack thread so it passes at DEFAULT cargo-test stack, no RUST_MIN_STACK), [2] concurrent_converge, [3] midstream, [4] yjs compaction receipts, [5] yjs atomic cross-connection race, [6] ac9_all_six, [7] ac9_bounded_retry, [8][9][10] operator_chat_capture, [11] validation_harness user_manual, [12] mixed_model_lane behavior coverage. NOT RUN (validator-gated): the frontend half of target [0] (src/frontend/handshake_native test_swarm_lane_diagnostics_argus::mixed_model_lane_run_is_inspectable_through_argus) requires a live GUI host + Palmistry backend and must be run by INTEGRATION_VALIDATOR. Source at 27c07f13.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-20T01:13:33.373Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
