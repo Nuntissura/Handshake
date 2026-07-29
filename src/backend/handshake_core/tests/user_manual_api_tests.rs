@@ -1900,7 +1900,12 @@ async fn model_lane_diagnostics_user_manual_entry_is_current() {
         "ModelLaneStore::latest_diagnostics_projection",
         "GET /swarm/model-lanes/diagnostics/latest",
         "GET /swarm/model-lanes/diagnostics/{run_id}",
-        "RUN > Open Lane Diagnostics",
+        // Code truth (top_menu_bar.rs): "Open Lane Diagnostics" lives under the
+        // dedicated MODELS menu-bar dropdown (commit abd9c256, 2026-07-24), and
+        // the seed page already states "MODELS > Open Lane Diagnostics". This
+        // assertion was authored 2026-07-01 when the item was under RUN and was
+        // not synced when the menu moved; keep the manual truthful to code.
+        "MODELS > Open Lane Diagnostics",
         "swarmdiagnostics.open",
         "settings.swarm-lane-diagnostics-default-open",
         "menu.models.swarm-lane-diagnostics",

@@ -2853,6 +2853,31 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  `model_lane_recovery_pg_tests`, and the native diagnostic surface from MT-008.",
             ),
             section(
+                "safety",
+                "HBR-INT-009 run-level posture",
+                "The native internal_diagnostics producer and the authenticated \
+                 Palmistry watcher emit ONE correlated three-tier HBR-INT-009 \
+                 envelope per ModelLaneRun (a single Flight Recorder + \
+                 internal_diagnostics + Palmistry triplet), recorded in \
+                 `model_lane_diagnostic_tier_statuses` under \
+                 `behavior_id = HBR-INT-009` and validated by \
+                 `ModelLaneStore::validate_diagnostic_tier_posture(run_id, \"HBR-INT-009\")` \
+                 against durable `internal-diagnostics://session/` and \
+                 `palmistry-observation://session/` evidence refs. \
+                 internal_diagnostics is WIRED through the native producer and \
+                 Problems projection. Palmistry is WIRED through the authenticated \
+                 watcher and survivor recovery importer. The producers are real, \
+                 but they do NOT fabricate a separate observation for each of the \
+                 24 wp1.model_lane.* behaviors: every per-behavior UserManual \
+                 coverage row references that single run-level envelope (coverage \
+                 posture RUN_LEVEL_WIRED), and `verify_model_lane_behavior_evidence` \
+                 holds only when the run's durable run-level records exist — absent \
+                 or Flight-Recorder-only evidence fails closed. A tier that is \
+                 genuinely unavailable in a worktree is instead recorded as \
+                 NOT_APPLICABLE-with-reason or DEFERRED-with-reason with a \
+                 follow_up_ref, never silently skipped.",
+            ),
+            section(
                 "run_commands",
                 "Proof commands",
                 "Exact MT-007 proof commands: \
@@ -2995,6 +3020,31 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                  Each recovered row exposes stable Problems-pane author IDs for hung-window probe, \
                  minidump status, and Flight Recorder import status. Minidumps remain local and are \
                  never part of the recovery payload.",
+            ),
+            section(
+                "safety",
+                "HBR-INT-009 run-level posture",
+                "The native internal_diagnostics producer and the authenticated \
+                 Palmistry watcher emit ONE correlated three-tier HBR-INT-009 \
+                 envelope per ModelLaneRun (a single Flight Recorder + \
+                 internal_diagnostics + Palmistry triplet), recorded in \
+                 `model_lane_diagnostic_tier_statuses` under \
+                 `behavior_id = HBR-INT-009` and validated by \
+                 `ModelLaneStore::validate_diagnostic_tier_posture(run_id, \"HBR-INT-009\")` \
+                 against durable `internal-diagnostics://session/` and \
+                 `palmistry-observation://session/` evidence refs. \
+                 internal_diagnostics is WIRED through the native producer and \
+                 Problems projection. Palmistry is WIRED through the authenticated \
+                 watcher and survivor recovery importer. These producers are real \
+                 and exercised end-to-end, but they do NOT fabricate a separate \
+                 observation for each of the 24 wp1.model_lane.* behaviors: every \
+                 per-behavior UserManual coverage row references that single \
+                 run-level envelope (coverage posture RUN_LEVEL_WIRED), and \
+                 `verify_model_lane_behavior_evidence` holds only when the run's \
+                 durable run-level records exist — absent or Flight-Recorder-only \
+                 evidence fails closed. A tier that is genuinely unavailable in a \
+                 worktree is instead recorded as NOT_APPLICABLE-with-reason or \
+                 DEFERRED-with-reason with a follow_up_ref, never silently skipped.",
             ),
             section(
                 "navigation",
@@ -5186,6 +5236,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "If EventLedger or FlightRecorder refs are missing, repair the model lane event linkage instead of treating UI rows as authority.".into(),
             "If HBR posture is suspected to be FlightRecorder-only, run swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture before trusting the diagnostics pane.".into(),
             "internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; do not silently skip HBR-INT-009.".into(),
+            "The HBR-INT-009 envelope is emitted once per ModelLaneRun (run-level, coverage posture RUN_LEVEL_WIRED, proven by verify_model_lane_behavior_evidence against the run's durable records), not per behavior; a tier that is genuinely unavailable is recorded as NOT_APPLICABLE-with-reason or DEFERRED-with-reason with a follow_up_ref, never fabricated per behavior.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: swarm_lane_diagnostics_tool_hash,

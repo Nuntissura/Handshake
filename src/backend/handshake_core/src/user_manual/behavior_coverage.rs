@@ -31,7 +31,19 @@ use super::USER_MANUAL_VERSION;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum DiagnosticTierPosture {
+    /// The tier emits its own per-behavior observation for this row.
     Wired,
+    /// Run-level WIRED: this behavior's Tier-2 internal_diagnostics and Tier-3
+    /// Palmistry coverage is carried by the single correlated HBR-INT-009
+    /// envelope that the native producer and the authenticated watcher emit
+    /// ONCE per `ModelLaneRun` (one Flight Recorder + internal_diagnostics +
+    /// Palmistry triplet), NOT by a fabricated per-behavior observation. This
+    /// literal is a declaration, not a proof: its liveness is established only
+    /// by [`verify_model_lane_behavior_evidence`], which validates a real run's
+    /// durable run-level `model_lane_diagnostic_tier_statuses` records
+    /// (`internal-diagnostics://session/` + `palmistry-observation://session/`
+    /// evidence refs) through `ModelLaneStore::validate_diagnostic_tier_posture`.
+    RunLevelWired,
     NotApplicableWithReason,
     DeferredWithReason,
 }
@@ -40,6 +52,7 @@ impl DiagnosticTierPosture {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Wired => "WIRED",
+            Self::RunLevelWired => "RUN_LEVEL_WIRED",
             Self::NotApplicableWithReason => "NOT_APPLICABLE-with-reason",
             Self::DeferredWithReason => "DEFERRED-with-reason",
         }
@@ -543,13 +556,35 @@ fn compute_behavior_consistency(
         });
     }
     checked_authorities.insert("diagnostic_posture_contract");
+    // MT-011 anti-gaming (run-level HBR-INT-009 encoding): the 24 wp1.model_lane.*
+    // behaviors do NOT each fabricate a per-behavior diagnostic observation. The
+    // native internal_diagnostics producer and the authenticated Palmistry watcher
+    // emit ONE correlated run-level HBR-INT-009 envelope per ModelLaneRun, so each
+    // per-behavior row declares `RunLevelWired` ("covered by the run-level
+    // envelope"). This is a STRUCTURAL declaration check only; it does not prove
+    // liveness. Liveness is proven separately and against real durable records by
+    // `verify_model_lane_behavior_evidence` (a run-level MT-011 proof target that
+    // fails closed when the run's HBR-INT-009 records are absent/incomplete). A
+    // hardcoded `Wired` (per-behavior) posture on these rows is therefore rejected.
     if row.behavior_id.starts_with("wp1.model_lane.")
-        && (row.internal_diagnostics_posture != DiagnosticTierPosture::Wired
-            || row.palmistry_posture != DiagnosticTierPosture::Wired)
+        && (row.internal_diagnostics_posture != DiagnosticTierPosture::RunLevelWired
+            || row.palmistry_posture != DiagnosticTierPosture::RunLevelWired)
     {
         errors.push(BehaviorCoverageError {
             behavior_id: row.behavior_id,
-            reason: "internal_diagnostics and Palmistry postures must be WIRED for the native diagnostics producer and watcher recovery path"
+            reason: "internal_diagnostics and Palmistry postures for model-lane behaviors must be RUN_LEVEL_WIRED (covered by the single run-level HBR-INT-009 envelope, proven live by verify_model_lane_behavior_evidence against a real run, not by a per-behavior WIRED literal)"
+                .to_owned(),
+        });
+    }
+    // A RUN_LEVEL_WIRED row must name where the run-level envelope evidence lives:
+    // the explanatory reason and the family-scoped palmistry follow_up_ref.
+    if (row.internal_diagnostics_posture == DiagnosticTierPosture::RunLevelWired
+        || row.palmistry_posture == DiagnosticTierPosture::RunLevelWired)
+        && (row.deferred_reason.is_none() || row.follow_up_ref.is_none())
+    {
+        errors.push(BehaviorCoverageError {
+            behavior_id: row.behavior_id,
+            reason: "RUN_LEVEL_WIRED posture requires an explanatory reason and a run-level HBR-INT-009 follow_up_ref"
                 .to_owned(),
         });
     }
@@ -1129,8 +1164,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-schema",
             tool_id: "model_lane_schema_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_run",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1144,8 +1179,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-launch-adapters",
             tool_id: "model_lane_launch_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1160,8 +1195,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "official_cli_attached_lifecycle_tests",
             eventledger_flight_recorder_path:
                 "kernel_process_lifecycle:official_cli_bridge START/STOP",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1176,8 +1211,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "official_cli_attached_lifecycle_tests",
             eventledger_flight_recorder_path:
                 "kernel_process_lifecycle:official_cli_bridge START/STOP",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1191,8 +1226,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-schema",
             tool_id: "model_lane_schema_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_message",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1206,8 +1241,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-launch-adapters",
             tool_id: "model_lane_launch_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_terminal",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1221,8 +1256,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-promotion",
             tool_id: "model_lane_promotion_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_promotion_decision",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1237,8 +1272,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "model_lane_context_bundle_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_context_bundle_artifact",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1253,8 +1288,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "model_lane_context_bundle_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_context_bundle_handoff",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1269,8 +1304,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "cloud_model_lane_policy_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_cloud_projection_plan",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1285,8 +1320,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "cloud_model_lane_policy_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_cloud_consent_receipt",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1300,8 +1335,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-cloud-projection-consent",
             tool_id: "cloud_model_lane_policy_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_cloud_consent_denial",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1315,8 +1350,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-recovery",
             tool_id: "model_lane_recovery_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_recovery_checkpoint",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1330,8 +1365,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-recovery",
             tool_id: "model_lane_recovery_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_recovery_event",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1345,8 +1380,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-recovery",
             tool_id: "model_lane_recovery_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_lease",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1360,8 +1395,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-diagnostics",
             tool_id: "swarm_lane_diagnostics_runtime_proof",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_diagnostic_tier",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1375,8 +1410,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-validation-harness",
             tool_id: "mixed_model_lane_integration_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_mt_runtime_status",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1391,8 +1426,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "cloud_model_lane_policy_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_cloud_projection_plan",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1407,8 +1442,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "cloud_model_lane_policy_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_cloud_consent_receipt",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1422,8 +1457,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "model-lane-recovery",
             tool_id: "model_lane_recovery_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_recovery_event",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1437,8 +1472,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "operator-chat-launch",
             tool_id: "mixed_model_lane_integration_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_routing_execution",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1452,8 +1487,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "operator-chat-launch",
             tool_id: "mixed_model_lane_integration_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_routing_outbox",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1468,8 +1503,8 @@ pub fn model_lane_behavior_coverage_matrix(
             tool_id: "mixed_model_lane_integration_pg_tests",
             eventledger_flight_recorder_path:
                 "kernel_event_ledger:model_lane_routing_stage_attempt",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1483,8 +1518,8 @@ pub fn model_lane_behavior_coverage_matrix(
             user_manual_slug: "operator-chat-launch",
             tool_id: "mixed_model_lane_integration_pg_tests",
             eventledger_flight_recorder_path: "kernel_event_ledger:model_lane_run_extension",
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
+            internal_diagnostics_posture: DiagnosticTierPosture::RunLevelWired,
+            palmistry_posture: DiagnosticTierPosture::RunLevelWired,
             deferred_reason: Some(
                 "Tier-2 internal_diagnostics and the authenticated Tier-3 Palmistry watcher are wired observers; they do not replace the row's EventLedger/Flight Recorder authority.",
             ),
@@ -1493,13 +1528,17 @@ pub fn model_lane_behavior_coverage_matrix(
     ];
 
     for row in &mut templates {
-        // MT-011 wired the native internal_diagnostics producer and the
-        // authenticated Palmistry watcher as WIRED observers of these rows; the
-        // reason must name them as "wired observers" and each row must carry a
-        // family-scoped `palmistry://wp1/model-lane/...` correlation ref alongside
-        // its EventLedger/Flight Recorder authority.
+        // MT-011 run-level HBR-INT-009 encoding: the postures above are
+        // `RunLevelWired`, meaning Tier-2 internal_diagnostics and Tier-3
+        // Palmistry coverage for these rows is carried by the SINGLE correlated
+        // HBR-INT-009 envelope emitted once per ModelLaneRun, not by a fabricated
+        // per-behavior observation. Its liveness is proven by
+        // `verify_model_lane_behavior_evidence` against a real run. Each row still
+        // names those wired observers in its reason and carries a family-scoped
+        // `palmistry://wp1/model-lane/...` correlation ref alongside its
+        // EventLedger/Flight Recorder authority.
         row.deferred_reason = Some(
-            "Tier-2 internal_diagnostics is produced by the native panic/heartbeat/frame/resource/open-event ring and Problems projection. Tier-3 Palmistry is the authenticated separate watcher with durable survivor recovery. Both are wired observers of these rows; the lane pane consumes their observation evidence without replacing either producer's EventLedger/Flight Recorder authority.",
+            "Tier-2 internal_diagnostics is produced by the native panic/heartbeat/frame/resource/open-event ring and Problems projection. Tier-3 Palmistry is the authenticated separate watcher with durable survivor recovery. Both are wired observers correlated at the run level: they emit one HBR-INT-009 envelope per ModelLaneRun (validated by verify_model_lane_behavior_evidence), not a per-behavior observation, and the lane pane consumes that run-level observation evidence without replacing either producer's EventLedger/Flight Recorder authority.",
         );
         row.follow_up_ref = Some(match row.behavior_id {
             "wp1.model_lane.run" => "palmistry://wp1/model-lane/run",
@@ -2143,16 +2182,30 @@ pub fn verify_model_lane_behavior_coverage(
                 reason: "EventLedger/FlightRecorder evidence path missing".to_owned(),
             });
         }
-        if row.internal_diagnostics_posture != DiagnosticTierPosture::Wired
-            || row.palmistry_posture != DiagnosticTierPosture::Wired
+        // Run-level HBR-INT-009 encoding: model-lane rows declare RUN_LEVEL_WIRED
+        // (covered by the single per-run envelope). A per-behavior `Wired` literal
+        // here is rejected as a vacuous static flip; the live proof is
+        // `verify_model_lane_behavior_evidence` against a real run's durable records.
+        if row.internal_diagnostics_posture != DiagnosticTierPosture::RunLevelWired
+            || row.palmistry_posture != DiagnosticTierPosture::RunLevelWired
         {
             errors.push(BehaviorCoverageError {
                 behavior_id: row.behavior_id,
                 reason: format!(
-                    "internal_diagnostics and Palmistry postures must be WIRED, got {}/{}",
+                    "internal_diagnostics and Palmistry postures for model-lane behaviors must be RUN_LEVEL_WIRED (proven live by verify_model_lane_behavior_evidence), got {}/{}",
                     row.internal_diagnostics_posture.as_str(),
                     row.palmistry_posture.as_str()
                 ),
+            });
+        }
+        if (row.internal_diagnostics_posture == DiagnosticTierPosture::RunLevelWired
+            || row.palmistry_posture == DiagnosticTierPosture::RunLevelWired)
+            && (row.deferred_reason.is_none() || row.follow_up_ref.is_none())
+        {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "RUN_LEVEL_WIRED diagnostics tiers require an explanatory reason and a run-level HBR-INT-009 follow_up_ref"
+                    .to_owned(),
             });
         }
         if (row.internal_diagnostics_posture == DiagnosticTierPosture::DeferredWithReason
@@ -2174,11 +2227,18 @@ pub fn verify_model_lane_behavior_coverage(
     }
 }
 
-/// Runtime evidence gate for the shared HBR-INT-009 posture declared by the statically-covered
-/// ModelLane behaviors. The runtime producers intentionally write one correlated three-tier
-/// HBR-INT-009 envelope per run; they do not fabricate a duplicate tier triplet for every manual
-/// behavior row. Each row must declare both live tiers as `WIRED`, and that shared declaration is
-/// established only by the exact run's durable HBR-INT-009 records validated by `ModelLaneStore`.
+/// Run-level evidence gate for the HBR-INT-009 posture declared by the
+/// statically-covered ModelLane behaviors. This is the non-tautological proof
+/// that backs the `RunLevelWired` declaration: the runtime producers write ONE
+/// correlated three-tier HBR-INT-009 envelope per run (they do not fabricate a
+/// per-behavior tier triplet), so each row declares `RunLevelWired` and this
+/// gate holds only when the exact run's durable run-level HBR-INT-009 records
+/// exist and correlate through `ModelLaneStore::validate_diagnostic_tier_posture`
+/// with `eventledger://kernel/`, `internal-diagnostics://session/`, and
+/// `palmistry-observation://session/` evidence refs. When those records are
+/// absent or incomplete the gate fails closed. This function is the MT-011
+/// run-level evidence proof target (see
+/// `user_manual_behavior_coverage_tests::model_lane_run_level_hbr_int_009_*`).
 pub async fn verify_model_lane_behavior_evidence(
     store: &ModelLaneStore,
     run_id: &str,
@@ -2186,12 +2246,12 @@ pub async fn verify_model_lane_behavior_evidence(
 ) -> Result<Vec<ModelLaneDiagnosticTierPosture>, Vec<BehaviorCoverageError>> {
     let mut errors = Vec::new();
     for row in rows {
-        if row.internal_diagnostics_posture != DiagnosticTierPosture::Wired
-            || row.palmistry_posture != DiagnosticTierPosture::Wired
+        if row.internal_diagnostics_posture != DiagnosticTierPosture::RunLevelWired
+            || row.palmistry_posture != DiagnosticTierPosture::RunLevelWired
         {
             errors.push(BehaviorCoverageError {
                 behavior_id: row.behavior_id,
-                reason: "behavior does not declare the shared HBR-INT-009 internal_diagnostics and Palmistry tiers as WIRED".to_owned(),
+                reason: "behavior does not declare the run-level HBR-INT-009 internal_diagnostics and Palmistry tiers as RUN_LEVEL_WIRED".to_owned(),
             });
         }
     }

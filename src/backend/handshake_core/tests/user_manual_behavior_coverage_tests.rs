@@ -5,7 +5,10 @@
 mod knowledge_pg_support;
 
 use handshake_core::process_ledger::PIDLESS_RECLAIM_INSTANCE_CAP;
-use handshake_core::swarm_orchestration::model_lane::ModelLaneStore;
+use handshake_core::swarm_orchestration::model_lane::{
+    ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneLocusBinding,
+    ModelLaneRecoveryState, ModelLaneStore, NewModelLaneDiagnosticTierStatus, NewModelLaneRun,
+};
 use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
 use handshake_core::user_manual::seed::ensure_seeded;
 use handshake_core::user_manual::store::{UserManualFeatureEntry, UserManualStore};
@@ -15,10 +18,12 @@ use handshake_core::user_manual::{
     model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
     operator_chat_launch_behavior_coverage_matrix, verify_cloud_model_access_behavior_coverage,
     verify_embedded_model_behavior_coverage, verify_model_lane_behavior_coverage,
-    verify_model_runtime_registry_behavior_coverage, BehaviorCoverageError, DiagnosticTierPosture,
-    ModelRuntimeProofExecutionStatus, MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE,
-    MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID, USER_MANUAL_VERSION,
+    verify_model_lane_behavior_evidence, verify_model_runtime_registry_behavior_coverage,
+    BehaviorCoverageError, DiagnosticTierPosture, ModelRuntimeProofExecutionStatus,
+    MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
+    USER_MANUAL_VERSION,
 };
+use serde_json::json;
 use handshake_core::{
     api::model_runtime_registry::{
         MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE, MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
@@ -173,16 +178,18 @@ async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route()
 
     let mut missing_diagnostic = baseline.clone();
     // Inject a REAL fault: a model_lane behavior whose internal_diagnostics tier
-    // is not WIRED must fail the MT-011 coverage proof (native diagnostics
-    // producer + Palmistry watcher recovery path require WIRED). A prior freeze
-    // had set this to `Wired` on an already-WIRED row, making the fault a no-op.
+    // is downgraded away from the run-level HBR-INT-009 declaration must fail the
+    // MT-011 coverage proof. The run-level posture is RUN_LEVEL_WIRED; any other
+    // value (here DeferredWithReason) is rejected by the structural declaration
+    // check. This is the static declaration guard; liveness is proven separately
+    // by the run-level evidence gate (verify_model_lane_behavior_evidence).
     missing_diagnostic[0].internal_diagnostics_posture = DiagnosticTierPosture::DeferredWithReason;
     let errors =
         verify_model_lane_behavior_coverage(&missing_diagnostic, &schema_registry, &pages, &tools)
             .expect_err(
-                "non-WIRED internal_diagnostics posture must fail MT-011 coverage proof",
+                "non-RUN_LEVEL_WIRED internal_diagnostics posture must fail MT-011 coverage proof",
             );
-    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "must be WIRED");
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "must be RUN_LEVEL_WIRED");
 
     let mut missing_runtime = baseline.clone();
     missing_runtime[0].runtime_surface_id = "";
@@ -321,20 +328,20 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
     for row in &matrix {
         assert_eq!(
             row.internal_diagnostics_posture,
-            DiagnosticTierPosture::Wired,
-            "{} must keep internal_diagnostics WIRED through the native producer and Problems projection",
+            DiagnosticTierPosture::RunLevelWired,
+            "{} internal_diagnostics must be RUN_LEVEL_WIRED (covered by the single run-level HBR-INT-009 envelope, not a per-behavior WIRED literal)",
             row.behavior_id
         );
         assert_eq!(
             row.palmistry_posture,
-            DiagnosticTierPosture::Wired,
-            "{} must keep Palmistry WIRED through the authenticated watcher and survivor importer",
+            DiagnosticTierPosture::RunLevelWired,
+            "{} Palmistry must be RUN_LEVEL_WIRED (covered by the single run-level HBR-INT-009 envelope, not a per-behavior WIRED literal)",
             row.behavior_id
         );
         assert!(
             row.deferred_reason
                 .is_some_and(|reason| reason.contains("wired observers")),
-            "{} WIRED diagnostics posture requires explicit observer/authority separation",
+            "{} RUN_LEVEL_WIRED diagnostics posture requires explicit observer/authority separation",
             row.behavior_id
         );
         assert!(
@@ -1064,4 +1071,249 @@ async fn model_runtime_registry_stale_deployed_row_fails_read_only_freshness_che
         error.behavior_id == "wp1.model_runtime_registry.manual_version"
             && error.reason.contains(USER_MANUAL_VERSION)
     }));
+}
+
+const EVIDENCE_WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
+const EVIDENCE_OWNER: &str = "KERNEL_BUILDER-mt011-evidence";
+
+/// A minimal-but-valid `ModelLaneRun` whose locus fields are consistent with the
+/// run identity, so `ModelLaneStore::record_run` accepts it and later diagnostic
+/// tier records can attach to it.
+fn evidence_run(run_id: &str) -> NewModelLaneRun {
+    NewModelLaneRun {
+        run_id: run_id.into(),
+        trace_id: format!("trace-{run_id}"),
+        run_span_id: format!("span-{run_id}"),
+        coordinator_session_id: format!("coordinator-{run_id}"),
+        routing_policy: "mixed_local_cloud_subagent".into(),
+        context_bundle_id: format!("ctx-{run_id}"),
+        lane_ids: vec![format!("lane-{run_id}")],
+        event_ledger_stream_id: format!("mlane-stream-{run_id}"),
+        artifact_namespace: format!("artifact://model-lane/{run_id}"),
+        projection_plan_ref: None,
+        consent_receipt_ref: None,
+        work_packet_id: Some(EVIDENCE_WP_ID.into()),
+        micro_task_id: Some("MT-011".into()),
+        task_board_id: Some("task-board://wp-1".into()),
+        owner_session: EVIDENCE_OWNER.into(),
+        idempotency_key: format!("idem-{run_id}"),
+        replay_order_key: "00000001/run".into(),
+        replay_after_event_ledger_seq: None,
+        recovery_state: ModelLaneRecoveryState::Restartable,
+        failstate_code: None,
+        reason_ref: None,
+        recovery_hint_ref: Some("usermanual://dexterity/diagnostics".into()),
+        locus_binding: Some(ModelLaneLocusBinding {
+            work_packet_id: EVIDENCE_WP_ID.into(),
+            micro_task_id: "MT-011".into(),
+            task_board_id: Some("task-board://wp-1".into()),
+            coordinator_session_id: format!("coordinator-{run_id}"),
+            session_id: format!("session-{run_id}"),
+            model_session_id: format!("model-session-{run_id}"),
+            owner_session: EVIDENCE_OWNER.into(),
+            locus_binding_ref: format!("locus://wp1/mt011/{run_id}"),
+        }),
+        memory_pack_ref: format!("memory-pack://fems/{run_id}"),
+        memory_pack_hash: "a1".repeat(32),
+        determinism_mode: "deterministic_replay".into(),
+        budget_summary_ref: "budget://mt011".into(),
+        selected_model_id: Some("model://mt011/local".into()),
+        candidate_model_ids: vec!["model://mt011/local".into()],
+        procedural_review_status: "reviewed_by_kernel_builder".into(),
+        truncation_warning_ref: None,
+        rejection_reason_refs: vec![],
+    }
+}
+
+/// One tier of the run-level HBR-INT-009 envelope (`behavior_id = "HBR-INT-009"`).
+fn evidence_tier(
+    run_id: &str,
+    tier: ModelLaneDiagnosticTier,
+    state: ModelLaneDiagnosticTierState,
+    evidence_ref: &str,
+) -> NewModelLaneDiagnosticTierStatus {
+    NewModelLaneDiagnosticTierStatus {
+        diagnostic_status_id: format!("diag-{run_id}-{}", tier.as_str()),
+        behavior_id: "HBR-INT-009".into(),
+        run_id: run_id.into(),
+        tier,
+        state,
+        reason: format!("run-level HBR-INT-009 tier {} for {run_id}", tier.as_str()),
+        evidence_ref: evidence_ref.into(),
+        follow_up_ref: Some("palmistry://wp1/model-lane/run".into()),
+        event_ledger_stream_id: format!("mlane-stream-{run_id}"),
+        work_packet_id: EVIDENCE_WP_ID.into(),
+        micro_task_id: "MT-011".into(),
+        task_board_id: "task-board://wp-1".into(),
+        owner_session: EVIDENCE_OWNER.into(),
+        idempotency_key: format!("idem-diag-{run_id}-{}", tier.as_str()),
+        diagnostic_payload: json!({"behavior_id": "HBR-INT-009", "run_id": run_id}),
+    }
+}
+
+/// MT-011 run-level evidence proof (POSITIVE): when a real ModelLaneRun carries
+/// the durable run-level HBR-INT-009 triplet (Flight Recorder + internal_diagnostics
+/// + Palmistry, with `internal-diagnostics://session/` + `palmistry-observation://session/`
+/// evidence refs), `verify_model_lane_behavior_evidence` PASSES for the full
+/// RUN_LEVEL_WIRED model-lane matrix. This replaces the tautological static WIRED
+/// flip with evidence validated against real durable records.
+#[tokio::test]
+async fn model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_records_exist() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for model_lane_run_level_hbr_int_009_evidence_passes_coverage_when_durable_records_exist: \
+             MT-011 run-level evidence proof requires live PostgreSQL/EventLedger"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual behavior coverage corpus");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect ModelLane store to isolated schema");
+    let store = ModelLaneStore::new(pool);
+    let schema_registry = store
+        .schema_registry_rows()
+        .await
+        .expect("read ModelLane schema registry");
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+
+    let run_id = "run-mt011-evidence-positive";
+    store
+        .record_run(evidence_run(run_id))
+        .await
+        .expect("record the run that carries the run-level HBR-INT-009 envelope");
+    for (tier, evidence_ref) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            "eventledger://kernel/model-lane/run/run-mt011-evidence-positive",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "internal-diagnostics://session/run-mt011-evidence-positive/panic-heartbeat-frame-resource-open-event",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            "palmistry-observation://session/run-mt011-evidence-positive/watcher",
+        ),
+    ] {
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                run_id,
+                tier,
+                ModelLaneDiagnosticTierState::Wired,
+                evidence_ref,
+            ))
+            .await
+            .expect("record run-level HBR-INT-009 tier");
+    }
+
+    let postures = verify_model_lane_behavior_evidence(&store, run_id, &matrix)
+        .await
+        .unwrap_or_else(|errors| {
+            panic!(
+                "run-level HBR-INT-009 evidence gate must PASS when durable records exist:\n{}",
+                errors
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        });
+    assert_eq!(
+        postures.len(),
+        1,
+        "the 24 model-lane behaviors share ONE run-level HBR-INT-009 envelope, not per-behavior evidence"
+    );
+    assert_eq!(postures[0].run_id, run_id);
+    assert_eq!(postures[0].behavior_id, "HBR-INT-009");
+    assert_eq!(
+        postures[0].tiers.len(),
+        3,
+        "run-level HBR-INT-009 envelope must carry all three correlated tiers"
+    );
+}
+
+/// MT-011 run-level evidence proof (NEGATIVE): the gate FAILS CLOSED when the
+/// run-level HBR-INT-009 records are absent or incomplete, and it also rejects a
+/// gamed per-behavior `Wired` literal before any DB lookup. This replaces the
+/// tautological negative test that could never fail on hardcoded WIRED literals.
+#[tokio::test]
+async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_incomplete() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_incomplete: \
+             MT-011 run-level evidence proof requires live PostgreSQL/EventLedger"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual behavior coverage corpus");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect ModelLane store to isolated schema");
+    let store = ModelLaneStore::new(pool);
+    let schema_registry = store
+        .schema_registry_rows()
+        .await
+        .expect("read ModelLane schema registry");
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+
+    // (a) ABSENT: a run with no durable HBR-INT-009 records fails closed.
+    let absent_run = "run-mt011-evidence-absent";
+    let errors = verify_model_lane_behavior_evidence(&store, absent_run, &matrix)
+        .await
+        .expect_err("absent run-level HBR-INT-009 evidence must fail closed");
+    assert!(
+        errors.iter().any(|error| error.behavior_id == "HBR-INT-009"),
+        "absent evidence must fail on the HBR-INT-009 run-level envelope, got {errors:?}"
+    );
+
+    // (b) INCOMPLETE: only the FlightRecorder tier recorded (missing
+    // internal_diagnostics + Palmistry) fails closed — Flight-Recorder-only
+    // evidence is not enough.
+    let incomplete_run = "run-mt011-evidence-incomplete";
+    store
+        .record_run(evidence_run(incomplete_run))
+        .await
+        .expect("record the incomplete run");
+    store
+        .record_diagnostic_tier_status(evidence_tier(
+            incomplete_run,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "eventledger://kernel/model-lane/run/run-mt011-evidence-incomplete",
+        ))
+        .await
+        .expect("record only the FlightRecorder tier");
+    let errors = verify_model_lane_behavior_evidence(&store, incomplete_run, &matrix)
+        .await
+        .expect_err("Flight-Recorder-only run-level evidence must fail closed");
+    assert!(
+        errors.iter().any(|error| error.behavior_id == "HBR-INT-009"),
+        "incomplete evidence must fail on the HBR-INT-009 run-level envelope, got {errors:?}"
+    );
+
+    // (c) GAMED LITERAL: a matrix row that declares a per-behavior `Wired`
+    // posture (the exact anti-pattern this MT closes) is rejected by the gate
+    // before any DB lookup.
+    let mut gamed = matrix.clone();
+    gamed[0].internal_diagnostics_posture = DiagnosticTierPosture::Wired;
+    let errors = verify_model_lane_behavior_evidence(&store, absent_run, &gamed)
+        .await
+        .expect_err("a per-behavior WIRED literal must be rejected by the run-level evidence gate");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.reason.contains("RUN_LEVEL_WIRED")),
+        "gamed per-behavior WIRED must be rejected with a RUN_LEVEL_WIRED declaration error, got {errors:?}"
+    );
 }
