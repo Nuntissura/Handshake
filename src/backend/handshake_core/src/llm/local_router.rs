@@ -29,7 +29,8 @@ use crate::{
         CancellationToken, ExplicitModelRuntimeRebind, GenPrompt, GenerateRequest, KvCachePolicy,
         LoadSpec, ModelCatalog, ModelId, ModelRegistration, ModelRegistry, ModelRegistryStore,
         ModelRuntime, ModelRuntimeAvailability, ModelRuntimeError, ModelRuntimeSelection,
-        ModelRuntimeSelectionPurpose, ProviderKind, RuntimeBinding, SamplingParams,
+        ModelRuntimeSelectionPurpose, ProviderKind, RuntimeBinding, RuntimeVramResidency,
+        SamplingParams,
     },
     process_ledger::{EmbeddedRuntimeInstanceDescriptor, LedgerBatcher},
 };
@@ -39,7 +40,7 @@ use super::{
     CompletionResponse, EmbeddingRequest, EmbeddingResponse, LlmClient, LlmError, ModelProfile,
     ModelRuntimeControlAction, ModelRuntimeControlCapabilities, ModelRuntimeControlReceipt,
     ModelRuntimeControlRequest, ModelRuntimeInspection, ModelRuntimeKvInspection,
-    ModelRuntimeLoraInspection, ModelRuntimeValue, TokenUsage,
+    ModelRuntimeLoraInspection, ModelRuntimeSteeringInspection, ModelRuntimeValue, TokenUsage,
     MODEL_RUNTIME_CONTROL_SCHEMA_VERSION,
 };
 
@@ -1952,24 +1953,79 @@ impl LlmClient for LocalModelRuntimeLlmClient {
             ),
             Err(error) => ModelRuntimeValue::unavailable(error.to_string()),
         };
+        // Section 10.13.1 "Steering vectors active": the runtime steering handle
+        // now exposes the applied (not merely registered) vector set. An adapter
+        // that does not host steering fails typed and surfaces that reason.
+        let active_steering = match runtime.steering_hooks(model_id) {
+            Ok(handle) => ModelRuntimeValue::available(
+                handle
+                    .list_active()
+                    .into_iter()
+                    .map(|meta| ModelRuntimeSteeringInspection {
+                        steering_vector_id: meta.id.to_string(),
+                        layer: meta.layer.as_u32(),
+                        intensity: meta.intensity,
+                    })
+                    .collect(),
+            ),
+            Err(error) => ModelRuntimeValue::unavailable(error.to_string()),
+        };
+        // Section 10.13.1 live perf stats: tokens/sec, VRAM residency, and
+        // time-since-last-call are derived from the runtime's real recorded
+        // generation activity. Each sub-field is honestly typed unavailable when
+        // no call has completed or the device exposes no residency, never a fake
+        // zero. A runtime that records no activity fails the whole snapshot typed.
+        let (tokens_per_second, vram_resident_bytes, last_call_at_utc) =
+            match runtime.perf_snapshot(model_id) {
+                Ok(snapshot) => {
+                    let tokens_per_second = match snapshot.tokens_per_second {
+                        Some(value) => ModelRuntimeValue::available(value),
+                        None => ModelRuntimeValue::unavailable(
+                            "no completed generation has produced a throughput sample for this loaded model yet",
+                        ),
+                    };
+                    let vram_resident_bytes = match snapshot.vram_resident_bytes {
+                        RuntimeVramResidency::DeviceReported { bytes } => {
+                            ModelRuntimeValue::available(bytes)
+                        }
+                        RuntimeVramResidency::NotApplicable { reason } => {
+                            ModelRuntimeValue::unavailable(reason)
+                        }
+                    };
+                    let last_call_at_utc = match snapshot.last_call_at_utc {
+                        Some(completed_at) => {
+                            ModelRuntimeValue::available(completed_at.to_rfc3339())
+                        }
+                        None => ModelRuntimeValue::unavailable(
+                            "no generation call has completed for this loaded model yet",
+                        ),
+                    };
+                    (tokens_per_second, vram_resident_bytes, last_call_at_utc)
+                }
+                Err(error) => {
+                    let reason = error.to_string();
+                    (
+                        ModelRuntimeValue::unavailable(reason.clone()),
+                        ModelRuntimeValue::unavailable(reason.clone()),
+                        ModelRuntimeValue::unavailable(reason),
+                    )
+                }
+            };
+        // Section 10.13.2 "Inspect engine internals": adapter-specific drilldown
+        // of the real engine-known configuration. Typed unavailable when the
+        // active adapter exposes no internals.
+        let engine_internals = match runtime.engine_internals(model_id) {
+            Ok(internals) => ModelRuntimeValue::available(internals),
+            Err(error) => ModelRuntimeValue::unavailable(error.to_string()),
+        };
         ModelRuntimeInspection {
             kv_cache,
             lora_stack,
-            active_steering: ModelRuntimeValue::unavailable(
-                "the ModelRuntime steering API lists registered vectors but does not expose the active vector set",
-            ),
-            tokens_per_second: ModelRuntimeValue::unavailable(
-                "performance counters are not exposed through the object-safe ModelRuntime contract",
-            ),
-            vram_resident_bytes: ModelRuntimeValue::unavailable(
-                "VRAM residency is not exposed through the object-safe ModelRuntime contract",
-            ),
-            last_call_at_utc: ModelRuntimeValue::unavailable(
-                "last-call telemetry is not exposed through the object-safe ModelRuntime contract",
-            ),
-            engine_internals: ModelRuntimeValue::unavailable(
-                "engine-internals inspection is not exposed by the active runtime adapter",
-            ),
+            active_steering,
+            tokens_per_second,
+            vram_resident_bytes,
+            last_call_at_utc,
+            engine_internals,
         }
     }
 

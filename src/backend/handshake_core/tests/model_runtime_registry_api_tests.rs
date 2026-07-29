@@ -25,12 +25,14 @@ use handshake_core::{
         ModelRuntimeValue, TokenUsage,
     },
     model_runtime::{
-        BaseModelTag, CancellationToken, Embedding, ExplicitModelRuntimeRebind, FinishReason,
-        GenerateRequest, GeneratedToken, KvCacheHandle, LoraStackHandle, ModelCapabilities,
-        ModelCatalog, ModelId, ModelRegistration, ModelRegistry, ModelRegistryStore, ModelRuntime,
-        ModelRuntimeError, ModelRuntimeRole, ModelRuntimeSelection, ModelRuntimeSelectionPurpose,
-        OperatorId, ProviderKind, RoleBoundModelRegistration, RuntimeBinding, Score,
-        SteeringHookHandle, TokenStream,
+        BaseModelTag, CancellationToken, CaptureResult, CaptureSpec, Embedding,
+        ExplicitModelRuntimeRebind, FinishReason, GenerateRequest, GeneratedToken, HookPoint,
+        KvCacheHandle, LayerIndex, LoraStackHandle, ModelCapabilities, ModelCatalog, ModelId,
+        ModelRegistration, ModelRegistry, ModelRegistryStore, ModelRuntime, ModelRuntimeError,
+        ModelRuntimeRole, ModelRuntimeSelection, ModelRuntimeSelectionPurpose, OperatorId,
+        ProviderKind, RoleBoundModelRegistration, RuntimeBinding, RuntimePerfCall,
+        RuntimePerfRecorder, RuntimePerfSnapshot, Score, SteeringHookHandle, SteeringHookOps,
+        SteeringVector, SteeringVectorId, SteeringVectorMeta, TokenStream,
     },
     storage::postgres::PostgresDatabase,
     workflows::{ModelSwapRequestV0_4, SessionRegistry, SessionSchedulerConfig},
@@ -151,14 +153,84 @@ impl FlightRecorder for FailingRecorder {
     }
 }
 
+/// Minimal `SteeringHookOps` that exposes a fixed applied (active) steering set
+/// for the Section 10.13.1 "Steering vectors active" projection field. Only
+/// `list_active` is exercised by `inspect_model_runtime`; the mutation surface
+/// fails typed because this double hosts no real activation store.
+struct StaticSteeringOps {
+    active: Vec<SteeringVectorMeta>,
+}
+
+#[async_trait]
+impl SteeringHookOps for StaticSteeringOps {
+    async fn capture(&self, _spec: CaptureSpec) -> Result<CaptureResult, ModelRuntimeError> {
+        Err(ModelRuntimeError::SteeringHookError(
+            "static steering telemetry double does not capture".to_owned(),
+        ))
+    }
+
+    async fn register_vector(
+        &self,
+        _vector: SteeringVector,
+    ) -> Result<SteeringVectorId, ModelRuntimeError> {
+        Err(ModelRuntimeError::SteeringHookError(
+            "static steering telemetry double does not register".to_owned(),
+        ))
+    }
+
+    fn list_vectors(&self) -> Vec<SteeringVectorMeta> {
+        self.active.clone()
+    }
+
+    fn list_active(&self) -> Vec<SteeringVectorMeta> {
+        self.active.clone()
+    }
+
+    async fn set_active(&self, _ids: Vec<SteeringVectorId>) -> Result<(), ModelRuntimeError> {
+        Err(ModelRuntimeError::SteeringHookError(
+            "static steering telemetry double does not mutate activation".to_owned(),
+        ))
+    }
+
+    async fn unregister(&self, _id: SteeringVectorId) -> Result<(), ModelRuntimeError> {
+        Err(ModelRuntimeError::SteeringHookError(
+            "static steering telemetry double does not unregister".to_owned(),
+        ))
+    }
+}
+
 struct ReadyRuntime {
     capabilities: ModelCapabilities,
+    perf: Option<RuntimePerfSnapshot>,
+    engine_internals: Option<Value>,
+    active_steering: Vec<SteeringVectorMeta>,
 }
 
 impl Default for ReadyRuntime {
     fn default() -> Self {
         Self {
             capabilities: ModelCapabilities::default(),
+            perf: None,
+            engine_internals: None,
+            active_steering: Vec::new(),
+        }
+    }
+}
+
+impl ReadyRuntime {
+    /// A runtime double that reports real Section 10.13 live telemetry: a perf
+    /// snapshot derived from the product `RuntimePerfRecorder`, an engine
+    /// internals document, and an applied steering set.
+    fn with_live_telemetry(
+        perf: RuntimePerfSnapshot,
+        engine_internals: Value,
+        active_steering: Vec<SteeringVectorMeta>,
+    ) -> Self {
+        Self {
+            capabilities: ModelCapabilities::default(),
+            perf: Some(perf),
+            engine_internals: Some(engine_internals),
+            active_steering,
         }
     }
 }
@@ -209,7 +281,36 @@ impl ModelRuntime for ReadyRuntime {
     }
 
     fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
-        Ok(SteeringHookHandle::new("mt014-proof-steering"))
+        if self.active_steering.is_empty() {
+            Ok(SteeringHookHandle::new("mt014-proof-steering"))
+        } else {
+            Ok(SteeringHookHandle::with_ops(
+                "mt014-proof-steering",
+                Arc::new(StaticSteeringOps {
+                    active: self.active_steering.clone(),
+                }),
+            ))
+        }
+    }
+
+    fn perf_snapshot(&self, _id: ModelId) -> Result<RuntimePerfSnapshot, ModelRuntimeError> {
+        self.perf.clone().ok_or_else(|| {
+            // Match the object-safe trait default so a runtime that records no
+            // activity fails typed instead of fabricating telemetry.
+            ModelRuntimeError::CapabilityNotSupported {
+                capability: "runtime_perf_snapshot".to_owned(),
+                adapter: self.adapter_name().to_owned(),
+            }
+        })
+    }
+
+    fn engine_internals(&self, _id: ModelId) -> Result<Value, ModelRuntimeError> {
+        self.engine_internals.clone().ok_or_else(|| {
+            ModelRuntimeError::CapabilityNotSupported {
+                capability: "engine_internals".to_owned(),
+                adapter: self.adapter_name().to_owned(),
+            }
+        })
     }
 
     fn cancel(&self, token: CancellationToken) {
@@ -822,20 +923,25 @@ async fn mt014_selection_post_prevalidates_then_returns_audited_projection() {
         &target_row.lora_stack,
         ModelRuntimeValue::Available { value } if value.is_empty()
     ));
+    // The runtime steering handle now surfaces the applied (active) vector set.
+    // This default runtime double hosts no applied vectors, so the field is
+    // truthfully Available-and-empty rather than the prior "not exposed" stub.
     assert!(matches!(
         &target_row.active_steering,
-        ModelRuntimeValue::Unavailable { reason }
-            if reason.contains("does not expose the active vector set")
+        ModelRuntimeValue::Available { value } if value.is_empty()
     ));
     assert!(matches!(
         &target_row.process_ownership_ledger_link,
         ModelRuntimeValue::Available { value }
             if value.ends_with(&target_id.to_string())
     ));
+    // This default runtime double records no generation activity, so perf is a
+    // typed unavailable derived from the object-safe perf_snapshot boundary,
+    // never a fabricated zero.
     assert!(matches!(
         &target_row.tokens_per_second,
         ModelRuntimeValue::Unavailable { reason }
-            if reason.contains("performance counters")
+            if reason.contains("runtime_perf_snapshot")
     ));
     assert!(projection.rows.iter().any(|row| {
         row.live_model_id.as_deref() == Some(current_id.to_string().as_str()) && !row.selected
@@ -1470,5 +1576,167 @@ async fn mt014_registry_api_rejects_ready_uuid_without_committed_observation() {
     assert!(body["detail"]
         .as_str()
         .is_some_and(|detail| detail.contains("not committed as the durable last-observed")));
+    server.abort();
+}
+
+/// PART 2 (MT-014 V5): the ModelRuntime registry projection surfaces the live
+/// Section 10.13.1 telemetry that the shipped panel previously omitted. This
+/// proves the backend/API wiring end-to-end (GET /model-runtime/registry) with a
+/// runtime that reports a real product `RuntimePerfRecorder` snapshot, engine
+/// internals, and an applied steering set. The real in-process engine proof
+/// (Candle recording live generations) is the feature-gated candle_e2e_smoke
+/// suite; this headless proof covers the object-safe wiring the panel reads.
+#[tokio::test]
+async fn mt014_registry_projection_surfaces_live_runtime_telemetry_through_backend() {
+    let pg = pg_required(knowledge_pg_support::knowledge_pg().await);
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect telemetry projection proof store");
+    let store = ModelRegistryStore::new(pool.clone());
+    let current_id = ModelId::new_v7();
+    let registrations = vec![registration(
+        current_id,
+        [0x91; 32],
+        RuntimeBinding::Candle,
+        "Telemetry Completion Model",
+    )];
+    store
+        .persist_boot_set_and_read_back(&registrations)
+        .await
+        .expect("persist READY telemetry row");
+    store
+        .ensure_active_defaults(&[(
+            ModelRuntimeSelectionPurpose::ApplicationDefault,
+            registrations[0].sha256,
+        )])
+        .await
+        .expect("persist application/default before telemetry exposure");
+
+    let mut registry = ModelRegistry::default();
+    for registration in registrations {
+        registry
+            .register(registration)
+            .expect("register telemetry model");
+    }
+    registry
+        .mark_loaded(current_id)
+        .expect("mark telemetry model READY");
+    let registry = Arc::new(registry);
+    let catalog = ModelCatalog::from_registry(registry.clone());
+
+    // Derive live perf from the real product recorder: 40 decode tokens over
+    // 100ms == 400 tokens/sec, with device-reported VRAM residency.
+    let mut perf_recorder = RuntimePerfRecorder::new();
+    let recorded_at = chrono::Utc::now();
+    perf_recorder.record_call(RuntimePerfCall {
+        tokens_generated: 40,
+        gen_eval_ms: 100,
+        vram_resident_bytes: 2_147_483_648,
+        completed_at_utc: recorded_at,
+    });
+    let perf = perf_recorder.snapshot("device VRAM residency was measured for this proof");
+
+    let steering_id = SteeringVectorId::new_v7();
+    let active_steering = vec![SteeringVectorMeta {
+        id: steering_id,
+        name: "telemetry-proof-vector".to_owned(),
+        layer: LayerIndex::new(12),
+        hook_point: HookPoint::ResidStream,
+        intensity: 1.5,
+        description: "applied steering vector for the 10.13.1 projection".to_owned(),
+    }];
+    let engine_internals = json!({
+        "adapter": "telemetry-double",
+        "device": "Cpu",
+        "backend_architecture": "llama",
+        "note": "Section 10.13.2 engine internals drilldown",
+    });
+
+    // Completion model is Candle-bound, so the router resolves the second
+    // (candle) runtime; give that one the live telemetry.
+    let router = LocalRouter::new(
+        registry,
+        Arc::new(ReadyRuntime::default()),
+        Arc::new(ReadyRuntime::with_live_telemetry(
+            perf,
+            engine_internals,
+            active_steering,
+        )),
+    );
+    let fallback = Arc::new(CatalogLlmClient {
+        profile: ModelProfile::new("mt014-telemetry-fallback".to_owned(), 4096),
+        catalog: catalog.clone(),
+    });
+    let client = Arc::new(
+        LocalModelRuntimeLlmClient::new(
+            router,
+            fallback,
+            Arc::new(NoopRecorder),
+            ModelProfile::new(current_id.to_string(), 4096),
+        )
+        .with_catalog(catalog)
+        .with_durable_application_selection(store, 1),
+    );
+    let state = app_state_for_client(&pg.schema_url, client).await;
+    let (base_url, server) = start_server(state).await;
+
+    let response = reqwest::Client::new()
+        .get(format!("{base_url}/model-runtime/registry"))
+        .send()
+        .await
+        .expect("GET telemetry projection");
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let projection: ModelRuntimeRegistryProjection =
+        response.json().await.expect("deserialize telemetry projection");
+    let row = projection
+        .rows
+        .iter()
+        .find(|row| row.live_model_id.as_deref() == Some(current_id.to_string().as_str()))
+        .expect("live telemetry projection row");
+
+    // Active steering set surfaces the applied vector (id, layer, intensity).
+    match &row.active_steering {
+        ModelRuntimeValue::Available { value } => {
+            assert_eq!(value.len(), 1, "one applied steering vector");
+            assert_eq!(value[0].steering_vector_id, steering_id.to_string());
+            assert_eq!(value[0].layer, 12);
+            assert!((value[0].intensity - 1.5).abs() < f32::EPSILON);
+        }
+        other => panic!("active steering must be available: {other:?}"),
+    }
+
+    // Live perf stats surface real recorded throughput, VRAM, and last-call.
+    match &row.tokens_per_second {
+        ModelRuntimeValue::Available { value } => {
+            assert!((value - 400.0).abs() < 1e-6, "throughput is 400 tokens/sec");
+        }
+        other => panic!("tokens/sec must be available: {other:?}"),
+    }
+    assert!(matches!(
+        &row.vram_resident_bytes,
+        ModelRuntimeValue::Available { value } if *value == 2_147_483_648
+    ));
+    match &row.last_call_at_utc {
+        ModelRuntimeValue::Available { value } => {
+            chrono::DateTime::parse_from_rfc3339(value)
+                .expect("last-call timestamp is RFC3339");
+        }
+        other => panic!("last-call time must be available: {other:?}"),
+    }
+
+    // Engine internals drilldown and its enabling action are both live.
+    match &row.engine_internals {
+        ModelRuntimeValue::Available { value } => {
+            assert_eq!(value["adapter"], "telemetry-double");
+        }
+        other => panic!("engine internals must be available: {other:?}"),
+    }
+    assert!(
+        row.inspect_engine_internals_action.enabled,
+        "inspect-engine-internals action is enabled when internals are live"
+    );
+
     server.abort();
 }

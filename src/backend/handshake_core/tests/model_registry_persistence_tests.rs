@@ -473,6 +473,108 @@ async fn mt014_active_defaults_survive_restart_and_failed_cas_preserves_prior_se
     assert_eq!(embedding_after.artifact_sha256, embedding.sha256);
 }
 
+/// PART 1 (MT-014 V5) closure proof: the active default-model selection is
+/// durable, not process-local. An operator sets a new default (A -> B); after a
+/// simulated restart (a brand-new `ModelRegistryStore` against the same
+/// PostgreSQL) that re-registers the env-config boot candidate A, the durable
+/// selection B is RESTORED rather than reset to the boot candidate.
+#[tokio::test]
+async fn mt014_active_default_selection_persists_and_restores_after_restart() {
+    let pg = pg_required("mt014 active default persists and restores after restart").await;
+    let pool = sqlx::PgPool::connect(&pg.schema_url)
+        .await
+        .expect("connect isolated active-default restart authority");
+    let completion_a = registration(
+        0xb1,
+        RuntimeBinding::Candle,
+        "completion-a",
+        "mt014-restart-restore-test",
+        "models/restart-completion-a.safetensors",
+    );
+    let completion_b = registration(
+        0xb2,
+        RuntimeBinding::Candle,
+        "completion-b",
+        "mt014-restart-restore-test",
+        "models/restart-completion-b.safetensors",
+    );
+
+    // Boot 1: persist two READY completion models and initialize the durable
+    // application/default to A (revision 1).
+    let boot_one = ModelRegistryStore::new(pool.clone());
+    boot_one
+        .persist_role_bound_boot_set_and_read_back(&[
+            RoleBoundModelRegistration::completion(completion_a.clone()),
+            RoleBoundModelRegistration::completion(completion_b.clone()),
+        ])
+        .await
+        .expect("persist role-bound completion set");
+    let initialized = boot_one
+        .ensure_active_defaults(&[(
+            ModelRuntimeSelectionPurpose::ApplicationDefault,
+            completion_a.sha256,
+        )])
+        .await
+        .expect("initialize durable application/default at boot");
+    let initial_app = initialized
+        .iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("application/default initialized");
+    assert_eq!(initial_app.artifact_sha256, completion_a.sha256);
+    assert_eq!(initial_app.selection_revision, 1);
+
+    // Operator selects a NEW default model: audited compare-and-set A -> B.
+    let selected = boot_one
+        .select_active_model(
+            ModelRuntimeSelectionPurpose::ApplicationDefault,
+            completion_b.sha256,
+            1,
+            KernelActor::Operator("native-model-runtime-panel".to_owned()),
+            "operator selected completion-b as the default completion model",
+        )
+        .await
+        .expect("durably set the new active default");
+    assert_eq!(selected.artifact_sha256, completion_b.sha256);
+    assert_eq!(selected.selection_revision, 2);
+
+    // Simulate a full restart: a brand-new store instance against the same
+    // PostgreSQL, with boot re-offering the env-config candidate A. The durable
+    // operator selection (B) must be recovered, never overwritten by boot.
+    let boot_two = ModelRegistryStore::new(pool.clone());
+    let recovered = boot_two
+        .ensure_active_defaults(&[(
+            ModelRuntimeSelectionPurpose::ApplicationDefault,
+            completion_a.sha256,
+        )])
+        .await
+        .expect("restart recovers the durable default instead of reinitializing");
+    let recovered_app = recovered
+        .iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("application/default recovered after restart");
+    assert_eq!(
+        recovered_app.artifact_sha256, completion_b.sha256,
+        "restart restores the operator-selected default B, not the boot candidate A"
+    );
+    assert_eq!(
+        recovered_app.selection_revision, 2,
+        "restored default preserves its committed selection revision"
+    );
+
+    // An independent read-only recovery path (a third fresh store) agrees, so the
+    // restored value is durable PostgreSQL authority, not a process-local cache.
+    let independent = ModelRegistryStore::new(pool.clone())
+        .list_active_selections()
+        .await
+        .expect("independent fresh store recovers the durable default after restart");
+    let independent_app = independent
+        .iter()
+        .find(|selection| selection.purpose == ModelRuntimeSelectionPurpose::ApplicationDefault)
+        .expect("application/default present in independent recovery");
+    assert_eq!(independent_app.artifact_sha256, completion_b.sha256);
+    assert_eq!(independent_app.selection_revision, 2);
+}
+
 #[tokio::test]
 async fn mt014_registry_down_up_recovers_row_from_preserved_audit_chain() {
     let pg = pg_required("mt014 registry down-up audit recovery").await;
