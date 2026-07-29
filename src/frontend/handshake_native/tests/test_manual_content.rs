@@ -1096,6 +1096,29 @@ fn wave6_agent_tool_reference_adds_view_open_surface_rows() {
 }
 
 #[test]
+fn notes_search_agent_tool_rows_use_operator_name_and_keep_internal_routes() {
+    let rows = row_by_id();
+    let menu = rows
+        .get(VIEW_OPEN_LOOM_SEARCH_MENU_AUTHOR_ID)
+        .expect("Notes Search VIEW tool row");
+    assert_eq!(menu.action_label, "Open Notes Search from VIEW");
+    assert!(menu.description.contains("mounted Notes Search pane"));
+    assert!(menu.description.contains("view.loom-search"));
+
+    let palette = rows
+        .get(VIEW_OPEN_LOOM_SEARCH_PALETTE_AUTHOR_ID)
+        .expect("Notes Search palette tool row");
+    assert_eq!(
+        palette.action_label,
+        "Open Notes Search from the command palette"
+    );
+    assert!(palette.description.contains("same Notes Search pane"));
+    assert!(palette
+        .description
+        .contains("command-palette.option.hs-view-palette-loom-search"));
+}
+
+#[test]
 fn mt104_terminal_menu_author_id_is_live_clickable_run_leaf() {
     let rows = row_by_id();
     let terminal = rows
@@ -1546,11 +1569,26 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "Inline text-card edit remains a typed blocker",
         ],
         "Search" => &[
+            "Notes Search",
+            "VIEW > Open Notes Search",
+            "View: Notes Search",
+            "view.loom-search",
             "search.query",
             "loom-search-v2.save-view",
             "semantic_available",
             "POST /workspaces/{workspace_id}/loom/views/definitions",
             "reloadable view block id",
+            "quick-switcher.search",
+            "content_type=view_def",
+            "repeat the same Quick Switcher path",
+            "Tier 1 Flight Recorder/EventLedger = WIRED",
+            "Tier 2 internal_diagnostics = WIRED at the shared backend-health boundary",
+            "Tier 3 Palmistry = WIRED through the shared diagnostic ring",
+            "HSK_TEST_BACKEND_BIN",
+            "HANDSHAKE_TEST_PG_DSN",
+            "HANDSHAKE_ARTIFACTS_ROOT",
+            "loom_search_v2_managed_mounted_search_facet_save_reload_cleanup",
+            "not canonical Argus reopened-view closure",
             "Workspace switches clear results, facets, errors, save receipts, and pending deliveries",
             "menu.edit.find-all",
             "find-in-files.query",

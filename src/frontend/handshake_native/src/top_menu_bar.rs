@@ -52,7 +52,7 @@
 //!   Open Folders            ENABLED -> OpenViewSurface(view.folders)       opens the Loom folder tree
 //!   Open Block Collections  ENABLED -> OpenViewSurface(view.block-collections) opens saved views
 //!   Open Canvas             ENABLED -> OpenViewSurface(view.canvas)        opens PaneType::AtelierEditor
-//!   Open Loom Search        ENABLED -> OpenViewSurface(view.loom-search)   opens PaneType::LoomSearchV2
+//!   Open Notes Search       ENABLED -> OpenViewSurface(view.loom-search)   opens PaneType::LoomSearchV2
 //!   Open Find in Files      ENABLED -> OpenViewSurface(view.find-in-files) opens PaneType::FindInFiles
 //!   Open Quick Switcher Ctrl+P ENABLED -> OpenQuickSwitcher (the WP-011 overlay opener)
 //!   Open Daily Journal      ENABLED -> OpenViewSurface(view.journal)       opens PaneType::LoomDailyJournal
@@ -1143,7 +1143,7 @@ impl MenuBar {
                 self.item(
                     ui,
                     "menu.view.open-loom-search",
-                    "Open Loom Search",
+                    "Open Notes Search",
                     None,
                     true,
                     MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_LOOM_SEARCH),

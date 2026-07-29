@@ -27,6 +27,7 @@ use handshake_core::storage::{
     BLOCK_VIEW_UNTAGGED_LANE,
 };
 use knowledge_pg_support::knowledge_pg;
+use sha2::{Digest, Sha256};
 
 macro_rules! pg_or_skip {
     () => {{
@@ -337,6 +338,246 @@ async fn saved_view_creation_rolls_back_every_authority_surface_and_retries_idem
         normalized_actor, "Café",
         "outbox authority must match recorder NFC persistence before hashing"
     );
+}
+
+#[tokio::test]
+async fn legacy_view_projection_migration_repairs_real_pg_idempotently_and_survives_restart() {
+    let pg = pg_or_skip!();
+    let ws = pg.create_workspace().await;
+    let definition = BlockViewDefinition {
+        kind: BlockViewKind::Table,
+        query: BlockViewQuery::default(),
+        columns: vec![BlockViewField::Title],
+        group_by: None,
+        sort: None,
+        calendar_date_field: None,
+    };
+    let stale_view_id = make_view(&pg.db, &ws, "Legacy stale projection", definition.clone()).await;
+    let missing_view_id = make_view(&pg.db, &ws, "Legacy missing projection", definition).await;
+    let ordinary_note_id = make_block(
+        &pg.db,
+        &ws,
+        "Ordinary note must stay a note",
+        LoomBlockContentType::Note,
+    )
+    .await;
+
+    let mut conn = pg.raw_connection().await;
+    sqlx::query(
+        "UPDATE loom_block_search_index \
+         SET content_type = 'note', search_text = 'stale legacy projection', \
+             embedding_model = 'legacy-model' \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&stale_view_id)
+    .execute(&mut conn)
+    .await
+    .expect("seed stale saved-view search projection");
+    sqlx::query(
+        "DELETE FROM loom_block_search_index \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&missing_view_id)
+    .execute(&mut conn)
+    .await
+    .expect("seed missing saved-view search projection");
+    sqlx::query(
+        "UPDATE knowledge_entities AS entity \
+         SET detection_provenance = jsonb_build_object( \
+             'extractor', 'loom_block_knowledge_bridge', \
+             'extractor_version', 'loom_block_knowledge_bridge_v1', \
+             'method', 'mt177_bridge', \
+             'content_type', 'note' \
+         ) \
+         FROM loom_block_knowledge_bridge AS bridge \
+         WHERE bridge.entity_id = entity.entity_id \
+           AND bridge.workspace_id = $1 \
+           AND bridge.block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&stale_view_id)
+    .execute(&mut conn)
+    .await
+    .expect("seed note-typed legacy knowledge provenance");
+    sqlx::query(
+        "DELETE FROM knowledge_entities \
+         WHERE workspace_id = $1 \
+           AND entity_kind = 'loom_block' \
+           AND entity_key = $2",
+    )
+    .bind(&ws)
+    .bind(&missing_view_id)
+    .execute(&mut conn)
+    .await
+    .expect("seed missing saved-view knowledge projection");
+
+    sqlx::raw_sql(include_str!(
+        "../migrations/0363_loom_block_view_legacy_projection_repair.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("upgrade legacy saved-view projections");
+
+    let repaired_search: Vec<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT block_id, search_text, embedding_model \
+         FROM loom_block_search_index \
+         WHERE workspace_id = $1 AND block_id = ANY($2) \
+         ORDER BY block_id",
+    )
+    .bind(&ws)
+    .bind(vec![stale_view_id.clone(), missing_view_id.clone()])
+    .fetch_all(&mut conn)
+    .await
+    .expect("read repaired saved-view search projections");
+    assert_eq!(repaired_search.len(), 2);
+    assert!(repaired_search.iter().any(|(block_id, text, model)| {
+        block_id == &stale_view_id
+            && text == "Legacy stale projection"
+            && model.as_deref() == Some("legacy-model")
+    }));
+    assert!(repaired_search.iter().any(|(block_id, text, model)| {
+        block_id == &missing_view_id && text == "Legacy missing projection" && model.is_none()
+    }));
+
+    let repaired_receipts: Vec<(String, String, serde_json::Value, String)> = sqlx::query_as(
+        "SELECT bridge.block_id, event.event_type, event.payload, event.payload_hash \
+         FROM loom_block_knowledge_bridge AS bridge \
+         JOIN knowledge_entities AS entity ON entity.entity_id = bridge.entity_id \
+         JOIN kernel_event_ledger AS event ON event.event_id = bridge.index_event_id \
+         WHERE bridge.workspace_id = $1 \
+           AND bridge.block_id = ANY($2) \
+           AND entity.detection_provenance ->> 'content_type' = 'view_def' \
+         ORDER BY bridge.block_id",
+    )
+    .bind(&ws)
+    .bind(vec![stale_view_id.clone(), missing_view_id.clone()])
+    .fetch_all(&mut conn)
+    .await
+    .expect("read repaired knowledge projections and receipts");
+    assert_eq!(repaired_receipts.len(), 2);
+    for (block_id, event_type, payload, payload_hash) in &repaired_receipts {
+        assert_eq!(event_type, "KNOWLEDGE_LOOM_BLOCK_INDEXED");
+        assert_eq!(payload["type"], "knowledge_loom_block_indexed");
+        assert_eq!(payload["workspace_id"], ws.as_str());
+        assert_eq!(payload["block_id"], block_id.as_str());
+        assert_eq!(payload["content_type"], "view_def");
+        assert_eq!(payload["repair_reason"], "legacy_view_projection_repair");
+        let canonical_payload =
+            serde_json::to_vec(payload).expect("serialize canonical repair payload");
+        assert_eq!(
+            payload_hash,
+            &hex::encode(Sha256::digest(canonical_payload)),
+            "migration receipt hash must match the runtime canonical JSON hash"
+        );
+    }
+
+    let first_projection_timestamps: Vec<(
+        String,
+        chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>,
+    )> = sqlx::query_as(
+        "SELECT bridge.block_id, search.indexed_at, entity.updated_at, bridge.updated_at \
+         FROM loom_block_knowledge_bridge AS bridge \
+         JOIN loom_block_search_index AS search ON search.block_id = bridge.block_id \
+         JOIN knowledge_entities AS entity ON entity.entity_id = bridge.entity_id \
+         WHERE bridge.workspace_id = $1 AND bridge.block_id = ANY($2) \
+         ORDER BY bridge.block_id",
+    )
+    .bind(&ws)
+    .bind(vec![stale_view_id.clone(), missing_view_id.clone()])
+    .fetch_all(&mut conn)
+    .await
+    .expect("capture first repair timestamps");
+    sqlx::raw_sql(include_str!(
+        "../migrations/0363_loom_block_view_legacy_projection_repair.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("replay saved-view projection repair");
+    let replay_projection_timestamps: Vec<(
+        String,
+        chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>,
+        chrono::DateTime<chrono::Utc>,
+    )> = sqlx::query_as(
+        "SELECT bridge.block_id, search.indexed_at, entity.updated_at, bridge.updated_at \
+         FROM loom_block_knowledge_bridge AS bridge \
+         JOIN loom_block_search_index AS search ON search.block_id = bridge.block_id \
+         JOIN knowledge_entities AS entity ON entity.entity_id = bridge.entity_id \
+         WHERE bridge.workspace_id = $1 AND bridge.block_id = ANY($2) \
+         ORDER BY bridge.block_id",
+    )
+    .bind(&ws)
+    .bind(vec![stale_view_id.clone(), missing_view_id.clone()])
+    .fetch_all(&mut conn)
+    .await
+    .expect("capture replay timestamps");
+    assert_eq!(
+        replay_projection_timestamps, first_projection_timestamps,
+        "an idempotent replay must not rewrite already-canonical projections"
+    );
+    let receipt_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE source_component = 'loom_block_view_legacy_projection_repair' \
+           AND payload ->> 'workspace_id' = $1",
+    )
+    .bind(&ws)
+    .fetch_one(&mut conn)
+    .await
+    .expect("count replay-safe repair receipts");
+    assert_eq!(receipt_count, 2, "one repair receipt per saved view");
+    let ordinary_note: (String, String, String, i64) = sqlx::query_as(
+        "SELECT block.content_type, search.content_type, \
+                entity.detection_provenance ->> 'content_type', \
+                (SELECT COUNT(*) FROM kernel_event_ledger AS repair \
+                 WHERE repair.source_component = 'loom_block_view_legacy_projection_repair' \
+                   AND repair.payload ->> 'block_id' = block.block_id) \
+         FROM loom_blocks AS block \
+         JOIN loom_block_search_index AS search ON search.block_id = block.block_id \
+         JOIN loom_block_knowledge_bridge AS bridge ON bridge.block_id = block.block_id \
+         JOIN knowledge_entities AS entity ON entity.entity_id = bridge.entity_id \
+         WHERE block.workspace_id = $1 AND block.block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&ordinary_note_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("inspect ordinary note after migration");
+    assert_eq!(
+        ordinary_note,
+        ("note".to_owned(), "note".to_owned(), "note".to_owned(), 0),
+        "migration must never infer that an indistinguishable note is a stranded view"
+    );
+    drop(conn);
+
+    // A new product database/pool models process restart: no in-memory state
+    // from the migration connection can satisfy these reads.
+    let restarted = handshake_core::storage::postgres::PostgresDatabase::connect(&pg.schema_url, 1)
+        .await
+        .expect("restart PostgresDatabase on repaired schema");
+    for view_id in [&stale_view_id, &missing_view_id] {
+        let view = restarted
+            .get_block_view(&ws, view_id)
+            .await
+            .expect("saved view survives restart");
+        assert!(matches!(
+            view.block.content_type,
+            LoomBlockContentType::ViewDef
+        ));
+        let bridge = restarted
+            .get_loom_block_knowledge_bridge(&ws, view_id)
+            .await
+            .expect("read repaired bridge after restart")
+            .expect("repaired bridge exists after restart");
+        assert!(
+            bridge.index_event_id.starts_with("KE-MT028-0363-"),
+            "bridge must retain the typed repair receipt after restart"
+        );
+    }
+    restarted.close().await;
 }
 
 #[tokio::test]

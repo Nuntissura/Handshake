@@ -1,0 +1,9 @@
+-- WP-KERNEL-012 MT-028 remediation rollback.
+--
+-- The 0363 data repair is intentionally not reversed. Restoring a stale or
+-- missing search row, note-typed knowledge provenance, or a superseded bridge
+-- receipt would reintroduce the partial-authority state this migration removes.
+-- The typed repair receipt is retained because
+-- loom_block_knowledge_bridge.index_event_id is an ON DELETE RESTRICT
+-- authority reference to it. Migration 0363 introduces no durable schema
+-- objects, so there is no schema DDL to undo.

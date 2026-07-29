@@ -36,6 +36,7 @@
 //! namespace, attached through [`crate::accessibility::emit_interactive_node`] (the SAME hook the
 //! shell chrome + toolbar use), so an out-of-process swarm agent drives the panel by id.
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use crate::accessibility;
@@ -53,12 +54,18 @@ pub const QUERY_AUTHOR_ID: &str = "search.query";
 pub const SEARCH_AUTHOR_ID: &str = "search.run";
 /// The `Save as view` button.
 pub const SAVE_VIEW_AUTHOR_ID: &str = "loom-search-v2.save-view";
+/// The live save-as-view status (`Role::Status`).
+pub const SAVE_STATUS_AUTHOR_ID: &str = "loom-search-v2.save-status";
+/// Open the most recently saved view block.
+pub const OPEN_SAVED_VIEW_AUTHOR_ID: &str = "loom-search-v2.open-saved-view";
 /// The status line label.
 pub const STATUS_AUTHOR_ID: &str = "loom-search-v2.status";
 /// Prefix for a per-content_type facet toggle (`loom-search-v2.facet.{content_type}`).
 pub const FACET_AUTHOR_ID_PREFIX: &str = "loom-search-v2.facet.";
 /// Prefix for a per-result row (`search.result.{block_id}`).
 pub const RESULT_AUTHOR_ID_PREFIX: &str = "search.result.";
+/// Prefix for the plain-text preview attached to a result (`search.preview.{block_id}`).
+pub const PREVIEW_AUTHOR_ID_PREFIX: &str = "search.preview.";
 
 /// The facet toggle author_id for a `content_type` (e.g. `loom-search-v2.facet.note`).
 pub fn facet_author_id(content_type: &str) -> String {
@@ -68,6 +75,11 @@ pub fn facet_author_id(content_type: &str) -> String {
 /// The result-row author_id for a `block_id` (e.g. `search.result.blk-1`).
 pub fn result_author_id(block_id: &str) -> String {
     format!("{RESULT_AUTHOR_ID_PREFIX}{block_id}")
+}
+
+/// The plain-preview author_id for a result block.
+pub fn preview_author_id(block_id: &str) -> String {
+    format!("{PREVIEW_AUTHOR_ID_PREFIX}{block_id}")
 }
 
 /// Scope one canonical search author id to a secondary pane instance. The complete pane-id UTF-8
@@ -87,6 +99,11 @@ pub fn pane_scoped_author_id(author_id: &str, pane_id: Option<&str>) -> String {
 /// Scoped result-row author id for a secondary Loom Search pane.
 pub fn pane_scoped_result_author_id(block_id: &str, pane_id: Option<&str>) -> String {
     pane_scoped_author_id(&result_author_id(block_id), pane_id)
+}
+
+/// Scoped plain-preview author id for a secondary Loom Search pane.
+pub fn pane_scoped_preview_author_id(block_id: &str, pane_id: Option<&str>) -> String {
+    pane_scoped_author_id(&preview_author_id(block_id), pane_id)
 }
 
 // ── Highlight parsing (RISK-1 / MC-1) ───────────────────────────────────────────────────────────────
@@ -210,6 +227,12 @@ pub struct LoomSearchV2PanelState {
     pub error: Option<String>,
     /// The save-as-view status string (the new view block id on success, or the error), or `None`.
     pub view_status: Option<String>,
+    /// `true` while the current save intent is awaiting its authority response. This disables the
+    /// save action so pointer, keyboard, and AccessKit activation cannot duplicate one intent.
+    pub save_in_flight: bool,
+    /// The most recently confirmed saved-view block id in this workspace. Kept independently from the
+    /// transient status text so a later query edit does not make the canonical saved block unreachable.
+    pub saved_view_block_id: Option<String>,
     /// The query text the LAST in-flight search was fired with — used to detect a query edit so every
     /// query-derived response, pending delivery, error, save receipt, and facet can be invalidated.
     last_searched_query: Option<String>,
@@ -242,6 +265,8 @@ impl LoomSearchV2PanelState {
             loading: false,
             error: None,
             view_status: None,
+            save_in_flight: false,
+            saved_view_block_id: None,
             last_searched_query: None,
             bound_workspace_id: None,
             search_cell: Arc::new(Mutex::new(None)),
@@ -264,6 +289,8 @@ impl LoomSearchV2PanelState {
         self.loading = false;
         self.error = None;
         self.view_status = None;
+        self.save_in_flight = false;
+        self.saved_view_block_id = None;
         self.last_searched_query = None;
         self.search_cell = Arc::new(Mutex::new(None));
         self.save_cell = Arc::new(Mutex::new(None));
@@ -321,8 +348,10 @@ impl LoomSearchV2PanelState {
         }
         if let Ok(mut slot) = self.save_cell.lock() {
             if let Some(result) = slot.take() {
+                self.save_in_flight = false;
                 self.view_status = Some(match result {
                     Ok(block_id) => {
+                        self.saved_view_block_id = Some(block_id.clone());
                         self.save_attempt_id = None;
                         format!("Saved search as Loom view {block_id}")
                     }
@@ -352,6 +381,7 @@ impl LoomSearchV2PanelState {
         self.loading = true;
         self.error = None;
         self.view_status = None;
+        self.save_in_flight = false;
         self.last_searched_query = Some(self.query.clone());
         // Give every request its own delivery cell. A superseded request can finish, but it writes to
         // the old cell and therefore cannot replace the newer query/facet result. A search dispatch is
@@ -390,7 +420,11 @@ impl LoomSearchV2PanelState {
         if !self.has_results() {
             return;
         }
+        if self.save_in_flight {
+            return;
+        }
         self.view_status = None;
+        self.save_in_flight = true;
         let block_id = self
             .save_attempt_id
             .get_or_insert_with(|| uuid::Uuid::new_v4().to_string())
@@ -422,6 +456,7 @@ impl LoomSearchV2PanelState {
             self.loading = false;
             self.error = None;
             self.view_status = None;
+            self.save_in_flight = false;
             self.last_searched_query = None;
             self.search_cell = Arc::new(Mutex::new(None));
             self.save_cell = Arc::new(Mutex::new(None));
@@ -465,6 +500,33 @@ fn show_with_author_scope(
     callbacks: &mut LoomSearchV2Callbacks<'_>,
     secondary_pane_id: Option<&str>,
 ) {
+    let mut open = |block_id: &str, _content_type: &str| {
+        (callbacks.on_open_block)(block_id);
+    };
+    show_with_author_scope_and_dispatch(
+        ui,
+        state,
+        palette,
+        client,
+        workspace_id,
+        &mut open,
+        secondary_pane_id,
+    );
+}
+
+/// Internal render path used by the mounted pane factory. Unlike the compatibility callback exposed
+/// by [`show`], this preserves the result content type so the host queue can retain complete origin
+/// and target identity.
+#[allow(clippy::too_many_arguments)]
+fn show_with_author_scope_and_dispatch(
+    ui: &mut egui::Ui,
+    state: &mut LoomSearchV2PanelState,
+    palette: &HsPalette,
+    client: &LoomSearchV2Client,
+    workspace_id: Option<&str>,
+    on_open_block: &mut dyn FnMut(&str, &str),
+    secondary_pane_id: Option<&str>,
+) {
     state.bind_workspace(workspace_id);
     // Drain any delivered async result first, then keep repainting while a request is in flight so the
     // result is drained promptly (and the `Searching…` state is live) WITHOUT busy-looping when idle.
@@ -473,7 +535,7 @@ fn show_with_author_scope(
         ui.ctx().request_repaint();
     }
 
-    ui.heading("Loom Search");
+    ui.heading("Notes Search");
     ui.label(egui::RichText::new("Hybrid: full-text + fuzzy + semantic").weak());
     ui.add_space(4.0);
 
@@ -483,10 +545,13 @@ fn show_with_author_scope(
     let query_author_id = pane_scoped_author_id(QUERY_AUTHOR_ID, secondary_pane_id);
     let search_author_id = pane_scoped_author_id(SEARCH_AUTHOR_ID, secondary_pane_id);
     let save_view_author_id = pane_scoped_author_id(SAVE_VIEW_AUTHOR_ID, secondary_pane_id);
+    let save_status_author_id = pane_scoped_author_id(SAVE_STATUS_AUTHOR_ID, secondary_pane_id);
+    let open_saved_view_author_id =
+        pane_scoped_author_id(OPEN_SAVED_VIEW_AUTHOR_ID, secondary_pane_id);
     let status_author_id = pane_scoped_author_id(STATUS_AUTHOR_ID, secondary_pane_id);
     ui.horizontal(|ui| {
         let edit = egui::TextEdit::singleline(&mut state.query)
-            .hint_text("Search the Loom")
+            .hint_text("Search Notes")
             .desired_width(220.0);
         let resp = ui.add(edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &query_author_id);
@@ -537,21 +602,62 @@ fn show_with_author_scope(
             fire_search = true;
         }
 
-        let save_btn = ui.add_enabled(state.has_results(), egui::Button::new("Save as view"));
+        let save_btn = ui.add_enabled(
+            state.has_results() && !state.save_in_flight,
+            egui::Button::new(if state.save_in_flight {
+                "Saving view…"
+            } else {
+                "Save as view"
+            }),
+        );
         accessibility::emit_interactive_node(ui.ctx(), save_btn.id, &save_view_author_id);
         if save_btn.clicked() {
             fire_save = true;
         }
+
+        if state.saved_view_block_id.is_some() {
+            let open_saved = ui.button("Open saved view");
+            accessibility::emit_interactive_node(
+                ui.ctx(),
+                open_saved.id,
+                &open_saved_view_author_id,
+            );
+            if open_saved.clicked() {
+                if let Some(block_id) = &state.saved_view_block_id {
+                    on_open_block(block_id, "view_def");
+                }
+            }
+        }
     });
 
     // ── Status line ──
-    let status_resp = ui.label(state.status_text());
-    accessibility::emit_interactive_node(ui.ctx(), status_resp.id, &status_author_id);
+    let status_text = state.status_text();
+    let status_resp = ui.label(&status_text);
+    ui.ctx().accesskit_node_builder(status_resp.id, |node| {
+        node.set_role(egui::accesskit::Role::Status);
+        node.set_author_id(status_author_id.clone());
+        node.set_label(status_text.clone());
+        node.set_value(status_text.clone());
+        node.set_live(egui::accesskit::Live::Polite);
+    });
 
-    // ── View-status line (save-as-view result) ──
-    if let Some(view_status) = &state.view_status {
-        ui.label(egui::RichText::new(view_status).weak());
-    }
+    // ── Save-status line (stable Role::Status for pending/success/error) ──
+    let save_status_text = if state.save_in_flight {
+        "Saving search as Loom view…".to_owned()
+    } else {
+        state
+            .view_status
+            .clone()
+            .unwrap_or_else(|| "No save in progress".to_owned())
+    };
+    let save_status = ui.label(egui::RichText::new(&save_status_text).weak());
+    ui.ctx().accesskit_node_builder(save_status.id, |node| {
+        node.set_role(egui::accesskit::Role::Status);
+        node.set_author_id(save_status_author_id.clone());
+        node.set_label(save_status_text.clone());
+        node.set_value(save_status_text.clone());
+        node.set_live(egui::accesskit::Live::Polite);
+    });
 
     // ── Facets ──
     let mut toggle_facet: Option<String> = None;
@@ -579,7 +685,7 @@ fn show_with_author_scope(
     }
 
     // ── Results ──
-    let mut open_block: Option<String> = None;
+    let mut open_block: Option<(String, String)> = None;
     if let Some(response) = &state.response {
         let text_color = ui.visuals().text_color();
         let badge_color = ui.visuals().weak_text_color();
@@ -606,10 +712,21 @@ fn show_with_author_scope(
                                 );
                             });
                             // Highlight: <mark> runs as colored LayoutJob (NOT raw HTML).
-                            if !hit.highlight.is_empty() {
-                                let job = highlight_layout_job(&hit.highlight, palette, text_color);
-                                ui.label(job);
-                            }
+                            let preview_text = parse_highlight_segments(&hit.highlight)
+                                .into_iter()
+                                .map(|segment| segment.text)
+                                .collect::<String>();
+                            let job = highlight_layout_job(&hit.highlight, palette, text_color);
+                            let preview = ui.label(job);
+                            ui.ctx().accesskit_node_builder(preview.id, |node| {
+                                node.set_role(egui::accesskit::Role::Label);
+                                node.set_author_id(pane_scoped_preview_author_id(
+                                    &block_id,
+                                    secondary_pane_id,
+                                ));
+                                node.set_label(preview_text.clone());
+                                node.set_value(preview_text.clone());
+                            });
                         });
                     });
                     // Make the whole row clickable; attach the stable result author_id.
@@ -620,7 +737,7 @@ fn show_with_author_scope(
                         &pane_scoped_result_author_id(&block_id, secondary_pane_id),
                     );
                     if row.clicked() {
-                        open_block = Some(block_id);
+                        open_block = Some((block_id, hit.block.content_type.clone()));
                     }
                 }
             });
@@ -630,8 +747,8 @@ fn show_with_author_scope(
     if let Some(content_type) = toggle_facet {
         state.toggle_facet(&content_type, client, workspace_id);
     }
-    if let Some(block_id) = open_block {
-        (callbacks.on_open_block)(&block_id);
+    if let Some((block_id, content_type)) = open_block {
+        on_open_block(&block_id, &content_type);
     }
     if fire_search {
         state.run_search(client, workspace_id);
@@ -643,8 +760,17 @@ fn show_with_author_scope(
 
 // ── Pane factory (the in-product render path — AC-9) ──────────────────────────────────────────────────
 
+/// A result-navigation request retaining both its mounted origin and canonical target identity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoomSearchOpenRequest {
+    pub origin_pane_id: PaneId,
+    pub workspace_id: String,
+    pub block_id: String,
+    pub content_type: String,
+}
+
 /// Per-frame inputs the shell pushes to the [`LoomSearchV2PaneFactory`] before the pane host renders,
-/// plus the open-block requests the factory pushes back. `PaneFactory::render` takes `&self`, so this
+/// plus the typed open-block requests the factory pushes back. `PaneFactory::render` takes `&self`, so this
 /// shared cell (behind a `Mutex`) is how the live app threads the active workspace id + theme palette
 /// IN and drains result-row clicks OUT — without `&mut self` on the factory map. The shell updates
 /// `workspace_id`/`palette` at the top of each frame and drains `open_requests` after the pane host runs
@@ -656,9 +782,9 @@ pub struct LoomSearchV2PaneShared {
     /// The live theme palette, so the `<mark>` highlight reads the themed `search_highlight_bg` and the
     /// pane flips dark<->light with the rest of the shell.
     pub palette: HsPalette,
-    /// Block ids the operator/agent clicked this frame, drained by the shell into the Loom block-open
-    /// path (FIFO). The factory's `on_open_block` callback pushes here.
-    pub open_requests: Vec<String>,
+    /// Typed targets the operator/agent clicked this frame, drained by the shell into the exact
+    /// originating pane's open path (FIFO).
+    pub open_requests: Vec<LoomSearchOpenRequest>,
 }
 
 impl LoomSearchV2PaneShared {
@@ -682,12 +808,44 @@ impl LoomSearchV2PaneShared {
 /// shared [`LoomSearchV2PaneShared`] cell. The HTTP transport reuses the real
 /// [`LoomSearchV2Client`] (the SAME verified routes the request-builder + live-PG proofs bind).
 pub struct LoomSearchV2PaneFactory {
-    state: Mutex<LoomSearchV2PanelState>,
+    /// Pane-local state keyed by the registry's stable pane identity. Two mounted search panes must
+    /// never share query, response, loading, save, or delivery-cell state.
+    states: Mutex<BTreeMap<PaneId, LoomSearchV2PanelState>>,
+    /// Compatibility seed used by `with_state`: the first real pane rendered receives it.
+    initial_state: Mutex<Option<LoomSearchV2PanelState>>,
     client: LoomSearchV2Client,
     shared: Arc<Mutex<LoomSearchV2PaneShared>>,
-    /// First pane rendered by this factory retains the canonical ids. Every additional pane is
-    /// deterministically scoped by its stable pane id, preventing full-tree author-id overlap.
-    primary_pane_id: Mutex<Option<PaneId>>,
+    /// Exactly one recently rendered pane owns canonical ids. If that pane disappears for a complete
+    /// render pass, the next surviving pane takes over; reopening the old pane cannot create duplicates.
+    primary: Mutex<PrimaryPaneLease>,
+}
+
+#[derive(Debug, Default)]
+struct PrimaryPaneLease {
+    pane_id: Option<PaneId>,
+    last_seen_pass: u64,
+}
+
+impl PrimaryPaneLease {
+    fn is_primary(&mut self, pane_id: &PaneId, pass: u64) -> bool {
+        match self.pane_id.as_ref() {
+            None => {
+                self.pane_id = Some(pane_id.clone());
+                self.last_seen_pass = pass;
+                true
+            }
+            Some(primary) if primary == pane_id => {
+                self.last_seen_pass = pass;
+                true
+            }
+            Some(_) if pass > self.last_seen_pass.saturating_add(1) => {
+                self.pane_id = Some(pane_id.clone());
+                self.last_seen_pass = pass;
+                true
+            }
+            Some(_) => false,
+        }
+    }
 }
 
 impl LoomSearchV2PaneFactory {
@@ -707,10 +865,11 @@ impl LoomSearchV2PaneFactory {
         state: LoomSearchV2PanelState,
     ) -> Self {
         Self {
-            state: Mutex::new(state),
+            states: Mutex::new(BTreeMap::new()),
+            initial_state: Mutex::new(Some(state)),
             client,
             shared,
-            primary_pane_id: Mutex::new(None),
+            primary: Mutex::new(PrimaryPaneLease::default()),
         }
     }
 }
@@ -727,39 +886,52 @@ impl PaneFactory for LoomSearchV2PaneFactory {
             let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             (guard.workspace_id.clone(), guard.palette.clone())
         };
-        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
         let shared_for_open = Arc::clone(&self.shared);
-        // The open-block callback pushes the clicked id into the shared cell; the shell drains it into
-        // the Loom block-open path after the pane host runs (open-in-place, a REFERENCE — never a copy).
-        let mut on_open = move |block_id: &str| {
+        let origin_pane_id = ctx.record.pane_id.clone();
+        let open_workspace_id = workspace_id.clone().unwrap_or_default();
+        // Preserve origin pane, workspace, block, and content type. The host can now navigate the exact
+        // source pane instead of consulting mutable global active-pane state after the click.
+        let mut on_open = move |block_id: &str, content_type: &str| {
             if let Ok(mut guard) = shared_for_open.lock() {
-                guard.open_requests.push(block_id.to_owned());
+                guard.open_requests.push(LoomSearchOpenRequest {
+                    origin_pane_id: origin_pane_id.clone(),
+                    workspace_id: open_workspace_id.clone(),
+                    block_id: block_id.to_owned(),
+                    content_type: content_type.to_owned(),
+                });
             }
-        };
-        let mut callbacks = LoomSearchV2Callbacks {
-            on_open_block: &mut on_open,
         };
         let secondary_pane_id = {
             let mut primary = self
-                .primary_pane_id
+                .primary
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            match primary.as_ref() {
-                Some(primary_id) if primary_id == &ctx.record.pane_id => None,
-                Some(_) => Some(ctx.record.pane_id.as_ref()),
-                None => {
-                    *primary = Some(ctx.record.pane_id.clone());
-                    None
-                }
+            if primary.is_primary(&ctx.record.pane_id, ui.ctx().cumulative_pass_nr()) {
+                None
+            } else {
+                Some(ctx.record.pane_id.as_ref())
             }
         };
-        show_with_author_scope(
+        let mut states = self.states.lock().unwrap_or_else(|p| p.into_inner());
+        if !states.contains_key(&ctx.record.pane_id) {
+            let initial = self
+                .initial_state
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .take()
+                .unwrap_or_default();
+            states.insert(ctx.record.pane_id.clone(), initial);
+        }
+        let state = states
+            .get_mut(&ctx.record.pane_id)
+            .expect("pane state inserted immediately above");
+        show_with_author_scope_and_dispatch(
             ui,
-            &mut state,
+            state,
             &palette,
             &self.client,
             workspace_id.as_deref(),
-            &mut callbacks,
+            &mut on_open,
             secondary_pane_id,
         );
     }
@@ -768,6 +940,9 @@ impl PaneFactory for LoomSearchV2PaneFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pane_registry::{
+        DirtyState, LockState, PaneAuthority, PaneRecord, PaneRenderContext,
+    };
     use egui_kittest::kittest::NodeT;
     use egui_kittest::Harness;
     use std::collections::BTreeMap;
@@ -777,6 +952,7 @@ mod tests {
         assert_eq!(QUERY_AUTHOR_ID, "search.query");
         assert_eq!(SEARCH_AUTHOR_ID, "search.run");
         assert_eq!(result_author_id("BLOCK-9"), "search.result.BLOCK-9");
+        assert_eq!(preview_author_id("BLOCK-9"), "search.preview.BLOCK-9");
         assert_eq!(pane_scoped_author_id(QUERY_AUTHOR_ID, None), "search.query");
         assert_eq!(
             pane_scoped_author_id(QUERY_AUTHOR_ID, Some("pane-two")),
@@ -785,6 +961,10 @@ mod tests {
         assert_eq!(
             pane_scoped_result_author_id("BLOCK-9", Some("pane-two")),
             "search.result.BLOCK-9--pane-70616e652d74776f"
+        );
+        assert_eq!(
+            pane_scoped_preview_author_id("BLOCK-9", Some("pane-two")),
+            "search.preview.BLOCK-9--pane-70616e652d74776f"
         );
     }
 
@@ -884,6 +1064,234 @@ mod tests {
         assert!(authors.iter().any(|author| {
             author == &pane_scoped_result_author_id("shared-block", Some("pane-two"))
         }));
+        assert!(authors
+            .iter()
+            .any(|author| author == &preview_author_id("shared-block")));
+        assert!(authors.iter().any(|author| {
+            author == &pane_scoped_preview_author_id("shared-block", Some("pane-two"))
+        }));
+    }
+
+    #[test]
+    fn primary_lease_transfers_after_owner_misses_a_complete_pass() {
+        let pane_a: PaneId = Arc::from("search-a");
+        let pane_b: PaneId = Arc::from("search-b");
+        let mut lease = PrimaryPaneLease::default();
+
+        assert!(lease.is_primary(&pane_a, 10));
+        assert!(!lease.is_primary(&pane_b, 10));
+        assert!(!lease.is_primary(&pane_b, 11));
+        assert!(
+            lease.is_primary(&pane_b, 12),
+            "a surviving pane takes canonical ids after the prior owner misses pass 11"
+        );
+        assert!(!lease.is_primary(&pane_a, 12));
+    }
+
+    #[test]
+    fn mounted_factory_keeps_exactly_one_state_and_unique_tree_per_pane() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let shared = Arc::new(Mutex::new(LoomSearchV2PaneShared::new(
+            crate::theme::HsTheme::Dark.palette(),
+        )));
+        let factory = Arc::new(LoomSearchV2PaneFactory::new(
+            LoomSearchV2Client::new("http://127.0.0.1:9", runtime.handle().clone()),
+            shared,
+        ));
+        let pane_a = PaneRecord::new(
+            Arc::from("search-a"),
+            PaneType::LoomSearchV2,
+            "workspace-a",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        );
+        let pane_b = PaneRecord::new(
+            Arc::from("search-b"),
+            PaneType::LoomSearchV2,
+            "workspace-a",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        );
+        let factory_for_ui = Arc::clone(&factory);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(900.0, 700.0))
+            .build_ui(move |ui| {
+                let _keep_runtime_alive = &runtime;
+                ui.push_id("mounted-search-a", |ui| {
+                    factory_for_ui.render(
+                        ui,
+                        &PaneRenderContext {
+                            record: &pane_a,
+                            egui_id: egui::Id::new("mounted-search-a"),
+                        },
+                    );
+                });
+                ui.push_id("mounted-search-b", |ui| {
+                    factory_for_ui.render(
+                        ui,
+                        &PaneRenderContext {
+                            record: &pane_b,
+                            egui_id: egui::Id::new("mounted-search-b"),
+                        },
+                    );
+                });
+            });
+        harness.run();
+
+        let authors = harness
+            .root()
+            .children_recursive()
+            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+            .collect::<Vec<_>>();
+        let unique = authors.iter().collect::<std::collections::HashSet<_>>();
+        assert_eq!(unique.len(), authors.len(), "{authors:?}");
+        assert_eq!(
+            authors
+                .iter()
+                .filter(|author| author.as_str() == QUERY_AUTHOR_ID)
+                .count(),
+            1,
+            "exactly one mounted pane owns the canonical query id"
+        );
+        assert_eq!(
+            authors
+                .iter()
+                .filter(|author| author.starts_with("search.query"))
+                .count(),
+            2,
+            "both mounted pane query nodes remain addressable"
+        );
+
+        let states = factory.states.lock().expect("mounted pane states");
+        assert_eq!(states.len(), 2);
+        let mut mounted_states = states.values();
+        let state_a = mounted_states.next().expect("first mounted state");
+        let state_b = mounted_states.next().expect("second mounted state");
+        assert!(!Arc::ptr_eq(&state_a.search_cell, &state_b.search_cell));
+        assert!(!Arc::ptr_eq(&state_a.save_cell, &state_b.save_cell));
+    }
+
+    #[test]
+    fn mounted_preview_is_plain_and_navigation_request_retains_origin() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let shared = Arc::new(Mutex::new(LoomSearchV2PaneShared::new(
+            crate::theme::HsTheme::Dark.palette(),
+        )));
+        shared.lock().expect("shared").workspace_id = Some("workspace-a".to_owned());
+        let mut state = LoomSearchV2PanelState::new();
+        state.bind_workspace(Some("workspace-a"));
+        state.query = "shared".to_owned();
+        state.saved_view_block_id = Some("saved-view-a".to_owned());
+        state.response = Some(LoomSearchV2Response {
+            hits: vec![crate::backend_client::LoomSearchV2Hit {
+                block: crate::backend_client::LoomSearchBlock {
+                    block_id: "block-a".to_owned(),
+                    content_type: "note".to_owned(),
+                    document_id: Some("doc-a".to_owned()),
+                    title: Some("Block A".to_owned()),
+                },
+                score: 1.0,
+                fts_rank: 1.0,
+                trgm_sim: 0.0,
+                vector_sim: 0.0,
+                edge_degree: 0,
+                highlight: "<mark>shared</mark> plain preview".to_owned(),
+            }],
+            content_type_facets: BTreeMap::from([("note".to_owned(), 1)]),
+            semantic_available: false,
+            total: 1,
+        });
+        let factory = Arc::new(LoomSearchV2PaneFactory::with_state(
+            LoomSearchV2Client::new("http://127.0.0.1:9", runtime.handle().clone()),
+            Arc::clone(&shared),
+            state,
+        ));
+        let pane = PaneRecord::new(
+            Arc::from("search-origin"),
+            PaneType::LoomSearchV2,
+            "workspace-a",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        );
+        let factory_for_ui = Arc::clone(&factory);
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(900.0, 700.0))
+            .build_ui(move |ui| {
+                let _keep_runtime_alive = &runtime;
+                factory_for_ui.render(
+                    ui,
+                    &PaneRenderContext {
+                        record: &pane,
+                        egui_id: egui::Id::new("search-origin"),
+                    },
+                );
+            });
+        harness.run();
+
+        let preview = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some("search.preview.block-a"))
+            .expect("stable result preview");
+        assert_eq!(
+            preview.accesskit_node().role(),
+            egui::accesskit::Role::Label
+        );
+        assert_eq!(
+            preview.accesskit_node().label(),
+            Some("shared plain preview".to_owned())
+        );
+        assert!(!preview
+            .accesskit_node()
+            .label()
+            .unwrap_or_default()
+            .contains("<mark>"));
+
+        harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some("search.result.block-a"))
+            .expect("result action")
+            .click_accesskit();
+        harness.run_steps(1);
+        harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(OPEN_SAVED_VIEW_AUTHOR_ID))
+            .expect("open saved view action")
+            .click_accesskit();
+        harness.run_steps(1);
+
+        let shared_guard = shared.lock().expect("typed open requests");
+        assert_eq!(
+            shared_guard.open_requests.as_slice(),
+            &[
+                LoomSearchOpenRequest {
+                    origin_pane_id: Arc::from("search-origin"),
+                    workspace_id: "workspace-a".to_owned(),
+                    block_id: "block-a".to_owned(),
+                    content_type: "note".to_owned(),
+                },
+                LoomSearchOpenRequest {
+                    origin_pane_id: Arc::from("search-origin"),
+                    workspace_id: "workspace-a".to_owned(),
+                    block_id: "saved-view-a".to_owned(),
+                    content_type: "view_def".to_owned(),
+                },
+            ]
+        );
     }
 
     fn response_with(facets: &[(&str, i64)], semantic: bool, total: i64) -> LoomSearchV2Response {
@@ -1003,6 +1411,7 @@ mod tests {
         state.response = Some(response_with(&[("note", 1)], false, 1));
         state.error = Some("stale search error".to_owned());
         state.view_status = Some("Saved search as Loom view stale-a".to_owned());
+        state.saved_view_block_id = Some("saved-view-a".to_owned());
         state.query = "cats and dogs".to_owned(); // changed
         state.on_query_edited();
         assert!(state.active_content_type.is_none());
@@ -1015,6 +1424,11 @@ mod tests {
         assert!(
             state.view_status.is_none(),
             "query A's save receipt is stale under B"
+        );
+        assert_eq!(
+            state.saved_view_block_id.as_deref(),
+            Some("saved-view-a"),
+            "a confirmed canonical saved block remains reopenable after query editing"
         );
     }
 
@@ -1063,6 +1477,7 @@ mod tests {
         state.loading = true;
         state.error = Some("old error".to_owned());
         state.view_status = Some("old save receipt".to_owned());
+        state.saved_view_block_id = Some("old-saved-view".to_owned());
 
         assert!(state.bind_workspace(Some("workspace-b")));
         *stale_cell.lock().expect("stale delivery cell") =
@@ -1078,6 +1493,7 @@ mod tests {
         assert!(!state.loading);
         assert!(state.error.is_none());
         assert!(state.view_status.is_none());
+        assert!(state.saved_view_block_id.is_none());
     }
 
     #[test]
@@ -1228,18 +1644,45 @@ mod tests {
         let mut state = LoomSearchV2PanelState::new();
         state.bind_workspace(Some("workspace-a"));
         state.query = "stable retry".to_owned();
-        state.response = Some(response_with(&[("note", 1)], false, 1));
+        state.response = Some(LoomSearchV2Response {
+            hits: vec![crate::backend_client::LoomSearchV2Hit {
+                block: crate::backend_client::LoomSearchBlock {
+                    block_id: "retry-source".to_owned(),
+                    content_type: "note".to_owned(),
+                    document_id: None,
+                    title: Some("Stable retry".to_owned()),
+                },
+                score: 1.0,
+                fts_rank: 1.0,
+                trgm_sim: 0.0,
+                vector_sim: 0.0,
+                edge_degree: 0,
+                highlight: "<mark>stable retry</mark>".to_owned(),
+            }],
+            content_type_facets: BTreeMap::from([("note".to_owned(), 1)]),
+            semantic_available: false,
+            total: 1,
+        });
 
         state.save_as_view(&client, Some("workspace-a"));
         let first_id = state
             .save_attempt_id
             .clone()
             .expect("save dispatch owns a stable id");
+        let first_cell = Arc::clone(&state.save_cell);
+        assert!(state.save_in_flight);
+        state.save_as_view(&client, Some("workspace-a"));
+        assert!(
+            Arc::ptr_eq(&first_cell, &state.save_cell),
+            "duplicate activation while pending cannot dispatch or replace the delivery cell"
+        );
         *state.save_cell.lock().expect("save cell") = Some(Err("response lost".to_owned()));
         assert!(state.poll());
+        assert!(!state.save_in_flight);
         assert_eq!(state.save_attempt_id.as_deref(), Some(first_id.as_str()));
 
         state.save_as_view(&client, Some("workspace-a"));
+        assert!(state.save_in_flight);
         assert_eq!(
             state.save_attempt_id.as_deref(),
             Some(first_id.as_str()),
@@ -1247,9 +1690,14 @@ mod tests {
         );
         *state.save_cell.lock().expect("retry save cell") = Some(Ok(first_id.clone()));
         assert!(state.poll());
+        assert!(!state.save_in_flight);
         assert!(
             state.save_attempt_id.is_none(),
             "successful authority response retires the retry identity"
+        );
+        assert_eq!(
+            state.saved_view_block_id.as_deref(),
+            Some(first_id.as_str())
         );
     }
 }

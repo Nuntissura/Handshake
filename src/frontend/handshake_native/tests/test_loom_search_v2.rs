@@ -41,17 +41,23 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
+#[cfg(feature = "integration")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[cfg(feature = "integration")]
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::backend_client::{
     LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Client, LoomSearchV2Hit, LoomSearchV2Response,
 };
 use handshake_native::loom_search_v2::{
-    facet_author_id, highlight_layout_job, parse_highlight_segments, result_author_id,
-    LoomSearchV2Callbacks, LoomSearchV2PaneFactory, LoomSearchV2PaneShared, LoomSearchV2PanelState,
-    QUERY_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, SEARCH_AUTHOR_ID, STATUS_AUTHOR_ID,
+    facet_author_id, highlight_layout_job, parse_highlight_segments, preview_author_id,
+    result_author_id, LoomSearchV2Callbacks, LoomSearchV2PaneFactory, LoomSearchV2PaneShared,
+    LoomSearchV2PanelState, QUERY_AUTHOR_ID, SAVE_STATUS_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID,
+    SEARCH_AUTHOR_ID, STATUS_AUTHOR_ID,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneRecord, PaneRegistry,
@@ -221,6 +227,7 @@ fn accesskit_tree_has_all_contract_author_ids() {
         QUERY_AUTHOR_ID,
         SEARCH_AUTHOR_ID,
         SAVE_VIEW_AUTHOR_ID,
+        SAVE_STATUS_AUTHOR_ID,
         STATUS_AUTHOR_ID,
     ] {
         assert!(
@@ -250,6 +257,12 @@ fn accesskit_tree_has_all_contract_author_ids() {
         ids.contains(&result_author_id("blk-3")),
         "PT-3: result.blk-3 missing"
     );
+    for block_id in ["blk-1", "blk-2", "blk-3"] {
+        assert!(
+            ids.contains(&preview_author_id(block_id)),
+            "PT-3: stable preview for {block_id} missing"
+        );
+    }
 
     println!("PT-3/AC-1/AC-8: all 6 contract author_ids present in the live AccessKit tree");
     assert_no_local_artifact_dir();
@@ -701,6 +714,7 @@ fn pane_opens_via_registry_and_renders_real_panel() {
         QUERY_AUTHOR_ID,
         SEARCH_AUTHOR_ID,
         SAVE_VIEW_AUTHOR_ID,
+        SAVE_STATUS_AUTHOR_ID,
         STATUS_AUTHOR_ID,
     ] {
         assert!(
@@ -716,17 +730,21 @@ fn pane_opens_via_registry_and_renders_real_panel() {
         ids.contains(&result_author_id("blk-1")),
         "AC-9: result.blk-1 missing from registry-dispatched pane"
     );
+    assert!(
+        ids.contains(&preview_author_id("blk-1")),
+        "AC-9: preview.blk-1 missing from registry-dispatched pane"
+    );
 
     // A result-row click through the registry-dispatched pane routes the block id into the shared cell
     // the shell drains (open-in-place). Proves on_open_block is wired by the factory, not just show().
     click_author_id(&harness, &result_author_id("blk-2"));
     harness.run();
     let opened = shared.lock().unwrap().open_requests.clone();
-    assert_eq!(
-        opened.as_slice(),
-        ["blk-2"],
-        "AC-9: clicking a result row via the registry-dispatched pane pushed the block id into the shell's open-block cell"
-    );
+    assert_eq!(opened.len(), 1);
+    assert_eq!(opened[0].origin_pane_id.as_ref(), "loom-search-pane");
+    assert_eq!(opened[0].workspace_id, "ws-1");
+    assert_eq!(opened[0].block_id, "blk-2");
+    assert_eq!(opened[0].content_type, "note");
     println!("AC-9: LoomSearchV2 pane opens via the WP-011 registry/PaneHostWidget and renders the REAL panel + open-block wiring");
     assert_no_local_artifact_dir();
 }
@@ -1233,7 +1251,7 @@ fn wait_panel_idle(state: &mut LoomSearchV2PanelState) {
 #[test]
 #[cfg(feature = "integration")]
 fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
-    let live = interconnect_support::require_reachable_backend();
+    let mut live = interconnect_support::require_reachable_backend();
     let receipt_dir = external_artifact_dir("wp-kernel-012-mt-028");
     std::fs::create_dir_all(&receipt_dir).expect("create MT-028 external receipt directory");
     let receipt_path = receipt_dir.join("MT-028-managed-loom-search-v2-receipt.json");
@@ -1437,6 +1455,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     assert!(app.dispatch_palette_action_for_test(
         handshake_native::command_registry::CMD_VIEW_LOOM_SEARCH
     ));
+    let mut argus = CanonicalArgusDriver::bind(&app, "mt028-notes-search");
     let _managed_wgpu_guard = wgpu_guard();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(900.0, 760.0))
@@ -1451,6 +1470,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         QUERY_AUTHOR_ID,
         SEARCH_AUTHOR_ID,
         SAVE_VIEW_AUTHOR_ID,
+        SAVE_STATUS_AUTHOR_ID,
         STATUS_AUTHOR_ID,
     ] {
         assert!(
@@ -1458,24 +1478,32 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
             "mounted UI missing stable id {stable}"
         );
     }
-    let query_input = harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
-        .expect("mounted Loom Search query input");
-    // `egui_kittest::Node::type_text` emits only `Event::Text`; it does not focus the TextEdit first.
-    // Drive the real stable AccessKit Focus action and let the mounted shell consume it before typing,
-    // otherwise the text event has no recipient and Enter truthfully dispatches no search.
-    query_input.focus();
-    harness.run_steps(1);
-    harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
-        .expect("focused mounted Loom Search query input")
-        .type_text(&needle);
-    harness.run_steps(1);
-    harness.key_press(egui::Key::Enter);
+    let initial_tree = argus.inspect(&mut harness);
+    for stable in [
+        QUERY_AUTHOR_ID,
+        SEARCH_AUTHOR_ID,
+        SAVE_VIEW_AUTHOR_ID,
+        SAVE_STATUS_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&initial_tree, stable),
+            "canonical Argus initial inspection missing {stable}"
+        );
+    }
+    argus.set_value_and_reinspect(&mut harness, QUERY_AUTHOR_ID, &needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "query-value-visible",
+        serde_json::json!({"query": needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
     for _ in 0..400 {
         harness.run_steps(1);
         let ids = author_ids(&harness);
@@ -1487,6 +1515,19 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         }
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "populated-results-preview-visible",
+        serde_json::json!({"result_ids": seeded.values().collect::<Vec<_>>()}),
+        |tree| {
+            let serialized = serde_json::to_string(tree).unwrap_or_default();
+            seeded.values().all(|block_id| {
+                json_has_author_id(tree, &result_author_id(block_id))
+                    && json_has_author_id(tree, &preview_author_id(block_id))
+            }) && serialized.contains("3 results (keyword/fuzzy only)")
+                && serialized.contains("<mark>") == false
+        },
+    );
     // Assert delivery independently before inspecting row exposure. If this fails, the mounted
     // transport/query/generation path did not publish the managed response; a subsequent row-id
     // failure therefore means AccessKit exposure, not an ambiguous network/timing failure.
@@ -1558,7 +1599,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     }
     harness.get_by_label("3 results (keyword/fuzzy only)");
 
-    click_author_id(&harness, &facet_author_id("note"));
+    argus.click_and_reinspect(&mut harness, &facet_author_id("note"));
     for _ in 0..400 {
         harness.run_steps(1);
         let ids = author_ids(&harness);
@@ -1570,6 +1611,22 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         }
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "note-facet-filtered",
+        serde_json::json!({
+            "included": seeded["note"],
+            "excluded": [seeded["file"].clone(), seeded["tag_hub"].clone()]
+        }),
+        |tree| {
+            json_has_author_id(tree, &result_author_id(&seeded["note"]))
+                && !json_has_author_id(tree, &result_author_id(&seeded["file"]))
+                && !json_has_author_id(tree, &result_author_id(&seeded["tag_hub"]))
+                && serde_json::to_string(tree)
+                    .unwrap_or_default()
+                    .contains("1 result (keyword/fuzzy only)")
+        },
+    );
     let note_ids = author_ids(&harness);
     assert!(
         note_ids.contains(&result_author_id(&seeded["note"]))
@@ -1733,7 +1790,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         rebind_proxy.captured_requests()
     );
     harness.get_by_label("1 result (keyword/fuzzy only)");
-    click_author_id(&harness, SAVE_VIEW_AUTHOR_ID);
+    argus.click_and_reinspect(&mut harness, SAVE_VIEW_AUTHOR_ID);
 
     let mut saved_view_id = None;
     for _ in 0..400 {
@@ -1752,6 +1809,16 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         saved_view_id.expect("mounted Save as view persisted a searchable view_def");
     harness.run_steps(2);
     harness.get_by_label(&format!("Saved search as Loom view {saved_view_id}"));
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "saved-view-id-visible",
+        serde_json::json!({"saved_view_id": saved_view_id.clone()}),
+        |tree| {
+            serde_json::to_string(tree)
+                .unwrap_or_default()
+                .contains(&format!("Saved search as Loom view {saved_view_id}"))
+        },
+    );
     let reloaded = live.get_json(&format!(
         "/workspaces/{workspace_id}/loom/views/definitions/{saved_view_id}"
     ));
@@ -1782,14 +1849,219 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     assert!(!persisted_ids.contains(seeded["file"].as_str()));
     assert!(!persisted_ids.contains(seeded["tag_hub"].as_str()));
 
-    click_author_id(&harness, &result_author_id(&seeded["note"]));
-    harness.run_steps(1);
+    // A canonical run forces a fixture-owned current-source backend. Restart that exact owned process
+    // on its existing PostgreSQL authority, then prove the persisted view remains reloadable. The
+    // cleanup guard is temporarily released only around the mutable restart and is reconstructed
+    // before any panic can leave this scope.
+    let canonical_restart = if std::env::var_os("HANDSHAKE_ARGUS_MATRIX_RUN_ID").is_some() {
+        cleanup.cleaned = true;
+        drop(cleanup);
+        let restart =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| live.restart_owned()));
+        cleanup = ManagedWorkspaceCleanup {
+            backend: &live,
+            workspace_id: workspace_id.clone(),
+            cleaned: false,
+        };
+        let (old_base, new_base) = match restart {
+            Ok(restarted) => restarted,
+            Err(payload) => {
+                let _ = cleanup.clean();
+                std::panic::resume_unwind(payload);
+            }
+        };
+        assert_eq!(old_base, new_base);
+        let restarted_view = live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/views/definitions/{saved_view_id}"
+        ));
+        assert_eq!(restarted_view["block"]["block_id"], saved_view_id);
+        Some(serde_json::json!({
+            "old_base": old_base,
+            "new_base": new_base,
+            "persisted_view_reloaded": true,
+            "backend_binding": live.owned_backend_binding_receipt()
+        }))
+    } else {
+        None
+    };
+
+    // Canonical mounted empty state: drive a guaranteed-miss query through the production Argus
+    // transport, then bind the Search action to the exact zero-row terminal tree.
+    let missing_query = format!("no-hit-{unique}");
+    argus.set_value_and_reinspect(&mut harness, QUERY_AUTHOR_ID, &missing_query);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "empty-query-value-visible",
+        serde_json::json!({"query": missing_query.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(missing_query.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if harness
+            .query_by_label("0 results (keyword/fuzzy only)")
+            .is_some()
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate(&mut harness, "zero-results-no-stale-rows", |tree| {
+        let serialized = serde_json::to_string(tree).unwrap_or_default();
+        serialized.contains("0 results (keyword/fuzzy only)")
+            && seeded
+                .values()
+                .all(|block_id| !json_has_author_id(tree, &result_author_id(block_id)))
+    });
+    let empty_save_disabled = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(SAVE_VIEW_AUTHOR_ID))
+        .map(|node| node.accesskit_node().is_disabled())
+        .expect("empty mounted Save as view remains addressable");
+    assert!(empty_save_disabled);
+
+    // Canonical mounted backend-error/recovery state. Rebind the concrete factory to a refused
+    // loopback port, prove a bounded visible terminal error, then restore the managed proxy and
+    // recover the same mounted pane through the same stable Search action.
+    harness
+        .state_mut()
+        .set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    harness.run_steps(2);
+    argus.set_value_and_reinspect(&mut harness, QUERY_AUTHOR_ID, &needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "error-query-value-visible",
+        serde_json::json!({"query": needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
+    let mut mounted_error_tree = None;
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let tree = argus.inspect(&mut harness);
+        let status = json_node_by_author_id(&tree, STATUS_AUTHOR_ID)
+            .map(|node| serde_json::to_string(node).unwrap_or_default())
+            .unwrap_or_default();
+        if status.contains("error sending request") || status.contains("Connection refused") {
+            mounted_error_tree = Some(tree);
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        mounted_error_tree.is_some(),
+        "mounted refused backend must reach a bounded visible error"
+    );
+    argus.assert_latest_terminal_predicate(&mut harness, "backend-error-visible", |tree| {
+        let status = json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+            .map(|node| serde_json::to_string(node).unwrap_or_default())
+            .unwrap_or_default();
+        status.contains("error sending request") || status.contains("Connection refused")
+    });
+
+    harness
+        .state_mut()
+        .set_backend_base_url_for_test(&rebind_proxy.base, runtime.handle().clone());
+    harness.run_steps(2);
+    argus.set_value_and_reinspect(&mut harness, QUERY_AUTHOR_ID, &needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "recovery-query-value-visible",
+        serde_json::json!({"query": needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if author_ids(&harness).contains(&result_author_id(&saved_view_id)) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "backend-recovered-with-saved-view-result",
+        serde_json::json!({"saved_view_id": saved_view_id.clone()}),
+        |tree| json_has_author_id(tree, &result_author_id(&saved_view_id)),
+    );
+
+    // Reopen the saved view from the mounted Notes Search surface itself. The view_def facet is
+    // selected through canonical Argus, then the exact saved row is activated. The host must route
+    // that typed result back into the mounted Block Collections surface at the same canonical id.
+    argus.click_and_reinspect(&mut harness, &facet_author_id("view_def"));
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let ids = author_ids(&harness);
+        if ids.contains(&result_author_id(&saved_view_id))
+            && ids.contains(&result_author_id(&stale_saved_view_id))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "saved-view-facet-visible",
+        serde_json::json!({
+            "saved_view_id": saved_view_id.clone(),
+            "orphaned_receipt_view_id": stale_saved_view_id.clone()
+        }),
+        |tree| {
+            json_has_author_id(tree, &result_author_id(&saved_view_id))
+                && json_has_author_id(tree, &result_author_id(&stale_saved_view_id))
+        },
+    );
+    argus.click_and_reinspect(&mut harness, &result_author_id(&saved_view_id));
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let block_collections = handshake_native::editor_pane_factories::placeholder_pane_type(
+            handshake_native::editor_pane_factories::BLOCK_COLLECTIONS_PANE_LABEL,
+        );
+        if harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs.iter().any(|tab| {
+                tab.pane_type == block_collections
+                    && tab.content_id.as_deref() == Some(saved_view_id.as_str())
+            })
+        }) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "saved-view-reopened-in-block-collections",
+        serde_json::json!({"saved_view_id": saved_view_id.clone()}),
+        |tree| {
+            let serialized = serde_json::to_string(tree).unwrap_or_default();
+            serialized.contains(&saved_view_id) && serialized.contains("Block Collections")
+        },
+    );
+    let block_collections = handshake_native::editor_pane_factories::placeholder_pane_type(
+        handshake_native::editor_pane_factories::BLOCK_COLLECTIONS_PANE_LABEL,
+    );
     assert!(harness.state().tab_bar_states().values().any(|bar| {
         bar.tabs.iter().any(|tab| {
-            tab.pane_type == PaneType::LoomBlock
-                && tab.content_id.as_deref() == Some(seeded["note"].as_str())
+            tab.pane_type == block_collections
+                && tab.content_id.as_deref() == Some(saved_view_id.as_str())
         })
     }));
+    argus.finish();
 
     // Stop the proxy only after every mounted mutation completed, then prove the traffic used the
     // rebound factory rather than the production default. The path prefix is present only in the
@@ -1869,7 +2141,8 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
             "mounted_facet_rerun": "note"
         },
         "stable_accesskit_ids": [
-            QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, STATUS_AUTHOR_ID,
+            QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, SAVE_STATUS_AUTHOR_ID,
+            STATUS_AUTHOR_ID,
             "loom-search-v2.facet.note", "loom-search-v2.facet.file",
             "loom-search-v2.facet.tag_hub"
         ],
@@ -1877,7 +2150,14 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         "saved_view": {
             "block_id": saved_view_id,
             "reloaded": true,
-            "persisted_note_facet": true
+            "persisted_note_facet": true,
+            "reopened_in_block_collections": true
+        },
+        "canonical_argus": {
+            "inspect_click_set_value_with_terminal_predicates": true,
+            "mounted_populated_empty_error_recovery": true,
+            "saved_view_reopen": true,
+            "owned_backend_restart": canonical_restart
         },
         "empty_query_rejected_without_request": true,
         "backend_refusal_visible_and_live_recovery": true,

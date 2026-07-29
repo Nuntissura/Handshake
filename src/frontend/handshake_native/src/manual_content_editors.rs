@@ -1443,18 +1443,42 @@ for deterministic controls, and use screenshot when spatial placement itself mus
 }
 
 fn search_body() -> String {
-    "Handshake has three complementary search surfaces for the melt-together worksurface. (1) Loom Search v2 \
-is the hybrid semantic+keyword block search: type into search.query, run search.run, narrow \
-with loom-search-v2.facet.* facets, read loom-search-v2.status, and open a hit from search.result.*; \
-it queries the handshake_core Loom hybrid-search route. The primary Loom Search pane retains those canonical ids; \
-each additional pane appends --pane-<full-pane-id-UTF-8-hex> to every query, run, save, status, facet, and result \
-id so multiple live panes remain globally unique and deterministic. The status reports semantic-on versus keyword/fuzzy-only \
-from the backend's semantic_available truth; marked excerpts render as highlighted text, never raw mark tags. \
-loom-search-v2.save-view is disabled until results exist; after a facet rerun it persists the current facet as a \
-table view through POST /workspaces/{workspace_id}/loom/views/definitions, then shows the reloadable view block id. \
-Empty queries and backend failures remain visible instead of spinning forever; correct the input or backend and run \
-Search again. Workspace switches clear results, facets, errors, save receipts, and pending deliveries so an old \
-workspace or superseded query cannot overwrite the active panel. (2) Find in Files is workspace-wide text search + \
+    "Handshake has three complementary search surfaces for the melt-together worksurface. (1) Notes Search is \
+the operator-facing name for the native Loom Search v2 engine. Open it from VIEW > Open Notes Search \
+(menu.view.open-loom-search) or the Command Palette row View: Notes Search (command id view.loom-search; \
+stable row command-palette.option.hs-view-palette-loom-search). Type the query into search.query, activate \
+search.run, narrow with loom-search-v2.facet.* facets, read loom-search-v2.status, and open a hit from \
+search.result.*. The request uses the handshake_core Loom hybrid-search route. The first pane retains those \
+canonical ids; additional panes append --pane-<full-pane-id-UTF-8-hex> to query, run, save, status, facet, and \
+result author ids so the AccessKit tree remains globally unique. Input is a non-empty query plus an optional \
+content-type facet. Output is a clickable Notes block row with title, content-type badge, score, and a highlighted \
+preview; marked excerpts render as highlighted text, never raw mark tags. The status reports semantic-on versus \
+keyword/fuzzy-only from the backend's semantic_available truth. \
+loom-search-v2.save-view is disabled until results exist. After an optional facet rerun, activate it to persist \
+the current facet as a table view through POST /workspaces/{workspace_id}/loom/views/definitions with title \
+Search: {query}; the status then shows the reloadable view block id. Saving does not open the view automatically. \
+To open or reopen it, choose VIEW > Open Quick Switcher (menu.view.open-quick-switcher), enter the exact saved \
+title Search: {query} in quick-switcher.search, verify the returned loom_block has content_type=view_def and the \
+expected block id, and activate that row. The typed route opens the mounted Block Collections pane for that exact \
+view id. After closing the tab, repeat the same Quick Switcher path to reopen it. If the definition or result load \
+shows View error: ..., restore the backend and activate bcv.retry; that reloads the same view id with one bounded \
+definition fetch and one bounded results query. \
+An empty query reports Search query is required without transport. A successful no-hit query reports 0 results and \
+keeps Save as view disabled. A backend error remains visible instead of spinning forever; restore the backend and \
+activate Search again. Workspace switches clear results, facets, errors, save receipts, and pending deliveries so \
+an old workspace or superseded query cannot overwrite the active panel. HBR-INT-009 posture for Notes Search: \
+Tier 1 Flight Recorder/EventLedger = WIRED: each successful search records LoomSearchExecuted, while save-as-view \
+uses the canonical transactional view-definition mutation receipt and Flight Recorder outbox. Tier 2 \
+internal_diagnostics = WIRED at the shared backend-health boundary through typed BackendUnreachable and \
+BackendRecovered edges plus the advancing UI heartbeat; a Notes-Search-specific route-failure event code is \
+DEFERRED-with-reason because none is registered. Tier 3 Palmistry = WIRED through the shared diagnostic ring for \
+freeze/crash survival; it has no Notes-Search-specific payload or tracker. \
+The current durable managed proof is run from src/frontend/handshake_native after setting HSK_TEST_BACKEND_BIN to \
+the current-source external handshake_core executable, HANDSHAKE_TEST_PG_DSN to a real PostgreSQL DSN, and \
+HANDSHAKE_ARTIFACTS_ROOT to the allocated external artifact root: cargo test --features integration --test \
+test_loom_search_v2 loom_search_v2_managed_mounted_search_facet_save_reload_cleanup -- --exact --nocapture. \
+That command proves the mounted live search/save transport and persisted definition reload; it is not canonical \
+Argus reopened-view closure. (2) Find in Files is workspace-wide text search + \
 replace: open it from EDIT > Find in Files (author_id menu.edit.find-all, Ctrl+Shift+F) or the command \
 editor.find.findInFiles, which opens PaneType::FindInFiles. Enter text in find-in-files.query; optionally \
 select kind, comma-separated tag ids, path text, case-sensitive, whole-word, or regex mode; then activate \
@@ -2121,9 +2145,9 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         AgentToolRow {
             author_id: VIEW_OPEN_LOOM_SEARCH_MENU_AUTHOR_ID,
             surface: ManualSurface::Knowledge,
-            action_label: "Open Loom Search from VIEW",
+            action_label: "Open Notes Search from VIEW",
             mcp_tool: "click_widget",
-            description: "click_widget{target:'menu.view.open-loom-search'} opens the mounted Loom search pane.",
+            description: "click_widget{target:'menu.view.open-loom-search'} opens the mounted Notes Search pane through the internal view.loom-search route.",
         },
         AgentToolRow {
             author_id: VIEW_OPEN_FIND_IN_FILES_MENU_AUTHOR_ID,
@@ -2205,9 +2229,9 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         AgentToolRow {
             author_id: VIEW_OPEN_LOOM_SEARCH_PALETTE_AUTHOR_ID,
             surface: ManualSurface::Knowledge,
-            action_label: "Open Loom Search from the command palette",
+            action_label: "Open Notes Search from the command palette",
             mcp_tool: "click_widget",
-            description: "click_widget{target:'command-palette.option.hs-view-palette-loom-search'} opens the same Loom search pane after palette filtering.",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-loom-search'} opens the same Notes Search pane after palette filtering; the stable internal row id retains loom-search.",
         },
         AgentToolRow {
             author_id: VIEW_OPEN_FIND_IN_FILES_PALETTE_AUTHOR_ID,

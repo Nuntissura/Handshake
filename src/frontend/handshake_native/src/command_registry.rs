@@ -538,9 +538,9 @@ const APP_COMMANDS: &[AppCommand] = &[
     AppCommand {
         id: CMD_VIEW_LOOM_SEARCH,
         kind: CommandKind::App,
-        label: "View: Loom Search",
-        description: "Open the LoomSearchV2 pane (full-text + structured Loom search).",
-        keywords: &["view", "loom", "search", "find", "query", "pane"],
+        label: "View: Notes Search",
+        description: "Open Notes Search (hybrid full-text, fuzzy, and semantic Notes search).",
+        keywords: &["view", "notes", "loom", "search", "find", "query", "pane"],
         stable_id: "hs-view-palette-loom-search",
         disabled: false,
     },

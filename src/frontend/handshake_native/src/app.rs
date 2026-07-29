@@ -23468,6 +23468,17 @@ impl HandshakeApp {
         let Some(target) = self.module_target_pane() else {
             return false;
         };
+        self.open_content_on_pane(target, pane_type, content_id)
+    }
+
+    /// Open a tab on one exact mounted pane. Origin-carrying interactions use this instead of
+    /// consulting mutable global focus after the interaction has crossed an async/shared queue.
+    fn open_content_on_pane(
+        &mut self,
+        target: PaneId,
+        pane_type: PaneType,
+        content_id: Option<String>,
+    ) -> bool {
         let sidebar_block_to_bind = if matches!(pane_type, PaneType::LoomBlock) {
             content_id.as_ref().filter(|id| !id.is_empty()).cloned()
         } else {
@@ -23483,7 +23494,6 @@ impl HandshakeApp {
         } else {
             None
         };
-        self.active_pane = Some(target.clone());
         if let Some(bar) = self.tab_bar_states.get_mut(&target) {
             let mut tab = TabState::new(pane_type);
             tab.content_id = content_id;
@@ -23491,6 +23501,7 @@ impl HandshakeApp {
         } else {
             return false;
         }
+        self.active_pane = Some(target.clone());
         if let Some(document_id) = doc_to_reload.as_deref() {
             self.invalidate_rich_document_view_load(target.as_ref(), document_id);
         }
@@ -26030,18 +26041,35 @@ impl HandshakeApp {
             self.resume_pending_tab_close_batch();
         }
 
-        // ── MT-028: drain LoomSearchV2 open-block requests into the Loom block-open path ─────────────
-        // A result-row click in the in-product Loom Search pane pushed the block id into the shared cell;
-        // route each id to the Loom block viewer on the active pane (open-in-place, a REFERENCE — the
-        // same open path the bookmark rail uses for a pinned Loom block). Drained AFTER the pane host so
-        // the click registered this frame opens the block this frame.
-        let open_block_requests: Vec<String> = self
+        // ── MT-028: drain typed Notes-search navigation requests ─────────────────────────────────────
+        // Each request carries the exact mounted origin, workspace, block id, and content type. Never
+        // retarget through mutable global focus: a `view_def` reopens Block Collections at that saved
+        // id, while every ordinary result opens Loom Block on the originating pane.
+        let open_block_requests: Vec<crate::loom_search_v2::LoomSearchOpenRequest> = self
             .loom_search_v2_shared
             .lock()
             .map(|mut s| std::mem::take(&mut s.open_requests))
             .unwrap_or_default();
-        for block_id in open_block_requests {
-            self.open_content_on_active_pane(PaneType::LoomBlock, Some(block_id));
+        let current_workspace = self
+            .left_rail
+            .project_tree
+            .workspace_id()
+            .map(str::to_owned)
+            .or_else(|| {
+                (!self.active_project_id.is_empty()).then(|| self.active_project_id.clone())
+            });
+        for request in open_block_requests {
+            if current_workspace.as_deref() != Some(request.workspace_id.as_str())
+                || !self.tab_bar_states.contains_key(&request.origin_pane_id)
+            {
+                continue;
+            }
+            let pane_type = if request.content_type == "view_def" {
+                Self::block_collections_pane_type()
+            } else {
+                PaneType::LoomBlock
+            };
+            self.open_content_on_pane(request.origin_pane_id, pane_type, Some(request.block_id));
         }
 
         // ── MT-029: drain Find-in-Files open-hit requests into the appropriate open path ─────────────

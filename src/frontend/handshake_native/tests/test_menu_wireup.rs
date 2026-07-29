@@ -2189,6 +2189,38 @@ fn view_open_editor_surface_entries_open_real_panes() {
     );
 }
 
+#[test]
+fn notes_search_operator_labels_use_notes_name_without_changing_internal_routes() {
+    let command = command_registry::all_commands()
+        .iter()
+        .find(|command| command.id == CMD_VIEW_LOOM_SEARCH)
+        .expect("Notes Search palette command");
+    assert_eq!(command.id, "view.loom-search");
+    assert_eq!(command.label, "View: Notes Search");
+    assert_eq!(
+        command.description,
+        "Open Notes Search (hybrid full-text, fuzzy, and semantic Notes search)."
+    );
+    assert_eq!(command.stable_id, "hs-view-palette-loom-search");
+    assert_eq!(PaneType::LoomSearchV2.label(), "Notes Search");
+    assert_eq!(PaneType::LoomSearchV2.default_label(), "Notes Search");
+
+    let (app, _rt) = editor_shell();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+    harness.get_by_label("VIEW").click();
+    harness.run();
+    let menu_item = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("menu.view.open-loom-search"))
+        .expect("Notes Search VIEW menu item");
+    assert_eq!(
+        menu_item.accesskit_node().label(),
+        Some("Open Notes Search".to_owned())
+    );
+}
+
 /// The VIEW > Open Code Editor entry opens the CodeSymbol code-editor pane (the core native editor), a
 /// second representative surface distinct from the placeholder-keyed Graph pane above (this one opens a
 /// real `PaneType` variant).
