@@ -2352,6 +2352,101 @@ async fn put_expect_success(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
+/// WP-1 live orchestration debug console SSE client. Tails
+/// `GET /wp1/diagnostics/console/stream` (`text/event-stream`) on the app's tokio
+/// runtime and appends each parsed `hsk.wp1_console_entry@1` entry into a shared
+/// bounded delivery buffer the egui frame thread drains each frame. Reads the
+/// stream via `Response::chunk()` (no `reqwest` `stream` feature needed) and
+/// reconnects with a bounded backoff, so the UI thread is never blocked and a
+/// transient backend restart self-heals. Speaks plain `serde` — never depends on
+/// the `handshake_core` crate's types.
+#[derive(Clone)]
+pub struct ConsoleStreamClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl ConsoleStreamClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn stream_url(&self) -> String {
+        format!("{}/wp1/diagnostics/console/stream", self.base_url)
+    }
+}
+
+/// Max entries retained in the delivery buffer before the oldest are dropped
+/// (the egui frame drains it each frame; this only bounds a burst while the UI
+/// is not drawing).
+const CONSOLE_STREAM_BUFFER_CAP: usize = 4096;
+
+impl crate::console_stream_pane::ConsoleStreamTransport for ConsoleStreamClient {
+    fn start_tail(&self, buffer: crate::console_stream_pane::ConsoleStreamBuffer) {
+        let url = self.stream_url();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            loop {
+                let response = client
+                    .get(&url)
+                    .header("accept", "text/event-stream")
+                    .send()
+                    .await;
+                let mut response = match response {
+                    Ok(response) if response.status().is_success() => response,
+                    _ => {
+                        // Backend not up yet / transient error: bounded backoff, retry.
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                };
+
+                let mut sse = String::new();
+                loop {
+                    match response.chunk().await {
+                        Ok(Some(bytes)) => {
+                            sse.push_str(&String::from_utf8_lossy(&bytes));
+                            // SSE events are separated by a blank line.
+                            while let Some(idx) = sse.find("\n\n") {
+                                let raw: String = sse[..idx].to_string();
+                                sse.drain(..idx + 2);
+                                for line in raw.lines() {
+                                    let Some(data) = line.strip_prefix("data:") else {
+                                        continue; // event:/id:/comment/keep-alive lines
+                                    };
+                                    if let Ok(entry) = serde_json::from_str::<
+                                        crate::console_stream_pane::ConsoleStreamEntry,
+                                    >(data.trim())
+                                    {
+                                        if let Ok(mut buffer) = buffer.lock() {
+                                            buffer.push_back(entry);
+                                            while buffer.len() > CONSOLE_STREAM_BUFFER_CAP {
+                                                buffer.pop_front();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Stream ended or errored: reconnect after a short delay.
+                        Ok(None) | Err(_) => break,
+                    }
+                }
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        });
+    }
+}
+
 // MT-021 hardening tests (MAJOR #1/#2/#3): prove every menu-action backend call constructs the EXACT
 // verified URL + JSON body. Two layers:
 //   1. Pure request-builder assertions (`*_request`) — deterministic, no port flakiness. Because the

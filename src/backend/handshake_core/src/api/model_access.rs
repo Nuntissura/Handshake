@@ -331,6 +331,20 @@ async fn launch_cli_login(
                 Json(json!({"error": "cli_login_launch_failed"})),
             ),
         })?;
+    // MT-015: tee the cloud-access login into the live debug console (non-authoritative
+    // observability; carries only the provider id + pid, never key material). `publish_parts`
+    // is infallible + non-blocking and can never affect this handler's result.
+    crate::console_stream::ConsoleBroadcast::shared().publish_parts(
+        crate::console_stream::ConsoleSeverity::Info,
+        crate::console_stream::ConsoleCategory::CloudAccess,
+        format!("cli-bridge:{}", provider.id()),
+        format!(
+            "official-CLI login launched (provider={}, pid={})",
+            provider.id(),
+            handle.pid
+        ),
+        None,
+    );
     Ok(Json(json!({
         "provider": provider.id(),
         "launch_handle": {"pid": handle.pid},

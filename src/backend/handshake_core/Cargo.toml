@@ -814,6 +814,15 @@ name = "swarm_lane_diagnostics_pg_tests"
 path = "tests/swarm_lane_diagnostics_pg_tests.rs"
 required-features = ["test-utils"]
 
+# WP-1 live orchestration debug console: headless SSE proof over the real
+# api::routes router (managed PostgreSQL) — model-lane launch/status/invocation
+# events tee through the broadcast hub and stream in order over
+# GET /wp1/diagnostics/console/stream.
+[[test]]
+name = "wp1_console_stream_sse_tests"
+path = "tests/wp1_console_stream_sse_tests.rs"
+required-features = ["test-utils"]
+
 [[test]]
 name = "mixed_model_lane_integration_pg_tests"
 path = "tests/mixed_model_lane_integration_pg_tests.rs"

@@ -188,6 +188,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_model_lane_recovery(),
         page_model_lane_diagnostics(),
         page_model_lane_navigation(),
+        page_wp1_orchestration_console(),
         page_model_lane_validation_harness(),
         page_embedded_model_lifecycle_ledger(),
         page_dedicated_embedding_model_routing(),
@@ -227,6 +228,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "model-lane-recovery",
         "model-lane-diagnostics",
         "model-lane-navigation",
+        "wp1-orchestration-console",
         "model-lane-validation-harness",
         "embedded-model-lifecycle-ledger",
         "dedicated-embedding-model-routing",
@@ -824,6 +826,55 @@ fn page_cloud_model_access() -> NewUserManualPage {
             spec_anchor("10.15.8"),
         ],
     }
+}
+
+fn page_wp1_orchestration_console() -> NewUserManualPage {
+    surface_page(
+        "wp1-orchestration-console",
+        "WP-1 Live Orchestration Debug Console",
+        SurfaceGroup::Wp1OrchestrationConsole,
+        "A live, NON-AUTHORITATIVE debug console for WP-1 orchestration diagnostics, streamed over \
+         Server-Sent Events so swarm-lane/message activity (MT-008), operator-chat launch activity \
+         (MT-012), and cloud-access/CLI-bridge login (MT-015) are observable and provable HEADLESSLY \
+         from a live text stream — no pop-out window screenshot required.\n\n\
+         Connect with `GET /wp1/diagnostics/console/stream` (`Accept: text/event-stream`). On connect \
+         the endpoint replays the bounded recent history, then follows the live tail. Each event is a \
+         `hsk.wp1_console_entry@1` record with fields: `seq` (monotonic, stable row identity), \
+         `ts_unix_ms`, `severity` (`debug|info|warn|error`), `category` (`model_lane_launch`, \
+         `model_lane_status`, `model_invocation`, `resource`, `breaker`, `lease`, `spawn_rejected`, \
+         `promotion`, `cloud_access`, `process`, `pane`, `system`), `subject`, `detail`, and optional \
+         `trace_id`.",
+        vec![
+            section(
+                "navigation",
+                "Headless usage",
+                "No-context probe (curl):\n\n\
+                 `curl -N http://127.0.0.1:37501/wp1/diagnostics/console/stream`\n\n\
+                 `-N` disables buffering so events print as they arrive. Trigger any WP-1 lane launch \
+                 (e.g. `POST /operator-chat/launch`) and watch `model_lane_launch` / `model_lane_status` \
+                 / `model_invocation` entries stream in. The native shell tails the SAME endpoint into \
+                 the live console pane (reusing the debug-console widget with a category filter and \
+                 auto-follow). A subscriber that falls behind the ring receives a `console_lagged` \
+                 event carrying the number of dropped entries, so a gap is never silent.",
+            ),
+            section(
+                "safety",
+                "Authority posture",
+                "This console is a DISPLAY/STREAM buffer only. It is an ADDITIONAL, best-effort tee of \
+                 WP-1 orchestration events — it is NEVER the durable authority. The authoritative record \
+                 of every event remains PostgreSQL/EventLedger plus the Flight Recorder; dropping, \
+                 lagging, or closing this stream never affects durable state. The tee is composed AFTER \
+                 the durable Flight Recorder sink (see the swarm coordinator fanout), so the durable \
+                 emission and its terminal-persistence guarantees are undisturbed.",
+            ),
+        ],
+        vec![
+            page_link("model-lane-diagnostics"),
+            page_link("model-lane-navigation"),
+            page_link("operator-chat-launch"),
+        ],
+        vec!["2.3.13.11".into(), "10.15.8".into()],
+    )
 }
 
 fn surface_page(
@@ -3957,6 +4008,11 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "404 not_found (unknown slug/tool/area)".into(),
             "403 forbidden (resync by cloud_model/unauthenticated)".into(),
         ],
+        SurfaceGroup::Wp1OrchestrationConsole => vec![
+            "console_lagged event (subscriber fell behind the broadcast ring; the count of dropped entries is reported so the gap is not silent)".into(),
+            "empty stream / only keep-alive comments (no WP-1 orchestration activity yet — trigger a lane launch)".into(),
+            "connection closed (backend restarted; the console is a display buffer, so reconnect and rely on EventLedger/Flight Recorder for durable history)".into(),
+        ],
     }
 }
 
@@ -4016,6 +4072,11 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::UserManual => vec![
             "POST /usermanual/resync (gated) re-seeds changed pages idempotently".into(),
             "GET /usermanual/freshness names the exact stale/uncovered/dangling item".into(),
+        ],
+        SurfaceGroup::Wp1OrchestrationConsole => vec![
+            "Reconnect to GET /wp1/diagnostics/console/stream; the bounded recent history replays on connect".into(),
+            "For durable/complete history use the Flight Recorder + EventLedger authority (this console is a best-effort display tee, never the authority)".into(),
+            "On console_lagged, the reader has fallen behind — widen the client read cadence or filter by category to reduce volume".into(),
         ],
     }
 }

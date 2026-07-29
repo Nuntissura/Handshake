@@ -41,6 +41,8 @@ pub enum SurfaceGroup {
     ModelLaneCloudConsent,
     ModelLaneNavigation,
     UserManual,
+    /// WP-1 live orchestration debug console (SSE observability tee).
+    Wp1OrchestrationConsole,
 }
 
 impl SurfaceGroup {
@@ -59,6 +61,7 @@ impl SurfaceGroup {
             Self::ModelLaneCloudConsent => "model_lane_cloud_consent",
             Self::ModelLaneNavigation => "model_lane_navigation",
             Self::UserManual => "user_manual",
+            Self::Wp1OrchestrationConsole => "wp1_orchestration_console",
         }
     }
 
@@ -77,6 +80,7 @@ impl SurfaceGroup {
             Self::ModelLaneCloudConsent => "model-lane-cloud-projection-consent",
             Self::ModelLaneNavigation => "model-lane-navigation",
             Self::UserManual => "usermanual-surface",
+            Self::Wp1OrchestrationConsole => "wp1-orchestration-console",
         }
     }
 
@@ -97,7 +101,8 @@ impl SurfaceGroup {
             | Self::OperatorChat
             | Self::ModelLaneCloudConsent
             | Self::ModelLaneNavigation
-            | Self::UserManual => false,
+            | Self::UserManual
+            | Self::Wp1OrchestrationConsole => false,
         }
     }
 }
@@ -1330,6 +1335,16 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Re-seed the manual corpus from the compiled-in seed (idempotent; receipts per changed page). Write-gated.",
         "x-hsk-actor-kind operator|system|local_model required; cloud_model and unauthenticated are DENIED (403).",
         "JSON resync report (pages changed, version row) + receipt ids."
+    ),
+    // -- WP-1 live orchestration debug console (api/console_stream.rs) -------
+    surface!(
+        "wp1.orchestration_console.stream",
+        SurfaceGroup::Wp1OrchestrationConsole,
+        "GET",
+        "/wp1/diagnostics/console/stream",
+        "Live WP-1 orchestration debug console over Server-Sent Events: model-lane launch/status changes, model invocations, resource/breaker/lease events, and (via the publish API) cloud-access/CLI-bridge login. NON-AUTHORITATIVE observability tee, never the durable store.",
+        "None (anonymous read). Responds text/event-stream; connect replays the bounded recent history then follows the live tail.",
+        "SSE stream of hsk.wp1_console_entry@1 events (seq, ts_unix_ms, severity, category, subject, detail, trace_id); periodic keep-alive comments; console_lagged notice on subscriber lag."
     ),
 ];
 

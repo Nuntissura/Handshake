@@ -9,6 +9,7 @@ pub mod backend_client;
 pub mod canvas_board;
 pub mod command_palette;
 pub mod command_registry;
+pub mod console_stream_pane;
 pub mod context_menu;
 pub mod context_menu_surfaces;
 pub mod debug_console;

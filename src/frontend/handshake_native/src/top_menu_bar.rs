@@ -713,6 +713,15 @@ impl MenuBar {
                     MenuBarAction::NavigateToTab("swarm-lane-diagnostics".to_owned()),
                     action,
                 );
+                self.item(
+                    ui,
+                    "menu.models.wp1-orchestration-console",
+                    "Open Console",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("wp1-orchestration-console".to_owned()),
+                    action,
+                );
                 ui.separator();
                 self.item(
                     ui,

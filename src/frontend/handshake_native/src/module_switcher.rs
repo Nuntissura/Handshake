@@ -428,6 +428,7 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         PaneType::AtelierEditor => "atelier",
         PaneType::VisualDebugger => "visual-debugger",
         PaneType::OperatorChatLaunch => "operator-chat",
+        PaneType::Wp1OrchestrationConsole => "wp1-orchestration-console",
         // Placeholder has no React PaneTabId; it is not part of any MODULE_DEFINITIONS tab list.
         PaneType::Placeholder(_) => "placeholder",
     }

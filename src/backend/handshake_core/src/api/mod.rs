@@ -14,6 +14,7 @@ fn assert_axum_route_states_are_clone_send_sync_static() {
 pub mod atelier;
 pub mod bundles;
 pub mod canvases;
+pub mod console_stream;
 pub mod debug_adapter;
 pub mod diagnostics;
 pub mod flight_recorder;
@@ -256,6 +257,12 @@ fn routes_with_operator_chat_runtime(
     let atelier_routes = atelier::routes(state.clone());
     let source_control_routes = source_control::routes(state.clone());
     let debug_adapter_routes = debug_adapter::routes(state.clone());
+    // WP-1 live orchestration debug console SSE. Reads the process-wide shared,
+    // NON-AUTHORITATIVE console hub that the coordinator's ConsoleSwarmSink tees
+    // WP-1 events into (see swarm_orchestration::production_factory). Streaming
+    // this surface never affects durable EventLedger/Flight Recorder authority.
+    let console_stream_routes =
+        console_stream::routes(crate::console_stream::ConsoleBroadcast::shared());
     let log_routes = Router::new()
         .route("/logs/tail", get(logs::tail_logs))
         .with_state(state.clone());
@@ -286,6 +293,7 @@ fn routes_with_operator_chat_runtime(
         .merge(atelier_routes)
         .merge(source_control_routes)
         .merge(debug_adapter_routes)
+        .merge(console_stream_routes)
 }
 
 fn operator_chat_cloud_registry() -> Arc<dyn crate::model_runtime::cloud::ProviderAccessRegistry> {

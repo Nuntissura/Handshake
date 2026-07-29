@@ -144,6 +144,11 @@ pub mod managed_postgres;
 pub mod api;
 #[cfg(feature = "runtime-full")]
 pub mod bundles;
+/// WP-1 live orchestration debug console: a NON-AUTHORITATIVE observability tee
+/// (broadcast + bounded replay) streamed over SSE at
+/// `GET /wp1/diagnostics/console/stream`. Never the durable authority.
+#[cfg(feature = "runtime-full")]
+pub mod console_stream;
 #[cfg(feature = "runtime-full")]
 pub mod capabilities;
 #[cfg(feature = "runtime-full")]

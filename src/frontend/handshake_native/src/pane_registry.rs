@@ -57,6 +57,9 @@ pub enum PaneType {
     /// WP-1 MT-012: operator chat/launch work-surface (model+worktree picker,
     /// prompt input, launch through spawn_session, captured transcript).
     OperatorChatLaunch,
+    /// WP-1: live orchestration debug console — tails the backend SSE console
+    /// (`GET /wp1/diagnostics/console/stream`) and renders entries live.
+    Wp1OrchestrationConsole,
     /// A surface with no dedicated variant yet; the carried string is the display label.
     Placeholder(String),
 }
@@ -87,6 +90,7 @@ impl PaneType {
             PaneType::FlightRecorder => "Flight Recorder".to_owned(),
             PaneType::VisualDebugger => "Visual Debugger".to_owned(),
             PaneType::OperatorChatLaunch => "Operator Chat / Launch".to_owned(),
+            PaneType::Wp1OrchestrationConsole => "WP-1 Orchestration Console".to_owned(),
             PaneType::Placeholder(name) => name.clone(),
         }
     }
@@ -120,6 +124,7 @@ impl PaneType {
             PaneType::AtelierEditor => "Atelier",
             PaneType::VisualDebugger => "Visual Debugger",
             PaneType::OperatorChatLaunch => "Operator Chat",
+            PaneType::Wp1OrchestrationConsole => "Console",
             PaneType::Placeholder(name) => name.as_str(),
         }
     }

@@ -1010,6 +1010,14 @@ impl HandshakeApp {
                 ),
             ),
         );
+        app.factories.insert(
+            PaneType::Wp1OrchestrationConsole,
+            Box::new(
+                crate::console_stream_pane::ConsoleStreamPaneFactory::with_transport(Arc::new(
+                    crate::backend_client::ConsoleStreamClient::production(rt_handle.clone()),
+                )),
+            ),
+        );
         app.mcp_windows.register(Self::main_argus_window());
         cc.egui_ctx.add_plugin(crate::mcp::ArgusOutputPlugin::new(
             app.mcp_windows.clone(),
@@ -1336,6 +1344,10 @@ impl HandshakeApp {
                     user_manual_controller,
                 ),
             ),
+        );
+        app.factories.insert(
+            PaneType::Wp1OrchestrationConsole,
+            Box::new(crate::console_stream_pane::ConsoleStreamPaneFactory::offline()),
         );
         app.mcp_windows.register(Self::main_argus_window());
         app
@@ -1746,6 +1758,14 @@ impl HandshakeApp {
                 ),
             ),
         );
+        self.factories.insert(
+            PaneType::Wp1OrchestrationConsole,
+            Box::new(
+                crate::console_stream_pane::ConsoleStreamPaneFactory::with_transport(Arc::new(
+                    crate::backend_client::ConsoleStreamClient::production(handle.clone()),
+                )),
+            ),
+        );
         self.runtime_handle = Some(handle);
     }
 
@@ -1850,6 +1870,22 @@ impl HandshakeApp {
                     projection,
                 ),
             ),
+        );
+    }
+
+    /// Test-only: seed the WP-1 orchestration console pane with delivered entries
+    /// (no live SSE tail) so a kittest can prove the pane renders streamed entries
+    /// with stable author_ids and that the filter narrows the visible rows.
+    #[doc(hidden)]
+    pub fn set_wp1_console_entries_for_test(
+        &mut self,
+        entries: Vec<crate::console_stream_pane::ConsoleStreamEntry>,
+    ) {
+        self.factories.insert(
+            PaneType::Wp1OrchestrationConsole,
+            Box::new(crate::console_stream_pane::ConsoleStreamPaneFactory::with_entries(
+                entries,
+            )),
         );
     }
 
@@ -3699,6 +3735,7 @@ impl HandshakeApp {
             "user-manual" => PaneType::UserManual,
             "swarm" => PaneType::Swarm,
             "swarm-lane-diagnostics" => PaneType::SwarmLaneDiagnostics,
+            "wp1-orchestration-console" => PaneType::Wp1OrchestrationConsole,
             "operator-chat" => PaneType::OperatorChatLaunch,
             _ => return false,
         };

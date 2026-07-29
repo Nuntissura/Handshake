@@ -207,7 +207,19 @@ where
         cloud,
         None,
     ));
-    let sink = Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn));
+    // The durable Flight Recorder sink runs FIRST so its terminal-persistence
+    // rejection still propagates to the lifecycle producer (the fanout returns on
+    // the first child error). The NON-AUTHORITATIVE console tee runs AFTER: it
+    // mirrors each event into the process-wide live debug-console hub
+    // (`GET /wp1/diagnostics/console/stream`) and can never fail the coordinator —
+    // a full broadcast ring or absent subscribers is a silent no-op.
+    let flight_sink: Arc<dyn super::events::SwarmEventSink> =
+        Arc::new(FlightRecorderSwarmSink::new(trace_id, emit_fn));
+    let console_sink: Arc<dyn super::events::SwarmEventSink> =
+        Arc::new(crate::console_stream::ConsoleSwarmSink::shared());
+    let sink: Arc<dyn super::events::SwarmEventSink> = Arc::new(
+        super::events::FanoutSwarmSink::new(vec![flight_sink, console_sink]),
+    );
     SwarmCoordinator::new_with_model_lane_store(config, factory, sink, ledger, model_lane_store)
 }
 
