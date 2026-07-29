@@ -616,4 +616,109 @@ mod tests {
         assert_eq!(v["height"], 240);
         assert!(v["captured_at_utc"].as_str().unwrap().ends_with('Z'));
     }
+
+    // ── MT-008b: capture-target resolution + window-handle registry ──────────────────────────────
+    //
+    // These prove the pop-out capture DECISION headlessly. `resolve_capture_target` is pure — its OS
+    // validity gate is injected — so the recorded-HWND-vs-title-fallback choice is provable with no
+    // live GPU and no real window. The registry is a process-global static shared by every test in
+    // this binary, so each registry test uses UNIQUE `window_id` keys (prefixed with the test name) to
+    // stay order- and parallelism-independent.
+
+    #[test]
+    fn resolve_prefers_valid_recorded_handle_over_title() {
+        // A recorded, still-valid handle is captured directly — no title matching, so an ambiguous
+        // "Handshake – <pane>" pop-out is grabbed unambiguously.
+        assert_eq!(
+            resolve_capture_target(Some(0x1234), |_| true),
+            CaptureTarget::RecordedHandle(0x1234),
+        );
+    }
+
+    #[test]
+    fn resolve_falls_back_to_title_when_no_handle_recorded() {
+        // Nothing recorded yet (e.g. the first capture before that viewport rendered) => title path.
+        // The injected gate must not even be consulted when `recorded` is `None`.
+        assert_eq!(
+            resolve_capture_target(None, |_| unreachable!(
+                "validity gate must not run when no handle is recorded"
+            )),
+            CaptureTarget::TitleFallback,
+        );
+    }
+
+    #[test]
+    fn resolve_falls_back_to_title_when_recorded_handle_is_stale() {
+        // A recorded handle whose window was destroyed/recreated fails the validity gate, so the
+        // capture path falls back to exact title + PID matching instead of grabbing a dead HWND.
+        assert_eq!(
+            resolve_capture_target(Some(0xDEAD), |_| false),
+            CaptureTarget::TitleFallback,
+        );
+    }
+
+    #[test]
+    fn registry_records_reads_and_clears_a_handle() {
+        let id = "test-registry-records-reads-and-clears";
+        clear_window_handle(id); // isolate from any prior state in this shared static
+        assert_eq!(recorded_window_handle(id), None);
+        record_window_handle(id, 0x4242);
+        assert_eq!(recorded_window_handle(id), Some(0x4242));
+        clear_window_handle(id);
+        assert_eq!(recorded_window_handle(id), None);
+    }
+
+    #[test]
+    fn registry_ignores_a_zero_handle() {
+        // 0 is never a valid window handle; recording it must not shadow a real fallback.
+        let id = "test-registry-ignores-zero-handle";
+        clear_window_handle(id);
+        record_window_handle(id, 0);
+        assert_eq!(recorded_window_handle(id), None);
+    }
+
+    #[test]
+    fn registry_overwrite_keeps_last_recorded_handle() {
+        // A pop-out recreated at the SAME stable window_id records a fresh HWND; last write wins so a
+        // stale value can never linger.
+        let id = "test-registry-overwrite-last-wins";
+        record_window_handle(id, 0x1111);
+        record_window_handle(id, 0x2222);
+        assert_eq!(recorded_window_handle(id), Some(0x2222));
+        clear_window_handle(id);
+    }
+
+    #[test]
+    fn two_same_title_popouts_each_capture_their_own_recorded_handle() {
+        // The ambiguous case the registry exists for: two pop-outs sharing an OS title
+        // ("Handshake – Workspace") but distinct stable window_ids each resolve to THEIR OWN HWND,
+        // never the first same-title window that happens to enumerate first.
+        let a = "test-popout-a-workspace";
+        let b = "test-popout-b-workspace";
+        record_window_handle(a, 0xA0A0);
+        record_window_handle(b, 0xB0B0);
+        assert_eq!(
+            resolve_capture_target(recorded_window_handle(a), |_| true),
+            CaptureTarget::RecordedHandle(0xA0A0),
+        );
+        assert_eq!(
+            resolve_capture_target(recorded_window_handle(b), |_| true),
+            CaptureTarget::RecordedHandle(0xB0B0),
+        );
+        clear_window_handle(a);
+        clear_window_handle(b);
+    }
+
+    #[test]
+    fn torn_down_popout_handle_falls_back_to_title() {
+        // When a pop-out merges back its handle is cleared; a later capture finds nothing recorded and
+        // resolves to the title path, so the other windows keep capturing while the dead one cannot.
+        let id = "test-popout-teardown-fallback";
+        record_window_handle(id, 0xC0C0);
+        clear_window_handle(id);
+        assert_eq!(
+            resolve_capture_target(recorded_window_handle(id), |_| true),
+            CaptureTarget::TitleFallback,
+        );
+    }
 }
