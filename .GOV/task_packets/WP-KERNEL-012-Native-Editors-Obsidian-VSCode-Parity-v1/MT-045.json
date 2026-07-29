@@ -14,7 +14,7 @@
   "title": "E8-MT045-LargeDocPerformanceProof",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-21T15:56:00.000Z",
+  "updated_at_utc": "2026-07-29T04:17:12.2700575Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-044",
@@ -33,10 +33,10 @@
       "MT-060"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the LR-05 cycle-aware transclusion resolver (resolve_transclusion_chain + CycleDetected) is defined INSIDE the test file - no product code contains transclusion cycle detection; contract framed it as a native improvement this MT must prove; a product render of a cyclic transclusion chain has no guard. LK-02 disclosed limitation: graph layout hard-caps at 200 nodes (naive O(n^2)); 1000-node budget architecturally unreachable - keep the Barnes-Hut work item; do not cite LK-02 as 1000-node capability. Positive: budgets asserted with env overrides, honest LC-06 reclassification, real requires_pg bodies. Fix: move the resolver into product code (rich_editor transclusion path) and have LR-05 call the product symbol; 12 REQUIRES_PG perf scenarios join the managed-PG batch.",
@@ -75,11 +75,62 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260721-135330",
-    "claimed_at_utc": "2026-07-21T13:53:30.000Z",
+    "claimed_by": "KERNEL_BUILDER-20260728-221208",
+    "claimed_at_utc": "2026-07-29T04:15:17.7554911Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-21T15:56:00.000Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-21; run MT045-RUN-019f854a46d27203b1fd83bada144afa)",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "ready_for_validation_at_utc": "2026-07-29T04:17:12.2700575Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_FINAL_REVIEWS_NO_PRODUCT_BLOCKER",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "generated_at_utc": "2026-07-29T04:15:17.7554911Z",
+      "actor_session": "KERNEL_BUILDER-20260728-221208",
+      "overall_verdict": "PASS"
+    },
+    "ready_for_validation_summary": "MT-045 V3: the canonical release-profile supervisor now proves all 20 performance scenarios against real current-source handshake_core and the existing PostgreSQL instance with default budgets, exact test-count gates, immutable source/digest receipts, Windows Job containment, monotonic command deadlines, bounded cleanup, panic detection, and no mocks. Two consecutive canonical runs passed from implementation source 0e8fd777a8f862c357189ff2e14bc521c88c9dfa; the final 20/20 manifest is committed at 5d056847. Three independent final adversarial reviews found no remaining product blocker. validator_verdict is PENDING_V3 and completed_by remains null pending official validation.",
+    "rfv_evidence_2026_07_29": {
+      "by": "KERNEL_BUILDER-20260728-221208",
+      "mode": "FAIL_V2_CANONICAL_RELEASE_PERFORMANCE_SUPERVISOR_REMEDIATION_IMPLEMENT_REVIEW_HARDEN",
+      "implementation_source_sha": "0e8fd777a8f862c357189ff2e14bc521c88c9dfa",
+      "final_manifest_commit": "5d056847",
+      "product_commits": [
+        "45e4ffb665b32d330c006d6da13999e67a66155c",
+        "a7542695",
+        "df382fcc",
+        "97857535",
+        "2d5cdb65e78f3c96f86568efd10139e41e9a8b7b",
+        "0e8fd777a8f862c357189ff2e14bc521c88c9dfa",
+        "5d056847"
+      ],
+      "canonical_runs": [
+        {
+          "run_id": "MT045-RUN-V3G-20260729034233",
+          "status": "PASS",
+          "source_sha": "0e8fd777a8f862c357189ff2e14bc521c88c9dfa",
+          "summary_path": "Handshake_Artifacts/wp-kernel-012/mt-045/supervisor/MT045-RUN-V3G-20260729034233/supervisor-summary.json",
+          "summary_sha256": "3f5987307451ceb584670c57ce56c47712cb8efff2fd1c746279f8dc41802d50",
+          "manifest_sha256": "37b7b2bd29e007870d34f234ad379bb8037a2837491e4ee734728a93843b1ad8"
+        },
+        {
+          "run_id": "MT045-RUN-V3H-20260729040230",
+          "status": "PASS",
+          "source_sha": "0e8fd777a8f862c357189ff2e14bc521c88c9dfa",
+          "summary_path": "Handshake_Artifacts/wp-kernel-012/mt-045/supervisor/MT045-RUN-V3H-20260729040230/supervisor-summary.json",
+          "summary_sha256": "1f5640097156fb8ff03c31168ef3bbb2b20702f4ba1d3aa3b2235812bd3609fa",
+          "manifest_sha256": "a5072164c4b92f0a54ed801ce700a42bacb531270f8aa63248e276461d0a3756"
+        }
+      ],
+      "runtime_proof": "Each accepted run contains 24 Windows-Job-contained commands: one release build, three diagnostics, and 20 exact performance tests. Each records 23 verified exact tests, 20 distinct PASS manifest rows, 24 monotonic QPC deadlines, 24 inner 1620000 ms proof budgets, 24 reserved 180 s cleanup margins, zero leaked child counts, zero panic markers, zero transient SQL files, and no budget overrides.",
+      "managed_resource_proof": "Both runs use the real existing PostgreSQL database at 127.0.0.1:5544 and current-source handshake_core. PostgreSQL owning PID 121448 and its original start time remained unchanged; the supervisor never stopped it. No mocks, SQLite substitute, Docker substitute, or nested/local artifact root was used.",
+      "performance_manifest": "20/20 PASS, zero FAIL, measured_profile=release, override_applied=false for every row. V3H measured LC-01 87 ms, LC-02 1 ms, LC-05 4.602 MB, LC-06 5208 ms, LC-07 1 ms, LC-08 3 ms, LR-01 32 ms, LR-02 173 ms, LR-04 86 ms, LR-05 53 ms, LR-06 6.895 MB, LR-07 8 ms, LK-01 58 ms, LK-02 2 ms, LK-03 85 ms, LK-04 54 ms, and LK-05 6 ms; zero-duration CPU-only scenarios remain valid measured values under their budgets.",
+      "cross_platform_check": "PASS exit 0: cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --target aarch64-pc-windows-msvc --lib under the VS 2022 ARM64 developer environment.",
+      "adversarial_reviews": "Three independent final reviews attacked fixture lifecycle and cleanup, Rust harness deadlines/process safety, and PowerShell supervisor provenance/containment. All returned PASS after persistence-drain, exact-test/panic, monotonic-deadline, bounded teardown, psql lifecycle, runner-failure receipt, and environment-restoration hardening.",
+      "artifact_boundary": "All runtime outputs were confined to the operator-approved sibling Handshake_Artifacts root. D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/Handshake_Artifacts was verified absent after both runs.",
+      "validator_boundary": "Implementer handoff only: validator_verdict is PENDING_V3, completed_by is null, and historical FAIL_V1/FAIL_V2 verdict records remain preserved."
+    },
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260708-vandp",
       "mode": "VERIFY_AND_PROVE (frontend runtime-proven) + proof-wording corrections + NEEDS_MANAGED_RESOURCE_PROOF (12 requires_pg)",
