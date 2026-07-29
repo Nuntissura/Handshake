@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-29T07:25:24Z",
+  "updated_at_utc": "2026-07-29T10:49:58Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
@@ -16,25 +16,25 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T18:12:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
-    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-104958",
+    "ready_for_validation_at_utc": "2026-07-29T10:49:58Z",
     "completed_by": null,
-    "blocker": "Reclaim-path dependency now SATISFIED: MT-007 wired the generic spawned-process Reclaim/SandboxKill into product boot (reconcile_restart_orphans_at_boot, main.rs:447), independently proven by process_reclaim_real_lifecycle_pg_tests 5/5 on managed PG. REMAINING GATES (validator-environment, not code): (1) HARNESS-GATED -- the 9 ENGINE_FREE_SUPPORTING proof_commands (embedded_model_ledger_tests, llm_client_local_routing ready_model_swap, etc.) use task_owned_managed_postgres TEMPLATE mode, which asserts 'task-owned managed PostgreSQL must be started and proven by THIS process' (knowledge_pg_support.rs:351) + HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1 and FORBIDS POSTGRES_TEST_URL. This requires the test process to start its OWN dedicated managed cluster; it cannot adopt the shared running cluster on 127.0.0.1:5544. Not runnable in the current shared-cluster environment; needs the validator's template-mode managed-PG-start harness. (2) ARTIFACT-GATED -- the PASS_REQUIRED proof [0] (candle_e2e_smoke with --features candle-runtime-engine) needs a real Candle model artifact (HANDSHAKE_TEST_CANDLE_MODEL_DIR) to bind the V3 real-Candle START/STOP/retention/crash-recovery/lease-release proof to the current source. Both gates are operator/validator-environment concerns.",
-    "missing_resource": "Validator env: (1) template-mode managed-PostgreSQL-start harness for the 9 engine-free supporting proofs; (2) real Candle model weights for the PASS_REQUIRED candle_e2e_smoke proof.",
-    "proof_status": "FAIL_V4 (reclaim dependency satisfied via MT-007; engine-free proofs template-harness-gated; real-Candle proof artifact-gated -- both validator-environment).",
+    "blocker": null,
+    "missing_resource": "Validator-env only: template-mode managed-PostgreSQL-start harness for the 8 engine-free SUPPORTING proofs [1]-[8] (PASS_REQUIRED real-Candle proof [0] is met).",
+    "proof_status": "READY_FOR_VALIDATION_V5: both V4 blocker parts now CLOSED. (1) Reclaim path WIRED into product boot (MT-007 reconcile_restart_orphans_at_boot, main.rs:447), independently proven by process_reclaim_real_lifecycle_pg_tests. (2) PASS_REQUIRED real-Candle proof [0] NOW GREEN with real operator-local weights (Maykeye_TinyLLama-v0 via HANDSHAKE_TEST_CANDLE_MODEL_DIR) on managed PostgreSQL (127.0.0.1:5544), features candle-runtime-engine,test-utils: candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop (real embedded Candle load emits process-ledger START/STOP) + mt013_real_candle_embedding_failure_unloads_and_stops_primary (injected missing-embedding artifact unloads+stops the primary fail-closed) both ok. Real START/STOP/artifact-retention/crash-recovery/lease-release are now bound to the current source. The 8 ENGINE_FREE_SUPPORTING proofs [1]-[8] (embedded_model_ledger reclaim/lifecycle) use task_owned_managed_postgres TEMPLATE mode which requires the test process to START its own dedicated cluster -- validator-env-runnable, not runnable while adopting the shared 5544 cluster; supporting evidence, not the PASS_REQUIRED gate.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
-    "adversarial_findings_status": "PASS_V3_STALE_CANONICAL_PROOF_AND_PUBLICATION_ORDER_FINDINGS_CLOSED_WITH_NEGATIVE_AND_POSITIVE_RUNTIME_PROOF",
+    "adversarial_findings_status": "REAL_CANDLE_PASS_REQUIRED_PROOF_GREEN_WITH_OPERATOR_WEIGHTS; reclaim wired via MT-007",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-07-20T01:13:40.778Z",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
