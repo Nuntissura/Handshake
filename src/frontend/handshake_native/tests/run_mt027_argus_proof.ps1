@@ -50,6 +50,8 @@ if (-not $postgresProcess.ProcessName.Equals(
         'postgres', [StringComparison]::OrdinalIgnoreCase)) {
     throw "Port 5544 is not owned by PostgreSQL: pid=$($postgresListener.OwningProcess), process=$($postgresProcess.ProcessName)"
 }
+$initialPostgresPid = [int]$postgresProcess.Id
+$initialPostgresStartTime = [DateTimeOffset]$postgresProcess.StartTime
 
 function Assert-NoReparsePointEscape {
     param(
@@ -918,15 +920,25 @@ if ($LASTEXITCODE -ne 0 -or
 $receiptPgPort = [int]$managedReceipt.backend_binding.database_port
 $currentPostgresListener = Get-NetTCPConnection -LocalAddress '127.0.0.1' `
     -LocalPort $receiptPgPort -State Listen -ErrorAction Stop | Select-Object -First 1
-$currentPostgresIdentity = Get-Identity -TargetPid ([int]$currentPostgresListener.OwningProcess)
-$initialPostgresStartUtc = Format-CanonicalUtc ([DateTimeOffset]$postgresProcess.StartTime)
-if ($null -eq $currentPostgresIdentity -or
-    [int]$currentPostgresIdentity.pid -ne [int]$postgresProcess.Id -or
-    $currentPostgresIdentity.start_time_utc -ne $initialPostgresStartUtc -or
-    -not ([IO.Path]::GetFileNameWithoutExtension(
-            [string]$currentPostgresIdentity.executable)).Equals(
+$currentPostgresProcess = Get-Process `
+    -Id ([int]$currentPostgresListener.OwningProcess) -ErrorAction Stop
+$initialPostgresStartUtc = Format-CanonicalUtc $initialPostgresStartTime
+$currentPostgresStartUtc = Format-CanonicalUtc (
+    [DateTimeOffset]$currentPostgresProcess.StartTime)
+if ([int]$currentPostgresProcess.Id -ne $initialPostgresPid -or
+    $currentPostgresStartUtc -ne $initialPostgresStartUtc -or
+    -not $currentPostgresProcess.ProcessName.Equals(
         'postgres', [StringComparison]::OrdinalIgnoreCase)) {
-    throw 'The exact PostgreSQL listener PID/start identity changed before receipt acceptance'
+    throw "The exact PostgreSQL listener identity changed before receipt acceptance: initial_pid='$initialPostgresPid'; current_pid='$($currentPostgresProcess.Id)'; initial_start='$initialPostgresStartUtc'; current_start='$currentPostgresStartUtc'; current_process='$($currentPostgresProcess.ProcessName)'"
+}
+$currentPostgresIdentity = [pscustomobject]@{
+    pid = [int]$currentPostgresProcess.Id
+    start_time_utc = $currentPostgresStartUtc
+    executable = if ([string]::IsNullOrWhiteSpace([string]$currentPostgresProcess.Path)) {
+        "$($currentPostgresProcess.ProcessName).exe"
+    } else {
+        [string]$currentPostgresProcess.Path
+    }
 }
 
 Move-Item -LiteralPath $fixedManagedPgReceipt `
