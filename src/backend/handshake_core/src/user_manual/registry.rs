@@ -984,6 +984,15 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "provider path param.",
         "JSON non-secret provider unavailable status; 404 provider_not_offered, 503 keychain_unavailable."
     ),
+    surface!(
+        "model_access.cli_bridge.login",
+        SurfaceGroup::ModelAccess,
+        "POST",
+        "/model-access/cli-bridge/:provider/login",
+        "Launch the provider's own official CLI login command through the CLI bridge after operator confirmation.",
+        "provider path param; operator-confirmed launch of the provider-owned official login command.",
+        "JSON provider plus pid launch handle; never key material; 404 provider_not_offered."
+    ),
     // -- ModelRuntime registry/control surface (api/model_runtime_registry.rs)
     surface!(
         "model_runtime.registry.list",
