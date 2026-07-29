@@ -14,7 +14,7 @@
   "title": "E4-MT028-LoomSearchV2Surface",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T11:16:14.0457023Z",
+  "updated_at_utc": "2026-07-29T13:37:30.0277304Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-028.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,20 +25,26 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED_V3_REMEDIATION",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [],
     "blocks": [
       "MT-030",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T11:16:14.0457023Z",
-    "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: atomic or compensating save-as-view promotion/index authority with injected-failure restart proof, plus current-source canonical Argus across query, results, preview, persistence, error/empty, and reopened saved-view states. Historical validator verdict remains FAIL_V2 until independent V3 validation."
+    "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: atomic or compensating save-as-view promotion/index authority with injected-failure restart proof, plus current-source canonical Argus across query, results, preview, persistence, error/empty, and reopened saved-view states. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-29T13:37:30.0277304Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
+    "ready_for_validation_reason": "MT-028 FAIL_V2 remediation is implemented and runtime-proven: canonical view_def search and knowledge projections are repaired transactionally and replay-idempotently without promoting ambiguous stranded notes; real PostgreSQL migration regression and exact backend app-runtime build pass; Notes Search is mounted in the operator menu and documented in the canonical UserManual; and the committed-source canonical Argus run proves query, results, preview, persisted save-as-view, disjoint empty state, and exact saved-view reopen on the originating pane. Historical validation_v2 remains preserved for independent V3 validation."
   },
   "scope": {
     "summary": "Build the native Rust/egui LoomSearchV2Surface panel - the UI-only counterpart to the React LoomSearchV2Panel (app/src/components/LoomSearchV2Panel.tsx). The backend loom_search_v2 endpoint (POST /workspaces/:workspace_id/loom/search-v2, implemented in KERNEL-009 MT-264) is already complete; this MT wires the existing API to a new native egui panel.\n\nDiff shape: create src/frontend/handshake_native/src/loom_search_v2.rs (new flat module, ~350 lines). Register it as a pub mod in src/frontend/handshake_native/src/lib.rs. Add a LoomSearchV2 pane to the shell's pane registry by reusing the existing pane_registry.rs registration path (the WP-011 pane host - do NOT invent a new panel enum file). Wire the HTTP client calls through the existing backend_client.rs to POST to /workspaces/{id}/loom/search-v2 and to POST /workspaces/{id}/loom/views (save-as-view).\n\nPanel features to implement (parity with React reference):\n1. QUERY BAR: single-line egui::TextEdit bound to a query string field. On Enter key or 'Search' button click, fire async HTTP POST to /workspaces/{workspace_id}/loom/search-v2 with body {query, content_type?, graph_boost: 1.0, limit: 25}. Deserialize LoomSearchV2Response {hits: [{block, score, fts_rank, trgm_sim, vector_sim, edge_degree, highlight}], content_type_facets: BTreeMap<String,i64>, semantic_available: bool, total: i64}.\n2. STATUS LINE: show 'Searching...' during load, '{N} results (semantic on/off)' after response, or error text. Use egui::Label with aria-live equivalent.\n3. CONTENT-TYPE FACETS: after a response, render one toggle button per entry in content_type_facets (sorted by count descending). Each shows '{type} ({count})'. Clicking a facet toggles it as a filter and immediately re-fires the search with that content_type. Active facet visually highlighted (egui::Button::selected or custom fill).\n4. RESULTS LIST: egui::ScrollArea containing one clickable row per LoomSearchV2Hit. Each row shows: block.title (or block_id fallback), block.content_type badge, score formatted to 3 decimal places, and the highlight string. The highlight may contain <mark>...</mark> markers: parse them and render the marked segments in a distinct color (e.g. egui::Color32::YELLOW background on the text run, using egui::RichText or a custom painter). Clicking a row calls the on_open_block callback (routes to the Loom block viewer, wired in the shell via loom_graph.rs).\n5. SAVE AS VIEW: a 'Save as view' button, enabled only when there are results. On click, POST /workspaces/{workspace_id}/loom/views with body {kind: 'table', query: {content_type: <active_facet_or_omit>}, columns: ['title','content_type','updated'], title: 'Search: {query}'}. Show a status label with the new block_id on success or the error string on failure. This reuses the same createBlockView backend path as the MT-262 block-collection view.\n6. STATE MACHINE: loading bool, error Option<String>, view_status Option<String>, response Option<LoomSearchV2Response>, active_content_type Option<String>. Keep all state inside LoomSearchV2PanelState struct.\n\nFiles to create/edit:\n- CREATE: src/frontend/handshake_native/src/loom_search_v2.rs\n- EDIT: src/frontend/handshake_native/src/lib.rs (pub mod loom_search_v2;)\n- EDIT: src/frontend/handshake_native/src/pane_registry.rs (register the LoomSearchV2 pane in the existing WP-011 pane registry)\n- EDIT: src/frontend/handshake_native/src/backend_client.rs (add loom_search_v2 async fn and create_block_view async fn)\n\nImplementation steps:\n1. Define LoomSearchV2PanelState struct with: query: String, active_content_type: Option<String>, response: Option<LoomSearchV2Response>, loading: bool, error: Option<String>, view_status: Option<String>.\n2. Define LoomSearchV2Response, LoomSearchV2Hit, LoomBlock as serde-deserializable structs in src/frontend/handshake_native/src/backend_client.rs (matching the backend JSON schema from storage/loom.rs).\n3. Implement async fn loom_search_v2(base_url, workspace_id, body) -> Result<LoomSearchV2Response, String> using the existing backend_client.rs HTTP client. POST to {base_url}/workspaces/{workspace_id}/loom/search-v2.\n4. Implement async fn create_block_view(base_url, workspace_id, body) -> Result<serde_json::Value, String>. POST to {base_url}/workspaces/{workspace_id}/loom/views.\n5. In the panel show() fn: render query TextEdit + Search button + Save-as-view button in a horizontal strip.\n6. Render status line.\n7. Render facet buttons if response.content_type_facets non-empty (sort by value desc).\n8. Render egui::ScrollArea with result rows. For each hit parse highlight: split on '<mark>' and '</mark>' tokens, build a LayoutJob with alternating normal/highlighted TextFormat runs.\n9. Handle AccessKit (reuse the WP-011 accessibility/ subsystem - accessibility/mod.rs, accessibility/registry.rs, accessibility/snapshot.rs): assign author_ids to query input (id: 'loom-search-v2.query'), search button ('loom-search-v2.search'), save-view button ('loom-search-v2.save-view'), each facet button ('loom-search-v2.facet.{content_type}'), each result row ('loom-search-v2.result.{block_id}'), status label ('loom-search-v2.status'). Use the egui AccessKit integration via accessibility/registry.rs (egui::Id from stable strings) and set role + action where egui_kittest requires.\n10. Async dispatch: egui is single-threaded; use the shell's existing async bridge (tokio one-shot or channel pattern used by other WP-011 surfaces, e.g. event_bus.rs) to fire the search and receive the response on the next frame. Do not block the UI thread.\n\nDependencies/unblock conditions: requires the WP-011 shell pane infrastructure to be loadable (the pane_registry.rs registry must be able to host this pane). The backend /loom/search-v2 endpoint is already live (KERNEL-009 MT-264). No new backend work needed. This MT is self-contained and has no MT-level depends_on within WP-012.\n\nRisk if missed: Loom Search v2 is a core search surface and a dependency for the interconnection proofs (MT-030, MT-044). Missing it means the quick-switcher and parity proof cannot demonstrate the semantic search modality.",
@@ -383,5 +389,32 @@
     "Run canonical Argus for query, results, preview, save-as-view, error/empty, and reopened-view states; align canonical UserManual and diagnostics."
   ],
   "no_context_instruction": "Read MT-028.json, packet, and current spec. Repair promotion rollback and run the full live search plus Argus proof before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260728-221208",
+    "remediated_at_utc": "2026-07-29T13:37:30.0277304Z",
+    "addresses_v2_fail": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "source_sha": "b000307aad2e79b09c980312a249d4061879a17c",
+    "product_commits": [
+      "91622344810779ce32a2baa5d53e5f663b5e6df0",
+      "b000307aad2e79b09c980312a249d4061879a17c"
+    ],
+    "proof_commands_passed": [
+      "Real-PostgreSQL legacy projection repair migration regression: 1 passed, 0 failed in an isolated schema; forward, rollback, replay-idempotency, deterministic EventLedger typing, and ambiguous stranded-note non-promotion asserted.",
+      "handshake-native Loom Search library proof: 22 passed, 0 failed; standalone test_loom_search_v2: 14 passed, 0 failed; canonical UserManual contract: 36 passed, 0 failed.",
+      "Exact Notes Search operator-menu wire-up proof: 1 passed, 0 failed; complete test_menu_wireup retained four unrelated pre-existing failures while the MT-028 assertion passed.",
+      "Exact handshake_core app-runtime plus DuckDB build completed from source SHA b000307aad2e79b09c980312a249d4061879a17c; binary SHA-256 C97E495D1F923716B867D9D83AE9333D21EFFAF63831E6B142F038B1E96E4712.",
+      "Canonical MT-028 Argus run mt028-b000307a-v3-01: 12 ordered set_value/click actions, all predicates passed, exact current source SHA, managed PostgreSQL persistence, disjoint empty state, and saved view reopened by exact block_id on the originating pane."
+    ],
+    "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-028/integrated/mt028-b000307a-v3-01",
+    "external_artifact_files": [
+      "canonical-argus-matrix.jsonl",
+      "managed-receipt.json"
+    ],
+    "artifact_cleanup": "Rejected/diagnostic runs, transient fixture/stage/Argus binding directories, and the MT-specific Cargo target were removed after proof; only the accepted trace and managed receipt are retained.",
+    "adversarial_review": "PASS after hardening: independent backend atomicity, operator/manual, accessibility/Argus, and final source-to-pane binding reviews found no remaining MT-028 product blocker.",
+    "validator_instruction": "Independently rebuild from source_sha, rerun the real-PostgreSQL projection repair regression and canonical MT-028 Argus proof with a fresh run id, inspect the accepted trace and managed receipt, and preserve historical validation_v1/validation_v2 records. Do not mark completed unless official V3 validation passes."
+  }
 }
