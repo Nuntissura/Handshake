@@ -1311,12 +1311,24 @@ async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayabl
         "cross-lane CRDT claim must fail closed on session ownership (lane-local owns the update, lane-cloud cannot claim it): {cross_lane_denial}"
     );
 
+    // source_kind MUST equal the persisted source message's kind. SOURCE_MESSAGE_ID
+    // is an advisory Status message carrying replayable CRDT state (it cannot be a
+    // Proposal, which would require a persisted crdt_proposal_ref — see the negative
+    // case below). prepare_context_bundle_handoff_tx (model_lane.rs:11575) enforces
+    // require_equal("handoff.source_kind", from_message_kind(source.kind)) BEFORE the
+    // CRDT authority block. Before the 644dee55 actor_kind fix the source message
+    // never admitted, so this routing require_equal was never reached; now that the
+    // handoff resolves, a Status source with source_kind=Proposal would fail closed
+    // at "handoff.source_kind must match source.kind" — shadowing the CRDT
+    // projection/replay-metadata denials the forged clones below exist to prove.
+    // Keeping the shared handoff base fully valid lets each forged clone's single
+    // forged crdt_payload field reach its intended fail-closed guard.
     let mut handoff = sample_handoff(
         "handoff-crdt-replayable",
         "idem-handoff-crdt-replayable",
         SOURCE_MESSAGE_ID,
         "lane-local",
-        ModelLaneHandoffSourceKind::Proposal,
+        ModelLaneHandoffSourceKind::Status,
         source.payload_sha256.clone(),
         ModelLaneHandoffSelectionState::Selected,
     );
@@ -1482,6 +1494,23 @@ async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayabl
         "ledger tamper denial must identify ContextBundle EventLedger authority: {ledger_tamper}"
     );
 
+    // Reaching the "no persisted lease authority binding" guard requires the CRDT
+    // message to LACK crdt_authority_binding in BOTH the mutable projection
+    // (model_lane_messages.record_json) AND the immutable kernel_event_ledger payload.
+    // Stripping only the projection makes the two disagree, so the earlier
+    // diagnostics-projection drift guard (model_lane.rs ~9990, "mutable
+    // crdt_authority_binding does not match kernel_event_ledger payload") fires first
+    // on the projection/ledger mismatch instead. Stripping both leaves the message with
+    // crdt_update_ref-derived CRDT authority but no binding on either surface -- exactly
+    // the legacy/never-bound condition the lease-authority guard must fail closed on.
+    sqlx::query(
+        "UPDATE kernel_event_ledger SET payload = payload - 'crdt_authority_binding' \
+         WHERE event_id = (SELECT event_ledger_event_id FROM model_lane_messages WHERE message_id = $1)",
+    )
+    .bind(SOURCE_MESSAGE_ID)
+    .execute(&pool)
+    .await
+    .expect("strip legacy CRDT binding from EventLedger payload for fail-closed replay proof");
     sqlx::query(
         "UPDATE model_lane_messages SET record_json = record_json - 'crdt_authority_binding' WHERE message_id = $1",
     )
