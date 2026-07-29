@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T03:23:21Z",
+  "generated_at_utc": "2026-07-29T05:02:11Z",
   "total": 19,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
@@ -57,7 +57,7 @@
     },
     {
       "mt_id": "MT-003",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-002"
       ],
@@ -68,7 +68,7 @@
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "FAIL_V4: Launch/runtime authority is not production-correct: SwarmCoordinator generation calls ModelRuntime directly instead of the current Master Spec HARD LlmClient boundary; official CLI accepts unresolved execution-policy references; post-resume Windows startup can wait without a final bound; and the historical real-model proof does not bind the materially changed dirty source.",
+      "proof_status": "READY_FOR_VALIDATION_V5: all four V4 blocker gaps genuinely closed in production source (adversarial review confirmed no gate-gaming) and all runnable declared proof targets green on managed PostgreSQL (127.0.0.1:5544): launch [0]-[7] 8/8, schema [8]-[11] 4/4, boot-resolution [14]-[17] 7/7 (Ollama-kill: embedded ModelRuntime/Candle default, DisabledLlmClient fail-closed, ExternalEngineImport compat-only, no OllamaAdapter; AC[19] UUIDv7 identity + AC[20] embedding proven by non-vacuous tests), user_manual [12][13] 2/2, cargo check --features app-runtime [18], lib source-guard. (a) SwarmCoordinator generation routes through llm_client.stream_completion_with_context (coordinator.rs:2190); raw session_runtime accessor is test-gated. (b) official-CLI rejects unresolved execution-policy refs fail-closed at 3 layers (execution_policy.rs resolver + model_lane.rs:5392 preflight + official_cli_bridge.rs:2341 process-creation gate). (c) post-resume Windows startup bounded by POST_RESUME_CLEANUP_TIMEOUT=7s with deterministic terminate/reap (windows_native_jail/adapter.rs:740). (d) Ollama-kill complete. Two stale test assertions updated to track the already-committed production refactors (legitimate; anti-bypass negatives preserved). VALIDATOR-GATED: real-model proofs [19]/[20] need operator-local Candle/GGUF weights; a from-frozen-HEAD real-model rerun is operator-gated. MINOR follow-up: no test drives an unresolved exec-policy ref DIRECTLY into preflight_spawn_request (covered transitively). Source at 99c0f75c.",
       "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
