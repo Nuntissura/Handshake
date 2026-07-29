@@ -1479,15 +1479,23 @@ HANDSHAKE_ARTIFACTS_ROOT to the allocated external artifact root: cargo test --f
 test_loom_search_v2 loom_search_v2_managed_mounted_search_facet_save_reload_cleanup -- --exact --nocapture. \
 That command proves the mounted live search/save transport and persisted definition reload; it is not canonical \
 Argus reopened-view closure. (2) Find in Files is workspace-wide text search + \
-replace: open it from EDIT > Find in Files (author_id menu.edit.find-all, Ctrl+Shift+F) or the command \
-editor.find.findInFiles, which opens PaneType::FindInFiles. Enter text in find-in-files.query; optionally \
-select kind, comma-separated tag ids, path text, case-sensitive, whole-word, or regex mode; then activate \
-find-in-files.search. The panel follows every page from GET /workspaces/{workspace_id}/loom/graph-search \
+replace. The always-available route is VIEW > Open Find in Files (author_id menu.view.open-find-in-files) or \
+the command-palette command view.find-in-files; both open PaneType::FindInFiles without requiring editor focus. \
+EDIT > Find in Files (author_id menu.edit.find-all, Ctrl+Shift+F; command editor.find.findInFiles) is the \
+editor-context route and is enabled only while a focusable code or rich editor is active. Enter text in \
+find-in-files.query; optionally use find-in-files.kind-filter, find-in-files.tag-filter, \
+find-in-files.path-filter, find-in-files.toggle-case, find-in-files.toggle-word, or \
+find-in-files.toggle-regex; then activate find-in-files.search. Replacement text uses find-in-files.replace; \
+the destructive controls are find-in-files.preview-replace, find-in-files.apply, and find-in-files.cancel. \
+Bookmark Search is find-in-files.save-bookmark. Operator-visible terminal state is exposed at \
+find-in-files.status and bookmark lifecycle state at find-in-files.bookmark-status. These controls and \
+bookmarks are panel-local; no dedicated Settings preference is required. The panel follows every page from \
+GET /workspaces/{workspace_id}/loom/graph-search \
 (q, limit, offset, source_kinds, tag_ids, path, case_sensitive, whole_word, regex), rejects malformed producer \
 payloads, and lists the complete bounded result set with stable reversible targets. The actual row author_id is \
 find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}: it is hex-encoded, \
 each byte is lowercase two-digit hex, decoding is exact, and a no-context model should discover dynamic row \
-ids with list_widgets instead of guessing them. Exact fixtures: source_kind=document with \
+ids with argus.inspect (legacy list_widgets is secondary) instead of guessing them. Exact fixtures: source_kind=document with \
 ref_id=KRD-1:/foo?x=1 becomes \
 find-in-files.result.646f63756d656e74.4b52442d313a2f666f6f3f783d31; source_kind=文档 with \
 ref_id=résumé/東京 becomes \
@@ -1497,10 +1505,9 @@ tag_hub open PaneType::LoomBlock; symbol (knowledge_entity) opens PaneType::Code
 (knowledge_entity) opens PaneType::KernelDcc at WP:{wp_id}; micro_task (knowledge_entity) opens \
 PaneType::KernelDcc at MT:{wp_id}:{mt_id}; user_manual_page opens PaneType::UserManual at page_slug; \
 wiki_page opens the dedicated Wiki Page projection placeholder pane and never PaneType::LoomWikiPage; and \
-a loom_block whose block.content_type is view_def opens the mounted Block Collections pane. \
-When a saved-view definition or result query fails, the pane keeps `View error: ...` visible and exposes \
-bcv.retry; activating Retry clears stale deliveries, rebinds the same view id, and issues one bounded \
-definition fetch plus one bounded result query. \
+a loom_block whose block.content_type is view_def opens the mounted Block Collections pane. Result navigation \
+retains the exact origin pane and workspace; the host rejects a queued click after that workspace or pane is gone \
+instead of retargeting mutable global focus. \
 Bookmark Search persists the exact query/filter/options blob through \
 GET/PUT /workspaces/{workspace_id}/search-bookmarks and rejects workspace-mismatched or partial responses. \
 The producer bookmark id is bookmark-v1 followed by one .{utf8_len}-{hex(component UTF-8 bytes)} frame for \
@@ -1517,7 +1524,9 @@ Remove persists the shortened list, so a fresh panel mount must not rediscover t
 For replacement, enter find-in-files.replace, activate find-in-files.preview-replace, inspect each document's \
 before/after preview and match count, then activate find-in-files.apply. Each preview row is addressed as \
 find-in-files.preview.{hex(document_id UTF-8 bytes)} using the same lowercase bytewise codec; for example \
-KRD-文/1 becomes find-in-files.preview.4b52442de696872f31. Preview loads only KRD- rich documents; \
+KRD-文/1 becomes find-in-files.preview.4b52442de696872f31. Its expanded exact-content nodes are \
+find-in-files.preview-before.{hex(document_id UTF-8 bytes)} and \
+find-in-files.preview-after.{hex(document_id UTF-8 bytes)}. Preview loads only KRD- rich documents; \
 Apply PUTs each /knowledge/documents/{id}/save sequentially with the previewed expected_version and changes \
 only text plus attrs.code strings while preserving all other JSON nodes. Preview requires the loaded KRD id \
 and workspace_id to match the active workspace, carries that workspace authority in every plan, and reloads \
@@ -1530,15 +1539,20 @@ Cancel is cooperative between saves: it keeps the old workspace-attributed opera
 switch until the in-flight save reports, preserves all already committed receipts, blocks another destructive \
 Apply, and reports how many plans were skipped. Search never overlaps Apply; a Search intent during Preview \
 first detaches that read-only preview and requires Search again, preventing same-input completion reordering. \
-If a query/filter/replacement or \
-workspace generation changed, run Search then Preview Replace again; stale results/plans are blocked. On an \
-HTTP, regex, malformed-response, or conflict error, read the visible status, correct the input or reload the \
-current workspace, and retry—never assume an unseen save rolled back. Diagnostic posture: Flight Recorder / \
-EventLedger = WIRED: every graph-search page emits LoomSearchExecuted, bookmark mutation returns an \
-event_ledger_event_id, and document save returns a save_receipt_event_id or explicit receipt_error; \
-internal_diagnostics = DEFERRED-with-reason because no \
-Find-in-Files-specific diagnostic event code is registered; Palmistry = DEFERRED-with-reason because no \
-Find-in-Files-specific external liveness tracker is registered. Managed verification self-seeds PostgreSQL, \
+If a query/filter/replacement or workspace generation changed, run Search then Preview Replace again; stale \
+results/plans are blocked. On regex or malformed-response failure, correct the input and run a fresh Search. \
+After backend loss, conflict, partial success, or unknown response loss, do not reuse or blindly retry the old \
+preview: restore the backend; preserve and read every visible audit row/save receipt; reload each affected \
+document to distinguish committed originals from unchanged documents; run a fresh Search; run a fresh Preview \
+Replace; inspect the new before/after plan; and Apply only that fresh plan. Never assume an unseen save rolled \
+back. Diagnostic posture: Flight Recorder / EventLedger = WIRED at Tier 1: every graph-search page emits \
+LoomSearchExecuted, bookmark mutation returns an event_ledger_event_id, and document save returns a \
+save_receipt_event_id or explicit receipt_error. Shared Tier 2 internal_diagnostics = WIRED through typed \
+BackendUnreachable/BackendRecovered state plus the advancing UI heartbeat. Search, bookmark load/save, Preview, \
+and Apply register and tick the shared BackendCall operation watchdog, so a bounded progress gap or hard runtime \
+cap produces the shared StalledOperation diagnostic; no Find-in-Files-specific diagnostic event code is registered. \
+Shared Tier 3 Palmistry = WIRED through the diagnostic ring for freeze/crash survival; \
+no Find-in-Files-specific payload or tracker is registered. Managed verification self-seeds PostgreSQL, \
 drives the mounted factory UI through Search -> result click/open_requests shell target -> a fully backend-loaded \
 RichEditorPaneMount with exact id/title/content/version and stable rich-editor root/block ids -> Preview -> Apply, \
 proves 501-row pagination, positive and negative tag filters, match options, workspace rejection, stale/conflict/ \

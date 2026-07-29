@@ -3,7 +3,7 @@
 //! a central work-surface placeholder. Render logic lives in `ui()` (no eframe::Frame) so it is
 //! driveable headlessly by egui_kittest.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::io::Write as _;
 use std::sync::{Arc, Mutex};
 
@@ -2305,9 +2305,9 @@ pub struct HandshakeApp {
     /// id + live palette pushed IN) and the shell drains (clicked hits pulled OUT into the open path).
     /// Same role as `loom_search_v2_shared` for the Find-in-Files pane.
     find_in_files_shared: Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
-    /// The exact MT-029 state rendered by the concrete pane factory. The host observes its real query
-    /// and accepted backend results to bridge global Find into the shared editor InteractionBus.
-    find_in_files_state: Arc<Mutex<crate::find_in_files::FindInFilesPanelState>>,
+    /// Exact MT-029 states keyed by mounted pane identity. The host observes the active pane's real
+    /// query and accepted backend results to bridge global Find into the shared editor InteractionBus.
+    find_in_files_state: Arc<Mutex<BTreeMap<PaneId, crate::find_in_files::FindInFilesPanelState>>>,
     /// Revision key + typed projection cache for the shared global-Find bridge. MT-029 can return a
     /// paginated workspace-sized result set, so raw rows are projected only when its revision changes.
     shared_find_projection_key: Option<(u64, u64, String, bool)>,
@@ -3285,7 +3285,7 @@ type FactoriesWithSharedCells = (
     HashMap<PaneType, Box<dyn PaneFactory>>,
     Arc<Mutex<crate::loom_search_v2::LoomSearchV2PaneShared>>,
     Arc<Mutex<crate::find_in_files::FindInFilesPaneShared>>,
-    Arc<Mutex<crate::find_in_files::FindInFilesPanelState>>,
+    Arc<Mutex<BTreeMap<PaneId, crate::find_in_files::FindInFilesPanelState>>>,
     Arc<Mutex<crate::runtime_chat::RuntimeChatPanel>>,
     EditorMountHandles,
 );
@@ -3566,7 +3566,7 @@ fn build_factories_with_loom_search_v2(
         doc_client,
         Arc::clone(&fif_shared),
     );
-    let fif_state = fif_factory.state_handle();
+    let fif_state = fif_factory.states_handle();
     map.insert(PaneType::FindInFiles, Box::new(fif_factory));
 
     // MT-098: install the concrete Runtime Chat pane beside the editor work surface. The production
@@ -5713,23 +5713,150 @@ impl HandshakeApp {
         &mut self.tab_bar_states
     }
 
-    /// Drain the exact shared queue populated by the mounted Find-in-Files pane and dispatch every
-    /// supported hit through the production [`ShellNavigator`](crate::quick_switcher::ShellNavigator)
-    /// implementation. Kept as a single host method so the frame path and managed proof cannot drift.
+    fn dispatch_find_in_files_target_on_pane(
+        &mut self,
+        pane_id: &PaneId,
+        target: &crate::quick_switcher::QuickSwitcherTarget,
+    ) -> bool {
+        use crate::quick_switcher::QuickSwitcherTarget;
+
+        let pane = pane_id.as_ref();
+        match target {
+            QuickSwitcherTarget::Document { document_id } => {
+                self.ensure_rich_document_workspace();
+                let opened = self
+                    .open_navigator_tab_in_pane(
+                        pane,
+                        PaneType::LoomWikiPage,
+                        document_id.clone(),
+                        document_id,
+                    )
+                    .is_some();
+                if opened {
+                    self.editor_mounts
+                        .rich_documents
+                        .set_active_view(Some(document_id), Some(pane_id));
+                    if let Ok(mut rich) = self.rich_state_for_document(Some(document_id)).lock() {
+                        rich.request_editor_focus();
+                    }
+                }
+                opened
+            }
+            QuickSwitcherTarget::LoomBlock { block_id } => {
+                let opened = self
+                    .open_navigator_tab_in_pane(
+                        pane,
+                        PaneType::LoomBlock,
+                        block_id.clone(),
+                        block_id,
+                    )
+                    .is_some();
+                if opened {
+                    let workspace = self.active_project_id.clone();
+                    self.bind_sidebar_active_block(&workspace, block_id);
+                }
+                opened
+            }
+            QuickSwitcherTarget::BlockCollectionView { view_block_id } => {
+                let opened = self
+                    .open_navigator_tab_in_pane(
+                        pane,
+                        Self::block_collections_pane_type(),
+                        view_block_id.clone(),
+                        view_block_id,
+                    )
+                    .is_some();
+                if opened {
+                    self.bind_block_collection_view(view_block_id);
+                }
+                opened
+            }
+            QuickSwitcherTarget::CodeSymbol { symbol_entity_id } => {
+                crate::quick_switcher::ShellNavigator::open_code_symbol_in_pane(
+                    self,
+                    pane,
+                    symbol_entity_id,
+                )
+                .opened()
+            }
+            QuickSwitcherTarget::WorkPacket { wp_id } => self
+                .open_navigator_tab_in_pane(pane, PaneType::KernelDcc, format!("WP:{wp_id}"), wp_id)
+                .is_some(),
+            QuickSwitcherTarget::MicroTask { mt_id, wp_id } => self
+                .open_navigator_tab_in_pane(
+                    pane,
+                    PaneType::KernelDcc,
+                    format!("MT:{}:{mt_id}", wp_id.as_deref().unwrap_or_default()),
+                    mt_id,
+                )
+                .is_some(),
+            QuickSwitcherTarget::UserManual { slug } => self
+                .open_navigator_tab_in_pane(pane, PaneType::UserManual, slug.clone(), slug)
+                .is_some(),
+            QuickSwitcherTarget::WikiPage { projection_id } => self
+                .open_navigator_tab_in_pane(
+                    pane,
+                    crate::editor_pane_factories::placeholder_pane_type(
+                        crate::editor_pane_factories::WIKI_PAGE_PANE_LABEL,
+                    ),
+                    projection_id.clone(),
+                    projection_id,
+                )
+                .is_some(),
+            QuickSwitcherTarget::Unsupported => false,
+        }
+    }
+
+    /// Drain the exact shared queue populated by the mounted Find-in-Files pane. Each request is
+    /// fail-closed against its captured workspace and origin pane before exact-pane dispatch.
     fn drain_find_in_files_open_requests(&mut self) -> usize {
-        let open_hit_requests: Vec<crate::backend_client::LoomGraphSearchHit> = self
+        let (open_hit_requests, current_workspace): (
+            Vec<crate::find_in_files::FindInFilesOpenRequest>,
+            Option<String>,
+        ) = self
             .find_in_files_shared
             .lock()
-            .map(|mut shared| std::mem::take(&mut shared.open_requests))
+            .map(|mut shared| {
+                (
+                    std::mem::take(&mut shared.open_requests),
+                    shared.workspace_id.clone(),
+                )
+            })
             .unwrap_or_default();
         let mut dispatched = 0usize;
-        for hit in open_hit_requests {
-            if let Some(target) = crate::find_in_files::shell_open_target_from_hit(&hit) {
-                let _ = crate::find_in_files::dispatch_shell_open_target(self, &target);
-                dispatched += 1;
+        for request in open_hit_requests {
+            if current_workspace.as_deref() != Some(request.workspace_id.as_str())
+                || !self.tab_bar_states.contains_key(&request.origin_pane_id)
+            {
+                continue;
+            }
+            if let Some(target) = crate::find_in_files::shell_open_target_from_hit(&request.hit) {
+                dispatched += usize::from(
+                    self.dispatch_find_in_files_target_on_pane(&request.origin_pane_id, &target),
+                );
             }
         }
         dispatched
+    }
+
+    /// Managed-proof seam for the typed Find result queue. The production drain still performs every
+    /// workspace/pane validity check and exact-pane dispatch; this only injects the same typed request
+    /// a mounted row click produces.
+    #[doc(hidden)]
+    pub fn enqueue_find_in_files_open_request_for_test(
+        &mut self,
+        request: crate::find_in_files::FindInFilesOpenRequest,
+    ) {
+        self.find_in_files_shared
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .open_requests
+            .push(request);
+    }
+
+    #[doc(hidden)]
+    pub fn drain_find_in_files_open_requests_for_test(&mut self) -> usize {
+        self.drain_find_in_files_open_requests()
     }
 
     /// Managed-proof seam: mount supplied backend-shaped rows in the REAL Find-in-Files pane. Tests
@@ -5741,6 +5868,26 @@ impl HandshakeApp {
         &mut self,
         hits: Vec<crate::backend_client::LoomGraphSearchHit>,
     ) {
+        let mut state = crate::find_in_files::FindInFilesPanelState::new();
+        state.results = hits;
+        self.mount_find_in_files_state_for_test(state);
+    }
+
+    /// Managed-proof seam for terminal states produced by a real transport outcome (for example a
+    /// persisted partial Apply). The supplied state is still rendered by the production pane factory.
+    #[doc(hidden)]
+    pub fn mount_find_in_files_state_for_test(
+        &mut self,
+        mut state: crate::find_in_files::FindInFilesPanelState,
+    ) {
+        let mounted_results = state.results.clone();
+        let mounted_preview_plans = state.preview_plans.clone();
+        let mounted_bookmarks = state.bookmarks.clone();
+        let mounted_result_set_key = state.result_set_key.clone();
+        let mounted_preview_plan_key = state.preview_plan_key.clone();
+        let terminal_replace_status = state.replace_status.clone();
+        let terminal_error = state.error.clone();
+        let terminal_bookmark_status = state.bookmark_status.clone();
         let workspace_id =
             (!self.active_project_id.is_empty()).then(|| self.active_project_id.clone());
         let workspace_generation = {
@@ -5755,9 +5902,25 @@ impl HandshakeApp {
             shared.open_requests.clear();
             shared.workspace_generation
         };
-        let mut state = crate::find_in_files::FindInFilesPanelState::new();
         state.bind_workspace(workspace_id.as_deref(), workspace_generation);
-        state.results = hits;
+        if !mounted_results.is_empty() {
+            state.results = mounted_results;
+            state.result_set_key = mounted_result_set_key;
+        }
+        if !mounted_preview_plans.is_empty() {
+            state.preview_plans = mounted_preview_plans;
+            state.preview_plan_key = mounted_preview_plan_key;
+        }
+        if !mounted_bookmarks.is_empty() {
+            state.bookmarks = mounted_bookmarks;
+        }
+        if terminal_replace_status.is_some() || terminal_error.is_some() {
+            state.replace_status = terminal_replace_status;
+            state.error = terminal_error;
+        }
+        if terminal_bookmark_status.is_some() {
+            state.bookmark_status = terminal_bookmark_status;
+        }
         let handle = self
             .runtime_handle
             .clone()
@@ -5771,7 +5934,7 @@ impl HandshakeApp {
             Arc::clone(&self.find_in_files_shared),
             state,
         );
-        self.find_in_files_state = factory.state_handle();
+        self.find_in_files_state = factory.states_handle();
         self.shared_find_projection_key = None;
         self.shared_find_code_entries.clear();
         self.shared_find_note_entries.clear();
@@ -5783,8 +5946,16 @@ impl HandshakeApp {
     /// visible state the pane header/result list renders; it does not inject results or advance work.
     #[doc(hidden)]
     pub fn find_in_files_diagnostics_for_test(&self) -> (String, bool, Option<String>, usize) {
-        self.find_in_files_state
+        let states = self
+            .find_in_files_state
             .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let state = self
+            .active_pane
+            .as_ref()
+            .and_then(|pane_id| states.get(pane_id))
+            .or_else(|| states.values().next());
+        state
             .map(|state| {
                 (
                     state.query.clone(),
@@ -5793,15 +5964,28 @@ impl HandshakeApp {
                     state.results.len(),
                 )
             })
-            .unwrap_or_else(|poisoned| {
-                let state = poisoned.into_inner();
-                (
-                    state.query.clone(),
-                    state.loading,
-                    state.error.clone(),
-                    state.results.len(),
-                )
+            .unwrap_or_else(|| (String::new(), false, None, 0))
+    }
+
+    /// Read-only exact preview ordering used to choose a later optimistic-conflict target while the
+    /// mounted production Apply path remains action-driven.
+    #[doc(hidden)]
+    pub fn find_in_files_preview_document_ids_for_test(&self) -> Vec<String> {
+        let states = self
+            .find_in_files_state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        states
+            .values()
+            .find(|state| !state.preview_plans.is_empty())
+            .map(|state| {
+                state
+                    .preview_plans
+                    .iter()
+                    .map(|plan| plan.document_id.clone())
+                    .collect()
             })
+            .unwrap_or_default()
     }
 
     /// Request that `pane_id` be popped out into its own OS window on the next frame (MT-008). The
@@ -5840,7 +6024,15 @@ impl HandshakeApp {
     pub fn bind_active_project_for_integration_test(&mut self, workspace_id: impl Into<String>) {
         let workspace_id = workspace_id.into();
         self.active_project_id = workspace_id.clone();
-        self.project_tabs.set_active_id(workspace_id);
+        self.project_tabs.set_active_id(workspace_id.clone());
+        if let Ok(mut shared) = self.find_in_files_shared.lock() {
+            if shared.workspace_id.as_deref() != Some(workspace_id.as_str()) {
+                shared.workspace_generation = shared.workspace_generation.wrapping_add(1);
+                shared.open_requests.clear();
+                shared.bookmarks_loaded_for.clear();
+            }
+            shared.workspace_id = Some(workspace_id);
+        }
         // Bind/retire document state at the workspace transition itself. Deferring this until a GET
         // delivery can invalidate an Arc already returned to the mounted host, leaving that visible
         // view permanently detached from the state which receives the loaded document.
@@ -10577,19 +10769,26 @@ impl HandshakeApp {
             .map(|shared| shared.workspace_generation)
             .unwrap_or_default();
         let state_handle = Arc::clone(&self.find_in_files_state);
-        let Some((pattern, projection_key, projection)) = state_handle.lock().ok().map(|state| {
-            let pattern = state.query.clone();
-            let current_search_key = state.current_search_key();
-            let results_are_current = !pattern.trim().is_empty()
-                && !state.search_in_flight()
-                && state.result_set_key.as_deref() == Some(current_search_key.as_str());
-            let projection_key = (
-                workspace_generation,
-                state.results_generation(),
-                pattern.clone(),
-                results_are_current,
-            );
-            let projection = (self.shared_find_projection_key.as_ref() != Some(&projection_key))
+        let active_pane = self.active_pane.clone();
+        let Some((pattern, projection_key, projection)) =
+            state_handle.lock().ok().and_then(|states| {
+                let state = active_pane
+                    .as_ref()
+                    .and_then(|pane_id| states.get(pane_id))
+                    .or_else(|| states.values().next())?;
+                let pattern = state.query.clone();
+                let current_search_key = state.current_search_key();
+                let results_are_current = !pattern.trim().is_empty()
+                    && !state.search_in_flight()
+                    && state.result_set_key.as_deref() == Some(current_search_key.as_str());
+                let projection_key = (
+                    workspace_generation,
+                    state.results_generation(),
+                    pattern.clone(),
+                    results_are_current,
+                );
+                let projection = (self.shared_find_projection_key.as_ref()
+                    != Some(&projection_key))
                 .then(|| {
                     if results_are_current {
                         crate::find_in_files::shared_editor_find_entries(&state.results)
@@ -10597,8 +10796,9 @@ impl HandshakeApp {
                         (Vec::new(), Vec::new())
                     }
                 });
-            (pattern, projection_key, projection)
-        }) else {
+                Some((pattern, projection_key, projection))
+            })
+        else {
             ctx.request_repaint();
             return;
         };
@@ -11162,7 +11362,7 @@ impl HandshakeApp {
             crate::backend_client::RichDocClient::new(base_url, handle.clone()),
             Arc::clone(&self.find_in_files_shared),
         );
-        self.find_in_files_state = find_in_files_factory.state_handle();
+        self.find_in_files_state = find_in_files_factory.states_handle();
         self.shared_find_projection_key = None;
         self.shared_find_code_entries.clear();
         self.shared_find_note_entries.clear();
@@ -25441,9 +25641,12 @@ impl HandshakeApp {
             if let Ok(mut shared) = self.find_in_files_shared.lock() {
                 if shared.workspace_id != workspace_id {
                     shared.workspace_generation = shared.workspace_generation.wrapping_add(1);
+                    shared.open_requests.clear();
+                    shared.bookmarks_loaded_for.clear();
                 }
                 shared.workspace_id = workspace_id.clone();
                 shared.palette = palette.clone();
+                shared.active_pane_id = self.active_pane.clone();
             }
             // MT-098: keep Runtime Chat visually aligned with the live app theme. This is a pure palette
             // overwrite; send attempts remain a real off-thread `/chat` probe with typed failure states.

@@ -8661,6 +8661,7 @@ impl WorkspaceSearchClient {
         let tag_filter = tag_filter.to_owned();
         let path_filter = path_filter.to_owned();
         let this = self.clone();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             let mut all: Vec<LoomGraphSearchHit> = Vec::new();
             let mut offset = 0u32;
@@ -8681,6 +8682,7 @@ impl WorkspaceSearchClient {
                         };
                         let page_len = page.len();
                         all.extend(page);
+                        operation_handle.tick();
                         if page_len < SEARCH_PAGE_SIZE as usize {
                             break Ok((all, result_set_key));
                         }
@@ -8713,6 +8715,7 @@ impl WorkspaceSearchClient {
         let url = self.bookmarks_url(workspace_id);
         let expected_workspace_id = workspace_id.to_owned();
         let client = self.client.clone();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             let result = get_json(&client, &url, &[])
                 .await
@@ -8721,6 +8724,7 @@ impl WorkspaceSearchClient {
                     parse_bookmark_response(&v, &expected_workspace_id, true)
                         .map(|(blob, receipt)| (blob, None, receipt))
                 });
+            operation_handle.tick();
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back(FindInFilesDelivery {
                     stamp,
@@ -8760,6 +8764,7 @@ impl WorkspaceSearchClient {
         let body = spec.body.unwrap_or_default();
         let expected_workspace_id = workspace_id.to_owned();
         let client = self.client.clone();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             let result = put_json(&client, &spec.url, &body)
                 .await
@@ -8768,6 +8773,7 @@ impl WorkspaceSearchClient {
                     parse_bookmark_response(&v, &expected_workspace_id, false)
                         .map(|(blob, receipt)| (blob, Some(status), receipt))
                 });
+            operation_handle.tick();
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back(FindInFilesDelivery {
                     stamp,
@@ -9045,12 +9051,14 @@ impl RichDocClient {
     ) {
         let workspace_id = workspace_id.to_owned();
         let this = self.clone();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             let mut plans = Vec::new();
             let mut error: Option<String> = None;
             for document_id in &document_ids {
                 match this.load_document(document_id).await {
                     Ok(doc) => {
+                        operation_handle.tick();
                         if doc.document_id != *document_id {
                             error = Some(format!(
                                 "Replace preview rejected document identity mismatch: requested {document_id}, loaded {}",
@@ -9127,6 +9135,7 @@ impl RichDocClient {
     ) {
         let workspace_id = workspace_id.to_owned();
         let this = self.clone();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             // Save sequentially, capturing each (document_id, outcome) and STOPPING at the first
             // non-success so a since-edited later doc is never overwritten on a stale plan. The break is
@@ -9159,6 +9168,7 @@ impl RichDocClient {
                         break;
                     }
                 };
+                operation_handle.tick();
                 if loaded.document_id != plan.document_id || loaded.workspace_id != workspace_id {
                     outcomes.push((
                         plan.document_id.clone(),
@@ -9181,6 +9191,7 @@ impl RichDocClient {
                         plan.expected_version,
                     )
                     .await;
+                operation_handle.tick();
                 let is_terminal = matches!(
                     outcome,
                     DocSaveOutcome::Conflict | DocSaveOutcome::Failed(_)

@@ -55,7 +55,7 @@
 //! kebab-case `author_id` under the `find-in-files.` namespace via
 //! [`crate::accessibility::emit_interactive_node`].
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -68,7 +68,7 @@ use crate::backend_client::{
     BookmarkStateCell, FindInFilesOperation, FindInFilesStamp, FindReplaceCell, GraphSearchCell,
     LoomGraphSearchHit, RichDocClient, WorkspaceSearchClient,
 };
-use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
+use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsPalette;
 
 // ── Stable AccessKit author_ids (the MT-029 naming contract) ─────────────────────────────────────────
@@ -99,6 +99,10 @@ pub const APPLY_AUTHOR_ID: &str = "find-in-files.apply";
 pub const CANCEL_AUTHOR_ID: &str = "find-in-files.cancel";
 /// The `Bookmark Search` button.
 pub const SAVE_BOOKMARK_AUTHOR_ID: &str = "find-in-files.save-bookmark";
+/// Live query/preview/apply/error status exposed as a polite AccessKit status node.
+pub const STATUS_AUTHOR_ID: &str = "find-in-files.status";
+/// Live bookmark load/save/remove status, including the producer receipt id when present.
+pub const BOOKMARK_STATUS_AUTHOR_ID: &str = "find-in-files.bookmark-status";
 /// Retry the failed mount-time bookmark load against the same active workspace.
 pub const BOOKMARK_RETRY_AUTHOR_ID: &str = "find-in-files.bookmark-retry";
 /// Prefix for one persisted bookmark's Restore action; the bookmark id is UTF-8 byte-hex encoded.
@@ -109,6 +113,24 @@ pub const BOOKMARK_REMOVE_AUTHOR_ID_PREFIX: &str = "find-in-files.bookmark-remov
 pub const RESULT_AUTHOR_ID_PREFIX: &str = "find-in-files.result.";
 /// Prefix for a per-preview item (the document id is lowercase UTF-8 byte hex).
 pub const PREVIEW_AUTHOR_ID_PREFIX: &str = "find-in-files.preview.";
+/// Prefix for one preview plan's exact before-content label.
+pub const PREVIEW_BEFORE_AUTHOR_ID_PREFIX: &str = "find-in-files.preview-before.";
+/// Prefix for one preview plan's exact after-content label.
+pub const PREVIEW_AFTER_AUTHOR_ID_PREFIX: &str = "find-in-files.preview-after.";
+
+/// Keep the contract base id on the factory's stable primary-pane lease; deterministically scope
+/// every additional mounted instance so Argus never sees duplicate targets.
+pub fn pane_scoped_author_id(author_id: &str, secondary_pane_id: Option<&str>) -> String {
+    let Some(pane_id) = secondary_pane_id else {
+        return author_id.to_owned();
+    };
+    let mut encoded = String::with_capacity(pane_id.len() * 2);
+    for byte in pane_id.as_bytes() {
+        use std::fmt::Write as _;
+        write!(&mut encoded, "{byte:02x}").expect("write PaneId byte hex");
+    }
+    format!("{author_id}.pane-{encoded}")
+}
 
 /// 24-char context window each side of a match preview (the React `MATCH_PREVIEW_CONTEXT_CHARS`).
 pub const MATCH_PREVIEW_CONTEXT_CHARS: usize = 24;
@@ -168,6 +190,22 @@ pub fn hit_identity_from_result_author_id(author_id: &str) -> Option<(String, St
 pub fn preview_author_id(document_id: &str) -> String {
     format!(
         "{PREVIEW_AUTHOR_ID_PREFIX}{}",
+        encode_author_id_component(document_id)
+    )
+}
+
+/// Exact before-content label for one planned document.
+pub fn preview_before_author_id(document_id: &str) -> String {
+    format!(
+        "{PREVIEW_BEFORE_AUTHOR_ID_PREFIX}{}",
+        encode_author_id_component(document_id)
+    )
+}
+
+/// Exact after-content label for one planned document.
+pub fn preview_after_author_id(document_id: &str) -> String {
+    format!(
+        "{PREVIEW_AFTER_AUTHOR_ID_PREFIX}{}",
         encode_author_id_component(document_id)
     )
 }
@@ -1435,10 +1473,15 @@ impl FindInFilesPanelState {
     fn invalidate_search_inputs(&mut self) {
         self.active_search = None;
         self.active_preview = None;
-        self.results.clear();
+        // Keep the last completed result set and its producer key long enough for the mounted Preview
+        // action to report the contract's explicit stale-result warning. Clearing either here made the
+        // button disabled, so the UI could never exercise the stale guard that `run_preview_replace`
+        // correctly enforces. A real Search clears `result_set_key` before dispatch and replaces the rows
+        // only on an accepted current-generation delivery.
         self.preview_plans.clear();
-        self.result_set_key = None;
         self.preview_plan_key = None;
+        self.replace_status = None;
+        self.error = None;
         self.results_generation = self.results_generation.wrapping_add(1);
         *self.visible_cache.borrow_mut() = None;
         if let Ok(mut queue) = self.search_cell.lock() {
@@ -1451,9 +1494,14 @@ impl FindInFilesPanelState {
     }
 
     fn invalidate_replacement_input(&mut self) {
+        let invalidated_preview = self.preview_plan_key.is_some() || !self.preview_plans.is_empty();
         self.active_preview = None;
         self.preview_plans.clear();
         self.preview_plan_key = None;
+        if invalidated_preview {
+            self.replace_status =
+                Some("Preview is stale; run Preview Replace again before applying.".to_owned());
+        }
         self.refresh_loading();
     }
 
@@ -1723,6 +1771,13 @@ impl FindInFilesPanelState {
         }
     }
 
+    /// Managed-proof seam: project an exact typed worker delivery through the same terminal reducer
+    /// used by production polling before mounting that state in the production pane factory.
+    #[doc(hidden)]
+    pub fn accept_replace_delivery_for_test(&mut self, delivery: ReplaceDelivery) {
+        self.apply_replace_delivery(delivery);
+    }
+
     /// Request cooperative cancellation. Apply keeps its active stamp until the worker reports exactly
     /// which saves committed; preview can be detached immediately because it is read-only.
     pub fn request_cancel(&mut self) {
@@ -1797,6 +1852,9 @@ impl FindInFilesPanelState {
         self.active_search = Some(stamp.clone());
         self.refresh_loading();
         self.error = None;
+        if !self.refresh_search_after_apply {
+            self.replace_status = None;
+        }
         self.preview_plans = Vec::new();
         self.preview_plan_key = None;
         self.result_set_key = None;
@@ -2043,11 +2101,14 @@ impl FindInFilesPanelState {
         if self.loading {
             return "Working…".to_owned();
         }
-        if let Some(err) = &self.error {
-            return err.clone();
-        }
-        if let Some(status) = &self.replace_status {
-            return status.clone();
+        match (&self.replace_status, &self.error) {
+            // A partial Apply deliberately retains both the committed-document receipts/audit and the
+            // terminal failure. Rendering only `error` hid the already-persisted mutations from the
+            // operator, which is unsafe recovery guidance.
+            (Some(status), Some(error)) => return format!("{status}; failure: {error}"),
+            (Some(status), None) => return status.clone(),
+            (None, Some(error)) => return error.clone(),
+            (None, None) => {}
         }
         let n = self.visible_result_count();
         if self.result_set_key.is_some() {
@@ -2152,6 +2213,29 @@ pub fn show(
     workspace_id: Option<&str>,
     callbacks: &mut FindInFilesCallbacks<'_>,
 ) {
+    show_with_author_scope(
+        ui,
+        state,
+        palette,
+        search_client,
+        doc_client,
+        workspace_id,
+        callbacks,
+        None,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn show_with_author_scope(
+    ui: &mut egui::Ui,
+    state: &mut FindInFilesPanelState,
+    palette: &HsPalette,
+    search_client: &WorkspaceSearchClient,
+    doc_client: &RichDocClient,
+    workspace_id: Option<&str>,
+    callbacks: &mut FindInFilesCallbacks<'_>,
+    secondary_pane_id: Option<&str>,
+) {
     state.poll_with_search_refresh(search_client, workspace_id);
     if state.loading {
         ui.ctx().request_repaint();
@@ -2168,6 +2252,23 @@ pub fn show(
     let mut fire_cancel = false;
     let mut fire_save_bookmark = false;
     let mut fire_retry_bookmarks = false;
+    let scoped = |author_id: &str| pane_scoped_author_id(author_id, secondary_pane_id);
+    let query_author_id = scoped(QUERY_AUTHOR_ID);
+    let replace_author_id = scoped(REPLACE_AUTHOR_ID);
+    let toggle_case_author_id = scoped(TOGGLE_CASE_AUTHOR_ID);
+    let toggle_word_author_id = scoped(TOGGLE_WORD_AUTHOR_ID);
+    let toggle_regex_author_id = scoped(TOGGLE_REGEX_AUTHOR_ID);
+    let kind_filter_author_id = scoped(KIND_FILTER_AUTHOR_ID);
+    let tag_filter_author_id = scoped(TAG_FILTER_AUTHOR_ID);
+    let path_filter_author_id = scoped(PATH_FILTER_AUTHOR_ID);
+    let search_author_id = scoped(SEARCH_AUTHOR_ID);
+    let preview_replace_author_id = scoped(PREVIEW_REPLACE_AUTHOR_ID);
+    let apply_author_id = scoped(APPLY_AUTHOR_ID);
+    let cancel_author_id = scoped(CANCEL_AUTHOR_ID);
+    let save_bookmark_author_id = scoped(SAVE_BOOKMARK_AUTHOR_ID);
+    let status_author_id = scoped(STATUS_AUTHOR_ID);
+    let bookmark_status_author_id = scoped(BOOKMARK_STATUS_AUTHOR_ID);
+    let bookmark_retry_author_id = scoped(BOOKMARK_RETRY_AUTHOR_ID);
 
     // ── Query + match toggles ──
     ui.horizontal(|ui| {
@@ -2175,7 +2276,7 @@ pub fn show(
             .hint_text("Search workspace")
             .desired_width(220.0);
         let resp = ui.add(edit);
-        accessibility::emit_interactive_node(ui.ctx(), resp.id, QUERY_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), resp.id, &query_author_id);
         if resp.changed() {
             state.invalidate_search_inputs();
         }
@@ -2184,7 +2285,7 @@ pub fn show(
         }
 
         let case_btn = ui.add(egui::Button::new("Aa").selected(state.case_sensitive));
-        accessibility::emit_interactive_node(ui.ctx(), case_btn.id, TOGGLE_CASE_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), case_btn.id, &toggle_case_author_id);
         let case_toggled = state.case_sensitive;
         ui.ctx().accesskit_node_builder(case_btn.id, move |node| {
             node.set_toggled(if case_toggled {
@@ -2198,7 +2299,7 @@ pub fn show(
             state.invalidate_search_inputs();
         }
         let word_btn = ui.add(egui::Button::new("W").selected(state.whole_word));
-        accessibility::emit_interactive_node(ui.ctx(), word_btn.id, TOGGLE_WORD_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), word_btn.id, &toggle_word_author_id);
         let word_toggled = state.whole_word;
         ui.ctx().accesskit_node_builder(word_btn.id, move |node| {
             node.set_toggled(if word_toggled {
@@ -2212,7 +2313,7 @@ pub fn show(
             state.invalidate_search_inputs();
         }
         let regex_btn = ui.add(egui::Button::new(".*").selected(state.is_regex));
-        accessibility::emit_interactive_node(ui.ctx(), regex_btn.id, TOGGLE_REGEX_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), regex_btn.id, &toggle_regex_author_id);
         let regex_toggled = state.is_regex;
         ui.ctx().accesskit_node_builder(regex_btn.id, move |node| {
             node.set_toggled(if regex_toggled {
@@ -2230,7 +2331,7 @@ pub fn show(
             !state.search_in_flight() && !state.preview_in_flight() && !state.apply_in_flight(),
             egui::Button::new("Search"),
         );
-        accessibility::emit_interactive_node(ui.ctx(), search_btn.id, SEARCH_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), search_btn.id, &search_author_id);
         if search_btn.clicked() {
             fire_search = true;
         }
@@ -2243,7 +2344,7 @@ pub fn show(
             .hint_text("Replace with")
             .desired_width(220.0);
         let resp = ui.add_enabled(replacement_enabled, edit);
-        accessibility::emit_interactive_node(ui.ctx(), resp.id, REPLACE_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), resp.id, &replace_author_id);
         if resp.changed() {
             state.invalidate_replacement_input();
         }
@@ -2252,7 +2353,7 @@ pub fn show(
             && !state.preview_in_flight()
             && !state.apply_in_flight();
         let preview_btn = ui.add_enabled(preview_enabled, egui::Button::new("Preview Replace"));
-        accessibility::emit_interactive_node(ui.ctx(), preview_btn.id, PREVIEW_REPLACE_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), preview_btn.id, &preview_replace_author_id);
         if preview_btn.clicked() {
             fire_preview = true;
         }
@@ -2261,13 +2362,13 @@ pub fn show(
             state.can_apply() && !state.preview_in_flight() && !state.apply_in_flight(),
             egui::Button::new("Apply"),
         );
-        accessibility::emit_interactive_node(ui.ctx(), apply_btn.id, APPLY_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), apply_btn.id, &apply_author_id);
         if apply_btn.clicked() {
             fire_apply = true;
         }
 
         let cancel_btn = ui.button("Cancel");
-        accessibility::emit_interactive_node(ui.ctx(), cancel_btn.id, CANCEL_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), cancel_btn.id, &cancel_author_id);
         if cancel_btn.clicked() {
             fire_cancel = true;
         }
@@ -2275,14 +2376,14 @@ pub fn show(
 
     // ── Kind / tag / path filters ──
     ui.horizontal(|ui| {
-        let combo = egui::ComboBox::from_id_salt(KIND_FILTER_AUTHOR_ID)
+        let combo = egui::ComboBox::from_id_salt(&kind_filter_author_id)
             .selected_text(state.kind.label())
             .show_ui(ui, |ui| {
                 for kind in KindFilter::ALL {
                     ui.selectable_value(&mut state.kind, kind, kind.label());
                 }
             });
-        accessibility::emit_interactive_node(ui.ctx(), combo.response.id, KIND_FILTER_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), combo.response.id, &kind_filter_author_id);
         let selected_kind = state.kind.label().to_owned();
         ui.ctx()
             .accesskit_node_builder(combo.response.id, move |node| {
@@ -2297,7 +2398,7 @@ pub fn show(
             .hint_text("tag ids")
             .desired_width(120.0);
         let tag_resp = ui.add(tag);
-        accessibility::emit_interactive_node(ui.ctx(), tag_resp.id, TAG_FILTER_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), tag_resp.id, &tag_filter_author_id);
         if tag_resp.changed() {
             state.invalidate_search_inputs();
         }
@@ -2306,7 +2407,7 @@ pub fn show(
             .hint_text("path")
             .desired_width(120.0);
         let path_resp = ui.add(path);
-        accessibility::emit_interactive_node(ui.ctx(), path_resp.id, PATH_FILTER_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), path_resp.id, &path_filter_author_id);
         if path_resp.changed() {
             state.invalidate_search_inputs();
         }
@@ -2315,7 +2416,7 @@ pub fn show(
             !state.bookmark_in_flight(),
             egui::Button::new("Bookmark Search"),
         );
-        accessibility::emit_interactive_node(ui.ctx(), bm_btn.id, SAVE_BOOKMARK_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), bm_btn.id, &save_bookmark_author_id);
         if bm_btn.clicked() {
             fire_save_bookmark = true;
         }
@@ -2323,16 +2424,31 @@ pub fn show(
 
     // ── Status line ──
     ui.add_space(2.0);
-    ui.label(state.header_status());
+    let status_text = state.header_status();
+    let status_response = ui.label(&status_text);
+    ui.ctx().accesskit_node_builder(status_response.id, |node| {
+        node.set_role(egui::accesskit::Role::Status);
+        node.set_author_id(status_author_id.clone());
+        node.set_label(status_text.clone());
+        node.set_value(status_text.clone());
+        node.set_live(egui::accesskit::Live::Polite);
+    });
     if let Some(bm_status) = &state.bookmark_status {
-        ui.label(egui::RichText::new(bm_status).weak());
+        let bookmark_status = ui.label(egui::RichText::new(bm_status).weak());
+        ui.ctx().accesskit_node_builder(bookmark_status.id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(bookmark_status_author_id.clone());
+            node.set_label(bm_status.clone());
+            node.set_value(bm_status.clone());
+            node.set_live(egui::accesskit::Live::Polite);
+        });
     }
     if state.bookmark_load_failed {
         let retry = ui.add_enabled(
             !state.bookmark_in_flight(),
             egui::Button::new("Retry saved searches"),
         );
-        accessibility::emit_interactive_node(ui.ctx(), retry.id, BOOKMARK_RETRY_AUTHOR_ID);
+        accessibility::emit_interactive_node(ui.ctx(), retry.id, &bookmark_retry_author_id);
         if retry.clicked() {
             fire_retry_bookmarks = true;
         }
@@ -2351,7 +2467,7 @@ pub fn show(
                 accessibility::emit_interactive_node(
                     ui.ctx(),
                     restore.id,
-                    &bookmark_restore_author_id(&bm.id),
+                    &scoped(&bookmark_restore_author_id(&bm.id)),
                 );
                 if restore.clicked() {
                     restore_bookmark = Some(bm.clone());
@@ -2360,7 +2476,7 @@ pub fn show(
                 accessibility::emit_interactive_node(
                     ui.ctx(),
                     remove.id,
-                    &bookmark_remove_author_id(&bm.id),
+                    &scoped(&bookmark_remove_author_id(&bm.id)),
                 );
                 if remove.clicked() {
                     remove_bookmark_id = Some(bm.id.clone());
@@ -2409,7 +2525,7 @@ pub fn show(
                     accessibility::emit_interactive_node(
                         ui.ctx(),
                         row.id,
-                        &result_author_id(&hit.source_kind, &hit.ref_id),
+                        &scoped(&result_author_id(&hit.source_kind, &hit.ref_id)),
                     );
                     if row.clicked() {
                         open_hit_index = Some(vi);
@@ -2433,13 +2549,30 @@ pub fn show(
                         "{} ({})",
                         plan.title, plan.match_count
                     ))
-                    .id_salt(preview_author_id(&plan.document_id))
+                    .id_salt(scoped(&preview_author_id(&plan.document_id)))
                     .show(ui, |ui| {
-                        ui.label(
+                        let before = ui.label(
                             egui::RichText::new(format!("before: {}", plan.before_preview))
                                 .small()
                                 .weak(),
                         );
+                        ui.ctx().accesskit_node_builder(before.id, |node| {
+                            node.set_author_id(scoped(&preview_before_author_id(
+                                &plan.document_id,
+                            )));
+                            node.set_label("Replacement preview before");
+                            node.set_value(plan.before_preview.clone());
+                        });
+                        let after = ui.label(
+                            egui::RichText::new(format!("after: {}", plan.after_preview))
+                                .small()
+                                .weak(),
+                        );
+                        ui.ctx().accesskit_node_builder(after.id, |node| {
+                            node.set_author_id(scoped(&preview_after_author_id(&plan.document_id)));
+                            node.set_label("Replacement preview after");
+                            node.set_value(plan.after_preview.clone());
+                        });
                         // Render the after-preview with the matched replacement highlighted via
                         // the theme `search_highlight_bg` token (NO Color32 literal — the theme
                         // guard). Each per-match after_preview is a small highlighted chip.
@@ -2460,7 +2593,7 @@ pub fn show(
                     accessibility::emit_interactive_node(
                         ui.ctx(),
                         header.header_response.id,
-                        &preview_author_id(&plan.document_id),
+                        &scoped(&preview_author_id(&plan.document_id)),
                     );
                 }
             });
@@ -2513,11 +2646,22 @@ pub struct FindInFilesPaneShared {
     /// hidden, so A→B→A cannot accept an async completion from the first A binding.
     pub workspace_generation: u64,
     pub palette: HsPalette,
-    /// Hits the operator/agent clicked this frame (FIFO), drained by the shell into the open path.
-    pub open_requests: Vec<LoomGraphSearchHit>,
-    /// Set true once the panel's bookmarks have been loaded for the active workspace, so the load fires
-    /// exactly once per workspace (the React mount-effect equivalent).
-    bookmarks_loaded_for: Option<(Option<String>, u64)>,
+    /// Shell-authoritative active pane for diagnostics and routing. Author-id ownership is deliberately
+    /// independent of focus and comes from the factory's stable primary-pane lease.
+    pub active_pane_id: Option<PaneId>,
+    /// Typed result requests retain the exact origin pane and workspace across the shared queue.
+    pub open_requests: Vec<FindInFilesOpenRequest>,
+    /// Bookmark mount bindings are pane-local: two Find panes must each load their workspace bookmarks
+    /// without one pane suppressing the other's mount effect.
+    pub(crate) bookmarks_loaded_for: BTreeMap<PaneId, (Option<String>, u64)>,
+}
+
+/// A result-navigation request retaining the exact mounted origin and workspace binding.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FindInFilesOpenRequest {
+    pub origin_pane_id: PaneId,
+    pub workspace_id: String,
+    pub hit: LoomGraphSearchHit,
 }
 
 impl FindInFilesPaneShared {
@@ -2526,8 +2670,9 @@ impl FindInFilesPaneShared {
             workspace_id: None,
             workspace_generation: 0,
             palette,
+            active_pane_id: None,
             open_requests: Vec::new(),
-            bookmarks_loaded_for: None,
+            bookmarks_loaded_for: BTreeMap::new(),
         }
     }
 }
@@ -2538,10 +2683,81 @@ impl FindInFilesPaneShared {
 /// workspace id + palette + open-hit drain flowing through [`FindInFilesPaneShared`], and the HTTP
 /// transport reusing the real verified clients.
 pub struct FindInFilesPaneFactory {
-    state: Arc<Mutex<FindInFilesPanelState>>,
+    states: Arc<Mutex<BTreeMap<PaneId, FindInFilesPanelState>>>,
+    initial_state: Mutex<Option<FindInFilesPanelState>>,
     search_client: WorkspaceSearchClient,
     doc_client: RichDocClient,
     shared: Arc<Mutex<FindInFilesPaneShared>>,
+    primary: Mutex<PrimaryPaneLease>,
+}
+
+/// Single-pane managed-proof view over the pane-keyed factory state. Production hosts use
+/// [`FindInFilesPaneFactory::states_handle`]; this compatibility view intentionally selects the first
+/// mounted pane and therefore cannot collapse two production pane states into one.
+#[derive(Clone)]
+pub struct FindInFilesStateHandle {
+    states: Arc<Mutex<BTreeMap<PaneId, FindInFilesPanelState>>>,
+}
+
+pub struct FindInFilesStateGuard<'a>(
+    std::sync::MutexGuard<'a, BTreeMap<PaneId, FindInFilesPanelState>>,
+);
+
+impl std::ops::Deref for FindInFilesStateGuard<'_> {
+    type Target = FindInFilesPanelState;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+            .values()
+            .next()
+            .expect("Find-in-Files state handle requires one rendered pane")
+    }
+}
+
+impl std::ops::DerefMut for FindInFilesStateGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+            .values_mut()
+            .next()
+            .expect("Find-in-Files state handle requires one rendered pane")
+    }
+}
+
+impl FindInFilesStateHandle {
+    pub fn lock(&self) -> Result<FindInFilesStateGuard<'_>, &'static str> {
+        self.states
+            .lock()
+            .map(FindInFilesStateGuard)
+            .map_err(|_| "Find-in-Files pane state mutex poisoned")
+    }
+}
+
+#[derive(Debug, Default)]
+struct PrimaryPaneLease {
+    pane_id: Option<PaneId>,
+    last_seen_pass: u64,
+}
+
+impl PrimaryPaneLease {
+    fn is_primary(&mut self, pane_id: &PaneId, pass: u64) -> bool {
+        match self.pane_id.as_ref() {
+            None => {
+                self.pane_id = Some(pane_id.clone());
+                self.last_seen_pass = pass;
+                true
+            }
+            Some(primary) if primary == pane_id => {
+                self.last_seen_pass = pass;
+                true
+            }
+            Some(_) if pass > self.last_seen_pass.saturating_add(1) => {
+                self.pane_id = Some(pane_id.clone());
+                self.last_seen_pass = pass;
+                true
+            }
+            Some(_) => false,
+        }
+    }
 }
 
 impl FindInFilesPaneFactory {
@@ -2565,16 +2781,25 @@ impl FindInFilesPaneFactory {
         state: FindInFilesPanelState,
     ) -> Self {
         Self {
-            state: Arc::new(Mutex::new(state)),
+            states: Arc::new(Mutex::new(BTreeMap::new())),
+            initial_state: Mutex::new(Some(state)),
             search_client,
             doc_client,
             shared,
+            primary: Mutex::new(PrimaryPaneLease::default()),
         }
     }
 
-    /// Exact mounted state handle for structured diagnostics and managed runtime proofs.
-    pub fn state_handle(&self) -> Arc<Mutex<FindInFilesPanelState>> {
-        Arc::clone(&self.state)
+    /// Exact pane-keyed mounted state handle for structured diagnostics and managed runtime proofs.
+    pub fn states_handle(&self) -> Arc<Mutex<BTreeMap<PaneId, FindInFilesPanelState>>> {
+        Arc::clone(&self.states)
+    }
+
+    /// Compatibility handle for existing single-pane managed proofs.
+    pub fn state_handle(&self) -> FindInFilesStateHandle {
+        FindInFilesStateHandle {
+            states: Arc::clone(&self.states),
+        }
     }
 }
 
@@ -2583,7 +2808,7 @@ impl PaneFactory for FindInFilesPaneFactory {
         PaneType::FindInFiles
     }
 
-    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
         let (workspace_id, workspace_generation, palette) = {
             let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             (
@@ -2592,18 +2817,45 @@ impl PaneFactory for FindInFilesPaneFactory {
                 guard.palette.clone(),
             )
         };
-        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        let secondary_pane_id = {
+            let mut primary = self
+                .primary
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            if primary.is_primary(&ctx.record.pane_id, ui.ctx().cumulative_pass_nr()) {
+                None
+            } else {
+                Some(ctx.record.pane_id.as_ref())
+            }
+        };
+        let mut states = self.states.lock().unwrap_or_else(|p| p.into_inner());
+        if !states.contains_key(&ctx.record.pane_id) {
+            let initial = self
+                .initial_state
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .take()
+                .unwrap_or_default();
+            states.insert(ctx.record.pane_id.clone(), initial);
+        }
+        let state = states
+            .get_mut(&ctx.record.pane_id)
+            .expect("pane state inserted immediately above");
         if state.bind_workspace(workspace_id.as_deref(), workspace_generation) {
             let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
-            guard.open_requests.clear();
+            guard
+                .open_requests
+                .retain(|request| request.origin_pane_id != ctx.record.pane_id);
         }
 
         // Load the workspace's bookmarks exactly once per workspace (the React mount-effect).
         let needs_bookmark_load = {
             let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             let binding = (workspace_id.clone(), workspace_generation);
-            if guard.bookmarks_loaded_for.as_ref() != Some(&binding) {
-                guard.bookmarks_loaded_for = Some(binding);
+            if guard.bookmarks_loaded_for.get(&ctx.record.pane_id) != Some(&binding) {
+                guard
+                    .bookmarks_loaded_for
+                    .insert(ctx.record.pane_id.clone(), binding);
                 workspace_id.is_some()
             } else {
                 false
@@ -2614,22 +2866,31 @@ impl PaneFactory for FindInFilesPaneFactory {
         }
 
         let shared_for_open = Arc::clone(&self.shared);
+        let origin_pane_id = ctx.record.pane_id.clone();
+        let open_workspace_id = workspace_id.clone();
         let mut on_open = move |hit: &LoomGraphSearchHit| {
-            if let Ok(mut guard) = shared_for_open.lock() {
-                guard.open_requests.push(hit.clone());
+            if let (Some(workspace_id), Ok(mut guard)) =
+                (open_workspace_id.as_ref(), shared_for_open.lock())
+            {
+                guard.open_requests.push(FindInFilesOpenRequest {
+                    origin_pane_id: origin_pane_id.clone(),
+                    workspace_id: workspace_id.clone(),
+                    hit: hit.clone(),
+                });
             }
         };
         let mut callbacks = FindInFilesCallbacks {
             on_open_hit: &mut on_open,
         };
-        show(
+        show_with_author_scope(
             ui,
-            &mut state,
+            state,
             &palette,
             &self.search_client,
             &self.doc_client,
             workspace_id.as_deref(),
             &mut callbacks,
+            secondary_pane_id,
         );
     }
 }
@@ -3370,6 +3631,38 @@ mod tests {
         assert!(status.contains("CommittedWithoutReceipt"));
         assert!(status.contains("event ledger unavailable"));
         assert!(state.refresh_search_after_apply);
+    }
+
+    #[test]
+    fn partial_apply_header_preserves_receipt_and_failure_together() {
+        let mut state = FindInFilesPanelState::new();
+        state.apply_replace_delivery(ReplaceDelivery::AppliedPartial {
+            receipts: vec!["KE-saved-first".to_owned()],
+            audit_receipts: vec![
+                ReplaceAuditReceipt {
+                    document_id: "KRD-1".to_owned(),
+                    before_sha256: "a".repeat(64),
+                    after_sha256: "b".repeat(64),
+                    outcome: ReplaceAuditOutcome::Saved,
+                    save_receipt_event_id: Some("KE-saved-first".to_owned()),
+                    error: None,
+                },
+                ReplaceAuditReceipt {
+                    document_id: "KRD-2".to_owned(),
+                    before_sha256: "c".repeat(64),
+                    after_sha256: "d".repeat(64),
+                    outcome: ReplaceAuditOutcome::Conflict,
+                    save_receipt_event_id: None,
+                    error: Some("version conflict".to_owned()),
+                },
+            ],
+            error: "Document KRD-2 changed since preview (version conflict)".to_owned(),
+        });
+
+        let visible = state.header_status();
+        assert!(visible.contains("KE-saved-first"));
+        assert!(visible.contains("KRD-2"));
+        assert!(visible.contains("conflict"));
     }
 
     #[test]

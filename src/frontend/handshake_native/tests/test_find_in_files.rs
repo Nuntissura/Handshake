@@ -37,8 +37,13 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
+#[cfg(feature = "integration")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[cfg(feature = "integration")]
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::backend_client::{
@@ -51,12 +56,13 @@ use handshake_native::editor_pane_factories::{
 };
 use handshake_native::find_in_files::{
     bookmark_remove_author_id, bookmark_restore_author_id, document_id_from_hit,
-    hit_identity_from_result_author_id, preview_author_id, replace_in_content, result_author_id,
-    shell_open_target_from_hit, show, FindInFilesCallbacks, FindInFilesOpenTarget,
-    FindInFilesPaneFactory, FindInFilesPaneShared, FindInFilesPanelState, KindFilter, MatchOptions,
-    MatchPreview, ReplacementPlan, SearchBookmark, APPLY_AUTHOR_ID, KIND_FILTER_AUTHOR_ID,
-    PREVIEW_REPLACE_AUTHOR_ID, QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, TOGGLE_CASE_AUTHOR_ID,
-    TOGGLE_REGEX_AUTHOR_ID, TOGGLE_WORD_AUTHOR_ID,
+    hit_identity_from_result_author_id, pane_scoped_author_id, preview_after_author_id,
+    preview_author_id, preview_before_author_id, replace_in_content, result_author_id,
+    shell_open_target_from_hit, show, FindInFilesCallbacks, FindInFilesOpenRequest,
+    FindInFilesOpenTarget, FindInFilesPaneFactory, FindInFilesPaneShared, FindInFilesPanelState,
+    KindFilter, MatchOptions, MatchPreview, ReplacementPlan, SearchBookmark, APPLY_AUTHOR_ID,
+    KIND_FILTER_AUTHOR_ID, PREVIEW_REPLACE_AUTHOR_ID, QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID,
+    STATUS_AUTHOR_ID, TOGGLE_CASE_AUTHOR_ID, TOGGLE_REGEX_AUTHOR_ID, TOGGLE_WORD_AUTHOR_ID,
 };
 #[cfg(feature = "integration")]
 use handshake_native::find_in_files::{
@@ -458,6 +464,7 @@ fn harness_for<'a>(
     workspace_id: Option<String>,
 ) -> Harness<'a, ()> {
     Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .build_ui(move |ui| {
             let pal = HsTheme::Dark.palette();
@@ -499,17 +506,6 @@ fn click_author_id<State>(harness: &Harness<'_, State>, author_id: &str) {
     node.click_accesskit();
 }
 
-#[cfg(feature = "integration")]
-fn focus_author_id<State>(harness: &mut Harness<'_, State>, author_id: &str) {
-    harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some(author_id))
-        .unwrap_or_else(|| panic!("no node with author_id '{author_id}' to focus"))
-        .focus();
-    harness.step();
-}
-
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PROOF_ACCESSKIT (PT-5, AC-1/AC-3/AC-10): the contract author_ids appear in the live AccessKit tree.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -540,6 +536,7 @@ fn accesskit_tree_has_all_contract_author_ids() {
         KIND_FILTER_AUTHOR_ID,
         PREVIEW_REPLACE_AUTHOR_ID,
         APPLY_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
     ] {
         assert!(
             ids.contains(required),
@@ -557,6 +554,15 @@ fn accesskit_tree_has_all_contract_author_ids() {
     );
     assert!(ids.contains(&bookmark_restore_author_id("saved:文/1")));
     assert!(ids.contains(&bookmark_remove_author_id("saved:文/1")));
+    let status = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(STATUS_AUTHOR_ID))
+        .expect("stable Find in Files status node");
+    assert_eq!(
+        status.accesskit_node().role(),
+        egui::accesskit::Role::Status
+    );
     println!("PT-5/AC-1/AC-10: all contract author_ids present in the live AccessKit tree");
     assert_no_local_artifact_dir();
 }
@@ -1023,6 +1029,7 @@ fn pane_opens_via_registry_and_renders_real_panel() {
 
     let reg = find_in_files_registry();
     let mut harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .build_ui(move |ui| {
             PaneHostWidget::show(ui, &reg, |_pane_type| factory.as_ref());
@@ -1053,6 +1060,163 @@ fn pane_opens_via_registry_and_renders_real_panel() {
     assert_no_local_artifact_dir();
 }
 
+#[test]
+fn two_registry_find_panes_keep_state_and_author_ids_isolated() {
+    let r = rt();
+    let sc = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
+    let dc = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let pane_a: handshake_native::pane_registry::PaneId = Arc::from("find-pane-a");
+    let pane_b: handshake_native::pane_registry::PaneId = Arc::from("find-pane-b");
+    let shared = Arc::new(Mutex::new(FindInFilesPaneShared::new(
+        HsTheme::Dark.palette(),
+    )));
+    {
+        let mut guard = shared.lock().expect("shared Find state");
+        guard.workspace_id = Some("ws-1".to_owned());
+        guard.active_pane_id = Some(pane_a.clone());
+    }
+    let factory = FindInFilesPaneFactory::with_state(sc, dc, Arc::clone(&shared), seeded_state());
+    let states = factory.states_handle();
+    let factory: Box<dyn PaneFactory> = Box::new(factory);
+    let mut registry = PaneRegistry::new();
+    for pane_id in [pane_a.clone(), pane_b.clone()] {
+        registry.insert(PaneRecord::new(
+            pane_id,
+            PaneType::FindInFiles,
+            "p",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-029")
+        .with_size(egui::vec2(900.0, 760.0))
+        .build_ui(move |ui| {
+            PaneHostWidget::show(ui, &registry, |_pane_type| factory.as_ref());
+        });
+    harness.step();
+
+    let rendered_author_ids = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect::<Vec<_>>();
+    let unique = rendered_author_ids.iter().collect::<HashSet<_>>();
+    assert_eq!(
+        unique.len(),
+        rendered_author_ids.len(),
+        "two mounted Find panes must expose a globally unique author-id tree"
+    );
+    assert!(rendered_author_ids
+        .iter()
+        .any(|author_id| author_id == QUERY_AUTHOR_ID));
+    assert!(rendered_author_ids.iter().any(|author_id| {
+        author_id == &pane_scoped_author_id(QUERY_AUTHOR_ID, Some(pane_b.as_ref()))
+    }));
+    let leased_control_ids = |harness: &Harness<'_, ()>| {
+        author_ids(harness)
+            .into_iter()
+            .filter(|author_id| {
+                [
+                    QUERY_AUTHOR_ID,
+                    REPLACE_AUTHOR_ID,
+                    SEARCH_AUTHOR_ID,
+                    PREVIEW_REPLACE_AUTHOR_ID,
+                    APPLY_AUTHOR_ID,
+                    STATUS_AUTHOR_ID,
+                ]
+                .iter()
+                .any(|base| author_id == base || author_id.starts_with(&format!("{base}.pane-")))
+            })
+            .collect::<HashSet<_>>()
+    };
+    let initial_author_ids = leased_control_ids(&harness);
+    {
+        shared.lock().expect("shared Find state").active_pane_id = Some(pane_b.clone());
+    }
+    harness.step();
+    let focus_b_author_ids = leased_control_ids(&harness);
+    assert_eq!(
+        focus_b_author_ids, initial_author_ids,
+        "canonical/scoped Find author ids cannot swap when focus moves to the sibling Find pane"
+    );
+    {
+        shared.lock().expect("shared Find state").active_pane_id = Some(Arc::from("non-find-pane"));
+    }
+    harness.step();
+    assert_eq!(
+        leased_control_ids(&harness),
+        initial_author_ids,
+        "canonical/scoped Find author ids remain stable when global focus leaves Find panes"
+    );
+
+    let mut states = states.lock().expect("pane-keyed Find states");
+    assert_eq!(states.len(), 2);
+    states.get_mut(&pane_b).expect("secondary pane state").query = "secondary-only".to_owned();
+    assert_ne!(
+        states.get(&pane_a).expect("primary pane state").query,
+        states.get(&pane_b).expect("secondary pane state").query,
+        "editing one Find pane cannot mutate its sibling's query"
+    );
+}
+
+#[test]
+fn typed_find_open_request_uses_origin_and_rejects_stale_authority() {
+    let workspace_id = "mt029-route-workspace";
+    let mut app = handshake_native::app::HandshakeApp::with_health(
+        handshake_native::app::HealthDisplayState::Loading,
+    );
+    app.bind_active_project_for_integration_test(workspace_id);
+    let pane_ids = app
+        .tab_bar_states()
+        .keys()
+        .take(2)
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_eq!(pane_ids.len(), 2, "seeded shell has two target panes");
+    let origin = pane_ids[0].clone();
+    let wrong_focus = pane_ids[1].clone();
+    app.set_active_pane_for_test(Some(wrong_focus.clone()));
+
+    let exact_block = "BLK-MT029-ORIGIN";
+    app.enqueue_find_in_files_open_request_for_test(FindInFilesOpenRequest {
+        origin_pane_id: origin.clone(),
+        workspace_id: workspace_id.to_owned(),
+        hit: producer_block_hit("loom_block", exact_block, "Exact origin", "note"),
+    });
+    assert_eq!(app.drain_find_in_files_open_requests_for_test(), 1);
+    assert!(app
+        .tab_bar_states()
+        .get(&origin)
+        .is_some_and(|bar| bar.tabs.iter().any(|tab| {
+            tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some(exact_block)
+        })));
+    assert!(!app
+        .tab_bar_states()
+        .get(&wrong_focus)
+        .is_some_and(|bar| bar.tabs.iter().any(|tab| {
+            tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some(exact_block)
+        })));
+
+    app.enqueue_find_in_files_open_request_for_test(FindInFilesOpenRequest {
+        origin_pane_id: origin,
+        workspace_id: "stale-workspace".to_owned(),
+        hit: producer_block_hit("loom_block", "BLK-MT029-STALE", "Stale", "note"),
+    });
+    app.enqueue_find_in_files_open_request_for_test(FindInFilesOpenRequest {
+        origin_pane_id: Arc::from("missing-pane"),
+        workspace_id: workspace_id.to_owned(),
+        hit: producer_block_hit("loom_block", "BLK-MT029-MISSING", "Missing", "note"),
+    });
+    assert_eq!(
+        app.drain_find_in_files_open_requests_for_test(),
+        0,
+        "stale-workspace and missing-origin requests fail closed"
+    );
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // PROOF_SCREENSHOT (HBR-VIS): screenshot of the rendered panel to the EXTERNAL artifact root.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1068,6 +1232,7 @@ fn find_in_files_screenshot() {
     let workspace_id = Some("ws-1".to_owned());
 
     let mut harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .wgpu()
         .build_ui(move |ui| {
@@ -1090,10 +1255,19 @@ fn find_in_files_screenshot() {
         });
     harness.run();
     harness.run();
+    assert_no_local_artifact_dir();
 
-    let image = harness
-        .render()
-        .expect("MT-029 screenshot render requires a working wgpu adapter");
+    let Some(image) =
+        harness.render_proof_frame("MT-029 standalone Find-in-Files screenshot frame")
+    else {
+        assert!(
+            harness
+                .last_screenshot_outcome()
+                .is_some_and(|outcome| outcome.status == "DEFERRED"),
+            "headless screenshot path must retain a typed DEFERRED MT-029 marker"
+        );
+        return;
+    };
     let (w, h) = (image.width(), image.height());
     assert!(w > 0 && h > 0, "rendered image must be non-empty");
     let raw = image.as_raw();
@@ -1667,8 +1841,10 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     assert!(production_app.dispatch_palette_action_for_test(
         handshake_native::command_registry::CMD_VIEW_FIND_IN_FILES
     ));
+    let mut argus = CanonicalArgusDriver::bind(&production_app, "mt029-find-in-files");
     let _managed_wgpu_guard = wgpu_guard();
     let mut ui_harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .wgpu()
         .build_state(
@@ -1676,15 +1852,33 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
             production_app,
         );
     ui_harness.run_steps(2);
-    focus_author_id(&mut ui_harness, QUERY_AUTHOR_ID);
-    ui_harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
-        .expect("production-mounted query input")
-        .type_text(&ui_needle);
-    ui_harness.run_steps(1);
-    click_author_id(&ui_harness, SEARCH_AUTHOR_ID);
+    let initial_tree = argus.inspect(&mut ui_harness);
+    for stable in [
+        QUERY_AUTHOR_ID,
+        REPLACE_AUTHOR_ID,
+        SEARCH_AUTHOR_ID,
+        PREVIEW_REPLACE_AUTHOR_ID,
+        APPLY_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&initial_tree, stable),
+            "canonical Argus initial inspection missing {stable}"
+        );
+    }
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &ui_needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "query-value-visible",
+        serde_json::json!({"query": ui_needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(ui_needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
     for _ in 0..400 {
         ui_harness.run_steps(1);
         if author_ids(&ui_harness).contains(&ui_result_author_id) {
@@ -1696,22 +1890,38 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         author_ids(&ui_harness).contains(&ui_result_author_id),
         "production-mounted HandshakeApp Search renders the real managed-backend result"
     );
-    let managed_image = ui_harness
-        .render()
-        .expect("managed mounted Find-in-Files screenshot render");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "real-search-result-visible",
+        serde_json::json!({
+            "result_author_id": ui_result_author_id.clone(),
+            "document_id": ui_document_id.clone()
+        }),
+        |tree| {
+            json_has_author_id(tree, &ui_result_author_id)
+                && json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("result"))
+        },
+    );
     let managed_png_dir = external_artifact_dir("wp-kernel-012-mt-029");
     std::fs::create_dir_all(&managed_png_dir).expect("create managed MT-029 screenshot directory");
     let managed_png = managed_png_dir.join("MT-029-managed-mounted-runtime.png");
-    managed_image.save(&managed_png).unwrap_or_else(|error| {
-        panic!(
-            "save managed mounted MT-029 screenshot {}: {error}",
-            managed_png.display()
-        )
-    });
-    assert!(managed_png.is_file(), "managed screenshot PNG must exist");
+    let managed_png = ui_harness
+        .render_proof_frame("MT-029 mounted Find-in-Files runtime frame")
+        .map(|managed_image| {
+            managed_image.save(&managed_png).unwrap_or_else(|error| {
+                panic!(
+                    "save managed mounted MT-029 screenshot {}: {error}",
+                    managed_png.display()
+                )
+            });
+            assert!(managed_png.is_file(), "managed screenshot PNG must exist");
+            managed_png
+        });
 
-    click_author_id(&ui_harness, &ui_result_author_id);
-    ui_harness.run_steps(1);
+    argus.click_and_reinspect(&mut ui_harness, &ui_result_author_id);
     let has_tab = |pane_type: PaneType, content_id: &str| {
         ui_harness.state().tab_bar_states().values().any(|bar| {
             bar.tabs.iter().any(|tab| {
@@ -1751,6 +1961,24 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         rich_editor_loaded,
         "result click must mount and backend-load the exact seeded rich document (id/title/content/version) with stable editor root/block author_ids"
     );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "exact-rich-document-opened",
+        serde_json::json!({
+            "document_id": ui_document_id.clone(),
+            "title": ui_title,
+            "doc_version": ui_document_version
+        }),
+        |tree| {
+            json_has_author_id(
+                tree,
+                handshake_native::rich_editor::renderer::RICH_EDITOR_ROOT_AUTHOR_ID,
+            ) && json_has_author_id(
+                tree,
+                &handshake_native::rich_editor::renderer::block_author_id(&[0]),
+            )
+        },
+    );
     let shell_target = FindInFilesOpenTarget::Document {
         document_id: ui_document_id.clone(),
     };
@@ -1763,15 +1991,79 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         "returning to the production Find pane preserves the managed result state"
     );
 
-    focus_author_id(&mut ui_harness, REPLACE_AUTHOR_ID);
-    ui_harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some(REPLACE_AUTHOR_ID))
-        .expect("mounted replacement input")
-        .type_text(&ui_replacement);
-    ui_harness.run_steps(1);
-    click_author_id(&ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
+    let stale_query = format!("{ui_needle}_STALE");
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &stale_query);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "stale-query-value-visible",
+        serde_json::json!({"query": stale_query.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(stale_query.as_str())
+                && json_has_author_id(tree, PREVIEW_REPLACE_AUTHOR_ID)
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "stale-preview-blocked-visible",
+        serde_json::json!({"stale_query": stale_query.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains("stale") && value.contains("Search again"))
+        },
+    );
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &ui_needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "query-restored-for-preview",
+        serde_json::json!({"query": ui_needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(ui_needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        if author_ids(&ui_harness).contains(&ui_result_author_id)
+            && ui_harness.state().find_in_files_diagnostics_for_test().1 == false
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "stale-recovery-search-refreshed",
+        serde_json::json!({"result_author_id": ui_result_author_id.clone()}),
+        |tree| {
+            json_has_author_id(tree, &ui_result_author_id)
+                && json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("result") && !value.contains("stale"))
+        },
+    );
+    argus.set_value_and_reinspect(&mut ui_harness, REPLACE_AUTHOR_ID, &ui_replacement);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "replacement-value-visible",
+        serde_json::json!({"replacement": ui_replacement.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, REPLACE_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(ui_replacement.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
     for _ in 0..400 {
         ui_harness.run_steps(1);
         let apply_enabled = ui_harness
@@ -1793,7 +2085,108 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         apply_enabled,
         "mounted Preview produces an applicable real plan"
     );
-    click_author_id(&ui_harness, APPLY_AUTHOR_ID);
+    let ui_preview_author_id = preview_author_id(&ui_document_id);
+    let ui_preview_before_author_id = preview_before_author_id(&ui_document_id);
+    let ui_preview_after_author_id = preview_after_author_id(&ui_document_id);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "persisted-preview-visible",
+        serde_json::json!({
+            "preview_author_id": ui_preview_author_id.clone(),
+            "document_id": ui_document_id.clone(),
+            "replacement": ui_replacement.clone()
+        }),
+        |tree| {
+            json_has_author_id(tree, &ui_preview_author_id)
+                && json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("Previewed 1"))
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, &ui_preview_author_id);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "preview-before-after-visible",
+        serde_json::json!({
+            "before_author_id": ui_preview_before_author_id.clone(),
+            "after_author_id": ui_preview_after_author_id.clone(),
+            "needle": ui_needle.clone(),
+            "replacement": ui_replacement.clone(),
+        }),
+        |tree| {
+            json_node_by_author_id(tree, &ui_preview_before_author_id)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains(&ui_needle))
+                && json_node_by_author_id(tree, &ui_preview_after_author_id)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains(&ui_replacement))
+        },
+    );
+
+    // Editing replacement invalidates the exact preview and leaves destructive Apply unreachable.
+    // The producer is refetched before/after to prove that this stale UI path performs no mutation.
+    let stale_apply_before = live.get_json(&format!("/knowledge/documents/{ui_document_id}"));
+    let stale_replacement = format!("{ui_replacement}_STALE");
+    argus.set_value_and_reinspect(&mut ui_harness, REPLACE_AUTHOR_ID, &stale_replacement);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "stale-apply-disabled-visible",
+        serde_json::json!({"stale_replacement": stale_replacement}),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains("Preview is stale"))
+                && !json_has_author_id(tree, &ui_preview_author_id)
+        },
+    );
+    let stale_apply_enabled = ui_harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(APPLY_AUTHOR_ID))
+        .is_some_and(|node| !node.accesskit_node().is_disabled());
+    assert!(!stale_apply_enabled, "stale Apply must remain disabled");
+    let stale_apply_after = live.get_json(&format!("/knowledge/documents/{ui_document_id}"));
+    assert_eq!(
+        stale_apply_after["document"]["doc_version"], stale_apply_before["document"]["doc_version"],
+        "editing replacement after preview cannot mutate producer version"
+    );
+    assert_eq!(
+        stale_apply_after["document"]["content_json"],
+        stale_apply_before["document"]["content_json"],
+        "editing replacement after preview cannot mutate producer content"
+    );
+
+    argus.set_value_and_reinspect(&mut ui_harness, REPLACE_AUTHOR_ID, &ui_replacement);
+    argus.click_and_reinspect(&mut ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        let apply_enabled = ui_harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(APPLY_AUTHOR_ID))
+            .is_some_and(|node| !node.accesskit_node().is_disabled());
+        if apply_enabled {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "fresh-preview-restored-before-apply",
+        serde_json::json!({"preview_author_id": ui_preview_author_id.clone()}),
+        |tree| {
+            json_has_author_id(tree, &ui_preview_author_id)
+                && json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("Previewed 1"))
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, APPLY_AUTHOR_ID);
     let mut ui_apply_persisted = false;
     for _ in 0..400 {
         ui_harness.run_steps(1);
@@ -1821,6 +2214,61 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     assert!(
         !author_ids(&ui_harness).contains(&ui_result_author_id),
         "mounted Apply terminal delivery auto-refreshes the visible result"
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "apply-receipt-persisted-and-result-refreshed",
+        serde_json::json!({
+            "document_id": ui_document_id.clone(),
+            "old_result_author_id": ui_result_author_id.clone()
+        }),
+        |tree| {
+            !json_has_author_id(tree, &ui_result_author_id)
+                && json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("Applied 1") && value.contains("receipt"))
+        },
+    );
+
+    // Canonical mounted error and empty-result states, followed by a clean recovery. Invalid regex is
+    // local and bounded; the guaranteed miss still traverses the real managed search route.
+    argus.click_and_reinspect(&mut ui_harness, TOGGLE_REGEX_AUTHOR_ID);
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, "[");
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "invalid-regex-error-visible",
+        serde_json::json!({"query": "[", "regex": true}),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.to_ascii_lowercase().contains("regex"))
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, TOGGLE_REGEX_AUTHOR_ID);
+    let guaranteed_miss = format!("MT029_NO_MATCH_{unique}");
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &guaranteed_miss);
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        let (_, loading, _, count) = ui_harness.state().find_in_files_diagnostics_for_test();
+        if !loading && count == 0 {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "managed-empty-result-visible",
+        serde_json::json!({"query": guaranteed_miss}),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains("0 result"))
+        },
     );
 
     // Exhaust every supported result target as a REAL rendered row in the production-mounted app.
@@ -1967,9 +2415,6 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         placeholder_pane_type(WIKI_PAGE_PANE_LABEL),
         "WIKI-MT029"
     ));
-    drop(ui_harness);
-    drop(_managed_wgpu_guard);
-
     let regex =
         handshake_native::find_in_files::compile_search_regex(&needle, MatchOptions::default())
             .expect("literal search regex");
@@ -2080,9 +2525,227 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         Some(saved_receipts[0].as_str()),
         "audit row carries the same nonblank producer receipt id"
     );
+    let saved_event = interconnect_support::event_ledger_payload(&saved_receipts[0]);
+    assert_eq!(saved_event["_event_id"], saved_receipts[0]);
+    assert_eq!(
+        saved_event["_event_type"], "KNOWLEDGE_RICH_DOCUMENT_SAVED",
+        "receipt resolves to the canonical rich-document save event family"
+    );
+    assert_eq!(
+        saved_event["_aggregate_type"], "knowledge_rich_document",
+        "receipt resolves to the canonical aggregate type"
+    );
+    assert_eq!(
+        saved_event["_aggregate_id"], plans[0].document_id,
+        "receipt resolves to the exact document saved by this plan"
+    );
+    assert_eq!(
+        saved_event["workspace_id"], workspace_id,
+        "receipt remains scoped to the managed workspace"
+    );
+    assert_eq!(
+        saved_event["content_hash"], plans[0].after_sha256,
+        "EventLedger content hash equals the applied plan and persisted reload"
+    );
     assert_eq!(audit_receipts[1].before_sha256, plans[1].before_sha256);
     assert_eq!(audit_receipts[1].after_sha256, plans[1].after_sha256);
+    assert!(
+        audit_receipts[1].save_receipt_event_id.is_none(),
+        "a conflict must never invent a successful save receipt"
+    );
 
+    // Canonical mounted partial Apply: Search and Preview are driven through Argus, the second exact
+    // production plan is externally advanced, and Apply must accept its stamped delivery through the
+    // normal mounted poller while preserving the first save receipt beside the conflict.
+    let mounted_partial_needle = format!("MT029_MOUNTED_PARTIAL_{unique}");
+    let mounted_partial_replacement = format!("MT029_MOUNTED_PARTIAL_REPLACED_{unique}");
+    let mounted_partial_a = create_doc(
+        "MT-029 mounted partial A",
+        serde_json::json!({
+            "type":"doc",
+            "content":[{"type":"paragraph","content":[{"type":"text","text":mounted_partial_needle}]}]
+        }),
+    );
+    let mounted_partial_b = create_doc(
+        "MT-029 mounted partial B",
+        serde_json::json!({
+            "type":"doc",
+            "content":[{"type":"paragraph","content":[{"type":"text","text":mounted_partial_needle}]}]
+        }),
+    );
+    let mounted_partial_ids = [
+        mounted_partial_a["document"]["rich_document_id"]
+            .as_str()
+            .expect("mounted partial A id")
+            .to_owned(),
+        mounted_partial_b["document"]["rich_document_id"]
+            .as_str()
+            .expect("mounted partial B id")
+            .to_owned(),
+    ];
+    assert!(ui_harness.state_mut().dispatch_palette_action_for_test(
+        handshake_native::command_registry::CMD_VIEW_FIND_IN_FILES
+    ));
+    ui_harness.run_steps(2);
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &mounted_partial_needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-partial-query-visible",
+        serde_json::json!({"query": mounted_partial_needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(mounted_partial_needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    let mounted_partial_result_ids = mounted_partial_ids
+        .iter()
+        .map(|document_id| result_author_id("document", document_id))
+        .collect::<Vec<_>>();
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        let ids = author_ids(&ui_harness);
+        if mounted_partial_result_ids
+            .iter()
+            .all(|author_id| ids.contains(author_id))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-partial-results-visible",
+        serde_json::json!({"result_author_ids": mounted_partial_result_ids.clone()}),
+        |tree| {
+            mounted_partial_result_ids
+                .iter()
+                .all(|author_id| json_has_author_id(tree, author_id))
+        },
+    );
+    argus.set_value_and_reinspect(
+        &mut ui_harness,
+        REPLACE_AUTHOR_ID,
+        &mounted_partial_replacement,
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-partial-replacement-visible",
+        serde_json::json!({"replacement": mounted_partial_replacement.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, REPLACE_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(mounted_partial_replacement.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        if ui_harness
+            .state()
+            .find_in_files_preview_document_ids_for_test()
+            .len()
+            == 2
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let mounted_preview_order = ui_harness
+        .state()
+        .find_in_files_preview_document_ids_for_test();
+    assert_eq!(
+        mounted_preview_order.len(),
+        2,
+        "mounted Preview must produce the exact two action-driven plans"
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-partial-preview-visible",
+        serde_json::json!({"preview_document_ids": mounted_preview_order.clone()}),
+        |tree| {
+            mounted_preview_order
+                .iter()
+                .all(|document_id| json_has_author_id(tree, &preview_author_id(document_id)))
+        },
+    );
+    let mounted_saved_id = mounted_preview_order[0].clone();
+    let mounted_conflict_id = mounted_preview_order[1].clone();
+    let mounted_conflict_before =
+        live.get_json(&format!("/knowledge/documents/{mounted_conflict_id}"));
+    let mounted_conflict_version = mounted_conflict_before["document"]["doc_version"]
+        .as_u64()
+        .expect("mounted conflict version");
+    let mounted_conflict_content = serde_json::json!({
+        "type":"doc",
+        "content":[{"type":"paragraph","content":[{"type":"text","text":"mounted external concurrent edit"}]}]
+    });
+    live.put_json(
+        &format!("/knowledge/documents/{mounted_conflict_id}/save"),
+        &serde_json::json!({
+            "expected_version": mounted_conflict_version,
+            "content_json": mounted_conflict_content
+        }),
+    );
+    argus.click_and_reinspect(&mut ui_harness, APPLY_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        let partial_terminal_visible = ui_harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(STATUS_AUTHOR_ID))
+            .and_then(|node| node.accesskit_node().value())
+            .is_some_and(|value| {
+                let lower = value.to_ascii_lowercase();
+                lower.contains("receipts:")
+                    && lower.contains("failure")
+                    && lower.contains("conflict")
+            });
+        if partial_terminal_visible {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-partial-receipt-and-conflict-visible",
+        serde_json::json!({
+            "saved_document_id": mounted_saved_id.clone(),
+            "conflict_document_id": mounted_conflict_id.clone()
+        }),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| {
+                    let lower = value.to_ascii_lowercase();
+                    let receipt = value
+                        .split_once("receipts:")
+                        .and_then(|(_, tail)| tail.split(';').next())
+                        .map(str::trim)
+                        .unwrap_or_default();
+                    !receipt.is_empty()
+                        && receipt != "<none>"
+                        && lower.contains("failure")
+                        && lower.contains("conflict")
+                })
+        },
+    );
+    let mounted_saved = live.get_json(&format!("/knowledge/documents/{mounted_saved_id}"));
+    assert!(
+        mounted_saved["document"]["content_json"]
+            .to_string()
+            .contains(&mounted_partial_replacement),
+        "the first mounted plan persisted before the later conflict"
+    );
+    let mounted_conflict = live.get_json(&format!("/knowledge/documents/{mounted_conflict_id}"));
+    assert_eq!(
+        mounted_conflict["document"]["content_json"], mounted_conflict_content,
+        "the action-driven mounted conflict never overwrites the concurrent edit"
+    );
     let reloaded_saved = live.get_json(&format!("/knowledge/documents/{}", plans[0].document_id));
     let persisted_saved = &reloaded_saved["document"]["content_json"];
     assert_eq!(content_json_sha256(persisted_saved), plans[0].after_sha256);
@@ -2244,26 +2907,112 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         "a skipped tail plan never mutates PostgreSQL"
     );
 
-    // Bounded backend-loss + recovery through the production state machine: connection refusal reaches
-    // a visible terminal error, then the same state successfully searches after rebinding the live client.
-    let unavailable_client =
-        WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone());
-    let mut recovery_state = FindInFilesPanelState::new();
-    recovery_state.bind_workspace(Some(&workspace_id), 1);
-    recovery_state.query = needle.clone();
-    assert!(recovery_state.run_search(&unavailable_client, Some(&workspace_id)));
-    wait_panel_idle(&mut recovery_state, &unavailable_client, &workspace_id);
-    assert!(
-        recovery_state.error.is_some(),
-        "backend loss terminates with a visible bounded error"
+    // Bounded backend-loss + recovery through the mounted production action path. Rebinding replaces
+    // the real pane factory; Argus then types and clicks Search so neither error nor recovery can be
+    // satisfied by injecting detached state.
+    let backend_recovery_needle = format!("MT029_BACKEND_RECOVERY_{unique}");
+    let backend_recovery_created = create_doc(
+        "MT-029 backend recovery",
+        serde_json::json!({
+            "type":"doc",
+            "content":[{"type":"paragraph","content":[{"type":"text","text":backend_recovery_needle}]}]
+        }),
     );
-    assert!(recovery_state.run_search(&search_client, Some(&workspace_id)));
-    wait_panel_idle(&mut recovery_state, &search_client, &workspace_id);
-    assert!(recovery_state.error.is_none());
-    assert!(
-        !recovery_state.results.is_empty(),
-        "search recovers on the live backend"
+    let backend_recovery_document_id = backend_recovery_created["document"]["rich_document_id"]
+        .as_str()
+        .expect("backend recovery document id")
+        .to_owned();
+    let backend_recovery_result_id = result_author_id("document", &backend_recovery_document_id);
+    ui_harness
+        .state_mut()
+        .set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    assert!(ui_harness.state_mut().dispatch_palette_action_for_test(
+        handshake_native::command_registry::CMD_VIEW_FIND_IN_FILES
+    ));
+    ui_harness.run_steps(2);
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &backend_recovery_needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "backend-loss-query-visible",
+        serde_json::json!({"query": backend_recovery_needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(backend_recovery_needle.as_str())
+        },
     );
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        let (_, loading, error, _) = ui_harness.state().find_in_files_diagnostics_for_test();
+        if !loading && error.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-backend-loss-visible",
+        serde_json::json!({"unavailable_base_url": "http://127.0.0.1:9"}),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| {
+                    let lower = value.to_ascii_lowercase();
+                    lower.contains("error")
+                        || lower.contains("connect")
+                        || lower.contains("refused")
+                })
+        },
+    );
+
+    ui_harness
+        .state_mut()
+        .set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    assert!(ui_harness.state_mut().dispatch_palette_action_for_test(
+        handshake_native::command_registry::CMD_VIEW_FIND_IN_FILES
+    ));
+    ui_harness.run_steps(2);
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &backend_recovery_needle);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "backend-recovery-query-visible",
+        serde_json::json!({"query": backend_recovery_needle.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(backend_recovery_needle.as_str())
+        },
+    );
+    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        if author_ids(&ui_harness).contains(&backend_recovery_result_id) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-backend-recovery-visible",
+        serde_json::json!({
+            "result_author_id": backend_recovery_result_id.clone(),
+            "document_id": backend_recovery_document_id.clone()
+        }),
+        |tree| {
+            json_has_author_id(tree, &backend_recovery_result_id)
+                && json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("result"))
+        },
+    );
+    argus.finish();
+    drop(ui_harness);
+    drop(_managed_wgpu_guard);
 
     let expected_bookmark = |query: String,
                              kind: KindFilter,
@@ -2355,6 +3104,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     let producer_state = producer_factory.state_handle();
     let producer_registry = find_in_files_registry();
     let mut producer_harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .build_ui(move |ui| {
             PaneHostWidget::show(ui, &producer_registry, |_pane_type| &producer_factory);
@@ -2486,6 +3236,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     let bookmark_mounted_state = bookmark_factory.state_handle();
     let bookmark_registry = find_in_files_registry();
     let mut bookmark_harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .build_ui(move |ui| {
             PaneHostWidget::show(ui, &bookmark_registry, |_pane_type| &bookmark_factory);
@@ -2636,6 +3387,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     let absence_state = absence_factory.state_handle();
     let absence_registry = find_in_files_registry();
     let mut absence_harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .build_ui(move |ui| {
             PaneHostWidget::show(ui, &absence_registry, |_pane_type| &absence_factory);
@@ -2687,6 +3439,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     let retry_state = retry_factory.state_handle();
     let retry_registry = find_in_files_registry();
     let mut retry_harness = Harness::builder()
+        .proof_mt_id("MT-029")
         .with_size(egui::vec2(900.0, 760.0))
         .build_ui(move |ui| {
             PaneHostWidget::show(ui, &retry_registry, |_pane_type| &retry_factory);

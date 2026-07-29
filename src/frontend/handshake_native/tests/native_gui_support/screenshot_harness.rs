@@ -20,7 +20,15 @@ use screenshot_marker::{
 };
 
 const MT_ID: &str = "MT-108";
+const PROOF_MT_ID_ENV: &str = "HANDSHAKE_PROOF_MT_ID";
 static OUTCOME_ORDINAL: AtomicU64 = AtomicU64::new(1);
+
+fn default_proof_mt_id() -> String {
+    std::env::var(PROOF_MT_ID_ENV)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| MT_ID.to_owned())
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScreenshotOutcomeEvidence {
@@ -48,6 +56,7 @@ impl From<ScreenshotMarker> for ScreenshotOutcomeEvidence {
 pub struct ScreenshotHarness<'a, State = ()> {
     inner: egui_kittest::Harness<'a, State>,
     last_screenshot_outcome: Option<ScreenshotOutcomeEvidence>,
+    proof_mt_id: String,
 }
 
 impl<State> ScreenshotHarness<'_, State> {
@@ -60,7 +69,10 @@ impl<State> ScreenshotHarness<'_, State> {
         } else {
             builder
         };
-        ScreenshotHarnessBuilder(builder)
+        ScreenshotHarnessBuilder {
+            inner: builder,
+            proof_mt_id: None,
+        }
     }
 
     /// Render through the systemic proof seam. A caller cannot receive pixels without a durable
@@ -88,7 +100,7 @@ impl<State> ScreenshotHarness<'_, State> {
 
         if !gpu_screenshot_enabled() {
             let marker = record_screenshot_outcome(
-                MT_ID,
+                &self.proof_mt_id,
                 &scenario_id,
                 &outcome_id,
                 Err(format!(
@@ -141,14 +153,15 @@ impl<State> ScreenshotHarness<'_, State> {
                 "central screenshot save failed at {}: {error}",
                 frame_path.display()
             );
-            let marker = write_blocked(&scenario_id, &outcome_id, &reason).map_err(|write| {
-                format!("{reason}; durable BLOCKED marker write failed: {write}")
-            })?;
+            let marker = write_blocked(&self.proof_mt_id, &scenario_id, &outcome_id, &reason)
+                .map_err(|write| {
+                    format!("{reason}; durable BLOCKED marker write failed: {write}")
+                })?;
             self.last_screenshot_outcome = Some(marker.into());
             return Err(reason);
         }
         let marker = record_screenshot_outcome(
-            MT_ID,
+            &self.proof_mt_id,
             &scenario_id,
             &outcome_id,
             Ok(frame_path.display().to_string()),
@@ -193,7 +206,7 @@ impl<State> ScreenshotHarness<'_, State> {
         outcome_id: &str,
         reason: String,
     ) -> Result<T, String> {
-        let marker = write_blocked(scenario_id, outcome_id, &reason)
+        let marker = write_blocked(&self.proof_mt_id, scenario_id, outcome_id, &reason)
             .map_err(|error| format!("{reason}; durable BLOCKED marker write failed: {error}"))?;
         self.last_screenshot_outcome = Some(marker.into());
         Err(reason)
@@ -220,16 +233,27 @@ impl<'a, State> DerefMut for ScreenshotHarness<'a, State> {
     }
 }
 
-pub struct ScreenshotHarnessBuilder<State = ()>(egui_kittest::HarnessBuilder<State>);
+pub struct ScreenshotHarnessBuilder<State = ()> {
+    inner: egui_kittest::HarnessBuilder<State>,
+    proof_mt_id: Option<String>,
+}
 
 impl<State> ScreenshotHarnessBuilder<State> {
     pub fn with_size(mut self, size: impl Into<egui::Vec2>) -> Self {
-        self.0 = self.0.with_size(size);
+        self.inner = self.inner.with_size(size);
         self
     }
 
     pub fn with_step_dt(mut self, step_dt: f32) -> Self {
-        self.0 = self.0.with_step_dt(step_dt);
+        self.inner = self.inner.with_step_dt(step_dt);
+        self
+    }
+
+    /// Bind screenshot markers to the exact microtask without mutating process-global environment.
+    pub fn proof_mt_id(mut self, mt_id: impl Into<String>) -> Self {
+        let mt_id = mt_id.into();
+        assert!(!mt_id.trim().is_empty(), "proof MT id cannot be blank");
+        self.proof_mt_id = Some(mt_id);
         self
     }
 
@@ -245,8 +269,9 @@ impl<State> ScreenshotHarnessBuilder<State> {
         state: State,
     ) -> ScreenshotHarness<'a, State> {
         ScreenshotHarness {
-            inner: self.0.build_state(app, state),
+            inner: self.inner.build_state(app, state),
             last_screenshot_outcome: None,
+            proof_mt_id: self.proof_mt_id.unwrap_or_else(default_proof_mt_id),
         }
     }
 
@@ -256,8 +281,9 @@ impl<State> ScreenshotHarnessBuilder<State> {
         state: State,
     ) -> ScreenshotHarness<'a, State> {
         ScreenshotHarness {
-            inner: self.0.build_ui_state(app, state),
+            inner: self.inner.build_ui_state(app, state),
             last_screenshot_outcome: None,
+            proof_mt_id: self.proof_mt_id.unwrap_or_else(default_proof_mt_id),
         }
     }
 
@@ -269,8 +295,9 @@ impl<State> ScreenshotHarnessBuilder<State> {
         State: eframe::App,
     {
         ScreenshotHarness {
-            inner: self.0.build_eframe(build),
+            inner: self.inner.build_eframe(build),
             last_screenshot_outcome: None,
+            proof_mt_id: self.proof_mt_id.unwrap_or_else(default_proof_mt_id),
         }
     }
 }
@@ -278,18 +305,20 @@ impl<State> ScreenshotHarnessBuilder<State> {
 impl ScreenshotHarnessBuilder {
     pub fn build_ui<'a>(self, app: impl FnMut(&mut egui::Ui) + 'a) -> ScreenshotHarness<'a> {
         ScreenshotHarness {
-            inner: self.0.build_ui(app),
+            inner: self.inner.build_ui(app),
             last_screenshot_outcome: None,
+            proof_mt_id: self.proof_mt_id.unwrap_or_else(default_proof_mt_id),
         }
     }
 }
 
 fn write_blocked(
+    mt_id: &str,
     scenario_id: &str,
     outcome_id: &str,
     reason: &str,
 ) -> std::io::Result<ScreenshotMarker> {
-    let marker = ScreenshotMarker::blocked(MT_ID, scenario_id, outcome_id, reason);
+    let marker = ScreenshotMarker::blocked(mt_id, scenario_id, outcome_id, reason);
     marker.write_jsonl(&marker_dir())?;
     Ok(marker)
 }

@@ -569,6 +569,8 @@ pub fn save_rich_document_via_production_manager(
 
 /// Read the immutable PostgreSQL EventLedger authority row named by a production save receipt.
 /// `/events` is the Flight Recorder UUID projection and therefore cannot accept a typed `KE-*` id.
+/// The canonical payload remains at the top level; `_event_*`/`_aggregate_*` fields expose immutable
+/// row identity so callers can prove a receipt belongs to the exact document, not merely a workspace.
 pub fn event_ledger_payload(event_id: &str) -> serde_json::Value {
     assert!(
         event_id.starts_with("KE-")
@@ -600,7 +602,12 @@ pub fn event_ledger_payload(event_id: &str) -> serde_json::Value {
         .arg(database_url)
         .arg("--command")
         .arg(format!(
-            "SELECT payload::text FROM kernel_event_ledger WHERE event_id = '{event_id}'"
+            "SELECT (payload || jsonb_build_object(\
+                '_event_id', event_id, \
+                '_event_type', event_type, \
+                '_aggregate_type', aggregate_type, \
+                '_aggregate_id', aggregate_id\
+            ))::text FROM kernel_event_ledger WHERE event_id = '{event_id}'"
         ))
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
