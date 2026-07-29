@@ -456,7 +456,7 @@ if (-not (Test-Path -LiteralPath $fixedManagedPgReceipt -PathType Leaf)) {
     throw "Managed-PostgreSQL receipt is missing: '$fixedManagedPgReceipt'"
 }
 
-$traceRows = @(Get-Content -LiteralPath $tracePath | Where-Object {
+$traceRows = @(Get-Content -LiteralPath $tracePath -Encoding UTF8 | Where-Object {
         -not [string]::IsNullOrWhiteSpace($_)
     } | ForEach-Object { $_ | ConvertFrom-Json })
 if ($traceRows.Count -ne 24) {
