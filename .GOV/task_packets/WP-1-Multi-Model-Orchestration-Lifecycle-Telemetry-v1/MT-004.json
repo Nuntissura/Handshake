@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-004",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-29T02:09:13Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-002"
     ],
@@ -25,15 +25,15 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": null,
     "claimed_at_utc": null,
-    "ready_for_validation_by": "KERNEL_BUILDER",
-    "ready_for_validation_at_utc": "2026-06-29T15:54:16.908Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-020913",
+    "ready_for_validation_at_utc": "2026-07-29T02:09:13Z",
     "completed_by": null,
-    "blocker": "Routing policies execute, but successful routing can emit proposal:// and crdt-update:// authority references that are not backed by a persisted kernel_crdt_updates/Yjs object. A consumer cannot dereference the claimed CRDT lineage, so advisory-to-authority promotion is not durable or fail-closed.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4: Routing policies execute, but successful routing can emit proposal:// and crdt-update:// authority references that are not backed by a persisted kernel_crdt_updates/Yjs object. A consumer cannot dereference the claimed CRDT lineage, so advisory-to-authority promotion is not durable or fail-closed.",
+    "proof_status": "READY_FOR_VALIDATION_V5: all six declared proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544). model_lane_promotion_pg_tests appends_eventledger_and_replays_decision / rejects_stale_base_schema_mismatch_and_direct_mutation / reordered_inputs_keep_same_decision_hash (3/3), model_lane_schema_persists_and_replays_eventledger_rows, and model_lane_promotion_user_manual_entry_is_current all ok; cargo check --features test-utils clean. Promotion decision cloud-consent seeding fixed and user-manual HBR-INT-009 posture corrected to Flight Recorder/EventLedger WIRED with direct FR emission DEFERRED-with-reason. Built on resolver actor_kind taxonomy fix 644dee55.",
     "hbr_status": "PASSED",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "RESOLVED_TO_CURRENT_WORKTREE",
