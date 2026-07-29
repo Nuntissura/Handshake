@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$RunId = ("MT045-RUN-" + [guid]::NewGuid().ToString("N")),
-    [ValidateRange(60, 1800)]
+    [ValidateRange(300, 1800)]
     [int]$CommandTimeoutSeconds = 1800,
     [string]$PostgresDsn = "postgresql://postgres@127.0.0.1:5544/handshake"
 )
@@ -655,30 +655,103 @@ function Invoke-BoundedCargo {
     $stderrPath = Join-Path $LogRoot "$safeLabel.stderr.log"
     $startedAt = [DateTimeOffset]::UtcNow
     $cargoPath = (Get-Command cargo -CommandType Application -ErrorAction Stop).Source
-    $nativeResult = [Mt045JobRunner]::Run(
-        $cargoPath,
-        [string[]]$Arguments,
-        $WorkingDirectory,
-        $stdoutPath,
-        $stderrPath,
-        ($TimeoutSeconds * 1000),
-        15000
+    $cleanupMarginSeconds = 180
+    if ($TimeoutSeconds -le $cleanupMarginSeconds) {
+        throw "$Label timeout must reserve more than ${cleanupMarginSeconds}s for contained cleanup"
+    }
+    $deadlineVariable = "HSK_MT045_COMMAND_DEADLINE_UNIX_MS"
+    $qpcDeadlineVariable = "HSK_MT045_COMMAND_DEADLINE_QPC_TICKS"
+    $budgetVariable = "HSK_MT045_COMMAND_BUDGET_MS"
+    $previousDeadline = [Environment]::GetEnvironmentVariable($deadlineVariable, "Process")
+    $previousQpcDeadline = [Environment]::GetEnvironmentVariable($qpcDeadlineVariable, "Process")
+    $previousBudget = [Environment]::GetEnvironmentVariable($budgetVariable, "Process")
+    $proofBudgetMs = ($TimeoutSeconds - $cleanupMarginSeconds) * 1000
+    $proofDeadlineUnixMs = $startedAt.AddSeconds(
+        $TimeoutSeconds - $cleanupMarginSeconds
+    ).ToUnixTimeMilliseconds()
+    [long]$proofDeadlineQpcTicks = [Diagnostics.Stopwatch]::GetTimestamp() + [long][Math]::Floor(
+        (($TimeoutSeconds - $cleanupMarginSeconds) * [double][Diagnostics.Stopwatch]::Frequency)
     )
-    if ($nativeResult.TimedOut) {
-        throw "$Label exceeded its hard ${TimeoutSeconds}s deadline; its Windows Job Object was terminated"
+    $nativeResult = $null
+    $runnerFailure = $null
+    try {
+        try {
+            [Environment]::SetEnvironmentVariable(
+                $deadlineVariable,
+                $proofDeadlineUnixMs.ToString([Globalization.CultureInfo]::InvariantCulture),
+                "Process"
+            )
+            [Environment]::SetEnvironmentVariable(
+                $qpcDeadlineVariable,
+                $proofDeadlineQpcTicks.ToString([Globalization.CultureInfo]::InvariantCulture),
+                "Process"
+            )
+            [Environment]::SetEnvironmentVariable(
+                $budgetVariable,
+                $proofBudgetMs.ToString([Globalization.CultureInfo]::InvariantCulture),
+                "Process"
+            )
+            $nativeResult = [Mt045JobRunner]::Run(
+                $cargoPath,
+                [string[]]$Arguments,
+                $WorkingDirectory,
+                $stdoutPath,
+                $stderrPath,
+                ($TimeoutSeconds * 1000),
+                15000
+            )
+        }
+        catch {
+            $runnerFailure = $_.Exception.Message
+        }
     }
-    if ($nativeResult.LeakedProcessCount -ne 0) {
-        throw "$Label leaked $($nativeResult.LeakedProcessCount) owned descendant process(es); its Windows Job Object was terminated"
+    finally {
+        [Environment]::SetEnvironmentVariable($deadlineVariable, $previousDeadline, "Process")
+        [Environment]::SetEnvironmentVariable(
+            $qpcDeadlineVariable,
+            $previousQpcDeadline,
+            "Process"
+        )
+        [Environment]::SetEnvironmentVariable($budgetVariable, $previousBudget, "Process")
     }
-    if ($nativeResult.ExitCode -ne 0) {
-        throw "$Label failed with exit code $($nativeResult.ExitCode)"
+    if ($null -ne $runnerFailure) {
+        $script:lastFailedCommandReceipt = [ordered]@{
+            label = $Label
+            command = "cargo " + ($Arguments -join " ")
+            started_at = $startedAt.ToString("O")
+            completed_at = [DateTimeOffset]::UtcNow.ToString("O")
+            timeout_seconds = $TimeoutSeconds
+            proof_deadline_unix_ms = $proofDeadlineUnixMs
+            proof_deadline_qpc_ticks = $proofDeadlineQpcTicks
+            proof_budget_ms = $proofBudgetMs
+            cleanup_margin_seconds = $cleanupMarginSeconds
+            runner_error = $runnerFailure
+            timed_out = $null
+            leaked_process_count = $null
+            exit_code = $null
+            root_process_id = $null
+            process_containment = "unknown_runner_failed_before_confirmation"
+            process_containment_attempted = "windows_job_object_kill_on_close"
+            stdout = $stdoutPath
+            stdout_sha256 = if (Test-Path -LiteralPath $stdoutPath -PathType Leaf) { Get-FileSha256 -Path $stdoutPath } else { $null }
+            stderr = $stderrPath
+            stderr_sha256 = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) { Get-FileSha256 -Path $stderrPath } else { $null }
+        }
+        throw "$Label Job runner failed: $runnerFailure"
     }
-    return [ordered]@{
+    $commandReceipt = [ordered]@{
         label = $Label
         command = "cargo " + ($Arguments -join " ")
         started_at = $startedAt.ToString("O")
         completed_at = [DateTimeOffset]::UtcNow.ToString("O")
         timeout_seconds = $TimeoutSeconds
+        proof_deadline_unix_ms = $proofDeadlineUnixMs
+        proof_deadline_qpc_ticks = $proofDeadlineQpcTicks
+        proof_budget_ms = $proofBudgetMs
+        cleanup_margin_seconds = $cleanupMarginSeconds
+        runner_error = $null
+        timed_out = $nativeResult.TimedOut
+        leaked_process_count = $nativeResult.LeakedProcessCount
         exit_code = $nativeResult.ExitCode
         root_process_id = $nativeResult.RootProcessId
         process_containment = "windows_job_object_kill_on_close"
@@ -687,6 +760,19 @@ function Invoke-BoundedCargo {
         stderr = $stderrPath
         stderr_sha256 = Get-FileSha256 -Path $stderrPath
     }
+    if ($nativeResult.TimedOut) {
+        $script:lastFailedCommandReceipt = $commandReceipt
+        throw "$Label exceeded its hard ${TimeoutSeconds}s deadline; its Windows Job Object was terminated"
+    }
+    if ($nativeResult.LeakedProcessCount -ne 0) {
+        $script:lastFailedCommandReceipt = $commandReceipt
+        throw "$Label leaked $($nativeResult.LeakedProcessCount) owned descendant process(es); its Windows Job Object was terminated"
+    }
+    if ($nativeResult.ExitCode -ne 0) {
+        $script:lastFailedCommandReceipt = $commandReceipt
+        throw "$Label failed with exit code $($nativeResult.ExitCode)"
+    }
+    return $commandReceipt
 }
 
 function Assert-ExactTestResult {
@@ -702,9 +788,11 @@ function Assert-ExactTestResult {
         "(?m)^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; [0-9]+ filtered out; finished in [^\r\n]+\r?$"
     )
     if ($runningMatches.Count -ne 1 -or $summaryMatches.Count -ne 1) {
+        $script:lastFailedCommandReceipt = $CommandResult
         throw "Test $ExpectedTest did not execute exactly one passing test; inspect $($CommandResult.stdout)"
     }
     if ($stdout.Contains("panicked at") -or $stderr.Contains("panicked at")) {
+        $script:lastFailedCommandReceipt = $CommandResult
         throw "Test $ExpectedTest emitted a panic even though Cargo reported PASS; inspect $($CommandResult.stdout) and $($CommandResult.stderr)"
     }
     $CommandResult["expected_test"] = $ExpectedTest
@@ -849,6 +937,8 @@ function New-SupervisorProjection {
         supervisor_preflight = $true
         terminal_reason = $Reason
         scenarios = [ordered]@{}
+        completed_commands = @($commands)
+        failed_command = $script:lastFailedCommandReceipt
         started_at = $supervisorStartedAt.ToString("O")
         updated_at = [DateTimeOffset]::UtcNow.ToString("O")
     }
@@ -881,6 +971,7 @@ function Set-ManifestTerminalState {
 }
 
 $commands = [Collections.Generic.List[object]]::new()
+$script:lastFailedCommandReceipt = $null
 $runSucceeded = $false
 $supervisorStartedAt = [DateTimeOffset]::UtcNow
 try {

@@ -13,19 +13,27 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::OnceLock;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use handshake_native::backend_client::build_backend_client;
 
 const FIXTURE_LOCK_TIMEOUT: Duration = Duration::from_secs(60);
-// A fresh current-source PostgreSQL database must apply the complete managed
-// migration set before it can publish the listen report. Keep this setup bound
-// separate from the measured LC-06 route budget; under concurrent local builds
-// the first migration pass can legitimately exceed one minute.
-const STARTUP_TIMEOUT: Duration = Duration::from_secs(300);
+// Every owned backend replays the complete production startup path before it can publish its listen
+// report. On a shared PostgreSQL cluster, another worktree can hold the migration advisory lock and
+// serialize schema/corpus work for more than five minutes. Keep one aggregate startup deadline across
+// listen-report + health readiness, separate from every measured route budget and capped by the
+// supervisor-injected command-wide deadline.
+const STARTUP_TIMEOUT: Duration = Duration::from_secs(1200);
+const DEFAULT_COMMAND_TIMEOUT: Duration = Duration::from_secs(1620);
+const COMMAND_DEADLINE_ENV: &str = "HSK_MT045_COMMAND_DEADLINE_UNIX_MS";
+const COMMAND_DEADLINE_QPC_ENV: &str = "HSK_MT045_COMMAND_DEADLINE_QPC_TICKS";
+const COMMAND_BUDGET_ENV: &str = "HSK_MT045_COMMAND_BUDGET_MS";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
+const SHUTDOWN_GRACE_TIMEOUT: Duration = Duration::from_secs(10);
+const HELPER_REAP_RESERVE: Duration = Duration::from_secs(2);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 // Contract-sized 5k-row corpora traverse public validation, PostgreSQL, EventLedger, projections, and
 // search refresh at the product's measured ~12-writes/s write ceiling, so large corpora (LK-03's 10k
 // rows) legitimately need the full bounded setup window to SEED. Setup is explicitly OUTSIDE measured
@@ -33,6 +41,7 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
 // an optional lower value can fail faster locally but can never widen the canonical setup allowance.
 const DEFAULT_SETUP_TIMEOUT: Duration = Duration::from_secs(1200);
 const MAX_SETUP_TIMEOUT: Duration = Duration::from_secs(1200);
+static PROOF_COMMAND_DEADLINE: OnceLock<Instant> = OnceLock::new();
 
 pub const DEFAULT_BASE: &str = "http://127.0.0.1:37501";
 
@@ -58,15 +67,21 @@ pub struct SetupDeadline {
 
 impl SetupDeadline {
     pub fn begin(label: impl Into<String>) -> Self {
-        let timeout = std::env::var("HSK_PROOF_SETUP_TIMEOUT_SECS")
+        let configured_timeout = std::env::var("HSK_PROOF_SETUP_TIMEOUT_SECS")
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
             .map(Duration::from_secs)
             .unwrap_or(DEFAULT_SETUP_TIMEOUT)
             .min(MAX_SETUP_TIMEOUT);
+        let started = Instant::now();
+        let timeout = configured_timeout.min(command_time_remaining(started));
+        assert!(
+            !timeout.is_zero(),
+            "fixture setup cannot start after the command-wide proof deadline"
+        );
         Self {
             label: label.into(),
-            started: Instant::now(),
+            started,
             timeout,
         }
     }
@@ -98,7 +113,121 @@ impl SetupDeadline {
     }
 }
 
+fn proof_command_deadline() -> Instant {
+    *PROOF_COMMAND_DEADLINE.get_or_init(|| {
+        let now = Instant::now();
+        let authorized_budget_ms = std::env::var(COMMAND_BUDGET_ENV)
+            .ok()
+            .map(|value| {
+                value.parse::<u64>().unwrap_or_else(|error| {
+                    panic!("{COMMAND_BUDGET_ENV} must be an unsigned millisecond duration: {error}")
+                })
+            })
+            .unwrap_or_else(|| {
+                u64::try_from(DEFAULT_COMMAND_TIMEOUT.as_millis())
+                    .expect("default command timeout milliseconds fit u64")
+            })
+            .min(
+                u64::try_from(DEFAULT_COMMAND_TIMEOUT.as_millis())
+                    .expect("default command timeout milliseconds fit u64"),
+            );
+        if let Some(monotonic_remaining) = windows_qpc_remaining() {
+            return now + monotonic_remaining.min(Duration::from_millis(authorized_budget_ms));
+        }
+        let Some(raw_deadline) = std::env::var(COMMAND_DEADLINE_ENV).ok() else {
+            return now + Duration::from_millis(authorized_budget_ms);
+        };
+        let deadline_unix_ms = raw_deadline.parse::<u128>().unwrap_or_else(|error| {
+            panic!("{COMMAND_DEADLINE_ENV} must be an unsigned Unix millisecond timestamp: {error}")
+        });
+        let now_unix_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_millis();
+        assert!(
+            deadline_unix_ms > now_unix_ms,
+            "{COMMAND_DEADLINE_ENV} expired before the proof process started"
+        );
+        let remaining_ms = u64::try_from(deadline_unix_ms - now_unix_ms)
+            .expect("command deadline remaining milliseconds fit u64");
+        // The supervisor normally injects a shorter exact remainder. The clamp is a fail-closed guard
+        // against an inherited far-future value or a backward wall-clock adjustment before this process
+        // converts the absolute timestamp to its monotonic deadline.
+        now + Duration::from_millis(remaining_ms.min(authorized_budget_ms))
+    })
+}
+
+#[cfg(windows)]
+fn windows_qpc_remaining() -> Option<Duration> {
+    #[link(name = "Kernel32")]
+    extern "system" {
+        fn QueryPerformanceCounter(value: *mut i64) -> i32;
+        fn QueryPerformanceFrequency(value: *mut i64) -> i32;
+    }
+
+    let raw_deadline = std::env::var(COMMAND_DEADLINE_QPC_ENV).ok()?;
+    let deadline_ticks = raw_deadline.parse::<i128>().unwrap_or_else(|error| {
+        panic!(
+            "{COMMAND_DEADLINE_QPC_ENV} must be a signed QueryPerformanceCounter tick value: {error}"
+        )
+    });
+    let mut current_ticks = 0_i64;
+    let mut frequency = 0_i64;
+    // SAFETY: both Windows APIs write one i64 into the provided valid stack pointer.
+    let counter_ok = unsafe { QueryPerformanceCounter(&mut current_ticks) };
+    let frequency_ok = unsafe { QueryPerformanceFrequency(&mut frequency) };
+    assert!(
+        counter_ok != 0 && frequency_ok != 0 && frequency > 0,
+        "Windows QueryPerformanceCounter/Frequency must be available"
+    );
+    let remaining_ticks = deadline_ticks.saturating_sub(i128::from(current_ticks));
+    if remaining_ticks <= 0 {
+        return Some(Duration::ZERO);
+    }
+    let remaining_nanos = (u128::try_from(remaining_ticks).expect("positive QPC ticks fit u128")
+        * 1_000_000_000_u128)
+        / u128::try_from(frequency).expect("positive QPC frequency fits u128");
+    let remaining_nanos = u64::try_from(remaining_nanos).unwrap_or(u64::MAX);
+    Some(Duration::from_nanos(remaining_nanos))
+}
+
+#[cfg(not(windows))]
+fn windows_qpc_remaining() -> Option<Duration> {
+    None
+}
+
+fn command_time_remaining(now: Instant) -> Duration {
+    proof_command_deadline()
+        .checked_duration_since(now)
+        .unwrap_or(Duration::ZERO)
+}
+
+fn bounded_command_deadline(phase_timeout: Duration) -> Instant {
+    let now = Instant::now();
+    (now + phase_timeout).min(proof_command_deadline())
+}
+
+fn proof_request_timeout(maximum: Duration) -> Option<Duration> {
+    let remaining = command_time_remaining(Instant::now());
+    (!remaining.is_zero()).then(|| maximum.min(remaining))
+}
+
 struct PendingChild(Option<Child>);
+
+struct RemoveFileOnDrop(PathBuf);
+
+impl Drop for RemoveFileOnDrop {
+    fn drop(&mut self) {
+        match std::fs::remove_file(&self.0) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => eprintln!(
+                "WARN: failed to remove transient fixture input {}: {error}",
+                self.0.display()
+            ),
+        }
+    }
+}
 
 impl PendingChild {
     fn new(child: Child) -> Self {
@@ -130,6 +259,14 @@ fn kill_and_reap(child: &mut Child, operation: &str) {
 }
 
 fn force_kill_tree_and_reap(child: &mut Child, operation: &str) -> Result<(), String> {
+    force_kill_tree_and_reap_before(child, operation, Instant::now() + SHUTDOWN_TIMEOUT)
+}
+
+fn force_kill_tree_and_reap_before(
+    child: &mut Child,
+    operation: &str,
+    cleanup_deadline: Instant,
+) -> Result<(), String> {
     let pid = child.id();
     if child
         .try_wait()
@@ -141,23 +278,28 @@ fn force_kill_tree_and_reap(child: &mut Child, operation: &str) -> Result<(), St
     child
         .kill()
         .map_err(|error| format!("{operation}: kill owned backend pid {pid}: {error}"))?;
-    if wait_for_owned_exit(child, SHUTDOWN_TIMEOUT)? {
+    let graceful_deadline = (Instant::now() + SHUTDOWN_GRACE_TIMEOUT).min(cleanup_deadline);
+    if wait_for_owned_exit_before(child, graceful_deadline)? {
         return Ok(());
     }
     #[cfg(windows)]
     {
         let mut command = Command::new("taskkill");
-        let output = no_window(&mut command)
+        let mut taskkill = no_window(&mut command)
             .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .output()
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
             .map_err(|error| format!("{operation}: force-kill tree for pid {pid}: {error}"))?;
-        if !output.status.success() {
+        let taskkill_status = wait_for_process_before(&mut taskkill, cleanup_deadline)?
+            .ok_or_else(|| format!("{operation}: taskkill for owned pid {pid} timed out"))?;
+        if !taskkill_status.success() {
             return Err(format!(
-                "{operation}: taskkill for owned pid {pid} failed: {}",
-                String::from_utf8_lossy(&output.stderr)
+                "{operation}: taskkill for owned pid {pid} failed with {taskkill_status}"
             ));
         }
-        if wait_for_owned_exit(child, SHUTDOWN_TIMEOUT)? {
+        if wait_for_owned_exit_before(child, cleanup_deadline)? {
             return Ok(());
         }
     }
@@ -166,9 +308,49 @@ fn force_kill_tree_and_reap(child: &mut Child, operation: &str) -> Result<(), St
     ))
 }
 
-fn wait_for_owned_exit(child: &mut Child, timeout: Duration) -> Result<bool, String> {
+fn wait_for_process_before(
+    child: &mut Child,
+    deadline: Instant,
+) -> Result<Option<std::process::ExitStatus>, String> {
+    let run_deadline = deadline
+        .checked_sub(HELPER_REAP_RESERVE)
+        .filter(|candidate| *candidate > Instant::now())
+        .unwrap_or_else(Instant::now);
+    loop {
+        match child
+            .try_wait()
+            .map_err(|error| format!("poll helper process: {error}"))?
+        {
+            Some(status) => return Ok(Some(status)),
+            None if Instant::now() < run_deadline => thread::sleep(Duration::from_millis(50)),
+            None => {
+                child
+                    .kill()
+                    .map_err(|error| format!("kill timed-out helper process: {error}"))?;
+                loop {
+                    match child
+                        .try_wait()
+                        .map_err(|error| format!("reap killed helper process: {error}"))?
+                    {
+                        Some(_) => return Ok(None),
+                        None if Instant::now() < deadline => {
+                            thread::sleep(Duration::from_millis(25))
+                        }
+                        None => {
+                            return Err(
+                                "killed helper process did not exit before its reap deadline"
+                                    .to_owned(),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn wait_for_owned_exit_before(child: &mut Child, deadline: Instant) -> Result<bool, String> {
     let pid = child.id();
-    let deadline = Instant::now() + timeout;
     loop {
         match child.try_wait() {
             Ok(Some(_)) => return Ok(true),
@@ -188,14 +370,19 @@ pub fn require_reachable_backend() -> LiveBackend {
 }
 
 fn start_product_backend(create_workspace: bool) -> LiveBackend {
+    let lock_timeout = FIXTURE_LOCK_TIMEOUT.min(command_time_remaining(Instant::now()));
+    assert!(
+        !lock_timeout.is_zero(),
+        "managed backend fixture lock cannot start after the command-wide proof deadline"
+    );
     let lock = FileLock::acquire(
         &external_artifact_root().join("managed-backend-fixture.lock"),
-        FIXTURE_LOCK_TIMEOUT,
+        lock_timeout,
     )
     .unwrap_or_else(|| {
         panic!(
             "managed backend fixture lock timed out after {}s",
-            FIXTURE_LOCK_TIMEOUT.as_secs()
+            lock_timeout.as_secs()
         )
     });
     let configured_base =
@@ -211,7 +398,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
     let mut owned_backend = None;
     let mut owned_binary = None;
     let mut owned_data_dir = None;
-    if force_owned || !healthy(&rt, &client, &configured_base) {
+    if force_owned || !healthy(&rt, &client, &configured_base, proof_command_deadline()) {
         if !force_owned {
             assert_eq!(
                 configured_base, DEFAULT_BASE,
@@ -221,8 +408,9 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         let binary = resolve_backend_binary();
         let (child, report_path, data_dir) = spawn_backend(&binary);
         let mut pending = PendingChild::new(child);
-        base = wait_for_listen_report(pending.child_mut(), &report_path);
-        wait_for_health(&rt, &client, &base, pending.child_mut());
+        let startup_deadline = bounded_command_deadline(STARTUP_TIMEOUT);
+        base = wait_for_listen_report(pending.child_mut(), &report_path, startup_deadline);
+        wait_for_health(&rt, &client, &base, pending.child_mut(), startup_deadline);
         owned_backend = Some(pending.take());
         owned_binary = Some(binary);
         owned_data_dir = Some(data_dir);
@@ -396,8 +584,11 @@ fn spawn_backend_at(
     (child, report_path, data_dir)
 }
 
-fn wait_for_listen_report(child: &mut Child, report_path: &Path) -> String {
-    let deadline = Instant::now() + STARTUP_TIMEOUT;
+fn wait_for_listen_report(
+    child: &mut Child,
+    report_path: &Path,
+    startup_deadline: Instant,
+) -> String {
     loop {
         match std::fs::read(report_path) {
             Ok(bytes) => {
@@ -405,7 +596,7 @@ fn wait_for_listen_report(child: &mut Child, report_path: &Path) -> String {
                     Ok(report) => report,
                     Err(error)
                         if error.classify() == serde_json::error::Category::Eof
-                            && Instant::now() < deadline =>
+                            && Instant::now() < startup_deadline =>
                     {
                         if let Some(status) = child.try_wait().expect("poll owned backend") {
                             panic!(
@@ -447,8 +638,8 @@ fn wait_for_listen_report(child: &mut Child, report_path: &Path) -> String {
             panic!("owned handshake_core exited before listen report with {status}");
         }
         assert!(
-            Instant::now() < deadline,
-            "owned handshake_core did not publish listen report within {}s",
+            Instant::now() < startup_deadline,
+            "owned handshake_core did not publish listen report before its shared startup/command deadline (maximum {}s)",
             STARTUP_TIMEOUT.as_secs()
         );
         thread::sleep(Duration::from_millis(50));
@@ -477,10 +668,26 @@ fn no_window(command: &mut Command) -> &mut Command {
     command
 }
 
-fn healthy(rt: &tokio::runtime::Runtime, client: &reqwest::Client, base: &str) -> bool {
+fn healthy(
+    rt: &tokio::runtime::Runtime,
+    client: &reqwest::Client,
+    base: &str,
+    deadline: Instant,
+) -> bool {
+    let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+        return false;
+    };
+    if remaining.is_zero() {
+        return false;
+    }
     let url = format!("{base}/health");
     rt.block_on(async {
-        match client.get(url).timeout(Duration::from_secs(2)).send().await {
+        match client
+            .get(url)
+            .timeout(Duration::from_secs(2).min(remaining))
+            .send()
+            .await
+        {
             Ok(response) if response.status().is_success() => response
                 .json::<serde_json::Value>()
                 .await
@@ -496,18 +703,18 @@ fn wait_for_health(
     client: &reqwest::Client,
     base: &str,
     child: &mut Child,
+    startup_deadline: Instant,
 ) {
-    let deadline = Instant::now() + STARTUP_TIMEOUT;
     loop {
-        if healthy(rt, client, base) {
+        if healthy(rt, client, base, startup_deadline) {
             return;
         }
         if let Some(status) = child.try_wait().expect("poll owned backend") {
             panic!("owned handshake_core exited before health with {status}");
         }
         assert!(
-            Instant::now() < deadline,
-            "owned handshake_core did not become healthy within {}s",
+            Instant::now() < startup_deadline,
+            "owned handshake_core did not become healthy before its shared startup/command deadline (maximum {}s)",
             STARTUP_TIMEOUT.as_secs()
         );
         thread::sleep(Duration::from_millis(200));
@@ -537,13 +744,28 @@ impl LiveBackend {
     /// authority. The replacement is spawned from the same current-source executable and private
     /// binding root, then health-gated before the new ephemeral base URL is returned.
     pub fn restart_owned(&mut self) -> (String, String) {
+        let restart_deadline = bounded_command_deadline(STARTUP_TIMEOUT);
+        assert!(
+            Instant::now() < restart_deadline,
+            "owned backend restart cannot begin after the command-wide proof deadline"
+        );
         let child = self
             .owned_backend
             .as_mut()
             .expect("restart_owned requires a fixture-owned backend");
         let old_base = self.base.clone();
-        kill_and_reap(child, "restart exact fixture-owned backend");
+        let old_child_deadline = (Instant::now() + SHUTDOWN_TIMEOUT).min(restart_deadline);
+        force_kill_tree_and_reap_before(
+            child,
+            "restart exact fixture-owned backend",
+            old_child_deadline,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
         self.owned_backend = None;
+        assert!(
+            Instant::now() < restart_deadline,
+            "owned backend restart exhausted its command-wide deadline during shutdown"
+        );
 
         let binary = self
             .owned_binary
@@ -559,8 +781,14 @@ impl LiveBackend {
         let (replacement, report_path, replacement_data_dir) =
             spawn_backend_at(&binary, listen_addr, Some(&data_dir));
         let mut pending = PendingChild::new(replacement);
-        let new_base = wait_for_listen_report(pending.child_mut(), &report_path);
-        wait_for_health(&self.rt, &self.client, &new_base, pending.child_mut());
+        let new_base = wait_for_listen_report(pending.child_mut(), &report_path, restart_deadline);
+        wait_for_health(
+            &self.rt,
+            &self.client,
+            &new_base,
+            pending.child_mut(),
+            restart_deadline,
+        );
         self.base = new_base.clone();
         self.owned_backend = Some(pending.take());
         self.owned_data_dir = Some(replacement_data_dir);
@@ -574,7 +802,7 @@ impl LiveBackend {
 
     fn assert_healthy(&self) {
         assert!(
-            healthy(&self.rt, &self.client, &self.base),
+            healthy(&self.rt, &self.client, &self.base, proof_command_deadline()),
             "product backend is not PostgreSQL-healthy at {}",
             self.base
         );
@@ -626,6 +854,17 @@ impl LiveBackend {
         let run_id = uuid::Uuid::new_v4();
         let stdout_path = log_dir.join(format!("{label}-{run_id}.stdout.log"));
         let stderr_path = log_dir.join(format!("{label}-{run_id}.stderr.log"));
+        let sql_path = log_dir.join(format!("{label}-{run_id}.sql"));
+        let _sql_input_guard = RemoveFileOnDrop(sql_path.clone());
+        let mut sql_file = File::create(&sql_path).expect("create fixture SQL input");
+        sql_file
+            .write_all(sql.as_bytes())
+            .unwrap_or_else(|error| panic!("{label}: write psql fixture file: {error}"));
+        sql_file
+            .flush()
+            .unwrap_or_else(|error| panic!("{label}: flush psql fixture file: {error}"));
+        drop(sql_file);
+        setup_deadline.check();
         let stdout = File::create(&stdout_path).expect("create fixture stdout log");
         let stderr = File::create(&stderr_path).expect("create fixture stderr log");
         let mut command = Command::new(psql);
@@ -637,24 +876,22 @@ impl LiveBackend {
             .arg("ON_ERROR_STOP=1")
             .arg("--dbname")
             .arg(database_url)
-            .stdin(Stdio::piped())
+            .arg("--file")
+            .arg(&sql_path)
+            .stdin(Stdio::null())
             .stdout(Stdio::from(stdout))
             .stderr(Stdio::from(stderr))
             .env("PGCONNECT_TIMEOUT", "5");
-        let mut child = no_window(&mut command)
+        let child = no_window(&mut command)
             .spawn()
             .unwrap_or_else(|error| panic!("{label}: start psql batch fixture: {error}"));
-        child
-            .stdin
-            .take()
-            .expect("psql fixture stdin")
-            .write_all(sql.as_bytes())
-            .unwrap_or_else(|error| panic!("{label}: write psql fixture transaction: {error}"));
+        let mut pending = PendingChild::new(child);
 
-        let deadline = Instant::now() + Duration::from_secs(setup_deadline.timeout_secs());
+        let deadline = Instant::now() + setup_deadline.remaining();
         loop {
-            match child.try_wait() {
+            match pending.child_mut().try_wait() {
                 Ok(Some(status)) => {
+                    let _ = pending.take();
                     assert!(
                         status.success(),
                         "{label}: psql batch fixture failed with {status}; stderr={}",
@@ -664,8 +901,13 @@ impl LiveBackend {
                 }
                 Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
                 Ok(None) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    force_kill_tree_and_reap(pending.child_mut(), "time out psql batch fixture")
+                        .unwrap_or_else(|error| {
+                            let _ = std::fs::remove_file(&sql_path);
+                            eprintln!("FATAL: {error}");
+                            std::process::abort();
+                        });
+                    let _ = pending.take();
                     panic!(
                         "{label}: psql batch fixture exceeded hard {}s deadline and was killed/reaped; stderr={}",
                         setup_deadline.timeout_secs(),
@@ -673,8 +915,13 @@ impl LiveBackend {
                     );
                 }
                 Err(error) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    force_kill_tree_and_reap(pending.child_mut(), "poll failed psql batch fixture")
+                        .unwrap_or_else(|cleanup_error| {
+                            let _ = std::fs::remove_file(&sql_path);
+                            eprintln!("FATAL: {cleanup_error}");
+                            std::process::abort();
+                        });
+                    let _ = pending.take();
                     panic!("{label}: poll psql batch fixture: {error}");
                 }
             }
@@ -921,10 +1168,13 @@ impl LiveBackend {
 
     pub fn get_bytes(&self, path: &str) -> Vec<u8> {
         let url = format!("{}{path}", self.base);
+        let timeout = proof_request_timeout(REQUEST_TIMEOUT).unwrap_or_else(|| {
+            panic!("GET {url} cannot start after the command-wide proof deadline")
+        });
         let (status, bytes) = self.rt.block_on(async {
             let response = self
                 .ident(self.client.get(&url))
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(timeout)
                 .send()
                 .await
                 .unwrap_or_else(|error| panic!("GET {url} failed: {error}"));
@@ -948,7 +1198,7 @@ impl LiveBackend {
     /// Product write routes await their recorder append before responding, but a short bounded poll also
     /// tolerates deployments whose recorder projection becomes visible just after the authority commit.
     pub fn poll_event_by_payload(&self, field: &str, value: &str) -> serde_json::Value {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = bounded_command_deadline(Duration::from_secs(10));
         loop {
             let events = self.get_json(&format!("/events?wsid={}", self.workspace_id));
             if let Some(event) = events.as_array().and_then(|rows| {
@@ -987,7 +1237,7 @@ impl LiveBackend {
     pub fn poll_preference_event(&self, preference_id: &str, revision: i64) -> serde_json::Value {
         let aggregate_id = format!("workspace:{}:{preference_id}", self.workspace_id);
         let path = format!("/kernel/events/aggregates/preference_record/{aggregate_id}");
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = bounded_command_deadline(Duration::from_secs(10));
         loop {
             let events = self.get_json(&path);
             if let Some(event) = events.as_array().and_then(|rows| {
@@ -1021,7 +1271,7 @@ impl LiveBackend {
     }
 
     pub fn poll_event_by_id(&self, event_id: &str) -> serde_json::Value {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = bounded_command_deadline(Duration::from_secs(10));
         loop {
             let events = self.get_json(&format!("/events?event_id={event_id}"));
             if let Some(event) = events.as_array().and_then(|rows| {
@@ -1048,9 +1298,12 @@ impl LiveBackend {
     }
 
     fn request_status(&self, request: reqwest::RequestBuilder) -> u16 {
+        let Some(timeout) = proof_request_timeout(REQUEST_TIMEOUT) else {
+            return 0;
+        };
         self.rt.block_on(async {
             request
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(timeout)
                 .send()
                 .await
                 .map(|response| response.status().as_u16())
@@ -1088,9 +1341,12 @@ impl LiveBackend {
         request: reqwest::RequestBuilder,
         label: &str,
     ) -> (u16, String) {
+        let timeout = proof_request_timeout(REQUEST_TIMEOUT).unwrap_or_else(|| {
+            panic!("{label} cannot start after the command-wide proof deadline")
+        });
         self.rt.block_on(async {
             let response = request
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(timeout)
                 .send()
                 .await
                 .unwrap_or_else(|error| panic!("{label} failed: {error}"));
