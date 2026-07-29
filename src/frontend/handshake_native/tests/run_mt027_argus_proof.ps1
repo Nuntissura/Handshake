@@ -78,6 +78,22 @@ function Assert-NoReparsePointEscape {
     throw "MT-027 proof path escaped the existing sibling Handshake_Artifacts root: '$Path'"
 }
 
+function Get-ComparableWindowsPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $extendedUncPrefix = '\\?\UNC\'
+    if ($fullPath.StartsWith($extendedUncPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        return [IO.Path]::GetFullPath(
+            '\\' + $fullPath.Substring($extendedUncPrefix.Length))
+    }
+    $extendedPrefix = '\\?\'
+    if ($fullPath.StartsWith($extendedPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        return [IO.Path]::GetFullPath($fullPath.Substring($extendedPrefix.Length))
+    }
+    return $fullPath
+}
+
 Assert-NoReparsePointEscape -Path $cargoTarget -Root $artifactSibling
 Assert-NoReparsePointEscape -Path $proofRoot -Root $artifactSibling
 $runDir = Join-Path $proofRoot $RunId
@@ -855,29 +871,32 @@ if ([string]::IsNullOrWhiteSpace([string]$movePayload.block_id) -or
 }
 
 $managedReceipt = Get-Content -LiteralPath $fixedManagedPgReceipt -Raw | ConvertFrom-Json
-$receiptBackendBinary = [IO.Path]::GetFullPath(
+$receiptBackendBinary = Get-ComparableWindowsPath (
     [string]$managedReceipt.backend_binding.backend_binary)
-$observedBackendExecutable = [IO.Path]::GetFullPath(
+$observedBackendExecutable = Get-ComparableWindowsPath (
     [string]$backendIdentity.executable)
+$expectedBackendBinary = Get-ComparableWindowsPath $backendBinary
 if ($managedReceipt.schema_id -ne 'hsk.mt027_managed_pg_proof@1' -or
     -not [bool]$managedReceipt.backend_binding.owned -or
     [int]$managedReceipt.backend_binding.backend_pid -ne [int]$backendIdentity.pid -or
     -not $observedBackendExecutable.Equals(
-        $backendBinary, [StringComparison]::OrdinalIgnoreCase) -or
+        $expectedBackendBinary, [StringComparison]::OrdinalIgnoreCase) -or
     -not $receiptBackendBinary.Equals(
-        $backendBinary, [StringComparison]::OrdinalIgnoreCase) -or
+        $expectedBackendBinary, [StringComparison]::OrdinalIgnoreCase) -or
     $managedReceipt.backend_binding.database_host -ne '127.0.0.1' -or
     [int]$managedReceipt.backend_binding.database_port -ne 5544 -or
     $managedReceipt.backend_binding.database_name -ne 'handshake') {
-    throw "Managed proof receipt binding mismatch: schema='$($managedReceipt.schema_id)'; owned='$($managedReceipt.backend_binding.owned)'; receipt_pid='$($managedReceipt.backend_binding.backend_pid)'; observed_pid='$($backendIdentity.pid)'; receipt_binary='$receiptBackendBinary'; observed_executable='$observedBackendExecutable'; expected_binary='$backendBinary'; database_host='$($managedReceipt.backend_binding.database_host)'; database_port='$($managedReceipt.backend_binding.database_port)'; database_name='$($managedReceipt.backend_binding.database_name)'"
+    throw "Managed proof receipt binding mismatch: schema='$($managedReceipt.schema_id)'; owned='$($managedReceipt.backend_binding.owned)'; receipt_pid='$($managedReceipt.backend_binding.backend_pid)'; observed_pid='$($backendIdentity.pid)'; receipt_binary='$receiptBackendBinary'; observed_executable='$observedBackendExecutable'; expected_binary='$expectedBackendBinary'; database_host='$($managedReceipt.backend_binding.database_host)'; database_port='$($managedReceipt.backend_binding.database_port)'; database_name='$($managedReceipt.backend_binding.database_name)'"
 }
 $backendSha256 = (Get-FileHash -LiteralPath $backendBinary -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($managedReceipt.backend_binding.backend_binary_sha256 -ne $backendSha256) {
     throw 'Managed proof backend binary hash does not match the supervised current-source build'
 }
-$managedRuntimeData = [IO.Path]::GetFullPath([string]$managedReceipt.backend_binding.runtime_data_dir)
+$managedRuntimeData = Get-ComparableWindowsPath (
+    [string]$managedReceipt.backend_binding.runtime_data_dir)
+$expectedRuntimeArtifactsRoot = Get-ComparableWindowsPath $runtimeArtifactsRoot
 if (-not $managedRuntimeData.StartsWith(
-        [IO.Path]::GetFullPath($runtimeArtifactsRoot) + [IO.Path]::DirectorySeparatorChar,
+        $expectedRuntimeArtifactsRoot + [IO.Path]::DirectorySeparatorChar,
         [StringComparison]::OrdinalIgnoreCase) -or
     (Test-Path -LiteralPath $managedRuntimeData)) {
     throw 'Fixture-owned backend runtime was not contained and cleaned before receipt publication'
