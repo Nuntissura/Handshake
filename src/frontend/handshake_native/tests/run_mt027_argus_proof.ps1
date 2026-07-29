@@ -612,7 +612,8 @@ function Test-TerminalTreePredicate {
         }
         'sort-title-ascending' {
             $node = Find-AuthorNode $Tree 'bcv.table.sort.title'
-            return $null -ne $node -and ([string]$node.label).Contains([char]0x2191)
+            return $null -ne $node -and
+                [string]$node.label -eq ('Title ' + [char]0x25B2)
         }
         'kanban-retry-loaded-card' {
             return Test-AuthorDescendant $Tree 'bcv.kanban.lane.untagged' $cardId
