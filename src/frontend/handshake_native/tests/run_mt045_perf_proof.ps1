@@ -689,19 +689,23 @@ function Invoke-BoundedCargo {
     }
 }
 
-function Assert-ExactDiagnosticResult {
+function Assert-ExactTestResult {
     param(
         [Parameter(Mandatory)]$CommandResult,
         [Parameter(Mandatory)][string]$ExpectedTest
     )
     $stdout = [IO.File]::ReadAllText($CommandResult.stdout)
+    $stderr = [IO.File]::ReadAllText($CommandResult.stderr)
     $runningMatches = [regex]::Matches($stdout, "(?m)^running 1 test\r?$")
     $summaryMatches = [regex]::Matches(
         $stdout,
         "(?m)^test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured; [0-9]+ filtered out; finished in [^\r\n]+\r?$"
     )
     if ($runningMatches.Count -ne 1 -or $summaryMatches.Count -ne 1) {
-        throw "Diagnostic $ExpectedTest did not execute exactly one passing test; inspect $($CommandResult.stdout)"
+        throw "Test $ExpectedTest did not execute exactly one passing test; inspect $($CommandResult.stdout)"
+    }
+    if ($stdout.Contains("panicked at") -or $stderr.Contains("panicked at")) {
+        throw "Test $ExpectedTest emitted a panic even though Cargo reported PASS; inspect $($CommandResult.stdout) and $($CommandResult.stderr)"
     }
     $CommandResult["expected_test"] = $ExpectedTest
     $CommandResult["verified_executed_test_count"] = 1
@@ -933,7 +937,7 @@ try {
             "test", "--release", "--locked", "--target-dir", $targetRoot,
             "--test", $bin, $test, "--", "--exact", "--nocapture", "--test-threads=1"
         ) -WorkingDirectory $crateRoot -LogRoot $runRoot
-        Assert-ExactDiagnosticResult -CommandResult $result -ExpectedTest $test
+        Assert-ExactTestResult -CommandResult $result -ExpectedTest $test
         $commands.Add($result)
         $diagnosticResults.Add($result)
     }
@@ -976,10 +980,12 @@ try {
     foreach ($entry in $perfCommands) {
         $bin = $entry[0]
         $test = $entry[1]
-        $commands.Add((Invoke-BoundedCargo -Label $test -Arguments @(
+        $result = Invoke-BoundedCargo -Label $test -Arguments @(
             "test", "--release", "--locked", "--target-dir", $targetRoot,
             "--test", $bin, $test, "--", "--exact", "--nocapture", "--test-threads=1"
-        ) -WorkingDirectory $crateRoot -LogRoot $runRoot))
+        ) -WorkingDirectory $crateRoot -LogRoot $runRoot
+        Assert-ExactTestResult -CommandResult $result -ExpectedTest $test
+        $commands.Add($result)
     }
 
     $immutableRunPath = Join-Path $measurementRoot "runs\$RunId.json"

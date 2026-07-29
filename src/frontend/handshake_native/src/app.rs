@@ -2710,6 +2710,9 @@ pub struct HandshakeApp {
     settings_save_due_at: Option<std::time::Instant>,
     /// A settings save/load is in flight on a worker; prevents overlapping spawns for one change set.
     settings_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// Owned handle for the current settings load/save. Retaining and draining the handle keeps the
+    /// application runtime alive until a blocking transport call can no longer re-enter it at teardown.
+    settings_io_handle: Option<tokio::task::JoinHandle<()>>,
     /// The last transient settings persistence error, surfaced on the dialog status row (HBR: visible).
     settings_persist_error: Option<String>,
     /// Typed identity of the failed settings operation. The dialog's Retry action repeats exactly this
@@ -2729,6 +2732,9 @@ pub struct HandshakeApp {
     preference_io_cell: Arc<Mutex<Option<crate::preference_client::PreferenceDelivery>>>,
     /// A preference write is in flight on a worker; prevents overlapping spawns.
     preference_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// Owned handle for the current preference delivery. `spawn_blocking` cannot be cancelled after it
+    /// starts, so teardown drains this handle before dropping the runtime used by the transport.
+    preference_io_handle: Option<tokio::task::JoinHandle<()>>,
     /// The preference Set/Reset write currently in flight, retained so a failed delivery can be moved
     /// into [`Self::preference_retry_write`] for an explicit Retry (the delivery cell carries only the
     /// preference_id, not the full write to re-dispatch).
@@ -4532,12 +4538,14 @@ impl HandshakeApp {
             settings_save_cell: Arc::new(Mutex::new(None)),
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            settings_io_handle: None,
             settings_persist_error: None,
             settings_retry_operation: None,
             preference_transport,
             preference_write_queue: VecDeque::new(),
             preference_io_cell: Arc::new(Mutex::new(None)),
             preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            preference_io_handle: None,
             preference_in_flight_write: None,
             preference_retry_write: None,
             worksurface_inspector_last_dump: None,
@@ -5167,6 +5175,7 @@ impl HandshakeApp {
             settings_save_cell: Arc::new(Mutex::new(None)),
             settings_save_due_at: None,
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            settings_io_handle: None,
             settings_persist_error: None,
             settings_retry_operation: None,
             // Headless/test shell: no runtime to bridge a live preference transport onto. A test injects
@@ -5175,6 +5184,7 @@ impl HandshakeApp {
             preference_write_queue: VecDeque::new(),
             preference_io_cell: Arc::new(Mutex::new(None)),
             preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            preference_io_handle: None,
             preference_in_flight_write: None,
             preference_retry_write: None,
             worksurface_inspector_last_dump: None,
@@ -12493,13 +12503,16 @@ impl HandshakeApp {
             .store(true, std::sync::atomic::Ordering::SeqCst);
         let cell = self.preference_io_cell.clone();
         let in_flight = self.preference_io_in_flight.clone();
-        handle.spawn_blocking(move || {
+        if let Some(previous) = self.preference_io_handle.take() {
+            Self::drain_runtime_task(&self.rt, previous);
+        }
+        self.preference_io_handle = Some(handle.spawn_blocking(move || {
             let delivery =
                 crate::preference_client::run_preference_write(transport.as_ref(), &write);
             let mut slot = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             *slot = Some(delivery);
             in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
-        });
+        }));
     }
 
     /// Drain a completed preference write (try_lock, HBR-QUIET): apply a hydrate to the live settings +
@@ -12687,7 +12700,10 @@ impl HandshakeApp {
                 return;
             }
             let cell = self.settings_save_cell.clone();
-            handle.spawn_blocking(move || {
+            if let Some(previous) = self.settings_io_handle.take() {
+                Self::drain_runtime_task(&self.rt, previous);
+            }
+            self.settings_io_handle = Some(handle.spawn_blocking(move || {
                 let result = transport.save(&workspace, blob).map_err(|e| e.to_string());
                 let mut slot = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
                 *slot = Some(crate::workspace_settings::SettingsSaveDelivery {
@@ -12695,7 +12711,7 @@ impl HandshakeApp {
                     saved_state,
                     result,
                 });
-            });
+            }));
         } else {
             self.settings_save_queue.push_front(workspace);
         }
@@ -13313,7 +13329,10 @@ impl HandshakeApp {
                         let cell = self.settings_load_cell.clone();
                         let ws = workspace.clone();
                         let generation = self.settings_workspace_generation;
-                        handle.spawn_blocking(move || {
+                        if let Some(previous) = self.settings_io_handle.take() {
+                            Self::drain_runtime_task(&self.rt, previous);
+                        }
+                        self.settings_io_handle = Some(handle.spawn_blocking(move || {
                             let result = transport.load(&ws).map_err(|e| e.to_string());
                             let mut slot =
                                 cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -13322,7 +13341,7 @@ impl HandshakeApp {
                                 generation,
                                 result,
                             });
-                        });
+                        }));
                         ctx.request_repaint();
                     } else {
                         // I/O busy: re-arm the load for the next frame.
@@ -23696,6 +23715,12 @@ impl HandshakeApp {
         let _ = rt.block_on(handle);
     }
 
+    fn drain_runtime_task<T>(rt: &tokio::runtime::Runtime, handle: tokio::task::JoinHandle<T>) {
+        // Persistence work is loss-sensitive. In particular, aborting a queued `spawn_blocking` task
+        // before it starts would discard the operator's settings/preference write.
+        let _ = rt.block_on(handle);
+    }
+
     fn replace_health_handle(
         &mut self,
         handle: tokio::task::JoinHandle<Result<HealthInfo, AppError>>,
@@ -23716,6 +23741,12 @@ impl HandshakeApp {
         }
         if let Some(handle) = self.workspaces_handle.take() {
             Self::abort_and_drain_runtime_task(&self.rt, handle);
+        }
+        if let Some(handle) = self.settings_io_handle.take() {
+            Self::drain_runtime_task(&self.rt, handle);
+        }
+        if let Some(handle) = self.preference_io_handle.take() {
+            Self::drain_runtime_task(&self.rt, handle);
         }
         self.wait_for_layout_workers_to_settle();
     }
