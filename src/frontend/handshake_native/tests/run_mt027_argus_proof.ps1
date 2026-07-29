@@ -667,7 +667,7 @@ function Test-TerminalTreePredicate {
         }
         'kanban-retry-loaded-card' {
             return (& $has 'bcv.kanban.lane.untagged') -and
-                (Test-AuthorValues $Tree $cardId -RequiredValues @('untagged') -OnlyRequired)
+                (Test-AuthorValues $Tree $cardId -RequiredValues @('__untagged__') -OnlyRequired)
         }
         'kanban-card-moved-target-lane' {
             return (& $has $targetLaneId) -and
