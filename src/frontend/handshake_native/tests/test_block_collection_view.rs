@@ -1791,10 +1791,8 @@ fn collect_json_nodes_by_author_id<'a>(
             if map.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
                 nodes.push(value);
             }
-            if let Some(children) = map.get("children").and_then(serde_json::Value::as_array) {
-                for child in children {
-                    collect_json_nodes_by_author_id(child, author_id, nodes);
-                }
+            for child in map.values() {
+                collect_json_nodes_by_author_id(child, author_id, nodes);
             }
         }
         serde_json::Value::Array(values) => {
@@ -1815,14 +1813,9 @@ fn json_author_prefix_count(value: &serde_json::Value, prefix: &str) -> usize {
                     .and_then(serde_json::Value::as_str)
                     .is_some_and(|author_id| author_id.starts_with(prefix)),
             ) + map
-                .get("children")
-                .and_then(serde_json::Value::as_array)
-                .map_or(0, |children| {
-                    children
-                        .iter()
-                        .map(|child| json_author_prefix_count(child, prefix))
-                        .sum()
-                })
+                .values()
+                .map(|child| json_author_prefix_count(child, prefix))
+                .sum::<usize>()
         }
         serde_json::Value::Array(values) => values
             .iter()
