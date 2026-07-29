@@ -14,7 +14,7 @@
   "title": "E3-MT027-BlockCollectionViews",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T19:42:38.7722974Z",
+  "updated_at_utc": "2026-07-29T11:05:03.7847824Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,17 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-021",
       "MT-023"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: BlockCollectionView (table/kanban/calendar, 2006 lines) mounted by NO host; BlockViewEvent no consumer; BlockViewClient never constructed by a host. Not in MT-079/080 scope; no owner MT. Strongest widget of the orphan set (real DragAndDrop kanban proof, verified POST bodies) - mount-only work. Also MT-042 KnowledgeActionRegistry is never installed by app.rs, so collection swarm actions are doubly inert.",
@@ -82,15 +82,24 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260705-025228",
+    "claimed_by": "KERNEL_BUILDER-20260728-221208",
+    "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: atomic saved-view authority plus recoverable Flight Recorder publication, dedicated canonical UserManual coverage, and current-source real-PostgreSQL canonical Argus proof. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
     "claim_takeover_note_2026_07_05": "KERNEL_BUILDER-20260705-025228 repaired the reopened MT-027 host-mount gap, including saved view_def binding, payload-capable collection swarm actions, fake-control cleanup, and the out-of-order definition/results delivery race. Official validator has not run.",
-    "ready_for_validation_at_utc": "2026-07-05T05:09:18.422Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260705-025228",
-    "ready_for_validation_reason": "MT-027 reopened host-mount audit repaired: BlockCollectionView is host-mounted, saved view_def routes bind the mounted host, collection actions carry MCP payloads into real BlockViewEvents, fake collection controls were removed, View menu/manual rows are current, and the result-before-definition race is fixed. Live Handshake-managed PostgreSQL AC1-AC8/PROOF2-6 remains explicitly NEEDS_MANAGED_RESOURCE_PROOF; validator_verdict remains PENDING.",
-    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "missing_resource": {
-      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-      "reason": "No seeded Handshake-managed PostgreSQL workspace/view_def set was available in this lane. Existing ignored integration coverage only exercises table load; live sort persistence, kanban tag mutation persistence/re-query, calendar buckets/filtering, kind-switch persistence, and create-view persistence still need managed-resource proof.",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-29T11:05:03.7847824Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
+    "ready_for_validation_reason": "MT-027 FAIL_V2 remediation is implemented and runtime-proven: saved-view creation and publication use transactional durable authority with recoverable Flight Recorder outbox retention; failure injection and migration rollback/replay pass on real PostgreSQL; the canonical Block Collection Views UserManual/View-menu/operator route is present; and the committed current-source canonical Argus run proves 24 ordered create, mutate, switch, empty, error, and retry actions against a fixture-owned backend and the existing PostgreSQL instance. Official V3 validation remains pending.",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_ATOMICITY_MANUAL_UI_ARGUS_AND_PROCESS_BOUNDARY_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
+    "ready_for_validation_summary": "MT-027 V3: atomic saved-view persistence/publication, restart-safe outbox retention and migration lifecycle, canonical UserManual plus View > Open Block Collections route, and a 24-action real-PostgreSQL canonical Argus proof all pass from committed source 385e6708a9223cb5a0bfaa758419c98697b3ce55. The accepted run has exact trace and managed-receipt hash bindings, zero owned survivors, and unchanged PostgreSQL PID/start identity. validator_verdict is PENDING_V3 and completed_by remains null.",
+    "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
+    "historical_missing_resource_superseded_v3": {
+      "status": "SUPERSEDED_BY_V3_REAL_POSTGRESQL_PROOF",
+      "superseded_at_utc": "2026-07-29T11:05:03.7847824Z",
+      "superseded_by_run_id": "mt027-v3-20260729-1410",
+      "reason": "Historical V1 blocker retained for lineage. V3 now self-seeds table, Kanban, calendar, tag, journal, and create-view fixtures through real product routes against PostgreSQL and proves persistence, mutation, authoritative re-query, reload, and cleanup.",
       "required_env_vars_or_inputs": [
         "HANDSHAKE_TEST_WS=<seeded workspace id>",
         "HANDSHAKE_TEST_TABLE_VIEW=<seeded table view_def block id>",
@@ -106,6 +115,50 @@
         "AC7 kind switch updateBlockView persistence and re-query",
         "AC8 new view persistence beyond local request/host switch proof"
       ]
+    },
+    "rfv_evidence_2026_07_29": {
+      "by": "KERNEL_BUILDER-20260728-221208",
+      "mode": "FAIL_V2_ATOMICITY_MANUAL_AND_CANONICAL_ARGUS_REMEDIATION_IMPLEMENT_REVIEW_HARDEN",
+      "implementation_source_sha": "385e6708a9223cb5a0bfaa758419c98697b3ce55",
+      "product_commits": [
+        "f749bfde",
+        "790f5fd0",
+        "b4ef038f",
+        "8ff853e3",
+        "e0237d99",
+        "1386686f",
+        "f4133486",
+        "f7a274d2",
+        "6a81fbaa",
+        "d0b08fe9",
+        "c62e6d13",
+        "fc066ea5",
+        "5e39fea2",
+        "385e6708"
+      ],
+      "canonical_run": {
+        "run_id": "mt027-v3-20260729-1410",
+        "status": "COMPLETED",
+        "source_sha": "385e6708a9223cb5a0bfaa758419c98697b3ce55",
+        "artifact_path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-027/integrated/mt027-v3-20260729-1410",
+        "trace_rows": 24,
+        "trace_methods": {
+          "argus.click": 20,
+          "argus.set_value": 4
+        },
+        "trace_size_bytes": 3326027,
+        "trace_sha256": "eb24c229a526d1af71bdf950dfccb1945dc0eccb77aa0c6f54b0db7b4a13fa3f",
+        "managed_receipt_size_bytes": 1977,
+        "managed_receipt_sha256": "fe5ff3715d28f5ed71c9338f33edd6410eb1495ff3efbb0a37d7f57c04265b00",
+        "exit_code": 0,
+        "survivor_count": 0
+      },
+      "runtime_proof": "The canonical run drove 24 ordered argus.click/argus.set_value actions across saved table, Kanban, and calendar views; sort persistence, untagged-to-tag card mutation with authoritative source-lane loss, date-range persistence, kind switching, new-view creation including retry after injected failure, reload, and exact empty states all passed against a fixture-owned current-source backend.",
+      "atomicity_and_recovery_proof": "Real-PostgreSQL failure injection passed between durable creation/publication boundaries; rollback leaves no partial collection/view authority, outbox replay recovers recorder publication, retention migration rollback/forward replay is idempotent, workspace deletion cannot resurrect archived publication intent, and the migration chain returns to baseline without leaked tables.",
+      "manual_settings_menu_proof": "Canonical UserManual coverage names Block Collection Views and its real workflow. The operator route is View > Open Block Collections via menu.view.open-block-collections and command view.block-collections. View-specific kind, sort, range, and grouping choices persist in each saved view definition; no unrelated global Settings preference is required.",
+      "process_and_artifact_boundary": "Accepted receipts bind the committed source, exact supervised wrapper/test/backend identities, backend binary SHA-256, existing PostgreSQL PID 121448 and start 2026-07-28T21:07:41.2588741Z, trace and managed-receipt sizes/hashes, zero survivors, cleaned transient roots, and the operator-approved sibling Handshake_Artifacts root. The forbidden product-local Handshake_Artifacts directory is absent.",
+      "adversarial_reviews": "Independent atomicity/migration, manual/UI, accessibility/Argus, trace-decoding, sentinel, Windows path equivalence/traversal, PostgreSQL PID-reuse, and PS5 receipt-publication reviews all passed after hardening; no remaining product blocker was reported.",
+      "validator_boundary": "Implementer handoff only: validator_verdict is PENDING_V3, completed_by is null, and historical FAIL_V1/FAIL_V2 verdict records remain preserved."
     },
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
@@ -627,5 +680,22 @@
     "Add a canonical UserManual entry and run canonical Argus across view creation, mutation, switching, empty/error, and post-action states."
   ],
   "no_context_instruction": "Read MT-027.json and current authorities. Repair saved-view atomicity, document the actual surface in canonical UserManual, and prove it with real PostgreSQL and Argus before READY_FOR_VALIDATION_V3."
-}
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260728-221208",
+    "remediated_at_utc": "2026-07-29T11:05:03.7847824Z",
+    "addresses_v2_fail": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "source_sha": "385e6708a9223cb5a0bfaa758419c98697b3ce55",
+    "proof_commands_passed": [
+      "Real-PostgreSQL saved-view transactional recovery failure matrix: 1 passed, 0 failed.",
+      "Focused outbox-retention migration rollback/forward/archive/workspace-delete/full-boundary proof: 1 passed, 0 failed.",
+      "Canonical UserManual results contract and real-PostgreSQL manual seed proof: 1 passed, 0 failed each.",
+      "Canonical MT-027 Argus proof run mt027-v3-20260729-1410: 24 ordered actions, 20 argus.click, 4 argus.set_value, exit 0, zero survivors."
+    ],
+    "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-027/integrated/mt027-v3-20260729-1410",
+    "adversarial_review": "PASS: independent atomicity/migration, manual/UI, Argus/accessibility, Windows process/path/encoding and final receipt reviews found no remaining product blocker after hardening.",
+    "validator_instruction": "Independently rerun tests/run_mt027_argus_proof.ps1 with a fresh RunId from committed source, inspect both receipts and the 24-row trace, and preserve historical validation_v1/validation_v2 records. Do not mark completed unless official V3 validation passes."
+  }
 }
