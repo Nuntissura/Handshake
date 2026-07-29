@@ -2277,7 +2277,15 @@ fn show_with_author_scope(
             .desired_width(220.0);
         let resp = ui.add(edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &query_author_id);
-        if resp.changed() {
+        ui.ctx().accesskit_node_builder(resp.id, |node| {
+            node.add_action(egui::accesskit::Action::SetValue);
+        });
+        let query_set_via_accesskit =
+            crate::mcp::accesskit_string_set_value(ui, resp.id).map(|value| {
+                state.query = value;
+                ui.ctx().request_repaint();
+            });
+        if resp.changed() || query_set_via_accesskit.is_some() {
             state.invalidate_search_inputs();
         }
         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -2345,7 +2353,15 @@ fn show_with_author_scope(
             .desired_width(220.0);
         let resp = ui.add_enabled(replacement_enabled, edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &replace_author_id);
-        if resp.changed() {
+        ui.ctx().accesskit_node_builder(resp.id, |node| {
+            node.add_action(egui::accesskit::Action::SetValue);
+        });
+        let replacement_set_via_accesskit = crate::mcp::accesskit_string_set_value(ui, resp.id)
+            .map(|value| {
+                state.replacement = value;
+                ui.ctx().request_repaint();
+            });
+        if resp.changed() || replacement_set_via_accesskit.is_some() {
             state.invalidate_replacement_input();
         }
 
@@ -2399,7 +2415,15 @@ fn show_with_author_scope(
             .desired_width(120.0);
         let tag_resp = ui.add(tag);
         accessibility::emit_interactive_node(ui.ctx(), tag_resp.id, &tag_filter_author_id);
-        if tag_resp.changed() {
+        ui.ctx().accesskit_node_builder(tag_resp.id, |node| {
+            node.add_action(egui::accesskit::Action::SetValue);
+        });
+        let tag_set_via_accesskit =
+            crate::mcp::accesskit_string_set_value(ui, tag_resp.id).map(|value| {
+                state.tag_filter = value;
+                ui.ctx().request_repaint();
+            });
+        if tag_resp.changed() || tag_set_via_accesskit.is_some() {
             state.invalidate_search_inputs();
         }
 
@@ -2408,7 +2432,15 @@ fn show_with_author_scope(
             .desired_width(120.0);
         let path_resp = ui.add(path);
         accessibility::emit_interactive_node(ui.ctx(), path_resp.id, &path_filter_author_id);
-        if path_resp.changed() {
+        ui.ctx().accesskit_node_builder(path_resp.id, |node| {
+            node.add_action(egui::accesskit::Action::SetValue);
+        });
+        let path_set_via_accesskit =
+            crate::mcp::accesskit_string_set_value(ui, path_resp.id).map(|value| {
+                state.path_filter = value;
+                ui.ctx().request_repaint();
+            });
+        if path_resp.changed() || path_set_via_accesskit.is_some() {
             state.invalidate_search_inputs();
         }
 

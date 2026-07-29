@@ -65,9 +65,9 @@ use handshake_native::find_in_files::{
     STATUS_AUTHOR_ID, TOGGLE_CASE_AUTHOR_ID, TOGGLE_REGEX_AUTHOR_ID, TOGGLE_WORD_AUTHOR_ID,
 };
 #[cfg(feature = "integration")]
+use handshake_native::find_in_files::{BOOKMARK_RETRY_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID};
 use handshake_native::find_in_files::{
-    BOOKMARK_RETRY_AUTHOR_ID, PATH_FILTER_AUTHOR_ID, REPLACE_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID,
-    TAG_FILTER_AUTHOR_ID,
+    PATH_FILTER_AUTHOR_ID, REPLACE_AUTHOR_ID, TAG_FILTER_AUTHOR_ID,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneHostWidget, PaneRecord, PaneRegistry,
@@ -565,6 +565,57 @@ fn accesskit_tree_has_all_contract_author_ids() {
     );
     println!("PT-5/AC-1/AC-10: all contract author_ids present in the live AccessKit tree");
     assert_no_local_artifact_dir();
+}
+
+#[test]
+fn text_inputs_advertise_and_apply_canonical_set_value() {
+    let state = Arc::new(Mutex::new(FindInFilesPanelState::new()));
+    let opened = Arc::new(Mutex::new(Vec::new()));
+    let r = rt();
+    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
+    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let mut harness = harness_for(
+        Arc::clone(&state),
+        opened,
+        search_client,
+        doc_client,
+        Some("ws-1".to_owned()),
+    );
+    harness.run_steps(2);
+
+    for (author_id, value) in [
+        (QUERY_AUTHOR_ID, "canonical query"),
+        (REPLACE_AUTHOR_ID, "canonical replacement"),
+        (TAG_FILTER_AUTHOR_ID, "tag-canonical"),
+        (PATH_FILTER_AUTHOR_ID, "notes/canonical"),
+    ] {
+        let node = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(author_id))
+            .unwrap_or_else(|| panic!("missing Find in Files text input {author_id}"));
+        assert!(
+            node.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::SetValue),
+            "{author_id} must advertise canonical SetValue"
+        );
+        let node_id = node.accesskit_node().id();
+        harness.event(egui::Event::AccessKitActionRequest(
+            egui::accesskit::ActionRequest {
+                action: egui::accesskit::Action::SetValue,
+                target: node_id,
+                data: Some(egui::accesskit::ActionData::Value(value.into())),
+            },
+        ));
+        harness.run_steps(2);
+    }
+
+    let state = state.lock().expect("Find in Files state");
+    assert_eq!(state.query, "canonical query");
+    assert_eq!(state.replacement, "canonical replacement");
+    assert_eq!(state.tag_filter, "tag-canonical");
+    assert_eq!(state.path_filter, "notes/canonical");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
