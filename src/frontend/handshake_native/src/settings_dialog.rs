@@ -1592,7 +1592,19 @@ fn render_cloud_models_body(
                     "Not configured"
                 };
                 let status = ui.label(egui::RichText::new(status_text).small().weak());
-                set_author_id(ui, status.id, &cloud_byok_status_author_id(&row.provider));
+                // Attach the non-secret BYOK status TEXT as the AccessKit label EXPLICITLY (MT-015 v4).
+                // The detached Settings window renders into an embedded egui viewport whose plain
+                // `ui.label()` text is NOT auto-emitted into the AccessKit tree (only interactive
+                // widgets are), so relying on the auto-emitted name left the detached window's
+                // configured/unavailable state un-readable out-of-process. Setting the label directly
+                // makes the status readable in BOTH hosts. `status_text` is a fixed non-secret string —
+                // never key material.
+                set_author_id_and_label(
+                    ui,
+                    status.id,
+                    &cloud_byok_status_author_id(&row.provider),
+                    status_text,
+                );
             });
         });
         ui.horizontal(|ui| {
@@ -1650,12 +1662,18 @@ fn render_cloud_models_body(
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
                 ui.label(&row.label);
-                let status = ui.label(
-                    egui::RichText::new(row.auth_status.label())
-                        .small()
-                        .strong(),
+                let status_label = row.auth_status.label();
+                let status =
+                    ui.label(egui::RichText::new(status_label).small().strong());
+                // Explicit AccessKit label so the CLI-bridge auth status (logged-in / logged-out /
+                // expired / unavailable) is out-of-process readable in the DETACHED window too (embedded
+                // egui viewports do not auto-emit plain-label text). Non-secret text only. MT-015 v4.
+                set_author_id_and_label(
+                    ui,
+                    status.id,
+                    &cloud_cli_status_author_id(&row.provider),
+                    status_label,
                 );
-                set_author_id(ui, status.id, &cloud_cli_status_author_id(&row.provider));
                 ui.label(
                     egui::RichText::new(if row.hint.is_empty() {
                         "Provider-owned CLI auth; Handshake stores no credential."
