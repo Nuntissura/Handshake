@@ -46,13 +46,16 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use handshake_core::process_ledger::{
-    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, PostgresProcessLedgerStore,
-    ProcessLedgerStore, Reclaim, ReclaimTrigger,
+    acquire_embedded_runtime_instance_lease, reconcile_restart_orphans_at_boot, KillOutcome,
+    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, PostgresModelLaneStaleSessionSource,
+    PostgresProcessLedgerStore, ProcessLedgerStore, Reclaim, ReclaimTrigger,
+    EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
 };
 use handshake_core::sandbox::{process_creation_time_100ns, HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
+use std::net::{Ipv4Addr, UdpSocket};
 use uuid::Uuid;
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -529,5 +532,187 @@ async fn pid_reuse_guard_refuses_to_kill_a_mismatched_generation() {
     assert!(stopped_at(&pool, process_uuid).await.is_none());
 
     // Teardown kills the process THIS test spawned (via ChildGuard::drop).
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// (e) WP-1 MT-007 V4 close-out: the COMPOSED product-boot reclaimer surfaces AND
+//     reclaims a generic spawned-process (Official-CLI bridge) orphan.
+//
+// Proofs (a)-(d) call `reclaim.run(session_id, ...)` with a KNOWN session id,
+// bypassing the surfacing step. The V4 gap was that the generic spawned-process
+// Reclaim/SandboxKill path was not wired into product boot: an Official-CLI START
+// row could stay OPEN after crash with no production owner to kill + STOP it.
+// This proof drives the EXACT production composition product boot runs —
+// `PostgresModelLaneStaleSessionSource::restart_sessions()` (PostgreSQL-authoritative
+// surfacing) -> `reconcile_restart_orphans_at_boot` -> `reconcile_in_progress` +
+// `run(ReclaimTrigger::Restart)` -> `ProductionSandboxKill` + durable STOP —
+// against a real official-CLI orphan whose prior owning runtime instance is
+// provably dead, and asserts it is surfaced, killed, and STOPped.
+// ---------------------------------------------------------------------------
+
+/// Bind an ephemeral loopback UDP port, capture it, then release it. The freed
+/// port makes the seeded prior owner's loopback lease read as DEAD to the
+/// restart sweep's exclusive-bind liveness probe, exactly as a crashed prior
+/// Handshake instance would leave it.
+fn free_loopback_udp_port() -> u16 {
+    let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind ephemeral loopback UDP");
+    let port = socket
+        .local_addr()
+        .expect("read bound loopback addr")
+        .port();
+    drop(socket);
+    port
+}
+
+/// Seed a durable Official-CLI bridge START row exactly as the production
+/// cloud-lane spawn records it: `engine_kind = 'official_cli_bridge'`, the native
+/// sandbox adapter, the real OS identity, and a typed runtime-owner descriptor
+/// pointing at a PRIOR (crashed, distinct-instance) loopback lease. The freed
+/// `prior_port` is what proves the prior owner dead to `restart_sessions()`.
+#[allow(clippy::too_many_arguments)]
+async fn seed_official_cli_start_with_dead_prior_owner(
+    pool: &PgPool,
+    session_run_id: &str,
+    process_uuid: Uuid,
+    pid: u32,
+    creation_time: u64,
+    executable_sha256: &str,
+    prior_instance_id: Uuid,
+    host_scope: &str,
+    prior_port: u16,
+) {
+    let metadata = json!({
+        "executable_sha256": executable_sha256,
+        "os_creation_time_100ns": creation_time,
+        "sandbox_handle_id": process_uuid.to_string(),
+    });
+    sqlx::query(
+        r#"
+        INSERT INTO kernel_process_lifecycle (
+            process_uuid, os_pid, parent_session_id, sandbox_adapter_id,
+            sandbox_internal_id, engine_kind, started_at, owner_role, owner_wp,
+            owner_runtime_instance_id, owner_host_scope_id, owner_lease_schema_id,
+            owner_lease_protocol, owner_lease_address, owner_lease_port,
+            metadata_jsonb
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, 'official_cli_bridge', NOW(), 'coder', 'WP-1',
+            $6::uuid, $7, $8, $9, $10, $11, $12
+        )
+        "#,
+    )
+    .bind(process_uuid)
+    .bind(i64::from(pid))
+    .bind(session_run_id)
+    .bind(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID)
+    .bind(process_uuid.to_string())
+    .bind(prior_instance_id)
+    .bind(host_scope)
+    .bind(EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID)
+    .bind(EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL)
+    .bind("127.0.0.1")
+    .bind(i32::from(prior_port))
+    .bind(metadata)
+    .execute(pool)
+    .await
+    .expect("seed durable official-CLI START row with a dead prior runtime-owner");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan: PowerShell not found");
+        return;
+    };
+
+    // This boot's LIVE runtime instance. Its OS liveness lease is held for the
+    // whole test so its own loopback port can never be mistaken for free.
+    let host_scope = "wp1-mt007-boot-reclaim-host";
+    let this_boot_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire this boot's OS liveness lease");
+    let this_descriptor = this_boot_lease.descriptor().clone();
+
+    // A PRIOR (crashed) instance on the SAME host: a distinct instance id whose
+    // loopback UDP lease port is now FREE (its process is gone).
+    let prior_instance_id = Uuid::now_v7();
+    assert_ne!(prior_instance_id, this_descriptor.instance_id);
+    let prior_port = free_loopback_udp_port();
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    seed_official_cli_start_with_dead_prior_owner(
+        &pool,
+        &session_run_id,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+        prior_instance_id,
+        host_scope,
+        prior_port,
+    )
+    .await;
+
+    assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+    assert!(stopped_at(&pool, process_uuid).await.is_none());
+    assert!(
+        spawned.guard.is_still_running(),
+        "the official-CLI child must be live pre-reclaim"
+    );
+
+    // Fresh boot: the PostgreSQL-authoritative stale-session source + the EXACT
+    // production composed boot reclaimer. No session id is passed in; the
+    // official-CLI orphan must be SURFACED by `restart_sessions()` and then
+    // killed + STOPped by `run(Restart)` through `ProductionSandboxKill`.
+    let stale_source =
+        PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor.clone());
+    let (reclaim, ledger, join) = build_reclaim(&pool);
+    let report = reconcile_restart_orphans_at_boot(&reclaim, &stale_source)
+        .await
+        .expect("composed boot restart-reconcile pass");
+
+    assert_eq!(
+        report.sessions_reconciled, 1,
+        "the official-CLI orphan session must be surfaced by restart_sessions() and reconciled"
+    );
+    let killed: usize = report
+        .reclaim_reports
+        .iter()
+        .flat_map(|reclaim_report| reclaim_report.processes_reclaimed.iter())
+        .filter(|reclaimed| {
+            reclaimed.process_uuid == process_uuid
+                && matches!(reclaimed.kill_result, KillOutcome::Killed)
+        })
+        .count();
+    assert_eq!(
+        killed, 1,
+        "the composed boot reclaimer must kill the official-CLI orphan exactly once: {:?}",
+        report.reclaim_reports
+    );
+
+    assert!(
+        spawned.guard.wait_exited(Duration::from_secs(10)),
+        "the official-CLI orphan child must be terminated by the composed boot reclaimer"
+    );
+
+    drain(ledger, join).await;
+
+    // Durable STOP + the START is no longer open: a production owner closed it.
+    assert!(
+        stopped_at(&pool, process_uuid).await.is_some(),
+        "composed boot reclaim must write a durable STOP row for the official-CLI orphan"
+    );
+    assert_eq!(
+        open_row_count(&pool, process_uuid).await,
+        0,
+        "the official-CLI START must no longer be open after composed boot reclaim"
+    );
+
+    drop(this_boot_lease);
     pool.close().await;
 }

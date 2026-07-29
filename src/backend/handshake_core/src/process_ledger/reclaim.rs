@@ -4144,6 +4144,53 @@ impl Default for StalenessReclaimConfig {
     }
 }
 
+/// Durable evidence produced by one composed boot restart-reconcile pass.
+#[derive(Debug, Default, Clone)]
+pub struct RestartOrphanBootReconcileReport {
+    /// Sessions surfaced by [`StaleSessionSource::restart_sessions`] whose open
+    /// process rows were reconciled this pass.
+    pub sessions_reconciled: usize,
+    /// Total process rows a Restart-triggered reclaim acted on across every
+    /// surfaced session (killed, killed-pending-stop, or fenced-closed).
+    pub processes_reclaimed: usize,
+    /// The per-session Restart reclaim reports, in surfaced order.
+    pub reclaim_reports: Vec<ReclaimReport>,
+}
+
+/// Run the production boot restart-reconcile pass: reclaim every restart-orphan
+/// session the PostgreSQL-authoritative [`StaleSessionSource`] surfaces.
+///
+/// This is the exact composition [`ProcessReclaimRuntime`](crate::process_ledger::ProcessReclaimRuntime)
+/// runs at boot, factored into a named callable so an integration test can drive
+/// the real production path — `restart_sessions` ->
+/// `reconcile_in_progress_for_session` -> `run(ReclaimTrigger::Restart)` —
+/// instead of re-implementing it inline. A generic spawned-process START row
+/// (for example an Official-CLI bridge child) whose owning runtime instance is
+/// provably dead is therefore killed via the composed [`SandboxKill`] and given
+/// a durable STOP by the same code product boot executes, so a terminated or
+/// unreaped official-CLI process cannot remain OPEN without a production owner.
+///
+/// Error semantics are fail-closed and match the prior inline boot block: the
+/// first surfacing-scan, in-progress-reconcile, or reclaim error aborts the pass
+/// and propagates so the caller (boot) can fail closed instead of continuing as
+/// if reconciliation completed.
+pub async fn reconcile_restart_orphans_at_boot(
+    reclaim: &Reclaim,
+    stale_source: &dyn StaleSessionSource,
+) -> Result<RestartOrphanBootReconcileReport, ProcessLedgerError> {
+    let mut report = RestartOrphanBootReconcileReport::default();
+    for session_id in stale_source.restart_sessions().await? {
+        reclaim
+            .reconcile_in_progress_for_session(&session_id)
+            .await?;
+        let reclaim_report = reclaim.run(&session_id, ReclaimTrigger::Restart).await?;
+        report.sessions_reconciled += 1;
+        report.processes_reclaimed += reclaim_report.processes_reclaimed.len();
+        report.reclaim_reports.push(reclaim_report);
+    }
+    Ok(report)
+}
+
 pub fn spawn_staleness_reclaim_task(
     reclaim: Arc<Reclaim>,
     stale_source: Arc<dyn StaleSessionSource>,

@@ -13,12 +13,12 @@ use crate::sandbox::{
 };
 
 use super::{
-    acquire_embedded_runtime_instance_lease,
+    acquire_embedded_runtime_instance_lease, reconcile_restart_orphans_at_boot,
     reclaim::spawn_managed_staleness_reclaim_task_after_boot, EmbeddedRuntimeInstanceDescriptor,
     EmbeddedRuntimeInstanceLease, LedgerBatcherConfig, LedgerDrainJoinOutcome,
     ManagedStalenessReclaimTask, NoopOverflowSink, PostgresModelLaneStaleSessionSource,
     PostgresProcessLedgerStore, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
-    ProductionSandboxKill, Reclaim, ReclaimTrigger, RetainedLedgerBatcher, StaleSessionSource,
+    ProductionSandboxKill, Reclaim, RetainedLedgerBatcher, StaleSessionSource,
     StalenessReclaimConfig,
 };
 
@@ -98,17 +98,16 @@ impl ProcessReclaimRuntime {
             PostgresModelLaneStaleSessionSource::new(pool, runtime_instance.clone()),
         );
 
-        let boot_reconcile = async {
-            for session_id in stale_source.restart_sessions().await? {
-                reclaim
-                    .reconcile_in_progress_for_session(&session_id)
-                    .await?;
-                reclaim.run(&session_id, ReclaimTrigger::Restart).await?;
-            }
-            Ok::<(), ProcessLedgerError>(())
-        };
+        // The composed boot restart-reconcile pass is a named, callable function
+        // (`reconcile_restart_orphans_at_boot`) so the exact production path —
+        // `restart_sessions` -> in-progress reconcile -> `run(Restart)` — is
+        // reachable from an integration test instead of being an unreachable
+        // inline block. It surfaces and reclaims every generic spawned-process
+        // orphan (including Official-CLI bridge children) whose owning runtime
+        // instance is provably dead.
+        let boot_reconcile = reconcile_restart_orphans_at_boot(reclaim.as_ref(), stale_source.as_ref());
         let boot_error = match time::timeout(startup_timeout, boot_reconcile).await {
-            Ok(Ok(())) => None,
+            Ok(Ok(_report)) => None,
             Ok(Err(error)) => Some(error),
             Err(_) => Some(ProcessLedgerError::Store(format!(
                 "process reclaim boot reconciliation exceeded {} ms",
