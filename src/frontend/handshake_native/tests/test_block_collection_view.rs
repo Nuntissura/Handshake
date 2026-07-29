@@ -2399,7 +2399,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         json_node_by_author_id(tree, &sort_title_author_id)
             .and_then(|node| node.get("label"))
             .and_then(serde_json::Value::as_str)
-            .is_some_and(|label| label.contains('↑'))
+            .is_some_and(|label| label == "Title ▲")
     });
 
     // Actual host Kanban mutation. Rebind via visible Retry, then enqueue the typed card event the real
