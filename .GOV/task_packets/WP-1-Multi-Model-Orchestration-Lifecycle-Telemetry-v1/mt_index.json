@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T07:11:03Z",
+  "generated_at_utc": "2026-07-29T07:25:24Z",
   "total": 19,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
@@ -321,7 +321,7 @@
       "summary": "Embedded ModelRuntime real-load conformance: enforce artifact integrity and honest pid-less ProcessOwnershipLedger START/STOP for the no-child/no-guest in-process Candle/llama.cpp path; any actual spawned model process remains SandboxAdapter-owned. Emit Flight Recorder on DisabledLlmClient/fail-closed paths and validate with a REAL Candle load.",
       "unlocks": "Closes the embedded local model lifecycle-ledger, orphan-reclaim, and FR-on-error gaps without falsely claiming SandboxAdapter boxing for an in-process library load that spawns no OS child or guest.",
       "blocks": [],
-      "proof_status": "FAIL_V4: Pidless embedded lifecycle code is substantial, but the broader required production reclaim path is unwired and the V3 real Candle proof/provenance files are absent for the materially changed source. Current real-resource START/STOP, artifact retention, crash recovery, and lease-release claims are therefore not bound to this candidate.",
+      "proof_status": "FAIL_V4 (reclaim dependency satisfied via MT-007; engine-free proofs template-harness-gated; real-Candle proof artifact-gated -- both validator-environment).",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
