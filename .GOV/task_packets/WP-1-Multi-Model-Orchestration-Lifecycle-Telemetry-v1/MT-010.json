@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-010",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-29T18:08:40Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-007",
       "MT-008",
@@ -23,23 +23,23 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:36:59Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T12:52:54Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-180840",
+    "ready_for_validation_at_utc": "2026-07-29T18:08:40Z",
     "completed_by": null,
-    "blocker": "The UserManual is not operationally correct for the current runtime: it states that official-CLI reconciliation can recover open lifecycle ownership, while no production Reclaim/SandboxKill composition is wired. It also cannot be complete for the WP while required diagnostics and ModelRuntime controls are absent.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4: The UserManual is not operationally correct for the current runtime: it states that official-CLI reconciliation can recover open lifecycle ownership, while no production Reclaim/SandboxKill composition is wired. It also cannot be complete for the WP while required diagnostics and ModelRuntime controls are absent.",
+    "proof_status": "READY_FOR_VALIDATION_V5: both V4 blocker parts REMEDIATED and independently verified on managed PostgreSQL (127.0.0.1:5544) at HEAD 3bbc72b3. (1) UserManual operational correctness restored: the recovery pages no longer claim official-CLI reconciliation recovers open lifecycle ownership without a wired Reclaim -- they now describe the ACTUAL production Reclaim/SandboxKill composition wired by MT-007 (seed.rs: 'Hard-crash orphan reconcile' page -> reclaim_pidless_embedded_orphans strict-decode boot sweep + session-scoped process reclaim with a lossless STOP-queue permit, UUIDv7+generation fenced claims, reclaim_kill_in_progress double-kill guard; 'never reports a terminal STOP merely because a queue accepted a row'; 'an unreaped termination leaves the durable START open with no fabricated STOP so reconciliation can recover it'). (2) WP-completeness gap closed: required diagnostics (MT-008 swarm-lane diagnostics backend + Argus + live console) and ModelRuntime controls (MT-014 full ModelRuntime panel + durable default-model) are now present and wired; the diagnostics manual page records the honest run-level HBR-INT-009 posture (MT-011). VERIFIED GREEN -- all 3 declared proof targets: model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery + model_lane_navigation_user_manual_registry_rows_match_runtime_routes; user_manual_api_tests model_lane_navigation_user_manual_entries_are_current (the currency gate proves manual == code truth). Remediation source spans MT-007 (Reclaim composition + its recovery page), MT-008/MT-014 (diagnostics + ModelRuntime presence), and MT-011 3bbc72b3 (diagnostics/recovery page currency).",
     "hbr_status": "PASS_HBR_INT_MAN_FOR_MT010_NAV_API_AND_MANUAL_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
+    "post_implementation_adversarial_review_status": "DONE_20260729_MANUAL_OPERATIONALLY_CORRECT_RECLAIM_WIRED_DIAGNOSTICS_MODELRUNTIME_PRESENT",
+    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; V4_MANUAL_CORRECTNESS_AND_COMPLETENESS_BLOCKERS_REMEDIATED_VIA_MT007_MT008_MT011_MT014",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
@@ -252,7 +252,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": null,
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
