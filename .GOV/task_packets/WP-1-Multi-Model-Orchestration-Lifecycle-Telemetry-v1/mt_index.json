@@ -1,8 +1,8 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T02:25:17Z",
-  "total": 18,
+  "generated_at_utc": "2026-07-29T03:23:21Z",
+  "total": 19,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
   "microtasks": [
@@ -157,7 +157,7 @@
     },
     {
       "mt_id": "MT-007",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-002",
         "MT-003",
@@ -172,7 +172,7 @@
         "MT-009",
         "MT-010"
       ],
-      "proof_status": "FAIL_V4: Recovery code was materially changed, but production composes only the pidless embedded-runtime reconciler. The generic spawned-process Reclaim/SandboxKill path and staleness task are not wired into product boot, so official-CLI START rows can remain open after termination/reap failure without a production owner that kills and writes STOP.",
+      "proof_status": "READY_FOR_VALIDATION_V5: V4 Spec-Realism blocker closed and runtime-proven on managed PostgreSQL (127.0.0.1:5544). The generic spawned-process Reclaim/SandboxKill boot pass is now a named callable (reconcile_restart_orphans_at_boot) reachable unconditionally from real boot (main.rs:447 run() -> production_with_lease), and new proof boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan drives the real restart_sessions() surfacing path and asserts an official-CLI orphan is surfaced, killed via ProductionSandboxKill (pid+creation-time+exe-sha256 fence), given a durable STOP, and its START row no longer open. process_reclaim_real_lifecycle_pg_tests 5/5 pass (incl. pid_reuse_guard + concurrent_reclaimers exactly-one-kill); the 4 declared model_lane_recovery_pg_tests targets still pass. Two-lens adversarial review: NO path can kill a non-owned process (identity fence before kill on one OS handle, no TOCTOU; reaper scoped to Handshake-owned ledger rows only). HONEST SEMANTICS: kill-failure is fail-OPEN (row left OPEN, boot continues), not fail-closed; boot is the safety net. DEFERRED to MT-019: running-app-window reaping (same-instance CLI-bridge/no-lane orphan reaped only at next boot; staleness restart pass disabled post-boot), STARTUP_RECOVERY_ONLY generic-reconcile skip, non-Windows fail-open proof, doc/counter polish. Windows-gated proof (native kill fence is Windows-only). Source at 3be795c7.",
       "hbr_status": "PASS_MT007_RECOVERY_RECONCILED",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
@@ -457,6 +457,21 @@
       "post_implementation_adversarial_review_status": "PENDING",
       "adversarial_findings_status": "PENDING",
       "origin": "Discovered + confirmed by KERNEL_BUILDER during V5 remediation 2026-07-24; deferred here (not folded into MT-004/005/009) because the fix touches the knowledge-CRDT pillar and needs a migration + possible spec enrichment. Layer-1 sync-layer unblock already shipped in MT-004/005/009."
+    },
+    {
+      "mt_id": "MT-019",
+      "status": "READY_FOR_DEV",
+      "depends_on": [
+        "MT-007"
+      ],
+      "summary": "Harden the spawned-process reclaim reaper beyond the MT-007 crash->restart boot case: cover the running-app window and decide fail-open vs fail-closed on kill failure. MT-007's blo",
+      "unlocks": [],
+      "blocks": [],
+      "proof_status": "READY_FOR_DEV: deferred reclaim-hardening follow-ups from MT-007 two-lens adversarial review.",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "N/A",
+      "post_implementation_adversarial_review_status": "N/A",
+      "adversarial_findings_status": "DEFERRED_FROM_MT-007"
     }
   ]
 }

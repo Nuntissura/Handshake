@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-007",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-29T03:23:21Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-002",
       "MT-003",
@@ -29,23 +29,23 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T01:19:49Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T09:13:35Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-032321",
+    "ready_for_validation_at_utc": "2026-07-29T03:23:21Z",
     "completed_by": null,
-    "blocker": "Recovery code was materially changed, but production composes only the pidless embedded-runtime reconciler. The generic spawned-process Reclaim/SandboxKill path and staleness task are not wired into product boot, so official-CLI START rows can remain open after termination/reap failure without a production owner that kills and writes STOP.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4: Recovery code was materially changed, but production composes only the pidless embedded-runtime reconciler. The generic spawned-process Reclaim/SandboxKill path and staleness task are not wired into product boot, so official-CLI START rows can remain open after termination/reap failure without a production owner that kills and writes STOP.",
+    "proof_status": "READY_FOR_VALIDATION_V5: V4 Spec-Realism blocker closed and runtime-proven on managed PostgreSQL (127.0.0.1:5544). The generic spawned-process Reclaim/SandboxKill boot pass is now a named callable (reconcile_restart_orphans_at_boot) reachable unconditionally from real boot (main.rs:447 run() -> production_with_lease), and new proof boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan drives the real restart_sessions() surfacing path and asserts an official-CLI orphan is surfaced, killed via ProductionSandboxKill (pid+creation-time+exe-sha256 fence), given a durable STOP, and its START row no longer open. process_reclaim_real_lifecycle_pg_tests 5/5 pass (incl. pid_reuse_guard + concurrent_reclaimers exactly-one-kill); the 4 declared model_lane_recovery_pg_tests targets still pass. Two-lens adversarial review: NO path can kill a non-owned process (identity fence before kill on one OS handle, no TOCTOU; reaper scoped to Handshake-owned ledger rows only). HONEST SEMANTICS: kill-failure is fail-OPEN (row left OPEN, boot continues), not fail-closed; boot is the safety net. DEFERRED to MT-019: running-app-window reaping (same-instance CLI-bridge/no-lane orphan reaped only at next boot; staleness restart pass disabled post-boot), STARTUP_RECOVERY_ONLY generic-reconcile skip, non-Windows fail-open proof, doc/counter polish. Windows-gated proof (native kill fence is Windows-only). Source at 3be795c7.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
-    "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
+    "post_implementation_adversarial_review_status": "COMPLETED_2LENS_20260729",
+    "adversarial_findings_status": "SAFETY_CLEARED_NO_WRONG_KILL; RESIDUAL_FINDINGS_DEFERRED_TO_MT-019",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
@@ -88,7 +88,8 @@
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan -- --exact"
     ],
     "risk_if_missed": "Parallel swarms will fail in ways the operator and later models cannot recover.",
     "reference_only_paths": [
