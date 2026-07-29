@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-008",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-29T15:20:28Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-002",
       "MT-004",
@@ -27,22 +27,22 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:23:40Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T09:36:23Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-152028",
+    "ready_for_validation_at_utc": "2026-07-29T15:20:28Z",
     "completed_by": null,
-    "blocker": "The native diagnostics pane is AccessKit-visible, but the proof bypasses the production Argus transport. The MCP screenshot implementation targets only the exact main-window title Handshake, accepts no target window, and cannot capture pop-outs titled Handshake – <pane>; therefore Argus does not work across all panels/windows as required.",
-    "missing_resource": null,
-    "proof_status": "FAIL_V4: The native diagnostics pane is AccessKit-visible, but the proof bypasses the production Argus transport. The MCP screenshot implementation targets only the exact main-window title Handshake, accepts no target window, and cannot capture pop-outs titled Handshake – <pane>; therefore Argus does not work across all panels/windows as required.",
+    "blocker": null,
+    "missing_resource": "Validator-gated: live-GPU PrintWindow/BitBlt pixel grab of a real on-screen pop-out (GUI host).",
+    "proof_status": "READY_FOR_VALIDATION_V5: all declared targets green on managed PostgreSQL + pop-out Argus capture wired and unit-covered. [0] swarm_lane_diagnostics_pg_tests backend_projection_matches_eventledger ok -- fixed a REAL production over-reject bug: validate_initial_input_tx compared a CRDT-bearing routing input's record_json (binding NESTED) against the EventLedger /record (binding a SIBLING) -> false mismatch for ALL CRDT routing inputs; now strips the binding from the record body and asserts it separately as an exact match vs the ledger sibling (adversarial review PASS: binding authority STRENGTHENED, all tamper classes still fail closed). [1][2] test_swarm_lane_diagnostics_argus (egui_kittest, HEADLESS AccessKit) lists_filters_and_drills_down + rejects_missing_author_id_and_count_mismatch ok; two_swarm_lane_panes_have_unique_pane_scoped_author_ids ok. Pop-out capture: every pop-out records its OS window handle by stable window_id; resolve_capture_target picks the recorded HWND per 'Handshake - <pane>' pop-out (screenshot.rs) -- 10 resolution/registry units ok (incl. two same-title pop-outs each keep their own HWND). Live debug console (051138ef) streams swarm-lane diagnostics headlessly. VALIDATOR-GATED: only the live-GPU PrintWindow/BitBlt PIXEL grab of a real on-screen pop-out needs a GUI host; the declared egui_kittest Argus proofs do not. Deferred (review MINOR): negative-tamper pinning tests for the CRDT binding path. Source at d4a22c08.",
     "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
+    "post_implementation_adversarial_review_status": "COMPLETED_20260729",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z"

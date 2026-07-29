@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-012",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-29T15:20:28Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-003",
       "MT-008",
@@ -26,18 +26,18 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260704-030347",
     "claimed_at_utc": "2026-07-04T03:03:47Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-030347",
-    "ready_for_validation_at_utc": "2026-07-04T03:32:36Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-152028",
+    "ready_for_validation_at_utc": "2026-07-29T15:20:28Z",
     "completed_by": null,
-    "blocker": "Operator Chat has native controls, but its Argus tests drive in-process Harness/AccessKit state rather than the production attributed Argus route, and pop-out window capture is unsupported. The official-CLI lifecycle it launches also lacks production reclaim after kill/reap failure.",
-    "missing_resource": null,
-    "proof_status": "FAIL_V4: Operator Chat has native controls, but its Argus tests drive in-process Harness/AccessKit state rather than the production attributed Argus route, and pop-out window capture is unsupported. The official-CLI lifecycle it launches also lacks production reclaim after kill/reap failure.",
+    "blocker": null,
+    "missing_resource": "Validator-gated: live-GPU pixel grab of a real pop-out operator-chat window (GUI host).",
+    "proof_status": "READY_FOR_VALIDATION_V5: all 4 declared targets green on managed PostgreSQL. [0] operator_chat_capture_tests operator_chat_subagent_selection_launches_no_os_subagent_lane ok; [1] test_operator_chat_selection_and_transcript_argus (egui_kittest, HEADLESS) operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript ok; [2] operator_chat_launch_route_performs_real_launch_when_wired ok -- fixed 2 stale WIP-freeze test fixtures (non-existent working_dir + dropped ProcessLedgerDrain); no production change, 200 assertion unchanged; [3] user_manual_behavior_coverage_tests operator_chat_launch_behaviors_have_manual_coverage ok. Official-CLI reclaim-after-kill/reap (part of the V4 blocker) satisfied by MT-007 boot reclaim. Live debug console (051138ef) streams operator-chat launch activity headlessly. VALIDATOR-GATED: only the live-GPU pixel grab of a real pop-out operator-chat window needs a GUI host. NOTE: 5 OTHER operator_chat_capture tests (NOT MT-012 declared targets) remain pre-existing WIP-freeze failures -- 2 tied to the MT-011 HBR-INT-009 internal_diagnostics posture cluster (operator decision), others environmental (cmd canonicalize) / dropped-drain / reclaim. Source at d4a22c08.",
     "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE: native egui/Argus surface, LOCAL/CLOUD/CLI/SUBAGENT inventory rows, SwarmCoordinator Dexterity launch route fail-closed, SUBAGENT no-OS launch records RuntimeBinding::Subagent and LaunchAuthority::SubagentManager without process ownership, ModelLaneMessage capture + Flight Recorder/EventLedger evidence for process-backed lanes, UserManual coverage, stable author_id controls, official-CLI runtime duplicate FR-EVT-AGENT producer suppressed for replay-captured Operator Chat while LLM infer telemetry remains wired.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_POST_REVIEW_NO_OPEN_BLOCKERS_AFTER_DUPLICATE_AGENT_EVENT_FIX",
+    "post_implementation_adversarial_review_status": "COMPLETED_20260729",
     "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven.",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
     "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
