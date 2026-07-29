@@ -2480,7 +2480,10 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  value, `authority_effect` is not `advisory_only`, or \
                  `promotion_receipt_ref` is non-null while advisory, Loom evidence refs are missing or use non-EventLedger / \
                  non-Flight Recorder prefixes, or idempotency is reused with a different \
-                 `context_bundle_hash` or `artifact_binding_hash`.",
+                 `context_bundle_hash` or `artifact_binding_hash`. Fabricated CRDT authority, \
+                 mismatched artifact/lease refs, and tampered projections are rejected inside the \
+                 admission transaction: these forged values fail closed before any handoff row is written, \
+                 so no `model_lane_context_bundle_handoffs` row is persisted on any denied path.",
             ),
             section(
                 "recovery",
@@ -3183,7 +3186,8 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  mutation: `proposal_ref`, `crdt_update_ref`, `crdt_base_snapshot_ref`, \
                  `crdt_state_vector`, `crdt_proposal_ref`, and `crdt_stale_base_ref` remain null \
                  for all six routing policies. Non-null CRDT posture is accepted only as a \
-                 complete set backed by canonical PostgreSQL Yjs v1 bytes, a verified update hash, \
+                 complete set backed by canonical PostgreSQL Yjs bytes (format `yjs_update_v1`), a \
+                 verified update hash, \
                  and the post-update state vector; partial, missing, hash-mismatched, stale, or \
                  replay-reordered CRDT authority fails closed. \
                  The harness is \
