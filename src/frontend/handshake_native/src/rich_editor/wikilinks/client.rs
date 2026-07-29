@@ -353,6 +353,11 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
         let client = self.client.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
+            // HBR-INT-009 Tier 2/3: backlinks are a bounded backend operation. The shared watchdog
+            // emits a typed StalledOperation after the progress-gap deadline, and that same event
+            // enters the process-global diagnostic ring consumed by Palmistry. The RAII handle
+            // completes on every success/error/404 return below.
+            let _operation_handle = crate::diagnostics::register_backend_operation();
             let response = client
                 .get(&url)
                 .header(

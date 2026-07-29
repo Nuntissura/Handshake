@@ -54,6 +54,7 @@ pub struct LiveBackend {
     owned_backend: Option<Child>,
     owned_binary: Option<PathBuf>,
     owned_data_dir: Option<PathBuf>,
+    owned_runtime_roots: Vec<PathBuf>,
     _fixture_lock: FileLock,
 }
 
@@ -399,6 +400,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
     let mut owned_backend = None;
     let mut owned_binary = None;
     let mut owned_data_dir = None;
+    let mut owned_runtime_roots = Vec::new();
     if force_owned || !healthy(&rt, &client, &configured_base, proof_command_deadline()) {
         if !force_owned {
             assert_eq!(
@@ -414,6 +416,12 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         wait_for_health(&rt, &client, &base, pending.child_mut(), startup_deadline);
         owned_backend = Some(pending.take());
         owned_binary = Some(binary);
+        owned_runtime_roots.push(
+            data_dir
+                .parent()
+                .expect("owned backend data directory has a runtime root")
+                .to_path_buf(),
+        );
         owned_data_dir = Some(data_dir);
     }
 
@@ -425,6 +433,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         owned_backend,
         owned_binary,
         owned_data_dir,
+        owned_runtime_roots,
         _fixture_lock: lock,
     };
     backend.assert_healthy();
@@ -808,6 +817,12 @@ impl LiveBackend {
             .expect("restart_owned requires the fixture's persistent data directory");
         let (replacement, report_path, replacement_data_dir) =
             spawn_backend_at(&binary, listen_addr, Some(&data_dir));
+        self.owned_runtime_roots.push(
+            report_path
+                .parent()
+                .expect("replacement listen report has a runtime root")
+                .to_path_buf(),
+        );
         let mut pending = PendingChild::new(replacement);
         let new_base = wait_for_listen_report(pending.child_mut(), &report_path, restart_deadline);
         wait_for_health(
@@ -1412,11 +1427,9 @@ impl Drop for LiveBackend {
             }
             self.owned_backend = None;
         }
-        if let Some(data_dir) = self.owned_data_dir.take() {
-            let runtime_root = data_dir
-                .parent()
-                .expect("owned backend data directory has a runtime root");
-            if let Err(error) = std::fs::remove_dir_all(runtime_root) {
+        self.owned_data_dir.take();
+        for runtime_root in self.owned_runtime_roots.drain(..).rev() {
+            if let Err(error) = std::fs::remove_dir_all(&runtime_root) {
                 if error.kind() != std::io::ErrorKind::NotFound {
                     eprintln!(
                         "FATAL: remove fixture-owned runtime root {}: {error}",

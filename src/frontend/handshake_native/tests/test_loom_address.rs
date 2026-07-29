@@ -23,9 +23,10 @@
 //! AC-2 (create rich doc -> non-empty block_id parses as a LoomBlockAddr), AC-3 (self-seeded A -> B
 //! inbound backlink), and AC-6 (save/refetch content_hash equals canonical SHA-256) are covered by the
 //! unignored `live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof` test behind the `integration`
-//! feature. Run it against a live handshake_core on 127.0.0.1:37501; it creates its own documents,
-//! uses fresh clients for read-back, and deletes the exact created ids even during panic. It NEVER
-//! fakes PostgreSQL. The KERNEL_BUILDER gate established `content_hash` is
+//! feature. Run it with `HANDSHAKE_TEST_STAGE_BINDING_ROOT`, `HANDSHAKE_TEST_PG_DSN`, and a current
+//! `HSK_TEST_BACKEND_BIN`; the canonical managed fixture owns a quiet ephemeral backend and workspace.
+//! The proof creates its own documents, uses fresh clients for read-back, and deletes the exact created
+//! ids even during panic. It NEVER fakes PostgreSQL. The KERNEL_BUILDER gate established `content_hash` is
 //! BACKEND-COMPUTED (no writable PATCH field on `LoomBlockUpdate`); AC-6 therefore READS the backend's
 //! `content_hash` and asserts it equals the local canonical SHA-256 of the saved `content_json` — it
 //! never client-PATCHes a hash.
@@ -42,12 +43,27 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{By, NodeT, Queryable};
+#[cfg(feature = "integration")]
+use handshake_diag_ring::{DiagEventCode, DiagRingReader, DiagRingWriter, DEFAULT_CAPACITY};
+#[cfg(feature = "integration")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+#[cfg(feature = "integration")]
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[cfg(feature = "integration")]
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
+#[cfg(feature = "integration")]
+use handshake_native::diagnostics::{
+    self, DiagnosticsPanel, DiagnosticsView, OperationCode, BACKEND_OPERATION_STALL_DEADLINE,
+    BUFFER_CAP,
+};
 use handshake_native::graph::canvas_board::{
     placement_author_id, CanvasPlacementCard, LoomCanvasBoard,
 };
@@ -150,6 +166,23 @@ fn description_for(harness: &Harness<'_, ()>, author_id: &str) -> Option<String>
         }
     }
     None
+}
+
+#[cfg(feature = "integration")]
+fn app_has_author_id(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> bool {
+    harness
+        .root()
+        .children_recursive()
+        .any(|node| node.accesskit_node().author_id() == Some(author_id))
+}
+
+#[cfg(feature = "integration")]
+fn harness_text_values<T>(harness: &Harness<'_, T>) -> Vec<String> {
+    harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().value())
+        .collect()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -256,6 +289,210 @@ fn one_shot_backlinks_server(
         String::from_utf8(request).expect("captured request is HTTP text")
     });
     (format!("http://{address}"), server)
+}
+
+#[cfg(feature = "integration")]
+fn silent_backlinks_server() -> (
+    String,
+    std::sync::mpsc::Receiver<()>,
+    std::sync::mpsc::Sender<()>,
+    std::thread::JoinHandle<()>,
+) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind silent backlinks server");
+    let address = listener.local_addr().expect("silent server address");
+    let (accepted_tx, accepted_rx) = std::sync::mpsc::channel();
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept silent backlinks request");
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .expect("bound silent request read");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 2048];
+        loop {
+            let count = stream
+                .read(&mut chunk)
+                .expect("read silent backlinks request");
+            if count == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..count]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        accepted_tx
+            .send(())
+            .expect("report silent request accepted");
+        let _ = release_rx.recv_timeout(std::time::Duration::from_secs(8));
+    });
+    (format!("http://{address}"), accepted_rx, release_tx, server)
+}
+
+#[test]
+#[cfg(feature = "integration")]
+fn backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring() {
+    let ring_dir = external_artifact_dir("wp-kernel-012-mt-032/diagnostics-transient");
+    std::fs::create_dir_all(&ring_dir).expect("create external MT-032 diagnostic proof directory");
+    let ring_path = ring_dir.join(format!(
+        "mt032-backlinks-{}-{}.ring",
+        std::process::id(),
+        uuid::Uuid::new_v4()
+    ));
+    let writer =
+        DiagRingWriter::create(&ring_path, DEFAULT_CAPACITY).expect("create MT-032 shared ring");
+    assert!(
+        diagnostics::install(writer),
+        "the exact MT-032 diagnostics proof must own a fresh process-global recorder"
+    );
+    assert!(diagnostics::has_ring_writer());
+    let ring_reader = DiagRingReader::open(&ring_path).expect("open Palmistry-side ring reader");
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("MT-032 diagnostic runtime");
+
+    // Success, 404, malformed JSON, network error, and cancellation must all drop their RAII
+    // operation handle. After one shared deadline, no completed path may produce a false stall.
+    let before_fast = diagnostics::snapshot_last_n(BUFFER_CAP).len();
+    for (status, body, document_id) in [
+        (
+            "200 OK",
+            r#"{"source_document_id":"DOC-OK","backlinks":[]}"#,
+            "DOC-OK",
+        ),
+        ("404 Not Found", r#"{"error":"not_found"}"#, "DOC-404"),
+        ("200 OK", "{", "DOC-BAD-JSON"),
+    ] {
+        let (base_url, server) = one_shot_backlinks_server(status, body);
+        let backend = ReqwestWikilinkBackend::new(base_url);
+        let _ = runtime.block_on(backend.list_backlinks(document_id));
+        server
+            .join()
+            .expect("join bounded diagnostic response server");
+    }
+    let unavailable = TcpListener::bind("127.0.0.1:0").expect("reserve unavailable address");
+    let unavailable_address = unavailable.local_addr().expect("unavailable address");
+    drop(unavailable);
+    let network_backend = ReqwestWikilinkBackend::new(format!("http://{unavailable_address}"));
+    let _ = runtime.block_on(network_backend.list_backlinks("DOC-NETWORK"));
+
+    let (cancel_base, cancel_accepted, cancel_release, cancel_server) = silent_backlinks_server();
+    let cancel_task = runtime.spawn(async move {
+        ReqwestWikilinkBackend::new(cancel_base)
+            .list_backlinks("DOC-CANCELLED")
+            .await
+    });
+    cancel_accepted
+        .recv_timeout(std::time::Duration::from_secs(3))
+        .expect("cancelled request reached silent server");
+    cancel_task.abort();
+    let join_error = runtime
+        .block_on(cancel_task)
+        .expect_err("aborted backlink request must return JoinError");
+    assert!(
+        join_error.is_cancelled(),
+        "request task must be cancelled, not panicked: {join_error}"
+    );
+    let _ = cancel_release.send(());
+    cancel_server.join().expect("join cancellation server");
+
+    std::thread::sleep(BACKEND_OPERATION_STALL_DEADLINE + std::time::Duration::from_millis(100));
+    assert_eq!(
+        diagnostics::global_operation_watchdog().poll_once(),
+        0,
+        "completed/error/cancelled backlink requests must not emit a later false stall"
+    );
+    assert_eq!(
+        diagnostics::snapshot_last_n(BUFFER_CAP).len(),
+        before_fast,
+        "fast terminal paths must not add StalledOperation diagnostics"
+    );
+
+    // A genuinely silent production list_backlinks request remains registered across the deadline.
+    // One watchdog poll must emit the typed event into both Tier 2 surfaces and the exact shared ring
+    // a separate Palmistry process maps.
+    let (stall_base, stall_accepted, stall_release, stall_server) = silent_backlinks_server();
+    let stalled_task = runtime.spawn(async move {
+        ReqwestWikilinkBackend::new(stall_base)
+            .list_backlinks("DOC-STALLED")
+            .await
+    });
+    stall_accepted
+        .recv_timeout(std::time::Duration::from_secs(3))
+        .expect("stalled request reached silent server");
+    std::thread::sleep(BACKEND_OPERATION_STALL_DEADLINE + std::time::Duration::from_millis(100));
+    assert_eq!(
+        diagnostics::global_operation_watchdog().poll_once(),
+        1,
+        "a silent list_backlinks request must emit one bounded StalledOperation"
+    );
+    let stalled_event = diagnostics::snapshot_last_n(BUFFER_CAP)
+        .into_iter()
+        .rev()
+        .find(|event| event.event_code == DiagEventCode::StalledOperation.as_u16())
+        .expect("Tier 2 in-process recorder contains the typed backlink stall");
+    assert_eq!(stalled_event.counter_a, OperationCode::BackendCall.as_u64());
+    assert!(
+        ring_reader
+            .read_last_n(16)
+            .iter()
+            .any(|event| event.sequence_id == stalled_event.sequence_id
+                && event.event_code == DiagEventCode::StalledOperation.as_u16()),
+        "the same typed event reaches the Palmistry-visible shared ring"
+    );
+
+    let view = DiagnosticsView {
+        ring_writer_installed: true,
+        ..DiagnosticsView::default()
+    };
+    let mut panel = Harness::builder()
+        .with_size(egui::vec2(900.0, 640.0))
+        .build_ui(move |ui| {
+            DiagnosticsPanel.show(ui, &view, &HsTheme::Dark.palette());
+        });
+    panel.run();
+    let panel_values = harness_text_values(&panel);
+    assert!(
+        panel_values.iter().any(|value| value == "StalledOperation"),
+        "the in-app Diagnostics panel projects the exact typed event"
+    );
+    assert!(
+        panel_values
+            .iter()
+            .any(|value| value.contains("Shared-memory ring active")),
+        "the panel reports the Palmistry-visible ring as active"
+    );
+
+    let _ = stall_release.send(());
+    let stalled_result = runtime
+        .block_on(stalled_task)
+        .expect("join stalled backlink task");
+    assert!(
+        matches!(
+            stalled_result,
+            Err(handshake_native::rich_editor::wikilinks::client::WikilinkError::NetworkError(_))
+        ),
+        "closing the silent server yields the typed terminal network error: {stalled_result:?}"
+    );
+    stall_server.join().expect("join stalled server");
+    assert_eq!(
+        diagnostics::active_stalled_operation_count(),
+        0,
+        "RAII completion clears the active stalled-operation projection"
+    );
+    std::thread::sleep(BACKEND_OPERATION_STALL_DEADLINE + std::time::Duration::from_millis(100));
+    assert_eq!(
+        diagnostics::global_operation_watchdog().poll_once(),
+        0,
+        "completed stalled request cannot emit a duplicate late event"
+    );
+    println!(
+        "MT-032 DIAGNOSTICS PROOF ring={} event_sequence={} tier2_panel=pass tier3_ring=pass terminal_cleanup=pass",
+        ring_path.display(),
+        stalled_event.sequence_id
+    );
 }
 
 fn recovering_backlinks_server() -> (String, std::thread::JoinHandle<()>) {
@@ -618,7 +855,6 @@ fn mounted_backlink_event_routes_through_bus_and_live_shell() {
 #[test]
 fn mounted_backlink_event_retries_when_bus_is_contended() {
     use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
-    use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
 
     let (mut app, _rt) = live_editor_shell();
     let opened = app.open_document("DOC-BACKLINK-BEFORE");
@@ -626,27 +862,19 @@ fn mounted_backlink_event_retries_when_bus_is_contended() {
         matches!(opened, NavDispatchOutcome::Opened { .. }),
         "precondition: open_document mounts the Notes editor; got {opened:?}"
     );
-    let rich_state = app.mounted_rich_state();
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(3);
 
     let bus = InteractionBus::get_or_init(&harness.ctx);
-    rich_state
-        .lock()
-        .unwrap()
-        .pending_events
-        .push(EditorEvent::BacklinkActivated {
-            source_document_id: "DOC-RETRY-BACKLINK".to_owned(),
-        });
-    harness.run_steps(1);
-    assert!(
-        rich_state.lock().unwrap().pending_events.is_empty(),
-        "retry proof: the mounted rich event queue drained into the routed shell queue"
-    );
-
+    let ctx = harness.ctx.clone();
     let bus_guard = bus.lock().expect("hold bus for contention");
-    harness.run_steps(1);
+    assert!(
+        !harness
+            .state_mut()
+            .dispatch_backlink_open_for_test(&ctx, "DOC-RETRY-BACKLINK"),
+        "retry proof: a contended bus must queue rather than report a successful dispatch"
+    );
     assert!(
         harness
             .state()
@@ -927,14 +1155,11 @@ fn canvas_loom_chip_screenshot() {
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-2 / AC-3 / AC-6: LIVE-PG integration (NEEDS_MANAGED_RESOURCE_PROOF — `--features integration`).
 //
-// These require a running handshake_core on 127.0.0.1:37501 with a real workspace. They NEVER fake PG.
+// These require the canonical pg_proof_support environment. The fixture starts and owns a quiet
+// current-source backend plus a real workspace against Handshake-managed PostgreSQL; it NEVER fakes PG.
 // content_hash is BACKEND-COMPUTED (KERNEL_BUILDER gate): AC-6 READS the backend's content_hash and
 // asserts it equals the local canonical SHA-256 of the saved content_json — no client PATCH of a hash.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// The real backend base URL the integration tests talk to.
-#[cfg(feature = "integration")]
-const LIVE_BASE_URL: &str = "http://127.0.0.1:37501";
 
 /// Attach the three mandatory rich-document context headers the backend's `doc_context(&headers)`
 /// requires (`x-hsk-actor-id` / `x-hsk-kernel-task-run-id` / `x-hsk-session-run-id`). The real
@@ -1000,13 +1225,15 @@ fn live_client() -> reqwest::Client {
 /// runtime if an assertion unwinds before cleanup.
 #[cfg(feature = "integration")]
 struct LiveDocumentCleanup {
+    base_url: String,
     ids: Arc<Mutex<Vec<String>>>,
 }
 
 #[cfg(feature = "integration")]
 impl LiveDocumentCleanup {
-    fn new() -> Self {
+    fn new(base_url: impl Into<String>) -> Self {
         Self {
+            base_url: base_url.into(),
             ids: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -1023,9 +1250,10 @@ impl LiveDocumentCleanup {
         let ids = self.ids.lock().unwrap().clone();
         let client = live_client();
         for document_id in ids.iter().rev() {
-            let response = with_rich_doc_headers(
-                client.delete(format!("{LIVE_BASE_URL}/knowledge/documents/{document_id}")),
-            )
+            let response = with_rich_doc_headers(client.delete(format!(
+                "{}/knowledge/documents/{document_id}",
+                self.base_url
+            )))
             .send()
             .await
             .map_err(|err| format!("cleanup DELETE {document_id}: {err}"))?;
@@ -1044,13 +1272,14 @@ impl LiveDocumentCleanup {
 #[cfg(feature = "integration")]
 async fn save_rich_document(
     client: &reqwest::Client,
+    base_url: &str,
     document_id: &str,
     expected_version: u64,
     content_json: serde_json::Value,
 ) -> serde_json::Value {
-    let response = with_rich_doc_headers(client.put(format!(
-        "{LIVE_BASE_URL}/knowledge/documents/{document_id}/save"
-    )))
+    let response = with_rich_doc_headers(
+        client.put(format!("{base_url}/knowledge/documents/{document_id}/save")),
+    )
     .json(&serde_json::json!({
         "expected_version": expected_version,
         "content_json": content_json,
@@ -1072,10 +1301,12 @@ async fn save_rich_document(
 #[cfg(feature = "integration")]
 async fn load_backlinks_runtime(
     handle: tokio::runtime::Handle,
+    base_url: &str,
     workspace_id: &str,
     document_id: &str,
 ) -> Arc<Mutex<WikilinkRuntime>> {
-    let backend: Arc<dyn WikilinkBackend> = Arc::new(ReqwestWikilinkBackend::new(LIVE_BASE_URL));
+    let backend: Arc<dyn WikilinkBackend> =
+        Arc::new(ReqwestWikilinkBackend::new(base_url.to_owned()));
     let mut runtime = WikilinkRuntime::new(workspace_id, backend, Some(handle));
     runtime.set_context(workspace_id, document_id);
     runtime.ensure_backlinks_loaded();
@@ -1117,6 +1348,7 @@ impl Drop for LiveDocumentCleanup {
         if ids.is_empty() {
             return;
         }
+        let base_url = self.base_url.clone();
         let _ = std::thread::spawn(move || {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -1126,7 +1358,7 @@ impl Drop for LiveDocumentCleanup {
                 let client = live_client();
                 for document_id in ids.iter().rev() {
                     let _ = with_rich_doc_headers(
-                        client.delete(format!("{LIVE_BASE_URL}/knowledge/documents/{document_id}")),
+                        client.delete(format!("{base_url}/knowledge/documents/{document_id}")),
                     )
                     .send()
                     .await;
@@ -1144,12 +1376,19 @@ impl Drop for LiveDocumentCleanup {
 #[test]
 #[cfg(feature = "integration")]
 fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
+    assert!(
+        std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some(),
+        "MT-032 mounted Argus proof requires HANDSHAKE_TEST_STAGE_BINDING_ROOT so the canonical fixture owns the backend"
+    );
+    let mut managed_backend = pg_proof_support::require_live_backend();
+    let live_base_url = managed_backend.base.clone();
+    let managed_workspace_id = managed_backend.workspace_id.clone();
     let rt = tokio::runtime::Runtime::new().expect("integration runtime");
     let runtime_handle = rt.handle().clone();
     rt.block_on(async {
         let seed_client = live_client();
-        let workspace_id = live_workspace_id(&seed_client).await.expect("a live workspace");
-        let cleanup = LiveDocumentCleanup::new();
+        let workspace_id = managed_workspace_id.clone();
+        let cleanup = LiveDocumentCleanup::new(live_base_url.clone());
         let run_suffix = format!(
             "{}-{}",
             std::process::id(),
@@ -1161,6 +1400,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         let doc_b = create_rich_document(
             &seed_client,
+            &live_base_url,
             &workspace_id,
             &format!("MT-032-{run_suffix}-B"),
             serde_json::json!({
@@ -1183,7 +1423,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         // A fresh authority load must preserve the same canonical block identity.
         let fresh_b_response = with_rich_doc_headers(seed_client.get(format!(
-            "{LIVE_BASE_URL}/knowledge/documents/{b_id}"
+            "{live_base_url}/knowledge/documents/{b_id}"
         )))
         .send()
         .await
@@ -1203,6 +1443,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         });
         let doc_a = create_rich_document(
             &seed_client,
+            &live_base_url,
             &workspace_id,
             &format!("MT-032-{run_suffix}-A"),
             empty_a_content.clone(),
@@ -1230,7 +1471,20 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
                 ]
             }]
         });
-        let link_save = save_rich_document(&seed_client, &a_id, 1, linked_a_content.clone()).await;
+        let link_save = save_rich_document(
+            &seed_client,
+            &live_base_url,
+            &a_id,
+            1,
+            linked_a_content.clone(),
+        )
+        .await;
+        assert!(
+            link_save["save_receipt_event_id"]
+                .as_str()
+                .is_some_and(|event_id| !event_id.trim().is_empty()),
+            "save-time backlink mutation must return its Tier 1 EventLedger receipt: {link_save}"
+        );
         assert!(
             link_save["backlinks_persisted"].as_u64().unwrap_or(0) >= 1,
             "save-time indexing must persist A -> B: {link_save}"
@@ -1241,6 +1495,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         // End-to-end production client/runtime: Idle -> Loading -> Loaded against managed PG.
         let panel_runtime = load_backlinks_runtime(
             runtime_handle.clone(),
+            &live_base_url,
             &workspace_id,
             &b_id,
         )
@@ -1303,6 +1558,102 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
             .get(CMD_OPEN_DOCUMENT)
             .is_some());
 
+        // V3 remediation: prove the same navigation through the production-mounted HandshakeApp and
+        // the canonical localhost Argus inspect -> click -> fresh terminal-inspect boundary.
+        // `block_in_place` keeps this synchronous GUI/Argus driver off the enclosing Tokio context;
+        // the mounted app's one-worker runtime continues serving its real backend requests.
+        tokio::task::block_in_place(|| {
+            use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
+
+            let (mut mounted_app, mounted_runtime) = live_editor_shell();
+            mounted_app.set_backend_base_url_for_test(
+                &live_base_url,
+                mounted_runtime.handle().clone(),
+            );
+            mounted_app.bind_active_project_for_integration_test(workspace_id.clone());
+            assert!(
+                matches!(
+                    mounted_app.open_document(&b_id),
+                    NavDispatchOutcome::Opened { .. }
+                ),
+                "canonical mounted proof opens live target B through ShellNavigator"
+            );
+
+            let mut argus =
+                CanonicalArgusDriver::bind(&mounted_app, "wp-kernel-012-mt-032-backlinks");
+            let _guard = wgpu_guard();
+            let mut app_harness = Harness::builder()
+                .proof_mt_id("MT-032")
+                .with_size(egui::vec2(1180.0, 760.0))
+                .wgpu()
+                .build_state(
+                    |ctx, app: &mut HandshakeApp| app.ui(ctx),
+                    mounted_app,
+                );
+
+            let mounted_row_author_id = entry_author_id(&a_id);
+            let mounted_b_author_id = format!("rich-editor.document.{b_id}");
+            for _ in 0..400 {
+                app_harness.run_steps(1);
+                if app_has_author_id(&app_harness, PANEL_AUTHOR_ID)
+                    && app_has_author_id(&app_harness, &mounted_row_author_id)
+                    && app_has_author_id(&app_harness, &mounted_b_author_id)
+                {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            assert!(
+                app_has_author_id(&app_harness, PANEL_AUTHOR_ID)
+                    && app_has_author_id(&app_harness, &mounted_row_author_id)
+                    && app_has_author_id(&app_harness, &mounted_b_author_id),
+                "production-mounted B must expose its panel, real A backlink row, and exact document identity"
+            );
+
+            let initial_tree = argus.inspect(&mut app_harness);
+            for stable_id in [
+                PANEL_AUTHOR_ID,
+                mounted_row_author_id.as_str(),
+                mounted_b_author_id.as_str(),
+            ] {
+                assert!(
+                    json_has_author_id(&initial_tree, stable_id),
+                    "canonical Argus initial inspection missing mounted target {stable_id}"
+                );
+            }
+
+            argus.click_and_reinspect(&mut app_harness, &mounted_row_author_id);
+            let mounted_a_author_id = format!("rich-editor.document.{a_id}");
+            for _ in 0..400 {
+                app_harness.run_steps(1);
+                if app_has_author_id(&app_harness, &mounted_a_author_id) {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            assert!(
+                app_has_author_id(&app_harness, &mounted_a_author_id),
+                "canonical backlink click must navigate the mounted shell to exact source A"
+            );
+            argus.assert_latest_terminal_predicate_with_evidence(
+                &mut app_harness,
+                "exact-backlink-source-document-opened",
+                serde_json::json!({
+                    "source_document_id": a_id.clone(),
+                    "target_document_id": b_id.clone(),
+                    "row_author_id": mounted_row_author_id.clone(),
+                    "terminal_author_id": mounted_a_author_id.clone()
+                }),
+                |tree| {
+                    json_node_by_author_id(tree, &mounted_a_author_id)
+                        .and_then(|node| node.get("value"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some(a_id.as_str())
+                },
+            );
+            argus.finish();
+        });
+
         // Render the current LIVE B address on the real canvas card and inspect AccessKit.
         let canvas = board_with_cards(vec![placed_card("live-B", &b_block_id, 30.0)]);
         canvas.lock().unwrap().workspace_id = workspace_id.clone();
@@ -1322,12 +1673,20 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         // Remove then restore A -> B via successive canonical saves. Each fresh production runtime
         // must observe the new projection; no cached or seeded rows are accepted.
-        let remove_save = save_rich_document(&seed_client, &a_id, 2, empty_a_content.clone()).await;
+        let remove_save = save_rich_document(
+            &seed_client,
+            &live_base_url,
+            &a_id,
+            2,
+            empty_a_content.clone(),
+        )
+        .await;
         assert_eq!(remove_save["backlinks_persisted"].as_u64(), Some(0));
         assert!(remove_save["backlinks_error"].is_null(), "{remove_save}");
         assert!(remove_save["backlinks_skipped_reason"].is_null(), "{remove_save}");
         let after_remove = load_backlinks_runtime(
             runtime_handle.clone(),
+            &live_base_url,
             &workspace_id,
             &b_id,
         )
@@ -1335,12 +1694,14 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert!(loaded_backlinks(&after_remove).is_empty());
 
         let restore_save =
-            save_rich_document(&seed_client, &a_id, 3, linked_a_content.clone()).await;
+            save_rich_document(&seed_client, &live_base_url, &a_id, 3, linked_a_content.clone())
+                .await;
         assert!(restore_save["backlinks_persisted"].as_u64().unwrap_or(0) >= 1);
         assert!(restore_save["backlinks_error"].is_null(), "{restore_save}");
         assert!(restore_save["backlinks_skipped_reason"].is_null(), "{restore_save}");
         let after_restore = load_backlinks_runtime(
             runtime_handle.clone(),
+            &live_base_url,
             &workspace_id,
             &b_id,
         )
@@ -1355,13 +1716,20 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
             "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": format!("saved-{run_suffix}") }] }]
         });
         let expected_hash = ContentHash::of_content_json(&saved_content);
-        let save_b = save_rich_document(&seed_client, &b_id, 1, saved_content.clone()).await;
+        let save_b = save_rich_document(
+            &seed_client,
+            &live_base_url,
+            &b_id,
+            1,
+            saved_content.clone(),
+        )
+        .await;
         assert!(save_b["backlinks_error"].is_null(), "{save_b}");
         assert!(save_b["backlinks_skipped_reason"].is_null(), "{save_b}");
 
         let refetch_client = live_client();
         let document_response = with_rich_doc_headers(refetch_client.get(format!(
-            "{LIVE_BASE_URL}/knowledge/documents/{b_id}"
+            "{live_base_url}/knowledge/documents/{b_id}"
         )))
         .send()
         .await
@@ -1374,7 +1742,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         let block_response = refetch_client
             .get(format!(
-                "{LIVE_BASE_URL}/workspaces/{workspace_id}/loom/blocks/{b_block_id}"
+                "{live_base_url}/workspaces/{workspace_id}/loom/blocks/{b_block_id}"
             ))
             .send()
             .await
@@ -1387,7 +1755,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
 
         // Delete A and prove authority, Loom projection, and B's inbound projection all clean up.
         let delete_a = with_rich_doc_headers(seed_client.delete(format!(
-            "{LIVE_BASE_URL}/knowledge/documents/{a_id}"
+            "{live_base_url}/knowledge/documents/{a_id}"
         )))
         .send()
         .await
@@ -1400,7 +1768,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         cleanup.untrack(&a_id);
 
         let deleted_document = with_rich_doc_headers(seed_client.get(format!(
-            "{LIVE_BASE_URL}/knowledge/documents/{a_id}"
+            "{live_base_url}/knowledge/documents/{a_id}"
         )))
         .send()
         .await
@@ -1408,7 +1776,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert_eq!(deleted_document.status().as_u16(), 404);
         let deleted_block = seed_client
             .get(format!(
-                "{LIVE_BASE_URL}/workspaces/{workspace_id}/loom/blocks/{a_block_id}"
+                "{live_base_url}/workspaces/{workspace_id}/loom/blocks/{a_block_id}"
             ))
             .send()
             .await
@@ -1416,6 +1784,7 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         assert_eq!(deleted_block.status().as_u16(), 404);
         let after_delete = load_backlinks_runtime(
             runtime_handle.clone(),
+            &live_base_url,
             &workspace_id,
             &b_id,
         )
@@ -1429,26 +1798,269 @@ fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
         );
         cleanup.delete_all().await.expect("delete exact MT-032 fixture ids");
     });
+    managed_backend.assert_cleanup();
 }
 
-/// Resolve a live workspace id by listing workspaces (the first one). Returns `None` when the backend is
-/// unreachable / empty (the integration test is `#[ignore]` so this only runs against a seeded backend).
+/// V3 remediation proof for the validator's restart/stale gap. This test is deliberately run in its
+/// own exact test process with `HANDSHAKE_TEST_STAGE_BINDING_ROOT` set, forcing `pg_proof_support` to
+/// spawn and own a quiet current-source backend. It never restarts or stops the shared root backend.
+#[test]
 #[cfg(feature = "integration")]
-async fn live_workspace_id(client: &reqwest::Client) -> Option<String> {
-    let resp = client
-        .get(format!("{LIVE_BASE_URL}/workspaces"))
-        .send()
-        .await
-        .ok()?;
-    if !resp.status().is_success() {
-        return None;
-    }
-    let v: serde_json::Value = resp.json().await.ok()?;
-    v.as_array()
-        .and_then(|a| a.first())
-        .and_then(|w| w.get("workspace_id").or_else(|| w.get("id")))
-        .and_then(|x| x.as_str())
-        .map(ToOwned::to_owned)
+fn live_pg_owned_restart_preserves_document_backlink_and_content_hash() {
+    assert!(
+        std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").is_some(),
+        "MT-032 restart proof requires HANDSHAKE_TEST_STAGE_BINDING_ROOT so the fixture owns the backend"
+    );
+    let mut backend = pg_proof_support::require_live_backend();
+    let workspace_id = backend.workspace_id.clone();
+    let run_suffix = uuid::Uuid::new_v4().simple().to_string();
+    let initial_content = serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "paragraph",
+            "content": [{ "type": "text", "text": "MT-032 restart target B" }]
+        }]
+    });
+    let created_b = backend.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": workspace_id,
+            "title": format!("MT-032-{run_suffix}-restart-B"),
+            "content_json": initial_content,
+        }),
+    );
+    let b_document = created_b.get("document").unwrap_or(&created_b);
+    let b_id = rich_document_id(b_document);
+    let b_block_id = require_loom_block_id(b_document, "V3 restart B", &b_id);
+    let b_version = b_document["doc_version"].as_u64().unwrap_or(1);
+
+    let created_a = backend.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": workspace_id,
+            "title": format!("MT-032-{run_suffix}-restart-A"),
+            "content_json": {
+                "type": "doc",
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{ "type": "text", "text": "MT-032 restart source A" }]
+                }]
+            },
+        }),
+    );
+    let a_document = created_a.get("document").unwrap_or(&created_a);
+    let a_id = rich_document_id(a_document);
+    let a_version = a_document["doc_version"].as_u64().unwrap_or(1);
+    let linked_a_content = serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "paragraph",
+            "content": [
+                { "type": "text", "text": "restart-safe link " },
+                {
+                    "type": "hsLink",
+                    "attrs": {
+                        "refKind": "note",
+                        "refValue": b_id,
+                        "label": "target B"
+                    }
+                }
+            ]
+        }]
+    });
+    let linked_a = backend.put_json(
+        &format!("/knowledge/documents/{a_id}/save"),
+        &serde_json::json!({
+            "expected_version": a_version,
+            "content_json": linked_a_content,
+        }),
+    );
+    let backlink_receipt = linked_a["save_receipt_event_id"]
+        .as_str()
+        .filter(|event_id| !event_id.trim().is_empty())
+        .expect("save-time backlink mutation returns an authentic EventLedger receipt")
+        .to_owned();
+    assert!(
+        linked_a["backlinks_persisted"].as_u64().unwrap_or(0) >= 1,
+        "normal save persists A -> B before restart: {linked_a}"
+    );
+
+    let saved_b_content = serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "paragraph",
+            "content": [{
+                "type": "text",
+                "text": format!("MT-032 durable body {run_suffix}")
+            }]
+        }]
+    });
+    let expected_hash = ContentHash::of_content_json(&saved_b_content);
+    let saved_b = backend.put_json(
+        &format!("/knowledge/documents/{b_id}/save"),
+        &serde_json::json!({
+            "expected_version": b_version,
+            "content_json": saved_b_content,
+        }),
+    );
+    let content_receipt = saved_b["save_receipt_event_id"]
+        .as_str()
+        .filter(|event_id| !event_id.trim().is_empty())
+        .expect("target content save returns an authentic EventLedger receipt")
+        .to_owned();
+    let saved_b_version = saved_b["document"]["doc_version"]
+        .as_u64()
+        .unwrap_or(b_version + 1);
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("MT-032 restart client runtime");
+    // Keep this exact production wrapper across the backend restart. Its process-global shared HTTP
+    // pool may contain an old-process keepalive socket; the post-restart loop below must discard only
+    // bounded typed NetworkError deliveries and then make a fresh successful observation.
+    let production_backlinks = ReqwestWikilinkBackend::new(backend.base.clone());
+    let before_restart_backlinks = runtime
+        .block_on(production_backlinks.list_backlinks(&b_id))
+        .expect("production backlink transport before restart");
+    assert!(
+        before_restart_backlinks
+            .backlinks
+            .iter()
+            .any(|row| row.source_document_id == a_id && row.target == b_id),
+        "production backlink transport observes A -> B before restart"
+    );
+    let missing_before = runtime
+        .block_on(production_backlinks.list_backlinks("KRD-MT032-MISSING"))
+        .expect("production missing-backlink route maps 404 to an empty set");
+    assert!(missing_before.backlinks.is_empty());
+
+    let old_pid = backend.owned_process_id();
+    let (old_base, new_base) = backend.restart_owned();
+    let new_pid = backend.owned_process_id();
+    assert_eq!(old_base, new_base, "restart reclaims the exact listener");
+    assert_ne!(
+        old_pid, new_pid,
+        "restart must replace the exact owned process"
+    );
+
+    let reloaded_b = backend.get_json(&format!("/knowledge/documents/{b_id}"));
+    let reloaded_document = &reloaded_b["document"];
+    assert_eq!(rich_document_id(reloaded_document), b_id);
+    assert_eq!(
+        require_loom_block_id(reloaded_document, "V3 restarted B", &b_id),
+        b_block_id
+    );
+    assert_eq!(reloaded_document["content_json"], saved_b_content);
+    assert_eq!(
+        reloaded_document["content_sha256"].as_str(),
+        Some(expected_hash.as_str())
+    );
+    let reloaded_block = backend.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{b_block_id}"
+    ));
+    assert_eq!(
+        reloaded_block["block_id"].as_str(),
+        Some(b_block_id.as_str())
+    );
+    assert_eq!(
+        reloaded_block["content_hash"].as_str(),
+        Some(expected_hash.as_str())
+    );
+    let reconnect_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let mut reconnect_network_errors = Vec::new();
+    let after_restart_backlinks = loop {
+        match runtime.block_on(production_backlinks.list_backlinks(&b_id)) {
+            Ok(response) => break response,
+            Err(
+                error @ handshake_native::rich_editor::wikilinks::client::WikilinkError::NetworkError(
+                    _,
+                ),
+            ) if std::time::Instant::now() < reconnect_deadline => {
+                reconnect_network_errors.push(format!("{error:?}"));
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(error) => {
+                panic!(
+                    "production backlink transport did not recover after owned restart: {error:?}; \
+                     transient_network_errors={reconnect_network_errors:?}"
+                )
+            }
+        }
+    };
+    assert!(
+        after_restart_backlinks
+            .backlinks
+            .iter()
+            .any(|row| row.source_document_id == a_id && row.target == b_id),
+        "fresh production transport observes the persisted A -> B edge after restart"
+    );
+
+    let stale_body = serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "paragraph",
+            "content": [{ "type": "text", "text": "stale write must not win" }]
+        }]
+    });
+    let (stale_status, stale_response) = backend.put_json_response(
+        &format!("/knowledge/documents/{b_id}/save"),
+        &serde_json::json!({
+            "expected_version": b_version,
+            "content_json": stale_body,
+        }),
+    );
+    assert_eq!(
+        stale_status, 409,
+        "post-restart stale expected_version must fail closed: {stale_response}"
+    );
+    let after_stale = backend.get_json(&format!("/knowledge/documents/{b_id}"));
+    assert_eq!(
+        after_stale["document"]["doc_version"].as_u64(),
+        Some(saved_b_version)
+    );
+    assert_eq!(after_stale["document"]["content_json"], saved_b_content);
+    assert_eq!(
+        after_stale["document"]["content_sha256"].as_str(),
+        Some(expected_hash.as_str())
+    );
+    let after_stale_backlinks = runtime
+        .block_on(production_backlinks.list_backlinks(&b_id))
+        .expect("production backlink transport after stale rejection");
+    assert_eq!(
+        after_stale_backlinks, after_restart_backlinks,
+        "stale rejection cannot regress the persisted backlink projection"
+    );
+
+    assert_eq!(
+        backend.get_status("/knowledge/documents/KRD-MT032-MISSING"),
+        404,
+        "fresh post-restart document missing path returns 404"
+    );
+    let missing_after = runtime
+        .block_on(production_backlinks.list_backlinks("KRD-MT032-MISSING"))
+        .expect("fresh post-restart missing-backlink route maps 404 to an empty set");
+    assert!(missing_after.backlinks.is_empty());
+
+    assert!(
+        (200..300).contains(&backend.delete(&format!("/knowledge/documents/{a_id}"))),
+        "delete exact restart source fixture"
+    );
+    assert!(
+        (200..300).contains(&backend.delete(&format!("/knowledge/documents/{b_id}"))),
+        "delete exact restart target fixture"
+    );
+    println!(
+        "MT-032 OWNED RESTART PASS workspace_id={workspace_id} old_pid={old_pid} new_pid={new_pid} \
+         source_document_id={a_id} target_document_id={b_id} block_id={b_block_id} \
+         content_hash={} backlink_receipt={} content_receipt={} reconnect_network_errors={} \
+         missing_404=pass stale_409=pass",
+        expected_hash.as_str(),
+        backlink_receipt,
+        content_receipt,
+        reconnect_network_errors.len()
+    );
+    backend.assert_cleanup();
 }
 
 /// Create a rich document via the live backend knowledge-document API, returning the response JSON
@@ -1456,11 +2068,12 @@ async fn live_workspace_id(client: &reqwest::Client) -> Option<String> {
 #[cfg(feature = "integration")]
 async fn create_rich_document(
     client: &reqwest::Client,
+    base_url: &str,
     workspace_id: &str,
     title: &str,
     content_json: serde_json::Value,
 ) -> Option<serde_json::Value> {
-    let url = format!("{LIVE_BASE_URL}/knowledge/documents");
+    let url = format!("{base_url}/knowledge/documents");
     let body = serde_json::json!({
         "workspace_id": workspace_id,
         "title": title,

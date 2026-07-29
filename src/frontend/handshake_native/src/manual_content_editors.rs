@@ -1654,10 +1654,17 @@ and B in Handshake-managed PostgreSQL, creates/removes/restores A -> B only thro
 through ReqwestWikilinkBackend/WikilinkRuntime, deletes A, and compares the fresh RichDocument/LoomBlock \
 identity plus backend-computed content_hash. It writes the strict live visual to \
 Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-live-B.png. When the backend omits a Loom \
-block id or content_hash the proof reports that typed backend-shape gap, not green. HBR-INT posture for \
-this editor navigation: Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason for local tab navigation \
-that does not mutate authority; internal_diagnostics = DEFERRED-with-reason until the diagnostic tier ships; \
-Palmistry = DEFERRED-with-reason until the external watcher tier ships. All link/backlink data \
+block id or content_hash the proof reports that typed backend-shape gap, not green. HBR-INT-009 posture for \
+this editor navigation: Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason for local read-only tab \
+navigation and backlink refresh, which do not mutate authority; save-time backlink mutation has Tier 1 \
+Flight Recorder/EventLedger = WIRED through KnowledgeRichDocumentSaved, its \
+save_receipt_event_id, and backlink persistence in the normal knowledge-document save. Tier 2 \
+internal_diagnostics = WIRED \
+through the shared BackendCall operation watchdog registered by ReqwestWikilinkBackend::list_backlinks; a \
+bounded progress gap emits the typed StalledOperation diagnostic surfaced through the shared diagnostic \
+status. Tier 3 Palmistry = WIRED through the shared process-global diagnostic ring, which retains the \
+last-N typed events for the external watcher across a UI freeze or crash without inventing a Loom-specific \
+tracker. All link/backlink data \
 lives in handshake_core (PostgreSQL/EventLedger) via the Loom + knowledge-documents routes. A swarm agent reads \
 the panel with list_widgets and follows a link with click_widget{target:'outgoing.section.resolved'} (or the \
 specific backlink-{source_document_id} row id)."

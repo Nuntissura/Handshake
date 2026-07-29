@@ -9390,6 +9390,25 @@ impl HandshakeApp {
         self.active_rich_state()
     }
 
+    /// Deterministic contention seam for the mounted backlink retry path. The preceding live-shell
+    /// integration test proves `BacklinkActivated` reaches this dispatch; this helper lets a test hold
+    /// the shared bus without also preventing the rich pane's render/drain phase.
+    #[doc(hidden)]
+    pub fn dispatch_backlink_open_for_test(
+        &mut self,
+        ctx: &egui::Context,
+        source_document_id: impl Into<String>,
+    ) -> bool {
+        let source_document_id = source_document_id.into();
+        let dispatched = self.dispatch_backlink_open_through_bus(ctx, source_document_id.as_str());
+        if !dispatched {
+            self.pending_backlink_open_retry
+                .push_back(source_document_id);
+            ctx.request_repaint();
+        }
+        dispatched
+    }
+
     /// Focused MT-079 regression seam: inspect the exact state owned by a document tab even when a
     /// different Notes pane is active. This exposes the real mount store; it does not copy or inject
     /// state and therefore catches cross-document aliasing/overwrite regressions.
