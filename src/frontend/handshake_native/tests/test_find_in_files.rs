@@ -569,26 +569,7 @@ fn accesskit_tree_has_all_contract_author_ids() {
 
 #[test]
 fn text_inputs_advertise_and_apply_canonical_set_value() {
-    let state = Arc::new(Mutex::new(FindInFilesPanelState::new()));
-    let opened = Arc::new(Mutex::new(Vec::new()));
-    let r = rt();
-    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
-    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone());
-    let mut harness = harness_for(
-        Arc::clone(&state),
-        opened,
-        search_client,
-        doc_client,
-        Some("ws-1".to_owned()),
-    );
-    harness.run_steps(2);
-
-    for (author_id, value) in [
-        (QUERY_AUTHOR_ID, "canonical query"),
-        (REPLACE_AUTHOR_ID, "canonical replacement"),
-        (TAG_FILTER_AUTHOR_ID, "tag-canonical"),
-        (PATH_FILTER_AUTHOR_ID, "notes/canonical"),
-    ] {
+    fn dispatch_set_value(harness: &mut Harness<'_, ()>, author_id: &str, value: &str) {
         let node = harness
             .root()
             .children_recursive()
@@ -611,11 +592,129 @@ fn text_inputs_advertise_and_apply_canonical_set_value() {
         harness.run_steps(2);
     }
 
-    let state = state.lock().expect("Find in Files state");
-    assert_eq!(state.query, "canonical query");
-    assert_eq!(state.replacement, "canonical replacement");
-    assert_eq!(state.tag_filter, "tag-canonical");
-    assert_eq!(state.path_filter, "notes/canonical");
+    fn seed_stale_sensitive_state(state: &mut FindInFilesPanelState) {
+        state.preview_plans = vec![mock_plan("KRD-sentinel", "Sentinel", 1)];
+        state.preview_plan_key = Some("sentinel-preview-key".to_owned());
+        state.replace_status = Some("sentinel replace status".to_owned());
+        state.error = Some("sentinel error".to_owned());
+    }
+
+    let state = Arc::new(Mutex::new(seeded_state()));
+    let opened = Arc::new(Mutex::new(Vec::new()));
+    let r = rt();
+    let search_client = WorkspaceSearchClient::new(TEST_BASE, r.handle().clone());
+    let doc_client = RichDocClient::new(TEST_BASE, r.handle().clone());
+    let mut harness = harness_for(
+        Arc::clone(&state),
+        opened,
+        search_client,
+        doc_client,
+        Some("ws-1".to_owned()),
+    );
+    harness.run_steps(2);
+
+    for (author_id, value) in [
+        (QUERY_AUTHOR_ID, "canonical query"),
+        (TAG_FILTER_AUTHOR_ID, "tag-canonical"),
+        (PATH_FILTER_AUTHOR_ID, "notes/canonical"),
+    ] {
+        {
+            let mut guard = state.lock().expect("Find in Files state");
+            seed_stale_sensitive_state(&mut guard);
+        }
+        let generation_before = state
+            .lock()
+            .expect("Find in Files state")
+            .results_generation();
+        dispatch_set_value(&mut harness, author_id, value);
+        let guard = state.lock().expect("Find in Files state");
+        assert!(guard.preview_plans.is_empty(), "{author_id}");
+        assert!(guard.preview_plan_key.is_none(), "{author_id}");
+        assert!(guard.replace_status.is_none(), "{author_id}");
+        assert!(guard.error.is_none(), "{author_id}");
+        assert_ne!(
+            guard.results_generation(),
+            generation_before,
+            "{author_id} must invalidate the search generation"
+        );
+    }
+
+    {
+        let mut guard = state.lock().expect("Find in Files state");
+        seed_stale_sensitive_state(&mut guard);
+    }
+    let generation_before = state
+        .lock()
+        .expect("Find in Files state")
+        .results_generation();
+    dispatch_set_value(&mut harness, REPLACE_AUTHOR_ID, "canonical replacement");
+    let guard = state.lock().expect("Find in Files state");
+    assert_eq!(guard.query, "canonical query");
+    assert_eq!(guard.replacement, "canonical replacement");
+    assert_eq!(guard.tag_filter, "tag-canonical");
+    assert_eq!(guard.path_filter, "notes/canonical");
+    assert!(guard.preview_plans.is_empty());
+    assert!(guard.preview_plan_key.is_none());
+    assert_eq!(
+        guard.replace_status.as_deref(),
+        Some("Preview is stale; run Preview Replace again before applying.")
+    );
+    assert_eq!(guard.error.as_deref(), Some("sentinel error"));
+    assert_eq!(
+        guard.results_generation(),
+        generation_before,
+        "replacement invalidation must preserve the current search result generation"
+    );
+}
+
+#[test]
+fn replacement_set_value_is_rejected_while_apply_is_in_flight() {
+    let mut initial = seeded_state();
+    initial.set_apply_in_flight_for_test(true);
+    let expected_replacement = initial.replacement.clone();
+    let expected_preview_key = initial.preview_plan_key.clone();
+    let expected_preview_count = initial.preview_plans.len();
+    let state = Arc::new(Mutex::new(initial));
+    let opened = Arc::new(Mutex::new(Vec::new()));
+    let r = rt();
+    let mut harness = harness_for(
+        Arc::clone(&state),
+        opened,
+        WorkspaceSearchClient::new(TEST_BASE, r.handle().clone()),
+        RichDocClient::new(TEST_BASE, r.handle().clone()),
+        Some("ws-1".to_owned()),
+    );
+    harness.run_steps(2);
+
+    let node = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(REPLACE_AUTHOR_ID))
+        .expect("replacement input");
+    assert!(node.accesskit_node().is_disabled());
+    assert!(
+        !node
+            .accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "disabled replacement must not advertise SetValue"
+    );
+    let node_id = node.accesskit_node().id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::SetValue,
+            target: node_id,
+            data: Some(egui::accesskit::ActionData::Value(
+                "must-not-apply".into(),
+            )),
+        },
+    ));
+    harness.run_steps(2);
+
+    let guard = state.lock().expect("Find in Files state");
+    assert_eq!(guard.replacement, expected_replacement);
+    assert_eq!(guard.preview_plan_key, expected_preview_key);
+    assert_eq!(guard.preview_plans.len(), expected_preview_count);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1203,14 +1302,37 @@ fn two_registry_find_panes_keep_state_and_author_ids_isolated() {
         "canonical/scoped Find author ids remain stable when global focus leaves Find panes"
     );
 
-    let mut states = states.lock().expect("pane-keyed Find states");
+    let pane_b_query_author_id = pane_scoped_author_id(QUERY_AUTHOR_ID, Some(pane_b.as_ref()));
+    let pane_b_replace_author_id =
+        pane_scoped_author_id(REPLACE_AUTHOR_ID, Some(pane_b.as_ref()));
+    for (author_id, value) in [
+        (&pane_b_query_author_id, "secondary-query"),
+        (&pane_b_replace_author_id, "secondary-replacement"),
+    ] {
+        let node = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(author_id.as_str()))
+            .unwrap_or_else(|| panic!("secondary pane target missing: {author_id}"));
+        let node_id = node.accesskit_node().id();
+        harness.event(egui::Event::AccessKitActionRequest(
+            egui::accesskit::ActionRequest {
+                action: egui::accesskit::Action::SetValue,
+                target: node_id,
+                data: Some(egui::accesskit::ActionData::Value(value.into())),
+            },
+        ));
+        harness.run_steps(2);
+    }
+
+    let states = states.lock().expect("pane-keyed Find states");
     assert_eq!(states.len(), 2);
-    states.get_mut(&pane_b).expect("secondary pane state").query = "secondary-only".to_owned();
-    assert_ne!(
-        states.get(&pane_a).expect("primary pane state").query,
-        states.get(&pane_b).expect("secondary pane state").query,
-        "editing one Find pane cannot mutate its sibling's query"
-    );
+    let primary = states.get(&pane_a).expect("primary pane state");
+    let secondary = states.get(&pane_b).expect("secondary pane state");
+    assert_eq!(primary.query, "FIND_TARGET");
+    assert_eq!(primary.replacement, "REPLACED");
+    assert_eq!(secondary.query, "secondary-query");
+    assert_eq!(secondary.replacement, "secondary-replacement");
 }
 
 #[test]
@@ -2212,6 +2334,17 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     );
 
     argus.set_value_and_reinspect(&mut ui_harness, REPLACE_AUTHOR_ID, &ui_replacement);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "fresh-replacement-restored",
+        serde_json::json!({"replacement": ui_replacement.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, REPLACE_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(ui_replacement.as_str())
+        },
+    );
     argus.click_and_reinspect(&mut ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
     for _ in 0..400 {
         ui_harness.run_steps(1);
@@ -2285,7 +2418,29 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     // Canonical mounted error and empty-result states, followed by a clean recovery. Invalid regex is
     // local and bounded; the guaranteed miss still traverses the real managed search route.
     argus.click_and_reinspect(&mut ui_harness, TOGGLE_REGEX_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "regex-toggle-enabled",
+        serde_json::json!({"regex": true}),
+        |tree| {
+            json_node_by_author_id(tree, TOGGLE_REGEX_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("true")
+        },
+    );
     argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, "[");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "invalid-regex-query-visible",
+        serde_json::json!({"query": "["}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("[")
+        },
+    );
     argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
@@ -2299,8 +2454,30 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
         },
     );
     argus.click_and_reinspect(&mut ui_harness, TOGGLE_REGEX_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "regex-toggle-disabled",
+        serde_json::json!({"regex": false}),
+        |tree| {
+            json_node_by_author_id(tree, TOGGLE_REGEX_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("false")
+        },
+    );
     let guaranteed_miss = format!("MT029_NO_MATCH_{unique}");
     argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &guaranteed_miss);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "managed-empty-query-visible",
+        serde_json::json!({"query": guaranteed_miss.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(guaranteed_miss.as_str())
+        },
+    );
     argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
     for _ in 0..400 {
         ui_harness.run_steps(1);

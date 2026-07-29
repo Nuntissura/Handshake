@@ -55,7 +55,7 @@
 //! kebab-case `author_id` under the `find-in-files.` namespace via
 //! [`crate::accessibility::emit_interactive_node`].
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -1172,6 +1172,8 @@ pub struct FindInFilesPanelState {
     pub replace_status: Option<String>,
     /// The current preview plans (empty until Preview Replace runs).
     pub preview_plans: Vec<ReplacementPlan>,
+    /// Preview rows expanded by either pointer or canonical AccessKit activation.
+    expanded_preview_document_ids: HashSet<String>,
     /// The replace-plan key the current `preview_plans` were computed under (stale-apply guard).
     pub preview_plan_key: Option<String>,
     /// The search-plan key the current `results` were fetched under (stale-preview guard).
@@ -1241,6 +1243,7 @@ impl FindInFilesPanelState {
             error: None,
             replace_status: None,
             preview_plans: Vec::new(),
+            expanded_preview_document_ids: HashSet::new(),
             preview_plan_key: None,
             result_set_key: None,
             bookmarks: Vec::new(),
@@ -1479,6 +1482,7 @@ impl FindInFilesPanelState {
         // correctly enforces. A real Search clears `result_set_key` before dispatch and replaces the rows
         // only on an accepted current-generation delivery.
         self.preview_plans.clear();
+        self.expanded_preview_document_ids.clear();
         self.preview_plan_key = None;
         self.replace_status = None;
         self.error = None;
@@ -1497,6 +1501,7 @@ impl FindInFilesPanelState {
         let invalidated_preview = self.preview_plan_key.is_some() || !self.preview_plans.is_empty();
         self.active_preview = None;
         self.preview_plans.clear();
+        self.expanded_preview_document_ids.clear();
         self.preview_plan_key = None;
         if invalidated_preview {
             self.replace_status =
@@ -1776,6 +1781,22 @@ impl FindInFilesPanelState {
     #[doc(hidden)]
     pub fn accept_replace_delivery_for_test(&mut self, delivery: ReplaceDelivery) {
         self.apply_replace_delivery(delivery);
+    }
+
+    /// Managed-proof seam: place the replacement input behind the same in-flight Apply gate used by
+    /// production so disabled AccessKit mutation behavior can be regression-tested without a backend.
+    #[doc(hidden)]
+    pub fn set_apply_in_flight_for_test(&mut self, in_flight: bool) {
+        if in_flight {
+            let workspace_id = self
+                .bound_workspace_id
+                .clone()
+                .unwrap_or_else(|| "test-workspace".to_owned());
+            self.active_apply = Some(self.next_stamp(&workspace_id, FindInFilesOperation::Apply));
+        } else {
+            self.active_apply = None;
+        }
+        self.refresh_loading();
     }
 
     /// Request cooperative cancellation. Apply keeps its active stamp until the worker reports exactly
@@ -2329,6 +2350,7 @@ fn show_with_author_scope(
             } else {
                 egui::accesskit::Toggled::False
             });
+            node.set_value(if regex_toggled { "true" } else { "false" });
         });
         if regex_btn.clicked() {
             state.is_regex = !state.is_regex;
@@ -2353,15 +2375,18 @@ fn show_with_author_scope(
             .desired_width(220.0);
         let resp = ui.add_enabled(replacement_enabled, edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &replace_author_id);
-        ui.ctx().accesskit_node_builder(resp.id, |node| {
-            node.add_action(egui::accesskit::Action::SetValue);
-        });
-        let replacement_set_via_accesskit = crate::mcp::accesskit_string_set_value(ui, resp.id)
-            .map(|value| {
+        let mut replacement_set_via_accesskit = false;
+        if replacement_enabled {
+            ui.ctx().accesskit_node_builder(resp.id, |node| {
+                node.add_action(egui::accesskit::Action::SetValue);
+            });
+            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, resp.id) {
                 state.replacement = value;
                 ui.ctx().request_repaint();
-            });
-        if resp.changed() || replacement_set_via_accesskit.is_some() {
+                replacement_set_via_accesskit = true;
+            }
+        }
+        if resp.changed() || replacement_set_via_accesskit {
             state.invalidate_replacement_input();
         }
 
@@ -2571,17 +2596,23 @@ fn show_with_author_scope(
         ui.separator();
         ui.label(egui::RichText::new("Replacement preview").strong());
         let text_color = ui.visuals().text_color();
+        let mut toggled_preview_document_id = None;
         egui::ScrollArea::vertical()
             .id_salt("find-in-files.preview")
             .max_height(220.0)
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 for plan in &state.preview_plans {
+                    let preview_row_author_id = scoped(&preview_author_id(&plan.document_id));
+                    let preview_open = state
+                        .expanded_preview_document_ids
+                        .contains(&plan.document_id);
                     let header = egui::CollapsingHeader::new(format!(
                         "{} ({})",
                         plan.title, plan.match_count
                     ))
-                    .id_salt(scoped(&preview_author_id(&plan.document_id)))
+                    .id_salt(&preview_row_author_id)
+                    .open(Some(preview_open))
                     .show(ui, |ui| {
                         let before = ui.label(
                             egui::RichText::new(format!("before: {}", plan.before_preview))
@@ -2625,10 +2656,28 @@ fn show_with_author_scope(
                     accessibility::emit_interactive_node(
                         ui.ctx(),
                         header.header_response.id,
-                        &scoped(&preview_author_id(&plan.document_id)),
+                        &preview_row_author_id,
                     );
+                    let accesskit_clicked = ui.input(|input| {
+                        input
+                            .accesskit_action_requests(
+                                header.header_response.id,
+                                egui::accesskit::Action::Click,
+                            )
+                            .next()
+                            .is_some()
+                    });
+                    if header.header_response.clicked() || accesskit_clicked {
+                        toggled_preview_document_id = Some(plan.document_id.clone());
+                    }
                 }
             });
+        if let Some(document_id) = toggled_preview_document_id {
+            if !state.expanded_preview_document_ids.remove(&document_id) {
+                state.expanded_preview_document_ids.insert(document_id);
+            }
+            ui.ctx().request_repaint();
+        }
     }
 
     // ── Dispatch deferred actions (after immutable borrows end) ──
