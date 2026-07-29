@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T05:02:11Z",
+  "generated_at_utc": "2026-07-29T05:27:02Z",
   "total": 19,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
@@ -277,7 +277,7 @@
       "summary": "Update the internal UserManual so every WP behavior is usable by future models/operators and linked to Flight Recorder plus Palmistry posture.",
       "unlocks": "Unlocks WP-wide manual currency so every implemented behavior is discoverable, recoverable, and tied to evidence.",
       "blocks": [],
-      "proof_status": "FAIL_V4: The behavior registry and UserManual deliberately require internal_diagnostics and Palmistry to remain DeferredWithReason because their producers are not shipped. This is truthful, but it directly fails the operator's V4 requirement that both tiers work and are wired for this WP.",
+      "proof_status": "FAIL_V4 (partial: freshness drift fixed c89a20df; diagnostics WIRED postures gamed, operator decision pending)",
       "hbr_status": "PASS_MT011_USERMANUAL_COVERAGE_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
