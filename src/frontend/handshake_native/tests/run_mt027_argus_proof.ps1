@@ -855,17 +855,21 @@ if ([string]::IsNullOrWhiteSpace([string]$movePayload.block_id) -or
 }
 
 $managedReceipt = Get-Content -LiteralPath $fixedManagedPgReceipt -Raw | ConvertFrom-Json
+$receiptBackendBinary = [IO.Path]::GetFullPath(
+    [string]$managedReceipt.backend_binding.backend_binary)
+$observedBackendExecutable = [IO.Path]::GetFullPath(
+    [string]$backendIdentity.executable)
 if ($managedReceipt.schema_id -ne 'hsk.mt027_managed_pg_proof@1' -or
     -not [bool]$managedReceipt.backend_binding.owned -or
     [int]$managedReceipt.backend_binding.backend_pid -ne [int]$backendIdentity.pid -or
-    -not ([IO.Path]::GetFullPath([string]$backendIdentity.executable)).Equals(
+    -not $observedBackendExecutable.Equals(
         $backendBinary, [StringComparison]::OrdinalIgnoreCase) -or
-    -not ([IO.Path]::GetFullPath([string]$managedReceipt.backend_binding.backend_binary)).Equals(
+    -not $receiptBackendBinary.Equals(
         $backendBinary, [StringComparison]::OrdinalIgnoreCase) -or
     $managedReceipt.backend_binding.database_host -ne '127.0.0.1' -or
     [int]$managedReceipt.backend_binding.database_port -ne 5544 -or
     $managedReceipt.backend_binding.database_name -ne 'handshake') {
-    throw 'Managed proof receipt is not bound to the exact owned backend and PostgreSQL endpoint'
+    throw "Managed proof receipt binding mismatch: schema='$($managedReceipt.schema_id)'; owned='$($managedReceipt.backend_binding.owned)'; receipt_pid='$($managedReceipt.backend_binding.backend_pid)'; observed_pid='$($backendIdentity.pid)'; receipt_binary='$receiptBackendBinary'; observed_executable='$observedBackendExecutable'; expected_binary='$backendBinary'; database_host='$($managedReceipt.backend_binding.database_host)'; database_port='$($managedReceipt.backend_binding.database_port)'; database_name='$($managedReceipt.backend_binding.database_name)'"
 }
 $backendSha256 = (Get-FileHash -LiteralPath $backendBinary -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($managedReceipt.backend_binding.backend_binary_sha256 -ne $backendSha256) {
