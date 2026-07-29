@@ -4457,8 +4457,23 @@ async fn mixed_model_lane_recovery_rejects_cloud_denial_aggregate_mismatch() {
     assert_error_contains(&err, "aggregate_id mismatch");
 }
 
-#[tokio::test]
-async fn mixed_model_lane_negative_guards_fail_closed() {
+// Not `#[tokio::test]`: the post-644dee55 CRDT-authority resolution path (lease/replay
+// chain resolution for each fabricated-ref negative case) is deep, and in unoptimized
+// test builds its call stack exceeds the default ~2MB test-thread stack, overflowing under
+// a plain `cargo test`. Run the whole async body on a dedicated 32MiB-stack thread with an
+// equivalent current-thread Tokio runtime so the declared proof passes at default stack
+// without a RUST_MIN_STACK override the proof command does not specify. (Only this test,
+// which drives dozens of deep-resolution negatives in one body, needs the larger stack.)
+#[test]
+fn mixed_model_lane_negative_guards_fail_closed() {
+    std::thread::Builder::new()
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("build current-thread Tokio runtime for negative-guards")
+                .block_on(async move {
     let (pool, store) = model_lane_store().await;
 
     let denied_run_id = "run-mt009-cloud-denied";
@@ -4495,6 +4510,7 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         1,
     );
     hidden_payload.payload_ref = "provider-session://openai/thread-hidden".into();
+    hidden_payload.proposal_ref = Some("proposal://mt009/negguard/hidden-provider".into());
     let hidden_err = store
         .record_message(hidden_payload)
         .await
@@ -4520,6 +4536,13 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
     fabricated_crdt.crdt_base_snapshot_ref =
         Some("postgres://kernel_crdt_snapshots/fabricated/snapshot-001".into());
     fabricated_crdt.crdt_state_vector = Some("hsk-sv1:ZmFicmljYXRlZA==".into());
+    // A CRDT-bearing message must carry a routing-advisory proposal_ref to pass the
+    // synchronous validate_message_authority pre-check; without it admission fails early
+    // with "proposal_ref is required" and never reaches the CRDT-authority resolver. This
+    // negative case proves the DEEPER guard: syntactically valid but nonexistent CRDT
+    // update/snapshot/state-vector refs fail closed at resolution (the MT-009 V4 blocker).
+    fabricated_crdt.proposal_ref =
+        Some("proposal://mt009/fabricated-crdt/msg-mt009-fabricated-crdt".into());
     let fabricated_crdt_err = store
         .record_message(fabricated_crdt)
         .await
@@ -4558,6 +4581,7 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         1,
     );
     off_stream_msg.event_ledger_stream_id = "mlane-stream-run-mt009-off-stream-shadow".into();
+    off_stream_msg.proposal_ref = Some("proposal://mt009/negguard/off-stream".into());
     let off_stream_err = store
         .record_message(off_stream_msg)
         .await
@@ -4630,6 +4654,7 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         1,
     );
     missing_target_msg.to_lane = ModelLaneTarget::Lane("lane-mt009-target-missing".into());
+    missing_target_msg.proposal_ref = Some("proposal://mt009/negguard/target-missing".into());
     let missing_target_err = store
         .record_message(missing_target_msg)
         .await
@@ -4658,6 +4683,8 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         1,
     );
     cross_run_target_msg.to_lane = ModelLaneTarget::Lane("lane-mt009-target-other-local".into());
+    cross_run_target_msg.proposal_ref =
+        Some("proposal://mt009/negguard/cross-run-target".into());
     let cross_run_target_err = store
         .record_message(cross_run_target_msg)
         .await
@@ -4671,13 +4698,14 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let idempotent_msg = sample_message(
+    let mut idempotent_msg = sample_message(
         "msg-mt009-idempotency",
         "run-mt009-idempotency",
         "lane-mt009-idempotency",
         "local",
         1,
     );
+    idempotent_msg.proposal_ref = Some("proposal://mt009/negguard/divergent-idempotency".into());
     store
         .record_message(idempotent_msg.clone())
         .await
@@ -4698,13 +4726,14 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let drift_msg = sample_message(
+    let mut drift_msg = sample_message(
         "msg-mt009-diagnostics-row-drift",
         "run-mt009-diagnostics-row-drift",
         "lane-mt009-diagnostics-row-drift",
         "local",
         1,
     );
+    drift_msg.proposal_ref = Some("proposal://mt009/negguard/diagnostics-row-drift".into());
     store
         .record_message(drift_msg)
         .await
@@ -4732,13 +4761,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let metadata_drift_msg = sample_message(
+    let mut metadata_drift_msg = sample_message(
         "msg-mt009-diagnostics-metadata-drift",
         "run-mt009-diagnostics-metadata-drift",
         "lane-mt009-diagnostics-metadata-drift",
         "local",
         1,
     );
+    metadata_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/diagnostics-metadata-drift".into());
     store
         .record_message(metadata_drift_msg)
         .await
@@ -4766,13 +4797,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let record_event_id_drift_msg = sample_message(
+    let mut record_event_id_drift_msg = sample_message(
         "msg-mt009-diagnostics-record-event-id-drift",
         "run-mt009-diagnostics-record-event-id-drift",
         "lane-mt009-diagnostics-record-event-id-drift",
         "local",
         1,
     );
+    record_event_id_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/record-event-id-drift".into());
     store
         .record_message(record_event_id_drift_msg)
         .await
@@ -4800,13 +4833,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let record_stream_version_drift_msg = sample_message(
+    let mut record_stream_version_drift_msg = sample_message(
         "msg-mt009-diagnostics-record-stream-version-drift",
         "run-mt009-diagnostics-record-stream-version-drift",
         "lane-mt009-diagnostics-record-stream-version-drift",
         "local",
         1,
     );
+    record_stream_version_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/record-stream-version-drift".into());
     store
         .record_message(record_stream_version_drift_msg)
         .await
@@ -4834,13 +4869,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let record_transaction_seq_drift_msg = sample_message(
+    let mut record_transaction_seq_drift_msg = sample_message(
         "msg-mt009-diagnostics-record-transaction-seq-drift",
         "run-mt009-diagnostics-record-transaction-seq-drift",
         "lane-mt009-diagnostics-record-transaction-seq-drift",
         "local",
         1,
     );
+    record_transaction_seq_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/record-transaction-seq-drift".into());
     store
         .record_message(record_transaction_seq_drift_msg)
         .await
@@ -4868,13 +4905,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let row_event_seq_drift_msg = sample_message(
+    let mut row_event_seq_drift_msg = sample_message(
         "msg-mt009-diagnostics-row-event-seq-drift",
         "run-mt009-diagnostics-row-event-seq-drift",
         "lane-mt009-diagnostics-row-event-seq-drift",
         "local",
         1,
     );
+    row_event_seq_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/row-event-seq-drift".into());
     store
         .record_message(row_event_seq_drift_msg)
         .await
@@ -4902,13 +4941,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let row_event_id_missing_msg = sample_message(
+    let mut row_event_id_missing_msg = sample_message(
         "msg-mt009-diagnostics-row-event-id-missing",
         "run-mt009-diagnostics-row-event-id-missing",
         "lane-mt009-diagnostics-row-event-id-missing",
         "local",
         1,
     );
+    row_event_id_missing_msg.proposal_ref =
+        Some("proposal://mt009/negguard/row-event-id-missing".into());
     store
         .record_message(row_event_id_missing_msg)
         .await
@@ -4950,13 +4991,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let row_stream_version_drift_msg = sample_message(
+    let mut row_stream_version_drift_msg = sample_message(
         "msg-mt009-diagnostics-row-stream-version-drift",
         "run-mt009-diagnostics-row-stream-version-drift",
         "lane-mt009-diagnostics-row-stream-version-drift",
         "local",
         1,
     );
+    row_stream_version_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/row-stream-version-drift".into());
     store
         .record_message(row_stream_version_drift_msg)
         .await
@@ -4984,13 +5027,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let row_transaction_seq_drift_msg = sample_message(
+    let mut row_transaction_seq_drift_msg = sample_message(
         "msg-mt009-diagnostics-row-transaction-seq-drift",
         "run-mt009-diagnostics-row-transaction-seq-drift",
         "lane-mt009-diagnostics-row-transaction-seq-drift",
         "local",
         1,
     );
+    row_transaction_seq_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/row-transaction-seq-drift".into());
     store
         .record_message(row_transaction_seq_drift_msg)
         .await
@@ -5018,13 +5063,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let record_id_drift_msg = sample_message(
+    let mut record_id_drift_msg = sample_message(
         "msg-mt009-diagnostics-record-id-drift",
         "run-mt009-diagnostics-record-id-drift",
         "lane-mt009-diagnostics-record-id-drift",
         "local",
         1,
     );
+    record_id_drift_msg.proposal_ref =
+        Some("proposal://mt009/negguard/record-id-drift".into());
     store
         .record_message(record_id_drift_msg)
         .await
@@ -5052,20 +5099,24 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let sql_row_id_original_msg = sample_message(
+    let mut sql_row_id_original_msg = sample_message(
         "msg-mt009-diagnostics-sql-row-id-original",
         "run-mt009-diagnostics-sql-row-id-drift",
         "lane-mt009-diagnostics-sql-row-id-drift",
         "local",
         1,
     );
-    let sql_row_id_other_msg = sample_message(
+    sql_row_id_original_msg.proposal_ref =
+        Some("proposal://mt009/negguard/sql-row-id-original".into());
+    let mut sql_row_id_other_msg = sample_message(
         "msg-mt009-diagnostics-sql-row-id-other",
         "run-mt009-diagnostics-sql-row-id-drift",
         "lane-mt009-diagnostics-sql-row-id-drift",
         "local",
         2,
     );
+    sql_row_id_other_msg.proposal_ref =
+        Some("proposal://mt009/negguard/sql-row-id-other".into());
     store
         .record_message(sql_row_id_original_msg)
         .await
@@ -5204,13 +5255,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let missing_payload_msg = sample_message(
+    let mut missing_payload_msg = sample_message(
         "msg-mt009-missing-payload",
         "run-mt009-missing-payload",
         "lane-mt009-missing-payload",
         "local",
         1,
     );
+    missing_payload_msg.proposal_ref =
+        Some("proposal://mt009/negguard/missing-payload".into());
     store
         .record_message(missing_payload_msg.clone())
         .await
@@ -5239,13 +5292,15 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let hash_mismatch_msg = sample_message(
+    let mut hash_mismatch_msg = sample_message(
         "msg-mt009-payload-hash-mismatch",
         "run-mt009-payload-hash-mismatch",
         "lane-mt009-payload-hash-mismatch",
         "local",
         1,
     );
+    hash_mismatch_msg.proposal_ref =
+        Some("proposal://mt009/negguard/payload-hash-mismatch".into());
     store
         .record_message(hash_mismatch_msg.clone())
         .await
@@ -5294,13 +5349,14 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let stale_msg = sample_message(
+    let mut stale_msg = sample_message(
         "msg-mt009-stale-crdt",
         "run-mt009-stale-crdt",
         "lane-mt009-stale-crdt",
         "local",
         1,
     );
+    stale_msg.proposal_ref = Some("proposal://mt009/negguard/stale-crdt".into());
     store
         .record_message(stale_msg.clone())
         .await
@@ -5347,13 +5403,14 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let gap_msg = sample_message(
+    let mut gap_msg = sample_message(
         "msg-mt009-replay-gap",
         "run-mt009-replay-gap",
         "lane-mt009-replay-gap",
         "local",
         1,
     );
+    gap_msg.proposal_ref = Some("proposal://mt009/negguard/replay-gap".into());
     store
         .record_message(gap_msg.clone())
         .await
@@ -5464,13 +5521,14 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         RuntimeBinding::Local,
     )
     .await;
-    let fr_msg = sample_message(
+    let mut fr_msg = sample_message(
         "msg-mt009-fr-only",
         "run-mt009-fr-only",
         "lane-mt009-fr-only",
         "local",
         1,
     );
+    fr_msg.proposal_ref = Some("proposal://mt009/negguard/fr-only".into());
     store
         .record_message(fr_msg)
         .await
@@ -5494,6 +5552,11 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
             || fr_only_message.contains("internal_diagnostics"),
         "expected FlightRecorder-only HBR failure, got {fr_only_err}"
     );
+                });
+        })
+        .expect("spawn 32MiB-stack thread for negative-guards")
+        .join()
+        .expect("negative-guards thread must not panic");
 }
 
 /// Deterministic production-shaped runtime used only to drive the real
