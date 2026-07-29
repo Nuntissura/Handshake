@@ -1621,10 +1621,12 @@ impl KanbanSubView<'_> {
         }
 
         let label_for_node = label.clone();
+        let lane_for_node = lane_key.to_owned();
         ui.ctx().accesskit_node_builder(id, move |node| {
             node.set_role(accesskit::Role::ListItem);
             node.set_author_id(author_id.clone());
             node.set_label(label_for_node.clone());
+            node.set_value(lane_for_node.clone());
         });
     }
 }
@@ -1665,10 +1667,12 @@ impl CalendarSubView<'_> {
                         let resp = ui.label(&label);
                         let _ = resp;
                         let label_for_node = label.clone();
+                        let date_for_node = key.clone();
                         ui.ctx().accesskit_node_builder(entry_id, move |node| {
                             node.set_role(accesskit::Role::ListItem);
                             node.set_author_id(entry_author.clone());
                             node.set_label(label_for_node.clone());
+                            node.set_value(date_for_node.clone());
                         });
                     }
                 });

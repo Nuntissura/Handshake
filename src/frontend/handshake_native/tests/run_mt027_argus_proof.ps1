@@ -555,6 +555,31 @@ function Get-AuthorIds {
     }
 }
 
+function Find-AuthorNodes {
+    param(
+        [AllowNull()]$Node,
+        [Parameter(Mandatory = $true)][string]$AuthorId
+    )
+
+    if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) {
+        return
+    }
+    $authorProperty = $Node.PSObject.Properties['author_id']
+    if ($null -ne $authorProperty -and [string]$authorProperty.Value -eq $AuthorId) {
+        Write-Output $Node
+    }
+    if ($Node -is [Collections.IEnumerable] -and
+        $Node -isnot [Management.Automation.PSCustomObject]) {
+        foreach ($child in $Node) {
+            Find-AuthorNodes -Node $child -AuthorId $AuthorId
+        }
+        return
+    }
+    foreach ($property in $Node.PSObject.Properties) {
+        Find-AuthorNodes -Node $property.Value -AuthorId $AuthorId
+    }
+}
+
 function Test-AuthorValue {
     param(
         [Parameter(Mandatory = $true)]$Tree,
@@ -562,20 +587,45 @@ function Test-AuthorValue {
         [Parameter(Mandatory = $true)][string]$Expected
     )
 
-    $node = Find-AuthorNode -Node $Tree -AuthorId $AuthorId
-    return $null -ne $node -and [string]$node.value -eq $Expected
+    $nodes = @(Find-AuthorNodes -Node $Tree -AuthorId $AuthorId)
+    return $nodes.Count -eq 1 -and
+        $null -ne $nodes[0].PSObject.Properties['value'] -and
+        $null -ne $nodes[0].value -and
+        [string]$nodes[0].value -eq $Expected
 }
 
-function Test-AuthorDescendant {
+function Test-AuthorValues {
     param(
         [Parameter(Mandatory = $true)]$Tree,
-        [Parameter(Mandatory = $true)][string]$AncestorId,
-        [Parameter(Mandatory = $true)][string]$DescendantId
+        [Parameter(Mandatory = $true)][string]$AuthorId,
+        [string[]]$RequiredValues = @(),
+        [string[]]$ForbiddenValues = @(),
+        [switch]$OnlyRequired
     )
 
-    $ancestor = Find-AuthorNode -Node $Tree -AuthorId $AncestorId
-    return $null -ne $ancestor -and
-        $null -ne (Find-AuthorNode -Node $ancestor -AuthorId $DescendantId)
+    $nodes = @(Find-AuthorNodes -Node $Tree -AuthorId $AuthorId)
+    if ($nodes.Count -eq 0 -or
+        @($nodes | Where-Object {
+                $null -eq $_.PSObject.Properties['value'] -or $null -eq $_.value
+            }).Count -ne 0) {
+        return $false
+    }
+    $values = @($nodes | ForEach-Object { [string]$_.value })
+    foreach ($required in $RequiredValues) {
+        if ($required -notin $values) {
+            return $false
+        }
+    }
+    foreach ($forbidden in $ForbiddenValues) {
+        if ($forbidden -in $values) {
+            return $false
+        }
+    }
+    if ($OnlyRequired -and
+        @($values | Where-Object { $_ -notin $RequiredValues }).Count -ne 0) {
+        return $false
+    }
+    return $true
 }
 
 function Test-TerminalTreePredicate {
@@ -616,11 +666,14 @@ function Test-TerminalTreePredicate {
                 [string]$node.label -eq ('Title ' + [char]0x25B2)
         }
         'kanban-retry-loaded-card' {
-            return Test-AuthorDescendant $Tree 'bcv.kanban.lane.untagged' $cardId
+            return (& $has 'bcv.kanban.lane.untagged') -and
+                (Test-AuthorValues $Tree $cardId -RequiredValues @('untagged') -OnlyRequired)
         }
         'kanban-card-moved-target-lane' {
-            return (Test-AuthorDescendant $Tree $targetLaneId $cardId) -and
-                -not (Test-AuthorDescendant $Tree 'bcv.kanban.lane.untagged' $cardId)
+            return (& $has $targetLaneId) -and
+                (Test-AuthorValues $Tree $cardId `
+                    -RequiredValues @([string]$MovePayload.to_lane) `
+                    -ForbiddenValues @([string]$MovePayload.from_lane))
         }
         'calendar-retry-loaded-controls' {
             return (& $has 'bcv.calendar.date-from') -and
@@ -639,15 +692,28 @@ function Test-TerminalTreePredicate {
                 'bcv.calendar.day.2026-03-02',
                 'bcv.calendar.day.2026-04-01'
             )
+            $actualAuthorIds = @(Get-AuthorIds -Node $Tree)
+            $actualDays = @($actualAuthorIds | Where-Object {
+                    ([string]$_).StartsWith(
+                        'bcv.calendar.day.', [StringComparison]::Ordinal)
+                })
+            $actualEntries = @($actualAuthorIds | Where-Object {
+                    ([string]$_).StartsWith(
+                        'bcv.calendar.entry.', [StringComparison]::Ordinal)
+                })
             $exactEntries = $requiredEntries.Count -eq 3 -and
                 @($requiredEntries.entry_author_id | Sort-Object -Unique).Count -eq 3 -and
                 @($requiredEntries.day_author_id | Sort-Object -Unique).Count -eq 3 -and
+                $actualDays.Count -eq 3 -and
+                $actualEntries.Count -eq 3 -and
                 @($requiredEntries | Where-Object {
                         $_.day_author_id -notin $expectedDays -or
                         -not ([string]$_.entry_author_id).StartsWith(
                             'bcv.calendar.entry.', [StringComparison]::Ordinal) -or
-                        -not (Test-AuthorDescendant $Tree `
-                            ([string]$_.day_author_id) ([string]$_.entry_author_id))
+                        -not (& $has ([string]$_.day_author_id)) -or
+                        -not (Test-AuthorValue $Tree `
+                            ([string]$_.entry_author_id) `
+                            ([string]$_.day_author_id).Substring('bcv.calendar.day.'.Length))
                     }).Count -eq 0
             return (Test-AuthorValue $Tree 'bcv.calendar.date-from' '2026-02-28') -and
                 (Test-AuthorValue $Tree 'bcv.calendar.date-to' '2026-04-30') -and

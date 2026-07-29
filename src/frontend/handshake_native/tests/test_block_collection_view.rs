@@ -1764,20 +1764,72 @@ fn json_node_by_author_id<'a>(
 
 #[cfg(feature = "integration")]
 fn json_author_value_is(value: &serde_json::Value, author_id: &str, expected: &str) -> bool {
-    json_node_by_author_id(value, author_id)
-        .and_then(|node| node.get("value"))
-        .and_then(serde_json::Value::as_str)
-        == Some(expected)
+    json_author_values(value, author_id).is_some_and(|values| values.as_slice() == [expected])
 }
 
 #[cfg(feature = "integration")]
-fn json_author_is_descendant_of(
-    value: &serde_json::Value,
-    ancestor_author_id: &str,
-    descendant_author_id: &str,
-) -> bool {
-    json_node_by_author_id(value, ancestor_author_id)
-        .is_some_and(|ancestor| json_has_author_id(ancestor, descendant_author_id))
+fn json_author_values<'a>(value: &'a serde_json::Value, author_id: &str) -> Option<Vec<&'a str>> {
+    let mut nodes = Vec::new();
+    collect_json_nodes_by_author_id(value, author_id, &mut nodes);
+    if nodes.is_empty() {
+        return None;
+    }
+    nodes
+        .into_iter()
+        .map(|node| node.get("value").and_then(serde_json::Value::as_str))
+        .collect()
+}
+
+#[cfg(feature = "integration")]
+fn collect_json_nodes_by_author_id<'a>(
+    value: &'a serde_json::Value,
+    author_id: &str,
+    nodes: &mut Vec<&'a serde_json::Value>,
+) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                nodes.push(value);
+            }
+            if let Some(children) = map.get("children").and_then(serde_json::Value::as_array) {
+                for child in children {
+                    collect_json_nodes_by_author_id(child, author_id, nodes);
+                }
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for child in values {
+                collect_json_nodes_by_author_id(child, author_id, nodes);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(feature = "integration")]
+fn json_author_prefix_count(value: &serde_json::Value, prefix: &str) -> usize {
+    match value {
+        serde_json::Value::Object(map) => {
+            usize::from(
+                map.get("author_id")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|author_id| author_id.starts_with(prefix)),
+            ) + map
+                .get("children")
+                .and_then(serde_json::Value::as_array)
+                .map_or(0, |children| {
+                    children
+                        .iter()
+                        .map(|child| json_author_prefix_count(child, prefix))
+                        .sum()
+                })
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(|child| json_author_prefix_count(child, prefix))
+            .sum(),
+        _ => 0,
+    }
 }
 
 #[cfg(feature = "integration")]
@@ -2416,7 +2468,9 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     let middle_card_author_id = kanban_card_author_id(&middle);
     let untagged_lane_author_id = kanban_lane_author_id(BLOCK_VIEW_UNTAGGED_LANE);
     argus.assert_latest_terminal_predicate(&mut app_harness, "kanban-retry-loaded-card", |tree| {
-        json_author_is_descendant_of(tree, &untagged_lane_author_id, &middle_card_author_id)
+        json_has_author_id(tree, &untagged_lane_author_id)
+            && json_author_values(tree, &middle_card_author_id)
+                .is_some_and(|values| values.iter().all(|lane| *lane == BLOCK_VIEW_UNTAGGED_LANE))
     });
     let live_kanban_ids = author_ids(&app_harness);
     assert!(live_kanban_ids.contains(&kanban_card_author_id(&middle)));
@@ -2436,12 +2490,11 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         &mut app_harness,
         "kanban-card-moved-target-lane",
         |tree| {
-            json_author_is_descendant_of(tree, &tag_a_lane_author_id, &middle_card_author_id)
-                && !json_author_is_descendant_of(
-                    tree,
-                    &untagged_lane_author_id,
-                    &middle_card_author_id,
-                )
+            json_has_author_id(tree, &tag_a_lane_author_id)
+                && json_author_values(tree, &middle_card_author_id).is_some_and(|values| {
+                    values.iter().any(|lane| *lane == tag_a)
+                        && values.iter().all(|lane| *lane != BLOCK_VIEW_UNTAGGED_LANE)
+                })
         },
     );
     assert!(lane(
@@ -2540,8 +2593,10 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
             ]
             .iter()
             .all(|(date, entry_id)| {
-                json_author_is_descendant_of(tree, &calendar_day_author_id(date), entry_id)
-            })
+                json_has_author_id(tree, &calendar_day_author_id(date))
+                    && json_author_value_is(tree, entry_id, date)
+            }) && json_author_prefix_count(tree, CALENDAR_DAY_AUTHOR_ID_PREFIX) == 3
+                && json_author_prefix_count(tree, CALENDAR_ENTRY_AUTHOR_ID_PREFIX) == 3
         },
     );
     assert_eq!(
