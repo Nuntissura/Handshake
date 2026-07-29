@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-29T19:37:30.8710172Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
-    "active": false,
+    "status": "CLAIMED_V3_REMEDIATION",
+    "active": true,
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -106,7 +106,9 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260705-074205",
+    "claimed_by": "KERNEL_BUILDER-20260728-221208",
+    "claimed_at_utc": "2026-07-29T19:37:30.8710172Z",
+    "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: rerun the real PostgreSQL document-address/backlink/content-hash path including missing, stale, and restart behavior; correct the stale three-tier diagnostics/UserManual posture now that internal_diagnostics and Palmistry are shipped; and prove the mounted backlink workflow through canonical Argus inspect, safe steer, and fresh post-action observation. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
     "ready_for_validation_at_utc": "2026-07-05T08:59:28.198Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260705-074205",
     "ready_for_validation_reason": "MT-032 reopened CMD_OPEN_DOCUMENT backlink audit is closed by current product proof: mounted BacklinkActivated routes through dispatch_backlink_open -> CMD_OPEN_DOCUMENT -> InteractionBus.pending_navigation -> drive_ckc_interop -> ShellNavigator, a one-frame pending_navigation assertion prevents a direct-bypass false green, bus contention retries instead of dropping the event, and the UserManual names the route/HBR posture. Official validator has not run.",
