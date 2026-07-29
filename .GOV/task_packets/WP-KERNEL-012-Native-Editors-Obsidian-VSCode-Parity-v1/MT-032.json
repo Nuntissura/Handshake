@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T19:37:30.8710172Z",
+  "updated_at_utc": "2026-07-29T22:54:51.5094833Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED_V3_REMEDIATION",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [
       "MT-031",
       "MT-021",
@@ -37,10 +37,10 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "ready_for_validation_v2_at_utc": "2026-07-15T21:31:57.0694829Z",
     "ready_for_validation_v2_by": "KERNEL_BUILDER",
     "ready_for_validation_v2_reason": "Managed PostgreSQL and mounted native runtime remediation is current and independently hardened: canonical Loom identities/backlinks/hash/update/delete proof passes; async deliveries are queued and identity-bound; save invalidation and sticky index warnings are workspace/source scoped and survive bounded-history eviction; create guards prevent duplicate notes across document and workspace round-trips; both adversarial reviewers returned READY.",
@@ -103,33 +103,116 @@
         "previous_status": "CLAIMED",
         "new_status": "READY_FOR_VALIDATION",
         "previous_active": true
+      },
+      {
+        "at_utc": "2026-07-29T22:54:51.5094833Z",
+        "by": "KERNEL_BUILDER-20260728-221208",
+        "reason": "MT-032 FAIL_V2 remediation is implemented, committed, runtime-proven, and independently reviewed: real PostgreSQL missing/stale/restart behavior, the shipped three-tier diagnostics posture, canonical UserManual text, canonical Argus inspect/steer/re-observe, strict WGPU captures, and fixture-owned runtime cleanup all pass. Official V3 validation remains pending.",
+        "previous_status": "CLAIMED_V3_REMEDIATION",
+        "new_status": "READY_FOR_VALIDATION_V3",
+        "previous_active": true
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T19:37:30.8710172Z",
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: rerun the real PostgreSQL document-address/backlink/content-hash path including missing, stale, and restart behavior; correct the stale three-tier diagnostics/UserManual posture now that internal_diagnostics and Palmistry are shipped; and prove the mounted backlink workflow through canonical Argus inspect, safe steer, and fresh post-action observation. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
-    "ready_for_validation_at_utc": "2026-07-05T08:59:28.198Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260705-074205",
-    "ready_for_validation_reason": "MT-032 reopened CMD_OPEN_DOCUMENT backlink audit is closed by current product proof: mounted BacklinkActivated routes through dispatch_backlink_open -> CMD_OPEN_DOCUMENT -> InteractionBus.pending_navigation -> drive_ckc_interop -> ShellNavigator, a one-frame pending_navigation assertion prevents a direct-bypass false green, bus contention retries instead of dropping the event, and the UserManual names the route/HBR posture. Official validator has not run.",
-    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "missing_resource": {
-      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-      "reason": "The focused repair proved standalone/native-shell route behavior and manual coverage. The seeded live PostgreSQL/handshake_core proofs for create-doc block_id, doc-B inbound backlinks from doc-A wikilink, and content_hash round trip did not run and are not faked.",
-      "typed_blockers": [
-        "NEEDS_MANAGED_RESOURCE_PROOF: live PostgreSQL/handshake_core proof for create rich doc -> non-empty block_id.",
-        "NEEDS_MANAGED_RESOURCE_PROOF: live doc A wikilink -> doc B inbound backlinks route with source_document_id == A.",
-        "NEEDS_MANAGED_RESOURCE_PROOF: live content_hash read/equality round trip against a saved rich document."
-      ],
-      "required_resource": "Seeded managed handshake_core/PostgreSQL workspace with rich-document creation, wikilink/inbound-backlink indexing, and content_hash readback available to the native integration tests."
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-29T22:54:51.5094833Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
+    "ready_for_validation_reason": "MT-032 FAIL_V2 remediation is committed at product source 9332ea522b17a6cb1faf8931ab6b51407670c74c. Real PostgreSQL proves document/LoomBlock identity, A-to-B backlink projection, canonical content hash, missing 404, stale 409 without mutation, and persistence through an owned backend restart. The mounted native path passes canonical Argus inspect, stable-id click, and fresh exact-source observation; internal_diagnostics and the Palmistry ring receive the same typed stalled-operation event; the UserManual now records the shipped three-tier posture. Official V3 validation remains pending.",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_DIAGNOSTICS_SCOPE_ARGUS_RETRY_AND_RUNTIME_CLEANUP_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
+    "ready_for_validation_summary": "MT-032 V3 is ready for independent validation from committed product source 9332ea52. The real PostgreSQL/restart, canonical Argus/WGPU, diagnostics Tier2/Tier3, manual, client, contention-retry, and full 16-test proof surfaces are green. Fixture-owned runtime roots and owned processes are reclaimed; the existing PostgreSQL service is unchanged. validator_verdict is PENDING_V3 and completed_by remains null.",
+    "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
+    "historical_missing_resource_superseded_v3": {
+      "status": "SUPERSEDED_BY_V3_REAL_POSTGRESQL_PROOF",
+      "superseded_at_utc": "2026-07-29T22:54:51.5094833Z",
+      "reason": "Historical managed-resource blockers are retained for lineage. V3 now self-seeds documents through production APIs against PostgreSQL, proves canonical document/LoomBlock identity, inbound backlink mutation, content hash, missing and stale paths, restart persistence, exact fixture deletion, and workspace cleanup."
     },
-    "ready_for_validation_summary": "MT-032 READY_FOR_VALIDATION evidence refreshed by KERNEL_BUILDER-20260705-074205: production backlink activation now uses the existing MT-015 dispatch bridge and shared CMD_OPEN_DOCUMENT shell drain, with regression coverage for direct-bypass prevention and bus-contention retry; loom_address and manual proof suites passed; HBR-MAN/HBR-INT posture is recorded. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL AC-2/AC-3/AC-6 remain NEEDS_MANAGED_RESOURCE_PROOF.",
+    "rfv_evidence_2026_07_29": {
+      "by": "KERNEL_BUILDER-20260728-221208",
+      "mode": "FAIL_V2_REAL_POSTGRESQL_THREE_TIER_DIAGNOSTICS_MANUAL_AND_CANONICAL_ARGUS_REMEDIATION",
+      "implementation_source_sha": "9332ea522b17a6cb1faf8931ab6b51407670c74c",
+      "product_commits": [
+        "9332ea52"
+      ],
+      "touched_files": [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/src/rich_editor/wikilinks/client.rs",
+        "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+        "src/frontend/handshake_native/tests/test_loom_address.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs"
+      ],
+      "canonical_proofs": [
+        "PASS: test_loom_address default surface 16 passed, 0 failed with HANDSHAKE_GPU_SCREENSHOT=1.",
+        "PASS: live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof against fixture-owned current-source backend and PostgreSQL; exact A/B document and LoomBlock ids, inbound row, canonical content hash, remove/restore/delete, canonical Argus click and fresh observation, and strict 900x480 WGPU capture.",
+        "PASS: live_pg_owned_restart_preserves_document_backlink_and_content_hash; old pid 159928, new pid 172980, exact listener reclaimed, persisted A-to-B backlink and canonical content hash, missing 404, stale 409 without mutation, and typed reconnect recovery.",
+        "PASS: backlinks_diagnostics_wire_reaches_internal_panel_and_palmistry_ring; fast success, 404, malformed JSON, network failure, cancellation, silent stall, Tier2 panel, same-sequence Tier3 ring, and terminal cleanup.",
+        "PASS: mounted_backlink_event_retries_when_bus_is_contended; visible retry, retained exact target, next-frame staging, and exact shell navigation.",
+        "PASS: wave5_surface_topics_ manual assertions 2 passed, 0 failed.",
+        "PASS: rich_editor::wikilinks::client::tests 6 passed, 0 failed."
+      ],
+      "hbr": {
+        "HBR_MAN": "The same committed change updates the canonical internal UserManual and its selector/content tests with the real route, stable identifiers, failure recovery, save receipt, and all three diagnostic-tier dispositions.",
+        "HBR_VIS": "Canonical Argus inspected the mounted B document and real A backlink row, safely clicked the stable row author_id, freshly re-observed exact source A, and produced strict external WGPU captures.",
+        "HBR_INT": "Read-only navigation/refresh is Tier1 NOT_APPLICABLE-with-reason; save-time backlink mutation is Tier1 WIRED through KnowledgeRichDocumentSaved and save_receipt_event_id; Reqwest backlink work is Tier2 WIRED to internal_diagnostics and Tier3 WIRED to the shared Palmistry ring with the same typed event sequence.",
+        "HBR_SWARM": "No session-launch or swarm ownership path changed; bus access is bounded/non-blocking and the contention regression proves retry rather than silent loss."
+      },
+      "process_and_artifact_boundary": "The fixture starts only quiet child processes with null stdin and file-backed stdout/stderr; no foreground terminal is opened. The existing PostgreSQL PID 121448 on port 5544 is never stopped. Owned backend children are reaped before every tracked initial/restart runtime root is removed; post-proof checks found zero new runtime roots and zero owned handshake_core/Cargo survivors.",
+      "artifact_cleanup": {
+        "status": "PASS_MT_TRANSIENTS_REMOVED_ACCEPTED_PROOF_PRESERVED",
+        "removed": [
+          "D:/cargo-mt032 (20.4 GB MT-specific frontend target)",
+          "MT-032 backend build output under Handshake_Artifacts/handshake-cargo-target (central target reduced from 19.2 GB to the unrelated 2.5 GB wp1-v5-combined-check subtree, which was preserved)",
+          "MT-032 backend build logs and redirected transient test log",
+          "MT-032 diagnostics-transient ring directory",
+          "Two pre-fix fixture-owned backend runtime roots: 1cc73571-efd9-46e3-930c-7ffc51f43eee and 15a3643e-1e08-4b28-bf1f-09be53c8f86e"
+        ],
+        "preserved": [
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-live-B.png",
+          "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-loom-chips.png",
+          "Handshake_Artifacts/handshake-cargo-target/wp1-v5-combined-check (unrelated build output)"
+        ]
+      },
+      "accepted_artifacts": [
+        {
+          "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-live-B.png",
+          "bytes": 39193,
+          "kind": "STRICT_WGPU_CANONICAL_ARGUS_LIVE_POSTGRESQL"
+        },
+        {
+          "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-loom-chips.png",
+          "bytes": 35948,
+          "kind": "STRICT_WGPU_DEFAULT_SURFACE"
+        }
+      ],
+      "adversarial_reviews": [
+        "Diagnostics reviewer PASS after cancellation-versus-panic hardening; no remaining blocker.",
+        "Argus/retry/runtime-root reviewer PASS after restart-root tracking and ephemeral-base guidance repair; no remaining finding.",
+        "Scope/restart reviewer PASS on committed source 9332ea52; no actionable product defect."
+      ],
+      "out_of_scope_waiver_needed": {
+        "reason": "The FAIL_V2 remediation explicitly requires the live mounted retry path, current three-tier UserManual/HBR posture, production diagnostics registration, and owned restart/runtime-root proof hygiene. Those necessary surfaces are absent from the historical narrow allowed_paths and cannot be proven or corrected solely in test_loom_address.rs.",
+        "touched_paths": [
+          "src/frontend/handshake_native/src/app.rs",
+          "src/frontend/handshake_native/src/manual_content_editors.rs",
+          "src/frontend/handshake_native/src/rich_editor/wikilinks/client.rs",
+          "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+          "src/frontend/handshake_native/tests/test_manual_content.rs"
+        ]
+      },
+      "validator_boundary": "Implementer handoff only: validator_verdict is PENDING_V3, completed_by is null, and historical FAIL_V1/FAIL_V2 verdict records remain preserved."
+    },
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
       "verdict": "PASS",
-      "emitted_by": "KERNEL_BUILDER-20260705-074205",
-      "emitted_at_utc": "2026-07-05T08:55:43.171Z"
+      "emitted_by": "KERNEL_BUILDER-20260728-221208",
+      "emitted_at_utc": "2026-07-29T22:54:10.768Z"
     }
   },
   "scope": {
@@ -231,18 +314,18 @@
   "hbr_int_009_tier_obligations": [
     {
       "tier": "FLIGHT_RECORDER_EVENTLEDGER",
-      "status": "NOT_APPLICABLE_WITH_REASON",
-      "reason": "The refreshed MT-032 fix changes local native editor navigation from a backlink row to the existing OpenDocument shell path. It does not mutate authority or write EventLedger records."
+      "status": "WIRED",
+      "reason": "Backlink row navigation and read-only refresh do not mutate authority and are NOT_APPLICABLE_WITH_REASON at Tier 1. The same surface's normal rich-document save and backlink mutation path is WIRED through KnowledgeRichDocumentSaved and returns save_receipt_event_id; the live PostgreSQL proof asserts authentic non-empty save receipts."
     },
     {
       "tier": "INTERNAL_DIAGNOSTICS",
-      "status": "DEFERRED_WITH_REASON",
-      "reason": "The native internal_diagnostics tier is not shipped for this route yet; the same-change manual now states this explicitly rather than implying diagnostic coverage exists."
+      "status": "WIRED",
+      "reason": "ReqwestWikilinkBackend::list_backlinks registers the shared bounded BackendCall operation. A silent request emits one typed StalledOperation/BackendCall event into the shipped internal diagnostics recorder and Diagnostics Panel; fast success, 404, malformed JSON, network failure, and cancellation do not false-stall."
     },
     {
       "tier": "PALMISTRY",
-      "status": "DEFERRED_WITH_REASON",
-      "reason": "The external watcher/Palmistry tier is not shipped for this route yet; the same-change manual now states this explicitly rather than implying watcher coverage exists."
+      "status": "WIRED",
+      "reason": "The same process-global recorder publishes the identical typed stalled-operation sequence into the shared file-backed ring consumed by Palmistry. The behavioral proof reads that exact sequence from a separately mapped ring and proves terminal cleanup."
     }
   ],
   "implementation_result": {
