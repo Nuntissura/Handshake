@@ -771,7 +771,11 @@ fn coordinator_source_forbids_direct_application_runtime_generate() {
         !source.contains("runtime.generate(request)"),
         "SwarmCoordinator application generation must not bypass LlmClient"
     );
-    assert!(distillation_source.contains("llm_client.clone().stream_completion(req)"));
+    // Parallel distillation drives application generation through the
+    // coordinator's LlmClient-mediated `generate_session_managed`, which
+    // internally dispatches `llm_client.stream_completion_with_context`. It must
+    // never reach a raw `ModelRuntime::generate` on the application path.
+    assert!(distillation_source.contains("generate_session_managed("));
     assert!(
         !distillation_source.contains("runtime.generate(req)"),
         "parallel distillation application generation must not bypass LlmClient"

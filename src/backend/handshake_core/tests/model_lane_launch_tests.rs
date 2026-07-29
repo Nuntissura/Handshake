@@ -1092,7 +1092,11 @@ fn spawn_request_for_adapter(
                     handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
                 ]),
                 handshake_core::sandbox::NetPolicy::HostInherited,
-                "execution-policy://test/model-lane-official-cli",
+                // MT-003 blocker #2: official-CLI / CLI-bridge lanes MUST carry a
+                // resolvable, descriptor-matching requested execution-policy ref.
+                // The preflight now rejects unknown/stale refs, so the proof must
+                // exercise the real cli_bridge policy authority, not a placeholder.
+                handshake_core::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
             ),
         DexterityLaunchAdapterKind::CliBridge => request
             .with_cloud_provider(ProviderKind::OfficialCli, "generic-cli-bridge-model")
@@ -1103,7 +1107,7 @@ fn spawn_request_for_adapter(
                     handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
                 ]),
                 handshake_core::sandbox::NetPolicy::HostInherited,
-                "execution-policy://test/model-lane-cli-bridge",
+                handshake_core::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
             ),
         other => panic!("adapter {other:?} is not process-backed"),
     }
