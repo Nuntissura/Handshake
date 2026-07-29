@@ -761,10 +761,20 @@ function Test-TerminalTreePredicate {
                     }).Count -eq 0
         }
         'empty-kanban-terminal' {
-            return $text.Contains('No Kanban lanes.')
+            $authorIds = @(Get-AuthorIds $Tree)
+            return $text.Contains('No lanes in this view.') -and
+                @($authorIds | Where-Object {
+                        $_.StartsWith('bcv.kanban.lane.', [StringComparison]::Ordinal) -or
+                        $_.StartsWith('bcv.kanban.card.', [StringComparison]::Ordinal)
+                    }).Count -eq 0
         }
         'empty-calendar-terminal' {
-            return $text.Contains('No blocks in this date range.')
+            $authorIds = @(Get-AuthorIds $Tree)
+            return $text.Contains('No blocks in this date range.') -and
+                @($authorIds | Where-Object {
+                        $_.StartsWith('bcv.calendar.day.', [StringComparison]::Ordinal) -or
+                        $_.StartsWith('bcv.calendar.entry.', [StringComparison]::Ordinal)
+                    }).Count -eq 0
         }
         default {
             throw "No external terminal-tree verifier exists for '$PredicateId'"

@@ -57,9 +57,10 @@ use handshake_native::graph::block_collection_view::{
     BlockViewEvent, BlockViewField, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewQuery,
     BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
     BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX,
-    KIND_CALENDAR_AUTHOR_ID, KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID,
-    NEW_VIEW_CONFIRM_AUTHOR_ID, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID, NEW_VIEW_KIND_KANBAN_AUTHOR_ID,
-    NEW_VIEW_TITLE_AUTHOR_ID, RETRY_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
+    KANBAN_CARD_AUTHOR_ID_PREFIX, KANBAN_LANE_AUTHOR_ID_PREFIX, KIND_CALENDAR_AUTHOR_ID,
+    KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID,
+    NEW_VIEW_KIND_CALENDAR_AUTHOR_ID, NEW_VIEW_KIND_KANBAN_AUTHOR_ID, NEW_VIEW_TITLE_AUTHOR_ID,
+    RETRY_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
 
@@ -2854,10 +2855,14 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     );
     let empty_kanban_tree =
         argus.assert_latest_terminal_predicate(&mut app_harness, "empty-kanban-terminal", |tree| {
-            tree.to_string().contains("No Kanban lanes.")
+            tree.to_string().contains("No lanes in this view.")
+                && json_author_prefix_count(tree, KANBAN_LANE_AUTHOR_ID_PREFIX) == 0
+                && json_author_prefix_count(tree, KANBAN_CARD_AUTHOR_ID_PREFIX) == 0
         });
     assert!(
-        empty_kanban_tree.to_string().contains("No Kanban lanes."),
+        empty_kanban_tree
+            .to_string()
+            .contains("No lanes in this view."),
         "canonical empty Kanban projection exposes the exact empty-state text"
     );
     argus.click_and_reinspect(&mut app_harness, KIND_CALENDAR_AUTHOR_ID);
@@ -2869,7 +2874,11 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     let empty_calendar_tree = argus.assert_latest_terminal_predicate(
         &mut app_harness,
         "empty-calendar-terminal",
-        |tree| tree.to_string().contains("No blocks in this date range."),
+        |tree| {
+            tree.to_string().contains("No blocks in this date range.")
+                && json_author_prefix_count(tree, CALENDAR_DAY_AUTHOR_ID_PREFIX) == 0
+                && json_author_prefix_count(tree, CALENDAR_ENTRY_AUTHOR_ID_PREFIX) == 0
+        },
     );
     assert!(
         empty_calendar_tree
