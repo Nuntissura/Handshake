@@ -479,12 +479,12 @@ if ($invalidRows.Count -ne 0) {
     throw 'Canonical Argus trace is not bound to the committed source and observed test process'
 }
 $methods = @($traceRows.method | Sort-Object -Unique)
-foreach ($requiredMethod in @('input.click', 'input.set_value')) {
+foreach ($requiredMethod in @('argus.click', 'argus.set_value')) {
     if ($methods -notcontains $requiredMethod) {
         throw "Canonical Argus trace is missing required method '$requiredMethod'"
     }
 }
-if (@($methods | Where-Object { $_ -notin @('input.click', 'input.set_value') }).Count -ne 0) {
+if (@($methods | Where-Object { $_ -notin @('argus.click', 'argus.set_value') }).Count -ne 0) {
     throw "Canonical Argus trace contains a non-action method: $($methods -join ', ')"
 }
 $receiptIds = @($traceRows.receipt_id)
@@ -784,30 +784,30 @@ function Test-TerminalTreePredicate {
 
 $movePayloadForPredicates = $traceRows[7].action_value | ConvertFrom-Json
 $expectedActions = @(
-    @{ method = 'input.click'; target = 'bcv.retry'; predicate = 'initial-retry-recovered-projection' },
-    @{ method = 'input.click'; target = 'bcv.kind.table'; predicate = 'kind-table-selected' },
-    @{ method = 'input.click'; target = 'bcv.kind.kanban'; predicate = 'kind-kanban-selected' },
-    @{ method = 'input.click'; target = 'bcv.kind.calendar'; predicate = 'kind-calendar-selected' },
-    @{ method = 'input.click'; target = 'bcv.kind.table'; predicate = 'kind-table-restored' },
-    @{ method = 'input.click'; target = 'bcv.table.sort.title'; predicate = 'sort-title-ascending' },
-    @{ method = 'input.click'; target = 'bcv.retry'; predicate = 'kanban-retry-loaded-card' },
-    @{ method = 'input.click'; target = 'collection.kanban-move'; predicate = 'kanban-card-moved-target-lane'; payload = 'kanban-move' },
-    @{ method = 'input.click'; target = 'bcv.retry'; predicate = 'calendar-retry-loaded-controls' },
-    @{ method = 'input.set_value'; target = 'bcv.calendar.date-from'; predicate = 'calendar-from-value'; value = '2026-02-28' },
-    @{ method = 'input.set_value'; target = 'bcv.calendar.date-to'; predicate = 'calendar-to-value'; value = '2026-04-30' },
-    @{ method = 'input.click'; target = 'bcv.calendar.apply-range'; predicate = 'calendar-range-terminal' },
-    @{ method = 'input.click'; target = 'bcv.new-view'; predicate = 'unbound-create-form-open' },
-    @{ method = 'input.set_value'; target = 'bcv.new-view.title'; predicate = 'unbound-create-title-set'; value_suffix = '-host-created' },
-    @{ method = 'input.click'; target = 'bcv.new-view.kind.calendar'; predicate = 'unbound-create-calendar-selected' },
-    @{ method = 'input.click'; target = 'bcv.new-view.confirm'; predicate = 'unbound-create-calendar-terminal' },
-    @{ method = 'input.click'; target = 'bcv.new-view'; predicate = 'retry-create-form-open' },
-    @{ method = 'input.set_value'; target = 'bcv.new-view.title'; predicate = 'retry-create-title-set'; value_suffix = '-retry-created' },
-    @{ method = 'input.click'; target = 'bcv.new-view.kind.kanban'; predicate = 'retry-create-kanban-selected' },
-    @{ method = 'input.click'; target = 'bcv.new-view.confirm'; predicate = 'failed-create-retry-visible' },
-    @{ method = 'input.click'; target = 'bcv.retry'; predicate = 'retry-create-kanban-terminal' },
-    @{ method = 'input.click'; target = 'bcv.retry'; predicate = 'empty-table-terminal' },
-    @{ method = 'input.click'; target = 'bcv.kind.kanban'; predicate = 'empty-kanban-terminal' },
-    @{ method = 'input.click'; target = 'bcv.kind.calendar'; predicate = 'empty-calendar-terminal' }
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'initial-retry-recovered-projection' },
+    @{ method = 'argus.click'; target = 'bcv.kind.table'; predicate = 'kind-table-selected' },
+    @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'kind-kanban-selected' },
+    @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'kind-calendar-selected' },
+    @{ method = 'argus.click'; target = 'bcv.kind.table'; predicate = 'kind-table-restored' },
+    @{ method = 'argus.click'; target = 'bcv.table.sort.title'; predicate = 'sort-title-ascending' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'kanban-retry-loaded-card' },
+    @{ method = 'argus.click'; target = 'collection.kanban-move'; predicate = 'kanban-card-moved-target-lane'; payload = 'kanban-move' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'calendar-retry-loaded-controls' },
+    @{ method = 'argus.set_value'; target = 'bcv.calendar.date-from'; predicate = 'calendar-from-value'; value = '2026-02-28' },
+    @{ method = 'argus.set_value'; target = 'bcv.calendar.date-to'; predicate = 'calendar-to-value'; value = '2026-04-30' },
+    @{ method = 'argus.click'; target = 'bcv.calendar.apply-range'; predicate = 'calendar-range-terminal' },
+    @{ method = 'argus.click'; target = 'bcv.new-view'; predicate = 'unbound-create-form-open' },
+    @{ method = 'argus.set_value'; target = 'bcv.new-view.title'; predicate = 'unbound-create-title-set'; value_suffix = '-host-created' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.kind.calendar'; predicate = 'unbound-create-calendar-selected' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.confirm'; predicate = 'unbound-create-calendar-terminal' },
+    @{ method = 'argus.click'; target = 'bcv.new-view'; predicate = 'retry-create-form-open' },
+    @{ method = 'argus.set_value'; target = 'bcv.new-view.title'; predicate = 'retry-create-title-set'; value_suffix = '-retry-created' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.kind.kanban'; predicate = 'retry-create-kanban-selected' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.confirm'; predicate = 'failed-create-retry-visible' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'retry-create-kanban-terminal' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'empty-table-terminal' },
+    @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'empty-kanban-terminal' },
+    @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'empty-calendar-terminal' }
 )
 for ($index = 0; $index -lt $expectedActions.Count; $index++) {
     $expectedAction = $expectedActions[$index]
