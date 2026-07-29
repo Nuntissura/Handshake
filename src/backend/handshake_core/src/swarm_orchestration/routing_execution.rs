@@ -2445,8 +2445,24 @@ async fn validate_initial_input_tx(
     let artifact_json: Value = row.get("artifact_json");
     let artifact_payload: Value = row.get("artifact_payload");
     let bound_hash = message_json.get("payload_sha256").and_then(Value::as_str);
-    let canonical_message_record = record_without_generated_event_fields(message_json.clone());
+    // The MODEL_RESPONSE_RECORDED EventLedger payload stores `crdt_authority_binding`
+    // as a SIBLING of `/record` (see `record_message_tx`), while the mutable
+    // `record_json` projection nests it inside the record object. Compare the record
+    // body without that field, then verify the binding against the ledger sibling
+    // separately, mirroring the diagnostics-projection drift check. Without this a
+    // CRDT-bearing initial input (`crdt_authority_binding` = Some) is falsely rejected
+    // as a hash/EventLedger binding mismatch; the crdt binding is still fully asserted.
+    let mut canonical_message_record = record_without_generated_event_fields(message_json.clone());
+    let row_crdt_binding = canonical_message_record
+        .as_object_mut()
+        .and_then(|record| record.remove("crdt_authority_binding"))
+        .unwrap_or(Value::Null);
+    let ledger_crdt_binding = message_payload
+        .get("crdt_authority_binding")
+        .cloned()
+        .unwrap_or(Value::Null);
     if message_payload.pointer("/record") != Some(&canonical_message_record)
+        || row_crdt_binding != ledger_crdt_binding
         || artifact_payload.pointer("/record") != Some(&artifact_json)
         || bound_hash != Some(expected_sha256)
         || artifact_json.get("artifact_sha256").and_then(Value::as_str) != Some(expected_sha256)

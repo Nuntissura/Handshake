@@ -2360,7 +2360,13 @@ async fn operator_chat_selection_emits_auditable_decision_event() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn operator_chat_launch_route_performs_real_launch_when_wired() {
     let (_pool, store) = pg_store().await;
-    let coordinator = cli_loopback_coordinator(store.clone(), codex_stream_lines());
+    // Retain the process-ledger drain for the whole test: `manual_for_tests` holds
+    // the mpsc receiver inside the drain and runs no writer task, so dropping it
+    // closes the channel and the launch's lossless terminal STOP-row enqueue fails
+    // with PROCESS_LEDGER_ENQUEUE_DROPPED (a 500). Sibling runtime-driving tests keep
+    // the drain for the same reason; `cli_loopback_coordinator` dropped it.
+    let (coordinator, _process_ledger_drain) =
+        cli_loopback_coordinator_with_ledger(store.clone(), codex_stream_lines());
     let recorder = Arc::new(CapturingRecorder::default());
     let service = Arc::new(OperatorChatLaunchService::new(
         coordinator,
@@ -2399,7 +2405,13 @@ async fn operator_chat_launch_route_performs_real_launch_when_wired() {
         "lane_kind": "cli",
         "model_id": "gpt-5-codex",
         "cli_provider": "codex",
-        "working_dir": "D:/work/repo",
+        // Must be a REAL, canonicalizable directory: a wired launch drives the
+        // runtime through a checkout lease (`canonical_checkout_root`) that
+        // canonicalizes working_dir on disk. Every other launch test uses
+        // `existing_working_dir()`; this HTTP-body fixture was missed when the
+        // rest were migrated, so a non-existent path fails closed with
+        // SWARM_CHECKOUT_LEASE_FAILED (os error 3) instead of the real 200 launch.
+        "working_dir": existing_working_dir(),
         "prompt": "audit the repo",
         "owner_session_id": "operator-route"
     });
@@ -2409,12 +2421,12 @@ async fn operator_chat_launch_route_performs_real_launch_when_wired() {
         .send()
         .await
         .expect("launch request");
-    assert_eq!(
-        resp.status().as_u16(),
-        200,
-        "a wired launch route performs a REAL launch, never 503 launch_not_wired"
-    );
+    let launch_status = resp.status().as_u16();
     let launched: serde_json::Value = resp.json().await.expect("launch json");
+    assert_eq!(
+        launch_status, 200,
+        "a wired launch route performs a REAL launch, never 503 launch_not_wired; body={launched:?}"
+    );
     let run_id = launched["run_id"].as_str().expect("run_id").to_string();
     assert_eq!(
         launched["captured_message_count"].as_u64(),
