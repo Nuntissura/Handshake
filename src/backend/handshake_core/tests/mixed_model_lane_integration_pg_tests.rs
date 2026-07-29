@@ -325,11 +325,23 @@ async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects()
             "SubagentManager-owned no-OS lane must not invoke the OS/runtime factory"
         );
 
-        let messages = vec![
-            sample_message(LOCAL_MESSAGE_ID, RUN_ID, LOCAL_LANE_ID, "local", 1),
-            sample_message(CLOUD_MESSAGE_ID, RUN_ID, CLOUD_LANE_ID, "cloud", 2),
-            sample_message(SUBAGENT_MESSAGE_ID, RUN_ID, SUBAGENT_LANE_ID, "subagent", 3),
-        ];
+        // The mixed-file `sample_message` is `authority=PromotionCandidate,
+        // proposal_ref=None`, which `validate_message_authority` (~model_lane.rs 15254)
+        // rejects with "proposal_ref is required" BEFORE any durable transaction. All
+        // three lane messages here are ADMITTED (they persist as process-backed lane
+        // messages and appear in replay/projection), so each carries a routing-advisory
+        // proposal_ref. No `crdt_*` struct field is set.
+        let messages = {
+            let mut local = sample_message(LOCAL_MESSAGE_ID, RUN_ID, LOCAL_LANE_ID, "local", 1);
+            let mut cloud = sample_message(CLOUD_MESSAGE_ID, RUN_ID, CLOUD_LANE_ID, "cloud", 2);
+            let mut subagent =
+                sample_message(SUBAGENT_MESSAGE_ID, RUN_ID, SUBAGENT_LANE_ID, "subagent", 3);
+            local.proposal_ref = Some(format!("proposal://mt009/mixed/{}", LOCAL_MESSAGE_ID));
+            cloud.proposal_ref = Some(format!("proposal://mt009/mixed/{}", CLOUD_MESSAGE_ID));
+            subagent.proposal_ref =
+                Some(format!("proposal://mt009/mixed/{}", SUBAGENT_MESSAGE_ID));
+            vec![local, cloud, subagent]
+        };
         for message in messages.iter().take(2) {
             store
                 .record_message_with_payload_binding(
@@ -616,13 +628,18 @@ async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects()
             )
             .await
             .expect("persist the no-OS subagent terminal cancellation boundary");
-        let late_subagent_message = sample_message(
+        let mut late_subagent_message = sample_message(
             "msg-mt009-subagent-late-after-cancel",
             RUN_ID,
             SUBAGENT_LANE_ID,
             "subagent",
             4,
         );
+        // proposal_ref so this post-cancel output fails at the durable
+        // terminal-source-lane guard (asserted below), not on the synchronous
+        // proposal_ref pre-check. No `crdt_*` struct field is set.
+        late_subagent_message.proposal_ref =
+            Some("proposal://mt009/mixed/late-subagent".into());
         let late_binding = sample_artifact_binding_for_message(&late_subagent_message);
         let late_binding_id = late_binding.artifact_binding_id.clone();
         active_phase.store(11, Ordering::SeqCst);
@@ -1039,6 +1056,16 @@ async fn mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key()
     for (message_id, lane_id, label, value, seq) in writers {
         let store = std::sync::Arc::clone(&shared_store);
         let mut message = sample_message(message_id, SWARM_RUN_ID, lane_id, label, seq);
+        // The mixed-file `sample_message` is `authority=PromotionCandidate,
+        // proposal_ref=None`, which `validate_message_authority` (~model_lane.rs 15254)
+        // rejects with "proposal_ref is required" BEFORE the durable transaction. Each
+        // concurrent writer must be ADMITTED, so it carries a routing-advisory
+        // proposal_ref. The "shared CRDT key" here is a diagnostic_payload logical
+        // convergence key resolved by the test-local `materialize_crdt`; no `crdt_*`
+        // struct field is set, so `validate_message_crdt_authority_tx` sees no CRDT
+        // metadata (`Ok(None)`) and the production CRDT resolver / lease path is never
+        // entered — no real-CRDT seeding is required.
+        message.proposal_ref = Some(format!("proposal://mt009/swarm/{message_id}"));
         message.diagnostic_payload["crdt_key"] = json!(SHARED_CRDT_KEY);
         message.diagnostic_payload["crdt_value"] = json!(value);
         handles.push(tokio::spawn(
@@ -7208,7 +7235,17 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
             .await
             .expect("record AC-9 authority lane");
     }
-    let source_message = sample_message(&source_message_id, &run_id, &source_lane_id, "local", 1);
+    let mut source_message =
+        sample_message(&source_message_id, &run_id, &source_lane_id, "local", 1);
+    // The mixed-file `sample_message` is `authority=PromotionCandidate,
+    // proposal_ref=None`, which `validate_message_authority` (~model_lane.rs 15254)
+    // rejects with "proposal_ref is required" BEFORE the durable transaction. This
+    // source message is the ADMITTED selected promotion input, so it carries a
+    // routing-advisory proposal_ref. No `crdt_*` struct field is set: the AC-9
+    // promotion lineage is non-CRDT (see the "not-applicable" base_snapshot_ref /
+    // state_vector on the promotion decision below, matching the non-CRDT convention
+    // in model_lane_promotion_pg_tests.rs `sample_decision`).
+    source_message.proposal_ref = Some(format!("proposal://ac9/{suffix}/{source_message_id}"));
     let source_record = store
         .record_message_with_payload_binding(
             source_message.clone(),
@@ -7264,22 +7301,20 @@ async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9Product
             expected_event_ledger_aggregate_type: "model_lane_message".into(),
             expected_event_ledger_aggregate_id: source_record.message_id.clone(),
             expected_event_ledger_version: source_record.event_ledger_seq,
-            base_snapshot_ref: source_record
-                .crdt_base_snapshot_ref
-                .clone()
-                .expect("source message CRDT base"),
-            current_base_snapshot_ref: source_record
-                .crdt_base_snapshot_ref
-                .clone()
-                .expect("source message current CRDT base"),
-            state_vector: source_record
-                .crdt_state_vector
-                .clone()
-                .expect("source message state vector"),
-            current_state_vector: source_record
-                .crdt_state_vector
-                .clone()
-                .expect("source message current state vector"),
+            // The AC-9 source message is a non-CRDT PromotionCandidate: `sample_message`
+            // carries no `crdt_*` struct fields (only diagnostic_payload keys), so
+            // `validate_stored_crdt_message_authority_tx` resolves it as `Ok(None)`,
+            // `resolve_promotion_input_refs_tx` leaves current_base_snapshot_ref /
+            // current_state_vector unset, and `prepare_promotion_decision_tx` derives them
+            // as "not-applicable". For the Approved outcome asserted below the supplied
+            // base_snapshot_ref / state_vector MUST equal that derived "not-applicable"
+            // (otherwise StaleBase / InputRefMismatch denial). current_* here is ignored
+            // (server-derived) but must still be a non-empty token. Matches the non-CRDT
+            // promotion convention in model_lane_promotion_pg_tests.rs `sample_decision`.
+            base_snapshot_ref: "not-applicable".into(),
+            current_base_snapshot_ref: "not-applicable".into(),
+            state_vector: "not-applicable".into(),
+            current_state_vector: "not-applicable".into(),
             schema_id: "hsk.model_lane_message@1".into(),
             deterministic_tie_break_rule: "event_ledger_seq_then_message_id".into(),
             promotion_gate_ref: format!("promotion-gate://ac9/{suffix}"),

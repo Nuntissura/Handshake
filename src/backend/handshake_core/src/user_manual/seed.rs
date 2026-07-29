@@ -2261,8 +2261,8 @@ fn page_model_lane_promotion() -> NewUserManualPage {
                  `promotion_receipt_ref`, `promotion_decision_id`, \
                  `promoted_artifact_ref`, `promoted_artifact_sha256`, \
                  `promoted_artifact_version`, and message routing fields. \
-                 HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
-                  `dexterity_model_lane` rows; internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and must observe promotion rows without becoming \
+                 HBR-INT-009 posture: Flight Recorder/EventLedger authority is WIRED through \
+                  `dexterity_model_lane` promotion-decision rows, but direct Flight Recorder event emission for promotion decisions is DEFERRED-with-reason to the FR-EVT-DEXTERITY follow-on wiring (promotion writes durable EventLedger rows + evidence refs today; a dedicated FlightRecorderEvent stream is not yet emitted). internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and must observe promotion rows without becoming \
                  authority.",
             ),
             section(
