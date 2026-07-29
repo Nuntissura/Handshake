@@ -1156,7 +1156,18 @@ async fn mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages
         .expect("first chunk must be successful");
     assert_eq!(prefix.text, "mt009-prefix");
 
+    // The mixed-file `sample_message` is `authority=PromotionCandidate,
+    // proposal_ref=None`, which `validate_message_authority` (~model_lane.rs 15254)
+    // rejects with "proposal_ref is required" BEFORE the durable transaction runs
+    // (validate_message is called first in record_message, ~model_lane.rs 282).
+    // This test proves cancellation/terminal-boundary behavior, not promotion
+    // authority, so the prefix (which must admit) AND every late message below
+    // (which must reach and fail at the terminal-source-lane guard, not the sync
+    // proposal_ref pre-check) carry a routing-advisory proposal_ref to become
+    // admissible without any CRDT authority. No `crdt_*` field is set. Matches the
+    // mt004_duplicate fix pattern at HEAD.
     let mut prefix_message = sample_message(PREFIX_MESSAGE_ID, RUN_ID, LANE_ID, "local", 1);
+    prefix_message.proposal_ref = Some(format!("proposal://mt009/midstream/{PREFIX_MESSAGE_ID}"));
     prefix_message.diagnostic_payload["stream_token_id"] = json!(prefix.token_id);
     let prefix_record = store
         .record_message(prefix_message.clone())
@@ -1203,13 +1214,16 @@ async fn mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages
     assert!(terminal.event_ledger_seq > prefix_record.event_ledger_seq);
     assert_eq!(terminal.status, ModelLaneStatus::Cancelled);
 
-    let late_chunk = sample_message(
+    let mut late_chunk = sample_message(
         "msg-mt009-midstream-late-chunk",
         RUN_ID,
         LANE_ID,
         "local",
         2,
     );
+    // proposal_ref so the late chunk fails at the durable terminal-source-lane
+    // guard (its intended failure), not on the synchronous proposal_ref pre-check.
+    late_chunk.proposal_ref = Some("proposal://mt009/midstream/late-chunk".into());
     let late_chunk_error = store
         .record_message(late_chunk.clone())
         .await
@@ -1225,6 +1239,9 @@ async fn mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages
     let mut late_tool =
         sample_message("msg-mt009-midstream-late-tool", RUN_ID, LANE_ID, "local", 3);
     late_tool.kind = ModelLaneMessageKind::ToolRequest;
+    // proposal_ref so the late tool request fails at the terminal-source-lane
+    // guard, not on the synchronous proposal_ref pre-check.
+    late_tool.proposal_ref = Some("proposal://mt009/midstream/late-tool".into());
     let late_tool_error = store
         .record_message(late_tool.clone())
         .await
@@ -1235,13 +1252,17 @@ async fn mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages
     // The actual operator-capture persistence shape binds payload + message in
     // one transaction. A terminal rejection must roll both paths back rather
     // than leaving the old binding-before-message orphan behind.
-    let late_bound = sample_message(
+    let mut late_bound = sample_message(
         "msg-mt009-midstream-late-bound",
         RUN_ID,
         LANE_ID,
         "local",
         4,
     );
+    // proposal_ref so the atomic payload-binding path also fails at the durable
+    // terminal-source-lane guard (record_message_with_payload_binding_tx validates
+    // the message first), not on the synchronous proposal_ref pre-check.
+    late_bound.proposal_ref = Some("proposal://mt009/midstream/late-bound".into());
     let late_binding = sample_artifact_binding_for_message(&late_bound);
     let late_binding_error = store
         .record_message_with_payload_binding(late_bound.clone(), late_binding.clone())
@@ -1351,10 +1372,19 @@ async fn mt009_bidirectional_lane_messages_do_not_deadlock() {
             .expect("record bidirectional local lane");
     }
 
+    // The mixed-file `sample_message` is `authority=PromotionCandidate,
+    // proposal_ref=None`, which `validate_message_authority` (~model_lane.rs 15254)
+    // rejects with "proposal_ref is required" before the peer-lane locking path
+    // this test exercises can run. Both opposite-direction messages must be
+    // admitted to prove the canonical lock order does not deadlock, so both carry a
+    // routing-advisory proposal_ref. No `crdt_*` field is set. Matches the
+    // mt004_duplicate fix pattern at HEAD.
     let mut a_to_b = sample_message("msg-mt009-a-to-b", RUN_ID, LANE_A, "local", 1);
     a_to_b.to_lane = ModelLaneTarget::Lane(LANE_B.into());
+    a_to_b.proposal_ref = Some("proposal://mt009/bidirectional/a-to-b".into());
     let mut b_to_a = sample_message("msg-mt009-b-to-a", RUN_ID, LANE_B, "local", 2);
     b_to_a.to_lane = ModelLaneTarget::Lane(LANE_A.into());
+    b_to_a.proposal_ref = Some("proposal://mt009/bidirectional/b-to-a".into());
     let store = Arc::new(store);
     let first_store = Arc::clone(&store);
     let second_store = Arc::clone(&store);

@@ -1283,9 +1283,33 @@ async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayabl
         .record_message(cross_lane)
         .await
         .expect_err("another lane cannot claim the local lane CRDT update");
-    assert!(cross_lane_error
-        .to_string()
-        .contains("cannot be attributed"));
+    // Post-644dee55 fail-closed trace (see
+    // src/backend/handshake_core/src/swarm_orchestration/model_lane.rs). Now that
+    // model-authored CRDT authority is admissible, this cross-lane claim reaches
+    // the durable CRDT authority path and is denied at the FIRST cross-lane guard:
+    //   1. validate_message_crdt_authority_tx (~441) resolves the same local CRDT
+    //      authority the source message carries: actor "session-lane-local".
+    //   2. validate_crdt_lane_session_uniqueness_tx (~449) fires BEFORE both
+    //      resolve_active_crdt_actor_lane_lease_tx (~450) and
+    //      bind_crdt_authority_to_lane (~458). It proves the resolved CRDT session
+    //      is uniquely owned by exactly one ModelLane (lane-local) and rejects any
+    //      other source lane claiming it.
+    // This IS the correct cross-lane guard: the local CRDT update is authored under
+    // session "session-lane-local", which model_lanes proves belongs to lane-local.
+    // A cloud-lane lease for that local session cannot legitimately exist (the
+    // uniqueness query requires exactly one owning lane), so the attribution check
+    // at model_lane.rs:12938 ("cannot be attributed") is unreachable for a genuine
+    // cross-lane claim and asserting it here would assert a denial the resolver
+    // never produces. We assert the real, stronger session-ownership denial instead
+    // (fail-closed preserved: the message is still rejected, and the reason names
+    // the true owning lane vs the offending source lane).
+    let cross_lane_denial = cross_lane_error.to_string();
+    assert!(
+        cross_lane_denial
+            .contains("crdt session session-lane-local belongs to run run-mt005 lane lane-local")
+            && cross_lane_denial.contains("not source run run-mt005 lane lane-cloud"),
+        "cross-lane CRDT claim must fail closed on session ownership (lane-local owns the update, lane-cloud cannot claim it): {cross_lane_denial}"
+    );
 
     let mut handoff = sample_handoff(
         "handoff-crdt-replayable",

@@ -792,7 +792,21 @@ fn sample_decision(
         replay_order_key: format!("00000020/{decision_id}"),
         recovery_hint_ref: Some("usermanual://model-lane-promotion#decision".into()),
         created_at_utc: "2026-06-29T08:02:00Z".into(),
+        // Every MT-004 routing policy that reaches a cloud dispatch stage
+        // (LocalFirst cloud-escalation, CloudReview cloud-review,
+        // CloudPlanLocalExecute cloud-plan, ParallelDebate debate-cloud) is
+        // gated by `ModelLaneRoutingAuthorityGate::CloudConsent`.
+        // `record_promotion_decision` runs `require_authority_contract` over the
+        // full canonical graph, so the decision must present a cloud-consent
+        // authority reference. This is the durable ConsentReceipt id that
+        // `seed_run_with_advisory_messages` persists via
+        // `model_lane_cloud_support::seed_cloud_lane_authority` for `lane-cloud`
+        // (spec 4.3.9.2.5 / CX-MM-007), not a stub. It matches the canonical
+        // production seeding pattern used by the MT-006/MT-009 cloud suites,
+        // which set `diagnostic_payload["cloud_consent_receipt_ref"]` to the
+        // seeded receipt id before recording the promotion decision.
         diagnostic_payload: json!({
+            "cloud_consent_receipt_ref": "consent://lane-cloud",
             "flight_recorder": "EventLedger append required before authority mutation",
             "loom": "promotion is deterministic host-side state",
             "locus": "locus://wp1/mt004/coordinator-session-mt004",
