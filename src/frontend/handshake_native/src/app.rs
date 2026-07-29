@@ -25434,6 +25434,7 @@ impl HandshakeApp {
             if let Ok(mut shared) = self.loom_search_v2_shared.lock() {
                 shared.workspace_id = workspace_id.clone();
                 shared.palette = palette.clone();
+                shared.active_pane_id = self.active_pane.clone();
             }
             // MT-029: mirror the same per-frame push into the Find-in-Files pane's shared cell so its
             // search targets the active workspace and its highlight tracks the live theme.

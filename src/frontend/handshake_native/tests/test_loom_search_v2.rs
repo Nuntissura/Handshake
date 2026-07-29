@@ -1887,7 +1887,20 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
 
     // Canonical mounted empty state: drive a guaranteed-miss query through the production Argus
     // transport, then bind the Search action to the exact zero-row terminal tree.
-    let missing_query = format!("no-hit-{unique}");
+    let missing_query = "qzxvjkbbpqzxvjkbbpqzxvjkbbpqzxvjkbbp".to_owned();
+    let direct_empty = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/search-v2"),
+        &serde_json::json!({
+            "query": missing_query.clone(),
+            "content_type": "note",
+            "limit": 25,
+            "offset": 0
+        }),
+    );
+    assert_eq!(
+        direct_empty["total"], 0,
+        "the mounted empty-state query must first prove zero against the real search authority"
+    );
     argus.set_value_and_reinspect(&mut harness, QUERY_AUTHOR_ID, &missing_query);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
@@ -1903,21 +1916,89 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     argus.click_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
     for _ in 0..400 {
         harness.run_steps(1);
-        if harness
-            .query_by_label("0 results (keyword/fuzzy only)")
-            .is_some()
-        {
+        let status_is_empty = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(STATUS_AUTHOR_ID))
+            .and_then(|node| node.accesskit_node().value())
+            .is_some_and(|value| value == "0 results (keyword/fuzzy only)");
+        if status_is_empty {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
-    argus.assert_latest_terminal_predicate(&mut harness, "zero-results-no-stale-rows", |tree| {
-        let serialized = serde_json::to_string(tree).unwrap_or_default();
-        serialized.contains("0 results (keyword/fuzzy only)")
-            && seeded
-                .values()
-                .all(|block_id| !json_has_author_id(tree, &result_author_id(block_id)))
-    });
+    let empty_prefixed_search_path =
+        format!("/mt028-rebind/workspaces/{workspace_id}/loom/search-v2");
+    let mounted_empty_query = rebind_proxy
+        .captured_requests()
+        .into_iter()
+        .filter(|request| {
+            request.method == "POST" && request.prefixed_path == empty_prefixed_search_path
+        })
+        .last()
+        .and_then(|request| {
+            request
+                .body
+                .get("query")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    let live_empty_statuses = harness
+        .root()
+        .children_recursive()
+        .filter(|node| node.accesskit_node().author_id() == Some(STATUS_AUTHOR_ID))
+        .map(|node| node.accesskit_node().value().unwrap_or_default())
+        .collect::<Vec<_>>();
+    let active_pane = harness
+        .state()
+        .active_pane()
+        .map(|pane_id| pane_id.as_ref().to_owned());
+    let search_tab_panes = harness
+        .state()
+        .tab_bar_states()
+        .iter()
+        .filter_map(|(pane_id, bar)| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == PaneType::LoomSearchV2)
+                .then(|| pane_id.as_ref().to_owned())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        mounted_empty_query.as_deref(),
+        Some(missing_query.as_str()),
+        "Argus Search must send the missing query; statuses={live_empty_statuses:?}; active_pane={active_pane:?}; search_tab_panes={search_tab_panes:?}"
+    );
+    let empty_tree = argus.inspect(&mut harness);
+    let empty_status = json_node_by_author_id(&empty_tree, STATUS_AUTHOR_ID)
+        .map(|node| serde_json::to_string(node).unwrap_or_default())
+        .unwrap_or_default();
+    let stale_empty_result_ids = seeded
+        .values()
+        .filter(|block_id| json_has_author_id(&empty_tree, &result_author_id(block_id)))
+        .cloned()
+        .collect::<Vec<_>>();
+    assert!(
+        empty_status.contains("0 results (keyword/fuzzy only)")
+            && stale_empty_result_ids.is_empty(),
+        "canonical empty tree mismatch: status={empty_status}; stale_result_ids={stale_empty_result_ids:?}; live_statuses={live_empty_statuses:?}; active_pane={active_pane:?}; search_tab_panes={search_tab_panes:?}"
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "zero-results-no-stale-rows",
+        serde_json::json!({
+            "status": empty_status,
+            "stale_result_ids": stale_empty_result_ids
+        }),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .map(|node| serde_json::to_string(node).unwrap_or_default())
+                .is_some_and(|status| status.contains("0 results (keyword/fuzzy only)"))
+                && seeded
+                    .values()
+                    .all(|block_id| !json_has_author_id(tree, &result_author_id(block_id)))
+        },
+    );
     let empty_save_disabled = harness
         .root()
         .children_recursive()

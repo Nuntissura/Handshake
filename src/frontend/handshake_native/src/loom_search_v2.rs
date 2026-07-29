@@ -782,6 +782,10 @@ pub struct LoomSearchV2PaneShared {
     /// The live theme palette, so the `<mark>` highlight reads the themed `search_highlight_bg` and the
     /// pane flips dark<->light with the rest of the shell.
     pub palette: HsPalette,
+    /// The shell-authoritative active pane. A live mounted pane receives canonical author ids only
+    /// when its exact `PaneId` matches this value; every other instance is deterministically scoped.
+    /// This avoids frame-counter heuristics across the fresh egui context used by Argus snapshots.
+    pub active_pane_id: Option<PaneId>,
     /// Typed targets the operator/agent clicked this frame, drained by the shell into the exact
     /// originating pane's open path (FIFO).
     pub open_requests: Vec<LoomSearchOpenRequest>,
@@ -793,6 +797,7 @@ impl LoomSearchV2PaneShared {
         Self {
             workspace_id: None,
             palette,
+            active_pane_id: None,
             open_requests: Vec::new(),
         }
     }
@@ -882,9 +887,13 @@ impl PaneFactory for LoomSearchV2PaneFactory {
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
         // Read the per-frame inputs (workspace id + palette) under a short lock, so the long-lived
         // `show` borrow does not hold the shared mutex while the panel renders.
-        let (workspace_id, palette) = {
+        let (workspace_id, palette, active_pane_id) = {
             let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
-            (guard.workspace_id.clone(), guard.palette.clone())
+            (
+                guard.workspace_id.clone(),
+                guard.palette.clone(),
+                guard.active_pane_id.clone(),
+            )
         };
         let shared_for_open = Arc::clone(&self.shared);
         let origin_pane_id = ctx.record.pane_id.clone();
@@ -901,7 +910,9 @@ impl PaneFactory for LoomSearchV2PaneFactory {
                 });
             }
         };
-        let secondary_pane_id = {
+        let secondary_pane_id = if let Some(active_pane_id) = active_pane_id {
+            (active_pane_id != ctx.record.pane_id).then_some(ctx.record.pane_id.as_ref())
+        } else {
             let mut primary = self
                 .primary
                 .lock()
