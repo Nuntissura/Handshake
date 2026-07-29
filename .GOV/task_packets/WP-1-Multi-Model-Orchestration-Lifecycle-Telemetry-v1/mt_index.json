@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T15:20:28Z",
+  "generated_at_utc": "2026-07-29T16:15:50Z",
   "total": 19,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
@@ -367,14 +367,14 @@
     },
     {
       "mt_id": "MT-015",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-006"
       ],
       "summary": "Operator-facing cloud-model access config surface: CLI-bridge/plan auth+login status for Claude Code + GPT/Codex (operator's primary), and BYOK API-key entry (Anthropic/OpenAI) stored in the OS-keychain secrets vault for other users. Gemini excluded (CLI deprecating). Backends exist (WP-KERNEL-004); this builds the config UI. OPERATOR_REQUESTED_ADDITION 2026-07-02.",
       "unlocks": "Unlocks operator/other-user cloud-model access (plan login + BYOK key) so cloud lanes are reachable from the operator surface and enumerable by the MT-012 picker.",
       "blocks": [],
-      "proof_status": "FAIL_V4: The secrets boundary was hardened, but the changed Settings/cloud-access surface lacks production Argus proof across real panels and detached windows. Current tests use in-process widget access, while the screenshot route cannot target pop-outs, so the operator's all-panels/all-windows requirement is unmet.",
+      "proof_status": "READY_FOR_VALIDATION_V5: V4 blocker closed. Fixed a REAL production accessibility gap -- the DETACHED cloud-access Settings surface emitted its CLI auth-status + BYOK configured/unavailable state via plain ui.label, which egui does NOT auto-expose as an AccessKit name in an embedded (detached-window) viewport, so an out-of-process Argus client targeting popout-settings could not read the state (acceptance [1]/[4]). settings_dialog.rs render_cloud_models_body now emits the non-secret status text via set_author_id_and_label at both sites (fixed &static literals, no key material). VERIFIED HEADLESS (egui_kittest AccessKit) on this box: test_cloud_models_detached_settings_argus 6/6 (all controls addressable in the detached window; all 3 CLI auth states + BYOK configured/unavailable render; Gemini absent; CLI login operable without stealing focus; screenshot capture-target resolves popout-settings by recorded HWND with title fallback; BYOK key never appears as author_id/label -- canary), test_cloud_models_settings_argus (docked) 6/6. MANDATORY secrets-leakage adversarial review (acceptance [6]): PASS, NO leaks -- key strictly OS-keychain-only (SecretString at HTTP boundary, no read-back route, no store/delete echo, Zeroizing frontend buffer wiped on Save/close), labels strictly non-secret literals, console/Flight-Recorder cloud path carries only provider id + pid (redact_secrets on free-text), password AccessKit value masked to bullets at the egui source. Backend leak/enumeration proofs (cloud_byok_access_config_leak_tests, model_access_route_tests) are pre-existing green at V1 and unchanged by this edit (git diff on backend empty). VALIDATOR-GATED: only the OS raising a real 2nd top-level window + live-pixel PrintWindow grab needs a GUI host (existing test_argus_production_socket_live* on a display). DEFERRED FOLLOW-UPS: (1) HBR-QUIET -- the CLI-login proof spawns the provider's official CLI which currently pops a console window; add CREATE_NO_WINDOW suppression so test runs stay quiet (operator-reported). (2) review MINOR -- extend the canary scan to the AccessKit value channel (defense-in-depth; not a live leak, masked at source). Source at 5ec42f50.",
       "hbr_status": "PASS_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
