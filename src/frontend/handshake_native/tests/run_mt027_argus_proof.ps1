@@ -1021,8 +1021,9 @@ $receipt = [ordered]@{
     status = 'COMPLETED'
     completed_at_utc = Format-CanonicalUtc ([DateTimeOffset]::UtcNow)
 }
-$receipt | ConvertTo-Json -Depth 6 |
-    Set-Content -LiteralPath $receiptPath -Encoding utf8NoBOM
+$receiptJson = $receipt | ConvertTo-Json -Depth 6
+[IO.File]::WriteAllText(
+    $receiptPath, $receiptJson, [Text.UTF8Encoding]::new($false))
 $proofAccepted = $true
 Write-Output "MT-027 canonical Argus proof complete; run_id=$RunId; source_sha=$sourceSha; artifacts=$runDir"
 } catch {
