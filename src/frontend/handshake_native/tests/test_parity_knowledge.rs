@@ -734,6 +734,7 @@ fn e3_34_create_spec(ws: &str, kind: BlockViewKind) -> RequestSpec {
     let rt = native_rt();
     BlockViewClient::new(NATIVE_BASE, rt.handle().clone()).create_view_request(
         ws,
+        "parity-view-stable-id",
         "parity-view",
         &BlockViewDefinition::of_kind(kind),
     )

@@ -310,7 +310,7 @@ fn parity_faceted_filter() {
 
 fn save_view_spec(query: &str, content_type: Option<&str>) -> RequestSpec {
     let (_rt, client) = search_client();
-    client.save_view_request("ws-1", query, content_type)
+    client.save_view_request("ws-1", "parity-search-view-id", query, content_type)
 }
 
 #[test]

@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Asset {
@@ -1733,6 +1734,10 @@ pub struct BlockViewDefinition {
 pub struct BlockViewRecord {
     pub block: LoomBlock,
     pub definition: BlockViewDefinition,
+    /// Exact transactional-outbox event created by the mutation. This is
+    /// service-layer coordination state and is never part of the public JSON.
+    #[serde(skip)]
+    pub publication_event_id: Option<Uuid>,
 }
 
 /// Result of executing a saved view's query against the real Loom backend.

@@ -580,6 +580,7 @@ pub enum BlockViewEvent {
 /// Transient state of the "+ New view" popup (Window). `None` => closed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct NewViewForm {
+    block_id: String,
     title: String,
     kind: BlockViewKind,
 }
@@ -587,6 +588,7 @@ struct NewViewForm {
 impl Default for NewViewForm {
     fn default() -> Self {
         Self {
+            block_id: uuid::Uuid::new_v4().to_string(),
             title: String::new(),
             kind: BlockViewKind::Table,
         }
@@ -720,17 +722,24 @@ impl BlockCollectionView {
     /// Retain the exact create intent until authority returns the new saved-view id. A failed unbound
     /// create can therefore be retried without inventing a view id or asking the operator to reconstruct
     /// the action from memory.
-    pub fn remember_create_attempt(&mut self, title: impl Into<String>, kind: BlockViewKind) {
+    pub fn remember_create_attempt(
+        &mut self,
+        title: impl Into<String>,
+        kind: BlockViewKind,
+    ) -> String {
+        let block_id = uuid::Uuid::new_v4().to_string();
         self.create_retry = Some(NewViewForm {
+            block_id: block_id.clone(),
             title: title.into(),
             kind,
         });
+        block_id
     }
 
-    pub fn create_retry_intent(&self) -> Option<(String, BlockViewKind)> {
+    pub fn create_retry_intent(&self) -> Option<(String, String, BlockViewKind)> {
         self.create_retry
             .as_ref()
-            .map(|form| (form.title.clone(), form.kind))
+            .map(|form| (form.block_id.clone(), form.title.clone(), form.kind))
     }
 
     pub fn clear_create_attempt(&mut self) {
@@ -984,7 +993,7 @@ impl BlockCollectionView {
             let resp = ui.colored_label(palette.error_text, format!("View error: {err}"));
             emit_status_node(ui, resp.id, STATUS_AUTHOR_ID, &format!("View error: {err}"));
             let retry = ui.button("Retry");
-            emit_button_node(ui, retry.id, RETRY_AUTHOR_ID, "Retry", false);
+            emit_button_node(ui, retry.id, RETRY_AUTHOR_ID, "Retry", false, true);
             return retry.clicked().then_some(BlockViewEvent::Retry);
         }
 
@@ -995,10 +1004,12 @@ impl BlockCollectionView {
             .map(|d| d.kind)
             .unwrap_or(BlockViewKind::Table);
         ui.horizontal(|ui| {
-            if let Some(ev) = self.kind_switcher(ui, current_kind) {
-                event = Some(ev);
+            if !self.view_block_id.is_empty() && self.definition.is_some() {
+                if let Some(ev) = self.kind_switcher(ui, current_kind) {
+                    event = Some(ev);
+                }
+                ui.separator();
             }
-            ui.separator();
             if let Some(ev) = self.new_view_button(ui) {
                 event = Some(ev);
             }
@@ -1030,19 +1041,24 @@ impl BlockCollectionView {
 
         ui.separator();
 
-        // ── The active sub-view. Loading (no definition/results yet) shows a neutral message. ────────
-        let (definition, results) = match (self.definition.clone(), self.results.clone()) {
-            (Some(d), Some(r)) => (d, r),
-            _ => {
-                ui.label("Loading view…");
-                return event;
-            }
-        };
-
-        // Run the New-view popup window (if open). It may emit a CreateView event.
+        // The creation popup must render even when no saved view is bound. Otherwise the View-menu
+        // Block Collections pane exposes a clickable +New view button whose form can never appear.
         if let Some(ev) = self.new_view_popup(ui) {
             event = Some(ev);
         }
+
+        // ── The active sub-view. Loading (no definition/results yet) shows a truthful state. ─────────
+        let (definition, results) = match (self.definition.clone(), self.results.clone()) {
+            (Some(d), Some(r)) => (d, r),
+            _ => {
+                if self.view_block_id.is_empty() && !self.loading {
+                    ui.label("No saved view selected. Create a table, Kanban, or calendar view.");
+                } else {
+                    ui.label("Loading view…");
+                }
+                return event;
+            }
+        };
 
         match definition.kind {
             BlockViewKind::Table => {
@@ -1080,8 +1096,9 @@ impl BlockCollectionView {
             (BlockViewKind::Calendar, KIND_CALENDAR_AUTHOR_ID),
         ] {
             let selected = kind == current;
-            let btn = ui.add(egui::Button::selectable(selected, kind.label()));
-            emit_button_node(ui, btn.id, author_id, kind.label(), selected);
+            let enabled = !self.in_flight;
+            let btn = ui.add_enabled(enabled, egui::Button::selectable(selected, kind.label()));
+            emit_button_node(ui, btn.id, author_id, kind.label(), selected, enabled);
             if btn.clicked() && !selected && !self.in_flight {
                 event = Some(BlockViewEvent::KindChange { kind });
             }
@@ -1092,9 +1109,10 @@ impl BlockCollectionView {
     /// The "+ New view" button. A click opens the popup form. Returns no event itself (the popup's
     /// confirm does).
     fn new_view_button(&mut self, ui: &mut egui::Ui) -> Option<BlockViewEvent> {
-        let btn = ui.button("+ New view");
-        emit_button_node(ui, btn.id, NEW_VIEW_AUTHOR_ID, "New view", false);
-        if btn.clicked() && self.new_view.is_none() {
+        let enabled = !self.in_flight;
+        let btn = ui.add_enabled(enabled, egui::Button::new("+ New view"));
+        emit_button_node(ui, btn.id, NEW_VIEW_AUTHOR_ID, "New view", false, enabled);
+        if btn.clicked() && enabled && self.new_view.is_none() {
             self.new_view = Some(NewViewForm::default());
         }
         None
@@ -1105,19 +1123,38 @@ impl BlockCollectionView {
     fn new_view_popup(&mut self, ui: &mut egui::Ui) -> Option<BlockViewEvent> {
         // `?` early-returns when the popup is closed; clone into a mutable binding for the form edits.
         let mut form = self.new_view.clone()?;
+        let mutation_enabled = !self.in_flight;
         let mut event = None;
         let mut open = true;
         egui::Window::new("New view")
             .collapsible(false)
-            .resizable(false)
+            // The MCP snapshot is rendered on a fresh AccessKit context. A content-sized
+            // first-frame window enters egui's invisible sizing pass, which marks its controls
+            // disabled in that canonical snapshot. A fixed, non-resizable form size keeps the
+            // real popup and its model-facing controls interactive on the first capture.
+            .fixed_size(egui::vec2(320.0, 150.0))
             .open(&mut open)
             .show(ui.ctx(), |ui| {
-                let title_resp = ui.add(
+                let title_resp = ui.add_enabled(
+                    mutation_enabled,
                     egui::TextEdit::singleline(&mut form.title)
                         .hint_text("View title")
                         .desired_width(220.0),
                 );
-                emit_text_field_node(ui, title_resp.id, NEW_VIEW_TITLE_AUTHOR_ID, &form.title);
+                emit_text_field_node(
+                    ui,
+                    title_resp.id,
+                    NEW_VIEW_TITLE_AUTHOR_ID,
+                    &form.title,
+                    mutation_enabled,
+                );
+                if mutation_enabled {
+                    if let Some(replacement) =
+                        crate::mcp::accesskit_string_set_value(ui, title_resp.id)
+                    {
+                        form.title = replacement;
+                    }
+                }
 
                 ui.horizontal(|ui| {
                     for (kind, author_id) in [
@@ -1126,31 +1163,49 @@ impl BlockCollectionView {
                         (BlockViewKind::Calendar, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID),
                     ] {
                         let selected = form.kind == kind;
-                        let r = ui.add(egui::Button::selectable(selected, kind.label()));
-                        emit_button_node(ui, r.id, author_id, kind.label(), selected);
-                        if r.clicked() {
+                        let r = ui.add_enabled(
+                            mutation_enabled,
+                            egui::Button::selectable(selected, kind.label()),
+                        );
+                        emit_button_node(
+                            ui,
+                            r.id,
+                            author_id,
+                            kind.label(),
+                            selected,
+                            mutation_enabled,
+                        );
+                        if r.clicked() && mutation_enabled {
                             form.kind = kind;
                         }
                     }
                 });
 
                 ui.horizontal(|ui| {
-                    let confirm = ui.button("Create");
+                    let confirm = ui.add_enabled(mutation_enabled, egui::Button::new("Create"));
                     emit_button_node(
                         ui,
                         confirm.id,
                         NEW_VIEW_CONFIRM_AUTHOR_ID,
                         "Create view",
                         false,
+                        mutation_enabled,
                     );
-                    if confirm.clicked() {
+                    if confirm.clicked() && mutation_enabled {
                         event = Some(BlockViewEvent::CreateView {
                             title: form.title.trim().to_owned(),
                             kind: form.kind,
                         });
                     }
                     let cancel = ui.button("Cancel");
-                    emit_button_node(ui, cancel.id, NEW_VIEW_CANCEL_AUTHOR_ID, "Cancel", false);
+                    emit_button_node(
+                        ui,
+                        cancel.id,
+                        NEW_VIEW_CANCEL_AUTHOR_ID,
+                        "Cancel",
+                        false,
+                        true,
+                    );
                     if cancel.clicked() {
                         self.new_view = None;
                     }
@@ -1215,7 +1270,8 @@ impl BlockCollectionView {
         // Date-range inputs (server-side filtering — RISK-5 / MC-5: regex-validate before emitting).
         ui.horizontal(|ui| {
             ui.label("From:");
-            let from = ui.add(
+            let from = ui.add_enabled(
+                !self.in_flight,
                 egui::TextEdit::singleline(&mut self.date_from_input)
                     .hint_text("YYYY-MM-DD")
                     .desired_width(110.0),
@@ -1225,23 +1281,42 @@ impl BlockCollectionView {
                 from.id,
                 CALENDAR_DATE_FROM_AUTHOR_ID,
                 &self.date_from_input,
+                !self.in_flight,
             );
+            if !self.in_flight {
+                if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, from.id) {
+                    self.date_from_input = replacement;
+                }
+            }
 
             ui.label("To:");
-            let to = ui.add(
+            let to = ui.add_enabled(
+                !self.in_flight,
                 egui::TextEdit::singleline(&mut self.date_to_input)
                     .hint_text("YYYY-MM-DD")
                     .desired_width(110.0),
             );
-            emit_text_field_node(ui, to.id, CALENDAR_DATE_TO_AUTHOR_ID, &self.date_to_input);
+            emit_text_field_node(
+                ui,
+                to.id,
+                CALENDAR_DATE_TO_AUTHOR_ID,
+                &self.date_to_input,
+                !self.in_flight,
+            );
+            if !self.in_flight {
+                if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, to.id) {
+                    self.date_to_input = replacement;
+                }
+            }
 
-            let apply = ui.button("Apply range");
+            let apply = ui.add_enabled(!self.in_flight, egui::Button::new("Apply range"));
             emit_button_node(
                 ui,
                 apply.id,
                 "bcv.calendar.apply-range",
                 "Apply date range",
                 false,
+                !self.in_flight,
             );
             if apply.clicked() && !self.in_flight {
                 match self.validated_date_range() {
@@ -1353,8 +1428,15 @@ impl TableSubView<'_> {
                     .map(|s| s.direction.indicator())
                     .unwrap_or("");
                 let label = format!("{}{indicator}", field.label());
-                let btn = ui.button(&label);
-                emit_button_node(ui, btn.id, &table_sort_author_id(field), &label, false);
+                let btn = ui.add_enabled(!in_flight, egui::Button::new(&label));
+                emit_button_node(
+                    ui,
+                    btn.id,
+                    &table_sort_author_id(field),
+                    &label,
+                    false,
+                    !in_flight,
+                );
                 if btn.clicked() && !in_flight {
                     let sort = flip_direction(self.definition.sort, field);
                     event = Some(BlockViewEvent::Sort { sort });
@@ -1613,14 +1695,28 @@ impl CalendarSubView<'_> {
 
 /// Emit a button/switcher AccessKit node (Role::Button + Action::Click + author_id; `selected` marks
 /// the active kind/tab via the toggled state).
-fn emit_button_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str, selected: bool) {
+fn emit_button_node(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    selected: bool,
+    enabled: bool,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::Button);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
-        node.add_action(accesskit::Action::Click);
+        node.set_value(if selected { "selected" } else { "not_selected" });
+        if enabled {
+            node.add_action(accesskit::Action::Click);
+            node.clear_disabled();
+        } else {
+            node.remove_action(accesskit::Action::Click);
+            node.set_disabled();
+        }
         if selected {
             node.set_toggled(accesskit::Toggled::True);
         }
@@ -1641,13 +1737,25 @@ fn emit_status_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str) {
 
 /// Emit a text field's AccessKit node (Role::TextInput + author_id + current value) so a swarm agent
 /// can type into the new-view title or the calendar date inputs.
-fn emit_text_field_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str) {
+fn emit_text_field_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str, enabled: bool) {
     let author = author_id.to_owned();
     let value = value.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::TextInput);
         node.set_author_id(author.clone());
         node.set_value(value.clone());
+        if enabled {
+            node.add_action(accesskit::Action::SetValue);
+            // `refresh_mcp_snapshot` renders floating windows on a fresh context. egui's first-pass
+            // window bookkeeping can leave the parent TextInput flagged disabled even though the
+            // field has bounds, focus, and SetValue and its child text run is enabled. Keep the
+            // canonical state aligned with the real enabled control.
+            node.clear_disabled();
+        } else {
+            node.remove_action(accesskit::Action::SetValue);
+            node.remove_action(accesskit::Action::ReplaceSelectedText);
+            node.set_disabled();
+        }
     });
 }
 

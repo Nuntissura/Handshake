@@ -111,6 +111,7 @@ pub const WP_SURFACE_HEADINGS: &[&str] = &[
     "Knowledge Graph",
     "Folder Tree",
     "Tags and Tag Hubs",
+    "Block Collection Views",
     "Canvas",
     "Search",
     "Wikilinks and Backlinks",
@@ -381,6 +382,7 @@ pub fn editors_manual_section() -> ManualSection {
         ("Knowledge Graph", knowledge_graph_body()),
         ("Folder Tree", folder_tree_body()),
         ("Tags and Tag Hubs", tags_and_tag_hubs_body()),
+        ("Block Collection Views", block_collection_views_body()),
         ("Canvas", canvas_body()),
         ("Search", search_body()),
         ("Wikilinks and Backlinks", wikilinks_backlinks_body()),
@@ -1268,6 +1270,43 @@ internal_diagnostics observes in-process health and Palmistry supplies the exter
         .to_owned()
 }
 
+fn block_collection_views_body() -> String {
+    "Block Collection Views are the mounted saved table, Kanban, and calendar projections over real \
+Loom blocks. Open the pane from VIEW > Block Collections (menu.view.open-block-collections), command \
+view.block-collections, or a Search result whose block.content_type is view_def. An unbound pane shows \
+an honest no-view state and still exposes bcv.new-view. Activate it, set bcv.new-view.title, select \
+bcv.new-view.kind.table, bcv.new-view.kind.kanban, or bcv.new-view.kind.calendar, then activate \
+bcv.new-view.confirm (or bcv.new-view.cancel). Creation sends a stable client-generated block_id to \
+POST /workspaces/{workspace_id}/loom/views/definitions and retains it across Retry. The backend \
+atomically commits the final view_def block, search projection, ProjectKnowledgeIndex bridge, \
+EventLedger mutation receipt, and Flight Recorder outbox; an ambiguous response retry converges on \
+the same saved view instead of creating a duplicate. Creating view… remains visible while authority \
+responds and the returned id is rebound before definition/results reload.\n\n\
+For a table, activate bcv.table.sort.{field}; the host PATCHes \
+/workspaces/{workspace_id}/loom/views/definitions/{block_id}, then POSTs \
+/workspaces/{workspace_id}/loom/views/definitions/{block_id}/results. Rows are \
+bcv.table.row.{block_id}; sorting is backend-authoritative, never a local reorder. Kanban lanes/cards \
+are bcv.kanban.lane.{key} and bcv.kanban.card.{block_id}; the sanitized lane key is a tag id for \
+tag grouping, a field value for field grouping, or untagged for the synthetic untagged lane. Moving a card writes real add_tags and \
+remove_tags mutations, then re-queries; the card does not move locally before PostgreSQL confirms it. \
+Calendar inputs bcv.calendar.date-from and bcv.calendar.date-to accept YYYY-MM-DD; activate \
+bcv.calendar.apply-range to persist the definition and re-query. Switch and persist kinds with \
+bcv.kind.table, bcv.kind.kanban, and bcv.kind.calendar.\n\n\
+Empty states are exact and visible: No blocks match this view.; No Kanban lanes.; No blocks in this \
+date range. Backend or malformed-response failures remain at bcv.status as View error: ... . Activate \
+bcv.retry to replay a retained create with the same block id or to reload the same view with one \
+bounded definition fetch and one bounded results query. Workspace/generation guards discard stale \
+deliveries. Diagnostic posture: Tier 1 Flight Recorder is WIRED for create/update through the \
+transactional PostgreSQL outbox and restart reconciler; query events are observational. Tier 2 \
+internal_diagnostics is WIRED at the shared host/watchdog but collection-specific counters are \
+deferred. Tier 3 Palmistry is WIRED at the shared out-of-process freeze/crash boundary with no \
+collection-specific child. Canonical proof: run tests/run_mt027_argus_proof.ps1 with a fresh RunId; \
+it drives creation, mutation, switching, empty/error/retry, and post-action inspection through the \
+real localhost Argus transport against real PostgreSQL and stores source-bound evidence only in the \
+allocated external Handshake_Artifacts MT-027 root."
+        .to_owned()
+}
+
 fn wiki_projection_body() -> String {
     "Wiki Projection is the dedicated generated Loom wiki-page surface. It is distinct from Rich Note: Rich Note opens PaneType::LoomWikiPage for an editable document, while Wiki Projection opens the mounted PaneType::Placeholder(\"Wiki Page\") host for a backend LoomWikiProjection. VIEW > Open Wiki Projection (menu.view.open-wiki-projection), the Command Palette row command-palette.option.hs-view-palette-wiki-projection, and command id view.wiki-projection reopen the concrete mounted projection when one exists; otherwise they open Quick Switcher with wiki discovery and the truthful status No active wiki projection instead of creating an empty pane. Selecting a wiki_page result opens its concrete projection id. The host strictly validates every GET /workspaces/{workspace_id}/loom/wiki/{projection_id} response: required fields must exist and returned workspace/projection ids must match the request. The title, page type, rebuild time, source-block count, and rendered_content are derived and read-only. Persisted overlay annotations are loaded through GET /overlays and rendered below the projection as wiki.overlays.{sanitized_projection_id} with each annotation at wiki.overlay.{sanitized_overlay_id}. Edit opens an additive annotation buffer. Save POSTs to /overlays and only exits after the identity-matched projection-plus-overlay reload succeeds. While Save and reload are in flight, Cancel and editing are locked so an old completion cannot clear a newer same-pane buffer. Cancel otherwise discards the unsaved buffer and performs no write. Rebuild calls /regenerate only for untyped Loom projections; typed project-wiki pages display that rebuild belongs to the project wiki engine. A rebuild failure retains the last-good page and appears at wiki.error.{sanitized_projection_id}; Retry repeats an initial failed load. Every asynchronous load, save, rebuild, and post-save reload carries workspace id, projection id, and pane generation. A late delivery for A is rejected after A -> B or A -> B -> A and cannot replace B or clear B's edit buffer. Stable AccessKit targets are wiki.title.{sanitized_projection_id}, wiki.content.{sanitized_projection_id}, wiki.metadata.{sanitized_projection_id}, wiki.edit.{sanitized_projection_id}, wiki.edit-area.{sanitized_projection_id}, wiki.save.{sanitized_projection_id}, wiki.cancel.{sanitized_projection_id}, wiki.rebuild.{sanitized_projection_id}, wiki.stale.{sanitized_projection_id}, wiki.error.{sanitized_projection_id}, wiki.retry.{sanitized_projection_id}, wiki.overlays.{sanitized_projection_id}, and wiki.overlay.{sanitized_overlay_id}. The Editor Settings section exposes settings-editor-wiki-projection-posture to state the contract truth: Wiki Projection has no dedicated preference; it uses the active workspace/theme and does not invent a second setting. Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}. The managed-PostgreSQL proof retires the previous canonical receipt before starting, self-seeds generated live ids, drives the mounted HandshakeApp host, verifies overlays through the visible mounted panel after reload, covers strict malformed/cross-identity rejection and last-good rebuild preservation, cleans up, confirms fresh absence, and only then writes the canonical current receipt. The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence."
         .replace(
@@ -1434,7 +1473,7 @@ tag_hub open PaneType::LoomBlock; symbol (knowledge_entity) opens PaneType::Code
 (knowledge_entity) opens PaneType::KernelDcc at WP:{wp_id}; micro_task (knowledge_entity) opens \
 PaneType::KernelDcc at MT:{wp_id}:{mt_id}; user_manual_page opens PaneType::UserManual at page_slug; \
 wiki_page opens the dedicated Wiki Page projection placeholder pane and never PaneType::LoomWikiPage; and \
-a loom_block whose block.content_type is view_def opens the dedicated Block Collections placeholder pane. \
+a loom_block whose block.content_type is view_def opens the mounted Block Collections pane. \
 When a saved-view definition or result query fails, the pane keeps `View error: ...` visible and exposes \
 bcv.retry; activating Retry clears stale deliveries, rebinds the same view id, and issues one bounded \
 definition fetch plus one bounded result query. \

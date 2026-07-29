@@ -17,12 +17,12 @@ mod knowledge_pg_support;
 mod user_manual_support;
 
 use handshake_core::api;
-use handshake_core::user_manual::USER_MANUAL_VERSION;
 use handshake_core::user_manual::fixtures::{
     restore_page_content_hash, tamper_page_content_hash, unreachable_pages,
 };
 use handshake_core::user_manual::registry::{probe_path, wp009_surface_registry};
-use handshake_core::user_manual::seed::{QUICKSTART_AREAS, ensure_seeded};
+use handshake_core::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
+use handshake_core::user_manual::USER_MANUAL_VERSION;
 use knowledge_pg_support::KnowledgePg;
 use serde_json::Value;
 use sqlx::Connection;
@@ -79,8 +79,26 @@ fn loom_router_surfaces_from_source() -> BTreeSet<(String, String)> {
         };
         let path = &after_path_start[..path_end];
         let after_path = &after_path_start[path_end + 1..];
-        let next_route = after_path.find(".route(").unwrap_or(after_path.len());
-        let route_block = &after_path[..next_route];
+        let Some(argument_start) = after_path.find(',') else {
+            continue;
+        };
+        let handler_and_tail = &after_path[argument_start + 1..];
+        let mut route_depth = 1_i32;
+        let mut route_end = handler_and_tail.len();
+        for (offset, character) in handler_and_tail.char_indices() {
+            match character {
+                '(' => route_depth += 1,
+                ')' => {
+                    route_depth -= 1;
+                    if route_depth == 0 {
+                        route_end = offset;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let route_block = handler_and_tail[..route_end].trim_start();
 
         for (needle, method) in [
             ("get(", "GET"),
@@ -94,7 +112,12 @@ fn loom_router_surfaces_from_source() -> BTreeSet<(String, String)> {
             ("delete(", "DELETE"),
             (".delete(", "DELETE"),
         ] {
-            if route_block.contains(needle) {
+            let mounted = if needle.starts_with('.') {
+                route_block.contains(needle)
+            } else {
+                route_block.starts_with(needle)
+            };
+            if mounted {
                 surfaces.insert((method.to_string(), path.to_string()));
             }
         }
@@ -121,6 +144,21 @@ fn mtdoc_every_loom_router_route_is_in_surface_registry() {
     assert!(
         missing.is_empty(),
         "mounted Loom routes missing from wp009_surface_registry: {missing:?}"
+    );
+}
+
+#[test]
+fn mt027_results_manual_matches_required_json_extractor_contract() {
+    let surface = wp009_surface_registry()
+        .iter()
+        .find(|surface| surface.surface_id == "loom.views.definitions.results")
+        .expect("MT027 results surface in canonical registry");
+    assert!(
+        surface.expected_input.contains("required JSON body")
+            && surface.expected_input.contains("use {} for defaults")
+            && !surface.expected_input.contains("optional JSON"),
+        "Axum Json<BlockViewResultsRequest> rejects a missing body; manual inputs were {:?}",
+        surface.expected_input
     );
 }
 
@@ -174,6 +212,50 @@ async fn mt201_pages_list_and_read_with_bootstrap_receipt() {
     assert_eq!(missing.status(), 404);
     let body: Value = missing.json().await.expect("404 json");
     assert_eq!(body["error"], "not_found");
+}
+
+#[tokio::test]
+async fn mt027_notes_manual_seeds_block_collection_workflow_in_real_postgres() {
+    let fx = skip_if_no_pg!(fixture().await, "mt027_block_collection_manual");
+    let response = fx
+        .http
+        .get(format!("{}/usermanual/pages/notes-loom-surface", fx.base))
+        .send()
+        .await
+        .expect("read notes manual page");
+    assert_eq!(response.status(), 200);
+    let page: Value = response.json().await.expect("notes manual json");
+    let sections = page["sections"]
+        .as_array()
+        .expect("notes manual sections array");
+    let section = sections
+        .iter()
+        .find(|section| {
+            section["title"]
+                .as_str()
+                .is_some_and(|title| title.contains("Block Collection Views"))
+        })
+        .expect("dedicated Block Collection Views section");
+    assert_eq!(section["section_kind"], "workflows");
+    let body = section["body_md"]
+        .as_str()
+        .expect("Block Collection Views body");
+    for needle in [
+        "menu.view.open-block-collections",
+        "bcv.new-view",
+        "bcv.table.sort.*",
+        "bcv.kanban.card.*",
+        "bcv.calendar.apply-range",
+        "No blocks match this view.",
+        "bcv.retry",
+        "transactional PostgreSQL outbox",
+        "tests/run_mt027_argus_proof.ps1",
+    ] {
+        assert!(
+            body.contains(needle),
+            "canonical notes manual must document MT-027 fact {needle:?}"
+        );
+    }
 }
 
 /// MT-201: search hits pages/sections/tools; an empty query is a typed 400.
@@ -247,12 +329,10 @@ async fn mt201_tools_list_and_read_resolve() {
         assert_eq!(tool["tool"]["http_route"], surface.route);
         assert_eq!(tool["tool"]["http_method"], surface.method);
         assert!(!tool["tool"]["common_errors"].as_array().unwrap().is_empty());
-        assert!(
-            !tool["tool"]["recovery_steps"]
-                .as_array()
-                .unwrap()
-                .is_empty()
-        );
+        assert!(!tool["tool"]["recovery_steps"]
+            .as_array()
+            .unwrap()
+            .is_empty());
     }
 
     let missing = fx
@@ -441,12 +521,10 @@ async fn mt200_access_points_resolve() {
             "access point {} targets a missing page {}",
             row["access_point_id"], row["target_page_slug"]
         );
-        assert!(
-            row["stable_element_id"]
-                .as_str()
-                .unwrap()
-                .starts_with("hs-usermanual-")
-        );
+        assert!(row["stable_element_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("hs-usermanual-"));
         hosts.insert(row["host_surface"].as_str().unwrap().to_string());
     }
     for host in [
@@ -611,12 +689,10 @@ async fn mt205_projection_renders_readable_navigable_html() {
         .json()
         .await
         .expect("md json");
-    assert!(
-        markdown["rendered"]
-            .as_str()
-            .unwrap()
-            .contains("<topic id=\"manual-toc-0\"")
-    );
+    assert!(markdown["rendered"]
+        .as_str()
+        .unwrap()
+        .contains("<topic id=\"manual-toc-0\""));
 
     let bad = fx
         .http

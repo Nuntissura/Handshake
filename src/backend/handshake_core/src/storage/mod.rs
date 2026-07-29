@@ -18,6 +18,7 @@ use crate::ai_ready_data::records::{
     SilverRecord,
 };
 
+pub(crate) mod block_view_outbox;
 pub mod calendar;
 pub mod calendar_activity;
 pub mod fems_memory;

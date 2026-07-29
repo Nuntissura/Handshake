@@ -1902,8 +1902,10 @@ fn create_live_block_view(
 ) -> String {
     let cell: handshake_native::backend_client::BlockViewOpCell = Arc::new(Mutex::new(None));
     let generation = Arc::new(std::sync::atomic::AtomicU64::new(1));
+    let block_id = uuid::Uuid::new_v4().to_string();
     client.create_view(
         workspace_id,
+        &block_id,
         title,
         definition,
         generation,

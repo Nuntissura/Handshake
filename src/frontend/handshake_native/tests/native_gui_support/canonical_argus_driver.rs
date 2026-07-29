@@ -24,6 +24,15 @@ pub struct ArgusObservation {
     pub terminal_observed_sequence: u64,
     pub target_selected_before: Option<bool>,
     pub target_selected_after: Option<bool>,
+    pub terminal_refreshed: bool,
+    pub terminal_predicates: Vec<TerminalPredicateResult>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct TerminalPredicateResult {
+    pub predicate_id: String,
+    pub passed: bool,
+    pub evidence: serde_json::Value,
 }
 
 struct ScopedArgusAppData {
@@ -89,6 +98,26 @@ pub fn json_has_author_id(value: &serde_json::Value, expected: &str) -> bool {
     }
 }
 
+pub fn json_node_by_author_id<'a>(
+    value: &'a serde_json::Value,
+    expected: &str,
+) -> Option<&'a serde_json::Value> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.get("author_id").and_then(serde_json::Value::as_str) == Some(expected) {
+                return Some(value);
+            }
+            object
+                .values()
+                .find_map(|value| json_node_by_author_id(value, expected))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|value| json_node_by_author_id(value, expected)),
+        _ => None,
+    }
+}
+
 pub fn live_author_id_selected(
     harness: &egui_kittest::Harness<'_, HandshakeApp>,
     author_id: &str,
@@ -125,8 +154,12 @@ pub struct CanonicalArgusDriver {
 impl CanonicalArgusDriver {
     pub fn bind(app: &HandshakeApp, proof_id: &str) -> Self {
         let unique = uuid::Uuid::new_v4().simple().to_string();
-        let binding_root = Path::new("../../../../Handshake_Artifacts/handshake-test")
-            .join(format!("{}-argus-binding", sanitize(proof_id)))
+        let binding_root = std::env::var_os("HANDSHAKE_ARGUS_BINDING_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new("../../../../Handshake_Artifacts/handshake-test")
+                    .join(format!("{}-argus-binding", sanitize(proof_id)))
+            })
             .join(format!("run-{unique}"));
         let app_data = ScopedArgusAppData::install(binding_root);
         let session_token = SessionToken::from_hex(format!("{}-{unique}", sanitize(proof_id)));
@@ -329,6 +362,8 @@ impl CanonicalArgusDriver {
             terminal_observed_sequence,
             target_selected_before,
             target_selected_after,
+            terminal_refreshed: false,
+            terminal_predicates: Vec::new(),
         };
         self.observations.push(observation.clone());
         observation
@@ -350,6 +385,7 @@ impl CanonicalArgusDriver {
             json_has_author_id(&before, author_id),
             "canonical argus.inspect sees parameterized target {author_id}"
         );
+        let action_value = serde_json::to_string(&payload).expect("serialize Argus click payload");
         let click = self.rpc(
             ARGUS_CLICK_METHOD,
             serde_json::json!({ "target": author_id, "payload": payload }),
@@ -402,8 +438,11 @@ impl CanonicalArgusDriver {
         );
         let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
         bind_screenshot_to_matrix_receipt(receipt_id);
-        self.action_targets
-            .push((ARGUS_CLICK_METHOD.to_owned(), author_id.to_owned(), None));
+        self.action_targets.push((
+            ARGUS_CLICK_METHOD.to_owned(),
+            author_id.to_owned(),
+            Some(action_value),
+        ));
         let observation = ArgusObservation {
             before,
             after,
@@ -413,6 +452,8 @@ impl CanonicalArgusDriver {
             terminal_observed_sequence,
             target_selected_before,
             target_selected_after,
+            terminal_refreshed: false,
+            terminal_predicates: Vec::new(),
         };
         self.observations.push(observation.clone());
         observation
@@ -463,6 +504,14 @@ impl CanonicalArgusDriver {
         harness.run_steps(3);
 
         let after = self.inspect(harness);
+        let after_value = json_node_by_author_id(&after, author_id)
+            .and_then(|node| node.get("value"))
+            .and_then(serde_json::Value::as_str);
+        assert_eq!(
+            after_value,
+            Some(value),
+            "canonical SetValue must be visible in the immediate post-action snapshot for {author_id}"
+        );
         let target_selected_after = live_author_id_selected(harness, author_id);
         let receipt = after["action_receipts"]
             .as_array()
@@ -496,15 +545,118 @@ impl CanonicalArgusDriver {
             terminal_observed_sequence,
             target_selected_before,
             target_selected_after,
+            terminal_refreshed: false,
+            terminal_predicates: Vec::new(),
         };
         self.observations.push(observation.clone());
         observation
+    }
+
+    /// Replace the latest action's provisional three-frame observation with
+    /// a fresh snapshot captured after the caller has awaited the product's
+    /// authoritative terminal state.
+    pub fn reinspect_latest_terminal(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+    ) -> serde_json::Value {
+        assert!(
+            !self.observations.is_empty(),
+            "terminal reinspection requires a preceding canonical action"
+        );
+        let after = self.inspect(harness);
+        let observation = self
+            .observations
+            .last_mut()
+            .expect("preceding canonical observation");
+        let receipt_present = after["action_receipts"].as_array().is_some_and(|receipts| {
+            receipts.iter().any(|receipt| {
+                receipt["receipt_id"].as_u64() == Some(observation.receipt_id)
+                    && matches!(
+                        receipt["status"].as_str(),
+                        Some("applied" | "indeterminate")
+                    )
+            })
+        });
+        assert!(
+            receipt_present,
+            "terminal reinspection must retain the exact action receipt"
+        );
+        observation.after = after.clone();
+        observation.terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
+        observation.terminal_refreshed = true;
+        after
+    }
+
+    /// Capture the authoritative terminal tree for the latest action and bind
+    /// an action-specific product-state predicate to that exact trace row.
+    pub fn assert_latest_terminal_predicate(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        predicate_id: &str,
+        predicate: impl FnOnce(&serde_json::Value) -> bool,
+    ) -> serde_json::Value {
+        self.assert_latest_terminal_predicate_with_evidence(
+            harness,
+            predicate_id,
+            serde_json::Value::Null,
+            predicate,
+        )
+    }
+
+    /// The evidence value carries runtime-generated expected identities that
+    /// an external verifier cannot otherwise derive (for example randomly
+    /// allocated journal block ids). The external runner must still recompute
+    /// the predicate against `after`; this is not a replacement pass flag.
+    pub fn assert_latest_terminal_predicate_with_evidence(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        predicate_id: &str,
+        evidence: serde_json::Value,
+        predicate: impl FnOnce(&serde_json::Value) -> bool,
+    ) -> serde_json::Value {
+        assert!(
+            !predicate_id.trim().is_empty(),
+            "terminal predicate id must be non-empty"
+        );
+        let after = self.reinspect_latest_terminal(harness);
+        let passed = predicate(&after);
+        self.observations
+            .last_mut()
+            .expect("preceding canonical observation")
+            .terminal_predicates
+            .push(TerminalPredicateResult {
+                predicate_id: predicate_id.to_owned(),
+                passed,
+                evidence,
+            });
+        assert!(
+            passed,
+            "canonical terminal predicate {predicate_id:?} failed against {after}"
+        );
+        after
     }
 
     pub fn finish(mut self) {
         let entries = self.server.action_log().drain_log();
         assert_eq!(entries.len(), self.action_targets.len());
         assert_eq!(self.observations.len(), self.action_targets.len());
+        for observation in &self.observations {
+            assert!(
+                observation.terminal_refreshed,
+                "every canonical action must be rebound to an authoritative terminal snapshot"
+            );
+            assert!(
+                !observation.terminal_predicates.is_empty(),
+                "every canonical action must carry at least one action-specific terminal predicate"
+            );
+            assert!(
+                observation
+                    .terminal_predicates
+                    .iter()
+                    .all(|predicate| predicate.passed),
+                "every persisted canonical terminal predicate must pass"
+            );
+        }
         for (entry, (method, target, _)) in entries.iter().zip(&self.action_targets) {
             assert_eq!(&entry.op_name, method);
             assert_eq!(&entry.target_key, target);
@@ -572,6 +724,8 @@ fn write_matrix_trace(
             "receipt_status": &observation.receipt_status,
             "agent_id": &observation.agent_id,
             "terminal_observed_sequence": observation.terminal_observed_sequence,
+            "terminal_refreshed": observation.terminal_refreshed,
+            "terminal_predicates": &observation.terminal_predicates,
             "before": &observation.before,
             "after": &observation.after,
         });

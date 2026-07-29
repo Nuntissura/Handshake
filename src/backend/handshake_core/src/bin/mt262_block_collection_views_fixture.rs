@@ -196,30 +196,16 @@ async fn make_view(
     definition: BlockViewDefinition,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let ctx = WriteContext::human(None);
-    let block = db
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.to_string(),
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: Some(title.to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await?;
-    db.bridge_loom_block_to_knowledge(&ctx, workspace_id, &block.block_id)
-        .await?;
-    db.create_block_view(&ctx, workspace_id, &block.block_id, Some(title.to_string()), definition)
-        .await?;
-    Ok(block.block_id)
+    let block_id = Uuid::now_v7().to_string();
+    db.create_block_view(
+        &ctx,
+        workspace_id,
+        &block_id,
+        Some(title.to_string()),
+        definition,
+    )
+    .await?;
+    Ok(block_id)
 }
 
 async fn seed_fixture(db: &PostgresDatabase) -> Result<ReadyMessage, Box<dyn std::error::Error>> {
@@ -248,10 +234,30 @@ async fn seed_fixture(db: &PostgresDatabase) -> Result<ReadyMessage, Box<dyn std
     }
 
     // Kanban seed: two tag lanes + a card starting in "todo".
-    let todo_tag_id = make_block(db, &workspace_id, "todo", LoomBlockContentType::TagHub, None).await?;
-    let done_tag_id = make_block(db, &workspace_id, "done", LoomBlockContentType::TagHub, None).await?;
-    let kanban_card_id =
-        make_block(db, &workspace_id, "Ship MT-262", LoomBlockContentType::Note, None).await?;
+    let todo_tag_id = make_block(
+        db,
+        &workspace_id,
+        "todo",
+        LoomBlockContentType::TagHub,
+        None,
+    )
+    .await?;
+    let done_tag_id = make_block(
+        db,
+        &workspace_id,
+        "done",
+        LoomBlockContentType::TagHub,
+        None,
+    )
+    .await?;
+    let kanban_card_id = make_block(
+        db,
+        &workspace_id,
+        "Ship MT-262",
+        LoomBlockContentType::Note,
+        None,
+    )
+    .await?;
     db.create_loom_edge(
         &ctx,
         NewLoomEdge {

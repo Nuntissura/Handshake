@@ -46,9 +46,10 @@ use crate::kernel::{
 };
 use crate::preferences::{
     preference_changed_event_payload, PreferenceChangeReceipt, PreferenceProjectionRow,
-    PreferenceRecord, PreferenceScope, PreferenceSchemaEntry, PreferenceSource, RedactionClass,
+    PreferenceRecord, PreferenceSchemaEntry, PreferenceScope, PreferenceSource, RedactionClass,
     PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID, PREFERENCE_RECORD_SCHEMA_ID,
 };
+use crate::storage::block_view_outbox::{self, BlockViewMutationOperation};
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use serde_json::{json, Value};
@@ -6980,9 +6981,7 @@ impl super::Database for PostgresDatabase {
         // FK (loom_edges.event_ledger_event_id -> kernel_event_ledger.event_id)
         // is satisfiable. The best-effort Flight Recorder mirror at the API layer
         // is no longer the only observability for a committed tag write.
-        let ledger_actor_id = actor_id
-            .clone()
-            .unwrap_or_else(|| "loom-edge".to_string());
+        let ledger_actor_id = actor_id.clone().unwrap_or_else(|| "loom-edge".to_string());
         let ledger_actor = match actor_kind {
             "AI" => KernelActor::ModelAdapter(ledger_actor_id),
             "HUMAN" => KernelActor::Operator(ledger_actor_id),
@@ -10314,36 +10313,54 @@ impl super::Database for PostgresDatabase {
         title: Option<String>,
         definition: BlockViewDefinition,
     ) -> StorageResult<BlockViewRecord> {
-        let now = Utc::now();
+        if block_id.trim().is_empty() || block_id.trim() != block_id {
+            return Err(StorageError::Validation(
+                "loom block_id must be non-empty without surrounding whitespace",
+            ));
+        }
         let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let now = chrono::DateTime::from_timestamp_micros(metadata.timestamp.timestamp_micros())
+            .ok_or_else(|| StorageError::Serialization("invalid block-view write time".into()))?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
         let job_id = metadata.job_id.map(|v| v.to_string());
         let workflow_id = metadata.workflow_id.map(|v| v.to_string());
         let edit_event_id = metadata.edit_event_id.to_string();
-
-        // The dedicated typed payload column. NEVER derived_json (which is the
-        // full-text index overload) — a view definition is its own authority.
         let definition_json = serde_json::to_string(&definition)?;
+        let derived = LoomBlockDerived::default();
+        let derived_json = serde_json::to_string(&derived)?;
+        let event = block_view_outbox::build_event(
+            &metadata,
+            workspace_id,
+            block_id,
+            BlockViewMutationOperation::Create,
+        )?;
 
-        // Flip the (already bridged) block to a view_def block carrying its
-        // definition. The CHECK constraint guarantees a view_def block always
-        // has a definition and nothing else ever does.
+        // Insert the final typed block directly. Block, search projection,
+        // knowledge bridge/EventLedger authority, mutation receipt, and Flight
+        // Recorder outbox all share this transaction.
         let mut tx = self.pool.begin().await?;
         let row = sqlx::query(
             r#"
-            UPDATE loom_blocks
-            SET
-                content_type = 'view_def',
-                title = COALESCE($1, title),
-                view_definition_json = $2,
-                last_actor_kind = $3,
-                last_actor_id = $4,
-                last_job_id = $5,
-                last_workflow_id = $6,
-                edit_event_id = $7,
-                updated_at = $8
-            WHERE workspace_id = $9 AND block_id = $10
+            INSERT INTO loom_blocks (
+                block_id, workspace_id, content_type, document_id, asset_id,
+                title, original_filename, content_hash, pinned, journal_date,
+                last_actor_kind, last_actor_id, last_job_id, last_workflow_id,
+                edit_event_id, created_at, updated_at, imported_at,
+                backlink_count, mention_count, tag_count, derived_json,
+                preview_status, thumbnail_asset_id, proxy_asset_id,
+                view_definition_json
+            )
+            VALUES (
+                $1, $2, 'view_def', NULL, NULL,
+                $3, NULL, NULL, 0, NULL,
+                $4, $5, $6, $7,
+                $8, $9, $9, NULL,
+                0, 0, 0, $10,
+                $11, NULL, NULL,
+                $12
+            )
+            ON CONFLICT (block_id) DO NOTHING
             RETURNING
                 block_id,
                 workspace_id,
@@ -10370,19 +10387,77 @@ impl super::Database for PostgresDatabase {
                 view_definition_json
             "#,
         )
-        .bind(title)
-        .bind(&definition_json)
+        .bind(block_id)
+        .bind(workspace_id)
+        .bind(&title)
         .bind(actor_kind)
         .bind(actor_id)
         .bind(job_id)
         .bind(workflow_id)
         .bind(edit_event_id)
         .bind(now)
-        .bind(workspace_id)
-        .bind(block_id)
+        .bind(derived_json)
+        .bind(derived.preview_status.as_str())
+        .bind(&definition_json)
         .fetch_optional(&mut *tx)
         .await?;
-        let row = row.ok_or(StorageError::NotFound("loom_block"))?;
+        let row = if let Some(row) = row {
+            row
+        } else {
+            let existing = sqlx::query(
+                r#"
+                SELECT
+                    block_id, workspace_id, content_type, document_id, asset_id,
+                    title, original_filename, content_hash, pinned, favorite,
+                    pin_order, journal_date, created_at, updated_at, imported_at,
+                    backlink_count, mention_count, tag_count, derived_json,
+                    preview_status, thumbnail_asset_id, proxy_asset_id,
+                    view_definition_json
+                FROM loom_blocks
+                WHERE block_id = $1
+                FOR UPDATE
+                "#,
+            )
+            .bind(block_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            let existing_workspace: String = existing.get("workspace_id");
+            let existing_content_type: String = existing.get("content_type");
+            let existing_title: Option<String> = existing.get("title");
+            let existing_definition: Option<String> = existing.get("view_definition_json");
+            if existing_workspace != workspace_id
+                || existing_content_type != "view_def"
+                || existing_title != title
+                || existing_definition.as_deref() != Some(definition_json.as_str())
+            {
+                return Err(StorageError::Conflict("loom_block_view_id"));
+            }
+            tx.commit().await?;
+            let publication_event_id: Option<String> = sqlx::query_scalar(
+                r#"
+                SELECT event_id
+                FROM loom_block_view_fr_outbox
+                WHERE workspace_id = $1 AND block_id = $2 AND operation = 'create'
+                ORDER BY created_at DESC, event_id DESC
+                LIMIT 1
+                "#,
+            )
+            .bind(workspace_id)
+            .bind(block_id)
+            .fetch_optional(&self.pool)
+            .await?;
+            let persisted_definition = existing_definition.ok_or(StorageError::Validation(
+                "view_def block missing definition",
+            ))?;
+            return Ok(BlockViewRecord {
+                block: map_loom_block(existing)?,
+                definition: serde_json::from_str(&persisted_definition)?,
+                publication_event_id: publication_event_id
+                    .map(|value| Uuid::parse_str(&value))
+                    .transpose()
+                    .map_err(|error| StorageError::Serialization(error.to_string()))?,
+            });
+        };
         let persisted_definition: Option<String> = row.get("view_definition_json");
         let persisted_definition = persisted_definition.ok_or(StorageError::Validation(
             "view_def block missing definition",
@@ -10390,17 +10465,45 @@ impl super::Database for PostgresDatabase {
         let record = BlockViewRecord {
             block: map_loom_block(row)?,
             definition: serde_json::from_str(&persisted_definition)?,
+            publication_event_id: Some(event.event_id),
         };
-        // `create_block_view` is a two-step authority write: the API first creates and indexes a
-        // normal note, then this method flips that same block to `view_def`. Refresh the derived
-        // search row after the flip so a saved view cannot remain classified as a note in
-        // LoomSearchV2 facets. The ordinary block update path performs the same projection refresh.
         upsert_loom_block_search_text(
             &mut *tx,
             &record.block.workspace_id,
             &record.block.block_id,
             record.block.content_type.as_str(),
             &loom_block_search_text(&record.block),
+        )
+        .await?;
+        let bridge =
+            Self::bridge_loom_block_to_knowledge_tx(&mut tx, ctx, workspace_id, block_id).await?;
+        let mutation_receipt = build_loom_block_mutation_event(
+            workspace_id,
+            block_id,
+            "create_view_definition",
+            json!({"content_type": "view_def"}),
+        )?;
+        let mutation_receipt =
+            append_kernel_event_with_executor(&mut *tx, mutation_receipt).await?;
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET event_ledger_event_id = $1
+            WHERE workspace_id = $2 AND block_id = $3
+            "#,
+        )
+        .bind(&mutation_receipt.event_id)
+        .bind(workspace_id)
+        .bind(block_id)
+        .execute(&mut *tx)
+        .await?;
+        debug_assert!(!bridge.index_event_id.is_empty());
+        block_view_outbox::store_event(
+            &mut tx,
+            workspace_id,
+            block_id,
+            BlockViewMutationOperation::Create,
+            &event,
         )
         .await?;
         tx.commit().await?;
@@ -10454,7 +10557,11 @@ impl super::Database for PostgresDatabase {
         ))?;
         let definition: BlockViewDefinition = serde_json::from_str(&definition_raw)?;
         let block = map_loom_block(row)?;
-        Ok(BlockViewRecord { block, definition })
+        Ok(BlockViewRecord {
+            block,
+            definition,
+            publication_event_id: None,
+        })
     }
 
     async fn update_block_view_definition(
@@ -10464,16 +10571,31 @@ impl super::Database for PostgresDatabase {
         block_id: &str,
         definition: BlockViewDefinition,
     ) -> StorageResult<BlockViewRecord> {
-        let now = Utc::now();
         let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let now = chrono::DateTime::from_timestamp_micros(metadata.timestamp.timestamp_micros())
+            .ok_or_else(|| StorageError::Serialization("invalid block-view write time".into()))?;
         let actor_kind = metadata.actor_kind.as_str();
         let actor_id = metadata.actor_id.clone();
         let job_id = metadata.job_id.map(|v| v.to_string());
         let workflow_id = metadata.workflow_id.map(|v| v.to_string());
         let edit_event_id = metadata.edit_event_id.to_string();
         let definition_json = serde_json::to_string(&definition)?;
+        let event = block_view_outbox::build_event(
+            &metadata,
+            workspace_id,
+            block_id,
+            BlockViewMutationOperation::Update,
+        )?;
+        let receipt = build_loom_block_mutation_event(
+            workspace_id,
+            block_id,
+            "update_view_definition",
+            json!({"content_type": "view_def"}),
+        )?;
 
-        let res = sqlx::query(
+        let mut tx = self.pool.begin().await?;
+        let receipt = append_kernel_event_with_executor(&mut *tx, receipt).await?;
+        let row = sqlx::query(
             r#"
             UPDATE loom_blocks
             SET
@@ -10483,8 +10605,16 @@ impl super::Database for PostgresDatabase {
                 last_job_id = $4,
                 last_workflow_id = $5,
                 edit_event_id = $6,
-                updated_at = $7
-            WHERE workspace_id = $8 AND block_id = $9 AND content_type = 'view_def'
+                updated_at = $7,
+                event_ledger_event_id = $8
+            WHERE workspace_id = $9 AND block_id = $10 AND content_type = 'view_def'
+            RETURNING
+                block_id, workspace_id, content_type, document_id, asset_id,
+                title, original_filename, content_hash, pinned, favorite,
+                pin_order, journal_date, created_at, updated_at, imported_at,
+                backlink_count, mention_count, tag_count, derived_json,
+                preview_status, thumbnail_asset_id, proxy_asset_id,
+                view_definition_json
             "#,
         )
         .bind(&definition_json)
@@ -10494,15 +10624,31 @@ impl super::Database for PostgresDatabase {
         .bind(workflow_id)
         .bind(edit_event_id)
         .bind(now)
+        .bind(&receipt.event_id)
         .bind(workspace_id)
         .bind(block_id)
-        .execute(&self.pool)
+        .fetch_optional(&mut *tx)
         .await?;
-        if res.rows_affected() == 0 {
-            return Err(StorageError::NotFound("loom_block"));
-        }
-
-        self.get_block_view(workspace_id, block_id).await
+        let row = row.ok_or(StorageError::NotFound("loom_block"))?;
+        let persisted_definition: Option<String> = row.get("view_definition_json");
+        let persisted_definition = persisted_definition.ok_or(StorageError::Validation(
+            "view_def block missing definition",
+        ))?;
+        let record = BlockViewRecord {
+            block: map_loom_block(row)?,
+            definition: serde_json::from_str(&persisted_definition)?,
+            publication_event_id: Some(event.event_id),
+        };
+        block_view_outbox::store_event(
+            &mut tx,
+            workspace_id,
+            block_id,
+            BlockViewMutationOperation::Update,
+            &event,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(record)
     }
 
     async fn query_block_view_results(

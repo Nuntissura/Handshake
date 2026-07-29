@@ -221,6 +221,10 @@ pub struct LoomSearchV2PanelState {
     search_cell: LoomSearchCell,
     /// Off-thread save-view delivery cell.
     save_cell: SaveViewCell,
+    /// Stable id for the current save intent. It survives an ambiguous
+    /// response/error and is retired only on success or a query/workspace
+    /// identity change.
+    save_attempt_id: Option<String>,
 }
 
 impl Default for LoomSearchV2PanelState {
@@ -242,6 +246,7 @@ impl LoomSearchV2PanelState {
             bound_workspace_id: None,
             search_cell: Arc::new(Mutex::new(None)),
             save_cell: Arc::new(Mutex::new(None)),
+            save_attempt_id: None,
         }
     }
 
@@ -262,6 +267,7 @@ impl LoomSearchV2PanelState {
         self.last_searched_query = None;
         self.search_cell = Arc::new(Mutex::new(None));
         self.save_cell = Arc::new(Mutex::new(None));
+        self.save_attempt_id = None;
         true
     }
 
@@ -316,7 +322,10 @@ impl LoomSearchV2PanelState {
         if let Ok(mut slot) = self.save_cell.lock() {
             if let Some(result) = slot.take() {
                 self.view_status = Some(match result {
-                    Ok(block_id) => format!("Saved search as Loom view {block_id}"),
+                    Ok(block_id) => {
+                        self.save_attempt_id = None;
+                        format!("Saved search as Loom view {block_id}")
+                    }
                     Err(msg) => format!("Save view failed: {msg}"),
                 });
                 changed = true;
@@ -350,6 +359,7 @@ impl LoomSearchV2PanelState {
         // captured, so orphan that receipt instead of attributing it to the current result set.
         self.search_cell = Arc::new(Mutex::new(None));
         self.save_cell = Arc::new(Mutex::new(None));
+        self.save_attempt_id = None;
         client.search(ws, &body, Arc::clone(&self.search_cell));
     }
 
@@ -381,10 +391,15 @@ impl LoomSearchV2PanelState {
             return;
         }
         self.view_status = None;
+        let block_id = self
+            .save_attempt_id
+            .get_or_insert_with(|| uuid::Uuid::new_v4().to_string())
+            .clone();
         // As with search, a superseded save owns an orphaned cell and cannot publish a stale receipt.
         self.save_cell = Arc::new(Mutex::new(None));
         client.save_view(
             ws,
+            &block_id,
             self.query.trim(),
             self.active_content_type.as_deref(),
             Arc::clone(&self.save_cell),
@@ -410,6 +425,7 @@ impl LoomSearchV2PanelState {
             self.last_searched_query = None;
             self.search_cell = Arc::new(Mutex::new(None));
             self.save_cell = Arc::new(Mutex::new(None));
+            self.save_attempt_id = None;
         }
     }
 }
@@ -1199,6 +1215,41 @@ mod tests {
         assert_eq!(
             state.response.as_ref().map(|response| response.total),
             Some(1)
+        );
+    }
+
+    #[test]
+    fn ambiguous_save_retry_reuses_block_id_until_success() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        let client = LoomSearchV2Client::new("http://127.0.0.1:9", runtime.handle().clone());
+        let mut state = LoomSearchV2PanelState::new();
+        state.bind_workspace(Some("workspace-a"));
+        state.query = "stable retry".to_owned();
+        state.response = Some(response_with(&[("note", 1)], false, 1));
+
+        state.save_as_view(&client, Some("workspace-a"));
+        let first_id = state
+            .save_attempt_id
+            .clone()
+            .expect("save dispatch owns a stable id");
+        *state.save_cell.lock().expect("save cell") = Some(Err("response lost".to_owned()));
+        assert!(state.poll());
+        assert_eq!(state.save_attempt_id.as_deref(), Some(first_id.as_str()));
+
+        state.save_as_view(&client, Some("workspace-a"));
+        assert_eq!(
+            state.save_attempt_id.as_deref(),
+            Some(first_id.as_str()),
+            "ambiguous retry must not mint a second saved view id"
+        );
+        *state.save_cell.lock().expect("retry save cell") = Some(Ok(first_id.clone()));
+        assert!(state.poll());
+        assert!(
+            state.save_attempt_id.is_none(),
+            "successful authority response retires the retry identity"
         );
     }
 }

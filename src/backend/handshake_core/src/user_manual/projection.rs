@@ -96,7 +96,10 @@ pub fn render_page_markdown(
     out.push_str(&format!("file_id: usermanual-{}\n", page.slug));
     out.push_str("file_kind: UserManualPageProjection\n");
     out.push_str(&format!("manual_version: \"{}\"\n", page.manual_version));
-    out.push_str(&format!("updated_at: \"{}\"\n", page.updated_at.to_rfc3339()));
+    out.push_str(&format!(
+        "updated_at: \"{}\"\n",
+        page.updated_at.to_rfc3339()
+    ));
     out.push_str("---\n\n");
     out.push_str(&format!("# {}\n\n", page.title));
     out.push_str(

@@ -9428,6 +9428,32 @@ impl HandshakeApp {
     }
 
     #[cfg(any(test, feature = "integration"))]
+    pub fn unbind_block_collection_view_for_test(&mut self) {
+        let workspace = self.active_project_id.clone();
+        let sec = &self.editor_mounts.secondary;
+        sec.collection_load_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        if let Ok(mut cell) = sec.collection_record_cell.lock() {
+            *cell = None;
+        }
+        if let Ok(mut cell) = sec.collection_results_cell.lock() {
+            *cell = None;
+        }
+        if let Ok(mut pending) = sec.collection_pending_results.lock() {
+            *pending = None;
+        }
+        if let Ok(mut cell) = sec.collection_op_cell.lock() {
+            *cell = None;
+        }
+        if let Ok(mut events) = sec.collection_events.lock() {
+            events.clear();
+        }
+        if let Ok(mut view) = sec.collection_view.lock() {
+            *view = crate::graph::block_collection_view::BlockCollectionView::new(workspace, "");
+        }
+    }
+
+    #[cfg(any(test, feature = "integration"))]
     pub fn block_collection_generation_for_test(&self) -> u64 {
         self.editor_mounts
             .secondary
@@ -20202,7 +20228,7 @@ impl HandshakeApp {
                     if busy {
                         continue;
                     }
-                    if let (Some((title, kind)), Some(rt)) =
+                    if let (Some((block_id, title, kind)), Some(rt)) =
                         (create_retry, self.runtime_handle.clone())
                     {
                         // A failed +New view retains its exact create intent even when an older saved
@@ -20226,6 +20252,7 @@ impl HandshakeApp {
                         }
                         self.block_collection_client(rt).create_view(
                             workspace,
+                            &block_id,
                             &title,
                             &definition,
                             Arc::clone(&sec.collection_load_generation),
@@ -20273,11 +20300,16 @@ impl HandshakeApp {
                                 crate::graph::block_collection_view::BlockViewDefinition::of_kind(
                                     kind,
                                 );
-                            if let Ok(mut v) = sec.collection_view.lock() {
-                                v.remember_create_attempt(title.clone(), kind);
-                                v.in_flight = true;
-                                v.status = "Creating view…".to_owned();
-                            }
+                            let block_id = match sec.collection_view.lock() {
+                                Ok(mut view) => {
+                                    let block_id =
+                                        view.remember_create_attempt(title.clone(), kind);
+                                    view.in_flight = true;
+                                    view.status = "Creating view…".to_owned();
+                                    block_id
+                                }
+                                Err(_) => continue,
+                            };
                             let op_generation = sec
                                 .collection_load_generation
                                 .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
@@ -20287,6 +20319,7 @@ impl HandshakeApp {
                             }
                             client.create_view(
                                 workspace,
+                                &block_id,
                                 &title,
                                 &def,
                                 Arc::clone(&sec.collection_load_generation),
@@ -20302,11 +20335,16 @@ impl HandshakeApp {
                                 crate::graph::block_collection_view::BlockViewDefinition::of_kind(
                                     kind,
                                 );
-                            if let Ok(mut v) = sec.collection_view.lock() {
-                                v.remember_create_attempt(title.clone(), kind);
-                                v.in_flight = true;
-                                v.status = "Creating view…".to_owned();
-                            }
+                            let block_id = match sec.collection_view.lock() {
+                                Ok(mut view) => {
+                                    let block_id =
+                                        view.remember_create_attempt(title.clone(), kind);
+                                    view.in_flight = true;
+                                    view.status = "Creating view…".to_owned();
+                                    block_id
+                                }
+                                Err(_) => continue,
+                            };
                             let op_generation = sec
                                 .collection_load_generation
                                 .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
@@ -20316,6 +20354,7 @@ impl HandshakeApp {
                             }
                             client.create_view(
                                 workspace,
+                                &block_id,
                                 &title,
                                 &def,
                                 Arc::clone(&sec.collection_load_generation),

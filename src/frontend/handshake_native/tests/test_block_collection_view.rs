@@ -42,6 +42,11 @@ use egui_kittest::kittest::{NodeT, Queryable};
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
+#[cfg(feature = "integration")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+#[cfg(feature = "integration")]
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 
 use handshake_native::backend_client::BlockViewClient;
 #[cfg(feature = "integration")]
@@ -52,7 +57,8 @@ use handshake_native::graph::block_collection_view::{
     BlockViewEvent, BlockViewField, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewQuery,
     BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
     BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX,
-    KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID,
+    KIND_CALENDAR_AUTHOR_ID, KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID,
+    NEW_VIEW_CONFIRM_AUTHOR_ID, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID, NEW_VIEW_KIND_KANBAN_AUTHOR_ID,
     NEW_VIEW_TITLE_AUTHOR_ID, RETRY_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
@@ -735,6 +741,22 @@ fn new_view_creates_and_switches() {
         ids.contains(NEW_VIEW_CONFIRM_AUTHOR_ID),
         "AC8: new-view confirm present"
     );
+    let title_node = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(NEW_VIEW_TITLE_AUTHOR_ID))
+        .expect("AC8: new-view title node");
+    assert!(
+        !title_node.accesskit_node().is_disabled(),
+        "AC8: new-view title must remain steerable while its popup is open"
+    );
+    assert!(
+        title_node
+            .accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "AC8: new-view title must expose canonical SetValue"
+    );
 
     // Type a title into the field (by author_id — the hint text is not an AccessKit label), confirm.
     type_into_author_id(&harness, NEW_VIEW_TITLE_AUTHOR_ID, "Test View");
@@ -755,7 +777,7 @@ fn new_view_creates_and_switches() {
     // The VERIFIED createBlockView request body.
     let client = test_client();
     let def = BlockViewDefinition::of_kind(kind);
-    let spec = client.create_view_request("ws-test", &title, &def);
+    let spec = client.create_view_request("ws-test", "view-test-stable-id", &title, &def);
     assert_eq!(
         spec.url,
         "http://127.0.0.1:37501/workspaces/ws-test/loom/views/definitions"
@@ -764,6 +786,10 @@ fn new_view_creates_and_switches() {
     assert_eq!(
         body.get("title").and_then(|x| x.as_str()),
         Some("Test View")
+    );
+    assert_eq!(
+        body.get("block_id").and_then(|x| x.as_str()),
+        Some("view-test-stable-id")
     );
     assert_eq!(
         body.get("definition")
@@ -1027,7 +1053,7 @@ fn client_card_move_top_level_tags() {
 fn client_create_view_body() {
     let c = test_client();
     let def = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
-    let spec = c.create_view_request("ws1", "My View", &def);
+    let spec = c.create_view_request("ws1", "view-stable-1", "My View", &def);
     assert!(matches!(
         spec.method,
         handshake_native::backend_client::HttpMethod::Post
@@ -1037,12 +1063,122 @@ fn client_create_view_body() {
         "http://127.0.0.1:37501/workspaces/ws1/loom/views/definitions"
     );
     let body = spec.body.unwrap();
+    assert_eq!(
+        body.get("block_id").and_then(|x| x.as_str()),
+        Some("view-stable-1")
+    );
     assert_eq!(body.get("title").and_then(|x| x.as_str()), Some("My View"));
     assert_eq!(
         body.get("definition")
             .and_then(|d| d.get("kind"))
             .and_then(|x| x.as_str()),
         Some("kanban")
+    );
+}
+
+#[test]
+fn unbound_block_collections_pane_opens_new_view_form_instead_of_spinning_forever() {
+    let view = shared(BlockCollectionView::new("ws-unbound", ""));
+    let mut harness = harness_for(Arc::clone(&view), Arc::new(Mutex::new(Vec::new())));
+    harness.run();
+    assert!(author_ids(&harness).contains(NEW_VIEW_AUTHOR_ID));
+    for unavailable in [
+        KIND_TABLE_AUTHOR_ID,
+        KIND_KANBAN_AUTHOR_ID,
+        KIND_CALENDAR_AUTHOR_ID,
+    ] {
+        assert!(
+            !author_ids(&harness).contains(unavailable),
+            "unbound pane must not advertise a persisted-kind mutation target: {unavailable}"
+        );
+    }
+    click_author_id(&harness, NEW_VIEW_AUTHOR_ID);
+    harness.run();
+    let ids = author_ids(&harness);
+    assert!(
+        ids.contains(NEW_VIEW_TITLE_AUTHOR_ID) && ids.contains(NEW_VIEW_CONFIRM_AUTHOR_ID),
+        "the unbound pane must render the creation form before any saved projection exists"
+    );
+    assert!(
+        !view.lock().unwrap().loading,
+        "an unbound pane is an honest empty state, not a perpetual load"
+    );
+}
+
+#[test]
+fn in_flight_mutation_controls_are_accessibly_disabled() {
+    let view = shared(seeded_table(1));
+    view.lock().unwrap().in_flight = true;
+    let mut harness = harness_for(view, Arc::new(Mutex::new(Vec::new())));
+    harness.run();
+    let sort_author_id = table_sort_author_id(BlockViewField::Title);
+    for author_id in [
+        KIND_KANBAN_AUTHOR_ID,
+        NEW_VIEW_AUTHOR_ID,
+        sort_author_id.as_str(),
+    ] {
+        let node = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(author_id))
+            .unwrap_or_else(|| panic!("missing in-flight control {author_id}"));
+        assert!(
+            node.accesskit_node().is_disabled(),
+            "in-flight control must be truthfully disabled: {author_id}"
+        );
+        assert!(
+            !node
+                .accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Click),
+            "disabled control must not expose Click: {author_id}"
+        );
+    }
+}
+
+#[test]
+fn open_new_view_form_stays_visible_and_non_mutating_while_another_mutation_is_in_flight() {
+    let view = shared(seeded_table(1));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&view), Arc::clone(&events));
+    harness.run();
+    click_author_id(&harness, NEW_VIEW_AUTHOR_ID);
+    harness.run();
+    assert!(author_ids(&harness).contains(NEW_VIEW_CONFIRM_AUTHOR_ID));
+
+    view.lock().unwrap().in_flight = true;
+    harness.step();
+    for (author_id, action) in [
+        (NEW_VIEW_TITLE_AUTHOR_ID, egui::accesskit::Action::SetValue),
+        (
+            NEW_VIEW_KIND_KANBAN_AUTHOR_ID,
+            egui::accesskit::Action::Click,
+        ),
+        (NEW_VIEW_CONFIRM_AUTHOR_ID, egui::accesskit::Action::Click),
+    ] {
+        let node = harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(author_id))
+            .unwrap_or_else(|| panic!("open form control must remain visible: {author_id}"));
+        assert!(
+            node.accesskit_node().is_disabled(),
+            "in-flight popup control must be disabled: {author_id}"
+        );
+        assert!(
+            !node.accesskit_node().data().supports_action(action),
+            "in-flight popup control must not expose {action:?}: {author_id}"
+        );
+    }
+    assert!(
+        events.lock().unwrap().is_empty(),
+        "opening and disabling the form must not emit a create"
+    );
+
+    harness.step();
+    assert!(
+        author_ids(&harness).contains(NEW_VIEW_CONFIRM_AUTHOR_ID),
+        "the in-progress form must remain open for recovery after the mutation completes"
     );
 }
 
@@ -1534,8 +1670,10 @@ fn live_create_view(
 ) -> String {
     let cell: handshake_native::backend_client::BlockViewOpCell = Arc::new(Mutex::new(None));
     let generation = Arc::new(std::sync::atomic::AtomicU64::new(1));
+    let block_id = uuid::Uuid::new_v4().to_string();
     client.create_view(
         workspace_id,
+        &block_id,
         title,
         definition,
         Arc::clone(&generation),
@@ -1601,6 +1739,45 @@ fn lane<'a>(results: &'a BlockViewResults, key: &str) -> &'a BlockViewLane {
         .iter()
         .find(|lane| lane.key == key)
         .unwrap_or_else(|| panic!("expected lane '{key}' in {:?}", results.groups))
+}
+
+#[cfg(feature = "integration")]
+fn json_node_by_author_id<'a>(
+    value: &'a serde_json::Value,
+    expected: &str,
+) -> Option<&'a serde_json::Value> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.get("author_id").and_then(serde_json::Value::as_str) == Some(expected) {
+                return Some(value);
+            }
+            object
+                .values()
+                .find_map(|child| json_node_by_author_id(child, expected))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|child| json_node_by_author_id(child, expected)),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "integration")]
+fn json_author_value_is(value: &serde_json::Value, author_id: &str, expected: &str) -> bool {
+    json_node_by_author_id(value, author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        == Some(expected)
+}
+
+#[cfg(feature = "integration")]
+fn json_author_is_descendant_of(
+    value: &serde_json::Value,
+    ancestor_author_id: &str,
+    descendant_author_id: &str,
+) -> bool {
+    json_node_by_author_id(value, ancestor_author_id)
+        .is_some_and(|ancestor| json_has_author_id(ancestor, descendant_author_id))
 }
 
 #[cfg(feature = "integration")]
@@ -1732,6 +1909,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         Err(error) => panic!("remove stale MT-027 success receipt before proof: {error}"),
     }
     let live = interconnect_support::require_reachable_backend();
+    let backend_binding = live.owned_backend_binding_receipt();
     let unique = format!(
         "mt027-{}-{}",
         std::process::id(),
@@ -2126,11 +2304,31 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     let mut app_harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     app_harness.step();
-    assert!(author_ids(&app_harness).contains(RETRY_AUTHOR_ID));
-    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    let mut argus = CanonicalArgusDriver::bind(
+        app_harness.state(),
+        "wp-kernel-012-mt-027-block-collections",
+    );
+    let error_tree = argus.inspect(&mut app_harness);
+    assert!(
+        json_has_author_id(&error_tree, RETRY_AUTHOR_ID),
+        "canonical Argus sees the mounted error-state Retry control"
+    );
+    argus.click_and_reinspect(&mut app_harness, RETRY_AUTHOR_ID);
     app_harness.step();
     let mounted_table = await_app_collection(&mut app_harness, &table_id);
     assert_eq!(mounted_table.kind, BlockViewKind::Calendar);
+    let recovered_tree = argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "initial-retry-recovered-projection",
+        |tree| {
+            !json_has_author_id(tree, RETRY_AUTHOR_ID)
+                && json_has_author_id(tree, KIND_CALENDAR_AUTHOR_ID)
+        },
+    );
+    assert!(
+        !json_has_author_id(&recovered_tree, RETRY_AUTHOR_ID),
+        "fresh canonical Argus inspection sees the recovered projection"
+    );
     let mounted_ids = author_ids(&app_harness);
     for required in [
         KIND_TABLE_AUTHOR_ID,
@@ -2148,23 +2346,46 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
 
     // Actual host kind + sort mutations: the queue is drained by drive_collections_pane and each write
     // is followed by its generation-stamped authoritative definition/results reload.
-    mounted_events
-        .lock()
-        .unwrap()
-        .push(BlockViewEvent::KindChange {
-            kind: BlockViewKind::Table,
-        });
+    argus.click_and_reinspect(&mut app_harness, KIND_TABLE_AUTHOR_ID);
     app_harness.step();
     assert_eq!(
         await_app_collection(&mut app_harness, &table_id).kind,
         BlockViewKind::Table
     );
-    mounted_events.lock().unwrap().push(BlockViewEvent::Sort {
-        sort: BlockViewSort {
-            field: BlockViewField::Title,
-            direction: BlockViewSortDirection::Asc,
-        },
+    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-table-selected", |tree| {
+        json_author_value_is(tree, KIND_TABLE_AUTHOR_ID, "selected")
     });
+    argus.click_and_reinspect(&mut app_harness, KIND_KANBAN_AUTHOR_ID);
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &table_id).kind,
+        BlockViewKind::Kanban
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-kanban-selected", |tree| {
+        json_author_value_is(tree, KIND_KANBAN_AUTHOR_ID, "selected")
+    });
+    argus.click_and_reinspect(&mut app_harness, KIND_CALENDAR_AUTHOR_ID);
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &table_id).kind,
+        BlockViewKind::Calendar
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-calendar-selected", |tree| {
+        json_author_value_is(tree, KIND_CALENDAR_AUTHOR_ID, "selected")
+    });
+    argus.click_and_reinspect(&mut app_harness, KIND_TABLE_AUTHOR_ID);
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &table_id).kind,
+        BlockViewKind::Table
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-table-restored", |tree| {
+        json_author_value_is(tree, KIND_TABLE_AUTHOR_ID, "selected")
+    });
+    argus.click_and_reinspect(
+        &mut app_harness,
+        &table_sort_author_id(BlockViewField::Title),
+    );
     app_harness.step();
     assert_eq!(
         await_app_collection(&mut app_harness, &table_id).sort,
@@ -2173,6 +2394,13 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
             direction: BlockViewSortDirection::Asc,
         })
     );
+    let sort_title_author_id = table_sort_author_id(BlockViewField::Title);
+    argus.assert_latest_terminal_predicate(&mut app_harness, "sort-title-ascending", |tree| {
+        json_node_by_author_id(tree, &sort_title_author_id)
+            .and_then(|node| node.get("label"))
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|label| label.contains('↑'))
+    });
 
     // Actual host Kanban mutation. Rebind via visible Retry, then enqueue the typed card event the real
     // drag surface emits; fresh backend state proves the host did not mutate lanes locally.
@@ -2182,21 +2410,40 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         view.set_error("force mounted Kanban reload");
     }
     app_harness.step();
-    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    argus.click_and_reinspect(&mut app_harness, RETRY_AUTHOR_ID);
     app_harness.step();
     await_app_collection(&mut app_harness, &kanban_id);
+    let middle_card_author_id = kanban_card_author_id(&middle);
+    let untagged_lane_author_id = kanban_lane_author_id(BLOCK_VIEW_UNTAGGED_LANE);
+    argus.assert_latest_terminal_predicate(&mut app_harness, "kanban-retry-loaded-card", |tree| {
+        json_author_is_descendant_of(tree, &untagged_lane_author_id, &middle_card_author_id)
+    });
     let live_kanban_ids = author_ids(&app_harness);
     assert!(live_kanban_ids.contains(&kanban_card_author_id(&middle)));
-    mounted_events
-        .lock()
-        .unwrap()
-        .push(BlockViewEvent::CardMove {
-            block_id: middle.clone(),
-            add_tags: vec![tag_a.clone()],
-            remove_tags: Vec::new(),
-        });
+    argus.click_with_payload_and_reinspect(
+        &mut app_harness,
+        "collection.kanban-move",
+        serde_json::json!({
+            "block_id": middle,
+            "from_lane": BLOCK_VIEW_UNTAGGED_LANE,
+            "to_lane": tag_a,
+        }),
+    );
     app_harness.step();
     await_app_collection(&mut app_harness, &kanban_id);
+    let tag_a_lane_author_id = kanban_lane_author_id(&tag_a);
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "kanban-card-moved-target-lane",
+        |tree| {
+            json_author_is_descendant_of(tree, &tag_a_lane_author_id, &middle_card_author_id)
+                && !json_author_is_descendant_of(
+                    tree,
+                    &untagged_lane_author_id,
+                    &middle_card_author_id,
+                )
+        },
+    );
     assert!(lane(
         &live_query_view(&fresh_client, &workspace_id, &kanban_id),
         &tag_a
@@ -2212,20 +2459,106 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         view.set_error("force mounted Calendar reload");
     }
     app_harness.step();
-    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    argus.click_and_reinspect(&mut app_harness, RETRY_AUTHOR_ID);
     app_harness.step();
     await_app_collection(&mut app_harness, &calendar_id);
-    mounted_events
-        .lock()
-        .unwrap()
-        .push(BlockViewEvent::DateRange {
-            date_from: Some("2026-03-01".to_owned()),
-            date_to: Some("2026-04-30".to_owned()),
-        });
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "calendar-retry-loaded-controls",
+        |tree| {
+            json_has_author_id(
+                tree,
+                handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
+            ) && json_has_author_id(
+                tree,
+                handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
+            )
+        },
+    );
+    argus.set_value_and_reinspect(
+        &mut app_harness,
+        handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
+        "2026-02-28",
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "calendar-from-value", |tree| {
+        json_author_value_is(
+            tree,
+            handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
+            "2026-02-28",
+        )
+    });
+    argus.set_value_and_reinspect(
+        &mut app_harness,
+        handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
+        "2026-04-30",
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "calendar-to-value", |tree| {
+        json_author_value_is(
+            tree,
+            handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
+            "2026-04-30",
+        )
+    });
+    argus.click_and_reinspect(&mut app_harness, "bcv.calendar.apply-range");
     app_harness.step();
     let mounted_calendar = await_app_collection(&mut app_harness, &calendar_id);
+    let march_one_entry_id = calendar_entry_author_id(&march_one);
+    let march_two_entry_id = calendar_entry_author_id(&march_two);
+    let april_one_entry_id = calendar_entry_author_id(&april_one);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut app_harness,
+        "calendar-range-terminal",
+        serde_json::json!({
+            "required_entries": [
+                {
+                    "day_author_id": calendar_day_author_id("2026-03-01"),
+                    "entry_author_id": march_one_entry_id.clone(),
+                },
+                {
+                    "day_author_id": calendar_day_author_id("2026-03-02"),
+                    "entry_author_id": march_two_entry_id.clone(),
+                },
+                {
+                    "day_author_id": calendar_day_author_id("2026-04-01"),
+                    "entry_author_id": april_one_entry_id.clone(),
+                },
+            ],
+        }),
+        |tree| {
+            json_author_value_is(
+                tree,
+                handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
+                "2026-02-28",
+            ) && json_author_value_is(
+                tree,
+                handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
+                "2026-04-30",
+            ) && [
+                ("2026-03-01", &march_one_entry_id),
+                ("2026-03-02", &march_two_entry_id),
+                ("2026-04-01", &april_one_entry_id),
+            ]
+            .iter()
+            .all(|(date, entry_id)| {
+                json_author_is_descendant_of(tree, &calendar_day_author_id(date), entry_id)
+            })
+        },
+    );
+    assert_eq!(
+        mounted_calendar.query.date_from.as_deref(),
+        Some("2026-02-28")
+    );
     assert_eq!(
         mounted_calendar.query.date_to.as_deref(),
+        Some("2026-04-30")
+    );
+    let persisted_calendar = live_fetch_view(&fresh_client, &workspace_id, &calendar_id).definition;
+    assert_eq!(
+        persisted_calendar.query.date_from.as_deref(),
+        Some("2026-02-28")
+    );
+    assert_eq!(
+        persisted_calendar.query.date_to.as_deref(),
         Some("2026-04-30")
     );
     assert_eq!(
@@ -2235,14 +2568,47 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
 
     // Actual host create + unbound-create failure recovery. The failed title/kind intent is retained;
     // clicking the same visible Retry after restoring the live base replays createBlockView and loads it.
+    app_harness
+        .state_mut()
+        .unbind_block_collection_view_for_test();
+    app_harness.step();
+    {
+        let view = mounted.lock().unwrap();
+        assert!(view.view_block_id.is_empty());
+        assert!(!view.loading);
+    }
     let host_create_title = format!("{unique}-host-created");
-    mounted_events
-        .lock()
-        .unwrap()
-        .push(BlockViewEvent::CreateView {
-            title: host_create_title,
-            kind: BlockViewKind::Table,
-        });
+    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_AUTHOR_ID);
+    let create_tree = argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "unbound-create-form-open",
+        |tree| {
+            json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
+                && json_has_author_id(tree, NEW_VIEW_CONFIRM_AUTHOR_ID)
+                && !json_has_author_id(tree, KIND_TABLE_AUTHOR_ID)
+        },
+    );
+    let title_node = json_node_by_author_id(&create_tree, NEW_VIEW_TITLE_AUTHOR_ID)
+        .expect("canonical Argus sees the mounted new-view title");
+    assert_eq!(
+        title_node["disabled"], false,
+        "canonical mounted new-view title must be steerable: {title_node}"
+    );
+    argus.set_value_and_reinspect(
+        &mut app_harness,
+        NEW_VIEW_TITLE_AUTHOR_ID,
+        &host_create_title,
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "unbound-create-title-set", |tree| {
+        json_author_value_is(tree, NEW_VIEW_TITLE_AUTHOR_ID, &host_create_title)
+    });
+    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "unbound-create-calendar-selected",
+        |tree| json_author_value_is(tree, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID, "selected"),
+    );
+    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_CONFIRM_AUTHOR_ID);
     app_harness.step();
     let mut host_created_id = None;
     for _ in 0..200 {
@@ -2261,28 +2627,54 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     let host_created_id = host_created_id.expect("mounted host create did not resolve within 10s");
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "unbound-create-calendar-terminal",
+        |tree| {
+            json_author_value_is(tree, KIND_CALENDAR_AUTHOR_ID, "selected")
+                && !json_has_author_id(tree, RETRY_AUTHOR_ID)
+                && !json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
+        },
+    );
     assert!(
         mounted.lock().unwrap().create_retry_intent().is_none(),
         "a successful create clears create-specific retry state so a later load failure reloads its id"
     );
+    let host_created = live_fetch_view(&fresh_client, &workspace_id, &host_created_id);
+    assert_eq!(host_created.definition.kind, BlockViewKind::Calendar);
+    let host_created_block = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{host_created_id}"
+    ));
     assert_eq!(
-        live_fetch_view(&fresh_client, &workspace_id, &host_created_id)
-            .definition
-            .kind,
-        BlockViewKind::Table
+        host_created_block["title"].as_str(),
+        Some(host_create_title.as_str()),
+        "canonical SetValue title must persist exactly"
     );
 
     app_harness
         .state()
         .set_block_collection_backend_base_url_for_test("http://127.0.0.1:9");
     let retry_create_title = format!("{unique}-retry-created");
-    mounted_events
-        .lock()
-        .unwrap()
-        .push(BlockViewEvent::CreateView {
-            title: retry_create_title.clone(),
-            kind: BlockViewKind::Kanban,
-        });
+    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate(&mut app_harness, "retry-create-form-open", |tree| {
+        json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
+            && json_has_author_id(tree, NEW_VIEW_CONFIRM_AUTHOR_ID)
+    });
+    argus.set_value_and_reinspect(
+        &mut app_harness,
+        NEW_VIEW_TITLE_AUTHOR_ID,
+        &retry_create_title,
+    );
+    argus.assert_latest_terminal_predicate(&mut app_harness, "retry-create-title-set", |tree| {
+        json_author_value_is(tree, NEW_VIEW_TITLE_AUTHOR_ID, &retry_create_title)
+    });
+    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_KIND_KANBAN_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "retry-create-kanban-selected",
+        |tree| json_author_value_is(tree, NEW_VIEW_KIND_KANBAN_AUTHOR_ID, "selected"),
+    );
+    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_CONFIRM_AUTHOR_ID);
     app_harness.step();
     for _ in 0..200 {
         app_harness.step();
@@ -2292,6 +2684,15 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     assert!(mounted.lock().unwrap().error.is_some());
+    let failed_create_tree = argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "failed-create-retry-visible",
+        |tree| json_has_author_id(tree, RETRY_AUTHOR_ID),
+    );
+    assert!(
+        json_has_author_id(&failed_create_tree, RETRY_AUTHOR_ID),
+        "canonical failed create exposes its retained Retry action"
+    );
     // The async completion is drained after this frame's pane render. Publish two more frames so the
     // mounted error state and its stable Retry node are present in the AccessKit tree before interaction.
     app_harness.run_steps(2);
@@ -2302,7 +2703,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     // Queue a second Retry in the same frame as the visible AccessKit activation. The host must dispatch
     // exactly one create POST; the second event observes in_flight and is rejected.
     mounted_events.lock().unwrap().push(BlockViewEvent::Retry);
-    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    argus.click_and_reinspect(&mut app_harness, RETRY_AUTHOR_ID);
     app_harness.step();
     let mut retry_created_id = None;
     for _ in 0..200 {
@@ -2321,12 +2722,25 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     }
     let retry_created_id =
         retry_created_id.expect("mounted create Retry did not resolve within 10s");
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "retry-create-kanban-terminal",
+        |tree| {
+            json_author_value_is(tree, KIND_KANBAN_AUTHOR_ID, "selected")
+                && !json_has_author_id(tree, RETRY_AUTHOR_ID)
+                && !json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
+        },
+    );
     assert_ne!(retry_created_id, host_created_id);
+    let retry_created = live_fetch_view(&fresh_client, &workspace_id, &retry_created_id);
+    assert_eq!(retry_created.definition.kind, BlockViewKind::Kanban);
+    let retry_created_block = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{retry_created_id}"
+    ));
     assert_eq!(
-        live_fetch_view(&fresh_client, &workspace_id, &retry_created_id)
-            .definition
-            .kind,
-        BlockViewKind::Kanban
+        retry_created_block["title"].as_str(),
+        Some(retry_create_title.as_str()),
+        "failed create Retry must retain the exact canonical title"
     );
     let all_after_retry = live.get_json(&format!("/workspaces/{workspace_id}/loom/views/all"));
     let retry_title_count = all_after_retry
@@ -2346,6 +2760,74 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     assert_eq!(
         retry_title_count, 1,
         "duplicate queued Retry events must persist exactly one view with the retained title"
+    );
+
+    // Real-PG constrained/empty projection through the mounted host and a fresh canonical inspection.
+    let mut empty_def = BlockViewDefinition::of_kind(BlockViewKind::Table);
+    // Use a schema-valid type deliberately absent from this isolated fixture. An invented
+    // `code_file` token would only prove that request deserialization correctly rejects it.
+    empty_def.query.content_type = Some("ckc_character".to_owned());
+    let empty_id = live_create_view(
+        &client,
+        &workspace_id,
+        &format!("{unique}-empty"),
+        &empty_def,
+    );
+    {
+        let mut view = mounted.lock().unwrap();
+        view.bind_loading_view(workspace_id.clone(), empty_id.clone());
+        view.set_error("force mounted empty-view reload");
+    }
+    app_harness.step();
+    argus.click_and_reinspect(&mut app_harness, RETRY_AUTHOR_ID);
+    app_harness.step();
+    let empty_loaded = await_app_collection(&mut app_harness, &empty_id);
+    assert_eq!(empty_loaded.kind, BlockViewKind::Table);
+    let empty_tree =
+        argus.assert_latest_terminal_predicate(&mut app_harness, "empty-table-terminal", |tree| {
+            tree.to_string().contains("No blocks match this view.")
+                && !tree.to_string().contains(TABLE_ROW_AUTHOR_ID_PREFIX)
+        });
+    assert!(
+        !empty_tree.to_string().contains(TABLE_ROW_AUTHOR_ID_PREFIX),
+        "canonical empty projection contains no table rows"
+    );
+    assert!(
+        empty_tree
+            .to_string()
+            .contains("No blocks match this view."),
+        "canonical empty projection exposes the exact empty-state text"
+    );
+    argus.click_and_reinspect(&mut app_harness, KIND_KANBAN_AUTHOR_ID);
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &empty_id).kind,
+        BlockViewKind::Kanban
+    );
+    let empty_kanban_tree =
+        argus.assert_latest_terminal_predicate(&mut app_harness, "empty-kanban-terminal", |tree| {
+            tree.to_string().contains("No Kanban lanes.")
+        });
+    assert!(
+        empty_kanban_tree.to_string().contains("No Kanban lanes."),
+        "canonical empty Kanban projection exposes the exact empty-state text"
+    );
+    argus.click_and_reinspect(&mut app_harness, KIND_CALENDAR_AUTHOR_ID);
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &empty_id).kind,
+        BlockViewKind::Calendar
+    );
+    let empty_calendar_tree = argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "empty-calendar-terminal",
+        |tree| tree.to_string().contains("No blocks in this date range."),
+    );
+    assert!(
+        empty_calendar_tree
+            .to_string()
+            .contains("No blocks in this date range."),
+        "canonical empty calendar projection exposes the exact empty-state text"
     );
 
     // Flight Recorder shares the busy managed-PG backend with parallel WP proofs. Use an explicit
@@ -2413,12 +2895,29 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
             && payload["tags_removed"].is_array()
     }), "card moves must retain canonical tag payload arrays and top-level native actor attribution");
 
+    argus.finish();
     cleanup.assert_cleaned_and_absent();
+    drop(cleanup);
+    let backend_runtime_root = std::path::PathBuf::from(
+        backend_binding["runtime_data_dir"]
+            .as_str()
+            .expect("owned backend binding records runtime_data_dir"),
+    )
+    .parent()
+    .expect("owned backend runtime data has a parent")
+    .to_path_buf();
+    drop(live);
+    assert!(
+        !backend_runtime_root.exists(),
+        "fixture-owned backend runtime must be cleaned before the proof receipt: {}",
+        backend_runtime_root.display()
+    );
 
     // Receipt only after every persistence, retry, mounted AccessKit, cleanup, and fresh-absence check.
     std::fs::create_dir_all(&receipt_dir).expect("create external MT-027 receipt directory");
     let receipt = serde_json::json!({
         "schema_id": "hsk.mt027_managed_pg_proof@1",
+        "backend_binding": backend_binding,
         "workspace_id": workspace_id,
         "view_ids": { "table": table_id, "kanban": kanban_id, "calendar": calendar_id },
         "block_ids": {
@@ -2435,6 +2934,7 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
             "calendar-range-persistence",
             "kind-switch-persistence",
             "mounted-handshake-app-host-dispatch",
+            "canonical-localhost-argus-create-mutate-switch-empty-error-retry",
             "flight-recorder-native-actor-attribution",
             "workspace-cleanup-fresh-list-absence"
         ]

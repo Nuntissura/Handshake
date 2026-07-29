@@ -24,17 +24,17 @@
 
 use serde_json::json;
 
-use super::USER_MANUAL_VERSION;
 use super::migration_plan::naming_migration_plan;
-use super::registry::{SurfaceGroup, user_manual_access_points, wp009_surface_registry};
+use super::registry::{user_manual_access_points, wp009_surface_registry, SurfaceGroup};
 use super::store::{
-    LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage, UserManualFeatureEntry,
-    UserManualStore, UserManualToolEntry, sha256_hex,
+    sha256_hex, LegacyAliasRow, NewManualAnchor, NewManualSection, NewUserManualPage,
+    UserManualFeatureEntry, UserManualStore, UserManualToolEntry,
 };
+use super::USER_MANUAL_VERSION;
 use crate::kernel::model_manual::kernel002_no_context_model_manual;
-use crate::model_manual::{CommandStatus, model_manual};
-use crate::storage::StorageResult;
+use crate::model_manual::{model_manual, CommandStatus};
 use crate::storage::postgres::PostgresDatabase;
+use crate::storage::StorageResult;
 
 /// Everything the seeder writes.
 pub struct SeedCorpus {
@@ -640,7 +640,7 @@ fn page_editor_preferences() -> NewUserManualPage {
                  `PREFERENCE_RECORD_CHANGED` EventLedger receipt — never a projection or the settings UI.",
             ),
             section_with_json(
-                "usage",
+                "workflows",
                 "Routes and preference ids",
                 "All routes are workspace-scoped under `/workspaces/{workspace_id}/preferences`:\n\n\
                  - `GET /workspaces/{workspace_id}/preferences` — the redacted projection (effective \
@@ -746,18 +746,16 @@ fn surface_page(
             "navigation",
             "Routes",
             &group_routes_md(group),
-            json!(
-                wp009_surface_registry()
-                    .iter()
-                    .filter(|s| s.group == group)
-                    .map(|s| json!({
-                        "surface_id": s.surface_id,
-                        "method": s.method,
-                        "route": s.route,
-                        "summary": s.summary,
-                    }))
-                    .collect::<Vec<_>>()
-            ),
+            json!(wp009_surface_registry()
+                .iter()
+                .filter(|s| s.group == group)
+                .map(|s| json!({
+                    "surface_id": s.surface_id,
+                    "method": s.method,
+                    "route": s.route,
+                    "summary": s.summary,
+                }))
+                .collect::<Vec<_>>()),
         ),
     ];
     sections.extend(extra_sections);
@@ -789,18 +787,16 @@ fn page_knowledge_index_surface() -> NewUserManualPage {
                 "navigation",
                 "Code navigation routes",
                 &group_routes_md(SurfaceGroup::CodeNavigation),
-                json!(
-                    wp009_surface_registry()
-                        .iter()
-                        .filter(|s| s.group == SurfaceGroup::CodeNavigation)
-                        .map(|s| json!({
-                            "surface_id": s.surface_id,
-                            "method": s.method,
-                            "route": s.route,
-                            "summary": s.summary,
-                        }))
-                        .collect::<Vec<_>>()
-                ),
+                json!(wp009_surface_registry()
+                    .iter()
+                    .filter(|s| s.group == SurfaceGroup::CodeNavigation)
+                    .map(|s| json!({
+                        "surface_id": s.surface_id,
+                        "method": s.method,
+                        "route": s.route,
+                        "summary": s.summary,
+                    }))
+                    .collect::<Vec<_>>()),
             ),
             section(
                 "inputs_outputs",
@@ -876,6 +872,46 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  so models can see pin, tag, favorite, and backlink ranking influence.",
             ),
             section(
+                "workflows",
+                "Block Collection Views — table, Kanban, and calendar",
+                "Open the mounted Block Collections pane with `menu.view.open-block-collections` \
+                 / command `view.block-collections`, or open a Loom search result whose \
+                 `block.content_type` is `view_def`. Create with `bcv.new-view`, set \
+                 `bcv.new-view.title`, choose `bcv.new-view.kind.table`, \
+                 `bcv.new-view.kind.kanban`, or `bcv.new-view.kind.calendar`, then activate \
+                 `bcv.new-view.confirm` (cancel: `bcv.new-view.cancel`). The client sends one \
+                 stable block id to `POST /workspaces/:workspace_id/loom/views/definitions` \
+                 and retains that id across Retry, so response loss cannot create a second view. \
+                 PostgreSQL inserts the final `view_def` block, search projection, knowledge \
+                 bridge, EventLedger mutation receipt, and exact Flight Recorder outbox event in \
+                 one transaction; same-id/same-definition retries converge, while a changed \
+                 payload for that id returns 409.\n\
+                 Table controls `bcv.table.sort.*` persist the typed sort with \
+                 `PATCH .../loom/views/definitions/:block_id`, then the host re-queries \
+                 `POST .../loom/views/definitions/:block_id/results`; rows are \
+                 `bcv.table.row.*` and are never client-side re-sorted. Kanban lanes/cards are \
+                 `bcv.kanban.lane.*` / `bcv.kanban.card.*`; a move writes real tag add/remove \
+                 mutations, then performs the same authoritative results re-query instead of \
+                 locally moving a card. Calendar inputs `bcv.calendar.date-from` and \
+                 `bcv.calendar.date-to` accept `YYYY-MM-DD`; `bcv.calendar.apply-range` persists \
+                 the definition and re-queries. Switch persisted kinds with \
+                 `bcv.kind.table`, `bcv.kind.kanban`, and `bcv.kind.calendar`.\n\
+                 Empty states are explicit: `No blocks match this view.`, `No Kanban lanes.`, \
+                 and `No blocks in this date range.` A load or mutation failure stays visible as \
+                 `View error: ...` at `bcv.status`; `bcv.retry` replays a retained create intent \
+                 with the same id or reloads the same saved view with one bounded definition fetch \
+                 and one bounded results query. Workspace/generation guards reject stale \
+                 deliveries.\n\
+                 Diagnostic posture: Tier 1 Flight Recorder is WIRED for create/update through \
+                 the transactional PostgreSQL outbox and restart reconciler; query events are \
+                 observational. Tier 2 internal_diagnostics is WIRED at the shared host/watchdog \
+                 but has no collection-specific counter. Tier 3 Palmistry is WIRED at the shared \
+                 out-of-process freeze/crash boundary; it has no collection-specific child. \
+                 Canonical verification uses a fresh run id with \
+                 `tests/run_mt027_argus_proof.ps1 -RunId <mt027-run-id>` and stores source-bound \
+                 evidence only under the allocated external Handshake_Artifacts MT-027 root.",
+            ),
+            section(
                 "failure_modes",
                 "Failure modes",
                 "- 404 `workspace_not_found` — the :workspace_id does not exist.\n\
@@ -896,7 +932,7 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  retired, not hard-deleted, so detection history survives.",
             ),
             section(
-                "durable_mutation_receipts",
+                "safety",
                 "Durable folder/tag mutation receipts and diagnostic posture",
                 "Folder-tree mutations (`POST/PATCH/DELETE .../loom/folders...` and folder \
                  membership `PUT/DELETE .../loom/folders/:folder_id/blocks/:block_id`) and \
@@ -988,7 +1024,7 @@ fn page_rich_documents_surface() -> NewUserManualPage {
                  `event_id`; an empty list means that aggregate has no ledger events.",
             ),
             section(
-                "diagnostics",
+                "safety",
                 "Native media-embed NodeViews — states and diagnostic posture (HBR-INT-009)",
                 "The native editor renders the four CKC media embeds (image, slideshow, album, \
                  video) as interactive egui NodeViews dispatched from the `hsLink` atom by \
@@ -1544,18 +1580,17 @@ fn page_legacy_bridge() -> NewUserManualPage {
                  - **P2 (frontend lane)**: rename Tauri commands \
                  (`model_manual_get` -> canonical `/usermanual` routes), app help surface.\n\
                  - **P3 (later WP)**: retire the static legacy module files.",
-                json!(
-                    plan.rows
-                        .iter()
-                        .map(|r| json!({
-                            "row_id": r.row_id,
-                            "legacy_id": r.legacy_id,
-                            "canonical_ref": r.canonical_ref,
-                            "phase": r.phase.as_str(),
-                            "shim_state": r.shim_state.as_str(),
-                        }))
-                        .collect::<Vec<_>>()
-                ),
+                json!(plan
+                    .rows
+                    .iter()
+                    .map(|r| json!({
+                        "row_id": r.row_id,
+                        "legacy_id": r.legacy_id,
+                        "canonical_ref": r.canonical_ref,
+                        "phase": r.phase.as_str(),
+                        "shim_state": r.shim_state.as_str(),
+                    }))
+                    .collect::<Vec<_>>()),
             ),
         ],
         anchors: vec![

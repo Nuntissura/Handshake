@@ -18,6 +18,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use handshake_native::backend_client::build_backend_client;
+use sha2::{Digest, Sha256};
 
 const FIXTURE_LOCK_TIMEOUT: Duration = Duration::from_secs(60);
 // Every owned backend replays the complete production startup path before it can publish its listen
@@ -722,6 +723,33 @@ fn wait_for_health(
 }
 
 impl LiveBackend {
+    pub fn owned_backend_binding_receipt(&self) -> serde_json::Value {
+        let child = self
+            .owned_backend
+            .as_ref()
+            .expect("canonical proof requires a fixture-owned backend");
+        let binary = self
+            .owned_binary
+            .as_ref()
+            .expect("owned backend records its exact binary");
+        let bytes = std::fs::read(binary)
+            .unwrap_or_else(|error| panic!("hash owned backend {}: {error}", binary.display()));
+        let dsn = std::env::var("HANDSHAKE_TEST_PG_DSN")
+            .expect("owned backend proof requires HANDSHAKE_TEST_PG_DSN");
+        let parsed = reqwest::Url::parse(&dsn).expect("parse HANDSHAKE_TEST_PG_DSN");
+        serde_json::json!({
+            "owned": true,
+            "base_url": self.base,
+            "backend_pid": child.id(),
+            "backend_binary": binary,
+            "backend_binary_sha256": format!("{:x}", Sha256::digest(bytes)),
+            "database_host": parsed.host_str(),
+            "database_port": parsed.port_or_known_default(),
+            "database_name": parsed.path().trim_start_matches('/'),
+            "runtime_data_dir": self.owned_data_dir,
+        })
+    }
+
     /// OS process id of the exact current-source backend owned by this fixture. Live fault-injection
     /// proofs use this identity to suspend only their own backend process; attached/root-managed
     /// backends are never eligible.
@@ -1383,6 +1411,20 @@ impl Drop for LiveBackend {
                 std::process::abort();
             }
             self.owned_backend = None;
+        }
+        if let Some(data_dir) = self.owned_data_dir.take() {
+            let runtime_root = data_dir
+                .parent()
+                .expect("owned backend data directory has a runtime root");
+            if let Err(error) = std::fs::remove_dir_all(runtime_root) {
+                if error.kind() != std::io::ErrorKind::NotFound {
+                    eprintln!(
+                        "FATAL: remove fixture-owned runtime root {}: {error}",
+                        runtime_root.display()
+                    );
+                    std::process::abort();
+                }
+            }
         }
     }
 }

@@ -1391,6 +1391,9 @@ fn wave5_body_marker(heading: &str) -> &'static str {
         "Tags and Tag Hubs" => {
             "Tags and Tag Hubs are the native Obsidian-style tag navigation surface"
         }
+        "Block Collection Views" => {
+            "Block Collection Views are the mounted saved table, Kanban, and calendar projections"
+        }
         "Canvas" => "free-form spatial board",
         "Search" => "three complementary search surfaces",
         "Wikilinks and Backlinks" => "Wikilinks tie notes together",
@@ -1503,6 +1506,37 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "No tags",
             "tags_tag_hub_live_pg_self_seeds_mounted_round_trip",
         ],
+        "Block Collection Views" => &[
+            "menu.view.open-block-collections",
+            "view.block-collections",
+            "block.content_type is view_def",
+            "bcv.new-view",
+            "bcv.new-view.title",
+            "bcv.new-view.kind.table",
+            "bcv.new-view.kind.kanban",
+            "bcv.new-view.kind.calendar",
+            "bcv.new-view.confirm",
+            "stable client-generated block_id",
+            "transactional PostgreSQL outbox",
+            "bcv.table.sort.{field}",
+            "bcv.table.row.{block_id}",
+            "bcv.kanban.lane.{key}",
+            "bcv.kanban.card.{block_id}",
+            "bcv.calendar.apply-range",
+            "bcv.kind.table",
+            "No blocks match this view.",
+            "No Kanban lanes.",
+            "No blocks in this date range.",
+            "bcv.status",
+            "View error: ...",
+            "bcv.retry",
+            "one bounded definition fetch and one bounded results query",
+            "Tier 1 Flight Recorder is WIRED",
+            "Tier 2 internal_diagnostics is WIRED",
+            "Tier 3 Palmistry is WIRED",
+            "tests/run_mt027_argus_proof.ps1",
+            "real localhost Argus transport",
+        ],
         "Canvas" => &[
             "canvas.add-card",
             "canvas.retry",
@@ -1536,7 +1570,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "PaneType::UserManual at page_slug",
             "dedicated Wiki Page projection placeholder pane",
             "block.content_type is view_def",
-            "dedicated Block Collections placeholder pane",
+            "mounted Block Collections pane",
             "View error: ...",
             BCV_RETRY_AUTHOR_ID,
             "clears stale deliveries",
@@ -2056,8 +2090,8 @@ fn wave5_surface_topics_exist_and_carry_real_no_context_facts() {
     let section = editors_manual_section();
     assert_eq!(
         WP_SURFACE_HEADINGS.len(),
-        17,
-        "one dedicated topic per native editor surface (14 wave-5 + 3 MT-035 surfacing topics)"
+        18,
+        "one dedicated topic per native editor surface (15 wave-5 + 3 MT-035 surfacing topics)"
     );
     for heading in WP_SURFACE_HEADINGS {
         let body = topic_body(&section, heading);

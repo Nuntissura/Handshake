@@ -1,6 +1,9 @@
-use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
+use crate::flight_recorder::{
+    EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+};
 use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
+use crate::storage::block_view_outbox;
 use crate::storage::{
     artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults,
     CompensateLoomCanvasStageCard, LoomBlock, LoomBlockContentType, LoomBlockDerived,
@@ -8,9 +11,9 @@ use crate::storage::{
     LoomCanvasPlacementUpdate, LoomCanvasStageProvenance, LoomCanvasVisualEdge, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
     LoomSearchSourceKind, LoomViewFilters, LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot,
-    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomCanvasStageCard, NewLoomEdge, PreviewStatus,
-    QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore, StorageError,
-    WriteActorKind, WriteContext, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
+    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomCanvasStageCard, NewLoomEdge,
+    PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore,
+    StorageError, WriteActorKind, WriteContext, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
 use crate::AppState;
 use axum::{
@@ -26,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
@@ -89,6 +92,7 @@ async fn ensure_workspace_exists(state: &AppState, workspace_id: &str) -> ApiRes
 }
 
 pub fn routes(state: AppState) -> Router {
+    spawn_block_view_reconciler(state.clone());
     Router::new()
         // Loom blocks
         .route(
@@ -1619,11 +1623,146 @@ fn block_view_flight_actor(ctx: &WriteContext) -> (FlightRecorderActor, String) 
         WriteActorKind::Ai => FlightRecorderActor::Agent,
         WriteActorKind::System => FlightRecorderActor::System,
     };
-    let actor_id = ctx
-        .actor_id
-        .clone()
-        .unwrap_or_else(|| actor.to_string());
+    let actor_id = ctx.actor_id.clone().unwrap_or_else(|| actor.to_string());
     (actor, actor_id)
+}
+
+fn spawn_block_view_reconciler(state: AppState) {
+    tokio::spawn(async move {
+        loop {
+            if let Err(error) = reconcile_block_view_events(&state, None, None).await {
+                let (status, body) = error;
+                tracing::error!(
+                    target: "handshake_core::loom_api",
+                    status = %status,
+                    error = body.0.error,
+                    "block_view_outbox_reconciliation_failed"
+                );
+            }
+            // A bounded, quiet service-lifetime retry closes transient recorder
+            // outages without quarantining or busy-looping durable intent.
+            tokio::time::sleep(Duration::from_secs(15)).await;
+        }
+    });
+}
+
+async fn record_block_view_event_idempotent(
+    state: &AppState,
+    event: FlightRecorderEvent,
+) -> ApiResult<()> {
+    let existing = state
+        .flight_recorder
+        .list_events(EventFilter {
+            event_id: Some(event.event_id),
+            ..EventFilter::default()
+        })
+        .await
+        .map_err(internal_error)?;
+    if let Some(existing) = existing.first() {
+        return if block_view_outbox::events_equal(existing, &event) {
+            Ok(())
+        } else {
+            Err(map_storage_error(StorageError::Conflict(
+                "block_view_flight_event_identity",
+            )))
+        };
+    }
+    if let Err(write_error) = state.flight_recorder.record_event(event.clone()).await {
+        let existing = state
+            .flight_recorder
+            .list_events(EventFilter {
+                event_id: Some(event.event_id),
+                ..EventFilter::default()
+            })
+            .await
+            .map_err(internal_error)?;
+        if existing
+            .first()
+            .is_some_and(|existing| block_view_outbox::events_equal(existing, &event))
+        {
+            return Ok(());
+        }
+        return Err(internal_error(write_error));
+    }
+    Ok(())
+}
+
+async fn reconcile_block_view_events(
+    state: &AppState,
+    workspace_id: Option<&str>,
+    event_id: Option<Uuid>,
+) -> ApiResult<()> {
+    if let Some(event_id) = event_id {
+        let workspace_id = workspace_id.ok_or_else(|| {
+            map_storage_error(StorageError::Validation(
+                "scoped block-view publication requires workspace_id",
+            ))
+        })?;
+        let event = match block_view_outbox::load_scoped_publication(
+            &state.postgres_pool,
+            workspace_id,
+            event_id,
+        )
+        .await
+        .map_err(map_storage_error)?
+        {
+            block_view_outbox::ScopedPublicationEvent::Published => return Ok(()),
+            block_view_outbox::ScopedPublicationEvent::Pending(event) => event,
+        };
+        if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
+            let error_summary = format!("{}:{}", error.0, error.1 .0.error);
+            block_view_outbox::record_failure(
+                &state.postgres_pool,
+                workspace_id,
+                event.event_id,
+                &error_summary,
+            )
+            .await
+            .map_err(map_storage_error)?;
+            return Err(error);
+        }
+        block_view_outbox::mark_published(&state.postgres_pool, workspace_id, event.event_id)
+            .await
+            .map_err(map_storage_error)?;
+        return Ok(());
+    }
+
+    loop {
+        let pending =
+            block_view_outbox::list_pending(&state.postgres_pool, workspace_id, None, 200)
+                .await
+                .map_err(map_storage_error)?;
+        let pending_count = pending.len();
+        let mut first_error = None;
+        for (event_workspace_id, event) in pending {
+            if let Err(error) = record_block_view_event_idempotent(state, event.clone()).await {
+                let error_summary = format!("{}:{}", error.0, error.1 .0.error);
+                block_view_outbox::record_failure(
+                    &state.postgres_pool,
+                    &event_workspace_id,
+                    event.event_id,
+                    &error_summary,
+                )
+                .await
+                .map_err(map_storage_error)?;
+                first_error.get_or_insert(error);
+                continue;
+            }
+            block_view_outbox::mark_published(
+                &state.postgres_pool,
+                &event_workspace_id,
+                event.event_id,
+            )
+            .await
+            .map_err(map_storage_error)?;
+        }
+        if let Some(error) = first_error {
+            return Err(error);
+        }
+        if pending_count < 200 {
+            return Ok(());
+        }
+    }
 }
 
 async fn patch_loom_block(
@@ -3913,9 +4052,7 @@ struct CreateCanvasCardRequest {
     stage_provenance: Option<LoomCanvasStageProvenance>,
 }
 
-fn validated_stage_provenance_key(
-    payload: &CreateCanvasCardRequest,
-) -> ApiResult<Option<String>> {
+fn validated_stage_provenance_key(payload: &CreateCanvasCardRequest) -> ApiResult<Option<String>> {
     let Some(provenance) = payload.stage_provenance.as_ref() else {
         return Ok(None);
     };
@@ -4202,16 +4339,15 @@ async fn remove_canvas_visual_edge(
 
 #[derive(Debug, Deserialize)]
 struct CreateBlockViewRequest {
-    #[serde(default)]
-    block_id: Option<String>,
+    block_id: String,
     #[serde(default)]
     title: Option<String>,
     definition: BlockViewDefinition,
 }
 
-/// Create a saved view: a typed `LoomBlock(content_type='view_def')` born
-/// through `create_loom_block` + the ProjectKnowledgeIndex bridge (so it gets a
-/// real authority receipt), then stamped with its definition. NO parallel store.
+/// Create a saved view in one PostgreSQL transaction: final `view_def` block,
+/// search projection, ProjectKnowledgeIndex/EventLedger bridge, mutation
+/// receipt, and recoverable Flight Recorder outbox. NO parallel store.
 async fn create_block_view(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -4220,69 +4356,23 @@ async fn create_block_view(
 ) -> ApiResult<Json<BlockViewRecord>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
     let ctx = block_view_write_context(&headers);
-
-    // The view is born as a normal LoomBlock first (note type), then flipped to
-    // view_def with its definition — so it picks up the same bridge + receipt
-    // path every block uses. We cannot create it directly as view_def because
-    // the CHECK requires the definition column to be set in the same write, and
-    // create_loom_block does not write view_definition_json.
-    let block = state
-        .storage
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: payload.block_id,
-                workspace_id: workspace_id.clone(),
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: payload.title.clone(),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .map_err(map_storage_error)?;
-
-    state
-        .storage
-        .bridge_loom_block_to_knowledge(&ctx, &workspace_id, &block.block_id)
-        .await
-        .map_err(map_storage_error)?;
+    let block_id = payload.block_id;
 
     let record = state
         .storage
         .create_block_view(
             &ctx,
             &workspace_id,
-            &block.block_id,
+            &block_id,
             payload.title,
             payload.definition,
         )
         .await
         .map_err(map_storage_error)?;
-
-    let (flight_actor, flight_actor_id) = block_view_flight_actor(&ctx);
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomBlockCreated,
-        flight_actor,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_block_created",
-            "workspace_id": workspace_id,
-            "block_id": record.block.block_id,
-            "content_type": "view_def",
-            "asset_id": null,
-            "content_hash": null,
-        }),
-    )
-    .with_actor_id(flight_actor_id)
-    .with_wsids(vec![workspace_id]);
-    let _ = state.flight_recorder.record_event(event).await;
+    let publication_event_id = record.publication_event_id.ok_or_else(|| {
+        internal_error("created block view omitted its publication event identity")
+    })?;
+    reconcile_block_view_events(&state, Some(&workspace_id), Some(publication_event_id)).await?;
 
     Ok(Json(record))
 }
@@ -4320,22 +4410,10 @@ async fn update_block_view(
         .update_block_view_definition(&ctx, &workspace_id, &block_id, payload.definition)
         .await
         .map_err(map_storage_error)?;
-
-    let (flight_actor, flight_actor_id) = block_view_flight_actor(&ctx);
-    let event = FlightRecorderEvent::new(
-        FlightRecorderEventType::LoomBlockUpdated,
-        flight_actor,
-        Uuid::now_v7(),
-        json!({
-            "type": "loom_block_updated",
-            "block_id": record.block.block_id,
-            "fields_changed": ["view_definition"],
-            "updated_by": "user",
-        }),
-    )
-    .with_actor_id(flight_actor_id)
-    .with_wsids(vec![workspace_id]);
-    let _ = state.flight_recorder.record_event(event).await;
+    let publication_event_id = record.publication_event_id.ok_or_else(|| {
+        internal_error("updated block view omitted its publication event identity")
+    })?;
+    reconcile_block_view_events(&state, Some(&workspace_id), Some(publication_event_id)).await?;
 
     Ok(Json(record))
 }
@@ -5698,6 +5776,272 @@ mod tests {
         })?;
         assert_eq!(clamped.0.len(), 1);
 
+        Ok(())
+    }
+
+    fn mt027_view_definition() -> crate::storage::BlockViewDefinition {
+        crate::storage::BlockViewDefinition {
+            kind: crate::storage::BlockViewKind::Table,
+            query: crate::storage::BlockViewQuery::default(),
+            columns: vec![crate::storage::BlockViewField::Title],
+            group_by: None,
+            sort: None,
+            calendar_date_field: None,
+        }
+    }
+
+    async fn mt027_create_pending_view(
+        state: &AppState,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> Result<BlockViewRecord, Box<dyn std::error::Error>> {
+        Ok(state
+            .storage
+            .create_block_view(
+                &WriteContext::human(Some("mt027-recovery".to_owned())),
+                workspace_id,
+                block_id,
+                Some(format!("Recovery {block_id}")),
+                mt027_view_definition(),
+            )
+            .await?)
+    }
+
+    async fn mt027_is_published(
+        state: &AppState,
+        workspace_id: &str,
+        event_id: Uuid,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        Ok(sqlx::query_scalar(
+            "SELECT published_at IS NOT NULL FROM loom_block_view_fr_outbox \
+             WHERE workspace_id = $1 AND event_id = $2",
+        )
+        .bind(workspace_id)
+        .bind(event_id.to_string())
+        .fetch_one(&state.postgres_pool)
+        .await?)
+    }
+
+    /// MT-027 V3: prove the transactional outbox recovery matrix against real
+    /// PostgreSQL and a real DuckDB recorder. No mock recorder participates.
+    #[tokio::test]
+    async fn mt027_block_view_publication_survives_outage_restart_races_and_retention(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(mut state) = setup_state().await? else {
+            return Ok(());
+        };
+        let workspace_id = create_workspace(&state).await?;
+        let recorder_dir = TempDir::new()?;
+        let recorder_path = recorder_dir.path().join("mt027-flight-recorder.duckdb");
+        let recorder = Arc::new(DuckDbFlightRecorder::new_on_path(&recorder_path, 7)?);
+        let recorder_connection = recorder.connection();
+        state.flight_recorder = recorder.clone();
+        state.diagnostics = recorder;
+
+        // Recorder outage after the PostgreSQL commit: publication fails and
+        // durable intent remains retryable until a reconstructed service object
+        // drains it after the real DuckDB surface returns.
+        let outage_id = Uuid::new_v4().to_string();
+        let outage = mt027_create_pending_view(&state, &workspace_id, &outage_id).await?;
+        let outage_event_id = outage.publication_event_id.expect("outage event id");
+        recorder_connection
+            .lock()
+            .expect("recorder connection")
+            .execute_batch(
+                "DROP INDEX IF EXISTS idx_events_trace_id;
+                 DROP INDEX IF EXISTS idx_events_job_id;
+                 DROP INDEX IF EXISTS idx_events_model_session_id;
+                 DROP INDEX IF EXISTS idx_events_timestamp;
+                 ALTER TABLE events RENAME TO events_mt027_offline;",
+            )?;
+        assert!(
+            reconcile_block_view_events(&state, Some(&workspace_id), Some(outage_event_id))
+                .await
+                .is_err(),
+            "a real recorder outage must not be reported as publication success"
+        );
+        assert!(!mt027_is_published(&state, &workspace_id, outage_event_id).await?);
+        recorder_connection
+            .lock()
+            .expect("recorder connection")
+            .execute_batch("ALTER TABLE events_mt027_offline RENAME TO events")?;
+        let restarted = Arc::new(DuckDbFlightRecorder::new(recorder_connection.clone(), 7)?);
+        state.flight_recorder = restarted.clone();
+        state.diagnostics = restarted;
+        reconcile_block_view_events(&state, Some(&workspace_id), Some(outage_event_id))
+            .await
+            .map_err(|error| {
+                format!("restart reconcile failed: {} {}", error.0, error.1 .0.error)
+            })?;
+        assert!(mt027_is_published(&state, &workspace_id, outage_event_id).await?);
+
+        // Crash after recorder insert but before PostgreSQL acknowledgement:
+        // restart observes the same real event and marks it exactly once.
+        let crash_id = Uuid::new_v4().to_string();
+        let crash = mt027_create_pending_view(&state, &workspace_id, &crash_id).await?;
+        let crash_event_id = crash.publication_event_id.expect("crash event id");
+        let crash_event = match block_view_outbox::load_scoped_publication(
+            &state.postgres_pool,
+            &workspace_id,
+            crash_event_id,
+        )
+        .await?
+        {
+            block_view_outbox::ScopedPublicationEvent::Pending(event) => event,
+            block_view_outbox::ScopedPublicationEvent::Published => {
+                panic!("fresh crash-window event unexpectedly published")
+            }
+        };
+        record_block_view_event_idempotent(&state, crash_event)
+            .await
+            .map_err(|error| {
+                format!(
+                    "pre-crash recorder insert failed: {} {}",
+                    error.0, error.1 .0.error
+                )
+            })?;
+        assert!(!mt027_is_published(&state, &workspace_id, crash_event_id).await?);
+        let restarted = Arc::new(DuckDbFlightRecorder::new(recorder_connection.clone(), 7)?);
+        state.flight_recorder = restarted.clone();
+        state.diagnostics = restarted;
+        reconcile_block_view_events(&state, Some(&workspace_id), Some(crash_event_id))
+            .await
+            .map_err(|error| {
+                format!(
+                    "crash-window reconcile failed: {} {}",
+                    error.0, error.1 .0.error
+                )
+            })?;
+        assert_eq!(
+            state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(crash_event_id),
+                    ..EventFilter::default()
+                })
+                .await?
+                .len(),
+            1,
+            "crash-window replay must remain exactly-once in the real recorder"
+        );
+
+        // Concurrent reconcilers may race on one pending row; both converge.
+        let concurrent_id = Uuid::new_v4().to_string();
+        let concurrent = mt027_create_pending_view(&state, &workspace_id, &concurrent_id).await?;
+        let concurrent_event_id = concurrent
+            .publication_event_id
+            .expect("concurrent publication id");
+        let (left, right) = tokio::join!(
+            reconcile_block_view_events(&state, Some(&workspace_id), Some(concurrent_event_id)),
+            reconcile_block_view_events(&state, Some(&workspace_id), Some(concurrent_event_id))
+        );
+        left.map_err(|error| format!("left reconciler: {} {}", error.0, error.1 .0.error))?;
+        right.map_err(|error| format!("right reconciler: {} {}", error.0, error.1 .0.error))?;
+        assert!(mt027_is_published(&state, &workspace_id, concurrent_event_id).await?);
+
+        // Deleting a block cannot erase its unpublished audit intent.
+        let deleted_id = Uuid::new_v4().to_string();
+        let deleted = mt027_create_pending_view(&state, &workspace_id, &deleted_id).await?;
+        let deleted_event_id = deleted.publication_event_id.expect("deleted event id");
+        state
+            .storage
+            .delete_loom_block(
+                &WriteContext::human(Some("mt027-delete".to_owned())),
+                &workspace_id,
+                &deleted_id,
+            )
+            .await?;
+        reconcile_block_view_events(&state, Some(&workspace_id), Some(deleted_event_id))
+            .await
+            .map_err(|error| {
+                format!(
+                    "deleted-block publication failed: {} {}",
+                    error.0, error.1 .0.error
+                )
+            })?;
+        assert!(mt027_is_published(&state, &workspace_id, deleted_event_id).await?);
+
+        // Delete/recreate creates a new incarnation. An identical retry must
+        // bind the newest create intent, never the retained deleted incarnation.
+        let reincarnated_id = Uuid::new_v4().to_string();
+        let old = mt027_create_pending_view(&state, &workspace_id, &reincarnated_id).await?;
+        let old_event_id = old.publication_event_id.expect("old incarnation event");
+        state
+            .storage
+            .delete_loom_block(
+                &WriteContext::human(Some("mt027-delete".to_owned())),
+                &workspace_id,
+                &reincarnated_id,
+            )
+            .await?;
+        let new = mt027_create_pending_view(&state, &workspace_id, &reincarnated_id).await?;
+        let new_event_id = new.publication_event_id.expect("new incarnation event");
+        assert_ne!(old_event_id, new_event_id);
+        let retry = mt027_create_pending_view(&state, &workspace_id, &reincarnated_id).await?;
+        assert_eq!(
+            retry.publication_event_id,
+            Some(new_event_id),
+            "same-id retry must select the latest retained create intent"
+        );
+
+        // The global service reconciler drains successive 200-row pages.
+        let mut batch_event_ids = Vec::with_capacity(201);
+        for _ in 0..201 {
+            let block_id = Uuid::new_v4().to_string();
+            let record = mt027_create_pending_view(&state, &workspace_id, &block_id).await?;
+            batch_event_ids.push(record.publication_event_id.expect("batch event id"));
+        }
+        reconcile_block_view_events(&state, None, None)
+            .await
+            .map_err(|error| format!("batch reconcile failed: {} {}", error.0, error.1 .0.error))?;
+        let unpublished_batch: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM loom_block_view_fr_outbox \
+             WHERE event_id = ANY($1) AND published_at IS NULL",
+        )
+        .bind(
+            batch_event_ids
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+        )
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        assert_eq!(unpublished_batch, 0, "all rows beyond page 200 must drain");
+
+        // Corruption is quarantined and remains a typed request failure.
+        let corrupt_id = Uuid::new_v4().to_string();
+        let corrupt = mt027_create_pending_view(&state, &workspace_id, &corrupt_id).await?;
+        let corrupt_event_id = corrupt.publication_event_id.expect("corrupt event id");
+        sqlx::query(
+            "UPDATE loom_block_view_fr_outbox SET event_hash = repeat('0', 64) \
+             WHERE workspace_id = $1 AND event_id = $2",
+        )
+        .bind(&workspace_id)
+        .bind(corrupt_event_id.to_string())
+        .execute(&state.postgres_pool)
+        .await?;
+        for attempt in 1..=2 {
+            assert!(
+                reconcile_block_view_events(&state, Some(&workspace_id), Some(corrupt_event_id))
+                    .await
+                    .is_err(),
+                "corrupt/quarantined exact event must fail attempt {attempt}"
+            );
+        }
+        let corrupt_state: (bool, bool) = sqlx::query_as(
+            "SELECT quarantined_at IS NOT NULL, published_at IS NOT NULL \
+             FROM loom_block_view_fr_outbox WHERE workspace_id = $1 AND event_id = $2",
+        )
+        .bind(&workspace_id)
+        .bind(corrupt_event_id.to_string())
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        assert_eq!(corrupt_state, (true, false));
+
+        // Already-published exact retries are idempotent success.
+        reconcile_block_view_events(&state, Some(&workspace_id), Some(outage_event_id))
+            .await
+            .map_err(|error| format!("published retry failed: {} {}", error.0, error.1 .0.error))?;
         Ok(())
     }
 }

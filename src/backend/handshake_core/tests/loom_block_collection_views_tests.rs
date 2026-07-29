@@ -73,8 +73,7 @@ async fn make_block(
     block.block_id
 }
 
-/// Create a saved view by birthing a real LoomBlock (+bridge) then flipping it
-/// to view_def with its definition — mirrors the create_block_view API path.
+/// Create a saved view through the one atomic storage operation used by the API.
 async fn make_view(
     db: &handshake_core::storage::postgres::PostgresDatabase,
     workspace_id: &str,
@@ -82,39 +81,449 @@ async fn make_view(
     definition: BlockViewDefinition,
 ) -> String {
     let ctx = WriteContext::human(None);
-    let block = db
-        .create_loom_block(
-            &ctx,
-            NewLoomBlock {
-                block_id: None,
-                workspace_id: workspace_id.to_string(),
-                content_type: LoomBlockContentType::Note,
-                document_id: None,
-                asset_id: None,
-                title: Some(title.to_string()),
-                original_filename: None,
-                content_hash: None,
-                pinned: false,
-                journal_date: None,
-                imported_at: None,
-                derived: LoomBlockDerived::default(),
-            },
-        )
-        .await
-        .expect("create view block");
-    db.bridge_loom_block_to_knowledge(&ctx, workspace_id, &block.block_id)
-        .await
-        .expect("bridge view block");
+    let block_id = uuid::Uuid::new_v4().to_string();
     db.create_block_view(
         &ctx,
         workspace_id,
-        &block.block_id,
+        &block_id,
         Some(title.to_string()),
         definition,
     )
     .await
     .expect("create block view");
-    block.block_id
+    block_id
+}
+
+#[tokio::test]
+async fn saved_view_creation_rolls_back_every_authority_surface_and_retries_idempotently() {
+    let pg = pg_or_skip!();
+    let ws = pg.create_workspace().await;
+    let definition = BlockViewDefinition {
+        kind: BlockViewKind::Table,
+        query: BlockViewQuery::default(),
+        columns: vec![BlockViewField::Title],
+        group_by: None,
+        sort: None,
+        calendar_date_field: None,
+    };
+
+    // Inject after each preceding durable operation. Every failure must erase
+    // block/search/entity/ledger/bridge/outbox authority together.
+    let fault_boundaries = [
+        (
+            "search_projection",
+            "loom_block_search_index",
+            "BEFORE INSERT",
+            "",
+        ),
+        (
+            "knowledge_entity",
+            "knowledge_entities",
+            "BEFORE INSERT",
+            "",
+        ),
+        (
+            "knowledge_index_receipt",
+            "kernel_event_ledger",
+            "BEFORE INSERT",
+            "WHEN (NEW.event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED')",
+        ),
+        (
+            "knowledge_bridge",
+            "loom_block_knowledge_bridge",
+            "BEFORE INSERT",
+            "",
+        ),
+        (
+            "mutation_receipt",
+            "kernel_event_ledger",
+            "BEFORE INSERT",
+            "WHEN (NEW.event_type = 'KNOWLEDGE_LOOM_BLOCK_MUTATED')",
+        ),
+        (
+            "block_receipt_link",
+            "loom_blocks",
+            "BEFORE UPDATE",
+            "WHEN (OLD.content_type = 'view_def')",
+        ),
+        (
+            "recorder_outbox",
+            "loom_block_view_fr_outbox",
+            "BEFORE INSERT",
+            "",
+        ),
+    ];
+    for (boundary, table, timing, predicate) in fault_boundaries {
+        let view_id = uuid::Uuid::new_v4().to_string();
+        let function_name = format!("mt027_fail_{boundary}");
+        let trigger_name = format!("mt027_fail_{boundary}_trigger");
+        let mut conn = pg.raw_connection().await;
+        sqlx::query(&format!(
+            "CREATE FUNCTION {function_name}() RETURNS trigger AS $$ BEGIN \
+             RAISE EXCEPTION 'MT027 injected {boundary} failure'; END; $$ LANGUAGE plpgsql"
+        ))
+        .execute(&mut conn)
+        .await
+        .unwrap_or_else(|error| panic!("install {boundary} fault function: {error}"));
+        sqlx::query(&format!(
+            "CREATE TRIGGER {trigger_name} {timing} ON {table} \
+             FOR EACH ROW {predicate} EXECUTE FUNCTION {function_name}()"
+        ))
+        .execute(&mut conn)
+        .await
+        .unwrap_or_else(|error| panic!("install {boundary} fault trigger: {error}"));
+        drop(conn);
+
+        pg.db
+            .create_block_view(
+                &WriteContext::human(None),
+                &ws,
+                &view_id,
+                Some(format!("Atomic view {boundary}")),
+                definition.clone(),
+            )
+            .await
+            .expect_err("injected boundary fault must fail the atomic create");
+
+        let mut conn = pg.raw_connection().await;
+        for (label, sql) in [
+            (
+                "block",
+                "SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = $1 AND block_id = $2",
+            ),
+            (
+                "search",
+                "SELECT COUNT(*) FROM loom_block_search_index WHERE workspace_id = $1 AND block_id = $2",
+            ),
+            (
+                "bridge",
+                "SELECT COUNT(*) FROM loom_block_knowledge_bridge WHERE workspace_id = $1 AND block_id = $2",
+            ),
+            (
+                "entity",
+                "SELECT COUNT(*) FROM knowledge_entities WHERE workspace_id = $1 AND entity_key = $2",
+            ),
+            (
+                "ledger",
+                "SELECT COUNT(*) FROM kernel_event_ledger WHERE payload->>'workspace_id' = $1 AND payload->>'block_id' = $2",
+            ),
+            (
+                "outbox",
+                "SELECT COUNT(*) FROM loom_block_view_fr_outbox WHERE workspace_id = $1 AND block_id = $2",
+            ),
+        ] {
+            let count: i64 = sqlx::query_scalar(sql)
+                .bind(&ws)
+                .bind(&view_id)
+                .fetch_one(&mut conn)
+                .await
+                .unwrap_or_else(|error| panic!("count {label} after {boundary}: {error}"));
+            assert_eq!(
+                count, 0,
+                "{label} must roll back with the {boundary} fault"
+            );
+        }
+        sqlx::query(&format!("DROP TRIGGER {trigger_name} ON {table}"))
+            .execute(&mut conn)
+            .await
+            .unwrap_or_else(|error| panic!("drop {boundary} fault trigger: {error}"));
+        sqlx::query(&format!("DROP FUNCTION {function_name}()"))
+            .execute(&mut conn)
+            .await
+            .unwrap_or_else(|error| panic!("drop {boundary} fault function: {error}"));
+    }
+    let view_id = uuid::Uuid::new_v4().to_string();
+    let created = pg
+        .db
+        .create_block_view(
+            &WriteContext::human(None),
+            &ws,
+            &view_id,
+            Some("Atomic view".to_owned()),
+            definition.clone(),
+        )
+        .await
+        .expect("create after fault removal");
+    assert_eq!(created.block.block_id, view_id);
+    let retry = pg
+        .db
+        .create_block_view(
+            &WriteContext::human(None),
+            &ws,
+            &view_id,
+            Some("Atomic view".to_owned()),
+            definition.clone(),
+        )
+        .await
+        .expect("same-id identical retry converges");
+    assert_eq!(retry.block.block_id, view_id);
+    pg.db
+        .create_block_view(
+            &WriteContext::human(None),
+            &ws,
+            &view_id,
+            Some("Conflicting title".to_owned()),
+            definition,
+        )
+        .await
+        .expect_err("same id with changed payload must conflict");
+
+    let mut conn = pg.raw_connection().await;
+    let counts: (i64, i64, i64, i64) = sqlx::query_as(
+        r#"
+        SELECT
+          (SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = $1 AND block_id = $2),
+          (SELECT COUNT(*) FROM loom_block_knowledge_bridge WHERE workspace_id = $1 AND block_id = $2),
+          (SELECT COUNT(*) FROM knowledge_entities WHERE workspace_id = $1 AND entity_key = $2),
+          (SELECT COUNT(*) FROM loom_block_view_fr_outbox WHERE workspace_id = $1 AND block_id = $2)
+        "#,
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("post-retry authority counts");
+    assert_eq!(counts, (1, 1, 1, 1));
+    let bridge_content_type: String = sqlx::query_scalar(
+        "SELECT detection_provenance->>'content_type' FROM knowledge_entities \
+         WHERE workspace_id = $1 AND entity_key = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("bridge provenance content type");
+    assert_eq!(bridge_content_type, "view_def");
+    let indexed_content_type: String = sqlx::query_scalar(
+        "SELECT payload->>'content_type' FROM kernel_event_ledger \
+         WHERE event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED' \
+           AND payload->>'workspace_id' = $1 AND payload->>'block_id' = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("bridge EventLedger content type");
+    assert_eq!(indexed_content_type, "view_def");
+
+    let unicode_view_id = uuid::Uuid::new_v4().to_string();
+    pg.db
+        .create_block_view(
+            &WriteContext::human(Some("Cafe\u{301}".to_owned())),
+            &ws,
+            &unicode_view_id,
+            Some("Unicode-normalized view".to_owned()),
+            BlockViewDefinition {
+                kind: BlockViewKind::Table,
+                query: BlockViewQuery::default(),
+                columns: vec![BlockViewField::Title],
+                group_by: None,
+                sort: None,
+                calendar_date_field: None,
+            },
+        )
+        .await
+        .expect("create decomposed-Unicode actor view");
+    let normalized_actor: String = sqlx::query_scalar(
+        "SELECT event->>'actor_id' FROM loom_block_view_fr_outbox \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&unicode_view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("read normalized outbox event");
+    assert_eq!(
+        normalized_actor, "Café",
+        "outbox authority must match recorder NFC persistence before hashing"
+    );
+}
+
+#[tokio::test]
+async fn outbox_retention_migration_round_trips_deleted_block_intent() {
+    let pg = pg_or_skip!();
+    let ws = pg.create_workspace().await;
+    let view_id = uuid::Uuid::new_v4().to_string();
+    pg.db
+        .create_block_view(
+            &WriteContext::human(None),
+            &ws,
+            &view_id,
+            Some("Retained publication".to_owned()),
+            BlockViewDefinition {
+                kind: BlockViewKind::Table,
+                query: BlockViewQuery::default(),
+                columns: vec![BlockViewField::Title],
+                group_by: None,
+                sort: None,
+                calendar_date_field: None,
+            },
+        )
+        .await
+        .expect("create retained block view");
+    pg.db
+        .delete_loom_block(&WriteContext::human(None), &ws, &view_id)
+        .await
+        .expect("delete block while retaining outbox intent");
+
+    let mut conn = pg.raw_connection().await;
+    let retained_before: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM loom_block_view_fr_outbox \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("retained outbox before rollback");
+    assert_eq!(retained_before, 1);
+
+    // PostgreSQL DDL is transactional. Keep the destructive down/up probe
+    // private to this connection so parallel Handshake jobs continue seeing
+    // the committed retention schema throughout the test. A panic or dropped
+    // connection also rolls the probe back automatically.
+    sqlx::query("BEGIN")
+        .execute(&mut conn)
+        .await
+        .expect("begin isolated retention migration probe");
+    sqlx::raw_sql(include_str!(
+        "../migrations/0362_loom_block_view_outbox_retention.down.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("rollback retention migration with an orphaned intent");
+    let active_after_down: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM loom_block_view_fr_outbox \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("active outbox after rollback");
+    let archived_after_down: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM loom_block_view_fr_outbox_retention_archive \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("archived outbox after rollback");
+    let fk_after_down: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM pg_constraint \
+         WHERE conname = 'fk_loom_block_view_fr_outbox_block')",
+    )
+    .fetch_one(&mut conn)
+    .await
+    .expect("block FK after rollback");
+    assert_eq!(
+        (active_after_down, archived_after_down, fk_after_down),
+        (0, 1, true)
+    );
+
+    sqlx::raw_sql(include_str!(
+        "../migrations/0362_loom_block_view_outbox_retention.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("reapply retention migration");
+    let restored_after_up: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM loom_block_view_fr_outbox \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("restored outbox after forward migration");
+    let archive_dropped: bool = sqlx::query_scalar(
+        "SELECT to_regclass('loom_block_view_fr_outbox_retention_archive') IS NULL",
+    )
+    .fetch_one(&mut conn)
+    .await
+    .expect("retention archive removed after restore");
+    assert_eq!((restored_after_up, archive_dropped), (1, true));
+
+    // Roll back once more, then delete the owning workspace while the intent
+    // is archived. The archive's workspace FK must cascade that row, and the
+    // forward migration must tolerate/reject no stale workspace reference.
+    sqlx::raw_sql(include_str!(
+        "../migrations/0362_loom_block_view_outbox_retention.down.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("second rollback retention migration");
+    sqlx::query("DELETE FROM workspaces WHERE id = $1")
+        .bind(&ws)
+        .execute(&mut conn)
+        .await
+        .expect("delete workspace while publication intent is archived");
+    let archived_after_workspace_delete: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM loom_block_view_fr_outbox_retention_archive \
+         WHERE workspace_id = $1",
+    )
+    .bind(&ws)
+    .fetch_one(&mut conn)
+    .await
+    .expect("archived outbox after workspace delete");
+    assert_eq!(
+        archived_after_workspace_delete, 0,
+        "archive rows must follow workspace ON DELETE CASCADE semantics"
+    );
+    sqlx::raw_sql(include_str!(
+        "../migrations/0362_loom_block_view_outbox_retention.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("reapply retention migration after workspace deletion");
+    let restored_after_workspace_delete: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM loom_block_view_fr_outbox \
+         WHERE workspace_id = $1 AND block_id = $2",
+    )
+    .bind(&ws)
+    .bind(&view_id)
+    .fetch_one(&mut conn)
+    .await
+    .expect("outbox after deleted-workspace forward migration");
+    assert_eq!(
+        restored_after_workspace_delete, 0,
+        "forward migration must not resurrect an event for a deleted workspace"
+    );
+
+    // The preceding migration owns the entire outbox feature boundary. Undo
+    // 0362 and then 0361 exactly as sqlx would: neither the live table nor the
+    // rollback archive may survive. The surrounding transaction restores the
+    // committed test database after this assertion.
+    sqlx::raw_sql(include_str!(
+        "../migrations/0362_loom_block_view_outbox_retention.down.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("rollback retention before full outbox teardown");
+    sqlx::raw_sql(include_str!(
+        "../migrations/0361_loom_block_view_fr_outbox.down.sql"
+    ))
+    .execute(&mut conn)
+    .await
+    .expect("rollback outbox feature boundary");
+    let boundary_removed: (bool, bool) = sqlx::query_as(
+        "SELECT
+           to_regclass('loom_block_view_fr_outbox') IS NULL,
+           to_regclass('loom_block_view_fr_outbox_retention_archive') IS NULL",
+    )
+    .fetch_one(&mut conn)
+    .await
+    .expect("inspect full outbox teardown");
+    assert_eq!(
+        boundary_removed,
+        (true, true),
+        "0361 down must remove both the live outbox and rollback archive"
+    );
+    sqlx::query("ROLLBACK")
+        .execute(&mut conn)
+        .await
+        .expect("rollback isolated retention migration probe");
 }
 
 async fn add_tag_edge(
@@ -161,7 +570,11 @@ async fn view_def_block_round_trips_with_bridge_and_dedicated_column() {
     let view_id = make_view(&pg.db, &ws, "All notes (A-Z)", definition).await;
 
     // It IS a content_type='view_def' LoomBlock.
-    let block = pg.db.get_loom_block(&ws, &view_id).await.expect("get block");
+    let block = pg
+        .db
+        .get_loom_block(&ws, &view_id)
+        .await
+        .expect("get block");
     assert!(matches!(block.content_type, LoomBlockContentType::ViewDef));
 
     // Authority-resolved through the ProjectKnowledgeIndex bridge.
@@ -323,7 +736,11 @@ async fn kanban_move_via_real_tag_edges_reflects_in_requery_and_pg() {
         done_lane.blocks.iter().any(|b| b.block_id == card),
         "card now in the done lane after the real tag mutation"
     );
-    let todo_lane_after = after.groups.iter().find(|l| l.key == todo).expect("todo lane");
+    let todo_lane_after = after
+        .groups
+        .iter()
+        .find(|l| l.key == todo)
+        .expect("todo lane");
     assert!(
         !todo_lane_after.blocks.iter().any(|b| b.block_id == card),
         "card no longer in the todo lane"
@@ -341,7 +758,10 @@ async fn kanban_move_via_real_tag_edges_reflects_in_requery_and_pg() {
         .map(|e| e.target_block_id.clone())
         .collect();
     assert!(tag_targets.contains(&done), "PG: card tagged done");
-    assert!(!tag_targets.contains(&todo), "PG: card no longer tagged todo");
+    assert!(
+        !tag_targets.contains(&todo),
+        "PG: card no longer tagged todo"
+    );
 }
 
 #[tokio::test]
@@ -404,7 +824,10 @@ async fn free_kanban_places_shared_tag_cards_once_each() {
         .collect();
     assert_eq!(ids.len(), 2, "each card appears once in its dynamic lane");
     assert_eq!(
-        ids.iter().copied().collect::<std::collections::HashSet<_>>().len(),
+        ids.iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
         2,
         "a free Kanban must not duplicate a card when its lane already exists"
     );
@@ -461,8 +884,7 @@ async fn calendar_buckets_by_journal_date_with_sql_date_filter() {
         .filter_map(|b| b.journal_date.clone())
         .collect();
     assert!(
-        dates.contains(&"2026-06-15".to_string())
-            && dates.contains(&"2026-06-20".to_string()),
+        dates.contains(&"2026-06-15".to_string()) && dates.contains(&"2026-06-20".to_string()),
         "SQL date filter keeps journals on/after 2026-06-12: {dates:?}"
     );
     assert!(
@@ -475,7 +897,11 @@ async fn calendar_buckets_by_journal_date_with_sql_date_filter() {
     assert_eq!(dates, sorted, "journals returned in ascending journal_date");
 
     // Saved-view reload proof: the persisted definition decodes back identical.
-    let reloaded = pg.db.get_block_view(&ws, &view_id).await.expect("reload view");
+    let reloaded = pg
+        .db
+        .get_block_view(&ws, &view_id)
+        .await
+        .expect("reload view");
     assert!(matches!(reloaded.definition.kind, BlockViewKind::Calendar));
     assert!(matches!(
         reloaded.definition.calendar_date_field,

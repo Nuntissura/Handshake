@@ -462,13 +462,17 @@ fn search_request_omits_content_type_when_unfiltered() {
 #[test]
 fn save_view_request_uses_verified_definitions_route() {
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
-    let spec = client.save_view_request("ws-1", "hello world", Some("note"));
+    let spec = client.save_view_request("ws-1", "view-stable-1", "hello world", Some("note"));
     // MT-027's VERIFIED createBlockView route — NOT the MT-028 contract's stale bare /loom/views.
     assert_eq!(
         spec.url,
         "http://127.0.0.1:37501/workspaces/ws-1/loom/views/definitions"
     );
     let json = spec.body.expect("save body");
+    assert_eq!(
+        json.get("block_id").and_then(|x| x.as_str()),
+        Some("view-stable-1")
+    );
     assert_eq!(
         json.get("title").and_then(|x| x.as_str()),
         Some("Search: hello world")
@@ -487,13 +491,13 @@ fn save_view_request_uses_verified_definitions_route() {
         .expect("columns");
     let cols: Vec<&str> = cols.iter().filter_map(|c| c.as_str()).collect();
     assert_eq!(cols, ["title", "content_type", "updated"]);
-    println!("PROOF6: save-as-view POST /loom/views/definitions body = {{title, definition{{kind,query,columns}}}}");
+    println!("PROOF6: save-as-view POST /loom/views/definitions body = {{block_id,title,definition{{kind,query,columns}}}}");
 }
 
 #[test]
 fn save_view_request_empty_query_when_no_facet() {
     let client = LoomSearchV2Client::new(TEST_BASE, rt().handle().clone());
-    let spec = client.save_view_request("ws-1", "hello", None);
+    let spec = client.save_view_request("ws-1", "view-stable-2", "hello", None);
     let json = spec.body.expect("save body");
     let query = json
         .get("definition")

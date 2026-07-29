@@ -7062,11 +7062,13 @@ impl BlockViewClient {
         }
     }
 
-    /// Pure request builder for `POST .../views/definitions` (createBlockView). The VERIFIED body is
-    /// `{block_id?, title?, definition}`; the `block_id` is omitted so the backend mints a new one.
+    /// Pure request builder for `POST .../views/definitions` (createBlockView). The stable
+    /// client-generated `block_id` is retained across ambiguous retries, so response loss cannot
+    /// create duplicate saved views.
     pub fn create_view_request(
         &self,
         workspace_id: &str,
+        block_id: &str,
         title: &str,
         definition: &BlockViewDefinition,
     ) -> RequestSpec {
@@ -7074,6 +7076,7 @@ impl BlockViewClient {
             method: HttpMethod::Post,
             url: self.definitions_url(workspace_id),
             body: Some(serde_json::json!({
+                "block_id": block_id,
                 "title": title,
                 "definition": definition_to_json(definition),
             })),
@@ -7239,13 +7242,14 @@ impl BlockViewClient {
     pub fn create_view(
         &self,
         workspace_id: &str,
+        block_id: &str,
         title: &str,
         definition: &BlockViewDefinition,
         generation: Arc<AtomicU64>,
         expected_generation: u64,
         cell: BlockViewOpCell,
     ) {
-        let spec = self.create_view_request(workspace_id, title, definition);
+        let spec = self.create_view_request(workspace_id, block_id, title, definition);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
         let url = spec.url.clone();
@@ -8207,12 +8211,14 @@ impl LoomSearchV2Client {
     }
 
     /// Pure request builder for the save-as-view `POST .../loom/views/definitions` (createBlockView).
-    /// The VERIFIED body is `{title, definition}` where `definition = {kind:"table", query, columns}`
+    /// The VERIFIED body is `{block_id, title, definition}` where `block_id` is caller-stable across
+    /// ambiguous retries and `definition = {kind:"table", query, columns}`
     /// (MT-027's proven shape; the MT-028 contract's bare `/loom/views` is stale). `active_content_type`
     /// becomes the saved view's `query.content_type` filter (omitted when `None`).
     pub fn save_view_request(
         &self,
         workspace_id: &str,
+        block_id: &str,
         query_text: &str,
         active_content_type: Option<&str>,
     ) -> RequestSpec {
@@ -8229,6 +8235,7 @@ impl LoomSearchV2Client {
             method: HttpMethod::Post,
             url: self.views_definitions_url(workspace_id),
             body: Some(serde_json::json!({
+                "block_id": block_id,
                 "title": format!("Search: {}", query_text.trim()),
                 "definition": definition,
             })),
@@ -8257,11 +8264,12 @@ impl LoomSearchV2Client {
     pub fn save_view(
         &self,
         workspace_id: &str,
+        block_id: &str,
         query_text: &str,
         active_content_type: Option<&str>,
         cell: SaveViewCell,
     ) {
-        let spec = self.save_view_request(workspace_id, query_text, active_content_type);
+        let spec = self.save_view_request(workspace_id, block_id, query_text, active_content_type);
         let req_body = spec.body.unwrap_or_default();
         let client = self.client.clone();
         let url = spec.url;
