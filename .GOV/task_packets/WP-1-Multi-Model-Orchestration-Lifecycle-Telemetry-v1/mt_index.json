@@ -1,7 +1,7 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T05:27:02Z",
+  "generated_at_utc": "2026-07-29T07:11:03Z",
   "total": 19,
   "range": "MT-001..MT-018",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
@@ -338,14 +338,14 @@
     },
     {
       "mt_id": "MT-014",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-003"
       ],
       "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
       "blocks": [],
-      "proof_status": "FAIL_V4: Registry persistence is transactional, but the active default-model selection is only process-local and is not restored after restart. The shipped ModelRuntime panel also omits current Master Spec controls/telemetry including KV occupancy, LoRA/steering state, ProcessOwnershipLedger link, performance, unload, adapter swap, and engine internals.",
+      "proof_status": "READY_FOR_VALIDATION_V5: 5 declared proof targets green + full model_runtime_registry_api_tests 13/13 on managed PostgreSQL (127.0.0.1:5544). V4 blocker closed: (1) durable active default-model selection persists to model_runtime_active_selection (PG) and is RESTORED after restart -- proven by mt014_active_default_selection_persists_and_restores_after_restart (new store vs same PG recovers the operator's audited CAS choice B rev2, not the boot candidate A). (2) ModelRuntime panel telemetry wired: local_router.rs::inspect_model_runtime now surfaces real active-steering / tokens-per-sec / VRAM-resident / last-call / engine-internals (was hardcoded Unavailable) with honest per-field typed-Unavailable -- proven by mt014_registry_projection_surfaces_live_runtime_telemetry_through_backend via live GET /model-runtime/registry. Also fixed a REAL production integrity-ORDERING gap: the absent-selection guard masked the structural registry guards (duplicate SHA, adapter/capability drift, orphaned catalog row, uncommitted READY) whenever no default existed; reordered so structural corruption is reported first and absent-default still fails closed (500). 7 formerly-failing mt014_* tests now green; adversarial security review PASS (fail-closed preserved, no new Ok path, precedence test-enforced at model_runtime_registry_api_tests.rs:1282/:1323). No assertion loosened. VALIDATOR-GATED: (a) live-Argus VISUAL panel proof (test_model_runtime_panel_argus) needs a GUI host + Palmistry backend; (b) real in-process Candle telemetry values need candle-runtime-engine + a real model artifact (candle_e2e_smoke --ignored). Source at ac4a4ac4/9d5f2e2d.",
       "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
