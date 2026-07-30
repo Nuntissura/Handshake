@@ -269,6 +269,60 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if startup_recovery_only {
+        // MT-019 F4: this branch returns BEFORE `ProcessReclaimRuntime::production_with_lease`,
+        // so it used to run only `reclaim_pidless_embedded_orphans` and never
+        // surfaced generic spawned-process (Official-CLI bridge) restart orphans.
+        // A recovery-only pass is exactly when an operator most needs them
+        // reconciled. This must complete BEFORE `managed_pg.stop()` below, because
+        // the reconcile is PostgreSQL-authoritative.
+        //
+        // Honest limitation: the P-4(b) dead-owner corroboration requires two
+        // observations at least one scan interval apart, and a recovery-only pass
+        // is a single short-lived process, so it normally records the FIRST
+        // observation and reclaims on a later run. That is the intended fail-safe
+        // direction: never kill a possibly-live process on one sample.
+        if let Some(runtime_host_scope_id) = runtime_host_scope_id.as_deref() {
+            match ProcessReclaimRuntime::production(
+                control_plane.postgres_pool.clone(),
+                Arc::new(PostgresProcessLedgerStore::new(
+                    control_plane.postgres_pool.clone(),
+                )),
+                None,
+                handshake_core::process_ledger::production_process_sandbox_registry(),
+                runtime_host_scope_id.to_string(),
+                Duration::from_secs(30),
+            )
+            .await
+            {
+                Ok(recovery_runtime) => {
+                    let report = recovery_runtime.boot_reconcile_report();
+                    tracing::info!(
+                        target: "handshake_core::process_ledger",
+                        sessions_reconciled = report.sessions_reconciled,
+                        processes_reclaimed = report.processes_reclaimed,
+                        processes_kill_failed = report.processes_kill_failed,
+                        sweep_reclaim_errors = ?report.sweep_reclaim_errors,
+                        runtime_host_scope_id,
+                        "startup recovery-only restart-orphan reconcile complete"
+                    );
+                    let drain = recovery_runtime
+                        .shutdown_and_drain(Duration::from_secs(10))
+                        .await;
+                    tracing::info!(
+                        target: "handshake_core::process_ledger",
+                        lease_released = drain.lease_released,
+                        lease_retained_reason = ?drain.lease_retained_reason,
+                        "startup recovery-only process runtime drained"
+                    );
+                }
+                Err(error) => tracing::error!(
+                    target: "handshake_core::process_ledger",
+                    error = %error,
+                    runtime_host_scope_id,
+                    "startup recovery-only restart-orphan reconcile failed; restart orphans remain open for a later pass"
+                ),
+            }
+        }
         let report_result = write_startup_recovery_report(&restart_report);
         if let Err(err) = managed_pg.stop().await {
             tracing::warn!(

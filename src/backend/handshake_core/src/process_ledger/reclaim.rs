@@ -42,11 +42,23 @@ use super::{
 /// Concurrent reclaimers skip a fresh claim, abandoned claims become eligible
 /// after 30 seconds, and a failed kill releases its claim immediately so the
 /// process remains truthfully open and retryable.
-pub const POSTGRES_ACTIVE_RECLAIM_QUERY_SQL: &str = r#"
+/// One shared claim body for every claim variant so the atomic-claim,
+/// fenced-lease, and RETURNING semantics cannot drift between the session-wide
+/// claim and the narrower single-row / owner-scoped claims.
+///
+/// `$selector` is the candidate-row predicate. `$2` is ALWAYS the claimant uuid
+/// (it is referenced from the SET clause); every other placeholder belongs to
+/// the selector, so each variant binds exactly the parameters its selector uses.
+macro_rules! postgres_active_reclaim_claim_sql {
+    ($selector:expr) => {
+        concat!(
+            r#"
 WITH locked AS (
     SELECT process_uuid, stop_reason, metadata_jsonb
     FROM kernel_process_lifecycle
-    WHERE parent_session_id = $1
+    WHERE "#,
+            $selector,
+            r#"
       AND stopped_at IS NULL
       AND (
           stop_reason = 'kill_succeeded_pending_stop'
@@ -118,7 +130,57 @@ RETURNING
     k.stop_reason,
     k.sandbox_capabilities_snapshot::text AS sandbox_capabilities_snapshot,
     k.metadata_jsonb::text AS metadata_jsonb
-"#;
+"#
+        )
+    };
+}
+
+/// Session-wide claim. Binds: `$1` parent_session_id, `$2` claimant uuid.
+pub const POSTGRES_ACTIVE_RECLAIM_QUERY_SQL: &str =
+    postgres_active_reclaim_claim_sql!("parent_session_id = $1");
+
+/// MT-019 P-3: single-row claim for `active_process_for_session`.
+///
+/// The trait default claims the WHOLE session set and then releases the
+/// non-targets. That transient session-wide claim bumps every sibling's
+/// `generation`, which degrades a concurrent reclaimer's clean `Killed` into
+/// `KilledPendingStop`, and makes a concurrent boot/teardown pass skip those
+/// siblings as claimed-with-live-lease. `PostgresProcessLedgerStore` therefore
+/// claims exactly one row. Binds: `$1` parent_session_id, `$2` claimant uuid,
+/// `$3` process_uuid.
+pub const POSTGRES_ACTIVE_PROCESS_RECLAIM_QUERY_SQL: &str =
+    postgres_active_reclaim_claim_sql!("parent_session_id = $1 AND process_uuid = $3::uuid");
+
+/// MT-019 P-2 + HBR-QUIET-003: owner-scoped single-row claim keyed on
+/// `process_uuid` alone, with an explicit `owner_runtime_instance_id` predicate.
+///
+/// `parent_session_id` is nullable and real production paths (the official-CLI
+/// auth-status/preflight probe) write adapter-owned rows without one, so a
+/// session-keyed claim matches ZERO rows for exactly the class the running-app
+/// reap targets. The owner predicate is not optional: it is what makes an
+/// in-app reaper structurally unable to touch another live Handshake instance's
+/// process. Binds: `$1` process_uuid, `$2` claimant uuid, `$3`
+/// owner_runtime_instance_id.
+pub const POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL: &str =
+    postgres_active_reclaim_claim_sql!(
+        "process_uuid = $1::uuid AND owner_runtime_instance_id = $3::uuid"
+    );
+
+/// MT-019 P-4(c): restart-orphan claim that structurally cannot claim a row
+/// owned by THIS runtime instance.
+///
+/// Before this variant the only owner veto lived in `restart_sessions`, so any
+/// caller of `Reclaim::run` bypassed it entirely and a restart pass could claim
+/// (and kill) the calling instance's own healthy children. Rows with a NULL
+/// owner descriptor are still claimable here because they can never be surfaced
+/// as "prior owner provably dead" in the first place. Binds: `$1`
+/// parent_session_id, `$2` claimant uuid, `$3` this instance's
+/// owner_runtime_instance_id.
+pub const POSTGRES_ACTIVE_FOREIGN_OWNER_RECLAIM_QUERY_SQL: &str =
+    postgres_active_reclaim_claim_sql!(
+        "parent_session_id = $1 \
+         AND (owner_runtime_instance_id IS NULL OR owner_runtime_instance_id <> $3::uuid)"
+    );
 
 pub const EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID: &str = "hsk.embedded_runtime.instance@2";
 pub const EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL: &str =
@@ -2252,7 +2314,10 @@ impl ReclaimTrigger {
 pub struct ReclaimableProcess {
     pub process_uuid: Uuid,
     pub os_pid: Option<u32>,
-    pub parent_session_id: String,
+    /// Nullable in the authority table (migration 0021) and genuinely absent for
+    /// adapter-owned official-CLI probe children, so the reclaim view must not
+    /// pretend every reclaimable row belongs to a coordinator session.
+    pub parent_session_id: Option<String>,
     pub parent_process_id: Option<Uuid>,
     pub sandbox_adapter_id: Option<String>,
     pub sandbox_internal_id: Option<String>,
@@ -2317,7 +2382,7 @@ impl ReclaimableProcess {
         ProcessStop {
             process_uuid: self.process_uuid,
             os_pid: self.os_pid,
-            parent_session_id: Some(self.parent_session_id.clone()),
+            parent_session_id: self.parent_session_id.clone(),
             parent_process_id: self.parent_process_id,
             sandbox_adapter_id: self.sandbox_adapter_id.clone(),
             sandbox_internal_id: self.sandbox_internal_id.clone(),
@@ -2433,6 +2498,48 @@ pub trait ReclaimProcessStore: Send + Sync + 'static {
             return Err(error);
         }
         Ok(target)
+    }
+
+    /// MT-019 P-2 + HBR-QUIET-003: claim exactly one row by `process_uuid`,
+    /// gated on an explicit `owner_runtime_instance_id`.
+    ///
+    /// This is the only claim path a RUNNING instance may use to reap its own
+    /// mid-run orphan, because the row class it targets (an adapter-owned
+    /// official-CLI probe child) carries no `parent_session_id` and is therefore
+    /// invisible to every session-keyed claim. The owner predicate must be
+    /// enforced inside the claim statement, not by the caller.
+    ///
+    /// There is deliberately NO delegating default: a store that cannot express
+    /// the owner predicate must fail closed rather than silently widen the claim
+    /// to another instance's processes.
+    async fn active_owned_process(
+        &self,
+        process_uuid: Uuid,
+        owner_runtime_instance_id: Uuid,
+    ) -> Result<Option<ReclaimableProcess>, ProcessLedgerError> {
+        Err(ProcessLedgerError::InvalidConfig(format!(
+            "reclaim store does not implement the owner-scoped single-process claim required to \
+             reap process {process_uuid} owned by runtime instance {owner_runtime_instance_id}"
+        )))
+    }
+
+    /// MT-019 P-4(c): claim a session's open rows while structurally excluding
+    /// every row owned by `excluded_owner_runtime_instance_id` (the caller).
+    ///
+    /// Restart reclaim is the one trigger that intentionally acts on ANOTHER
+    /// instance's rows, so it is also the one trigger that must never act on its
+    /// own. There is deliberately no delegating default for the same reason as
+    /// [`Self::active_owned_process`].
+    async fn active_foreign_owner_processes_for_session(
+        &self,
+        session_id: &str,
+        excluded_owner_runtime_instance_id: Uuid,
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        Err(ProcessLedgerError::InvalidConfig(format!(
+            "reclaim store does not implement the foreign-owner session claim required to reap \
+             restart orphans of session {session_id} while excluding runtime instance \
+             {excluded_owner_runtime_instance_id}"
+        )))
     }
 
     async fn renew_reclaim_claim(
@@ -2792,6 +2899,55 @@ impl Reclaim {
             .into_iter()
             .collect();
         self.run_claimed(session_id, trigger, started, active).await
+    }
+
+    /// MT-019 F1/P-2: reap exactly one process this runtime instance owns,
+    /// without needing a coordinator session id.
+    ///
+    /// This is the running-app reap path. It exists because the row class it
+    /// targets — an adapter-owned official-CLI child left OPEN mid-run because
+    /// its STOP could not be proven — carries no `parent_session_id`, so it is
+    /// invisible to every session-keyed claim AND to `restart_sessions`, and was
+    /// therefore not reaped until some later boot.
+    ///
+    /// `owner_runtime_instance_id` is enforced inside the claim statement, so
+    /// this path structurally cannot reach another live instance's processes.
+    pub async fn run_owned_process(
+        &self,
+        process_uuid: Uuid,
+        owner_runtime_instance_id: Uuid,
+        trigger: ReclaimTrigger,
+    ) -> Result<ReclaimReport, ProcessLedgerError> {
+        let started = std::time::Instant::now();
+        let claimed = self
+            .store
+            .active_owned_process(process_uuid, owner_runtime_instance_id)
+            .await?;
+        let session_id = claimed
+            .as_ref()
+            .and_then(|process| process.parent_session_id.clone())
+            .unwrap_or_else(|| format!("process-ledger://{process_uuid}"));
+        let active = claimed.into_iter().collect();
+        self.run_claimed(&session_id, trigger, started, active).await
+    }
+
+    /// MT-019 P-4(c): Restart-triggered reclaim of one surfaced orphan session
+    /// that structurally excludes rows owned by the calling instance.
+    pub async fn run_restart_orphan_session(
+        &self,
+        session_id: &str,
+        excluded_owner_runtime_instance_id: Uuid,
+    ) -> Result<ReclaimReport, ProcessLedgerError> {
+        let started = std::time::Instant::now();
+        let active = self
+            .store
+            .active_foreign_owner_processes_for_session(
+                session_id,
+                excluded_owner_runtime_instance_id,
+            )
+            .await?;
+        self.run_claimed(session_id, ReclaimTrigger::Restart, started, active)
+            .await
     }
 
     async fn run_claimed(
@@ -3300,11 +3456,35 @@ impl PostgresProcessLedgerStore {
     }
 }
 
-#[async_trait]
-impl ReclaimProcessStore for PostgresProcessLedgerStore {
-    async fn active_processes_for_session(
+/// Exactly which open rows one atomic claim statement may take.
+///
+/// MT-019 makes the claim scope explicit at the type level: the session-wide
+/// claim, the single-row claim, the owner-scoped process claim, and the
+/// foreign-owner restart claim all share one decode/readback path but bind
+/// different predicates, so no caller can silently widen its own blast radius.
+#[derive(Debug, Clone, Copy)]
+enum PostgresReclaimClaimScope<'a> {
+    Session {
+        session_id: &'a str,
+    },
+    SessionProcess {
+        session_id: &'a str,
+        process_uuid: Uuid,
+    },
+    OwnedProcess {
+        process_uuid: Uuid,
+        owner_runtime_instance_id: Uuid,
+    },
+    ForeignOwnerSession {
+        session_id: &'a str,
+        excluded_owner_runtime_instance_id: Uuid,
+    },
+}
+
+impl PostgresProcessLedgerStore {
+    async fn claim_active_rows(
         &self,
-        session_id: &str,
+        scope: PostgresReclaimClaimScope<'_>,
     ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
         // MT-008: the open-row claim is atomic in the
         // UPDATE...RETURNING. We map the returned rows BEFORE committing so that a
@@ -3321,11 +3501,35 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
         )
         .await?;
         let claimant_uuid = Uuid::now_v7();
-        let rows = sqlx::query(POSTGRES_ACTIVE_RECLAIM_QUERY_SQL)
-            .bind(session_id)
-            .bind(claimant_uuid.to_string())
-            .fetch_all(&mut *tx)
-            .await?;
+        let query = match scope {
+            PostgresReclaimClaimScope::Session { session_id } => {
+                sqlx::query(POSTGRES_ACTIVE_RECLAIM_QUERY_SQL)
+                    .bind(session_id.to_string())
+                    .bind(claimant_uuid.to_string())
+            }
+            PostgresReclaimClaimScope::SessionProcess {
+                session_id,
+                process_uuid,
+            } => sqlx::query(POSTGRES_ACTIVE_PROCESS_RECLAIM_QUERY_SQL)
+                .bind(session_id.to_string())
+                .bind(claimant_uuid.to_string())
+                .bind(process_uuid),
+            PostgresReclaimClaimScope::OwnedProcess {
+                process_uuid,
+                owner_runtime_instance_id,
+            } => sqlx::query(POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL)
+                .bind(process_uuid)
+                .bind(claimant_uuid.to_string())
+                .bind(owner_runtime_instance_id),
+            PostgresReclaimClaimScope::ForeignOwnerSession {
+                session_id,
+                excluded_owner_runtime_instance_id,
+            } => sqlx::query(POSTGRES_ACTIVE_FOREIGN_OWNER_RECLAIM_QUERY_SQL)
+                .bind(session_id.to_string())
+                .bind(claimant_uuid.to_string())
+                .bind(excluded_owner_runtime_instance_id),
+        };
+        let rows = query.fetch_all(&mut *tx).await?;
 
         let claimed: Result<Vec<ReclaimableProcess>, ProcessLedgerError> = rows
             .into_iter()
@@ -3346,7 +3550,11 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
                         .map_err(ProcessLedgerError::from)?
                         .map(pg_pid_to_u32)
                         .transpose()?,
-                    parent_session_id: row.get("parent_session_id"),
+                    // Nullable column: a session-less adapter-owned row is a real
+                    // production shape, so decoding it must not panic the caller.
+                    parent_session_id: row
+                        .try_get::<Option<String>, _>("parent_session_id")
+                        .map_err(ProcessLedgerError::from)?,
                     parent_process_id: row
                         .try_get::<Option<String>, _>("parent_process_id")
                         .map_err(ProcessLedgerError::from)?
@@ -3430,6 +3638,62 @@ impl ReclaimProcessStore for PostgresProcessLedgerStore {
                 Err(error)
             }
         }
+    }
+}
+
+#[async_trait]
+impl ReclaimProcessStore for PostgresProcessLedgerStore {
+    async fn active_processes_for_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        self.claim_active_rows(PostgresReclaimClaimScope::Session { session_id })
+            .await
+    }
+
+    /// MT-019 P-3: override the conservative trait default with a true single-row
+    /// claim so an exact-process reclaim never transiently claims (and bumps the
+    /// fenced `generation` of) its healthy sibling lanes.
+    async fn active_process_for_session(
+        &self,
+        session_id: &str,
+        process_uuid: Uuid,
+    ) -> Result<Option<ReclaimableProcess>, ProcessLedgerError> {
+        Ok(self
+            .claim_active_rows(PostgresReclaimClaimScope::SessionProcess {
+                session_id,
+                process_uuid,
+            })
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    async fn active_owned_process(
+        &self,
+        process_uuid: Uuid,
+        owner_runtime_instance_id: Uuid,
+    ) -> Result<Option<ReclaimableProcess>, ProcessLedgerError> {
+        Ok(self
+            .claim_active_rows(PostgresReclaimClaimScope::OwnedProcess {
+                process_uuid,
+                owner_runtime_instance_id,
+            })
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    async fn active_foreign_owner_processes_for_session(
+        &self,
+        session_id: &str,
+        excluded_owner_runtime_instance_id: Uuid,
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        self.claim_active_rows(PostgresReclaimClaimScope::ForeignOwnerSession {
+            session_id,
+            excluded_owner_runtime_instance_id,
+        })
+        .await
     }
 
     async fn mark_reclaim_kill_started(
@@ -3902,6 +4166,16 @@ pub trait StaleSessionSource: Send + Sync + 'static {
     async fn restart_sessions(&self) -> Result<Vec<String>, ProcessLedgerError> {
         Ok(Vec::new())
     }
+
+    /// The runtime instance whose open rows a restart pass must never claim.
+    ///
+    /// MT-019 P-4(c): when a source knows its own instance identity, the restart
+    /// reclaim binds it as an explicit `owner_runtime_instance_id <> self`
+    /// predicate inside the claim statement instead of relying only on the
+    /// surfacing-level veto in [`Self::restart_sessions`].
+    fn self_runtime_instance_id(&self) -> Option<Uuid> {
+        None
+    }
 }
 
 /// PostgreSQL-authoritative stale-session source for model lanes that still
@@ -3912,6 +4186,51 @@ pub trait StaleSessionSource: Send + Sync + 'static {
 pub struct PostgresModelLaneStaleSessionSource {
     pool: PgPool,
     runtime_instance: EmbeddedRuntimeInstanceDescriptor,
+    /// MT-019 P-4(b): minimum wall-clock separation between the two independent
+    /// observations that must both see a prior owner's loopback lease free before
+    /// that owner may be treated as dead. `Duration::ZERO` restores the legacy
+    /// single-sample behaviour and is only used where the corroboration is proven
+    /// separately.
+    dead_owner_confirmation_gap: Duration,
+    /// First moment each candidate owner descriptor was observed free. Shared
+    /// across clones so the boot pass and the periodic tick corroborate each
+    /// other instead of each starting from zero evidence.
+    dead_owner_first_observed_free:
+        Arc<std::sync::Mutex<HashMap<ProcessRuntimeOwner, std::time::Instant>>>,
+}
+
+/// Test-only override for the default dead-owner confirmation gap.
+///
+/// `ProcessReclaimRuntime::production_with_lease` composes its own stale-session
+/// source internally, so a proof that must drive the REAL boot composition has no
+/// other seam to shorten the corroboration window with. Only ever set to
+/// `Duration::ZERO` (legacy single-sample) by proofs whose subject is not the
+/// two-sample gate itself; the gate has its own dedicated proof that configures
+/// the gap explicitly on the source instead of through this override.
+#[cfg(feature = "test-utils")]
+static DEAD_OWNER_CONFIRMATION_GAP_OVERRIDE_MS: std::sync::atomic::AtomicI64 =
+    std::sync::atomic::AtomicI64::new(-1);
+
+/// Set (or clear) the process-wide dead-owner confirmation gap override.
+#[doc(hidden)]
+#[cfg(feature = "test-utils")]
+pub fn set_dead_owner_confirmation_gap_override_for_test(gap: Option<Duration>) {
+    let encoded = gap
+        .and_then(|gap| i64::try_from(gap.as_millis()).ok())
+        .unwrap_or(-1);
+    DEAD_OWNER_CONFIRMATION_GAP_OVERRIDE_MS.store(encoded, std::sync::atomic::Ordering::SeqCst);
+}
+
+fn default_dead_owner_confirmation_gap() -> Duration {
+    #[cfg(feature = "test-utils")]
+    {
+        let override_ms =
+            DEAD_OWNER_CONFIRMATION_GAP_OVERRIDE_MS.load(std::sync::atomic::Ordering::SeqCst);
+        if override_ms >= 0 {
+            return Duration::from_millis(override_ms as u64);
+        }
+    }
+    StalenessReclaimConfig::default().scan_interval
 }
 
 impl PostgresModelLaneStaleSessionSource {
@@ -3919,12 +4238,93 @@ impl PostgresModelLaneStaleSessionSource {
         Self {
             pool,
             runtime_instance,
+            dead_owner_confirmation_gap: default_dead_owner_confirmation_gap(),
+            dead_owner_first_observed_free: Arc::new(std::sync::Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Override the MT-019 P-4(b) two-sample corroboration window.
+    ///
+    /// `Duration::ZERO` means "one sample is enough" and is only correct where
+    /// the owning process's liveness is proven by something other than the
+    /// loopback-lease probe.
+    pub fn with_dead_owner_confirmation_gap(mut self, gap: Duration) -> Self {
+        self.dead_owner_confirmation_gap = gap;
+        self
+    }
+
+    /// MT-019 P-4(b): a prior owner counts as dead only after its loopback lease
+    /// port has been observed free TWICE, at least one confirmation gap apart.
+    ///
+    /// A single free-port sample is not liveness evidence. The lease socket is
+    /// closed by `ProcessReclaimRuntime` teardown paths while the host process
+    /// keeps running (the Tauri shell drains its own runtime and continues to own
+    /// live official-CLI children), and the identity fence gives no protection
+    /// here because it proves process generation, not ownership or liveness. A
+    /// single-sample probe therefore let a second instance conclude "owner dead"
+    /// and kill live healthy children. Requiring a second corroborating sample a
+    /// full scan interval later means a transient free window can no longer
+    /// authorise a kill.
+    fn owner_is_confirmed_dead(&self, owner: &ProcessRuntimeOwner) -> bool {
+        let Some(address) = owner
+            .lease_address
+            .parse::<IpAddr>()
+            .ok()
+            .filter(IpAddr::is_loopback)
+        else {
+            return false;
+        };
+        let descriptor = EmbeddedRuntimeInstanceDescriptor {
+            instance_id: owner.runtime_instance_id,
+            host_scope_id: owner.host_scope_id.clone(),
+            lease_protocol: owner.lease_protocol.clone(),
+            loopback_address: address,
+            loopback_port: owner.lease_port,
+        };
+        let observed_free = matches!(try_claim_udp_lease(&descriptor), UdpLeaseClaim::Claimed(_));
+        let mut observations = self
+            .dead_owner_first_observed_free
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if !observed_free {
+            // The owner is protecting its lease again (or the probe was
+            // ambiguous). Any earlier free observation is discarded so a later
+            // transient window cannot be paired with a stale one.
+            observations.remove(owner);
+            return false;
+        }
+        if self.dead_owner_confirmation_gap.is_zero() {
+            return true;
+        }
+        let now = std::time::Instant::now();
+        match observations.get(owner) {
+            Some(first_observed)
+                if now.duration_since(*first_observed) >= self.dead_owner_confirmation_gap =>
+            {
+                true
+            }
+            Some(_) => false,
+            None => {
+                observations.insert(owner.clone(), now);
+                tracing::info!(
+                    target: "handshake::process_ledger::reclaim",
+                    runtime_instance_id = %owner.runtime_instance_id,
+                    lease_port = owner.lease_port,
+                    confirmation_gap_ms = self.dead_owner_confirmation_gap.as_millis(),
+                    "prior runtime-owner loopback lease observed free for the first time; restart reclaim is withheld until a second corroborating observation"
+                );
+                false
+            }
         }
     }
 }
 
 #[async_trait]
 impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
+    fn self_runtime_instance_id(&self) -> Option<Uuid> {
+        Some(self.runtime_instance.instance_id)
+    }
+
     async fn restart_sessions(&self) -> Result<Vec<String>, ProcessLedgerError> {
         let authority = resolve_process_ledger_authority_relation(&self.pool).await?;
         let sql = format!(
@@ -3999,17 +4399,7 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
                     if let Some(dead) = descriptor_state.get(&owner) {
                         *dead
                     } else {
-                        let address = owner.lease_address.parse::<IpAddr>().ok();
-                        let dead = address.filter(IpAddr::is_loopback).is_some_and(|address| {
-                            let descriptor = EmbeddedRuntimeInstanceDescriptor {
-                                instance_id: owner.runtime_instance_id,
-                                host_scope_id: owner.host_scope_id.clone(),
-                                lease_protocol: owner.lease_protocol.clone(),
-                                loopback_address: address,
-                                loopback_port: owner.lease_port,
-                            };
-                            matches!(try_claim_udp_lease(&descriptor), UdpLeaseClaim::Claimed(_))
-                        });
+                        let dead = self.owner_is_confirmed_dead(&owner);
                         descriptor_state.insert(owner, dead);
                         dead
                     }
@@ -4165,51 +4555,167 @@ impl Default for StalenessReclaimConfig {
     }
 }
 
-/// Durable evidence produced by one composed boot restart-reconcile pass.
+/// Durable evidence produced by one composed restart-reconcile pass.
 #[derive(Debug, Default, Clone)]
 pub struct RestartOrphanBootReconcileReport {
     /// Sessions surfaced by [`StaleSessionSource::restart_sessions`] whose open
     /// process rows were reconciled this pass.
     pub sessions_reconciled: usize,
-    /// Total process rows a Restart-triggered reclaim acted on across every
-    /// surfaced session (killed, killed-pending-stop, or fenced-closed).
+    /// Process rows this pass actually reclaimed: [`KillOutcome::Killed`] or
+    /// [`KillOutcome::KilledPendingStop`] only.
+    ///
+    /// MT-019 F5: this previously counted every [`ReclaimedProcess`], so a
+    /// [`KillOutcome::Failed`] row — a process that is still running and whose
+    /// START row is still OPEN — was reported as reclaimed.
     pub processes_reclaimed: usize,
+    /// Process rows whose kill did NOT succeed. Their claim was released, their
+    /// fence cleared, and no STOP was written, so they remain truthfully open and
+    /// idempotently retryable by a later pass. Non-zero here means boot completed
+    /// with known-unreaped processes (see the F3 resilient-boot contract).
+    pub processes_kill_failed: usize,
     /// The per-session Restart reclaim reports, in surfaced order.
     pub reclaim_reports: Vec<ReclaimReport>,
+    /// MT-019 F6: reclaim errors observed INSIDE the in-progress kill-operation
+    /// sweep ([`ReclaimKillOperationSweep::reclaim_error`]). The sweep returns
+    /// `Ok` while carrying this field, so the boot call site used to drop it
+    /// silently. It is recorded rather than escalated: escalating it would
+    /// convert the recorded fail-open boot contract into a fail-closed one.
+    pub sweep_reclaim_errors: Vec<String>,
+    /// Non-fatal per-session errors tolerated under
+    /// [`RestartOrphanReconcileErrorPolicy::LogAndContinue`].
+    pub session_errors: Vec<String>,
+    /// The pass stopped early because the caller's cancellation hook fired.
+    pub cancelled: bool,
 }
 
-/// Run the production boot restart-reconcile pass: reclaim every restart-orphan
-/// session the PostgreSQL-authoritative [`StaleSessionSource`] surfaces.
+impl RestartOrphanBootReconcileReport {
+    fn record(&mut self, reclaim_report: ReclaimReport) {
+        self.sessions_reconciled += 1;
+        for reclaimed in &reclaim_report.processes_reclaimed {
+            match reclaimed.kill_result {
+                KillOutcome::Killed | KillOutcome::KilledPendingStop { .. } => {
+                    self.processes_reclaimed += 1
+                }
+                KillOutcome::Failed { .. } => self.processes_kill_failed += 1,
+            }
+        }
+        self.reclaim_reports.push(reclaim_report);
+    }
+}
+
+/// How one restart-reconcile pass treats a per-session error.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RestartOrphanReconcileErrorPolicy {
+    /// Boot semantics: the first surfacing-scan, in-progress-reconcile, or
+    /// reclaim error aborts the pass and propagates so the caller can fail closed
+    /// instead of continuing as if reconciliation completed.
+    AbortOnFirstError,
+    /// Periodic-task semantics: a single bad session must not silently retire the
+    /// long-running reclaimer, so per-session errors are recorded and the pass
+    /// continues with the next surfaced session.
+    LogAndContinue,
+}
+
+/// Run the composed restart-reconcile pass: reclaim every restart-orphan session
+/// the PostgreSQL-authoritative [`StaleSessionSource`] surfaces.
 ///
 /// This is the exact composition [`ProcessReclaimRuntime`](crate::process_ledger::ProcessReclaimRuntime)
-/// runs at boot, factored into a named callable so an integration test can drive
-/// the real production path — `restart_sessions` ->
-/// `reconcile_in_progress_for_session` -> `run(ReclaimTrigger::Restart)` —
-/// instead of re-implementing it inline. A generic spawned-process START row
-/// (for example an Official-CLI bridge child) whose owning runtime instance is
-/// provably dead is therefore killed via the composed [`SandboxKill`] and given
-/// a durable STOP by the same code product boot executes, so a terminated or
-/// unreaped official-CLI process cannot remain OPEN without a production owner.
+/// runs at boot AND the periodic restart tick runs afterwards — MT-019 F6 folds
+/// the previously duplicated inline staleness-task loop into this one function so
+/// the two cannot drift, with the caller choosing the error policy and supplying
+/// a cancellation hook.
 ///
-/// Error semantics are fail-closed and match the prior inline boot block: the
-/// first surfacing-scan, in-progress-reconcile, or reclaim error aborts the pass
-/// and propagates so the caller (boot) can fail closed instead of continuing as
-/// if reconciliation completed.
+/// A generic spawned-process START row (for example an Official-CLI bridge child)
+/// whose owning runtime instance is provably dead is killed via the composed
+/// [`SandboxKill`] and given a durable STOP.
+///
+/// Kill failure is NOT an error here: [`Reclaim::run_claimed`] releases the claim,
+/// clears the fence, and writes no STOP, so the row stays truthfully open. Those
+/// rows are counted in [`RestartOrphanBootReconcileReport::processes_kill_failed`]
+/// for the caller to surface and retry.
+///
+/// When the source knows its own instance identity the reclaim binds an explicit
+/// `owner_runtime_instance_id <> self` predicate (P-4c), so a restart pass cannot
+/// claim the calling instance's own rows even if surfacing is ever wrong.
+pub async fn reconcile_restart_orphans(
+    reclaim: &Reclaim,
+    stale_source: &dyn StaleSessionSource,
+    policy: RestartOrphanReconcileErrorPolicy,
+    cancelled: &(dyn Fn() -> bool + Send + Sync),
+) -> Result<RestartOrphanBootReconcileReport, ProcessLedgerError> {
+    let mut report = RestartOrphanBootReconcileReport::default();
+    let surfaced = match stale_source.restart_sessions().await {
+        Ok(surfaced) => surfaced,
+        Err(error) => match policy {
+            RestartOrphanReconcileErrorPolicy::AbortOnFirstError => return Err(error),
+            RestartOrphanReconcileErrorPolicy::LogAndContinue => {
+                tracing::error!(error = %error, "process-ledger restart-session scan failed");
+                report.session_errors.push(error.to_string());
+                return Ok(report);
+            }
+        },
+    };
+    let excluded_owner = stale_source.self_runtime_instance_id();
+    for session_id in surfaced {
+        if cancelled() {
+            report.cancelled = true;
+            return Ok(report);
+        }
+        match reclaim.reconcile_in_progress_for_session(&session_id).await {
+            Ok(sweep) => {
+                if let Some(sweep_error) = sweep.reclaim_error {
+                    tracing::warn!(
+                        session_id,
+                        error = %sweep_error,
+                        "in-progress kill-operation sweep advanced state but its follow-up reclaim failed; the row remains open for a later pass"
+                    );
+                    report.sweep_reclaim_errors.push(sweep_error);
+                }
+            }
+            Err(error) => match policy {
+                RestartOrphanReconcileErrorPolicy::AbortOnFirstError => return Err(error),
+                RestartOrphanReconcileErrorPolicy::LogAndContinue => {
+                    tracing::error!(session_id, error = %error, "process-ledger restart kill reconciliation failed");
+                    report.session_errors.push(error.to_string());
+                    continue;
+                }
+            },
+        }
+        let reclaim_result = match excluded_owner {
+            Some(excluded_owner) => {
+                reclaim
+                    .run_restart_orphan_session(&session_id, excluded_owner)
+                    .await
+            }
+            None => reclaim.run(&session_id, ReclaimTrigger::Restart).await,
+        };
+        match reclaim_result {
+            Ok(reclaim_report) => report.record(reclaim_report),
+            Err(error) => match policy {
+                RestartOrphanReconcileErrorPolicy::AbortOnFirstError => return Err(error),
+                RestartOrphanReconcileErrorPolicy::LogAndContinue => {
+                    tracing::error!(session_id, error = %error, "process-ledger restart reclaim failed");
+                    report.session_errors.push(error.to_string());
+                }
+            },
+        }
+    }
+    Ok(report)
+}
+
+/// Boot entry point for [`reconcile_restart_orphans`]: fail closed on the first
+/// error, no cancellation hook.
 pub async fn reconcile_restart_orphans_at_boot(
     reclaim: &Reclaim,
     stale_source: &dyn StaleSessionSource,
 ) -> Result<RestartOrphanBootReconcileReport, ProcessLedgerError> {
-    let mut report = RestartOrphanBootReconcileReport::default();
-    for session_id in stale_source.restart_sessions().await? {
-        reclaim
-            .reconcile_in_progress_for_session(&session_id)
-            .await?;
-        let reclaim_report = reclaim.run(&session_id, ReclaimTrigger::Restart).await?;
-        report.sessions_reconciled += 1;
-        report.processes_reclaimed += reclaim_report.processes_reclaimed.len();
-        report.reclaim_reports.push(reclaim_report);
-    }
-    Ok(report)
+    reconcile_restart_orphans(
+        reclaim,
+        stale_source,
+        RestartOrphanReconcileErrorPolicy::AbortOnFirstError,
+        &|| false,
+    )
+    .await
 }
 
 pub fn spawn_staleness_reclaim_task(
@@ -4314,7 +4820,10 @@ pub fn spawn_managed_staleness_reclaim_task(
     spawn_managed_staleness_reclaim_task_internal(reclaim, stale_source, config, true)
 }
 
-pub(crate) fn spawn_managed_staleness_reclaim_task_after_boot(
+/// Post-boot variant: the caller has ALREADY run the boot restart pass inline, so
+/// this task skips the immediate restart pass and relies on its periodic tick
+/// (MT-019 F2) to re-surface anything the boot pass skipped or timed out on.
+pub fn spawn_managed_staleness_reclaim_task_after_boot(
     reclaim: Arc<Reclaim>,
     stale_source: Arc<dyn StaleSessionSource>,
     config: StalenessReclaimConfig,
@@ -4331,29 +4840,38 @@ fn spawn_managed_staleness_reclaim_task_internal(
     let config = config.normalized();
     let (shutdown, mut shutdown_rx) = watch::channel(false);
     let join = tokio::spawn(async move {
-        if run_restart_pass {
-            match stale_source.restart_sessions().await {
-                Ok(session_ids) => {
-                    for session_id in session_ids {
-                        if *shutdown_rx.borrow() {
-                            return;
-                        }
-                        if let Err(error) =
-                            reclaim.reconcile_in_progress_for_session(&session_id).await
-                        {
-                            tracing::error!(session_id, error = %error, "process-ledger restart kill reconciliation failed");
-                            continue;
-                        }
-                        if let Err(error) = reclaim.run(&session_id, ReclaimTrigger::Restart).await
-                        {
-                            tracing::error!(session_id, error = %error, "process-ledger restart reclaim failed");
-                        }
+        // MT-019 F6: one shared implementation for the boot pass and every
+        // periodic pass. The task can only tolerate errors, never abort, so it
+        // always uses LogAndContinue plus its shutdown watch as the hook.
+        let run_restart_reconcile = |shutdown_rx: &watch::Receiver<bool>| {
+            let cancelled = shutdown_rx.clone();
+            let reclaim = Arc::clone(&reclaim);
+            let stale_source = Arc::clone(&stale_source);
+            async move {
+                let report = reconcile_restart_orphans(
+                    reclaim.as_ref(),
+                    stale_source.as_ref(),
+                    RestartOrphanReconcileErrorPolicy::LogAndContinue,
+                    &move || *cancelled.borrow(),
+                )
+                .await;
+                match report {
+                    Ok(report) if report.processes_kill_failed > 0 => tracing::warn!(
+                        sessions_reconciled = report.sessions_reconciled,
+                        processes_reclaimed = report.processes_reclaimed,
+                        processes_kill_failed = report.processes_kill_failed,
+                        "periodic restart-orphan reclaim left un-reapable processes open for a later pass"
+                    ),
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::error!(error = %error, "periodic restart-orphan reclaim pass failed")
                     }
                 }
-                Err(error) => {
-                    tracing::error!(error = %error, "process-ledger restart-session scan failed");
-                }
             }
+        };
+
+        if run_restart_pass {
+            run_restart_reconcile(&shutdown_rx).await;
         }
 
         let mut interval = time::interval(config.scan_interval);
@@ -4366,6 +4884,18 @@ fn spawn_managed_staleness_reclaim_task_internal(
                     }
                 }
                 _ = interval.tick() => {
+                    // MT-019 F2: the boot restart pass runs exactly once inline in
+                    // `production_with_lease`, so a SKIPPED or timed-out boot pass
+                    // used to leave restart orphans unreaped until the next boot.
+                    // The periodic tick now re-surfaces them. This is safe to run
+                    // continuously only because of P-4: a live instance never
+                    // releases its loopback lease before process exit, a prior
+                    // owner must be observed free twice at least one scan interval
+                    // apart, and the claim itself excludes this instance's rows.
+                    run_restart_reconcile(&shutdown_rx).await;
+                    if *shutdown_rx.borrow() {
+                        return;
+                    }
                     let session_ids = match stale_source.stale_sessions(config.ttl).await {
                         Ok(session_ids) => session_ids,
                         Err(error) => {

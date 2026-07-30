@@ -46,12 +46,18 @@ use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use handshake_core::process_ledger::{
-    acquire_embedded_runtime_instance_lease, reconcile_restart_orphans_at_boot, KillOutcome,
-    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, PostgresModelLaneStaleSessionSource,
-    PostgresProcessLedgerStore, ProcessLedgerStore, Reclaim, ReclaimTrigger,
-    EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
+    acquire_embedded_runtime_instance_lease, production_process_sandbox_registry,
+    reconcile_restart_orphans_at_boot, set_dead_owner_confirmation_gap_override_for_test,
+    spawn_managed_staleness_reclaim_task_after_boot, KillOutcome, LedgerBatcher,
+    LedgerBatcherConfig, NoopOverflowSink, PostgresModelLaneStaleSessionSource,
+    PostgresProcessLedgerStore, ProcessLedgerStore, ProcessReclaimRuntime, Reclaim, ReclaimTrigger,
+    StaleSessionSource, StalenessReclaimConfig, EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID,
+    EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
 };
-use handshake_core::sandbox::{process_creation_time_100ns, HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID};
+use handshake_core::sandbox::{
+    process_creation_time_100ns, AdapterId, SandboxAdapterRegistry,
+    HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID,
+};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
@@ -555,14 +561,30 @@ async fn pid_reuse_guard_refuses_to_kill_a_mismatched_generation() {
 /// port makes the seeded prior owner's loopback lease read as DEAD to the
 /// restart sweep's exclusive-bind liveness probe, exactly as a crashed prior
 /// Handshake instance would leave it.
+///
+/// MT-019 F7: the drop-then-use window lets an unrelated host process take the
+/// ephemeral port, which would silently veto surfacing and make the proof pass
+/// for the wrong reason. Re-probe the freed port and retry with a different one
+/// until it is observed free. The residual race is unavoidable with ephemeral
+/// ports; the retry loop makes it rare instead of routine.
 fn free_loopback_udp_port() -> u16 {
-    let socket = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind ephemeral loopback UDP");
-    let port = socket
-        .local_addr()
-        .expect("read bound loopback addr")
-        .port();
-    drop(socket);
-    port
+    for _ in 0..16 {
+        let socket =
+            UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).expect("bind ephemeral loopback UDP");
+        let port = socket
+            .local_addr()
+            .expect("read bound loopback addr")
+            .port();
+        drop(socket);
+        match UdpSocket::bind((Ipv4Addr::LOCALHOST, port)) {
+            Ok(reprobe) => {
+                drop(reprobe);
+                return port;
+            }
+            Err(_) => continue,
+        }
+    }
+    panic!("could not obtain a stably-free ephemeral loopback UDP port after 16 attempts");
 }
 
 /// Seed a durable Official-CLI bridge START row exactly as the production
@@ -669,9 +691,28 @@ async fn boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan() {
     // production composed boot reclaimer. No session id is passed in; the
     // official-CLI orphan must be SURFACED by `restart_sessions()` and then
     // killed + STOPped by `run(Restart)` through `ProductionSandboxKill`.
+    //
+    // MT-019 P-4(b) changes this proof's shape: a prior owner is only treated as
+    // dead after its loopback lease has been observed free TWICE, at least one
+    // confirmation gap apart. The gap is configured explicitly (rather than left
+    // at the 30s production default) so the proof stays fast, and the FIRST pass
+    // is asserted to reclaim nothing.
     let stale_source =
-        PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor.clone());
+        PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor.clone())
+            .with_dead_owner_confirmation_gap(Duration::from_millis(50));
     let (reclaim, ledger, join) = build_reclaim(&pool);
+    let first_pass = reconcile_restart_orphans_at_boot(&reclaim, &stale_source)
+        .await
+        .expect("first composed boot restart-reconcile pass");
+    assert_eq!(
+        first_pass.sessions_reconciled, 0,
+        "one free-port sample is not liveness evidence; the first pass must reclaim nothing"
+    );
+    assert!(
+        spawned.guard.is_still_running(),
+        "a single dead-owner sample must never authorise a kill"
+    );
+    tokio::time::sleep(Duration::from_millis(80)).await;
     let report = reconcile_restart_orphans_at_boot(&reclaim, &stale_source)
         .await
         .expect("composed boot restart-reconcile pass");
@@ -714,5 +755,731 @@ async fn boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan() {
     );
 
     drop(this_boot_lease);
+    pool.close().await;
+}
+
+// ===========================================================================
+// WP-1 MT-019: running-app reap, periodic restart tick, resilient boot, and the
+// process-ownership safety prerequisites (P-2..P-5).
+//
+// Every proof below runs against REAL Handshake-managed PostgreSQL, a REAL
+// spawned Windows child, and the production reclaim/kill path. The file is
+// `#![cfg(windows)]` (the identity fence is Windows-only), which is called out
+// explicitly where it limits coverage.
+// ===========================================================================
+
+/// Seed a durable official-CLI START row owned by the CALLER's LIVE runtime
+/// instance. `parent_session_id` is optional because the real production class
+/// this targets — the official-CLI auth-status/preflight probe — historically
+/// wrote none, which is exactly why a session-keyed claim could not reach it.
+#[allow(clippy::too_many_arguments)]
+async fn seed_self_owned_official_cli_start(
+    pool: &PgPool,
+    parent_session_id: Option<&str>,
+    process_uuid: Uuid,
+    pid: u32,
+    creation_time: u64,
+    executable_sha256: &str,
+    owner: &handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor,
+) {
+    let metadata = json!({
+        "executable_sha256": executable_sha256,
+        "os_creation_time_100ns": creation_time,
+        "sandbox_handle_id": process_uuid.to_string(),
+    });
+    sqlx::query(
+        r#"
+        INSERT INTO kernel_process_lifecycle (
+            process_uuid, os_pid, parent_session_id, sandbox_adapter_id,
+            sandbox_internal_id, engine_kind, started_at, owner_role, owner_wp,
+            owner_runtime_instance_id, owner_host_scope_id, owner_lease_schema_id,
+            owner_lease_protocol, owner_lease_address, owner_lease_port,
+            metadata_jsonb
+        )
+        VALUES (
+            $1, $2, $3, $4, $5, 'official_cli_bridge', NOW(), 'coder', 'WP-1',
+            $6::uuid, $7, $8, $9, $10, $11, $12
+        )
+        "#,
+    )
+    .bind(process_uuid)
+    .bind(i64::from(pid))
+    .bind(parent_session_id)
+    .bind(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID)
+    .bind(process_uuid.to_string())
+    .bind(owner.instance_id)
+    .bind(&owner.host_scope_id)
+    .bind(EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID)
+    .bind(EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL)
+    .bind(owner.loopback_address.to_string())
+    .bind(i32::from(owner.loopback_port))
+    .bind(metadata)
+    .execute(pool)
+    .await
+    .expect("seed durable self-owned official-CLI START row");
+}
+
+async fn lifecycle_row_state(
+    pool: &PgPool,
+    process_uuid: Uuid,
+) -> (Option<String>, serde_json::Value) {
+    sqlx::query_as(
+        "SELECT stop_reason, metadata_jsonb FROM kernel_process_lifecycle WHERE process_uuid = $1",
+    )
+    .bind(process_uuid)
+    .fetch_one(pool)
+    .await
+    .expect("read lifecycle row state")
+}
+
+// ---------------------------------------------------------------------------
+// F1 + P-2: the RUNNING app reaps its own mid-run official-CLI orphan, without
+// a reboot and without a coordinator session id.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot: PowerShell not found");
+        return;
+    };
+
+    // The LIVE instance keeps its OS liveness lease for the whole test, exactly
+    // as a running app does.
+    let host_scope = "wp1-mt019-running-app-host";
+    let live_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire this instance's OS liveness lease");
+    let live_descriptor = live_lease.descriptor().clone();
+
+    // The exact production shape of an official-CLI auth-status/preflight child:
+    // adapter-owned, self-owned, and carrying NO parent_session_id.
+    let process_uuid = Uuid::now_v7();
+    seed_self_owned_official_cli_start(
+        &pool,
+        None,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+        &live_descriptor,
+    )
+    .await;
+    assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+    assert!(spawned.guard.is_still_running());
+
+    // Neither session-level surfacing path can reach this row: `stale_sessions`
+    // filters `parent_session_id IS NOT NULL`, and `restart_sessions` requires it
+    // too AND vetoes a live self-owned instance. This is P-2 stated as evidence,
+    // not as an argument: without the process-scoped path the row is unreachable.
+    let stale_source =
+        PostgresModelLaneStaleSessionSource::new(pool.clone(), live_descriptor.clone());
+    assert!(
+        stale_source
+            .stale_sessions(Duration::from_secs(1))
+            .await
+            .expect("stale scan must not fail on a NULL parent_session_id row")
+            .is_empty(),
+        "the session-scoped stale scan must not surface a session-less row"
+    );
+    assert!(
+        stale_source
+            .restart_sessions()
+            .await
+            .expect("restart scan")
+            .is_empty(),
+        "the restart scan must not surface a session-less, live-self-owned row"
+    );
+
+    // The running-app reap: owner-scoped, keyed on process_uuid alone.
+    let (reclaim, ledger, join) = build_reclaim(&pool);
+    let report = reclaim
+        .run_owned_process(
+            process_uuid,
+            live_descriptor.instance_id,
+            ReclaimTrigger::Failure,
+        )
+        .await
+        .expect("running-app owner-scoped reclaim");
+
+    let killed = report
+        .processes_reclaimed
+        .iter()
+        .filter(|reclaimed| {
+            reclaimed.process_uuid == process_uuid
+                && matches!(reclaimed.kill_result, KillOutcome::Killed)
+        })
+        .count();
+    assert_eq!(
+        killed, 1,
+        "the EXACT process_uuid must appear in processes_reclaimed with KillOutcome::Killed: {:?}",
+        report.processes_reclaimed
+    );
+
+    assert!(
+        spawned.guard.wait_exited(Duration::from_secs(10)),
+        "the running-app reap must terminate the real orphan child"
+    );
+
+    drain(ledger, join).await;
+    assert!(
+        stopped_at(&pool, process_uuid).await.is_some(),
+        "the running-app reap must write a durable STOP row"
+    );
+    assert_eq!(open_row_count(&pool, process_uuid).await, 0);
+
+    drop(live_lease);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// F1 negative proof: the running-app reap must never kill a LIVE same-instance
+// child.
+//
+// This is asserted at the SURFACING layer on purpose. The identity fence matches
+// a live child perfectly (it proves process generation, not liveness), so a proof
+// written against the claim path would legitimately kill the child. The property
+// that actually protects a live child is that no automatic pass ever surfaces it.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_running_app_reap_never_kills_a_live_same_instance_child() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_running_app_reap_never_kills_a_live_same_instance_child: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut sessionless) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_running_app_reap_never_kills_a_live_same_instance_child: PowerShell not found");
+        return;
+    };
+    let Some(mut with_session) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_running_app_reap_never_kills_a_live_same_instance_child: PowerShell not found");
+        return;
+    };
+
+    let host_scope = "wp1-mt019-live-child-host";
+    let live_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire this instance's OS liveness lease");
+    let live_descriptor = live_lease.descriptor().clone();
+
+    let sessionless_uuid = Uuid::now_v7();
+    seed_self_owned_official_cli_start(
+        &pool,
+        None,
+        sessionless_uuid,
+        sessionless.pid,
+        sessionless.os_creation_time_100ns,
+        &sessionless.executable_sha256,
+        &live_descriptor,
+    )
+    .await;
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let with_session_uuid = Uuid::now_v7();
+    seed_self_owned_official_cli_start(
+        &pool,
+        Some(&session_run_id),
+        with_session_uuid,
+        with_session.pid,
+        with_session.os_creation_time_100ns,
+        &with_session.executable_sha256,
+        &live_descriptor,
+    )
+    .await;
+
+    let stale_source =
+        PostgresModelLaneStaleSessionSource::new(pool.clone(), live_descriptor.clone())
+            .with_dead_owner_confirmation_gap(Duration::from_millis(1));
+    assert!(
+        stale_source
+            .stale_sessions(Duration::from_secs(1))
+            .await
+            .expect("stale scan")
+            .is_empty(),
+        "a live same-instance child carries no liveness evidence in its row; the stale scan must not surface it"
+    );
+    assert!(
+        stale_source
+            .restart_sessions()
+            .await
+            .expect("restart scan")
+            .is_empty(),
+        "the restart scan must veto sessions owned by THIS live instance"
+    );
+
+    // Drive the exact composed pass the boot path and the periodic tick both run,
+    // twice, so even a corroborated dead-owner probe cannot help it surface.
+    let (reclaim, ledger, join) = build_reclaim(&pool);
+    for _ in 0..2 {
+        let report = reconcile_restart_orphans_at_boot(&reclaim, &stale_source)
+            .await
+            .expect("composed restart-reconcile pass");
+        assert_eq!(report.sessions_reconciled, 0);
+        assert_eq!(report.processes_reclaimed, 0);
+        assert_eq!(report.processes_kill_failed, 0);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+
+    assert!(
+        sessionless.guard.is_still_running(),
+        "a LIVE session-less same-instance child must never be killed by an automatic pass"
+    );
+    assert!(
+        with_session.guard.is_still_running(),
+        "a LIVE same-instance child with a session id must never be killed by an automatic pass"
+    );
+    assert_eq!(open_row_count(&pool, sessionless_uuid).await, 1);
+    assert_eq!(open_row_count(&pool, with_session_uuid).await, 1);
+
+    drain(ledger, join).await;
+    drop(live_lease);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// P-3: the single-row claim must not touch sibling rows of the same session.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut target) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched: PowerShell not found");
+        return;
+    };
+    let Some(mut sibling) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_single_row_claim_leaves_sibling_reclaim_metadata_untouched: PowerShell not found");
+        return;
+    };
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let target_uuid = Uuid::now_v7();
+    let sibling_uuid = Uuid::now_v7();
+    seed_real_process_start(
+        &pool,
+        &session_run_id,
+        target_uuid,
+        target.pid,
+        target.os_creation_time_100ns,
+        &target.executable_sha256,
+    )
+    .await;
+    seed_real_process_start(
+        &pool,
+        &session_run_id,
+        sibling_uuid,
+        sibling.pid,
+        sibling.os_creation_time_100ns,
+        &sibling.executable_sha256,
+    )
+    .await;
+
+    let before = lifecycle_row_state(&pool, sibling_uuid).await;
+
+    let (reclaim, ledger, join) = build_reclaim(&pool);
+    let report = reclaim
+        .run_process(&session_run_id, target_uuid, ReclaimTrigger::Failure)
+        .await
+        .expect("exact-process reclaim");
+    assert_eq!(
+        report.processes_reclaimed.len(),
+        1,
+        "an exact-process reclaim must act on exactly one row: {:?}",
+        report.processes_reclaimed
+    );
+    assert_eq!(report.processes_reclaimed[0].process_uuid, target_uuid);
+    assert!(target.guard.wait_exited(Duration::from_secs(10)));
+
+    let after = lifecycle_row_state(&pool, sibling_uuid).await;
+    assert_eq!(
+        before, after,
+        "the sibling row's stop_reason and reclaim_claim metadata must be byte-identical across an exact-process reclaim of a DIFFERENT process in the same session"
+    );
+    assert!(
+        sibling.guard.is_still_running(),
+        "the healthy sibling lane must still be running"
+    );
+    assert_eq!(open_row_count(&pool, sibling_uuid).await, 1);
+
+    drain(ledger, join).await;
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// P-4(b): the dead-owner probe requires TWO corroborating observations.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_dead_owner_probe_requires_two_corroborating_samples() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_dead_owner_probe_requires_two_corroborating_samples: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_dead_owner_probe_requires_two_corroborating_samples: PowerShell not found");
+        return;
+    };
+
+    let host_scope = "wp1-mt019-two-sample-host";
+    let this_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire this boot's OS liveness lease");
+    let this_descriptor = this_lease.descriptor().clone();
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    let prior_instance_id = Uuid::now_v7();
+    let prior_port = free_loopback_udp_port();
+    seed_official_cli_start_with_dead_prior_owner(
+        &pool,
+        &session_run_id,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+        prior_instance_id,
+        host_scope,
+        prior_port,
+    )
+    .await;
+
+    // Inside the gap: a production-length confirmation window can never elapse
+    // between two back-to-back scans, however slow the host is.
+    let inside_gap_source =
+        PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor.clone())
+            .with_dead_owner_confirmation_gap(Duration::from_secs(3600));
+    assert!(
+        inside_gap_source
+            .restart_sessions()
+            .await
+            .expect("first dead-owner sample")
+            .is_empty(),
+        "one free-port observation must not authorise a restart reclaim"
+    );
+    assert!(
+        inside_gap_source
+            .restart_sessions()
+            .await
+            .expect("second dead-owner sample, too soon")
+            .is_empty(),
+        "a second observation INSIDE the confirmation gap must not authorise a restart reclaim"
+    );
+
+    // Across the gap: a fresh source (its own observation state) needs its own
+    // first sample, then surfaces the orphan once the gap has genuinely elapsed.
+    let source = PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor.clone())
+        .with_dead_owner_confirmation_gap(Duration::from_millis(50));
+    assert!(
+        source
+            .restart_sessions()
+            .await
+            .expect("first dead-owner sample on a fresh source")
+            .is_empty(),
+        "a fresh scanner must take its own first sample before it may reclaim"
+    );
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    assert_eq!(
+        source
+            .restart_sessions()
+            .await
+            .expect("corroborated dead-owner sample"),
+        vec![session_run_id.clone()],
+        "two observations at least one confirmation gap apart must surface the restart orphan"
+    );
+
+    // An owner that is protecting its lease is never surfaced, no matter how many
+    // samples are taken: this is the property that stops a LIVE parallel instance
+    // from being declared dead.
+    let live_other = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire a second live instance lease");
+    let live_session = format!("SR-{}", Uuid::now_v7());
+    let live_process = Uuid::now_v7();
+    seed_official_cli_start_with_dead_prior_owner(
+        &pool,
+        &live_session,
+        live_process,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+        live_other.descriptor().instance_id,
+        host_scope,
+        live_other.descriptor().loopback_port,
+    )
+    .await;
+    let live_source = PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor)
+        .with_dead_owner_confirmation_gap(Duration::from_millis(1));
+    for _ in 0..3 {
+        let surfaced = live_source
+            .restart_sessions()
+            .await
+            .expect("live-owner restart scan");
+        assert!(
+            !surfaced.contains(&live_session),
+            "a live instance still holding its loopback lease must never be surfaced as a dead owner"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+
+    // The kill-on-drop guard reaps the child this test spawned.
+    assert!(spawned.guard.is_still_running());
+    drop(live_other);
+    drop(this_lease);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// F2: the post-boot staleness task's periodic RESTART tick re-surfaces a
+// restart orphan the boot pass skipped.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_post_boot_staleness_task_resurfaces_restart_orphan() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_post_boot_staleness_task_resurfaces_restart_orphan: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_post_boot_staleness_task_resurfaces_restart_orphan: PowerShell not found");
+        return;
+    };
+
+    let host_scope = "wp1-mt019-periodic-restart-host";
+    let this_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire this boot's OS liveness lease");
+    let this_descriptor = this_lease.descriptor().clone();
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    seed_official_cli_start_with_dead_prior_owner(
+        &pool,
+        &session_run_id,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+        Uuid::now_v7(),
+        host_scope,
+        free_loopback_udp_port(),
+    )
+    .await;
+    assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+
+    // `spawn_managed_staleness_reclaim_task_after_boot` is the exact production
+    // wiring: it does NOT run an immediate restart pass, because boot already ran
+    // one inline. Before MT-019 its periodic tick only ran the STALE pass, so a
+    // skipped or timed-out boot pass meant the orphan waited for the next reboot.
+    let (reclaim, ledger, join) = build_reclaim(&pool);
+    let reclaim = Arc::new(reclaim);
+    let stale_source: Arc<dyn StaleSessionSource> = Arc::new(
+        PostgresModelLaneStaleSessionSource::new(pool.clone(), this_descriptor)
+            .with_dead_owner_confirmation_gap(Duration::from_millis(100)),
+    );
+    let task = spawn_managed_staleness_reclaim_task_after_boot(
+        Arc::clone(&reclaim),
+        stale_source,
+        StalenessReclaimConfig {
+            ttl: Duration::from_secs(300),
+            scan_interval: Duration::from_millis(250),
+        },
+    );
+
+    assert!(
+        spawned.guard.wait_exited(Duration::from_secs(30)),
+        "the periodic restart tick must reclaim a restart orphan without a reboot"
+    );
+    assert!(task.shutdown_and_join(Duration::from_secs(10)).await);
+
+    drain(ledger, join).await;
+    assert!(
+        stopped_at(&pool, process_uuid).await.is_some(),
+        "the periodic restart tick must write a durable STOP row"
+    );
+    drop(this_lease);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// F3 + F5 + F7 + P-4(a): `production_with_lease` boot is FAIL-OPEN on an
+// un-reapable orphan, counts it as kill-failed (not reclaimed), surfaces it, and
+// retains the liveness lease while this instance still owns open rows.
+//
+// COVERAGE LIMIT (stated, not implied): this file is `#![cfg(windows)]`, so the
+// non-Windows "reclaim adapter unavailable" path named in F3 cannot be executed
+// on this host. The Windows analogue used here is `ProductionSandboxKill`
+// composed with a registry that does NOT contain HandshakeNative, so
+// `owning_adapter` errors and yields the identical `KillOutcome::Failed` shape
+// with the row left open — the same shape the non-Windows adapter always returns.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed()
+{
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed: PostgreSQL unavailable");
+        return;
+    };
+    let Some(mut spawned) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed: PowerShell not found");
+        return;
+    };
+    let Some(mut own_child) = spawn_real_long_lived_child() else {
+        eprintln!("SKIPPED mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed: PowerShell not found");
+        return;
+    };
+
+    // `production_with_lease` composes its own stale-session source, so the only
+    // seam to shorten the P-4(b) corroboration window is the test-utils override.
+    // The two-sample gate itself is proven separately by
+    // `mt019_dead_owner_probe_requires_two_corroborating_samples`.
+    set_dead_owner_confirmation_gap_override_for_test(Some(Duration::ZERO));
+
+    let host_scope = "wp1-mt019-fail-open-host";
+    let boot_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire boot lease");
+    let boot_descriptor = boot_lease.descriptor().clone();
+
+    let session_run_id = format!("SR-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    seed_official_cli_start_with_dead_prior_owner(
+        &pool,
+        &session_run_id,
+        process_uuid,
+        spawned.pid,
+        spawned.os_creation_time_100ns,
+        &spawned.executable_sha256,
+        Uuid::now_v7(),
+        host_scope,
+        free_loopback_udp_port(),
+    )
+    .await;
+
+    // A live child owned by THIS boot instance. The unreapable orphan above
+    // belongs to a prior instance, and the lease only speaks for its own
+    // instance's rows, so P-4(a) needs a self-owned open row to be meaningful.
+    let own_process_uuid = Uuid::now_v7();
+    seed_self_owned_official_cli_start(
+        &pool,
+        None,
+        own_process_uuid,
+        own_child.pid,
+        own_child.os_creation_time_100ns,
+        &own_child.executable_sha256,
+        &boot_descriptor,
+    )
+    .await;
+
+    // A registry with NO reclaim-capable adapter registered.
+    let empty_registry = Arc::new(SandboxAdapterRegistry::new(AdapterId::new(
+        HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID,
+    )));
+    let runtime = ProcessReclaimRuntime::production_with_lease(
+        pool.clone(),
+        Arc::new(PostgresProcessLedgerStore::new(pool.clone())),
+        None,
+        empty_registry,
+        boot_lease,
+        Duration::from_secs(30),
+    )
+    .await
+    .expect("boot must COMPLETE (fail-open) when an orphan cannot be reaped");
+
+    let report = runtime.boot_reconcile_report();
+    assert_eq!(
+        report.sessions_reconciled, 1,
+        "the orphan session must still be surfaced: {report:?}"
+    );
+    assert_eq!(
+        report.processes_reclaimed, 0,
+        "a Failed kill must NOT be counted as reclaimed: {report:?}"
+    );
+    assert_eq!(
+        report.processes_kill_failed, 1,
+        "a Failed kill must be counted as kill-failed: {report:?}"
+    );
+
+    // Truthful fail-open: the child is untouched, the row is still open, and no
+    // STOP was fabricated.
+    assert!(
+        spawned.guard.is_still_running(),
+        "an unreapable orphan's process must not be reported as reclaimed nor be killed"
+    );
+    assert_eq!(open_row_count(&pool, process_uuid).await, 1);
+    assert!(stopped_at(&pool, process_uuid).await.is_none());
+    // The live self-owned child was never a restart candidate.
+    assert!(own_child.guard.is_still_running());
+    assert_eq!(open_row_count(&pool, own_process_uuid).await, 1);
+
+    // P-4(a): the liveness lease must NOT be released while this instance still
+    // owns open rows, because releasing it advertises a live process as dead and
+    // authorises another instance to kill its healthy children.
+    let drained = runtime.shutdown_and_drain(Duration::from_secs(10)).await;
+    assert!(
+        !drained.lease_released,
+        "the liveness lease must be retained while this instance owns open lifecycle rows"
+    );
+    assert!(
+        drained
+            .lease_retained_reason
+            .as_deref()
+            .unwrap_or_default()
+            .contains("still open"),
+        "the retention reason must name the open rows: {:?}",
+        drained.lease_retained_reason
+    );
+
+    // ...and it IS released once this instance provably owns no open row.
+    sqlx::query(
+        "UPDATE kernel_process_lifecycle SET stopped_at = NOW(), exit_code = 0 WHERE process_uuid = $1",
+    )
+    .bind(own_process_uuid)
+    .execute(&pool)
+    .await
+    .expect("close this instance's own lifecycle row");
+    let drained_again = runtime.shutdown_and_drain(Duration::from_secs(10)).await;
+    assert!(
+        drained_again.lease_released,
+        "the liveness lease must be released once this instance owns zero open lifecycle rows: {:?}",
+        drained_again.lease_retained_reason
+    );
+
+    set_dead_owner_confirmation_gap_override_for_test(None);
+    pool.close().await;
+}
+
+// ---------------------------------------------------------------------------
+// F7: `production_with_lease`'s startup TIMEOUT wrapper is real and fails closed.
+//
+// Documented leak: on the fail-closed path `production_with_lease` deliberately
+// `mem::forget`s the runtime lease when the writer's terminal state was not
+// observed, so this test may leak one UDP socket for the remainder of the test
+// process. It uses its own host scope so no other proof can be affected.
+// ---------------------------------------------------------------------------
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt019_production_with_lease_boot_timeout_fails_closed_and_retains_lease() {
+    let Some((_kp, pool)) = managed_full_chain_pool().await else {
+        eprintln!("SKIPPED mt019_production_with_lease_boot_timeout_fails_closed_and_retains_lease: PostgreSQL unavailable");
+        return;
+    };
+
+    let host_scope = "wp1-mt019-boot-timeout-host";
+    let boot_lease = acquire_embedded_runtime_instance_lease(Uuid::now_v7(), host_scope)
+        .expect("acquire boot lease");
+
+    let boot = ProcessReclaimRuntime::production_with_lease(
+        pool.clone(),
+        Arc::new(PostgresProcessLedgerStore::new(pool.clone())),
+        None,
+        production_process_sandbox_registry(),
+        boot_lease,
+        Duration::from_nanos(1),
+    )
+    .await;
+    let error = match boot {
+        Ok(_runtime) => panic!("a boot reconcile that exceeds the startup timeout must fail closed"),
+        Err(error) => error,
+    };
+    assert!(
+        error.to_string().contains("boot reconciliation exceeded"),
+        "the fail-closed boot error must name the timeout: {error}"
+    );
+
     pool.close().await;
 }

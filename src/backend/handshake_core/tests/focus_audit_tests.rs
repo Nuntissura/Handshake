@@ -142,7 +142,7 @@ fn process_ownership_ledger_exposes_optional_postgres_os_pid_for_focus_correlati
     let reclaimable = ReclaimableProcess {
         process_uuid: Uuid::now_v7(),
         os_pid: Some(6540),
-        parent_session_id: "RUN-MT-015".to_string(),
+        parent_session_id: Some("RUN-MT-015".to_string()),
         parent_process_id: None,
         sandbox_adapter_id: Some("sandbox-adapter-test".to_string()),
         sandbox_internal_id: Some("sandbox-internal-test".to_string()),

@@ -611,6 +611,11 @@ fn terminal_capture_exit_code(
 pub struct LiveCliSpawner {
     process_ledger: Arc<LedgerBatcher>,
     sandbox_registry: Arc<SandboxAdapterRegistry>,
+    /// MT-019 F1: the RUNNING app's own reaper for CLI children whose STOP could
+    /// not be proven. Optional because several composition roots build a spawner
+    /// without a reclaim runtime; when absent the open row is simply left for the
+    /// boot/periodic restart pass, exactly as before.
+    reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
     pinned_identities: Arc<RwLock<HashMap<PathBuf, CliLaunchIdentity>>>,
     /// Backend-owned data root used only by non-authenticating version probes.
     /// Normal model invocations always use the operator's persisted CLI home.
@@ -2163,7 +2168,16 @@ struct GuardedCliChild {
     _identity_locks: Vec<File>,
     lifecycle: Option<Arc<ActiveProcessLifecycle>>,
     stop_recorded: bool,
+    /// MT-019 F1: running-app reaper for the exact process this guard owns.
+    reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
 }
+
+/// MT-019 P-5: the running-app reap must finish far inside `RECLAIM_KILL_TIMEOUT`
+/// (30s). It blocks a caller thread, and `auth_status` is a sync trait method
+/// whose axum caller would otherwise stall a worker for the full kill budget plus
+/// the STOP ack. A timeout here is not a failure: the claim lease expires, the row
+/// stays truthfully open, and the periodic restart pass retries it.
+const CLI_RECLAIM_HOOK_TIMEOUT: Duration = Duration::from_secs(8);
 
 impl GuardedCliChild {
     fn new(
@@ -2172,6 +2186,7 @@ impl GuardedCliChild {
         launch_identity: CliLaunchIdentity,
         resolved_execution_policy: crate::sandbox::ResolvedExecutionPolicy,
         identity_locks: Vec<File>,
+        reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
     ) -> Self {
         Self {
             pid: child.pid(),
@@ -2182,6 +2197,7 @@ impl GuardedCliChild {
             _identity_locks: identity_locks,
             lifecycle: None,
             stop_recorded: false,
+            reclaim,
         }
     }
 
@@ -2237,7 +2253,7 @@ impl GuardedCliChild {
                 StopRecordOutcome::LeftOpenForReconciliation
                 | StopRecordOutcome::DurabilityUnconfirmed,
             ) => {
-                self.leave_open_for_reconciliation(
+                self.leave_open_and_reclaim(
                     "ledger STOP authority was left open for reconciliation",
                 );
             }
@@ -2248,7 +2264,7 @@ impl GuardedCliChild {
                     error = %err,
                     "ledger STOP registration failed"
                 );
-                self.leave_open_for_reconciliation("ledger STOP registration failed");
+                self.leave_open_and_reclaim("ledger STOP registration failed");
             }
         }
     }
@@ -2269,6 +2285,102 @@ impl GuardedCliChild {
         );
     }
 
+    /// MT-019 F1 + P-5: leave the START open, then immediately hand the exact
+    /// process to the running app's reaper.
+    ///
+    /// Ordering is load-bearing. `leave_open_for_reconciliation` releases the
+    /// reserved STOP permit; calling the reclaim before that would leave the guard
+    /// still holding the permit and `Reclaim::run_claimed` would abort on a
+    /// saturated writer, reclaiming nothing.
+    ///
+    /// This is deliberately NOT called from `Drop`. A `Handle::current().block_on`
+    /// during unwind is a double panic (abort), and `futures::executor::block_on`
+    /// on a tokio worker stalls it, so Drop's leave-open cases are left to the
+    /// periodic pass.
+    fn leave_open_and_reclaim(&mut self, reason: &str) {
+        self.leave_open_for_reconciliation(reason);
+        self.reclaim_open_lifecycle(reason);
+    }
+
+    fn reclaim_open_lifecycle(&self, reason: &str) {
+        let (Some(reclaim), Some(lifecycle)) = (self.reclaim.as_ref(), self.lifecycle.as_ref())
+        else {
+            return;
+        };
+        // `Drop`'s "guard dropped without child ownership" branch is reachable only
+        // when no START row was ever written, so there is no process_uuid to
+        // reclaim; the explicit lifecycle guard above covers it.
+        let process_uuid = lifecycle.process_uuid();
+        // The owner descriptor is stamped onto the START by the ledger writer. No
+        // owner means we cannot prove THIS instance owns the row, and the
+        // owner-scoped claim would (correctly) match nothing, so do not pretend.
+        let Some(owner_runtime_instance_id) = lifecycle
+            .start()
+            .runtime_owner
+            .as_ref()
+            .map(|owner| owner.runtime_instance_id)
+        else {
+            tracing::warn!(
+                target: "handshake_core::official_cli_bridge",
+                pid = self.pid,
+                %process_uuid,
+                reason,
+                "open CLI lifecycle carries no runtime-owner descriptor; leaving it to the boot restart pass instead of reclaiming without ownership proof"
+            );
+            return;
+        };
+        let reclaim = Arc::clone(reclaim);
+        // Same shape as `wait_stop_durability_blocking`: a dedicated thread with
+        // its own current-thread runtime. `Reclaim` needs a real runtime (it
+        // spawns claim-renewal tasks and uses `spawn_blocking`), and this call
+        // site is a sync `fn` that may be reached from a tokio worker.
+        let outcome = thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| format!("build CLI reclaim runtime: {error}"))?;
+            runtime.block_on(async move {
+                match tokio::time::timeout(
+                    CLI_RECLAIM_HOOK_TIMEOUT,
+                    reclaim.run_owned_process(
+                        process_uuid,
+                        owner_runtime_instance_id,
+                        crate::process_ledger::ReclaimTrigger::Failure,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(report)) => Ok(report),
+                    Ok(Err(error)) => Err(error.to_string()),
+                    Err(_) => Err(format!(
+                        "running-app reclaim exceeded {} ms",
+                        CLI_RECLAIM_HOOK_TIMEOUT.as_millis()
+                    )),
+                }
+            })
+        })
+        .join()
+        .unwrap_or_else(|_| Err("CLI reclaim thread panicked".to_string()));
+        match outcome {
+            Ok(report) => tracing::info!(
+                target: "handshake_core::official_cli_bridge",
+                pid = self.pid,
+                %process_uuid,
+                reason,
+                processes_reclaimed = report.processes_reclaimed.len(),
+                "running-app reclaim ran for a CLI child whose STOP could not be proven"
+            ),
+            Err(error) => tracing::warn!(
+                target: "handshake_core::official_cli_bridge",
+                pid = self.pid,
+                %process_uuid,
+                reason,
+                error,
+                "running-app reclaim did not complete; the START row remains truthfully open for the periodic restart pass"
+            ),
+        }
+    }
+
     /// Terminate, synchronously reap, then emit STOP. The child is killed before
     /// the ledger can describe it as stopped.
     fn terminate_and_collect(&mut self, reason: &str) -> Option<ExitStatus> {
@@ -2279,7 +2391,7 @@ impl GuardedCliChild {
                 Some(status)
             }
             Err(err) => {
-                self.leave_open_for_reconciliation(reason);
+                self.leave_open_and_reclaim(reason);
                 tracing::error!(
                     target: "handshake_core::official_cli_bridge",
                     pid = self.pid,
@@ -2370,9 +2482,23 @@ impl LiveCliSpawner {
         Self {
             process_ledger,
             sandbox_registry,
+            reclaim: None,
             pinned_identities: Arc::new(RwLock::new(HashMap::new())),
             preflight_codex_home: None,
         }
+    }
+
+    /// MT-019 F1: attach the running app's reclaimer.
+    ///
+    /// Without it, a CLI child whose STOP could not be proven leaves an OPEN
+    /// START row that only the NEXT boot's restart pass can close — and for the
+    /// auth-status/preflight probe class (no `parent_session_id`) not even that,
+    /// because `restart_sessions` requires a non-NULL session id. With it, the
+    /// bridge reaps that exact process through the owner-scoped claim path as
+    /// soon as the failure is observed.
+    pub fn with_reclaim(mut self, reclaim: Arc<crate::process_ledger::Reclaim>) -> Self {
+        self.reclaim = Some(reclaim);
+        self
     }
 
     /// Product-owned default adapter availability. Per-invocation trust, tier,
@@ -3042,6 +3168,7 @@ impl LiveCliSpawner {
                 launch_identity,
                 resolved_execution_policy,
                 identity_locks,
+                self.reclaim.clone(),
             )
         })
         .map_err(|err| OfficialCliBridgeError::SpawnFailed {
@@ -5362,6 +5489,7 @@ mod tests {
             },
             test_resolved_execution_policy(),
             Vec::new(),
+            None,
         );
         child.attach_lifecycle(lifecycle);
         drop(child);
@@ -5410,6 +5538,7 @@ mod tests {
             },
             test_resolved_execution_policy(),
             Vec::new(),
+            None,
         );
         child.attach_lifecycle(lifecycle);
         assert!(child
@@ -5428,6 +5557,280 @@ mod tests {
             events.as_slice(),
             [crate::process_ledger::LedgerEvent::Start(_)]
         ));
+    }
+
+    // -----------------------------------------------------------------------
+    // MT-019 F1 + P-5: the running-app reclaim hook.
+    //
+    // `GuardedCliChild` is private, so this wiring is only reachable from an
+    // in-crate test. The integration proof in
+    // `process_reclaim_real_lifecycle_pg_tests` covers the other half — the real
+    // owner-scoped claim + real kill + durable STOP against real PostgreSQL.
+    // -----------------------------------------------------------------------
+
+    #[derive(Default)]
+    struct RecordingOwnedProcessClaimStore {
+        owned_claims: std::sync::Mutex<Vec<(uuid::Uuid, uuid::Uuid)>>,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::process_ledger::ReclaimProcessStore for RecordingOwnedProcessClaimStore {
+        async fn active_processes_for_session(
+            &self,
+            _session_id: &str,
+        ) -> Result<
+            Vec<crate::process_ledger::ReclaimableProcess>,
+            crate::process_ledger::ProcessLedgerError,
+        > {
+            panic!("the running-app CLI reap must never use the session-wide claim");
+        }
+
+        async fn active_owned_process(
+            &self,
+            process_uuid: uuid::Uuid,
+            owner_runtime_instance_id: uuid::Uuid,
+        ) -> Result<
+            Option<crate::process_ledger::ReclaimableProcess>,
+            crate::process_ledger::ProcessLedgerError,
+        > {
+            self.owned_claims
+                .lock()
+                .unwrap()
+                .push((process_uuid, owner_runtime_instance_id));
+            Ok(None)
+        }
+
+        async fn renew_reclaim_claim(
+            &self,
+            _process_uuid: uuid::Uuid,
+            claim: &crate::process_ledger::ReclaimClaim,
+        ) -> Result<crate::process_ledger::ReclaimClaim, crate::process_ledger::ProcessLedgerError>
+        {
+            Ok(claim.clone())
+        }
+
+        async fn mark_reclaim_kill_succeeded(
+            &self,
+            _stop: &crate::process_ledger::ProcessStop,
+            _claim: &crate::process_ledger::ReclaimClaim,
+        ) -> Result<(), crate::process_ledger::ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn mark_reclaim_kill_started(
+            &self,
+            _process_uuid: uuid::Uuid,
+            _claim: &crate::process_ledger::ReclaimClaim,
+        ) -> Result<(), crate::process_ledger::ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn release_reclaim_claim(
+            &self,
+            _process_uuid: uuid::Uuid,
+            _claim: &crate::process_ledger::ReclaimClaim,
+        ) -> Result<(), crate::process_ledger::ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn resolve_reclaim_kill_operation(
+            &self,
+            _process_uuid: uuid::Uuid,
+            _kill_operation_uuid: uuid::Uuid,
+            _status: crate::process_ledger::ReclaimKillOperationStatus,
+        ) -> Result<(), crate::process_ledger::ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn in_progress_kill_operations_for_session(
+            &self,
+            _session_id: &str,
+            _limit: usize,
+        ) -> Result<
+            Vec<crate::process_ledger::ReclaimKillOperationCandidate>,
+            crate::process_ledger::ProcessLedgerError,
+        > {
+            Ok(Vec::new())
+        }
+    }
+
+    struct NeverCalledKill;
+
+    #[async_trait::async_trait]
+    impl crate::process_ledger::SandboxKill for NeverCalledKill {
+        async fn kill(
+            &self,
+            _process_uuid: uuid::Uuid,
+            _kill_operation_uuid: uuid::Uuid,
+        ) -> Result<(), crate::process_ledger::KillError> {
+            panic!("no row was claimed, so no kill may be attempted");
+        }
+
+        async fn kill_operation_status(
+            &self,
+            _process_uuid: uuid::Uuid,
+            _kill_operation_uuid: uuid::Uuid,
+        ) -> Result<
+            crate::process_ledger::ReclaimKillOperationStatus,
+            crate::process_ledger::KillError,
+        > {
+            Ok(crate::process_ledger::ReclaimKillOperationStatus::NotStarted)
+        }
+    }
+
+    fn hook_test_runtime_owner(
+        instance_id: uuid::Uuid,
+    ) -> crate::process_ledger::ProcessRuntimeOwner {
+        crate::process_ledger::ProcessRuntimeOwner {
+            runtime_instance_id: instance_id,
+            host_scope_id: "mt019-hook-test-host".to_string(),
+            lease_schema_id: crate::process_ledger::EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID.to_string(),
+            lease_protocol: crate::process_ledger::EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL
+                .to_string(),
+            lease_address: "127.0.0.1".to_string(),
+            lease_port: 51_234,
+        }
+    }
+
+    fn hook_test_guard(
+        ledger: &LedgerBatcher,
+        pid: u32,
+        instance_id: uuid::Uuid,
+        reclaim: Option<Arc<crate::process_ledger::Reclaim>>,
+    ) -> (GuardedCliChild, uuid::Uuid) {
+        let reservation = ledger
+            .try_reserve_lifecycles(1)
+            .expect("reserve lifecycle")
+            .pop()
+            .expect("one lifecycle reservation");
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "MT019_HOOK_TEST",
+            Some("WP-1".to_string()),
+        )
+        .with_os_pid(pid)
+        .with_mt_id("MT-019")
+        .with_runtime_owner(hook_test_runtime_owner(instance_id));
+        let process_uuid = start.process_uuid;
+        let lifecycle = reservation.begin(start).expect("record START");
+        let executable = file_identity(&good_config().executable_path).expect("fixture identity");
+        let mut child = GuardedCliChild::new(
+            Box::new(ReapFailingAttachedProcess { pid }),
+            HandshakeNativeSandboxAdapter::new().capabilities(),
+            CliLaunchIdentity {
+                requested_entrypoint: executable.clone(),
+                effective_executable: executable,
+                effective_script: None,
+                launcher_package_manifest: None,
+                platform_package_manifest: None,
+                final_native_executable: None,
+            },
+            test_resolved_execution_policy(),
+            Vec::new(),
+            reclaim,
+        );
+        child.attach_lifecycle(lifecycle);
+        (child, process_uuid)
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt019_reap_failure_invokes_the_owner_scoped_running_app_reclaim() {
+        let (ledger, _drain) = test_ledger();
+        let store = Arc::new(RecordingOwnedProcessClaimStore::default());
+        let reclaim = Arc::new(crate::process_ledger::Reclaim::new(
+            Arc::clone(&store),
+            Arc::new(NeverCalledKill),
+            ledger.clone(),
+        ));
+        let instance_id = uuid::Uuid::now_v7();
+        let (mut child, process_uuid) =
+            hook_test_guard(&ledger, 9092, instance_id, Some(reclaim));
+
+        assert!(child
+            .terminate_and_collect("mt019_reap_failure_hook_test")
+            .is_none());
+
+        let claims = store.owned_claims.lock().unwrap().clone();
+        assert_eq!(
+            claims,
+            vec![(process_uuid, instance_id)],
+            "the reap-failure path must reclaim EXACTLY this process through the owner-scoped claim"
+        );
+        drop(child);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt019_drop_path_never_invokes_the_running_app_reclaim() {
+        let (ledger, _drain) = test_ledger();
+        let store = Arc::new(RecordingOwnedProcessClaimStore::default());
+        let reclaim = Arc::new(crate::process_ledger::Reclaim::new(
+            Arc::clone(&store),
+            Arc::new(NeverCalledKill),
+            ledger.clone(),
+        ));
+        let instance_id = uuid::Uuid::now_v7();
+        let (child, _process_uuid) = hook_test_guard(&ledger, 9093, instance_id, Some(reclaim));
+
+        // Drop unwinds through `leave_open_for_reconciliation`, never through the
+        // reclaiming variant: blocking on a runtime from Drop during unwind is a
+        // double panic (abort). Those rows are the periodic pass's job.
+        drop(child);
+
+        assert!(
+            store.owned_claims.lock().unwrap().is_empty(),
+            "Drop must not invoke the async running-app reclaim"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn mt019_reclaim_hook_is_skipped_without_a_runtime_owner_descriptor() {
+        let (ledger, _drain) = test_ledger();
+        let store = Arc::new(RecordingOwnedProcessClaimStore::default());
+        let reclaim = Arc::new(crate::process_ledger::Reclaim::new(
+            Arc::clone(&store),
+            Arc::new(NeverCalledKill),
+            ledger.clone(),
+        ));
+        let reservation = ledger
+            .try_reserve_lifecycles(1)
+            .expect("reserve lifecycle")
+            .pop()
+            .expect("one lifecycle reservation");
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "MT019_HOOK_TEST",
+            Some("WP-1".to_string()),
+        )
+        .with_os_pid(9094)
+        .with_mt_id("MT-019");
+        let lifecycle = reservation.begin(start).expect("record START");
+        let executable = file_identity(&good_config().executable_path).expect("fixture identity");
+        let mut child = GuardedCliChild::new(
+            Box::new(ReapFailingAttachedProcess { pid: 9094 }),
+            HandshakeNativeSandboxAdapter::new().capabilities(),
+            CliLaunchIdentity {
+                requested_entrypoint: executable.clone(),
+                effective_executable: executable,
+                effective_script: None,
+                launcher_package_manifest: None,
+                platform_package_manifest: None,
+                final_native_executable: None,
+            },
+            test_resolved_execution_policy(),
+            Vec::new(),
+            Some(reclaim),
+        );
+        child.attach_lifecycle(lifecycle);
+
+        assert!(child
+            .terminate_and_collect("mt019_no_owner_hook_test")
+            .is_none());
+
+        assert!(
+            store.owned_claims.lock().unwrap().is_empty(),
+            "without a runtime-owner descriptor there is no ownership proof, so no claim may be attempted"
+        );
+        drop(child);
     }
 
     #[test]

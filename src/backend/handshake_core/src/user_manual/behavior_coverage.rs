@@ -720,6 +720,8 @@ enum ManualNamedSymbol {
     HandshakeNativeSandboxAdapterSpawnAttachedWithStdio,
     /// `KernelEventType::ModelRuntimeSelectionRecorded`
     KernelEventTypeModelRuntimeSelectionRecorded,
+    /// `KillOutcome::Failed`
+    KillOutcomeFailed,
     /// `LaunchAuthority::SubagentManager`
     LaunchAuthoritySubagentManager,
     /// `LiveCliSpawner::spawn`
@@ -780,12 +782,16 @@ enum ManualNamedSymbol {
     ModelLaneStoreValidateDiagnosticTierPosture,
     /// `ModelRuntimeError::AdapterMismatch`
     ModelRuntimeErrorAdapterMismatch,
+    /// `ProcessReclaimRuntime::production_with_lease`
+    ProcessReclaimRuntimeProductionWithLease,
     /// `ProviderKind::ExternalCompat`
     ProviderKindExternalCompat,
     /// `ProviderKind::Local`
     ProviderKindLocal,
     /// `ProviderRegistry::from_env`
     ProviderRegistryFromEnv,
+    /// `Reclaim::run_owned_process`
+    ReclaimRunOwnedProcess,
     /// `Role::Dialog`
     RoleDialog,
     /// `Role::Window`
@@ -865,6 +871,7 @@ impl ManualNamedSymbol {
         Self::GuardedCliChildTerminateAndCollect,
         Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio,
         Self::KernelEventTypeModelRuntimeSelectionRecorded,
+        Self::KillOutcomeFailed,
         Self::LaunchAuthoritySubagentManager,
         Self::LiveCliSpawnerSpawn,
         Self::LlmClientEmbedding,
@@ -895,9 +902,11 @@ impl ManualNamedSymbol {
         Self::ModelLaneStoreReplayRun,
         Self::ModelLaneStoreValidateDiagnosticTierPosture,
         Self::ModelRuntimeErrorAdapterMismatch,
+        Self::ProcessReclaimRuntimeProductionWithLease,
         Self::ProviderKindExternalCompat,
         Self::ProviderKindLocal,
         Self::ProviderRegistryFromEnv,
+        Self::ReclaimRunOwnedProcess,
         Self::RoleDialog,
         Self::RoleWindow,
         Self::RunBudgetDefaulted,
@@ -952,6 +961,7 @@ impl ManualNamedSymbol {
             Self::GuardedCliChildTerminateAndCollect => "GuardedCliChild::terminate_and_collect",
             Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
             Self::KernelEventTypeModelRuntimeSelectionRecorded => "KernelEventType::ModelRuntimeSelectionRecorded",
+            Self::KillOutcomeFailed => "KillOutcome::Failed",
             Self::LaunchAuthoritySubagentManager => "LaunchAuthority::SubagentManager",
             Self::LiveCliSpawnerSpawn => "LiveCliSpawner::spawn",
             Self::LlmClientEmbedding => "LlmClient::embedding",
@@ -982,9 +992,13 @@ impl ManualNamedSymbol {
             Self::ModelLaneStoreReplayRun => "ModelLaneStore::replay_run",
             Self::ModelLaneStoreValidateDiagnosticTierPosture => "ModelLaneStore::validate_diagnostic_tier_posture",
             Self::ModelRuntimeErrorAdapterMismatch => "ModelRuntimeError::AdapterMismatch",
+            Self::ProcessReclaimRuntimeProductionWithLease => {
+                "ProcessReclaimRuntime::production_with_lease"
+            }
             Self::ProviderKindExternalCompat => "ProviderKind::ExternalCompat",
             Self::ProviderKindLocal => "ProviderKind::Local",
             Self::ProviderRegistryFromEnv => "ProviderRegistry::from_env",
+            Self::ReclaimRunOwnedProcess => "Reclaim::run_owned_process",
             Self::RoleDialog => "Role::Dialog",
             Self::RoleWindow => "Role::Window",
             Self::RunBudgetDefaulted => "RunBudget::defaulted",
@@ -1043,6 +1057,7 @@ impl ManualNamedSymbol {
             ),
             Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => ManualNamedSymbolProof::CompileAnchored,
             Self::KernelEventTypeModelRuntimeSelectionRecorded => ManualNamedSymbolProof::CompileAnchored,
+            Self::KillOutcomeFailed => ManualNamedSymbolProof::CompileAnchored,
             Self::LaunchAuthoritySubagentManager => ManualNamedSymbolProof::CompileAnchored,
             Self::LiveCliSpawnerSpawn => ManualNamedSymbolProof::CompileAnchored,
             Self::LlmClientEmbedding => ManualNamedSymbolProof::CompileAnchored,
@@ -1073,9 +1088,11 @@ impl ManualNamedSymbol {
             Self::ModelLaneStoreReplayRun => ManualNamedSymbolProof::CompileAnchored,
             Self::ModelLaneStoreValidateDiagnosticTierPosture => ManualNamedSymbolProof::CompileAnchored,
             Self::ModelRuntimeErrorAdapterMismatch => ManualNamedSymbolProof::CompileAnchored,
+            Self::ProcessReclaimRuntimeProductionWithLease => ManualNamedSymbolProof::CompileAnchored,
             Self::ProviderKindExternalCompat => ManualNamedSymbolProof::CompileAnchored,
             Self::ProviderKindLocal => ManualNamedSymbolProof::CompileAnchored,
             Self::ProviderRegistryFromEnv => ManualNamedSymbolProof::CompileAnchored,
+            Self::ReclaimRunOwnedProcess => ManualNamedSymbolProof::CompileAnchored,
             Self::RoleDialog => ManualNamedSymbolProof::DeclaredNotNameableHere(
                 "accesskit::Role belongs to the native frontend crate; handshake_core does not depend on accesskit, so the variant cannot be compile-anchored here. Proven instead by the native Argus tests named on the cloud-model-access page.",
             ),
@@ -1212,6 +1229,11 @@ impl ManualNamedSymbol {
             Self::KernelEventTypeModelRuntimeSelectionRecorded => {
                 let _ = |value: &crate::kernel::KernelEventType| matches!(value, crate::kernel::KernelEventType::ModelRuntimeSelectionRecorded);
             }
+            Self::KillOutcomeFailed => {
+                let _ = |value: &crate::process_ledger::KillOutcome| {
+                    matches!(value, crate::process_ledger::KillOutcome::Failed { .. })
+                };
+            }
             Self::LaunchAuthoritySubagentManager => {
                 let _ = |value: &crate::swarm_orchestration::model_lane::LaunchAuthority| matches!(value, crate::swarm_orchestration::model_lane::LaunchAuthority::SubagentManager);
             }
@@ -1302,6 +1324,9 @@ impl ManualNamedSymbol {
             Self::ModelRuntimeErrorAdapterMismatch => {
                 let _ = |value: &crate::model_runtime::ModelRuntimeError| matches!(value, crate::model_runtime::ModelRuntimeError::AdapterMismatch { .. });
             }
+            Self::ProcessReclaimRuntimeProductionWithLease => {
+                let _ = crate::process_ledger::ProcessReclaimRuntime::production_with_lease;
+            }
             Self::ProviderKindExternalCompat => {
                 let _ = |value: &crate::model_runtime::ProviderKind| matches!(value, crate::model_runtime::ProviderKind::ExternalCompat);
             }
@@ -1310,6 +1335,9 @@ impl ManualNamedSymbol {
             }
             Self::ProviderRegistryFromEnv => {
                 let _ = crate::llm::registry::ProviderRegistry::from_env;
+            }
+            Self::ReclaimRunOwnedProcess => {
+                let _ = crate::process_ledger::Reclaim::run_owned_process;
             }
             Self::RoleDialog => {
                 // Declared-with-reason; see `proof()`.
@@ -1351,7 +1379,23 @@ impl ManualNamedSymbol {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::revoke_cloud_consent_receipt;
             }
             Self::SwarmCoordinatorSessionRuntime => {
-                let _ = crate::swarm_orchestration::SwarmCoordinator::session_runtime;
+                // `SwarmCoordinator::session_runtime` is itself
+                // `#[cfg(any(test, feature = "test-utils"))]` (coordinator.rs
+                // ~2117). An UNGATED compile anchor on it breaks the DEFAULT
+                // build of `handshake_core`, which in turn breaks every
+                // dependent crate -- including the Tauri shell, whose default
+                // configuration does not enable `test-utils`. The anchor must
+                // therefore carry the same gate as the symbol it anchors.
+                //
+                // The guarantee is preserved where it can be enforced: under
+                // test/test-utils (the configuration every gate in this module
+                // actually runs in) a rename or removal is still a compile
+                // error. Outside that configuration the symbol does not exist
+                // to be anchored.
+                #[cfg(any(test, feature = "test-utils"))]
+                {
+                    let _ = crate::swarm_orchestration::SwarmCoordinator::session_runtime;
+                }
             }
             Self::SwarmCoordinatorSpawnSession => {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::spawn_session;

@@ -28,22 +28,27 @@ pub use idempotency::{
 pub use overflow::{cap_metadata_jsonb, cap_metadata_value, MetadataCapOutcome};
 pub use reclaim::{
     acquire_embedded_runtime_instance_lease, reclaim_handle, reclaim_pidless_embedded_orphans,
-    reconcile_restart_orphans_at_boot, resolve_embedded_runtime_host_scope,
-    resolve_embedded_runtime_host_scope_with_managed_local,
+    reconcile_restart_orphans, reconcile_restart_orphans_at_boot,
+    resolve_embedded_runtime_host_scope, resolve_embedded_runtime_host_scope_with_managed_local,
     resolve_embedded_runtime_host_scope_with_override, spawn_managed_staleness_reclaim_task,
-    spawn_staleness_reclaim_task, verify_proven_local_postgres_endpoint_pool,
+    spawn_managed_staleness_reclaim_task_after_boot, spawn_staleness_reclaim_task,
+    verify_proven_local_postgres_endpoint_pool,
     EmbeddedRuntimeInstanceDescriptor, EmbeddedRuntimeInstanceLease, KillError, KillOutcome,
     LegacyHostScopeOpenRowProbe, ManagedStalenessReclaimTask, PidlessEmbeddedReclaimReport,
     PostgresModelLaneStaleSessionSource, ProductionSandboxKill, Reclaim, ReclaimClaim,
     ReclaimKillOperation, ReclaimKillOperationCandidate, ReclaimKillOperationStatus,
     ReclaimKillOperationSweep, ReclaimKillOperationSweepEntry, ReclaimKillOperationSweepOutcome,
     ReclaimProcessStore, ReclaimReport, ReclaimStopReservation, ReclaimStopWriter, ReclaimTrigger,
-    ReclaimableProcess, ReclaimedProcess, RestartOrphanBootReconcileReport, SandboxKill,
-    StaleSessionSource, StalenessReclaimConfig,
+    ReclaimableProcess, ReclaimedProcess, RestartOrphanBootReconcileReport,
+    RestartOrphanReconcileErrorPolicy, SandboxKill, StaleSessionSource, StalenessReclaimConfig,
     EMBEDDED_RUNTIME_INSTANCE_SCHEMA_ID, EMBEDDED_RUNTIME_LOOPBACK_UDP_PROTOCOL,
     EMBEDDED_RUNTIME_MANAGED_LOCAL_HOST_SCOPE_V2_PREFIX, HANDSHAKE_HOST_SCOPE_ID_ENV,
-    PIDLESS_RECLAIM_INSTANCE_CAP, POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
+    PIDLESS_RECLAIM_INSTANCE_CAP, POSTGRES_ACTIVE_FOREIGN_OWNER_RECLAIM_QUERY_SQL,
+    POSTGRES_ACTIVE_OWNED_PROCESS_RECLAIM_QUERY_SQL, POSTGRES_ACTIVE_PROCESS_RECLAIM_QUERY_SQL,
+    POSTGRES_ACTIVE_RECLAIM_QUERY_SQL,
 };
+#[cfg(feature = "test-utils")]
+pub use reclaim::set_dead_owner_confirmation_gap_override_for_test;
 pub use restart_resume::{
     OperatorDecisionRequest, OrphanReclaimInfo, RestartResumeOrchestrator, ResumableSession,
     ResumeError, ResumeReport, ResumedSessionInfo,

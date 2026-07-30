@@ -1932,7 +1932,7 @@ fn reclaimable(session_id: &str, engine_kind: ProcessEngineKind) -> ReclaimableP
     ReclaimableProcess {
         process_uuid: Uuid::now_v7(),
         os_pid: None,
-        parent_session_id: session_id.to_string(),
+        parent_session_id: Some(session_id.to_string()),
         parent_process_id: None,
         sandbox_adapter_id: Some("sandbox-adapter-test".to_string()),
         sandbox_internal_id: Some("sandbox-internal-test".to_string()),
@@ -2941,4 +2941,307 @@ impl StaleSessionSource for FakeStaleSource {
     ) -> Result<Vec<String>, handshake_core::process_ledger::ProcessLedgerError> {
         Ok(std::mem::take(&mut *self.sessions.lock().unwrap()))
     }
+}
+
+// ---------------------------------------------------------------------------
+// MT-019 F5 + F6: boot-reconcile report honesty.
+//
+// This file uses mock stores and has no file-level cfg gate, so these proofs run
+// on every host. They cover the counting/surfacing contract; the real-kill and
+// real-PostgreSQL behaviour is proven in
+// `process_reclaim_real_lifecycle_pg_tests`.
+// ---------------------------------------------------------------------------
+
+struct RestartOnlyStaleSource {
+    sessions: Vec<String>,
+}
+
+#[async_trait]
+impl StaleSessionSource for RestartOnlyStaleSource {
+    async fn stale_sessions(&self, _ttl: Duration) -> Result<Vec<String>, ProcessLedgerError> {
+        Ok(Vec::new())
+    }
+
+    async fn restart_sessions(&self) -> Result<Vec<String>, ProcessLedgerError> {
+        Ok(self.sessions.clone())
+    }
+}
+
+/// Advances one in-progress kill operation (so the sweep runs its follow-up
+/// reclaim) and then fails that follow-up reclaim exactly once.
+struct SweepReclaimErrorStore {
+    session_claims: Mutex<usize>,
+    process_uuid: Uuid,
+    kill_operation_uuid: Uuid,
+}
+
+#[async_trait]
+impl ReclaimProcessStore for SweepReclaimErrorStore {
+    async fn active_processes_for_session(
+        &self,
+        _session_id: &str,
+    ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+        let mut claims = self.session_claims.lock().unwrap();
+        *claims += 1;
+        if *claims == 1 {
+            // The sweep's own follow-up reclaim fails. The sweep still returns
+            // Ok, carrying the failure in `reclaim_error`.
+            return Err(ProcessLedgerError::Store(
+                "simulated in-progress sweep follow-up reclaim failure".to_string(),
+            ));
+        }
+        Ok(Vec::new())
+    }
+
+    async fn renew_reclaim_claim(
+        &self,
+        _process_uuid: Uuid,
+        claim: &ReclaimClaim,
+    ) -> Result<ReclaimClaim, ProcessLedgerError> {
+        Ok(claim.clone())
+    }
+
+    async fn mark_reclaim_kill_succeeded(
+        &self,
+        _stop: &ProcessStop,
+        _claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn mark_reclaim_kill_started(
+        &self,
+        _process_uuid: Uuid,
+        _claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn release_reclaim_claim(
+        &self,
+        _process_uuid: Uuid,
+        _claim: &ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn resolve_reclaim_kill_operation(
+        &self,
+        _process_uuid: Uuid,
+        _kill_operation_uuid: Uuid,
+        _status: ReclaimKillOperationStatus,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn in_progress_kill_operations_for_session(
+        &self,
+        _session_id: &str,
+        _limit: usize,
+    ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        Ok(vec![ReclaimKillOperationCandidate::Operation {
+            operation: ReclaimKillOperation {
+                process_uuid: self.process_uuid,
+                kill_operation_uuid: self.kill_operation_uuid,
+            },
+        }])
+    }
+}
+
+#[tokio::test]
+async fn mt019_boot_reconcile_surfaces_in_progress_sweep_reclaim_error() {
+    let process_uuid = Uuid::now_v7();
+    let store = Arc::new(SweepReclaimErrorStore {
+        session_claims: Mutex::new(0),
+        process_uuid,
+        kill_operation_uuid: Uuid::now_v7(),
+    });
+    // Terminal evidence, so the sweep advances state and runs its follow-up reclaim.
+    let killer = Arc::new(StatusKill::new(HashMap::from([(
+        process_uuid,
+        Ok(ReclaimKillOperationStatus::Succeeded),
+    )])));
+    let stop_writer = Arc::new(RecordingStopWriter {
+        stops: Arc::new(Mutex::new(Vec::new())),
+    });
+    let reclaim = Reclaim::new(store, killer, stop_writer);
+    let stale_source = RestartOnlyStaleSource {
+        sessions: vec!["SR-MT019-SWEEP".to_string()],
+    };
+
+    let report =
+        handshake_core::process_ledger::reconcile_restart_orphans_at_boot(&reclaim, &stale_source)
+            .await
+            .expect("boot reconcile must not abort on a sweep-internal reclaim error");
+
+    assert_eq!(
+        report.sweep_reclaim_errors.len(),
+        1,
+        "the in-progress sweep's reclaim_error must be surfaced, not dropped: {report:?}"
+    );
+    assert!(
+        report.sweep_reclaim_errors[0].contains("simulated in-progress sweep follow-up reclaim failure"),
+        "the surfaced error must be the sweep's own reclaim error: {:?}",
+        report.sweep_reclaim_errors
+    );
+    assert_eq!(report.sessions_reconciled, 1);
+}
+
+#[tokio::test]
+async fn mt019_boot_reconcile_counts_only_proven_kills_as_reclaimed() {
+    let session = "SR-MT019-COUNTERS".to_string();
+    let killed = reclaimable(&session, ProcessEngineKind::OfficialCliBridge);
+    let unreapable = reclaimable(&session, ProcessEngineKind::OfficialCliBridge);
+    let unreapable_uuid = unreapable.process_uuid;
+    let fixture = Fixture::new(
+        HashMap::from([(session.clone(), vec![killed, unreapable])]),
+        HashSet::from([unreapable_uuid]),
+    );
+    let stale_source = RestartOnlyStaleSource {
+        sessions: vec![session],
+    };
+
+    let report = handshake_core::process_ledger::reconcile_restart_orphans_at_boot(
+        fixture.reclaim.as_ref(),
+        &stale_source,
+    )
+    .await
+    .expect("boot reconcile stays fail-open on kill failure (recorded F3 operator decision)");
+
+    assert_eq!(
+        report.processes_reclaimed, 1,
+        "only a proven Killed/KilledPendingStop may count as reclaimed: {report:?}"
+    );
+    assert_eq!(
+        report.processes_kill_failed, 1,
+        "a Failed kill must be counted separately, never as reclaimed: {report:?}"
+    );
+    // Fail-open, not false evidence: no STOP was written for the unreapable row.
+    let stops = fixture.stop_writer.stops();
+    assert_eq!(stops.len(), 1);
+    assert_ne!(
+        stops[0].process_uuid, unreapable_uuid,
+        "an unreapable process must never receive a STOP"
+    );
+}
+
+#[tokio::test]
+async fn mt019_restart_reconcile_binds_the_owner_predicate_when_the_source_knows_its_instance() {
+    struct OwnerAwareStaleSource {
+        instance_id: Uuid,
+    }
+
+    #[async_trait]
+    impl StaleSessionSource for OwnerAwareStaleSource {
+        async fn stale_sessions(&self, _ttl: Duration) -> Result<Vec<String>, ProcessLedgerError> {
+            Ok(Vec::new())
+        }
+
+        async fn restart_sessions(&self) -> Result<Vec<String>, ProcessLedgerError> {
+            Ok(vec!["SR-MT019-OWNER".to_string()])
+        }
+
+        fn self_runtime_instance_id(&self) -> Option<Uuid> {
+            Some(self.instance_id)
+        }
+    }
+
+    #[derive(Default)]
+    struct OwnerPredicateStore {
+        foreign_owner_claims: Mutex<Vec<(String, Uuid)>>,
+    }
+
+    #[async_trait]
+    impl ReclaimProcessStore for OwnerPredicateStore {
+        async fn active_processes_for_session(
+            &self,
+            _session_id: &str,
+        ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+            panic!("a restart pass must never use the owner-blind session claim");
+        }
+
+        async fn active_foreign_owner_processes_for_session(
+            &self,
+            session_id: &str,
+            excluded_owner_runtime_instance_id: Uuid,
+        ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
+            self.foreign_owner_claims
+                .lock()
+                .unwrap()
+                .push((session_id.to_string(), excluded_owner_runtime_instance_id));
+            Ok(Vec::new())
+        }
+
+        async fn renew_reclaim_claim(
+            &self,
+            _process_uuid: Uuid,
+            claim: &ReclaimClaim,
+        ) -> Result<ReclaimClaim, ProcessLedgerError> {
+            Ok(claim.clone())
+        }
+
+        async fn mark_reclaim_kill_succeeded(
+            &self,
+            _stop: &ProcessStop,
+            _claim: &ReclaimClaim,
+        ) -> Result<(), ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn mark_reclaim_kill_started(
+            &self,
+            _process_uuid: Uuid,
+            _claim: &ReclaimClaim,
+        ) -> Result<(), ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn release_reclaim_claim(
+            &self,
+            _process_uuid: Uuid,
+            _claim: &ReclaimClaim,
+        ) -> Result<(), ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn resolve_reclaim_kill_operation(
+            &self,
+            _process_uuid: Uuid,
+            _kill_operation_uuid: Uuid,
+            _status: ReclaimKillOperationStatus,
+        ) -> Result<(), ProcessLedgerError> {
+            Ok(())
+        }
+
+        async fn in_progress_kill_operations_for_session(
+            &self,
+            _session_id: &str,
+            _limit: usize,
+        ) -> Result<Vec<ReclaimKillOperationCandidate>, ProcessLedgerError> {
+            Ok(Vec::new())
+        }
+    }
+
+    let instance_id = Uuid::now_v7();
+    let store = Arc::new(OwnerPredicateStore::default());
+    let reclaim = Reclaim::new(
+        Arc::clone(&store),
+        Arc::new(StatusKill::new(HashMap::new())),
+        Arc::new(RecordingStopWriter {
+            stops: Arc::new(Mutex::new(Vec::new())),
+        }),
+    );
+
+    handshake_core::process_ledger::reconcile_restart_orphans_at_boot(
+        &reclaim,
+        &OwnerAwareStaleSource { instance_id },
+    )
+    .await
+    .expect("owner-scoped restart reconcile");
+
+    assert_eq!(
+        store.foreign_owner_claims.lock().unwrap().clone(),
+        vec![("SR-MT019-OWNER".to_string(), instance_id)],
+        "the restart claim must carry an explicit owner_runtime_instance_id exclusion"
+    );
 }

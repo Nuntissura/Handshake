@@ -203,6 +203,7 @@ fn routes_with_operator_chat_runtime(
         state.flight_recorder.clone(),
         operator_chat_process_ledger.ledger(),
         cli_sandbox_registry,
+        Arc::clone(&reclaim),
     );
     // MT-015: Settings and the picker share the exact canonical, pinned CLI
     // targets accepted by the launch factory. Neither surface independently
@@ -313,6 +314,7 @@ fn operator_chat_cloud_wiring(
     recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
     ledger: crate::process_ledger::LedgerBatcher,
     sandbox_registry: Arc<crate::sandbox::SandboxAdapterRegistry>,
+    reclaim: Arc<crate::process_ledger::Reclaim>,
 ) -> OperatorChatCloudWiring {
     let Ok(access) = crate::model_runtime::cloud::CloudModelAccess::production() else {
         return OperatorChatCloudWiring {
@@ -339,10 +341,13 @@ fn operator_chat_cloud_wiring(
             ),
         );
 
-    let live_spawner = Arc::new(crate::model_runtime::cloud::LiveCliSpawner::new(
-        Arc::new(ledger),
-        sandbox_registry,
-    ));
+    // MT-019 F1: give the CLI spawner the running app's reclaimer so a child whose
+    // STOP cannot be proven is reaped now, through the owner-scoped claim, instead
+    // of staying OPEN until some later boot.
+    let live_spawner = Arc::new(
+        crate::model_runtime::cloud::LiveCliSpawner::new(Arc::new(ledger), sandbox_registry)
+            .with_reclaim(reclaim),
+    );
     let spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner> = live_spawner.clone();
     let observability = Some(Arc::new(
         crate::model_runtime::cloud::CloudLaneObservability {

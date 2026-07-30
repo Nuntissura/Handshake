@@ -396,6 +396,12 @@ fn auth_status_invocation(provider: CliBridgeProvider) -> CliInvocationContext {
     context.wp_id = Some("WP-1".to_string());
     context.mt_id = Some("MT-015".to_string());
     context.session_id = Some(format!("model-access-auth-status-{}", provider.id()));
+    // MT-019 P-2: `parent_session_id` was left NULL here, which made this row
+    // class invisible to BOTH session-keyed reclaim claims AND `restart_sessions`
+    // (which requires `parent_session_id IS NOT NULL`). An auth-status child that
+    // could not be reaped therefore stayed OPEN forever, not even closed at the
+    // next boot. This probe owns its own session identity, so it is its own parent.
+    context.parent_session_id = Some(format!("model-access-auth-status-{}", provider.id()));
     context.reclaim_key = Some(format!("model-access-auth-status-{}", provider.id()));
     context.requested_trust_class = Some(TrustClass::Reviewed);
     context.requested_isolation_tier = Some(IsolationTier::Tier1Container);

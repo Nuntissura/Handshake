@@ -1936,6 +1936,51 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  bounded deferred rows open and warns that a later sweep is required; an actual \
                  reconciliation error is logged as an error and disables configured local inference \
                  before artifact access for that boot. \
+                 Generic spawned-process (Official-CLI bridge) orphans are a SEPARATE class from the \
+                 pid-less embedded orphans above, and they are reconciled by three distinct passes. \
+                 (1) BOOT: `ProcessReclaimRuntime::production_with_lease` runs \
+                 `reconcile_restart_orphans_at_boot` inline under a 30s startup timeout. \
+                 `restart_sessions` is the PostgreSQL-authoritative surfacing step: it only surfaces \
+                 a session whose every open sandbox-owned row belongs to a runtime instance on THIS \
+                 host scope that is provably dead. Liveness is inferred from the prior owner's \
+                 exclusive loopback UDP lease, and that inference now requires TWO observations of a \
+                 free port at least one scan interval (30s) apart; one sample is never enough, so a \
+                 crash orphan is typically reaped by the periodic pass shortly AFTER boot rather than \
+                 during it. Conflicting owner descriptors veto reclaim outright. \
+                 (2) PERIODIC: the post-boot staleness task now runs the SAME restart pass on every \
+                 30s tick, not only the stale-lane pass, so an orphan the boot pass skipped or timed \
+                 out on is re-surfaced without waiting for the next restart. \
+                 (3) RUNNING-APP: a CLI child whose STOP could not be proven (`record_stop` left the \
+                 row open, or terminate-and-reap failed) is reaped immediately by \
+                 `Reclaim::run_owned_process`, an owner-scoped claim keyed on `process_uuid` with an \
+                 explicit `owner_runtime_instance_id` predicate. This exists because official-CLI \
+                 auth-status/preflight children historically carried no `parent_session_id` and were \
+                 invisible to every session-keyed claim AND to `restart_sessions`. The hook runs only \
+                 after the reserved STOP permit is released, on a dedicated thread with a bounded \
+                 8s budget, and never from the guard's Drop path. \
+                 Kill failure at boot is FAIL-OPEN by design and is stated here so the log is not \
+                 misread: a `KillOutcome::Failed` row keeps its claim released, its fence cleared, and \
+                 NO STOP written, so it remains truthfully open and idempotently retryable. Boot \
+                 therefore completes and reports it as `processes_kill_failed` (never as \
+                 `processes_reclaimed`); the periodic pass retries it. Fail-closed would permanently \
+                 brick boot on non-Windows hosts, where the native reclaim adapter is unavailable and \
+                 always returns Failed, and it cannot distinguish a correct refusal-to-kill (the \
+                 pid-reuse identity fence) from a genuine reap failure. Store errors, surfacing \
+                 errors, and a boot-reconcile TIMEOUT remain fail-closed and abort startup. \
+                 RECOVERY-ONLY EXCLUSION: `HANDSHAKE_STARTUP_RECOVERY_ONLY=1` returns before the \
+                 normal process-runtime composition, so it used to run only the pid-less embedded \
+                 sweep. It now also runs one restart-orphan reconcile pass, before managed PostgreSQL \
+                 is stopped. Because that process is short-lived it usually records only the FIRST \
+                 dead-owner observation, so run it twice, or start the backend normally, to complete \
+                 the corroboration. \
+                 The embedded-runtime loopback lease is NEVER released while this process is alive: \
+                 draining the process runtime releases it only after PostgreSQL proves this instance \
+                 owns zero open lifecycle rows, and the guard's Drop path always retains it (the OS \
+                 frees the socket at real process exit). Releasing it early is what advertises this \
+                 instance as dead to every other Handshake instance's restart sweep, and the identity \
+                 fence does not protect against that: it proves process generation, not liveness or \
+                 ownership. Expect a retained-lease log line naming the open-row count on shutdown; \
+                 that is correct behaviour, not a leak to fix. \
                  HBR-INT-009 posture: Flight Recorder / EventLedger is WIRED (ProcessOwnershipLedger \
                   rows + per-call Flight Recorder events); internal_diagnostics is WIRED and Palmistry is WIRED through the native diagnostics and survivor-recovery paths; they observe these records without becoming their \
                  authority).",
