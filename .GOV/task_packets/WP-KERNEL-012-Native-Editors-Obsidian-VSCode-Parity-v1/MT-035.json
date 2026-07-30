@@ -14,7 +14,7 @@
   "title": "E5-MT-035-UnifiedUndoScope",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T10:59:01.313Z",
+  "updated_at_utc": "2026-07-30T12:04:42.063Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-035.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -87,7 +87,7 @@
       {
         "at_utc": "2026-07-30T10:59:01.313Z",
         "by": "KERNEL_BUILDER",
-        "reason": "V3 remediation commit bc388480 adds canonical Argus cross-pane undo/re-observation, in-flight compensation reentry denial, focused local-scope preservation, and fresh-process empty restart proof. MT is not READY_FOR_VALIDATION_V3 because current-head live-PG durable compensation proof is blocked by unavailable current-source handshake_core.exe: two explicit backend builds timed out after 20 minutes each without producing the binary. Mechanical helper MECH-MT-035-e603bc68 also requires explicit operator waiver for UserManual files touched by the V2 remediation instruction.",
+        "reason": "V3 remediation commit bc388480 adds canonical Argus cross-pane undo/re-observation, in-flight compensation reentry denial, focused local-scope preservation, and fresh-process empty restart proof. MT is not READY_FOR_VALIDATION_V3 because current-head live-PG durable compensation proof is blocked by unavailable current-source handshake_core.exe: three explicit backend builds timed out or hit the 20-minute cap without producing the binary; the 2026-07-30T12:02Z attempt reached 1224s and progressed beyond libduckdb-sys before being stopped at the operator-requested cap. Mechanical helper MECH-MT-035-e603bc68 also requires explicit operator waiver for UserManual files touched by the V2 remediation instruction.",
         "previous_status": "FAIL_V2",
         "new_status": "CLAIMED_V3_REMEDIATION",
         "previous_active": false
@@ -465,7 +465,7 @@
   "remediation_v3_partial_2026_07_30": {
     "schema_id": "hsk.mt_remediation_progress@1",
     "status": "CLAIMED_V3_REMEDIATION",
-    "updated_at_utc": "2026-07-30T10:59:01.313Z",
+    "updated_at_utc": "2026-07-30T12:04:42.063Z",
     "remediated_by": "KERNEL_BUILDER",
     "product_commit": "bc3884808ffbbb498c768e0377dd02cdf0657887",
     "scope_closed": [
@@ -531,7 +531,7 @@
         "READY_FOR_VALIDATION_V3 remains prohibited because current-head live-PG durable compensation/receipt proof could not run without a current-source backend binary.",
         "MT code-surface waiver is required for manual_content_editors.rs and test_manual_content.rs because V2 remediation asks for canonical UserManual documentation but MT declared code surfaces do not include those files."
       ],
-      "residual_uncertainty": "Live-PG durable receipt/compensation remains unproved at current head. Backend binary build was attempted twice with cargo build --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime -j 1; each attempt timed out after 20 minutes and no handshake_core.exe existed under the canonical Cargo target."
+      "residual_uncertainty": "Live-PG durable receipt/compensation remains unproved at current head. Backend binary build has been attempted three times with cargo build --manifest-path src/backend/handshake_core/Cargo.toml --bin handshake_core --features app-runtime -j 1; each attempt timed out or hit the 20-minute cap and no handshake_core.exe existed under the canonical Cargo target. The 2026-07-30T12:02Z attempt reached 1224s, advanced past libduckdb-sys, then was stopped at the cap and cleaned."
     },
     "mechanical": {
       "command": "node .GOV/roles/wp_validator/scripts/wp-validator-mechanical-track.mjs WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 MT-035 --range bc388480^..bc388480 --json",
@@ -545,7 +545,7 @@
     "blocked_proofs": [
       {
         "proof": "cargo test --features integration --test test_undo_scope canvas_placement_undo_round_trip_live_pg -j 1 -- --exact --nocapture --test-threads=1",
-        "blocker": "No current-source handshake_core.exe available for HSK_TEST_BACKEND_BIN. Building it twice with the authorized 20-minute timeout did not complete or produce a binary."
+        "blocker": "No current-source handshake_core.exe available for HSK_TEST_BACKEND_BIN. Building it three times with the authorized 20-minute timeout/cap did not complete or produce a binary; the latest attempt was stopped at 1224s and Cargo cleanup removed 21.3GiB."
       }
     ],
     "scope_waiver_pending": true,

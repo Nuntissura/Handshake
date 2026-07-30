@@ -14,7 +14,7 @@
   "title": "E7-MT-043-SwarmEditProof",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T11:35:00.000Z",
+  "updated_at_utc": "2026-07-30T12:04:42.063Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-043.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -411,7 +411,7 @@
   },
   "remediation_v3": {
     "status": "CLAIMED_V3_REMEDIATION_BLOCKED",
-    "updated_at_utc": "2026-07-30T11:35:00.000Z",
+    "updated_at_utc": "2026-07-30T12:04:42.063Z",
     "product_changes": "NONE",
     "reason_no_product_change": "MT-043 allowed_paths contain only src/frontend/handshake_native/tests/test_e7_swarm_edit_proof.rs and src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt; application source edits are explicitly forbidden.",
     "attempted_proofs": [
@@ -427,7 +427,7 @@
     "blockers": [
       {
         "code": "NEEDS_MANAGED_RESOURCE_PROOF",
-        "reason": "The exact MT-043 live proof requires HSK_TEST_BACKEND_BIN and HANDSHAKE_TEST_PG_DSN. No current-source handshake_core.exe exists under the canonical cargo target after previous 20-minute backend build attempts timed out."
+        "reason": "The exact MT-043 live proof requires HSK_TEST_BACKEND_BIN and HANDSHAKE_TEST_PG_DSN. No current-source handshake_core.exe exists under the canonical cargo target after three 20-minute backend build attempts timed out or hit cap; the latest attempt reached 1224s, produced no executable, and was cleaned with cargo clean removing 21.3GiB."
       },
       {
         "code": "NO_PRODUCT_SCOPE_FOR_FIX",

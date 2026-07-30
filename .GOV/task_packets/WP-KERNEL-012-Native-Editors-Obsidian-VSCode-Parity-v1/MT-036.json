@@ -14,7 +14,7 @@
   "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T11:26:03.126Z",
+  "updated_at_utc": "2026-07-30T12:04:42.063Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -40,7 +40,7 @@
     "validator_verdict": "FAIL_V2",
     "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
     "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
-    "proof_status": "PARTIAL_V3_REMEDIATION_BLOCKED: product commit b9845c4757d70adcc27bd297c7e99c58c88d4429 wires Flight Recorder pane load/failure/recovery and native emit failures into internal_diagnostics/Palmistry via exact MT-036 numeric diagnostic lanes, with focused unit/kittest proof and cargo check passing. Not READY_FOR_VALIDATION_V3: the live real-PG round-trip proof is blocked because no current-source handshake_core.exe exists under the canonical cargo target and previous 20-minute backend builds timed out; MT-035 dependency also remains CLAIMED_V3_REMEDIATION pending operator waiver/live-backend proof.",
+    "proof_status": "PARTIAL_V3_REMEDIATION_BLOCKED: product commit b9845c4757d70adcc27bd297c7e99c58c88d4429 wires Flight Recorder pane load/failure/recovery and native emit failures into internal_diagnostics/Palmistry via exact MT-036 numeric diagnostic lanes, with focused unit/kittest proof and cargo check passing. Not READY_FOR_VALIDATION_V3: the live real-PG round-trip proof is blocked because no current-source handshake_core.exe exists under the canonical cargo target and three 20-minute backend builds timed out or hit cap; the 2026-07-30T12:02Z attempt reached 1224s without producing the binary. MT-035 dependency also remains CLAIMED_V3_REMEDIATION pending operator waiver/live-backend proof.",
     "post_implementation_adversarial_review_status": "PASS_2026-07-17_THIRD_REVIEW_NO_BLOCKING_FINDINGS",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
@@ -436,7 +436,7 @@
   },
   "remediation_v3": {
     "status": "CLAIMED_V3_REMEDIATION_BLOCKED",
-    "updated_at_utc": "2026-07-30T11:26:03.126Z",
+    "updated_at_utc": "2026-07-30T12:04:42.063Z",
     "implemented_product_commit": "b9845c4757d70adcc27bd297c7e99c58c88d4429",
     "implemented_repairs": [
       "FlightRecorderPane::begin_loading records an exact MT-036 diagnostic Start edge using DiagEventCode::Other with counter_a=36001 and sequence_id=1.",
@@ -458,7 +458,7 @@
     "blockers": [
       {
         "code": "NEEDS_MANAGED_RESOURCE_PROOF",
-        "reason": "No current-source handshake_core.exe exists under D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target, and prior 20-minute backend builds timed out without producing the binary. The live real-PG round-trip test requires HSK_TEST_BACKEND_BIN."
+        "reason": "No current-source handshake_core.exe exists under D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target, and three 20-minute backend builds timed out or hit cap without producing the binary. The latest attempt reached 1224s, produced no executable, and was cleaned with cargo clean removing 21.3GiB. The live real-PG round-trip test requires HSK_TEST_BACKEND_BIN."
       },
       {
         "code": "DEPENDENCY_NOT_READY",
