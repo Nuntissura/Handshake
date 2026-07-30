@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-07-30T01:05:00Z",
+  "updated_at_utc": "2026-07-30T04:25:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -27,7 +27,7 @@
     "ready_for_validation_by": null,
     "ready_for_validation_at_utc": null,
     "completed_by": null,
-    "blocker": "NOT_STARTED",
+    "blocker": "P-2 through P-5 remain outstanding. P-1 is proven and committed at c043ee9c.",
     "missing_resource": null,
     "proof_status": "READY_FOR_DEV: deferred reclaim-hardening follow-ups from MT-007 two-lens adversarial review.",
     "hbr_status": "PENDING",
@@ -255,7 +255,7 @@
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "operator_scope_expansion": "Operator expanded scope 2026-07-30 authorising P-1 to land immediately as its own fix rather than waiting for the rest of MT-019.",
     "P-1": {
-      "status": "IMPLEMENTED_AWAITING_PROOF",
+      "status": "PROVEN_AND_COMMITTED",
       "product_change": "process_ledger/reclaim.rs stale_sessions: added AND lifecycle.parent_session_id IS NOT NULL to the WHERE clause, and replaced the panicking row.get::<String>(\"parent_session_id\") with try_get::<Option<String>> plus an explicit skip and tracing::warn. Comment records why a session-less row cannot participate in a session-level reclaim decision.",
       "regression_test": "tests/process_ledger_reclaim_tests.rs postgres_stale_source_skips_null_parent_session_row_without_aborting_scan - seeds the auth-status row shape (open, sandbox_adapter_id set, self-owned, NULL parent_session_id) alongside a genuinely reclaimable session, and asserts the scan returns Ok AND still selects the reclaimable session.",
       "verified_defect_evidence": [
@@ -266,7 +266,11 @@
         "restart_sessions at reclaim.rs:3958 already used try_get::<Option<String>> correctly, so stale_sessions was the sole outlier",
         "active_processes_for_session row.get at reclaim.rs:3349 is safe: its query binds WHERE parent_session_id = $1"
       ],
-      "proof_pending_reason": "Build deferred while the MT-018 coder was editing the same crate; an interleaved build would compile its in-progress state and prove nothing. One combined build/proof runs once MT-018 lands."
+      "proof_pending_reason": "Build deferred while the MT-018 coder was editing the same crate; an interleaved build would compile its in-progress state and prove nothing. One combined build/proof runs once MT-018 lands.",
+      "commit": "c043ee9c",
+      "proof_verbatim": "postgres_stale_source_skips_null_parent_session_row_without_aborting_scan ... ok  (within: test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 25 filtered out; finished in 2792.03s)",
+      "proof_note": "The one failure in that run is PRE-EXISTING and unrelated: postgres_stale_source_selects_terminal_lane_exact_process_owner never sets sandbox_adapter_id while the scan has always required it, so it could not have passed before this change either. The new SQL predicate only excludes rows whose parent_session_id is NULL, and that test sets it. Both pre-existing stale-source defects are recorded as MT-020 AC-6.",
+      "leak_fix_included": "tests/knowledge_pg_support.rs now registers each isolated schema at creation and drops it at process exit, closing the leak that had accumulated 532 schemas and degraded a single migration chain from seconds to hours."
     },
     "P-2_P-3_P-4_P-5": {
       "status": "NOT_STARTED",

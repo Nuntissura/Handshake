@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-020",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-07-30T00:30:00Z",
+  "updated_at_utc": "2026-07-30T04:20:00Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -37,7 +37,8 @@
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
     "discovered_at_utc": "2026-07-30T00:30:00Z",
-    "discovery_context": "Found while verifying the three MT-017 final-hardening fixes on 2026-07-30. Deferred into its own MT per the Operator rule that an unexpected gap not belonging to the current MT is carried into a future MT in the same work packet so it is not lost."
+    "discovery_context": "Found while verifying the three MT-017 final-hardening fixes on 2026-07-30. Deferred into its own MT per the Operator rule that an unexpected gap not belonging to the current MT is carried into a future MT in the same work packet so it is not lost.",
+    "additional_discovery_2026_07_30": "Confirmed at runtime while proving MT-019 P-1: the same sandbox_adapter_id omission that made the new P-1 regression test unfalsifiable also breaks one pre-existing stale-source test and renders another vacuous. This is the third instance in one session of a test being silently red or vacuous because the declared proofs only ever ran narrow --exact filters (the first was five tests in the production_factory lib module)."
   },
   "scope": {
     "summary": "Repair five PRE-EXISTING failing tests in the production_factory lib module that are invisible to MT-017's declared proof set, so the module is honestly green rather than green-by-narrow-filter.",
@@ -60,14 +61,15 @@
       "AC-2: production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan is corrected to assert the behaviour the product actually guarantees. DECIDE explicitly and record the rationale: either the test should not use a ModelLaneStore-backed coordinator for a missing-artifact case, or the guard legitimately precedes factory dispatch and the expectation must change. Do NOT weaken the guard.",
       "AC-3: The full module runs green with NO name filter: cargo test --lib swarm_orchestration::production_factory::tests (both default-parallel and --test-threads=1). Report both.",
       "AC-4: No test is deleted, ignored, or renamed to dodge the failure; the count of executed tests does not decrease.",
-      "AC-5: Confirm and record whether these five failures also reproduce at commit 6fd044b0^ (i.e. before the MT-017 fixes). The MT-017 analysis concluded PRE-EXISTING on mechanism grounds - the ack requirement and ledger_pair() helper are untouched by that commit, and the BYOK path is byte-identical - but an A/B baseline was never run. Establish it here."
+      "AC-5: Confirm and record whether these five failures also reproduce at commit 6fd044b0^ (i.e. before the MT-017 fixes). The MT-017 analysis concluded PRE-EXISTING on mechanism grounds - the ack requirement and ledger_pair() helper are untouched by that commit, and the BYOK path is byte-identical - but an A/B baseline was never run. Establish it here.",
+      "AC-6 [ADDED 2026-07-30, runtime-confirmed]: repair the two pre-existing stale-source test defects in tests/process_ledger_reclaim_tests.rs, both caused by rows that never set sandbox_adapter_id while stale_sessions has always required sandbox_adapter_id IS NOT NULL. (a) postgres_stale_source_selects_terminal_lane_exact_process_owner FAILS (observed: 2 passed; 1 failed; finished in 2792.03s) because its session can never be selected. (b) postgres_stale_source_does_not_cross_reclaim_healthy_sibling_lane PASSES VACUOUSLY: its rows are equally ineligible, so its negative assertion !stale_sessions.contains(session_id) is unfalsifiable and would keep passing even if cross-reclaim protection were deleted entirely. Fix both by seeding sandbox_adapter_id so the rows are genuinely eligible, then confirm (a) passes for a real reason and (b) still passes while being falsifiable - prove (b) by temporarily making the sibling reclaimable and observing the assertion FAIL."
     ],
     "proof_commands": [
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib swarm_orchestration::production_factory::tests -- --nocapture",
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
       "git diff --check"
     ],
-    "risk_if_missed": "The production_factory module carries five silent failures. Any future WP that widens the proof filter beyond the single declared test inherits a red module and cannot tell new breakage from old. Worse, the four ack timeouts mean the cloud-session START durability path has NO honest passing coverage in this module, so a real durability regression would be indistinguishable from the known noise."
+    "risk_if_missed": "The production_factory module carries five silent failures. Any future WP that widens the proof filter beyond the single declared test inherits a red module and cannot tell new breakage from old. Worse, the four ack timeouts mean the cloud-session START durability path has NO honest passing coverage in this module, so a real durability regression would be indistinguishable from the known noise. Additionally, the cross-reclaim protection for stale sessions currently has NO falsifiable test: postgres_stale_source_does_not_cross_reclaim_healthy_sibling_lane would pass even if that protection were removed, so a regression there would ship silently."
   },
   "implementation_notes": [
     "Do not 'fix' this by shortening the 5000 ms ack deadline or making the ack optional - that would delete the durability guarantee these tests exist to prove.",
