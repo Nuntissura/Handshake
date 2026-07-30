@@ -31,6 +31,9 @@
 //!   MT-026 placement route is proven without a live backend. The live host drain registers a
 //!   cross-pane compensating undo after a created-placement response, and the full create -> undo ->
 //!   reload round-trip is proven against managed PostgreSQL whenever the integration feature is selected.
+//!   V3 additionally drives the cross-pane undo through canonical Argus, proves in-flight compensation
+//!   blocks reentry without reordering, focused local undo remains pane-scoped, and fresh app restart state
+//!   cannot replay interrupted in-memory history.
 //! - AC-5 (POLICY-5 cap): 201 pushes to a cap-200 ring -> 200; 51 to cap-50 cross-pane -> 50.
 //! - AC-6 (undo-count indicator): the `render_undo_count_indicator` helper emits
 //!   `undo-count-{pane_id}` with the correct count in a kittest AccessKit dump, and the live pane header
@@ -40,8 +43,11 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
@@ -922,6 +928,18 @@ fn code_pane_backspace_records_undo_and_shell_undo_reverts_live() {
     );
 }
 
+fn mt035_bus_counts(ctx: &egui::Context, pane_id: &PaneId) -> (usize, usize, bool) {
+    let bus = InteractionBus::get_or_init(ctx);
+    InteractionBus::with_try_lock(&bus, |bus| {
+        (
+            bus.local_undo_count(pane_id),
+            bus.undo_scope().cross_pane_undo_count(),
+            bus.undo_scope().cross_pane_async_pending(),
+        )
+    })
+    .expect("read MT-035 bus counts")
+}
+
 #[test]
 fn mounted_replace_all_batch_is_one_ctrl_z_step_and_restarts_continuation_after_undo() {
     let (app, _rt) = mt035_editor_shell();
@@ -1235,6 +1253,148 @@ fn backend_touching_cross_pane_transitions_are_serialized_until_reconciled() {
         bus.undo_scope().cross_pane_undo_count(),
         1,
         "the second action remains in authoritative undo order until the first reconciles"
+    );
+}
+
+#[test]
+fn mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_and_restart_empty() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("MT-035 V3 mounted runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    let ctx = harness.ctx.clone();
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(&ctx, "view.code-editor"),
+        "open the mounted code editor through the product command route"
+    );
+    harness.run_steps(4);
+    focus_code_text_surface(&harness);
+    let code_pane = harness
+        .state()
+        .active_pane()
+        .cloned()
+        .expect("the mounted code editor owns the active pane");
+
+    let local_log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let pending_async: handshake_native::undo_stack::UndoAsyncFn = Arc::new(|| {
+        Box::pin(async {
+            std::future::pending::<()>().await;
+            UndoResult::ok()
+        })
+    });
+    {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        InteractionBus::with_try_lock(&bus, |bus| {
+            bus.set_undo_runtime(runtime.handle().clone());
+            bus.register_undo_commands();
+            bus.set_focus_owner(code_pane.clone());
+            bus.push_undo_local(
+                code_pane.clone(),
+                sync_action("focused-code-local", local_log.clone()),
+            );
+            bus.push_undo_cross_pane(UndoAction::async_compensating(
+                "mt035-v3-interrupted-canvas",
+                "canvas: interrupted placement compensation",
+                Arc::new(UndoResult::ok),
+                Arc::new(UndoResult::ok),
+                Arc::clone(&pending_async),
+                pending_async,
+            ));
+        })
+        .expect("seed MT-035 V3 undo state");
+    }
+    assert_eq!(
+        mt035_bus_counts(&harness.ctx, &code_pane),
+        (1, 1, false),
+        "pre-Argus state has one focused local entry and one cross-pane compensation entry"
+    );
+
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt035-v3-undo-interruption");
+    let menu_open = argus.click_and_reinspect(&mut harness, "menu-edit");
+    assert!(
+        json_has_author_id(&menu_open.after, "menu.edit.undo-cross-pane"),
+        "fresh Argus re-observation after opening EDIT exposes the cross-pane undo leaf"
+    );
+    let cross_undo = argus.click_and_reinspect(&mut harness, "menu.edit.undo-cross-pane");
+    assert!(
+        cross_undo
+            .agent_id
+            .ends_with("mt035-v3-undo-interruption-agent"),
+        "canonical Argus action keeps client attribution"
+    );
+    assert_eq!(
+        mt035_bus_counts(&harness.ctx, &code_pane),
+        (1, 0, true),
+        "Argus menu action dispatched the async cross-pane undo and left focused local undo intact"
+    );
+
+    let blocked = {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        InteractionBus::with_try_lock(&bus, |bus| {
+            bus.undo_cross_pane()
+                .expect("in-flight cross-pane retry returns a typed result")
+        })
+        .expect("retry cross-pane undo")
+    };
+    assert!(!blocked.ok);
+    assert!(
+        blocked
+            .error
+            .as_deref()
+            .is_some_and(|error| error.contains("already in flight")),
+        "a simultaneous cross-pane undo cannot reorder compensation: {blocked:?}"
+    );
+
+    let local = {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        InteractionBus::with_try_lock(&bus, |bus| {
+            bus.undo(&code_pane)
+                .expect("focused local undo remains available during async compensation")
+        })
+        .expect("focused local undo")
+    };
+    assert!(
+        local.ok,
+        "focused local undo succeeds while cross-pane compensation is pending"
+    );
+    assert_eq!(
+        local_log.lock().unwrap().as_slice(),
+        ["focused-code-local"],
+        "the focused local action fired exactly once"
+    );
+    assert_eq!(
+        mt035_bus_counts(&harness.ctx, &code_pane),
+        (0, 0, true),
+        "local focused history drains independently while the interrupted compensation remains pending"
+    );
+
+    drop(harness);
+    let mut restarted = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    restarted.set_runtime_handle(runtime.handle().clone());
+    let restarted_harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), restarted);
+    assert_eq!(
+        mt035_bus_counts(&restarted_harness.ctx, &code_pane),
+        (0, 0, false),
+        "restart recovery model: undo history and interrupted in-memory compensation state are empty"
     );
 }
 

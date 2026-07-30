@@ -1454,10 +1454,13 @@ real backend call — POST/PATCH/DELETE through the handshake_core canvas routes
 getCanvasBoard refresh, all on PostgreSQL/EventLedger. Creation responses carry the backend-minted \
 placement id; the host registers a cross-pane MT-035 compensating undo, so Ctrl+Shift+Z removes that \
   created placement with DELETE /workspaces/{id}/loom/canvas-placements/{placement_id} and redo re-places \
-  the same block geometry. Undo and redo are provisional until the backend responds; each completion reloads \
-  getCanvasBoard so the mounted Canvas immediately reflects PostgreSQL truth. Redo accepts the newly minted \
+  the same block geometry. Undo and redo are provisional until the backend responds; while one compensation \
+  is in flight, another Ctrl+Shift+Z returns a typed already-in-flight result instead of reordering history, \
+  and focused local Ctrl+Z stays scoped to the active editor pane. Each completion reloads getCanvasBoard so \
+  the mounted Canvas immediately reflects PostgreSQL truth. Redo accepts the newly minted \
   replacement placement id, so a later Ctrl+Shift+Z removes that replacement rather than retrying a stale id. \
-  A failed compensation remains \
+  Restart recovery is session-scoped: a fresh app process starts with an empty undo history and cannot replay \
+  an interrupted in-memory compensation without a new operator/model action. A failed compensation remains \
   visible in the Canvas status, restores the action to its original undo/redo ring, and can be retried without \
   losing history. Atelier items reach Canvas through a durable canonical relation: publish or confirm \
 the relation with PUT /atelier/intake/items/{item_id}/loom-projection, then the batch-items response carries \
