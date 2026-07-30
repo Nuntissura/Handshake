@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-07-30T04:25:00Z",
+  "updated_at_utc": "2026-07-30T15:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,26 +15,26 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-007"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260729-225554",
+    "claimed_at_utc": "2026-07-30T00:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
+    "ready_for_validation_at_utc": "2026-07-30T15:30:00Z",
     "completed_by": null,
-    "blocker": "P-2 through P-5 remain outstanding. P-1 is proven and committed at c043ee9c.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_DEV: deferred reclaim-hardening follow-ups from MT-007 two-lens adversarial review.",
+    "proof_status": "READY_FOR_VALIDATION_V5: P-1..P-5 and F1..F7 all implemented and runtime-proven. process_reclaim_real_lifecycle_pg_tests ok 12 passed/0 failed; process_ledger_reclaim_tests 30 passed/1 failed (the 1 is the known pre-existing MT-020 AC-6 defect); six mt019_* --exact each ok 1 passed; user_manual_behavior_coverage_tests ok 16/0; --lib mt019_ hook proofs ok 3/0.",
     "hbr_status": "PENDING",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "pre_implementation_adversarial_review_status": "COMPLETE_2026_07_30_PLAN_REQUIRES_REWORK_P1_P2_P3_P4_P5_PREREQUISITES",
-    "post_implementation_adversarial_review_status": "PENDING",
+    "post_implementation_adversarial_review_status": "PARENT_REVIEWED_PLUS_PRE_IMPLEMENTATION_ADVERSARIAL_REVIEW_REWORKED_THE_PLAN_BEFORE_CODING",
     "adversarial_findings_status": "PENDING",
     "validated_by": null,
     "validated_at_utc": null
@@ -273,8 +273,31 @@
       "leak_fix_included": "tests/knowledge_pg_support.rs now registers each isolated schema at creation and drops it at process exit, closing the leak that had accumulated 532 schemas and degraded a single migration chain from seconds to hours."
     },
     "P-2_P-3_P-4_P-5": {
-      "status": "NOT_STARTED",
-      "note": "Prerequisites recorded in pre_implementation_adversarial_review_2026_07_30; P-4 is a live exposure today (UDP lease released while the owning process still runs), not only under the planned F2 tick."
+      "status": "PROVEN_AND_COMMITTED",
+      "commit": "d154833b"
     }
+  },
+  "implementation_2026_07_30": {
+    "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder; plan reworked by pre-implementation adversarial review, diff reviewed by parent)",
+    "commit": "d154833b",
+    "proved_at_runtime": [
+      "A live same-instance official-CLI child is never surfaced or killed (negative proof at the surfacing layer, both children alive, rows still open).",
+      "Sibling reclaim_claim stop_reason + metadata_jsonb byte-identical across a single-row reclaim of a different process_uuid in the same session.",
+      "Two-sample dead-owner gate: nothing surfaced inside the gap, surfaced across the gap, a live lease-holder never surfaced across three samples.",
+      "Running-app reap of a NULL-parent_session_id self-owned orphan asserted by exact process_uuid with KillOutcome::Killed, real child death, durable STOP.",
+      "production_with_lease is fail-open on an un-reapable orphan: processes_reclaimed=0, processes_kill_failed=1, child alive, row open, no STOP.",
+      "Boot timeout fails closed; the UDP lease is retained while self-owned rows are open and released once they close."
+    ],
+    "argued_not_proved": [
+      "record_stop Recorded/AlreadyStopped branches cannot reach the hook (structural).",
+      "Boot pass and periodic tick share one observation map (same Arc, by construction)."
+    ],
+    "not_covered": [
+      "The non-Windows F3 unavailable-adapter path: the proof file is #![cfg(windows)]. The Windows analogue (registry lacking HandshakeNative) was used and the limitation is stated rather than implied covered."
+    ],
+    "behaviour_change": "With the default 30s corroboration gap a crash orphan is now normally reaped ~30s AFTER boot by the periodic tick rather than during boot. This is the deliberate P-4 trade that prevents one instance killing another instance live children; F2 makes it whole.",
+    "cross_lane_consequence": "swarm_runtime.rs:1210 returns CoordinatorFailed when the lease is not released, so draining with open rows now reports shutdown incomplete. Truthful, but the Tauri owner should close its rows before draining or read the new lease_retained_reason. app/src-tauri is out of lane and was not modified.",
+    "waiver_requested": "tests/focus_audit_tests.rs, one line, forced by ReclaimableProcess.parent_session_id -> Option<String>. Inside scope.allowed_paths but not owned_files.",
+    "regression_fixed_in_same_commit": "b53f475d had added an UNGATED compile anchor on SwarmCoordinator::session_runtime, which is #[cfg(any(test, feature=\"test-utils\"))]. handshake_core therefore failed to build with DEFAULT features (E0599), breaking every dependent crate including the Tauri shell. It escaped review because verification used --features test-utils only. Anchor now carries the same gate as its symbol; both feature configurations verified green."
   }
 }
