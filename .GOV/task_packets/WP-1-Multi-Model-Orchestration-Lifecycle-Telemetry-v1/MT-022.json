@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-022",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-07-30T00:30:00Z",
+  "updated_at_utc": "2026-07-30T13:10:00Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -17,22 +17,22 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [],
     "blocks": [],
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260729-225554",
+    "claimed_at_utc": "2026-07-30T04:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
+    "ready_for_validation_at_utc": "2026-07-30T13:10:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_STARTED",
+    "proof_status": "READY_FOR_VALIDATION_V5: user_manual_behavior_coverage_tests ok 16 passed/0 failed; user_manual_storage_tests ok 12/0; user_manual_api_tests 22 passed/1 failed where the single failure is independently verified PRE-EXISTING.",
     "hbr_status": null,
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": null
+    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS"
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -117,5 +117,16 @@
     "durable_authority": "PostgreSQL user_manual pages/versions + EventLedger; no SQLite",
     "rust_only_implementation": true,
     "spec_realism_gate": "Manual content must be proven code-truthful by a gate that fails on drift; prose alone does not satisfy this MT."
+  },
+  "implementation_2026_07_30": {
+    "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder, diff reviewed and corrected by parent)",
+    "commit": "b53f475d",
+    "notes": [
+      "AC-5 implemented in Rust rather than by repointing the .mjs scanner: compile-anchoring makes a renamed product symbol a COMPILE error and an invented one a test failure, whereas the legacy scanner only proves a string appears somewhere under src/.",
+      "The gate was proven to FAIL on injected drift and pass once removed (both observations verbatim in the handback), and is permanently self-proving via user_manual_named_surface_gate_fails_on_drift.",
+      "The gate immediately found REAL drift: the manual and its tests named ModelLaneStore::revoke_cloud_consent_receipt in 8 places; that method exists only on SwarmCoordinator. All 8 corrected.",
+      "PRE-EXISTING failure routed out of scope: mtdoc_every_loom_router_route_is_in_surface_registry reports 30 mounted Loom routes absent from wp009_surface_registry. Parent independently verified registry.rs and all Loom files are untouched by this diff and the assertion exists at HEAD. Needs the Loom lane.",
+      "One line in behavior_coverage.rs authored by the parent to unblock a 40-minute lib-red state: a concrete fn-pointer anchor, since both turbofish (E0107, argument-position impl Trait) and bare reference (E0283) are illegal for that signature. Disclosed to the coder."
+    ]
   }
 }

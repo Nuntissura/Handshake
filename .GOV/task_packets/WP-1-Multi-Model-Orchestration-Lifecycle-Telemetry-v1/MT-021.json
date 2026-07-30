@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-021",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-07-30T00:30:00Z",
+  "updated_at_utc": "2026-07-30T13:10:00Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -17,22 +17,22 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [],
     "blocks": [],
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260729-225554",
+    "claimed_at_utc": "2026-07-30T04:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
+    "ready_for_validation_at_utc": "2026-07-30T13:10:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_STARTED",
+    "proof_status": "READY_FOR_VALIDATION_V5: all four declared contract proofs pass on the real native shell - test_top_menu_bar ok 20 passed/0 failed, test_settings_dialog ok 21/0, test_wp1_console_stream_pane_argus ok 1/0, test_visual_interaction_proof ok 1/0.",
     "hbr_status": null,
     "pre_implementation_adversarial_review_status": null,
-    "post_implementation_adversarial_review_status": null
+    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS"
   },
   "origin": {
     "discovered_by": "KERNEL_BUILDER-20260729-225554",
@@ -122,5 +122,16 @@
     "durable_authority": "PostgreSQL workspace settings (hsk.workspace_settings_state@1) + EventLedger; no SQLite",
     "rust_only_implementation": true,
     "spec_realism_gate": "Controls must drive real runtime behaviour and be proven through Argus against the running shell; a rendered widget with no backend effect does not satisfy this MT."
+  },
+  "implementation_2026_07_30": {
+    "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder, diff reviewed and corrected by parent)",
+    "commit": "6562398e",
+    "notes": [
+      "AC-2 renders an explicit NOT WIRED consent posture rather than fabricating one: the backend has no consent route and api/mod.rs builds CloudLaneObservability{consent:None}. Wiring it is a follow-up BACKEND MT needing its own HBR-PRIV-008 review.",
+      "AC-3 binds a genuinely live control (per-frame ActionChannel admission budget) because the coordinator max_concurrent has no route from the frontend. Can only tighten, never widen; Option<usize> keeps Default/new() byte-identical.",
+      "Parent corrected an off-by-one in the coder’s own AC-1 test: it expected 5 swarm-dispatchable MODELS leaves but menu.models.settings was already present, so the correct total is 6.",
+      "OPEN, NOT CLAIMED CLEAN: frontend lib units report 406 passed / 9 failed. 8 of 9 failing modules are in files this MT never touched; the 9th shares their Argus-ack/timeout signature; several are timing-sensitive and the host was running 6+ concurrent builds. Requires a quiet-machine rerun to separate real failures from flakes - this is an open item, not a conclusion.",
+      "HBR-MAN-004 manual entry for the new controls is DEFERRED to the user_manual lane (out of frontend scope)."
+    ]
   }
 }
