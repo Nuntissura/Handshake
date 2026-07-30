@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T16:44:20.0870819Z",
+  "updated_at_utc": "2026-07-30T01:55:02.1181651Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V2",
-    "active": false,
+    "status": "CLAIMED_V3_REMEDIATION",
+    "active": true,
     "depends_on": [
       "MT-031",
       "MT-032",
@@ -92,10 +92,20 @@
         "previous_status": "CLAIMED",
         "new_status": "READY_FOR_VALIDATION",
         "previous_active": true
+      },
+      {
+        "at_utc": "2026-07-30T01:55:02.1181651Z",
+        "by": "KERNEL_BUILDER-20260728-221208",
+        "reason": "KERNEL_BUILDER claimed the exact MT-034 FAIL_V2 remediation: re-prove the real PostgreSQL symbol/document cross-reference boundary with restart readback, missing-symbol, stale-source, and conflict cases; then prove create/open/reveal through canonical mounted Argus stable targets and fresh observations and refresh the canonical UserManual diagnostics.",
+        "previous_status": "FAIL_V2",
+        "new_status": "CLAIMED_V3_REMEDIATION",
+        "previous_active": false
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260705-091218",
+    "claimed_by": "KERNEL_BUILDER-20260728-221208",
+    "claimed_at_utc": "2026-07-30T01:55:02.1181651Z",
+    "claim_takeover_note_2026_07_30": "KERNEL_BUILDER-20260728-221208 took over after MT-033 V3 handoff. Historical READY and FAIL_V2 evidence is preserved, but the live PostgreSQL restart/error/conflict boundary and canonical Argus create/open/reveal loop must be freshly proven before READY_FOR_VALIDATION_V3.",
     "ready_for_validation_at_utc": "2026-07-05T10:45:13.536Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260705-091218",
     "ready_for_validation_reason": "MT-034 reopened repair is proof-refreshed and post-review hardened: ref_kind=code entity-id chips and hand-authored [[code:path#Symbol]] refs route through open-code-symbol to the mounted CodeSymbol pane, resolve via getCodeSymbol or lookup_symbols_by_name_path, load source_id, and prove visible line range contains line_start; NoteRefs rows preserve backend document_id separate from block_id and click through CMD_OPEN_DOCUMENT shell drain into the mounted Notes pane; manual/HBR content names the live ids/routes. Official validator has not run.",
