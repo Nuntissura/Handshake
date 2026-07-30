@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-07-30T00:10:00Z",
+  "updated_at_utc": "2026-07-30T01:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -33,7 +33,7 @@
     "hbr_status": "PENDING",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
-    "pre_implementation_adversarial_review_status": "PENDING",
+    "pre_implementation_adversarial_review_status": "COMPLETE_2026_07_30_PLAN_REQUIRES_REWORK_P1_P2_P3_P4_P5_PREREQUISITES",
     "post_implementation_adversarial_review_status": "PENDING",
     "adversarial_findings_status": "PENDING",
     "validated_by": null,
@@ -76,7 +76,13 @@
       "F4 (MINOR): HANDSHAKE_STARTUP_RECOVERY_ONLY=1 returns before production_with_lease so it never surfaces generic spawned-process orphans; run reconcile_restart_orphans_at_boot in that branch too, or document the exclusion.",
       "F5 (MINOR): reclaim.rs docstring/comment overstate fail-closed (true only for store/surfacing errors); RestartOrphanBootReconcileReport.processes_reclaimed counts KillOutcome::Failed as reclaimed. Correct the doc and count only Killed|KilledPendingStop (add processes_kill_failed).",
       "F6 (MINOR): fold the staleness task inline restart loop (reclaim.rs ~4314) into reconcile_restart_orphans_at_boot with a caller-chosen error policy to prevent drift, OR document the intentional divergence; boot call site silently drops in-progress-reconcile sweep errors (ReclaimKillOperationSweep.reclaim_error).",
-      "F7 (NIT): MT-007 boot proof uses ProductionSandboxKill::new (default registry) and bypasses the production_with_lease 30s timeout wrapper; add coverage exercising with_registry(production_process_sandbox_registry()) + timeout. free_loopback_udp_port has an ephemeral-port re-bind flake window; retry or skip."
+      "F7 (NIT): MT-007 boot proof uses ProductionSandboxKill::new (default registry) and bypasses the production_with_lease 30s timeout wrapper; add coverage exercising with_registry(production_process_sandbox_registry()) + timeout. free_loopback_udp_port has an ephemeral-port re-bind flake window; retry or skip.",
+      "P-1 (PREREQUISITE, before F1/F2): stale_sessions no longer panics on a NULL parent_session_id row; the row class is filtered in SQL and decoded with try_get; a PG regression test proves stale_sessions returns Ok for an adapter-owned self-owned NULL-parent_session_id open row; a panicking scan can no longer silently disable the periodic reclaim task.",
+      "P-2 (PREREQUISITE, before F1): the running-app reap can actually claim the target rows - either parent_session_id is populated for auth-status/preflight/login CLI children, or a claim-by-process_uuid path exists. The F1 proof asserts the exact process_uuid appears in processes_reclaimed with KillOutcome::Killed, never merely is_ok().",
+      "P-3 (PREREQUISITE, before F1): PostgresProcessLedgerStore overrides active_process_for_session with a single-row claim, and a PG test proves a sibling row's reclaim_claim metadata is unchanged across a run_process targeting a different process_uuid in the same session.",
+      "P-4 (PREREQUISITE, before F2): the periodic restart pass cannot kill a live instance's healthy children - the UDP lease is not released before process exit (or only after proving zero open rows), the dead-owner probe requires two samples at least one scan interval apart, and the claim path carries an explicit owner_runtime_instance_id predicate.",
+      "P-5: the reclaim hook is invoked only from record_stop's two branches and the terminate_and_collect reap failure, never from Drop; it runs after the STOP permit is released, via the wait_stop_durability_blocking thread + current_thread-runtime pattern, under an explicit timeout well below 30s, and guards lifecycle.is_none().",
+      "P-6 (PROOF HONESTY, applies to every proof command in this MT): each --exact proof asserts a non-zero executed-test count or greps --nocapture output for the test name, because cargo exits 0 when an --exact filter matches nothing."
     ],
     "proof_commands": [
       "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests -- --nocapture",
@@ -175,5 +181,96 @@
       "scope.risk_if_missed"
     ],
     "operator_disclosure_required": true
+  },
+  "pre_implementation_adversarial_review_2026_07_30": {
+    "performed_by": "KERNEL_BUILDER-20260729-225554 (delegated read-only reviewer, findings verified against cited source)",
+    "verdict": "PLAN_REQUIRES_REWORK_BEFORE_IMPLEMENTATION",
+    "summary": "The F1/F2 plan as written cannot be honestly implemented or proven, and F2 as written introduces a continuous wrong-kill exposure across parallel Handshake instances. Three blockers must land BEFORE the F1 hook is wired. Sequencing changed: P-1, P-2, P-3 are prerequisites, not follow-ups.",
+    "blocking_findings": [
+      {
+        "id": "P-1",
+        "severity": "CRITICAL",
+        "title": "stale_sessions panics on NULL parent_session_id and permanently kills the staleness task",
+        "detail": "reclaim.rs:4065 decodes parent_session_id with the panicking accessor row.get::<String>, and the query at reclaim.rs:4040-4043 has no IS NOT NULL filter. The column is nullable (migration 0021_kernel_process_lifecycle.sql:8). A real production path writes exactly such a row: access_config.rs:389-408 (auth_status_invocation) sets session_id but never parent_session_id, while still carrying sandbox_adapter_id and the live owner_runtime_instance_id. Opening Settings spawns that CLI child; the 30s staleness tick then hits UnexpectedNullError inside the tokio::spawn task (reclaim.rs:4312) and the periodic reclaim task is silently dead for the rest of the process lifetime. If the row stays open, every subsequent boot re-arms the panic.",
+        "why_it_blocks": "F1's target row class (official-CLI orphan with no model_lanes record) IS the NULL-parent_session_id class, and F2's deliverable is a periodic tick on the very task that dies. The feature would be dead on arrival in the exact case it exists for.",
+        "required_fix": "Change reclaim.rs:4065 to try_get::<Option<String>,_> and skip/log NULL rows; add AND lifecycle.parent_session_id IS NOT NULL to reclaim.rs:4040; add a PG regression test seeding an adapter-owned, self-owned, NULL-parent_session_id open row asserting stale_sessions returns Ok instead of panicking; add supervisor logging or task restart so a panicking scan cannot silently disable reclaim."
+      },
+      {
+        "id": "P-2",
+        "severity": "CRITICAL",
+        "title": "run_process claims by parent_session_id, which is None for exactly the rows F1 targets",
+        "detail": "run_process filters WHERE parent_session_id = $1 (reclaim.rs:2790, SQL at reclaim.rs:49). For swarm lanes parent_session_id is the shared coordinator session (production_factory.rs:1794-1806); for auth-status/preflight CLI children it is None (access_config.rs:389-408). Passing None or an empty string matches zero rows, so run_process returns an empty report and the test goes green while nothing was reclaimed. Those rows are also invisible to restart_sessions, which requires parent_session_id IS NOT NULL (reclaim.rs:3945-3946), so they are not reaped at next boot either.",
+        "why_it_blocks": "F1's acceptance criterion cannot be met, and the natural test (assert is_ok) would be a false green.",
+        "required_fix": "Either populate parent_session_id in the auth-status/preflight/login contexts, or add a store method that claims by process_uuid alone. The F1 proof MUST assert report.processes_reclaimed contains the exact process_uuid with KillOutcome::Killed - never merely is_ok()."
+      },
+      {
+        "id": "P-3",
+        "severity": "HIGH",
+        "title": "run_process mass-claims every sibling row of the parent session and can corrupt a concurrent reclaim",
+        "detail": "PostgresProcessLedgerStore does not override active_process_for_session; the default at reclaim.rs:2405 claims the WHOLE session set (reclaim.rs:2410) and then releases non-targets (reclaim.rs:2416-2423), skipping any sibling in kill_succeeded_pending_stop. The claim SQL re-claims those unconditionally and bumps generation (reclaim.rs:52, :82-86), so a concurrent reclaimer's generation/claimant/kill_operation match fails (reclaim.rs:3634-3639) and its clean Killed degrades to KilledPendingStop. Separately, the transient session-wide claim makes a concurrent teardown or boot pass skip those rows as claimed-with-live-lease (reclaim.rs:56-62), silently missing orphans.",
+        "why_it_blocks": "Today run_process is called only on rare failure paths; F1 puts it on EVERY CLI teardown that cannot prove a STOP, turning a rare race into a routine one.",
+        "required_fix": "Implement the single-row override the trait doc at reclaim.rs:2400-2404 already anticipates for PostgresProcessLedgerStore (WHERE process_uuid = $1 AND parent_session_id = $2) BEFORE wiring F1. Add a PG test asserting a sibling row's reclaim_claim metadata is byte-identical across a run_process on a different process_uuid in the same session."
+      },
+      {
+        "id": "P-4",
+        "severity": "HIGH",
+        "title": "F2's periodic restart pass can kill another live Handshake instance's healthy children",
+        "detail": "restart_sessions infers 'prior owner is dead' by binding its ephemeral loopback UDP port (reclaim.rs:3993-4016, try_claim_udp_lease at :405-425). That lease is released while the host process is still alive, at runtime.rs:172-177 (shutdown_and_drain) and runtime.rs:199-201 (Drop). The Tauri shell builds its own ProcessReclaimRuntime (app/src-tauri/src/commands/swarm_runtime.rs:494) and calls shutdown_and_drain (:1209) while continuing to run with live official-CLI children and open rows. The backend's restart pass then probes the freed port, concludes the owner is dead, and kills those live healthy children. The identity fence gives NO protection: it proves the right process generation, not liveness or ownership, so it matches perfectly and the kill proceeds.",
+        "why_it_blocks": "Boot-only reclaim hits this window at most once per boot. A 30s periodic tick hits it roughly 2880 times per day. The Operator runs parallel Handshake sessions, so this is a live exposure, not a theoretical one.",
+        "required_fix": "Do not release the UDP lease before process exit (or release only after proving zero open rows for the instance); require the dead-owner probe to observe the port free across two samples separated by at least one scan interval; and add an explicit owner_runtime_instance_id != self predicate inside the claim SQL, which today has no owner filter at all (reclaim.rs:49-63) - the veto lives only in restart_sessions, so any future caller of Reclaim::run bypasses it."
+      },
+      {
+        "id": "P-5",
+        "severity": "HIGH",
+        "title": "The Drop path cannot safely call an async reclaim; hook record_stop and terminate_and_collect only",
+        "detail": "leave_open_for_reconciliation is a sync fn (official_cli_bridge.rs:2256). Handle::current().block_on from Drop during unwind is a double panic -> abort; futures::executor::block_on on a tokio worker stalls it and panics without a runtime context, and Reclaim needs a real runtime (tokio::spawn reclaim.rs:3113, interval/sleep :3097/:3107, spawn_blocking handshake_native.rs:472). The only safe in-file precedent is wait_stop_durability_blocking (official_cli_bridge.rs:1594-1620): thread::spawn + current_thread runtime + block_on + join, mapping join panic to an error. Cost is real: RECLAIM_KILL_TIMEOUT is 30s (reclaim.rs:2086) plus a 5s stop-ack, and auth_status is a sync trait method (access_config.rs:310-340) whose axum caller would block a worker ~35s.",
+        "why_it_blocks": "A naive implementation aborts the process or stalls the runtime. Also an ordering hazard: if the reclaim is called before lifecycle.leave_open_for_reconciliation() at :2261, the guard still holds its STOP permit and run_claimed aborts at reclaim.rs:2808-2818 on a saturated writer, reclaiming nothing.",
+        "required_fix": "Call reclaim only AFTER the permit is released; use the wait_stop_durability_blocking thread + current_thread-runtime pattern; apply an explicit timeout well under 30s; and do NOT hook Drop (:2320, :2325) - hook only record_stop's two branches (:2240, :2251) and the terminate_and_collect reap failure (:2282), leaving Drop cases to the periodic pass. Guard lifecycle.is_none(): the :2320 branch is reachable only when no START row exists (early return :2227-2229), so there is no process_uuid to reclaim."
+      }
+    ],
+    "additional_findings": [
+      "STOP truthfulness race: on the DurabilityUnconfirmed branch the true STOP with the real exit code may still commit later (writer.rs:501-504) while a reclaim writes exit_code -1 / stop_reason 'reclaim' (reclaim.rs:2296-2328). Decide which STOP wins and test the late-commit interleaving.",
+      "ForegroundChildOwner (official_cli_bridge.rs:1663-1792) has its own leave_open_for_reconciliation at :1702 reached with the child possibly still alive, and its Drop deliberately mem::forgets child + lifecycle while the process may be live (:1780-1789). F1 does not touch it, so the login path keeps producing open rows for LIVE processes - precisely what P-4 can then kill. Declare it an explicit non-goal or cover it.",
+      "HBR-QUIET-003 gap: ownership metadata is preserved into the STOP (reclaim.rs:2331-2336) but there is NO ownership predicate anywhere in the kill path. Add owner_runtime_instance_id = self on the running-app hook's claim path so the in-app reaper structurally cannot touch another instance's process.",
+      "F5 surfacing caveat: production_with_lease's return shape is consumed by two composition roots (main.rs:447 and app/src-tauri/src/commands/swarm_runtime.rs:494); the Tauri path is under forbidden_paths. Prefer tracing::warn! plus a field on ProcessReclaimRuntime read by an existing backend surface over changing the return shape. Also model_manual/content.rs:566-572 documents processes_reclaimed but is not in allowed_paths."
+    ],
+    "proof_honesty_corrections": [
+      "CROSS-CUTTING FALSE-PASS HAZARD: `cargo test --test X <name> -- --exact` exits 0 when the name matches NOTHING (0 passed / N filtered out). Every --exact proof MUST assert a non-zero executed-test count or grep the --nocapture output for the test name. Applies to this MT and to every other MT in this packet.",
+      "mt019_running_app_reclaims_...: cannot prove F1 from tests/ because GuardedCliChild is private (official_cli_bridge.rs:2157); an integration test could only call Reclaim::run_process directly, which re-proves MT-007 rather than the new hook. Needs an in-crate test or a cfg(feature=test-utils) seam. NOTE this collides with handshake_compatibility.spec_realism_gate, which forbids mock/fixture-only proof for F1 - resolve in the contract before coding.",
+      "mt019_running_app_reap_never_kills_a_live_same_instance_child: will FAIL if written against run_process, because the identity fence matches a live child and the kill proceeds. The negative proof must target the SURFACING layer - assert stale_sessions/restart_sessions do not return the live same-instance session, and that the bridge does not invoke the hook on healthy exit paths.",
+      "mt019_production_with_lease_boot_is_fail_open_...: cannot cover the non-Windows unavailable-adapter path named in F3 because the test file is #![cfg(windows)] (line 36). Honest Windows analogue: ProductionSandboxKill::with_registry with a registry lacking HandshakeNative, so owning_adapter errors at reclaim.rs:2539-2547 and yields the identical KillOutcome::Failed shape with the row left open.",
+      "mt019_production_with_lease_boot_timeout_...: provable with a ~1ns startup_timeout, but runtime.rs:124 mem::forgets the lease, permanently leaking a UDP socket in the test process. Use a distinct host scope and document the leak.",
+      "mt019_boot_reconcile_surfaces_in_progress_sweep_reclaim_error: SOUND - process_ledger_reclaim_tests.rs has no file-level cfg gate and uses a mock SandboxKill, so it runs everywhere."
+    ],
+    "confirmed_sound": [
+      "F3 resilient-boot decision is well-founded on the code: run_claimed on Err releases the claim, clears the fence, and writes NO STOP (reclaim.rs:2891-2903); the adapter is genuinely Windows-only (handshake_native.rs:229-235); production_with_lease really would abort boot on any reconcile error (runtime.rs:117-127).",
+      "F5 counter split is low risk: zero read sites, no Serialize derive, derive(Default) means no other construction edit (reclaim.rs:4148, :4181).",
+      "F5 doc corrections are warranted - reclaim.rs:4154 names a non-existent 'fenced-closed' outcome, :4173-4176 claims fail-closed semantics that do not hold, runtime.rs:104-107 overclaims coverage.",
+      "The instruction NOT to relax stale_sessions None=>false to true is correct and important.",
+      "F4 and F7 factual claims verified as stated.",
+      "NO MIGRATION REQUIRED holds, including for the P-1 fix."
+    ]
+  },
+  "implementation_progress_2026_07_30": {
+    "claimed_by": "KERNEL_BUILDER-20260729-225554",
+    "operator_scope_expansion": "Operator expanded scope 2026-07-30 authorising P-1 to land immediately as its own fix rather than waiting for the rest of MT-019.",
+    "P-1": {
+      "status": "IMPLEMENTED_AWAITING_PROOF",
+      "product_change": "process_ledger/reclaim.rs stale_sessions: added AND lifecycle.parent_session_id IS NOT NULL to the WHERE clause, and replaced the panicking row.get::<String>(\"parent_session_id\") with try_get::<Option<String>> plus an explicit skip and tracing::warn. Comment records why a session-less row cannot participate in a session-level reclaim decision.",
+      "regression_test": "tests/process_ledger_reclaim_tests.rs postgres_stale_source_skips_null_parent_session_row_without_aborting_scan - seeds the auth-status row shape (open, sandbox_adapter_id set, self-owned, NULL parent_session_id) alongside a genuinely reclaimable session, and asserts the scan returns Ok AND still selects the reclaimable session.",
+      "verified_defect_evidence": [
+        "reclaim.rs:4065 used the panicking accessor while the line below already used try_get for record_json",
+        "query at reclaim.rs:4040-4043 had no parent_session_id IS NOT NULL filter",
+        "migration 0021_kernel_process_lifecycle.sql:8 declares parent_session_id TEXT (nullable)",
+        "model_runtime/cloud/access_config.rs:398 sets context.session_id but never parent_session_id",
+        "restart_sessions at reclaim.rs:3958 already used try_get::<Option<String>> correctly, so stale_sessions was the sole outlier",
+        "active_processes_for_session row.get at reclaim.rs:3349 is safe: its query binds WHERE parent_session_id = $1"
+      ],
+      "proof_pending_reason": "Build deferred while the MT-018 coder was editing the same crate; an interleaved build would compile its in-progress state and prove nothing. One combined build/proof runs once MT-018 lands."
+    },
+    "P-2_P-3_P-4_P-5": {
+      "status": "NOT_STARTED",
+      "note": "Prerequisites recorded in pre_implementation_adversarial_review_2026_07_30; P-4 is a live exposure today (UDP lease released while the owning process still runs), not only under the planned F2 tick."
+    }
   }
 }

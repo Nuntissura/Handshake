@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-018",
   "created_at_utc": "2026-07-24T00:00:00Z",
-  "updated_at_utc": "2026-07-30T00:12:00Z",
+  "updated_at_utc": "2026-07-30T03:45:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-018.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-004",
       "MT-005",
@@ -24,19 +24,19 @@
     "blocks": [],
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260729-225554",
+    "claimed_at_utc": "2026-07-30T00:20:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
+    "ready_for_validation_at_utc": "2026-07-30T03:40:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_STARTED",
+    "proof_status": "READY_FOR_VALIDATION_V5: all three declared proofs plus five new MT-018 tests pass on real Handshake-managed PostgreSQL. Executed-test counts were verified rather than exit codes, because `cargo test --exact` exits 0 when a filter matches nothing.",
     "hbr_status": "PENDING",
     "kb_ready_checklist_receipt_id": null,
-    "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
+    "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "pre_implementation_adversarial_review_status": "PENDING",
-    "post_implementation_adversarial_review_status": "PENDING",
+    "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_ALL_PROOFS_ON_CLEAN_DB",
     "adversarial_findings_status": "PENDING",
     "validated_by": null,
     "validated_at_utc": null
@@ -153,6 +153,36 @@
     "unresolved_needing_operator_input": [
       "AC[5] names a 'MT-002 CRDT-targeting positive proof' with no test function name, and proof_commands contains no model_lane_schema_pg_tests entry. The intended test must be named or proof_commands extended.",
       "AC[4] spec-enrichment branch resolves to SILENT: grep of .GOV/spec/master-spec-v02.202/spec-modules/ found zero hits for diff_sha256, applied_update_sha256, applied_update_id. Recording a local ASSUMPTION/PROVISIONAL DECISION per AC[4] rather than claiming a spec anchor. Pre-existing citation drift noted: migrations 0192 and 0290 both cite 02-system-architecture.md 2.3.13.11 as the anchor for the applied binding, but that section does not define these semantics."
+    ]
+  },
+  "implementation_2026_07_30": {
+    "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder, diff reviewed by parent)",
+    "commit": "e5888b3d",
+    "branch": "feat/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "pushed_to_backup": true,
+    "root_cause_confirmed_double_closed": "Both the resolver cross-check (model_lane.rs:13850) AND the binder (ai_edit_proposal.rs:710) compared a JSON-diff hash against a Yjs-binary hash. The contract's root_cause named only the resolver; fixing it alone would have left the proposal un-mintable. Verified at source by the parent before implementation.",
+    "proof_environment": "Handshake-managed PostgreSQL 16.11 on 127.0.0.1:5544, database handshake_wp1_proof (created clean because the shared `handshake` database held 547 leaked test schemas whose catalog bloat had degraded a single migration chain from seconds to hours).",
+    "proof_results_verbatim": [
+      "mt018 suite (5 new tests): test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 45 filtered out; finished in 1497.06s",
+      "declared proof #3 knowledge_crdt_proposal_tests: test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2475.20s",
+      "declared proof #2 model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 828.29s",
+      "declared proof #1 mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 622.78s"
+    ],
+    "acceptance_criteria_evidence": {
+      "AC[0]/AC[1]": "mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted ... ok - the admission that was structurally impossible before.",
+      "AC[2]": "Four negatives still fail closed: mt018_approved_proposal_without_applied_binding_fails_closed, mt018_internally_inconsistent_applied_binding_fails_closed, mt018_proposal_bound_to_a_different_real_update_fails_closed, mt018_unapproved_and_fabricated_proposal_refs_fail_closed. Fabricated/mismatched state-vector denial is additionally exercised inside declared proof #1.",
+      "AC[3]": "Migration 0362 + .down twin created; 0192 RETAINED and never edited; both constraints verified coexisting live in PostgreSQL.",
+      "AC[4]": "SPEC_CURRENT v02.202 is SILENT (zero hits for diff_sha256 / applied_update_sha256 / applied_update_id). Spec NOT edited; ASSUMPTION recorded below for operator spec review.",
+      "AC[5]": "ONE canonical shared helper tests/model_lane_crdt_support.rs; the crdt_proposal_ref=None carve-out deleted; declared proofs #1 and #2 both pass on it.",
+      "AC[6]": "The spoofing anti-pattern remains impossible: the helper mints only through record_ai_edit_proposal -> decide_ai_edit_proposal -> apply_approved_ai_edit, never a raw INSERT, and mt018_internally_inconsistent_applied_binding_fails_closed proves an inconsistent row is still refused."
+    },
+    "assumption_ac4_for_operator_review": "PROVISIONAL DECISION: applied_update_sha256 is the approved-DIFF hash; Yjs update identity is carried solely by applied_update_id; the resolver cross-checks identity plus internal consistency and never compares a diff hash to a Yjs hash. This makes 04-llm-infrastructure.md:1637 satisfiable instead of dead. Pre-existing citation drift also confirmed: migrations 0192 and 0290 both cite 02-system-architecture.md 2.3.13.11, which does not define these semantics.",
+    "kb_ready_checklist": "NOT_EMITTED. The Operator directed this session to avoid repo-governance ceremony except MT status and state recovery. The substantive rubric content is recorded here instead: no stale reasons (0362 header states 0192's disposition explicitly); no dead code introduced; proof commands executed with verified non-zero test counts; cross-platform check clean (cargo check --features test-utils --tests, zero errors); implementer did NOT self-certify - completed_by remains null for a validator to set.",
+    "validator_focus": [
+      "Confirm the resolver's new internal-consistency check cannot be satisfied by a fabricated proposal row.",
+      "Confirm migration 0362's composite FK does not weaken 0192's CHECK, and that the down migration is correct.",
+      "Confirm the shared helper cannot mint posture except through the real product API path.",
+      "Rule on the AC[4] ASSUMPTION and whether the Master Spec should be enriched."
     ]
   }
 }
