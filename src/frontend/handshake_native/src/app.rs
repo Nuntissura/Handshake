@@ -6298,7 +6298,7 @@ impl HandshakeApp {
                         }
                         None => bus.route_to_stage_error(
                             ctx,
-                            "Route to Stage unavailable: open a rich document first.",
+                            "Route to Stage unavailable: activate a saved rich document first.",
                         ),
                     }
                 });
@@ -6309,7 +6309,7 @@ impl HandshakeApp {
                         }
                     } else if let Ok(mut stage) = self.stage_pane.lock() {
                         stage.set_route_error(
-                            "Route to Stage unavailable: open a rich document first.",
+                            "Route to Stage unavailable: activate a saved rich document first.",
                         );
                     }
                     // `set_route_busy`/`set_route_error` clear stale pane-local embed status. Restore a

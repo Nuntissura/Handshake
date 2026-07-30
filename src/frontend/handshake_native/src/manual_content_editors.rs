@@ -676,15 +676,46 @@ session. With no active document, stage-route-status visibly reports the typed f
 failed CKC insertion similarly appears at rich-editor-interop-status. \
 Verification and diagnostics: discover atelier-side-panel / atelier-batch-* / atelier-item-* / \
 atelier-item-insert-* / atelier-item-canvas-* / \
-atelier-corpus-* / editor.rich.text / stage-pane with list_widgets, exercise the real drag or context-menu \
-path, and use screenshot for pixels. From src/frontend/handshake_native, run the focused proof as `cargo test \
+atelier-corpus-* / editor.rich.text / stage-pane with argus.inspect. The canonical MT-033 sequence is \
+argus.inspect -> argus.click menu-view -> fresh argus.inspect -> argus.click menu.view.toggle-atelier -> \
+fresh argus.inspect of atelier-side-panel. Copy the exact dynamic atelier-item-* id from that tree, activate \
+that exact row or its atelier-item-insert-* control, retain the attributed action receipt, save, and verify \
+the persisted hsLink through a fresh knowledge-document GET. Then argus.click menu-editors and \
+menu.editors.route-to-stage (or rich-editor.route-to-stage), retain each attributed receipt, and perform a \
+fresh argus.inspect of stage-pane, stage-routed-content, and stage-route-status. After that terminal \
+inspection, capture the same mounted WGPU frame with the test harness renderer; the canonical Argus \
+screenshot callback is intentionally unavailable in this headless binding. \
+Repeat from a shell with no active rich document through menu-operator -> \
+menu.operator.command-palette -> command-palette.option.hs-stage-palette-route: that always-enabled \
+canonical route command must expose the typed `activate a saved rich document first` stage-route-status \
+failure and no routed-content success. An immediate action receipt or stale tree is not terminal proof. \
+Store every action's attributed receipt plus observation.before, observation.after, verified terminal tree, \
+and the post-terminal PNG outside the worktree at \
+HANDSHAKE_ARTIFACTS_ROOT/handshake-test/wp-kernel-012-mt-033/canonical-argus/. When \
+HANDSHAKE_ARTIFACTS_ROOT is unset, the proof derives the one sibling Handshake_Artifacts root from \
+CARGO_MANIFEST_DIR; when set, it must equal that derived root. It never accepts process-CWD or an alternate \
+absolute artifact root, so crate-root and repo-root invocations converge on the same location. From \
+src/frontend/handshake_native, run the focused proof as `cargo test \
 -p handshake-native --test test_ckc_embed -- --nocapture` with CARGO_TARGET_DIR set to the standardized \
-outside-repo artifacts folder; run its managed PostgreSQL proof as `cargo test -p handshake-native --features \
-integration --test test_ckc_embed -- --nocapture`. From repo root, add `--manifest-path \
+outside-repo artifacts folder; run the canonical GPU/Argus proof as `cargo test -p handshake-native \
+--features wgpu_screenshots --test test_ckc_embed atelier_panel_screenshot -- --nocapture \
+--test-threads=1`; run its managed PostgreSQL proof as `cargo test -p handshake-native --features \
+integration --test test_ckc_embed -- --nocapture --test-threads=1`. From repo root, add `--manifest-path \
 src/frontend/handshake_native/Cargo.toml` to either command. The integration-gated cases self-seed PostgreSQL, require nonzero \
-batches/items/corpus, reload with fresh clients, and clean their workspace/Atelier rows. Backend-down, \
+batches/items/corpus, use the real pointer drag source, save/reload the hsLink with a fresh client, read the \
+exact typed `KE-UUID` `KNOWLEDGE_RICH_DOCUMENT_SAVED` EventLedger receipt and exact route_to_stage \
+Flight Recorder/EventLedger receipt, and clean their workspace, Atelier, save-receipt, and exact \
+native-editor receipt rows. Backend-down, \
 malformed response, projection failure, placement failure, and insertion failure remain visible with \
 Retry/reload guidance; never infer success from a spinner or old row. \
+HBR-INT-009 posture for MT-033: Tier 1 Flight Recorder/EventLedger is NOT_APPLICABLE-with-reason for \
+read-only Atelier batch/item/corpus GETs and WIRED for CKC embed/save, Canvas placement, route_to_stage, \
+and stage_embed_back mutations. Tier 2 internal_diagnostics is WIRED for Atelier HTTP work through the \
+shared bounded BackendCall watchdog and for shared heartbeat/frame/resource/backend-health state; the local \
+in-process Route-to-Stage bus hop is NOT_APPLICABLE-with-reason because it performs no blocking backend \
+operation. Tier 3 Palmistry is WIRED because the same typed watchdog event reaches the shared diagnostic \
+ring and the app-wide watcher covers process freeze/crash state; no project content or dynamic item identity \
+is written to that ring. \
 Each additional edge has a live editor-side AccessKit surface and bound backend route an agent drives today.\n\
 \n\
 - FEMS (Pillar 12, typed memory): the relevant-memory-panel renders the retrieval capsule \
@@ -708,9 +739,12 @@ a new receipt; that action replays the same immutable event_id and does not inse
 Flight Recorder; retrieval verifies the dedicated content bytes before embedding. \
 A missing or unimplemented artifact route is a typed endpoint-absent result, never an embed success. \
 HBR-INT-009 diagnostic posture: Flight Recorder/EventLedger = WIRED because route_to_stage and \
-stage_embed_back persist immutable causal receipts; internal_diagnostics = DEFERRED-with-reason because \
-the shipped generic backend-health surface has no Stage-specific diagnostic emission; Palmistry = \
-DEFERRED-with-reason because the app watcher is global and has no Stage-scoped tracker or recovery proof. \
+stage_embed_back persist immutable causal receipts. Shared internal_diagnostics = WIRED for heartbeat, \
+frame/resource, backend-health, and the bounded BackendCall watchdog used by Atelier loads; the local Stage \
+route bus hop is NOT_APPLICABLE-with-reason because it performs no blocking backend operation, while deeper \
+Stage capture instrumentation remains owned by MT-066. Shared Palmistry = WIRED for process freeze/crash \
+observation and the same typed diagnostic ring; the MT-033 local route carries no Stage-specific process \
+child or payload, so a separate route tracker is NOT_APPLICABLE-with-reason. \
 After each asynchronous retry or capture, use a fresh argus.inspect instead of treating the immediate \
 action receipt as terminal state.\n\
 - Calendar (Pillar 2): the daily-journal-panel binds the mounted JournalStore's single selected-date \

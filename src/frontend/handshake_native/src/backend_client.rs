@@ -9724,8 +9724,10 @@ impl AtelierClient {
         let batches_url = self.batches_request().url;
         let corpus_url = self.corpus_request().url;
         let client = self.client.clone();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             let result = load_atelier_side_panel(&client, &batches_url, &corpus_url).await;
+            operation_handle.tick();
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((generation, result.map_err(|e| e.to_string())));
             }
@@ -9739,10 +9741,12 @@ impl AtelierClient {
         let url = self.items_request(batch_id).url;
         let client = self.client.clone();
         let id = batch_id.to_owned();
+        let operation_handle = crate::diagnostics::register_backend_operation();
         self.runtime.spawn(async move {
             let result = fetch_atelier_items(&client, &url)
                 .await
                 .map_err(|e| e.to_string());
+            operation_handle.tick();
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((generation, id, result));
             }

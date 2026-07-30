@@ -27,14 +27,24 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
+#[cfg(feature = "wgpu_screenshots")]
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+#[cfg(feature = "integration")]
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+#[cfg(feature = "wgpu_screenshots")]
+use canonical_argus_driver::{
+    json_has_author_id, json_node_by_author_id, ArgusObservation, CanonicalArgusDriver,
+};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 #[cfg(feature = "integration")]
 use handshake_native::atelier_side_panel::{
-    batch_author_id, corpus_author_id, item_canvas_author_id, item_insert_author_id,
+    batch_author_id, corpus_author_id, item_canvas_author_id,
 };
 use handshake_native::atelier_side_panel::{
     item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
@@ -49,18 +59,71 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
 use handshake_native::stage_pane::{StageContent, StagePane, STAGE_PANE_AUTHOR_ID};
 use handshake_native::theme::HsTheme;
 
-/// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. Used by the
-/// `wgpu_screenshots`-gated screenshot test; `#[allow(dead_code)]` so the default (no-feature) build does
-/// not warn (the screenshot writer is the only caller).
+/// The external artifact root (CX-212E), resolved from an explicit operator root or the compile-time
+/// repository location rather than process CWD. This remains correct when Cargo is invoked from the
+/// crate or repo root and cannot accidentally create `D:\Handshake_Artifacts`.
 #[allow(dead_code)]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+    let approved_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(4)
+        .expect("handshake_native manifest is nested below the Handshake Worktrees root")
+        .join("Handshake_Artifacts");
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| approved_root.clone());
+    assert!(
+        root.is_absolute(),
+        "HANDSHAKE_ARTIFACTS_ROOT must be absolute so artifact placement never depends on process CWD"
+    );
+    assert_eq!(
+        root, approved_root,
+        "HANDSHAKE_ARTIFACTS_ROOT must equal the one manifest-derived sibling Handshake_Artifacts root"
+    );
+    root.join("handshake-test").join(subdir)
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn canonical_action_proof(
+    target: &str,
+    observation: &ArgusObservation,
+    terminal_predicate: &str,
+    terminal: &serde_json::Value,
+) -> serde_json::Value {
+    serde_json::json!({
+        "target": target,
+        "observation": {
+            "before": observation.before,
+            "after": observation.after,
+            "receipt_id": observation.receipt_id,
+            "receipt_status": observation.receipt_status,
+            "agent_id": observation.agent_id,
+            "terminal_observed_sequence": observation.terminal_observed_sequence,
+            "target_selected_before": observation.target_selected_before,
+            "target_selected_after": observation.target_selected_after,
+            "terminal_refreshed": true
+        },
+        "terminal_predicate": {
+            "id": terminal_predicate,
+            "passed": true
+        },
+        "terminal": terminal
+    })
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (CX-212E hygiene). Checks BOTH
 /// `test_output/` and `tests/screenshots/` (the path a contract might literally name, overridden here).
 fn assert_no_local_artifact_dir() {
-    for local in [Path::new("test_output"), Path::new("tests/screenshots")] {
+    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = crate_root
+        .ancestors()
+        .nth(3)
+        .expect("handshake_native manifest is nested below the repository root");
+    for local in [
+        crate_root.join("test_output"),
+        crate_root.join("tests/screenshots"),
+        repo_root.join("Handshake_Artifacts"),
+    ] {
         assert!(
             !local.exists(),
             "CX-212E: no repo-local artifact dir may exist — artifacts go to the external \
@@ -87,6 +150,25 @@ fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> 
         }
     }
     ids
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn json_has_author_id_prefix(value: &serde_json::Value, expected_prefix: &str) -> bool {
+    match value {
+        serde_json::Value::Object(object) => {
+            object
+                .get("author_id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|author_id| author_id.starts_with(expected_prefix))
+                || object
+                    .values()
+                    .any(|value| json_has_author_id_prefix(value, expected_prefix))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .any(|value| json_has_author_id_prefix(value, expected_prefix)),
+        _ => false,
+    }
 }
 
 fn center_by_author<S>(harness: &Harness<'_, S>, author_id: &str) -> egui::Pos2 {
@@ -1291,7 +1373,7 @@ fn ac4_palette_route_without_active_selection_visibly_fails() {
     assert!(author_ids(&harness).contains("stage-route-status"));
     assert!(stage_value(&harness)
         .unwrap_or_default()
-        .contains("open a rich document first"));
+        .contains("activate a saved rich document first"));
 }
 
 #[test]
@@ -1431,33 +1513,256 @@ fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
 #[test]
 #[cfg(feature = "wgpu_screenshots")]
 fn atelier_panel_screenshot() {
+    use handshake_native::rich_editor::document_model::{DocPosition, Selection};
+    use handshake_native::rich_editor::wikilinks::inline_view::chip_author_id;
+    use handshake_native::stage_pane::{
+        STAGE_ROUTED_CONTENT_AUTHOR_ID, STAGE_ROUTE_STATUS_AUTHOR_ID,
+    };
+
     let _guard = wgpu_guard();
-    let mut app = live_shell();
+    let (mut app, runtime) = live_rich_shell("DOC-ARGUS-33");
     *app.atelier_side_panel_mut() = seeded_panel();
-    app.set_atelier_panel_open(true);
+    let rich_state = app.mounted_rich_state();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .wgpu()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(4);
-    assert!(author_ids(&harness).contains(PANEL_AUTHOR_ID));
-    assert!(author_ids(&harness).contains(&item_author_id("item-aaa")));
+    // Project rebinding can complete an unrelated FEMS refresh after the shell mounts. Clear that
+    // ephemeral integration overlay before the first canonical inspection so it cannot obscure this
+    // feature's success pixels; this does not alter persisted memory or the active project.
+    harness
+        .state_mut()
+        .clear_fems_overlay_for_integration_test();
+    harness.run_steps(2);
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-033/canonical-argus");
+    std::fs::create_dir_all(&ext_dir).expect("create external MT-033 canonical Argus directory");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-033-success");
+
+    let initial = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial, "menu-view"));
+    assert!(json_has_author_id(&initial, "editor.rich.text"));
+    assert!(!json_has_author_id(&initial, PANEL_AUTHOR_ID));
+
+    let open_view = argus.click_and_reinspect(&mut harness, "menu-view");
+    let view_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "atelier-toggle-discoverable",
+        |tree| json_has_author_id(tree, "menu.view.toggle-atelier"),
+    );
+    assert!(json_has_author_id(
+        &view_terminal,
+        "menu.view.toggle-atelier"
+    ));
+
+    let open_panel = argus.click_and_reinspect(&mut harness, "menu.view.toggle-atelier");
+    let item_author = item_author_id("item-aaa");
+    let panel_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "atelier-panel-and-item-mounted",
+        |tree| {
+            json_has_author_id(tree, PANEL_AUTHOR_ID)
+                && json_has_author_id(tree, &item_author)
+                && json_has_author_id(tree, "atelier-character-list-blocker")
+                && json_has_author_id(tree, "atelier-moodboard-list-blocker")
+        },
+    );
+    assert!(json_has_author_id(&panel_terminal, PANEL_AUTHOR_ID));
+
+    let insert = argus.click_and_reinspect(&mut harness, &item_author);
+    let chip_prefix = chip_author_id("item-aaa");
+    let insert_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "atelier-click-fallback-inserts-exact-hslink",
+        |tree| json_has_author_id_prefix(tree, &chip_prefix),
+    );
+    assert!(
+        json_has_author_id_prefix(&insert_terminal, &chip_prefix),
+        "fresh canonical Argus inspection must expose the exact inserted CKC hsLink"
+    );
+    assert_eq!(
+        first_hs_link(&rich_state.lock().unwrap().current_content_json()),
+        Some(("media".to_owned(), "item-aaa".to_owned()))
+    );
+
+    {
+        let mut state = rich_state.lock().unwrap();
+        state.selection = Selection::text(
+            DocPosition::new(vec![1, 0], 0),
+            DocPosition::new(vec![1, 0], 5),
+        );
+        assert_eq!(
+            state.selected_text().map(|(_, _, _, text)| text),
+            Some("Hello".to_owned())
+        );
+    }
+    let open_editors = argus.click_and_reinspect(&mut harness, "menu-editors");
+    let editors_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "route-to-stage-control-discoverable",
+        |tree| json_has_author_id(tree, "menu.editors.route-to-stage"),
+    );
+    assert!(json_has_author_id(
+        &editors_terminal,
+        "menu.editors.route-to-stage"
+    ));
+
+    let route = argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
+    let route_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "routed-selection-visible-in-stage",
+        |tree| {
+            json_node_by_author_id(tree, STAGE_ROUTED_CONTENT_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains("DOC-ARGUS-33") && value.contains("Hello"))
+        },
+    );
+    assert!(json_has_author_id(
+        &route_terminal,
+        STAGE_ROUTED_CONTENT_AUTHOR_ID
+    ));
 
     let image = harness
         .render()
         .expect("HBR-VIS screenshot rendering is a required proof");
     let (w, h) = (image.width(), image.height());
     assert!(w > 0 && h > 0, "screenshot has non-zero size");
-    let ext_dir = external_artifact_dir("wp-kernel-012-mt-033");
-    std::fs::create_dir_all(&ext_dir).expect("create external MT-033 screenshot directory");
-    let png = ext_dir.join("MT-033-atelier-side-panel.png");
+    let png = ext_dir.join("MT-033-atelier-stage-success.png");
     image
         .save(&png)
         .unwrap_or_else(|error| panic!("save required screenshot {}: {error}", png.display()));
+    let success_tree = ext_dir.join("MT-033-atelier-stage-success.json");
+    std::fs::write(
+        &success_tree,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.mt033-canonical-argus-proof@1",
+            "state": "success",
+            "targets": [
+                "menu-view",
+                "menu.view.toggle-atelier",
+                item_author,
+                "menu-editors",
+                "menu.editors.route-to-stage",
+                STAGE_ROUTED_CONTENT_AUTHOR_ID
+            ],
+            "actions": [
+                canonical_action_proof("menu-view", &open_view, "atelier-toggle-discoverable", &view_terminal),
+                canonical_action_proof("menu.view.toggle-atelier", &open_panel, "atelier-panel-and-item-mounted", &panel_terminal),
+                canonical_action_proof(&item_author, &insert, "atelier-click-fallback-inserts-exact-hslink", &insert_terminal),
+                canonical_action_proof("menu-editors", &open_editors, "route-to-stage-control-discoverable", &editors_terminal),
+                canonical_action_proof("menu.editors.route-to-stage", &route, "routed-selection-visible-in-stage", &route_terminal)
+            ],
+            "initial": initial,
+            "terminal": route_terminal,
+            "screenshot": {
+                "path": png,
+                "capture_method": "mounted_wgpu_harness_render_after_fresh_argus_terminal",
+                "bound_to_action_target": "menu.editors.route-to-stage"
+            }
+        }))
+        .expect("serialize MT-033 success tree"),
+    )
+    .expect("write external MT-033 success tree");
     println!(
-        "HBR-VIS: {w}x{h} atelier panel screenshot ({})",
-        png.display()
+        "HBR-VIS: canonical argus.inspect -> menu-view -> menu.view.toggle-atelier -> \
+         {item_author} -> menu-editors -> menu.editors.route-to-stage -> fresh Stage observation; \
+         {w}x{h} success screenshot={} tree={}",
+        png.display(),
+        success_tree.display()
     );
+    argus.finish();
+    drop(harness);
+    runtime.shutdown_timeout(std::time::Duration::from_secs(2));
+
+    // A second fresh shell proves the typed unavailable branch through the always-enabled canonical
+    // Command Palette route. The Editors-menu leaf is correctly disabled without a rich editor, so the
+    // palette is the model-steerable action surface for exercising the actual typed runtime failure.
+    let mut failure_harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .wgpu()
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    failure_harness.run_steps(3);
+    let mut failure_argus =
+        CanonicalArgusDriver::bind(failure_harness.state(), "wp-kernel-012-mt-033-failure");
+    let failure_initial = failure_argus.inspect(&mut failure_harness);
+    let failure_menu = failure_argus.click_and_reinspect(&mut failure_harness, "menu-operator");
+    let failure_menu_terminal = failure_argus.assert_latest_terminal_predicate(
+        &mut failure_harness,
+        "command-palette-control-visible",
+        |tree| json_has_author_id(tree, "menu.operator.command-palette"),
+    );
+    let open_palette =
+        failure_argus.click_and_reinspect(&mut failure_harness, "menu.operator.command-palette");
+    let palette_terminal = failure_argus.assert_latest_terminal_predicate(
+        &mut failure_harness,
+        "route-command-visible-without-rich-document",
+        |tree| {
+            json_has_author_id(tree, "command-palette.dialog")
+                && json_has_author_id(tree, "command-palette.option.hs-stage-palette-route")
+        },
+    );
+    let unavailable = failure_argus.click_and_reinspect(
+        &mut failure_harness,
+        "command-palette.option.hs-stage-palette-route",
+    );
+    let unavailable_terminal = failure_argus.assert_latest_terminal_predicate(
+        &mut failure_harness,
+        "route-unavailable-is-visible-and-typed",
+        |tree| {
+            json_node_by_author_id(tree, STAGE_ROUTE_STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains("activate a saved rich document first"))
+        },
+    );
+    assert!(
+        json_node_by_author_id(&unavailable_terminal, STAGE_ROUTED_CONTENT_AUTHOR_ID)
+            .and_then(|node| node.get("value"))
+            .and_then(serde_json::Value::as_str)
+            == Some("(nothing routed to Stage)"),
+        "typed unavailable terminal must preserve the explicit empty routed-content state"
+    );
+    let failure_png = ext_dir.join("MT-033-route-unavailable.png");
+    failure_harness
+        .render()
+        .expect("typed unavailable state requires a material render")
+        .save(&failure_png)
+        .expect("save MT-033 unavailable screenshot");
+    let failure_tree = ext_dir.join("MT-033-route-unavailable.json");
+    std::fs::write(
+        &failure_tree,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.mt033-canonical-argus-proof@1",
+            "state": "route_unavailable",
+            "targets": [
+                "menu-operator",
+                "menu.operator.command-palette",
+                "command-palette.option.hs-stage-palette-route",
+                STAGE_ROUTE_STATUS_AUTHOR_ID
+            ],
+            "actions": [
+                canonical_action_proof("menu-operator", &failure_menu, "command-palette-control-visible", &failure_menu_terminal),
+                canonical_action_proof("menu.operator.command-palette", &open_palette, "route-command-visible-without-rich-document", &palette_terminal),
+                canonical_action_proof("command-palette.option.hs-stage-palette-route", &unavailable, "route-unavailable-is-visible-and-typed", &unavailable_terminal)
+            ],
+            "initial": failure_initial,
+            "terminal": unavailable_terminal,
+            "screenshot": {
+                "path": failure_png,
+                "capture_method": "mounted_wgpu_harness_render_after_fresh_argus_terminal",
+                "bound_to_action_target": "command-palette.option.hs-stage-palette-route"
+            }
+        }))
+        .expect("serialize MT-033 unavailable tree"),
+    )
+    .expect("write external MT-033 unavailable tree");
+    println!(
+        "HBR-VIS: canonical typed unavailable route screenshot={} tree={}",
+        failure_png.display(),
+        failure_tree.display()
+    );
+    failure_argus.finish();
     assert_no_local_artifact_dir();
 }
 
@@ -1557,14 +1862,20 @@ fn psql_program() -> std::path::PathBuf {
 
 #[cfg(feature = "integration")]
 fn pg_dsn() -> String {
-    ["POSTGRES_TEST_URL", "DATABASE_URL"]
+    [
+        "HANDSHAKE_TEST_PG_DSN",
+        "POSTGRES_TEST_URL",
+        "DATABASE_URL",
+    ]
         .into_iter()
         .find_map(|name| {
             std::env::var(name)
                 .ok()
                 .filter(|value| !value.trim().is_empty())
         })
-        .expect("AC-5 live requires POSTGRES_TEST_URL or DATABASE_URL for exact test-row cleanup")
+        .expect(
+            "AC-5 live requires HANDSHAKE_TEST_PG_DSN, POSTGRES_TEST_URL, or DATABASE_URL for exact test-row cleanup",
+        )
 }
 
 #[cfg(feature = "integration")]
@@ -1606,13 +1917,62 @@ fn run_psql(sql: &str) -> String {
         .arg("--no-align")
         .arg("--tuples-only")
         .arg("--command")
-        .arg(sql);
+        .arg(sql)
+        .env("PGCONNECT_TIMEOUT", "5");
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt as _;
         command.creation_flags(0x0800_0000);
     }
-    let output = command.output().expect("launch managed PostgreSQL psql");
+    let output = match command.output() {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            // Some managed-PG hosts expose the trust-auth cluster without installing the PostgreSQL
+            // client tools on PATH. Keep psql as the primary portable path, then use the already-probed
+            // Python psycopg2 driver as a quiet equivalent for the same exact SQL and output format.
+            let script = r#"
+import json
+import psycopg2
+import sys
+
+def render(value):
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    if isinstance(value, bool):
+        return "t" if value else "f"
+    if value is None:
+        return ""
+    return str(value)
+
+connection = psycopg2.connect(sys.argv[1])
+try:
+    connection.autocommit = True
+    cursor = connection.cursor()
+    cursor.execute(sys.argv[2])
+    if cursor.description:
+        for row in cursor.fetchall():
+            print("|".join(render(value) for value in row))
+finally:
+    connection.close()
+"#;
+            let mut python = std::process::Command::new("python");
+            python
+                .arg("-c")
+                .arg(script)
+                .arg(pg_dsn())
+                .arg(sql)
+                .env("PGCONNECT_TIMEOUT", "5");
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt as _;
+                python.creation_flags(0x0800_0000);
+            }
+            python
+                .output()
+                .expect("launch managed PostgreSQL psycopg2 fallback")
+        }
+        Err(error) => panic!("launch managed PostgreSQL psql: {error}"),
+    };
     assert!(
         output.status.success(),
         "managed PostgreSQL SQL failed: {}",
@@ -1871,12 +2231,130 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
 struct WorkspacePgCleanup {
     base: String,
     workspace_id: String,
+    native_fr_event_ids: Vec<String>,
+    save_receipt_event_ids: Vec<String>,
     armed: bool,
 }
 
 #[cfg(feature = "integration")]
 impl WorkspacePgCleanup {
+    fn track_native_fr_event(&mut self, event_id: &str) {
+        uuid::Uuid::parse_str(event_id).expect("native Flight Recorder event id is a UUID");
+        if !self
+            .native_fr_event_ids
+            .iter()
+            .any(|tracked| tracked == event_id)
+        {
+            self.native_fr_event_ids.push(event_id.to_owned());
+        }
+    }
+
+    fn track_save_receipt(&mut self, event_id: &str) {
+        let uuid = event_id
+            .strip_prefix("KE-")
+            .expect("save receipt has the typed KE- prefix");
+        uuid::Uuid::parse_str(uuid).expect("save receipt carries a UUID after KE-");
+        if !self
+            .save_receipt_event_ids
+            .iter()
+            .any(|tracked| tracked == event_id)
+        {
+            self.save_receipt_event_ids.push(event_id.to_owned());
+        }
+    }
+
+    fn cleanup_owned_event_ledger(&mut self) -> String {
+        // Discover by the unique fixture workspace before consulting tracked ids. This closes the panic
+        // window where the backend has appended a save or native-FR row but HTTP/JSON readback fails
+        // before the test can learn its durable event id.
+        let workspace_id = self.workspace_id.replace('\'', "''");
+        let discovered = run_psql(&format!(
+            "SELECT event_id || '|' || aggregate_type || '|' || aggregate_id \
+             FROM kernel_event_ledger \
+             WHERE (aggregate_type='native_editor_event' \
+                    AND payload #>> '{{envelope,workspace_id}}'='{workspace_id}') \
+                OR (aggregate_type='knowledge_rich_document' \
+                    AND aggregate_id IN (SELECT rich_document_id \
+                                         FROM knowledge_rich_documents \
+                                         WHERE workspace_id='{workspace_id}')) \
+             ORDER BY event_sequence;"
+        ));
+        for line in discovered.lines().filter(|line| !line.trim().is_empty()) {
+            let mut fields = line.splitn(3, '|');
+            let event_id = fields.next().expect("owned EventLedger event id");
+            let aggregate_type = fields.next().expect("owned EventLedger aggregate type");
+            let aggregate_id = fields.next().expect("owned EventLedger aggregate id");
+            match aggregate_type {
+                "native_editor_event" => self.track_native_fr_event(aggregate_id),
+                "knowledge_rich_document" => self.track_save_receipt(event_id),
+                other => panic!("unexpected owned EventLedger aggregate type {other}"),
+            }
+        }
+
+        let native_keys = self
+            .native_fr_event_ids
+            .iter()
+            .flat_map(|event_id| {
+                [
+                    format!("native-editor-fr-pending:{event_id}"),
+                    format!("native-editor-fr-complete:{event_id}"),
+                ]
+            })
+            .map(|key| format!("'{}'", key.replace('\'', "''")))
+            .collect::<Vec<_>>()
+            .join(",");
+        let save_ids = self
+            .save_receipt_event_ids
+            .iter()
+            .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
+            .collect::<Vec<_>>()
+            .join(",");
+        let native_predicate = if native_keys.is_empty() {
+            "FALSE".to_owned()
+        } else {
+            format!("idempotency_key IN ({native_keys})")
+        };
+        let save_predicate = if save_ids.is_empty() {
+            "FALSE".to_owned()
+        } else {
+            format!("event_id IN ({save_ids})")
+        };
+        let receipt = run_psql(&format!(
+            "BEGIN; DELETE FROM kernel_event_ledger \
+             WHERE ({native_predicate}) OR ({save_predicate}); \
+             DO $mt033_native_fr_cleanup$ BEGIN \
+             IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                        WHERE (aggregate_type='native_editor_event' \
+                               AND payload #>> '{{envelope,workspace_id}}'='{workspace_id}') \
+                           OR (aggregate_type='knowledge_rich_document' \
+                               AND aggregate_id IN (SELECT rich_document_id \
+                                                    FROM knowledge_rich_documents \
+                                                    WHERE workspace_id='{workspace_id}'))) \
+             THEN RAISE EXCEPTION 'MT-033 owned EventLedger cleanup left rows'; \
+             END IF; END $mt033_native_fr_cleanup$; COMMIT; \
+             SELECT json_build_object('native_fr_event_ids', ARRAY[{event_ids}]::text[], \
+             'save_receipt_event_ids', ARRAY[{save_event_ids}]::text[], \
+             'ledger_rows_absent', true);",
+            event_ids = self
+                .native_fr_event_ids
+                .iter()
+                .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
+                .collect::<Vec<_>>()
+                .join(","),
+            save_event_ids = self
+                .save_receipt_event_ids
+                .iter()
+                .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
+                .collect::<Vec<_>>()
+                .join(","),
+        ));
+        self.native_fr_event_ids.clear();
+        self.save_receipt_event_ids.clear();
+        receipt
+    }
+
     async fn cleanup(&mut self, client: &reqwest::Client) -> String {
+        let owned_event_ledger = self.cleanup_owned_event_ledger();
         let response = workspace_write_headers(
             client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
         )
@@ -1901,7 +2379,8 @@ impl WorkspacePgCleanup {
         serde_json::json!({
             "workspace_id": self.workspace_id.clone(),
             "delete_status": 204,
-            "workspace_absent": true
+            "workspace_absent": true,
+            "owned_event_ledger": owned_event_ledger
         })
         .to_string()
     }
@@ -1913,26 +2392,76 @@ impl Drop for WorkspacePgCleanup {
         if !self.armed {
             return;
         }
+        let already_panicking = std::thread::panicking();
+        let ledger_cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.cleanup_owned_event_ledger()
+        }));
         let base = self.base.clone();
         let workspace_id = self.workspace_id.clone();
-        let _ = std::thread::spawn(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("workspace cleanup runtime");
-            runtime.block_on(async move {
-                let client = reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(5))
+        let workspace_cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            std::thread::spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
                     .build()
-                    .expect("workspace cleanup client");
-                let _ = workspace_write_headers(
-                    client.delete(format!("{base}/workspaces/{workspace_id}")),
-                )
-                .send()
-                .await;
-            });
-        })
-        .join();
+                    .expect("workspace cleanup runtime");
+                runtime.block_on(async move {
+                    let client = reqwest::Client::builder()
+                        .connect_timeout(std::time::Duration::from_secs(2))
+                        .timeout(std::time::Duration::from_secs(5))
+                        .build()
+                        .expect("workspace cleanup client");
+                    let response = workspace_write_headers(
+                        client.delete(format!("{base}/workspaces/{workspace_id}")),
+                    )
+                    .send()
+                    .await
+                    .expect("drop cleanup DELETE owned MT-033 workspace");
+                    assert!(
+                        response.status() == reqwest::StatusCode::NO_CONTENT
+                            || response.status() == reqwest::StatusCode::NOT_FOUND,
+                        "drop cleanup workspace DELETE returned {}",
+                        response.status()
+                    );
+                    let workspaces: serde_json::Value = client
+                        .get(format!("{base}/workspaces"))
+                        .send()
+                        .await
+                        .expect("drop cleanup list workspaces")
+                        .json()
+                        .await
+                        .expect("drop cleanup workspace list JSON");
+                    assert!(
+                        !workspaces
+                            .as_array()
+                            .is_some_and(|rows| rows.iter().any(|row| {
+                                row.get("id").and_then(serde_json::Value::as_str)
+                                    == Some(workspace_id.as_str())
+                            })),
+                        "drop cleanup left owned MT-033 workspace {workspace_id}"
+                    );
+                });
+            })
+            .join()
+            .expect("join owned MT-033 workspace cleanup");
+        }));
+        if let Err(payload) = ledger_cleanup {
+            if already_panicking {
+                eprintln!(
+                    "MT-033 EventLedger cleanup failed during unwind; owned residue may remain"
+                );
+            } else {
+                std::panic::resume_unwind(payload);
+            }
+        }
+        if let Err(payload) = workspace_cleanup {
+            if already_panicking {
+                eprintln!(
+                    "MT-033 workspace cleanup failed during unwind; owned residue may remain"
+                );
+            } else {
+                std::panic::resume_unwind(payload);
+            }
+        }
     }
 }
 
@@ -1944,10 +2473,11 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
     use handshake_native::command_registry::CMD_EDITOR_FILE_SAVE;
     use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 
+    let mut managed_backend = pg_proof_support::require_live_backend();
+    let managed_base = managed_backend.base.clone();
     let runtime = tokio::runtime::Runtime::new().expect("integration runtime");
     runtime.block_on(async {
-        let base = std::env::var("HSK_TEST_BASE")
-            .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+        let base = managed_base;
         let client = reqwest::Client::builder()
             .pool_max_idle_per_host(2)
             .connect_timeout(std::time::Duration::from_secs(2))
@@ -1970,7 +2500,11 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         let workspace: serde_json::Value = response.json().await.expect("workspace JSON");
         let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
         let mut workspace_cleanup = WorkspacePgCleanup {
-            base: base.clone(), workspace_id: workspace_id.clone(), armed: true,
+            base: base.clone(),
+            workspace_id: workspace_id.clone(),
+            native_fr_event_ids: Vec::new(),
+            save_receipt_event_ids: Vec::new(),
+            armed: true,
         };
 
         let response = proof_headers(client.post(format!("{base}/knowledge/documents")))
@@ -2058,6 +2592,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             migration_version: Some(1),
         }));
         rich_app.set_backend_base_url_for_test(&base, runtime.handle().clone());
+        rich_app.bind_active_project_for_integration_test(workspace_id.clone());
         assert!(
             matches!(
                 rich_app.open_document(&document_id),
@@ -2088,13 +2623,30 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         request_click_by_author(&rich_harness, &batch_id_author);
         for _ in 0..100 {
             rich_harness.step();
-            if author_ids(&rich_harness).contains(&item_insert_author_id(&item_id)) {
+            if author_ids(&rich_harness).contains(&item_author_id(&item_id)) {
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        assert!(author_ids(&rich_harness).contains(&item_insert_author_id(&item_id)));
-        pointer_click_by_author(&rich_harness, &item_insert_author_id(&item_id));
+        let item_author = item_author_id(&item_id);
+        assert!(author_ids(&rich_harness).contains(&item_author));
+        let source = center_by_author(&rich_harness, &item_author);
+        let target = center_by_author(&rich_harness, "editor.rich.text");
+        rich_harness.drag_at(source);
+        rich_harness.run_steps(1);
+        let mut producer_emitted_typed_payload = false;
+        for step in 1..=8 {
+            let t = step as f32 / 8.0;
+            rich_harness.hover_at(source + (target - source) * t);
+            rich_harness.run_steps(1);
+            producer_emitted_typed_payload |=
+                egui::DragAndDrop::has_payload_of_type::<DragPayload>(&rich_harness.ctx);
+        }
+        assert!(
+            producer_emitted_typed_payload,
+            "the real mounted backend row must emit a typed AtelierRef during pointer drag"
+        );
+        rich_harness.drop_at(target);
         rich_harness.run_steps(3);
         let (saved_content, interop_error) = {
             let state = rich_state.lock().unwrap();
@@ -2112,6 +2664,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
                 .dispatch_palette_action_for_test_with_ctx(&save_ctx, CMD_EDITOR_FILE_SAVE),
             "mounted host published the panel-originated edit to the canonical SaveManager"
         );
+        let mut persisted = false;
         for _ in 0..100 {
             rich_harness.step();
             let reloaded = handshake_native::backend_client::RichDocClient::new(
@@ -2124,10 +2677,169 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             if first_hs_link(&reloaded.content_json)
                 == Some(("media".into(), item_id.clone()))
             {
+                persisted = true;
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
+        assert!(persisted, "fresh GET must observe the saved CKC hsLink");
+        let save_receipt_deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let save_receipt_event_id = loop {
+            rich_harness.run_steps(1);
+            if let Some(receipt) = rich_state
+                .lock()
+                .unwrap()
+                .save
+                .as_ref()
+                .and_then(|save| save.last_save_receipt_event_id.clone())
+            {
+                break receipt;
+            }
+            assert!(
+                std::time::Instant::now() < save_receipt_deadline,
+                "mounted save did not expose its canonical backend receipt within five seconds"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        workspace_cleanup.track_save_receipt(&save_receipt_event_id);
+        let save_receipt = run_psql(&format!(
+            "SELECT (payload || jsonb_build_object(\
+                 '_event_id', event_id, \
+                 '_event_type', event_type, \
+                 '_aggregate_type', aggregate_type, \
+                 '_aggregate_id', aggregate_id\
+             ))::text \
+             FROM kernel_event_ledger \
+             WHERE event_id='{}';",
+            save_receipt_event_id.replace('\'', "''")
+        ));
+        let save_receipt: serde_json::Value = serde_json::from_str(save_receipt.trim())
+            .expect("save receipt exact EventLedger row is valid JSON");
+        assert_eq!(
+            save_receipt["_event_id"].as_str(),
+            Some(save_receipt_event_id.as_str())
+        );
+        assert_eq!(
+            save_receipt["_event_type"].as_str(),
+            Some("KNOWLEDGE_RICH_DOCUMENT_SAVED")
+        );
+        assert_eq!(
+            save_receipt["_aggregate_type"].as_str(),
+            Some("knowledge_rich_document")
+        );
+        assert_eq!(
+            save_receipt["_aggregate_id"].as_str(),
+            Some(document_id.as_str())
+        );
+        assert_eq!(
+            save_receipt["workspace_id"].as_str(),
+            Some(workspace_id.as_str())
+        );
+        assert_eq!(save_receipt["event"].as_str(), Some("saved"));
+
+        // Route the same mounted, freshly-saved document through the real Editors menu. This keeps the
+        // CKC drag, save, Stage surface, EventLedger producer, and Flight Recorder readback in one
+        // operator-shaped proof instead of substituting a direct bus injection.
+        request_click_by_author(&rich_harness, "menu-editors");
+        rich_harness.run_steps(2);
+        assert!(
+            author_ids(&rich_harness).contains("menu.editors.route-to-stage"),
+            "mounted Editors menu exposes the stable Route selection to Stage target"
+        );
+        request_click_by_author(&rich_harness, "menu.editors.route-to-stage");
+        let stage = rich_harness.state().mounted_stage();
+        let stage_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            rich_harness.run_steps(1);
+            let staged = stage.lock().unwrap().content.clone();
+            if matches!(
+                staged,
+                StageContent::Document(ref document)
+                    if document.rich_document_id == document_id
+                        && document.content_json.as_ref().and_then(first_hs_link)
+                            == Some(("media".into(), item_id.clone()))
+            ) {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < stage_deadline,
+                "mounted Route-to-Stage did not expose the freshly-saved CKC document; staged={staged:?}"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+
+        let flight_recorder_deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let route_row = loop {
+            rich_harness.run_steps(1);
+            let rows: serde_json::Value = client
+                .get(format!("{base}/api/flight_recorder?wsid={workspace_id}"))
+                .send()
+                .await
+                .expect("fresh Flight Recorder route readback")
+                .json()
+                .await
+                .expect("Flight Recorder JSON");
+            let matching = rows.as_array().into_iter().flatten().filter(|row| {
+                row["payload"]["kind"].as_str() == Some("route_to_stage")
+                    && row["payload"]["native_payload"]["content_kind"].as_str()
+                        == Some("document")
+            });
+            let matching = matching.cloned().collect::<Vec<_>>();
+            if matching.len() == 1 {
+                break matching.into_iter().next().unwrap();
+            }
+            assert!(
+                matching.is_empty(),
+                "fresh workspace must contain exactly one route_to_stage receipt, got {matching:?}"
+            );
+            assert!(
+                std::time::Instant::now() < flight_recorder_deadline,
+                "mounted Stage route did not reach canonical Flight Recorder within five seconds"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        let route_event_id = route_row["event_id"]
+            .as_str()
+            .expect("route Flight Recorder event id")
+            .to_owned();
+        // Arm panic/drop cleanup as soon as the durable identity becomes observable. Every later
+        // assertion may fail independently, but none may strand either exact EventLedger row.
+        workspace_cleanup.track_native_fr_event(&route_event_id);
+        let route_causal_action_id = route_row["payload"]["native_payload"]["causal_action_id"]
+            .as_str()
+            .expect("route Flight Recorder causal action id")
+            .to_owned();
+        assert!(!route_causal_action_id.trim().is_empty());
+        assert_eq!(
+            stage.lock().unwrap().causal_action_id.as_deref(),
+            Some(route_causal_action_id.as_str()),
+            "fresh Flight Recorder row preserves the mounted Stage route correlation"
+        );
+        let route_accept_deadline =
+            std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while stage.lock().unwrap().has_pending_route_receipt() {
+            rich_harness.run_steps(1);
+            assert!(
+                std::time::Instant::now() < route_accept_deadline,
+                "exact route receipt remained pending after its durable Flight Recorder row appeared"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let ledger_counts = run_psql(&format!(
+            "SELECT COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-pending:{route_event_id}') \
+             || '|' || COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-complete:{route_event_id}') \
+             FROM kernel_event_ledger;"
+        ));
+        assert_eq!(
+            ledger_counts.trim(),
+            "1|1",
+            "canonical route has exact pending and complete EventLedger rows"
+        );
+        println!(
+            "MT-033 receipts save={save_receipt_event_id} route={route_event_id} causal={route_causal_action_id}"
+        );
         tokio::task::block_in_place(|| drop(rich_harness));
 
         let reload = reqwest::Client::builder()
@@ -2344,6 +3056,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             atelier_receipt.trim()
         );
     });
+    managed_backend.assert_cleanup();
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────────────────────────────
