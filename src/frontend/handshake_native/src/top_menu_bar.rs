@@ -62,6 +62,7 @@
 //!   Open Model Runtime      ENABLED -> NavigateToTab("model-runtime")
 //!   Open Swarm Board        ENABLED -> OpenSwarmBoard (opens the Swarm surface on the active pane)
 //!   Open Lane Diagnostics   ENABLED -> NavigateToTab("swarm-lane-diagnostics")
+//!   Open Console            ENABLED -> NavigateToTab("wp1-orchestration-console")
 //!   ──────
 //!   Open Settings…          ENABLED -> OpenSettings (Cloud Models / Model Runtime / Diagnostics sections)
 //! HELP
@@ -95,7 +96,10 @@
 //!
 //! [`SWARM_ACCESSIBLE_ACTIONS`] is the const list of action author-keys a swarm agent may dispatch
 //! (overlay-opening + navigation actions). This MT only declares the list; wiring it into the broader
-//! swarm action registry is a later MT's job.
+//! swarm action registry is a later MT's job. Every key in the list is a leaf that renders ENABLED and
+//! carries that exact `author_id`, so an out-of-process agent resolves + dispatches it through the same
+//! AccessKit path an operator's mouse takes (proven end-to-end in
+//! `tests/test_top_menu_bar.rs::swarm_accessible_models_leaves_dispatch_through_accesskit`).
 
 use egui::accesskit;
 
@@ -282,6 +286,11 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.models.swarm-lane-diagnostics",
     "menu.models.model-runtime",
     "menu.models.operator-chat",
+    // WP-1 MT-021: the live orchestration console is the surface a swarm agent OBSERVES its own
+    // lanes through, so it must be dispatchable by the same out-of-process path as the other four
+    // MODELS leaves. Omitting it left the console reachable by an operator's mouse but NOT by the
+    // swarm it exists to report on.
+    "menu.models.wp1-orchestration-console",
     "menu.models.settings",
     "menu.help.user-manual",
     "menu.help.settings",
@@ -1010,12 +1019,16 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.operator-chat"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.model-runtime"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.swarm-lane-diagnostics"));
+        // WP-1 MT-021 (AC-1): the orchestration console is swarm-dispatchable like its four MODELS
+        // siblings. The live end-to-end AccessKit dispatch is proven in
+        // tests/test_top_menu_bar.rs::swarm_accessible_models_leaves_dispatch_through_accesskit.
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.wp1-orchestration-console"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.settings"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.problems"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.user-manual"));
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            13,
+            14,
             "all overlay/navigation actions listed"
         );
         // Destructive/document actions are NOT swarm-exposed.

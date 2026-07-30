@@ -405,6 +405,108 @@ fn open_menu_leaves_are_all_named() {
     );
 }
 
+// ── WP-1 MT-021 (AC-1): the WP-1 orchestration console is SWARM-dispatchable ────────────────────────
+//
+// `SWARM_ACCESSIBLE_ACTIONS` previously listed 13 keys and omitted `menu.models.wp1-orchestration-
+// console`, so a swarm agent could not dispatch the console the way it dispatches the other four MODELS
+// leaves — the console the swarm exists to be observed in was operator-mouse-only.
+//
+// This proves the fix through the ACTUAL out-of-process path, not by reading the const:
+//   (a) every MODELS-scoped key in the registry resolves to a live `MenuItem` node carrying exactly that
+//       `author_id` and is NOT disabled — the two conditions `mcp::action::resolve_target` requires
+//       before an `argus.click` is accepted, so each listed key is genuinely dispatchable; and
+//   (b) the console key is driven by an AccessKit Click (`click_accesskit`) — the same action an
+//       out-of-process `argus.click` dispatches into the frame loop — and the real
+//       `Wp1OrchestrationConsole` pane opens as a result.
+//
+// HBR-QUIET: headless kittest, no foregrounding, no OS cursor automation.
+
+#[test]
+fn swarm_accessible_models_leaves_dispatch_through_accesskit() {
+    use handshake_native::top_menu_bar::SWARM_ACCESSIBLE_ACTIONS;
+
+    // The registry now carries the console key alongside its five MODELS siblings.
+    assert!(
+        SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.wp1-orchestration-console"),
+        "AC-1: the WP-1 orchestration console is swarm-accessible: {SWARM_ACCESSIBLE_ACTIONS:?}"
+    );
+
+    let models_keys: Vec<&&str> = SWARM_ACCESSIBLE_ACTIONS
+        .iter()
+        .filter(|key| key.starts_with("menu.models."))
+        .collect();
+    // Six, not five: the MODELS menu already exposed FIVE swarm-dispatchable
+    // leaves before MT-021 -- swarm-board, swarm-lane-diagnostics,
+    // model-runtime, operator-chat AND settings -- and this MT adds the WP-1
+    // console. The original expectation of 5 undercounted the pre-existing set
+    // by omitting `menu.models.settings`.
+    assert_eq!(
+        models_keys.len(),
+        6,
+        "six swarm-dispatchable MODELS leaves (5 pre-existing + the WP-1 console): {models_keys:?}"
+    );
+
+    let mut harness = shell_harness();
+    harness.run();
+    // Open MODELS the way a swarm agent does: an AccessKit Click on the stable `menu-models` node,
+    // NOT a synthetic pointer position.
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some("menu-models"))
+        .next()
+        .expect("the MODELS menu button is addressable by its stable author_id")
+        .click_accesskit();
+    harness.run();
+    // egui materializes a just-opened popup's items on the following frame.
+    harness.run();
+
+    // (a) Every registered MODELS key is live, is a MenuItem, and is ENABLED — the exact preconditions
+    //     `resolve_target` enforces before accepting an out-of-process click.
+    for key in &models_keys {
+        let node = harness
+            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+                n.author_id() == Some(**key)
+            })
+            .next()
+            .unwrap_or_else(|| {
+                panic!(
+                    "swarm-accessible key '{key}' is not addressable in the open MODELS menu: {:?}",
+                    live_author_nodes(&harness)
+                )
+            });
+        let ak = node.accesskit_node();
+        assert_eq!(
+            format!("{:?}", ak.role()),
+            "MenuItem",
+            "swarm-accessible key '{key}' is a MenuItem"
+        );
+        assert!(
+            !ak.is_disabled(),
+            "swarm-accessible key '{key}' must not be disabled — a disabled target is rejected by \
+             resolve_target, so a swarm agent could never dispatch it"
+        );
+    }
+
+    // (b) Dispatch the console leaf out-of-process and prove the real pane opened.
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("menu.models.wp1-orchestration-console")
+        })
+        .next()
+        .expect("the WP-1 console leaf is addressable by its stable author_id")
+        .click_accesskit();
+    harness.run();
+
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs.iter().any(|tab| {
+                tab.pane_type == handshake_native::pane_registry::PaneType::Wp1OrchestrationConsole
+            })
+        }),
+        "AC-1: an AccessKit dispatch of menu.models.wp1-orchestration-console opened the native \
+         Wp1OrchestrationConsole pane"
+    );
+}
+
 #[test]
 fn run_menu_opens_swarm_lane_diagnostics() {
     let mut harness = shell_harness();

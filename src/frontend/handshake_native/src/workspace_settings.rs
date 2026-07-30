@@ -180,6 +180,13 @@ pub struct WorkspaceSettingsState {
     /// Persisted; the shell forwards it to `InternalDiagnostics::set_resource_sampling_enabled` each
     /// frame so the real producer thread reflects it. Default `true` (sampling on).
     pub resource_sampling_enabled: bool,
+    /// WP-1 MT-021: the per-frame SWARM ADMISSION BUDGET — how many queued swarm/Argus actions the
+    /// shell admits into a single egui frame when N agents drive it concurrently. Persisted; the shell
+    /// forwards it to [`crate::mcp::ActionChannel::set_burst_limit`] on load and on every change, so
+    /// the running MCP/Argus transport's drain path reflects it without a rebind. Always clamped into
+    /// `MIN_ACTIONS_PER_BURST..=MAX_ACTIONS_PER_BURST`, so the setting can only TIGHTEN the compiled-in
+    /// flood control, never widen it. Default is the compiled-in ceiling (no extra throttle).
+    pub swarm_max_actions_per_frame: usize,
 }
 
 impl WorkspaceSettingsState {
@@ -229,6 +236,7 @@ impl WorkspaceSettingsState {
                 "swarm_lane_diagnostics_default_open": self.swarm_lane_diagnostics_default_open,
                 "operator_chat_default_open": self.operator_chat_default_open,
                 "resource_sampling_enabled": self.resource_sampling_enabled,
+                "swarm_max_actions_per_frame": self.swarm_max_actions_per_frame,
             },
         })
     }
@@ -253,8 +261,14 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
         swarm_lane_diagnostics_default_open: false,
         operator_chat_default_open: false,
         resource_sampling_enabled: true,
+        swarm_max_actions_per_frame: DEFAULT_SWARM_MAX_ACTIONS_PER_FRAME,
     }
 }
+
+/// The default per-frame swarm admission budget: the compiled-in flood ceiling
+/// ([`crate::mcp::MAX_ACTIONS_PER_BURST`]), i.e. no extra throttle beyond the hard bound. Sourced from
+/// the drain path's own const so the settings default cannot drift from the runtime it configures.
+pub const DEFAULT_SWARM_MAX_ACTIONS_PER_FRAME: usize = crate::mcp::MAX_ACTIONS_PER_BURST;
 
 /// Normalize a keybinding chord to canonical form. Verbatim port of the React `normalizeChordInput`:
 /// split on `-`, trim + drop empties, classify each modifier (Mod/Cmd/Command/Meta/Ctrl/Control ->
@@ -438,6 +452,14 @@ pub fn normalize_workspace_settings_state(
         .and_then(|m| m.get("resource_sampling_enabled"))
         .and_then(Value::as_bool)
         .unwrap_or(fallback.resource_sampling_enabled);
+    // WP-1 MT-021: a persisted admission budget is CLAMPED into the legal band, never trusted as-is —
+    // a foreign/garbage/hostile blob must not be able to widen the flood ceiling or wedge the queue at
+    // zero. An absent or non-integer value falls back per-field like every other setting.
+    let swarm_max_actions_per_frame = raw_settings
+        .and_then(|m| m.get("swarm_max_actions_per_frame"))
+        .and_then(Value::as_u64)
+        .map(|v| crate::mcp::clamp_admission_budget(v as usize))
+        .unwrap_or(fallback.swarm_max_actions_per_frame);
 
     WorkspaceSettingsState {
         theme,
@@ -447,6 +469,7 @@ pub fn normalize_workspace_settings_state(
         swarm_lane_diagnostics_default_open,
         operator_chat_default_open,
         resource_sampling_enabled,
+        swarm_max_actions_per_frame,
     }
 }
 
@@ -465,19 +488,29 @@ pub struct NotYetWiredSetting {
 }
 
 /// Swarm board auto-reconcile cadence — port of `SWARM_RECONCILE_INTERVAL_SETTING`.
+///
+/// WP-1 MT-021: the note now states WHY the value is fixed instead of only that it is. The cadence is
+/// owned by the backend reconcile loop and there is no `/swarm/...` route that reads or writes it, so
+/// the shell has nothing truthful to bind a control to. Saying "not yet wired" without the reason read
+/// as unfinished UI; the honest statement is that this value is backend-fixed and unconfigurable today.
 pub const SWARM_RECONCILE_INTERVAL_SETTING: NotYetWiredSetting = NotYetWiredSetting {
     id: "swarm-reconcile-interval",
     label: "Swarm board auto-reconcile interval",
     fixed_value: "10s",
-    note: "Not yet wired - fixed at 10s",
+    note: "Fixed at 10s and not configurable: the cadence is owned by the backend reconcile loop and \
+           no backend route exposes it, so Handshake has no value to bind a control to.",
 };
 
 /// Swarm resource poll cadence — port of `SWARM_RESOURCE_POLL_INTERVAL_SETTING`.
+///
+/// WP-1 MT-021: see [`SWARM_RECONCILE_INTERVAL_SETTING`] — same reason, backend-owned cadence with no
+/// route to read or configure it.
 pub const SWARM_RESOURCE_POLL_INTERVAL_SETTING: NotYetWiredSetting = NotYetWiredSetting {
     id: "swarm-resource-poll-interval",
     label: "Swarm resource poll interval",
     fixed_value: "1.5s",
-    note: "Not yet wired - fixed at 1.5s",
+    note: "Fixed at 1.5s and not configurable: the poll cadence is owned by the backend resource \
+           sampler and no backend route exposes it, so Handshake has no value to bind a control to.",
 };
 
 /// Terminal default shell — port of `TERMINAL_DEFAULT_SHELL_SETTING`.
@@ -785,6 +818,81 @@ mod tests {
             back, settings,
             "settings round-trip through the backend JSON shape"
         );
+    }
+
+    /// WP-1 MT-021 (AC-3): the swarm admission budget round-trips through the persisted blob, and a
+    /// foreign/garbage persisted value is CLAMPED into the legal band rather than obeyed — so a bad
+    /// blob can neither widen the compiled-in flood ceiling nor wedge the drain at zero.
+    #[test]
+    fn swarm_admission_budget_round_trips_and_clamps_a_foreign_value() {
+        let default = default_workspace_settings_state();
+        assert_eq!(
+            default.swarm_max_actions_per_frame, crate::mcp::MAX_ACTIONS_PER_BURST,
+            "default budget is the compiled-in ceiling (no extra throttle)"
+        );
+
+        let mut settings = default.clone();
+        settings.swarm_max_actions_per_frame = 4;
+        let json = settings.to_settings_state();
+        assert_eq!(
+            json.pointer("/settings/swarm_max_actions_per_frame")
+                .and_then(Value::as_u64),
+            Some(4),
+            "the budget is serialized into the persisted blob"
+        );
+        assert_eq!(
+            normalize_workspace_settings_state(&json, &default),
+            settings,
+            "the budget round-trips through the backend JSON shape"
+        );
+
+        // Above the ceiling -> clamped DOWN; zero -> clamped UP; absent -> fallback.
+        let over = serde_json::json!({
+            "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
+            "settings": { "swarm_max_actions_per_frame": 9_999 },
+        });
+        assert_eq!(
+            normalize_workspace_settings_state(&over, &default).swarm_max_actions_per_frame,
+            crate::mcp::MAX_ACTIONS_PER_BURST,
+            "a persisted value above the ceiling cannot widen the flood control"
+        );
+        let zero = serde_json::json!({
+            "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID,
+            "settings": { "swarm_max_actions_per_frame": 0 },
+        });
+        assert_eq!(
+            normalize_workspace_settings_state(&zero, &default).swarm_max_actions_per_frame,
+            crate::mcp::MIN_ACTIONS_PER_BURST,
+            "a persisted zero cannot wedge every swarm agent"
+        );
+        let absent = serde_json::json!({ "schema_id": WORKSPACE_SETTINGS_SCHEMA_ID });
+        assert_eq!(
+            normalize_workspace_settings_state(&absent, &default).swarm_max_actions_per_frame,
+            default.swarm_max_actions_per_frame,
+            "an absent budget falls back per-field"
+        );
+    }
+
+    /// WP-1 MT-021: the two swarm interval rows are honest about being FIXED and about WHY, so an
+    /// operator cannot read them as an unfinished control that will start working on its own.
+    #[test]
+    fn fixed_swarm_interval_rows_state_the_reason_not_just_the_value() {
+        for setting in [
+            SWARM_RECONCILE_INTERVAL_SETTING,
+            SWARM_RESOURCE_POLL_INTERVAL_SETTING,
+        ] {
+            let note = setting.note.to_lowercase();
+            assert!(
+                note.contains("fixed at") && note.contains("not configurable"),
+                "'{}' states the value is fixed and not configurable: {note}",
+                setting.id
+            );
+            assert!(
+                note.contains("backend") && note.contains("no backend route exposes it"),
+                "'{}' states WHY it is fixed (backend-owned, no route): {note}",
+                setting.id
+            );
+        }
     }
 
     #[test]

@@ -3016,7 +3016,22 @@ impl HandshakeApp {
         self.settings_persist_error = None;
     }
 
+    /// WP-1 MT-021: push the persisted per-frame swarm admission budget into the LIVE action channel
+    /// (the one the MCP/Argus transport enqueues into and the frame loop drains). Called after a
+    /// settings load and on every change, so the running transport reflects the operator's budget
+    /// without a rebind. A poisoned lock is recovered rather than panicking the UI thread.
+    fn apply_swarm_admission_budget(&self) {
+        let budget = self.workspace_settings.swarm_max_actions_per_frame;
+        let mut channel = self
+            .mcp_action_channel
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        channel.set_burst_limit(budget);
+    }
+
     fn apply_workspace_settings_runtime_defaults(&mut self) {
+        // WP-1 MT-021: a loaded budget must reach the live drain path, not only the settings struct.
+        self.apply_swarm_admission_budget();
         let mut changed = false;
         if self.workspace_settings.swarm_board_default_open {
             changed |= self.navigate_to_tab("swarm");
@@ -3169,6 +3184,18 @@ impl HandshakeApp {
             }
             O::OperatorChatDefaultOpenChanged(value) => {
                 self.workspace_settings.operator_chat_default_open = value;
+                self.schedule_settings_save();
+                true
+            }
+            O::SwarmMaxActionsPerFrameChanged(value) => {
+                // WP-1 MT-021 (AC-3): clamp, persist, AND drive the real runtime immediately. The
+                // channel is the same `Arc<Mutex<ActionChannel>>` the live MCP/Argus server enqueues
+                // into and the frame loop drains, so the next drain honours the new budget with no
+                // transport rebind. Clamping here (not only on load) means a control that somehow
+                // offers an out-of-band value still cannot widen the compiled-in flood ceiling.
+                let clamped = crate::mcp::clamp_admission_budget(value);
+                self.workspace_settings.swarm_max_actions_per_frame = clamped;
+                self.apply_swarm_admission_budget();
                 self.schedule_settings_save();
                 true
             }

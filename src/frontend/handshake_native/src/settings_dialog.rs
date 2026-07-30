@@ -6,10 +6,22 @@
 //! from HELP > Open Settings… (MT-015 menu), the command palette action `settings.open` (MT-016), or a
 //! test/agent setting `app_state.settings_open = true`. It is a port of
 //! `app/src/components/SettingsMenu.tsx` over the [`crate::workspace_settings`] schema + helpers, with
-//! these sections in order: Appearance (theme + view mode — both WIRED), Keybindings (editable, with
-//! live conflict detection), Swarm (wired default-open checkboxes + not-yet-wired interval rows),
-//! Terminal (not-yet-wired rows), Layout (a wired Reset panes & drawers button), Cloud Models,
-//! Model Runtime (production-pane navigation), and About (app name + the real Cargo version).
+//! these NINE sections in order: Appearance (theme + view mode — both WIRED), Keybindings (editable,
+//! with live conflict detection), Swarm (wired default-open checkboxes, two backend-fixed interval rows
+//! that state WHY they cannot be configured, and the WIRED per-frame swarm admission budget),
+//! Terminal (not-yet-wired rows), Layout (a wired Reset panes & drawers button), Cloud Models (BYOK +
+//! CLI-bridge login, plus the per-lane cloud consent / export posture — currently an EXPLICIT not-wired
+//! state, never a fabricated posture), Model Runtime (production-pane navigation), Diagnostics (the
+//! wired resource-sampling toggle + real Palmistry/internal-diagnostics status), and About (app name +
+//! the real Cargo version).
+//!
+//! ## Truthfulness rule for un-wired state (WP-1 MT-021)
+//!
+//! A value Handshake cannot actually read renders as an EXPLICIT unavailable state that also says WHY.
+//! It never renders as a plausible default. This applies to the cloud consent / export posture (no
+//! backend route exists) and to the two swarm interval rows (backend-owned cadence, no route). A
+//! settings control also never grants or widens authority: the admission budget can only TIGHTEN the
+//! compiled-in flood ceiling, and nothing in the consent block is interactive at all.
 //!
 //! ## Swarm interaction contract (HBR-SWARM)
 //!
@@ -108,6 +120,12 @@ pub const SWARM_LANE_DIAGNOSTICS_CHECKBOX_AUTHOR_ID: &str =
 /// Stable author_id for the Operator Chat default-open checkbox.
 pub const SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID: &str =
     "settings.swarm-operator-chat-default-open";
+/// WP-1 MT-021 (AC-3): stable author_id for the per-frame SWARM ADMISSION BUDGET ComboBox — the number
+/// of queued swarm/Argus actions the shell admits into one egui frame when N agents drive it
+/// concurrently. This is a REAL control: the selected value is clamped, persisted through workspace
+/// settings, and pushed into the live [`crate::mcp::ActionChannel`] the running MCP/Argus transport
+/// drains, so the very next frame honours it.
+pub const SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID: &str = "settings.swarm-max-actions-per-frame";
 /// Stable author_id for the Reset panes & drawers button.
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
 /// Stable author_id for opening the production Model Runtime registry pane.
@@ -222,6 +240,56 @@ pub fn cloud_cli_login_cancel_author_id(provider: &str) -> String {
 /// Author_id for a CLI-bridge provider's status label: `settings.cloud.cli.{provider}.status`.
 pub fn cloud_cli_status_author_id(provider: &str) -> String {
     format!("settings.cloud.cli.{provider}.status")
+}
+
+// ── Cloud consent / export posture (WP-1 MT-021 AC-2) ──────────────────────────────────────────────
+//
+// The operator needs to see, per configured provider lane, whether cloud escalation is CONSENTED and
+// what leaves the machine — and, when access is refused, why. Handshake cannot show that today:
+//
+// - the consent artifacts exist as backend TYPES only (`llm/guard.rs` ProjectionPlanV0_4 /
+//   ConsentReceiptV0_4 / CloudEscalationBundleV0_4 + migration 0353);
+// - `api/mod.rs` builds `CloudLaneObservability { flight_recorder, consent: None }` — the live wiring
+//   is a literal `None`;
+// - `api/model_access.rs::routes` exposes ONLY `/model-access/providers`,
+//   `/model-access/byok/:provider/key`, and `/model-access/cli-bridge/:provider/login`. There is no
+//   consent or export-posture route to call.
+//
+// DECISION (recorded here because this is the code that would consume it): wiring the backend consent
+// route is NOT part of this MT. This MT is frontend-only by contract scope, a consent/export-posture
+// route is a backend trust-boundary surface that must be designed with its own privacy review
+// (HBR-PRIV-008: a denial reason must not leak restricted resource metadata), and inventing a shape
+// here would fix a contract the backend has not agreed to. It belongs in a FOLLOW-UP backend MT that
+// owns `api/model_access.rs` + `CloudLaneObservability.consent`.
+//
+// Until then the UI renders an explicit NOT-WIRED posture per lane and MUST NOT fabricate one. A
+// plausible-looking default ("Consented", "No export") would be worse than nothing: it would tell the
+// operator cloud data flow is under control when Handshake cannot see it at all.
+
+/// Author_id for a provider lane's consent / export posture row:
+/// `settings.cloud.consent.{provider}.posture`.
+pub fn cloud_consent_posture_author_id(provider: &str) -> String {
+    format!("settings.cloud.consent.{provider}.posture")
+}
+
+/// Author_id for the Cloud Models section's consent-posture summary row (the one node that states the
+/// whole surface's wiring state): `settings.cloud.consent.status`.
+pub const CLOUD_CONSENT_STATUS_AUTHOR_ID: &str = "settings.cloud.consent.status";
+
+/// The literal token every un-wired consent row carries, so a test (and an out-of-process model) can
+/// assert the surface is showing an explicit unavailable state rather than a fabricated posture.
+pub const CLOUD_CONSENT_NOT_WIRED_TOKEN: &str = "NOT WIRED";
+
+/// The exact per-lane posture line rendered while no backend consent route exists. It names ONLY the
+/// provider id already visible in the section above it — no project, workspace, account, artifact,
+/// resource id, or any other restricted metadata (HBR-PRIV-008). There is deliberately no
+/// "posture: allowed/denied" wording anywhere in it: Handshake does not know, and must not imply it.
+pub fn cloud_consent_posture_line(provider_label: &str) -> String {
+    format!(
+        "{CLOUD_CONSENT_NOT_WIRED_TOKEN} — Handshake cannot read {provider_label}'s cloud consent or \
+         export posture. No consent/export-posture route exists on the backend yet, so no posture is \
+         shown and none is assumed. Cloud escalation stays fail-closed at launch."
+    )
 }
 
 /// One non-secret BYOK provider row from the backend enumeration.
@@ -449,6 +517,10 @@ pub enum SettingsOutcome {
     SwarmLaneDiagnosticsDefaultOpenChanged(bool),
     /// The Operator Chat default-open checkbox was toggled. WIRED.
     OperatorChatDefaultOpenChanged(bool),
+    /// WP-1 MT-021: the per-frame swarm ADMISSION BUDGET ComboBox selected a different value. WIRED —
+    /// the shell clamps it, persists it, and pushes it into the live [`crate::mcp::ActionChannel`] the
+    /// running MCP/Argus transport drains, so concurrent-agent admission changes on the next frame.
+    SwarmMaxActionsPerFrameChanged(usize),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
     /// Open the production Model Runtime registry pane through the same route as RUN > Open Model
@@ -584,6 +656,7 @@ impl DialogState {
             swarm_lane_diagnostics_default_open: live.swarm_lane_diagnostics_default_open,
             operator_chat_default_open: live.operator_chat_default_open,
             resource_sampling_enabled: live.resource_sampling_enabled,
+            swarm_max_actions_per_frame: live.swarm_max_actions_per_frame,
         }
     }
 }
@@ -1171,6 +1244,12 @@ fn render_sections(
             "reconcile",
             "resource",
             "poll",
+            "concurrency",
+            "concurrent",
+            "admission",
+            "budget",
+            "agents",
+            "throttle",
         ],
     );
     if show_swarm {
@@ -1247,6 +1326,56 @@ fn render_sections(
                             SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID,
                         );
                         outcome = SettingsOutcome::OperatorChatDefaultOpenChanged(checked);
+                    }
+                });
+                // ── WP-1 MT-021 (AC-3): the REAL concurrency control. ───────────────────────────────
+                // Before this, the Swarm section had NO concurrency/lease control at all — only two
+                // read-only backend-owned interval literals. This row is bound to live runtime
+                // behaviour: the selected value is clamped, persisted, and pushed into the
+                // `ActionChannel` the running MCP/Argus transport drains, so it bounds how many queued
+                // actions N concurrent agents are admitted per frame from the next frame on.
+                //
+                // The coordinator's own `max_concurrent` spawn budget lives in the BACKEND
+                // (`swarm_orchestration::RunBudget`) with no route to read or set it, so it is NOT what
+                // this control drives — and the two fixed interval rows above now say why they cannot
+                // be controlled either, instead of only that they are "not yet wired".
+                //
+                // APPENDED at the END of the section body deliberately: inserting it above the existing
+                // rows would push every later widget (and the Terminal / Layout sections) down in the
+                // scroll body, the same coordinate-viewport regression the Layout-section rule at the
+                // Cloud Models block guards against.
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Concurrent swarm action budget");
+                        ui.label(
+                            egui::RichText::new(
+                                "Persisted + live. Max queued swarm/Argus actions admitted per frame when several agents drive the shell at once. Lower it to serialize concurrent agents; it can only tighten the built-in flood ceiling, never raise it.",
+                            )
+                            .small()
+                            .weak(),
+                        );
+                    });
+                    let current =
+                        crate::mcp::clamp_admission_budget(settings.swarm_max_actions_per_frame);
+                    let mut selected = current;
+                    let combo = egui::ComboBox::from_id_salt("settings.swarm-max-actions.combo")
+                        .selected_text(admission_budget_label(current))
+                        .show_ui(ui, |ui| {
+                            for option in crate::mcp::SWARM_ADMISSION_BUDGET_OPTIONS {
+                                ui.selectable_value(
+                                    &mut selected,
+                                    option,
+                                    admission_budget_label(option),
+                                );
+                            }
+                        });
+                    // The visible row label above is the accessible name; the combo carries only the
+                    // stable author_id (one node per name, like the Theme / View Mode combos). Ack the
+                    // open/close click so an out-of-process `argus.click` resolves Applied.
+                    set_author_id_ack_click(ui, &combo.response, SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID);
+                    if selected != current && outcome == SettingsOutcome::None {
+                        outcome = SettingsOutcome::SwarmMaxActionsPerFrameChanged(selected);
                     }
                 });
             });
@@ -1329,6 +1458,10 @@ fn render_sections(
             "login",
             "plan",
             "subscription",
+            "consent",
+            "export",
+            "posture",
+            "escalation",
         ],
     );
     if show_cloud {
@@ -1698,6 +1831,22 @@ fn render_cloud_models_body(
         }
     }
 
+    // ---- WP-1 MT-021 (AC-2): per-lane cloud consent / export posture, explicitly NOT WIRED. ----
+    // "Each configured provider lane" = every lane rendered above: the BYOK rows (snapshot or static
+    // seed) plus the CLI-bridge rows. De-duplicated by provider id so a provider offering both a BYOK
+    // key and a CLI login shows one posture row, not two.
+    let mut consent_lanes: Vec<(String, String)> = Vec::new();
+    for row in byok_rows.iter().map(|r| (&r.provider, &r.label)).chain(
+        cli_rows
+            .iter()
+            .map(|r| (&r.provider, &r.label)),
+    ) {
+        if !consent_lanes.iter().any(|(p, _)| p == row.0) {
+            consent_lanes.push((row.0.clone(), row.1.clone()));
+        }
+    }
+    render_cloud_consent_posture(ui, &consent_lanes);
+
     if let Some(provider) = cloud.pending_cli_login_confirmation.clone() {
         let label = cli_rows
             .iter()
@@ -1731,6 +1880,55 @@ fn render_cloud_models_body(
     }
 
     outcome
+}
+
+/// The ComboBox text for one per-frame swarm admission budget. The default (the compiled-in flood
+/// ceiling) is marked so the operator can tell "no extra throttle" from a deliberate throttle, and the
+/// fully-serialized minimum is named rather than shown as a bare `1`.
+fn admission_budget_label(budget: usize) -> String {
+    if budget == crate::mcp::MIN_ACTIONS_PER_BURST {
+        format!("{budget} (serialized)")
+    } else if budget == crate::mcp::MAX_ACTIONS_PER_BURST {
+        format!("{budget} (default — no extra throttle)")
+    } else {
+        budget.to_string()
+    }
+}
+
+/// Render the per-lane cloud consent / export posture rows (WP-1 MT-021 AC-2).
+///
+/// HONESTY CONTRACT: there is no backend consent/export-posture route (see the module-level decision
+/// note next to [`cloud_consent_posture_author_id`]), so every row renders the SAME explicit not-wired
+/// line — never an inferred, defaulted, or plausible-looking posture. If a route later lands, this is
+/// the single place that switches from the not-wired line to the real posture + denial reason.
+///
+/// PRIVACY (HBR-PRIV-008): the rendered text is built ONLY from the provider label already displayed in
+/// the rows above. It carries no project, workspace, account, artifact, or resource identifier, and no
+/// denial reason is synthesized — Handshake has none to show, and inventing one is exactly the leak
+/// vector this control exists to avoid.
+fn render_cloud_consent_posture(ui: &mut egui::Ui, lanes: &[(String, String)]) {
+    ui.add_space(8.0);
+    ui.label(
+        egui::RichText::new("Cloud consent & export posture")
+            .small()
+            .strong(),
+    );
+    let summary_text = format!(
+        "{CLOUD_CONSENT_NOT_WIRED_TOKEN} — no consent or export posture is available for any lane. \
+         The backend exposes no consent/export-posture route yet, so Handshake shows no posture and \
+         assumes none. Nothing here grants, widens, or records consent.",
+    );
+    let summary = ui.label(egui::RichText::new(&summary_text).small().weak());
+    set_author_id_and_label(ui, summary.id, CLOUD_CONSENT_STATUS_AUTHOR_ID, &summary_text);
+
+    for (provider, label) in lanes {
+        let line = cloud_consent_posture_line(label);
+        // Plain `ui.label` text is NOT auto-emitted into the AccessKit tree of the DETACHED settings
+        // viewport (embedded viewports only auto-emit interactive widgets), so — exactly like the BYOK
+        // and CLI status rows — the posture text is attached as an explicit label. Non-secret text only.
+        let row = ui.label(egui::RichText::new(&line).small());
+        set_author_id_and_label(ui, row.id, &cloud_consent_posture_author_id(provider), &line);
+    }
 }
 
 /// Render one not-yet-wired row: label + note on the left, a DISABLED read-only text input pinned to the
@@ -1865,6 +2063,141 @@ mod tests {
         assert_eq!(CLOSE_AUTHOR_ID, "settings.close");
         assert_eq!(SETTINGS_POPOUT_AUTHOR_ID, "settings.popout");
         assert_eq!(SETTINGS_REDOCK_AUTHOR_ID, "settings.redock");
+
+        // ── WP-1 MT-021 (AC-5): pre-existing coverage hole. ────────────────────────────────────────
+        // These ids shipped with the WP-1 Settings work but were pinned by NOTHING — no test in the
+        // crate referenced them, so a rename would have silently broken every out-of-process model and
+        // Argus script addressing them without a single failing test. They are pinned here now.
+        assert_eq!(
+            SWARM_LANE_DIAGNOSTICS_CHECKBOX_AUTHOR_ID,
+            "settings.swarm-lane-diagnostics-default-open"
+        );
+        assert_eq!(
+            SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID,
+            "settings.swarm-operator-chat-default-open"
+        );
+        assert_eq!(OPEN_MODEL_RUNTIME_AUTHOR_ID, "settings.model-runtime.open");
+        assert_eq!(
+            OPEN_PROBLEMS_AUTHOR_ID,
+            "settings.model-runtime.open-problems"
+        );
+        assert_eq!(
+            OPEN_OPERATOR_CHAT_AUTHOR_ID,
+            "settings.model-runtime.open-operator-chat"
+        );
+        assert_eq!(
+            RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID,
+            "settings.diagnostics.resource-sampling-enabled"
+        );
+        assert_eq!(
+            PALMISTRY_STATUS_AUTHOR_ID,
+            "settings.diagnostics.palmistry-status"
+        );
+        assert_eq!(
+            DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID,
+            "settings.diagnostics.subsystem-status"
+        );
+
+        // ── WP-1 MT-021 (AC-4): the ids this MT adds. ──────────────────────────────────────────────
+        assert_eq!(
+            SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID,
+            "settings.swarm-max-actions-per-frame"
+        );
+        assert_eq!(CLOUD_CONSENT_STATUS_AUTHOR_ID, "settings.cloud.consent.status");
+        assert_eq!(
+            cloud_consent_posture_author_id("anthropic"),
+            "settings.cloud.consent.anthropic.posture"
+        );
+        assert_eq!(
+            cloud_consent_posture_author_id("claude_code"),
+            "settings.cloud.consent.claude_code.posture"
+        );
+
+        // Every pinned id is unique — a copy/paste collision would make two controls indistinguishable
+        // out-of-process.
+        let ids = [
+            SETTINGS_DIALOG_AUTHOR_ID,
+            SETTINGS_SEARCH_AUTHOR_ID,
+            SETTINGS_LIST_AUTHOR_ID,
+            THEME_COMBO_AUTHOR_ID,
+            VIEW_MODE_COMBO_AUTHOR_ID,
+            SWARM_BOARD_CHECKBOX_AUTHOR_ID,
+            SWARM_LANE_DIAGNOSTICS_CHECKBOX_AUTHOR_ID,
+            SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID,
+            SWARM_MAX_ACTIONS_COMBO_AUTHOR_ID,
+            RESET_LAYOUT_AUTHOR_ID,
+            OPEN_MODEL_RUNTIME_AUTHOR_ID,
+            OPEN_PROBLEMS_AUTHOR_ID,
+            OPEN_OPERATOR_CHAT_AUTHOR_ID,
+            RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID,
+            PALMISTRY_STATUS_AUTHOR_ID,
+            DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID,
+            CLOUD_CONSENT_STATUS_AUTHOR_ID,
+            CLOSE_AUTHOR_ID,
+            SETTINGS_POPOUT_AUTHOR_ID,
+            SETTINGS_REDOCK_AUTHOR_ID,
+        ];
+        let mut sorted = ids.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), ids.len(), "settings author_ids are unique");
+    }
+
+    /// WP-1 MT-021 (AC-2, red-team): the consent posture line is an EXPLICIT unavailable state and
+    /// never a fabricated posture, and it leaks no restricted resource metadata (HBR-PRIV-008).
+    #[test]
+    fn cloud_consent_posture_line_is_explicitly_unwired_and_leaks_no_metadata() {
+        let line = cloud_consent_posture_line("Anthropic (Claude)");
+        assert!(
+            line.contains(CLOUD_CONSENT_NOT_WIRED_TOKEN),
+            "the line carries the explicit not-wired token: {line}"
+        );
+        assert!(
+            line.contains("no posture is shown and none is assumed"),
+            "the line refuses to assume a posture: {line}"
+        );
+        // No fabricated verdict wording. "consent" appears only as the NAME of the missing surface.
+        let lowered = line.to_lowercase();
+        for forbidden in [
+            "consented",
+            "approved",
+            "granted",
+            "allowed",
+            "denied",
+            "refused",
+            "export allowed",
+            "no export",
+        ] {
+            assert!(
+                !lowered.contains(forbidden),
+                "the not-wired line must not imply a verdict ('{forbidden}'): {line}"
+            );
+        }
+        // Only the provider label the section already displays; no scoped identifiers.
+        for leaked in [
+            "workspace",
+            "project",
+            "account",
+            "artifact",
+            "resource id",
+            "user_id",
+            "receipt",
+            "sha256",
+        ] {
+            assert!(
+                !lowered.contains(leaked),
+                "the not-wired line must not carry restricted metadata ('{leaked}'): {line}"
+            );
+        }
+    }
+
+    /// WP-1 MT-021 (AC-3): the admission-budget ComboBox text distinguishes "no extra throttle" from a
+    /// deliberate throttle, so the default is never mistaken for a configured limit.
+    #[test]
+    fn admission_budget_labels_name_the_default_and_the_serialized_floor() {
+        assert!(admission_budget_label(crate::mcp::MIN_ACTIONS_PER_BURST).contains("serialized"));
+        assert!(admission_budget_label(crate::mcp::MAX_ACTIONS_PER_BURST).contains("default"));
+        assert_eq!(admission_budget_label(4), "4");
     }
 
     /// MT-015 detached window: the pop-out key feeds the SHARED pane pop-out id scheme, so the detached

@@ -838,6 +838,249 @@ fn model_runtime_settings_action_opens_canonical_problems_pane() {
     );
 }
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-1 MT-021 — Settings operator-surface gaps
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// AC-3: the Swarm section now carries a REAL concurrency control. This proves the whole chain, not a
+/// rendered widget: the control is addressable out-of-process, the outcome the live ComboBox produces
+/// mutates the persisted setting, PUSHES the value into the same `ActionChannel` the running MCP/Argus
+/// transport drains (so concurrent-agent admission actually changes), and persists through
+/// `PUT /workspaces/{id}/settings`. It also proves the setting can only TIGHTEN the flood ceiling.
+#[test]
+fn swarm_admission_budget_control_drives_the_live_action_channel_and_persists() {
+    let transport = StubSettingsTransport::with_loaded(None);
+    let handle = leak_runtime_handle();
+    let mut app = ok_app();
+    app.set_runtime_handle(handle);
+    app.set_settings_transport(transport.clone());
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    // Addressable out-of-process by its stable author_id (AC-4).
+    let ids = settings_author_ids(&harness);
+    assert!(
+        ids.iter()
+            .any(|id| id == "settings.swarm-max-actions-per-frame"),
+        "AC-3/AC-4: the swarm admission-budget control is addressable in the live tree: {ids:?}"
+    );
+
+    // Baseline: the live channel runs at the compiled-in ceiling (no extra throttle).
+    let channel = harness.state().mcp_action_channel();
+    let baseline = channel.lock().unwrap().burst_limit();
+    assert_eq!(
+        baseline,
+        handshake_native::mcp::MAX_ACTIONS_PER_BURST,
+        "default admission budget is the compiled-in flood ceiling"
+    );
+
+    // Drive the wired change through the same outcome the live ComboBox emits (a kittest cannot
+    // reliably click into an egui ComboBox popup item across frames — the same path the Theme /
+    // View Mode proofs use).
+    harness.state_mut().apply_settings_outcome_for_test(
+        handshake_native::settings_dialog::SettingsOutcome::SwarmMaxActionsPerFrameChanged(1),
+    );
+    harness.run();
+
+    assert_eq!(
+        harness
+            .state()
+            .workspace_settings()
+            .swarm_max_actions_per_frame,
+        1,
+        "the persisted setting holds the configured budget"
+    );
+    assert_eq!(
+        channel.lock().unwrap().burst_limit(),
+        1,
+        "AC-3: the LIVE action channel the MCP/Argus transport drains now admits 1 action per frame"
+    );
+
+    // The control cannot widen the compiled-in ceiling (a UI control must never loosen a safety bound).
+    harness.state_mut().apply_settings_outcome_for_test(
+        handshake_native::settings_dialog::SettingsOutcome::SwarmMaxActionsPerFrameChanged(
+            usize::MAX,
+        ),
+    );
+    harness.run();
+    assert_eq!(
+        channel.lock().unwrap().burst_limit(),
+        handshake_native::mcp::MAX_ACTIONS_PER_BURST,
+        "an out-of-band budget is clamped down to the compiled-in ceiling, never above it"
+    );
+
+    // Persisted through the real settings PUT.
+    assert!(
+        run_until(&mut harness, 60, |_| transport.save_calls() >= 1),
+        "admission budget persisted through PUT /workspaces/{{id}}/settings"
+    );
+    let blob = transport.saved().expect("a settings_state blob was PUT");
+    assert_eq!(
+        blob.pointer("/settings/swarm_max_actions_per_frame")
+            .and_then(Value::as_u64),
+        Some(handshake_native::mcp::MAX_ACTIONS_PER_BURST as u64),
+        "persisted blob carries the admission budget"
+    );
+}
+
+/// AC-2 + red-team: cloud consent / export posture is VISIBLE per configured provider lane and is an
+/// explicit not-wired state — never a fabricated posture, and never carrying restricted metadata.
+///
+/// The backend supplies no posture (`api/mod.rs` builds `CloudLaneObservability { consent: None }` and
+/// `api/model_access.rs::routes` exposes no consent route), so the ONLY honest render is the explicit
+/// unavailable state asserted here. If a future MT wires the route, this test is what forces the UI to
+/// stop claiming "not wired" once real posture exists.
+#[test]
+fn cloud_consent_posture_is_visible_per_lane_and_explicitly_not_wired() {
+    use handshake_native::settings_dialog::{
+        cloud_consent_posture_author_id, CloudAccessSnapshot, CloudByokRow, CloudCliAuthStatus,
+        CloudCliRow, CLOUD_CONSENT_NOT_WIRED_TOKEN, CLOUD_CONSENT_STATUS_AUTHOR_ID,
+    };
+
+    let mut app = ok_app();
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    // Two configured lanes of each kind, so "each configured provider lane" is really exercised.
+    app.set_cloud_snapshot_for_test(CloudAccessSnapshot {
+        byok: vec![
+            CloudByokRow {
+                provider: "anthropic".to_owned(),
+                label: "Anthropic (Claude)".to_owned(),
+                configured: true,
+            },
+            CloudByokRow {
+                provider: "openai".to_owned(),
+                label: "OpenAI (GPT)".to_owned(),
+                configured: false,
+            },
+        ],
+        cli_bridge: vec![CloudCliRow {
+            provider: "claude_code".to_owned(),
+            label: "Claude Code".to_owned(),
+            auth_status: CloudCliAuthStatus::LoggedIn,
+            login_program: "claude".to_owned(),
+            login_args: vec!["login".to_owned()],
+            hint: String::new(),
+        }],
+    });
+
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1440.0, 940.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    let nodes = settings_author_nodes(&harness);
+    let label_for = |author_id: &str| -> String {
+        nodes
+            .iter()
+            .find(|(a, _, _)| a == author_id)
+            .unwrap_or_else(|| {
+                panic!(
+                    "AC-2: consent node '{author_id}' missing from the live settings tree: {:?}",
+                    nodes.iter().map(|(a, _, _)| a).collect::<Vec<_>>()
+                )
+            })
+            .2
+            .clone()
+            .unwrap_or_else(|| panic!("consent node '{author_id}' carries no readable label"))
+    };
+
+    // The section-level summary states the whole surface is unavailable.
+    let summary = label_for(CLOUD_CONSENT_STATUS_AUTHOR_ID);
+    assert!(
+        summary.contains(CLOUD_CONSENT_NOT_WIRED_TOKEN),
+        "AC-2: the consent summary is an explicit not-wired state: {summary}"
+    );
+
+    // One posture row per CONFIGURED lane (BYOK + CLI), each explicitly unavailable.
+    for provider in ["anthropic", "openai", "claude_code"] {
+        let line = label_for(&cloud_consent_posture_author_id(provider));
+        assert!(
+            line.contains(CLOUD_CONSENT_NOT_WIRED_TOKEN),
+            "AC-2: lane '{provider}' renders an explicit not-wired posture: {line}"
+        );
+        assert!(
+            line.contains("none is assumed"),
+            "AC-2: lane '{provider}' refuses to assume a posture: {line}"
+        );
+        // RED TEAM: no fabricated verdict, and no restricted resource metadata (HBR-PRIV-008).
+        let lowered = line.to_lowercase();
+        for forbidden in ["consented", "approved", "granted", "allowed", "denied"] {
+            assert!(
+                !lowered.contains(forbidden),
+                "lane '{provider}' must not imply a consent verdict ('{forbidden}'): {line}"
+            );
+        }
+        for leaked in ["workspace", "project", "account", "artifact", "sha256", "receipt"] {
+            assert!(
+                !lowered.contains(leaked),
+                "lane '{provider}' must not leak restricted metadata ('{leaked}'): {line}"
+            );
+        }
+    }
+
+    // No control in this block can grant or widen consent — the whole surface is display-only, so no
+    // consent-scoped author_id is interactive.
+    for (author_id, role, _) in &nodes {
+        if author_id.starts_with("settings.cloud.consent.") {
+            assert_ne!(
+                role, "Button",
+                "no consent control may exist: '{author_id}' rendered as a Button"
+            );
+            assert_ne!(
+                role, "CheckBox",
+                "no consent control may exist: '{author_id}' rendered as a CheckBox"
+            );
+        }
+    }
+}
+
+/// AC-5: the four WP-1 Settings author_ids that previously had ZERO test references anywhere in the
+/// crate. Nothing proved they reached the live AccessKit tree, so a rename or an accidental drop would
+/// have broken every out-of-process model addressing them with no failing test. This asserts they are
+/// live and addressable in the real shell; the string values themselves are pinned by
+/// `settings_dialog::tests::settings_author_ids_are_stable`.
+#[test]
+fn wp1_settings_author_ids_are_addressable_in_the_live_tree() {
+    use handshake_native::settings_dialog::{
+        DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID, OPEN_OPERATOR_CHAT_AUTHOR_ID,
+        PALMISTRY_STATUS_AUTHOR_ID, RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID,
+    };
+
+    let mut harness = open_settings_harness();
+    harness.run();
+
+    let ids = settings_author_ids(&harness);
+    for required in [
+        OPEN_OPERATOR_CHAT_AUTHOR_ID,
+        RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID,
+        PALMISTRY_STATUS_AUTHOR_ID,
+        DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            ids.iter().any(|id| id == required),
+            "AC-5: WP-1 settings id '{required}' must be addressable in the live tree: {ids:?}"
+        );
+    }
+
+    // The Operator Chat deep-link is a real navigation control, driven out-of-process.
+    click_settings_author_id(&mut harness, OPEN_OPERATOR_CHAT_AUTHOR_ID);
+    harness.run();
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == PaneType::OperatorChatLaunch)
+        }),
+        "AC-5: the Operator Chat deep-link opens the real OperatorChatLaunch pane"
+    );
+}
+
 // ── MT-015 detached Settings window (pop-out / re-dock / close) ──────────────────────────────────────
 //
 // The MT-015 v4 fail report requires the Settings surface to be targetable as a DETACHED window, not

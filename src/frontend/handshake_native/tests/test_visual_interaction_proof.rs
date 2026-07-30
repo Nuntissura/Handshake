@@ -888,9 +888,9 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
     // Per-overlay case: (surface label, real open trigger, the dialog author_id that MUST appear once
     // opened, and the explicit author_ids tagged in the prior round that MUST be present in the captured
     // overlay tree REGARDLESS of egui role classification — the MINOR explicit-id fix). The settings
-    // overlay's six section-header ids are derived from the crate's `SECTION_HEADER_AUTHOR_ID_PREFIX`
+    // overlay's nine section-header ids are derived from the crate's `SECTION_HEADER_AUTHOR_ID_PREFIX`
     // const + the six section names (sourced, not literal); each overlay's close button id comes from its
-    // crate const. So a future egui role change cannot silently drop these 8 ids from coverage.
+    // crate const. So a future egui role change cannot silently drop these 11 ids from coverage.
     struct OverlayCase {
         label: &'static str,
         open: fn(&mut HandshakeApp),
@@ -899,12 +899,18 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
         /// (independent of role), so a role reclassification cannot drop them from the invariant.
         required_author_ids: Vec<String>,
     }
+    // WP-1 MT-021 (AC-5): this list previously named only SIX of the dialog's NINE sections — the
+    // three WP-1-era sections (Cloud Models, Model Runtime, Diagnostics) were absent, so their headers
+    // could have vanished or been renamed without this invariant noticing. All nine are listed now.
     let settings_section_ids: Vec<String> = [
         "appearance",
         "keybindings",
         "swarm",
         "terminal",
         "layout",
+        "cloud-models",
+        "model-runtime",
+        "diagnostics",
         "about",
     ]
     .iter()
@@ -949,7 +955,7 @@ fn scenario_accessibility_invariant(dir: &std::path::Path) -> ScenarioResult {
             );
         }
 
-        // MINOR fix — explicit author_id presence: the 8 ids tagged in the prior round (6 settings
+        // MINOR fix — explicit author_id presence: the 11 ids tagged here (the NINE settings
         // section headers + the 2 overlay close buttons) MUST be present in the captured tree by direct
         // author_id lookup, independent of how egui classifies their role. A future egui role change
         // therefore cannot silently drop them from the invariant's coverage.

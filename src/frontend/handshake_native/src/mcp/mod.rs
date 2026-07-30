@@ -57,8 +57,9 @@ pub mod session;
 pub mod tools;
 
 pub use action::{
-    build_action_request, resolve_target, ActionChannel, ActionError, ActionOutcome,
-    DrainedActionBatch, UiAction, DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
+    build_action_request, clamp_admission_budget, resolve_target, ActionChannel, ActionError,
+    ActionOutcome, DrainedActionBatch, UiAction, DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
+    MIN_ACTIONS_PER_BURST, SWARM_ADMISSION_BUDGET_OPTIONS,
 };
 pub use argus::{
     acknowledge_action_effect, register_action_effect, ActionEffectRegistration,

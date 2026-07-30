@@ -38,7 +38,27 @@ pub const DEFAULT_ACTION_CAPACITY: usize = 64;
 /// The maximum number of actions a single [`ActionChannel::drain_into_events`] call will emit in one
 /// frame. Implements the red-team "action flood" control: even a full queue cannot push more than this
 /// many actions into a single egui frame, so one frame's input is always bounded.
+///
+/// This is the HARD ceiling. The operator may lower the live budget below it (never above) through
+/// Settings > Swarm ([`ActionChannel::set_burst_limit`]); the compiled-in ceiling still applies, so a
+/// settings value can only ever TIGHTEN the flood control, never widen it.
 pub const MAX_ACTIONS_PER_BURST: usize = 16;
+
+/// The smallest admission budget the operator may configure: one swarm action per frame (fully
+/// serialized concurrent-agent admission). Zero is not offered — it would wedge every agent.
+pub const MIN_ACTIONS_PER_BURST: usize = 1;
+
+/// The discrete per-frame swarm admission budgets Settings offers, ascending. Kept a small closed set
+/// (rather than a free-form number) so the control is a ComboBox an out-of-process agent can enumerate
+/// and drive deterministically, and so every offered value is inside `1..=MAX_ACTIONS_PER_BURST`.
+pub const SWARM_ADMISSION_BUDGET_OPTIONS: [usize; 4] = [1, 4, 8, MAX_ACTIONS_PER_BURST];
+
+/// Clamp an arbitrary (persisted or operator-supplied) admission budget into the legal
+/// `MIN_ACTIONS_PER_BURST..=MAX_ACTIONS_PER_BURST` range. A foreign/garbage persisted value can
+/// therefore never widen the flood control or wedge the queue.
+pub fn clamp_admission_budget(value: usize) -> usize {
+    value.clamp(MIN_ACTIONS_PER_BURST, MAX_ACTIONS_PER_BURST)
+}
 
 /// A model-facing UI action, addressed by a widget's stable `author_id`. This is the typed core the
 /// JSON-RPC tool layer parses request params into; keeping it a closed enum (rather than a stringly
@@ -220,6 +240,12 @@ pub struct ActionChannel {
     queue: VecDeque<QueuedAction>,
     capacity: usize,
     receipts: ActionReceiptTracker,
+    /// Operator-configured per-frame swarm admission budget (Settings > Swarm). `None` means "use the
+    /// compiled-in [`MAX_ACTIONS_PER_BURST`] ceiling" — which is exactly the pre-MT-021 behaviour, so
+    /// `Default`/`new()` are unchanged for every existing caller. `Some(n)` is always clamped into
+    /// `MIN_ACTIONS_PER_BURST..=MAX_ACTIONS_PER_BURST` by [`Self::set_burst_limit`], so a configured
+    /// value can only TIGHTEN the flood control.
+    burst_limit: Option<usize>,
 }
 
 impl ActionChannel {
@@ -234,7 +260,26 @@ impl ActionChannel {
             queue: VecDeque::new(),
             capacity: capacity.max(1),
             receipts: ActionReceiptTracker::default(),
+            burst_limit: None,
         }
+    }
+
+    /// Set the live per-frame swarm admission budget (WP-1 MT-021, Settings > Swarm). The value is
+    /// clamped into `MIN_ACTIONS_PER_BURST..=MAX_ACTIONS_PER_BURST`, so this can only lower the number
+    /// of queued swarm actions one frame admits — never raise it above the compiled-in flood ceiling.
+    ///
+    /// This is the REAL runtime effect of the Settings control: the very next
+    /// [`Self::drain_for_window`] / [`Self::drain_for_viewport`] admits at most this many actions, and
+    /// the rest stay queued for later frames. The shell holds this channel behind the same
+    /// `Arc<Mutex<_>>` the live MCP/Argus server enqueues into, so the change applies to the running
+    /// transport without a rebind.
+    pub fn set_burst_limit(&mut self, limit: usize) {
+        self.burst_limit = Some(clamp_admission_budget(limit));
+    }
+
+    /// The live per-frame swarm admission budget actually applied by the drain path.
+    pub fn burst_limit(&self) -> usize {
+        self.burst_limit.unwrap_or(MAX_ACTIONS_PER_BURST)
     }
 
     /// Number of pending (not-yet-drained) actions.
@@ -316,7 +361,8 @@ impl ActionChannel {
         self.receipts.clone()
     }
 
-    /// Drain up to [`MAX_ACTIONS_PER_BURST`] pending actions into a list of `egui::Event`s the frame
+    /// Drain up to the live admission budget ([`Self::burst_limit`], default [`MAX_ACTIONS_PER_BURST`],
+    /// lowerable from Settings > Swarm) pending actions into a list of `egui::Event`s the frame
     /// loop feeds to egui this frame. For each drained action: the `AccessKitActionRequest` event,
     /// followed (for `SetValue`) by the `Text` event so the focused field receives the characters.
     ///
@@ -353,8 +399,12 @@ impl ActionChannel {
         let mut retained = VecDeque::with_capacity(self.queue.len());
         let mut terminal_dropped_actions = HashSet::new();
         let mut taken = 0usize;
+        // WP-1 MT-021: the live, operator-configurable admission budget (defaults to the compiled-in
+        // MAX_ACTIONS_PER_BURST ceiling). Read once per drain so a mid-drain settings change cannot
+        // produce a torn budget within one frame.
+        let burst_limit = self.burst_limit();
         while let Some(queued) = self.queue.pop_front() {
-            if queued.window_id != window_id || taken >= MAX_ACTIONS_PER_BURST {
+            if queued.window_id != window_id || taken >= burst_limit {
                 retained.push_back(queued);
                 continue;
             }
@@ -593,6 +643,59 @@ mod tests {
             5,
             "remainder stays queued for the next frame"
         );
+    }
+
+    /// WP-1 MT-021 (AC-3): the operator-configurable per-frame swarm admission budget is a REAL drain
+    /// bound, not a display value. Lowering it makes the very next drain admit fewer actions and leave
+    /// the rest queued; it can never be raised above the compiled-in flood ceiling, and a garbage
+    /// persisted value is clamped rather than obeyed.
+    #[test]
+    fn configured_admission_budget_bounds_the_next_drain_and_cannot_widen_the_ceiling() {
+        let snap = fixture_snapshot();
+        let mut chan = ActionChannel::new();
+        assert_eq!(
+            chan.burst_limit(),
+            MAX_ACTIONS_PER_BURST,
+            "default budget is the compiled-in ceiling (unchanged pre-MT-021 behaviour)"
+        );
+
+        for _ in 0..(MAX_ACTIONS_PER_BURST + 5) {
+            chan.enqueue(&snap, "btn", UiAction::Click)
+                .expect("enqueue click");
+        }
+        // Serialize concurrent-agent admission to one action per frame.
+        chan.set_burst_limit(1);
+        assert_eq!(chan.burst_limit(), 1);
+        assert_eq!(
+            chan.drain_into_events().len(),
+            1,
+            "the configured budget bounds the very next drain"
+        );
+        assert_eq!(
+            chan.pending(),
+            MAX_ACTIONS_PER_BURST + 4,
+            "everything above the budget stays queued for later frames"
+        );
+
+        // Raising past the ceiling is clamped DOWN (a settings value can only tighten the control).
+        chan.set_burst_limit(usize::MAX);
+        assert_eq!(chan.burst_limit(), MAX_ACTIONS_PER_BURST);
+        assert_eq!(
+            chan.drain_into_events().len(),
+            MAX_ACTIONS_PER_BURST,
+            "clamped budget still bounded by the compiled-in flood ceiling"
+        );
+
+        // Zero would wedge every agent; it is clamped UP to the serialized minimum.
+        chan.set_burst_limit(0);
+        assert_eq!(chan.burst_limit(), MIN_ACTIONS_PER_BURST);
+        assert_eq!(clamp_admission_budget(0), MIN_ACTIONS_PER_BURST);
+        assert_eq!(clamp_admission_budget(9999), MAX_ACTIONS_PER_BURST);
+
+        // Every offered Settings option is inside the legal band and clamps to itself.
+        for option in SWARM_ADMISSION_BUDGET_OPTIONS {
+            assert_eq!(clamp_admission_budget(option), option, "option {option}");
+        }
     }
 
     #[test]
