@@ -1690,8 +1690,10 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "workspace plus normalized title",
             "successful off-workspace create is cached",
             "backlink-{source_document_id}",
+            "editor.rich.insert-slash-command",
             "code-symbol-search",
             "code-symbol-search-input",
+            "code-symbol-result-{symbol_entity_id}",
             "code-ref-chip-{symbol_entity_id}",
             "[[code:path/to/file.rs#MyStruct]]",
             "path#Symbol",
@@ -1703,7 +1705,12 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "GET /knowledge/code/symbols/{symbol_entity_id}",
             "lookup_symbols_by_name_path",
             "GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=1",
+            "canonical readable file path derived from symbol_key",
+            "source_id is opaque provenance",
             "visible line range contains line_start",
+            "fresh=false",
+            "stale_source",
+            "re-index before navigation",
             "same normalized title or alias",
             "add_local_alias is the sole alias source",
             "A restart or fresh resolver seed restores titles but cannot restore aliases",
@@ -1719,6 +1726,10 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "block_id",
             "note-ref-{document_id}",
             "document_id",
+            "argus.inspect -> argus.click the exact create target",
+            "stale expected_version with HTTP 409",
+            "current-source backend on the same listener",
+            "marked_stale/fresh=false",
             "interop.open-document",
             "CMD_OPEN_DOCUMENT",
             "EditorEvent::BacklinkActivated",
@@ -1733,6 +1744,10 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "Tier 1 Flight Recorder/EventLedger = WIRED",
             "KnowledgeRichDocumentSaved",
             "save_receipt_event_id",
+            "MT-034 Tier 2 internal_diagnostics = DEFERRED-with-reason",
+            "neither client registers an MT-034-specific operation watchdog",
+            "MT-034 Tier 3 Palmistry = DEFERRED-with-reason",
+            "no code-reference-specific survivor payload or ring registration",
             "Tier 2 internal_diagnostics = WIRED",
             "shared BackendCall operation watchdog",
             "ReqwestWikilinkBackend::list_backlinks",
@@ -2160,6 +2175,69 @@ fn mt032_agent_tool_reference_covers_fixed_backlinks_controls() {
         assert_eq!(row.surface, ManualSurface::Interop);
         assert_eq!(row.mcp_tool, canonical_tool_name(tool));
         assert_eq!(row.action_label, label);
+    }
+}
+
+#[test]
+fn mt034_manual_covers_canonical_argus_restart_conflict_stale_and_diagnostics() {
+    let rows = row_by_id();
+    for (author_id, method) in [
+        ("editor.rich.insert-slash-command", "argus.click"),
+        ("code-symbol-search", "argus.inspect"),
+        ("code-symbol-search-input", "argus.set_value"),
+        ("code-symbol-result-{symbol_entity_id}", "argus.click"),
+        ("code-ref-chip-{symbol_entity_id}", "argus.click"),
+        ("note-refs-panel", "argus.inspect"),
+        ("note-ref-{document_id}", "argus.click"),
+    ] {
+        let row = rows
+            .get(author_id)
+            .unwrap_or_else(|| panic!("missing MT-034 agent-tool row '{author_id}'"));
+        assert_eq!(
+            row.mcp_tool, method,
+            "MT-034 {author_id} must name the canonical Argus method directly"
+        );
+        assert!(
+            !matches!(row.mcp_tool, "list_widgets" | "set_value" | "click_widget"),
+            "MT-034 rows must not retain retired MCP aliases"
+        );
+        assert!(
+            row.description.contains("argus.inspect")
+                || row.description.contains("fresh")
+                || row.description.contains("receipt"),
+            "MT-034 {author_id} must explain observation or receipt closure"
+        );
+    }
+
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Wikilinks and Backlinks");
+    for required in [
+        "editor.rich.insert-slash-command",
+        "code-symbol-result-{symbol_entity_id}",
+        "argus.inspect -> argus.click the exact create target",
+        "attributed receipt",
+        "fresh inspection",
+        "canonical readable file path derived from symbol_key",
+        "source_id is opaque provenance",
+        "fresh=false",
+        "typed stale_source",
+        "re-index before navigation",
+        "stale expected_version with HTTP 409",
+        "committed content unchanged",
+        "fixture-owned current-source backend on the same listener",
+        "document, symbol, and exact reverse lookup",
+        "marked_stale/fresh=false",
+        "Tier 1 Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason",
+        "KnowledgeRichDocumentSaved/save_receipt_event_id",
+        "MT-034 Tier 2 internal_diagnostics = DEFERRED-with-reason",
+        "neither client registers an MT-034-specific operation watchdog",
+        "MT-034 Tier 3 Palmistry = DEFERRED-with-reason",
+        "no code-reference-specific survivor payload or ring registration",
+    ] {
+        assert!(
+            body.contains(required),
+            "MT-034 no-context manual must preserve '{required}'"
+        );
     }
 }
 

@@ -1618,27 +1618,44 @@ link chip is inserted; a link to a title that does not exist yet offers create-f
   status says Created only when created=true, and Opened existing/reused when created=false. Clicking \
   an unambiguous wikilink chip navigates to its target through the \
 MT-030 ShellNavigator (open_document / open_loom_block). Code references are the code branch of the same \
-hsLink atom: /code-ref opens code-symbol-search with input code-symbol-search-input, selecting a backend \
-lookup result inserts a chip addressed as code-ref-chip-{symbol_entity_id}, and clicking that chip dispatches \
+hsLink atom. An operator types /code-ref to open code-symbol-search, enters a query through \
+code-symbol-search-input, and selects code-symbol-result-{symbol_entity_id}; the result inserts \
+code-ref-chip-{symbol_entity_id}. A model first uses argus.inspect, then either drives that dialog with \
+argus.set_value plus argus.click or creates the exact same hsLink through \
+argus.click{target:'editor.rich.insert-slash-command',payload:{kind:'wikilink',ref_kind:'code',\
+ref_value:'<symbol_entity_id>',label:'<display_name>'}}. It must verify the attributed receipt and perform a \
+fresh argus.inspect before continuing. Clicking code-ref-chip-{symbol_entity_id} dispatches \
 open-code-symbol / CMD_OPEN_CODE_SYMBOL through dispatch_code_ref_open. Hand-authored \
 [[code:path/to/file.rs#MyStruct]] carries path#Symbol in the same ref_value; when the live shell drains \
 take_pending_code_symbol in HandshakeApp::drive_ckc_interop, ShellNavigator::open_code_symbol resolves \
 entity ids through GET /knowledge/code/symbols/{symbol_entity_id} and resolves path#Symbol refs through \
 lookup_symbols_by_name_path / GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=1, then loads \
-  the returned source_id into the mounted Code Editor and scrolls until the visible line range contains \
-  line_start. Pane-addressed code-location navigation retains the requested pane and exact byte offset through \
+the canonical readable file path derived from symbol_key into the mounted Code Editor and scrolls until the \
+visible line range contains line_start; source_id is opaque provenance and is never treated as a filesystem \
+path. Every served symbol must carry staleness. fresh=false or a missing staleness projection stops navigation \
+with typed stale_source status and the recovery instruction re-index before navigation; it never silently opens \
+the last persisted span. A never-existing or deleted symbol remains a distinct typed unresolved result. \
+Pane-addressed code-location navigation retains the requested pane and exact byte offset through \
   asynchronous symbol resolution; resolver generations, pending state, and disk-load invalidation are scoped by \
   origin pane plus source content. A new B intent cancels B-old only, while pending A can still land at A's exact \
   pane and byte; changing focus while resolution is in flight cannot redirect or replace either target. Explorer \
   document rows come from GET /knowledge/documents?workspace_id=..., so Rename carries the displayed KRD id and \
   updated_at token to the same RichDocument authority. Rename disables reentry while its operation is in flight; \
   cancel/reopen and reverse completion cannot apply an older operation to the current dialog. A deleted or \
-  no-definition symbol renders an \
+no-definition symbol renders an \
 unresolved chip and surfaces a typed navigation/backend status instead of crashing. The Code Editor reverse \
 edge is NoteRefsPanel: note-refs-panel lists rich documents mentioning the current symbol, keeps block_id as \
 the matched hit identity, rows are dynamic note-ref-{document_id} ListItems, and clicking a row dispatches \
 CMD_OPEN_DOCUMENT with document_id through the shared InteractionBus so the shell opens the mounted Notes \
-pane. Open the mounted Loom navigation sidebar from EDITORS > Open Sidebar \
+pane. The canonical model flow is argus.inspect -> argus.click the exact create target -> fresh inspect of the \
+chip -> argus.click the exact chip -> fresh inspection of the canonical code text and note-refs-panel -> \
+argus.click the exact note-ref-{document_id} row -> fresh inspection of editor.rich.text in that document. \
+Every action must retain its caller attribution and terminal receipt; do not reuse a pre-action tree as proof. \
+The live persistence proof saves the exact hsLink through /knowledge/documents/{id}/save, reloads it, rejects a \
+stale expected_version with HTTP 409 while proving committed content unchanged, restarts only the fixture-owned \
+current-source backend on the same listener, and freshly reads back the document, symbol, and exact reverse \
+lookup. It then deletes the indexed source, re-indexes, proves marked_stale/fresh=false blocks navigation, and \
+separately proves a missing symbol remains unresolved. Open the mounted Loom navigation sidebar from EDITORS > Open Sidebar \
 (menu.editors.sidebar) or the view.sidebar command. Its independent Pins, Favorites, Backlinks, and \
 Unlinked Mentions sections load from handshake_core for the active workspace/block; each section keeps its \
 own loading/error state and Retry control, so one failed route never disables the other sections. Pin removal \
@@ -1692,16 +1709,22 @@ block id or content_hash the proof reports that typed backend-shape gap, not gre
 this editor navigation: Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason for local read-only tab \
 navigation and backlink refresh, which do not mutate authority; save-time backlink mutation has Tier 1 \
 Flight Recorder/EventLedger = WIRED through KnowledgeRichDocumentSaved, its \
-save_receipt_event_id, and backlink persistence in the normal knowledge-document save. Tier 2 \
-internal_diagnostics = WIRED \
-through the shared BackendCall operation watchdog registered by ReqwestWikilinkBackend::list_backlinks; a \
-bounded progress gap emits the typed StalledOperation diagnostic surfaced through the shared diagnostic \
-status. Tier 3 Palmistry = WIRED through the shared process-global diagnostic ring, which retains the \
-last-N typed events for the external watcher across a UI freeze or crash without inventing a Loom-specific \
-tracker. All link/backlink data \
+save_receipt_event_id, and backlink persistence in the normal knowledge-document save. MT-034 has the same \
+split: code-symbol navigation and reverse lookup are read-only, so Tier 1 Flight Recorder/EventLedger = \
+NOT_APPLICABLE-with-reason; the RichDocument save is Tier 1 WIRED through \
+KnowledgeRichDocumentSaved/save_receipt_event_id. CodeNavClient and FindNotesHttp failures remain typed and \
+operator-visible, but MT-034 Tier 2 internal_diagnostics = DEFERRED-with-reason because neither client \
+registers an MT-034-specific operation watchdog or diagnostic event. MT-034 Tier 3 Palmistry = \
+DEFERRED-with-reason because no code-reference-specific survivor payload or ring registration exists. Do not \
+infer either feature-specific diagnostic tier from generic app health. For the separate backlinks-list client, \
+Tier 2 internal_diagnostics = WIRED through the shared BackendCall operation watchdog registered by \
+ReqwestWikilinkBackend::list_backlinks; a bounded progress gap emits the typed StalledOperation diagnostic \
+surfaced through the shared diagnostic status. Tier 3 Palmistry = WIRED through the shared process-global \
+diagnostic ring, which retains the last-N typed events for the external watcher across a UI freeze or crash \
+without inventing a Loom-specific tracker. All link/backlink data \
 lives in handshake_core (PostgreSQL/EventLedger) via the Loom + knowledge-documents routes. A swarm agent reads \
-the panel with list_widgets and follows a link with click_widget{target:'outgoing.section.resolved'} (or the \
-specific backlink-{source_document_id} row id)."
+the panel with argus.inspect and follows a link with argus.click{target:'outgoing.section.resolved'} (or the \
+specific backlink-{source_document_id} row id), then requires the attributed receipt and a fresh inspection."
         .to_owned()
 }
 
@@ -3056,28 +3079,53 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
 
     // ── Code<->note interop edge (MT-034) ────────────────────────────────────────────────────────────
     rows.push(AgentToolRow {
+        author_id: "editor.rich.insert-slash-command",
+        surface: ManualSurface::RichText,
+        action_label: "Code refs: create an exact code hsLink",
+        mcp_tool: "argus.click",
+        description: "After argus.inspect, use argus.click with target editor.rich.insert-slash-command and payload {\"kind\":\"wikilink\",\"ref_kind\":\"code\",\"ref_value\":\"<symbol_entity_id>\",\"label\":\"<display_name>\"}; require the attributed receipt and a fresh argus.inspect containing code-ref-chip-{symbol_entity_id}.",
+    });
+    rows.push(AgentToolRow {
         author_id: crate::rich_editor::slash_commands::CODE_SYMBOL_SEARCH_AUTHOR_ID,
         surface: ManualSurface::RichText,
         action_label: "Code refs: read the code-symbol search dialog",
-        mcp_tool: "list_widgets",
-        description:
-            "list_widgets surfaces code-symbol-search; result rows insert code-ref-chip-{symbol_entity_id}.",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces code-symbol-search; after a safe result action, require an attributed receipt and fresh inspection of code-ref-chip-{symbol_entity_id}.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::slash_commands::CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
         surface: ManualSurface::RichText,
         action_label: "Code refs: filter code symbols",
-        mcp_tool: "set_value",
-        description:
-            "set_value{target:'code-symbol-search-input', value:'<symbol>'} filters backend code-symbol lookup results.",
+        mcp_tool: "argus.set_value",
+        description: "argus.set_value{target:'code-symbol-search-input', value:'<symbol>'} filters backend code-symbol lookup results; require the attributed receipt and fresh result-row inspection.",
+    });
+    rows.push(AgentToolRow {
+        author_id: "code-symbol-result-{symbol_entity_id}",
+        surface: ManualSurface::RichText,
+        action_label: "Code refs: select an exact symbol result",
+        mcp_tool: "argus.click",
+        description: "After argus.inspect identifies the exact dynamic result id, argus.click selects it; require the attributed receipt and fresh code-ref-chip-{symbol_entity_id} observation.",
+    });
+    rows.push(AgentToolRow {
+        author_id: "code-ref-chip-{symbol_entity_id}",
+        surface: ManualSurface::Interop,
+        action_label: "Code refs: open and reveal the exact source",
+        mcp_tool: "argus.click",
+        description: "After argus.inspect confirms the exact chip, argus.click resolves the backend symbol, opens the canonical file-backed Code tab, and reveals line_start; require the attributed receipt and a fresh editor.code.text observation.",
     });
     rows.push(AgentToolRow {
         author_id: crate::code_editor::note_refs_panel::PANEL_AUTHOR_ID,
         surface: ManualSurface::Code,
         action_label: "Code refs: inspect notes mentioning the current symbol",
-        mcp_tool: "list_widgets",
-        description:
-            "list_widgets surfaces note-refs-panel; dynamic note-ref-{document_id} rows open the mounted Notes pane.",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces note-refs-panel and its exact dynamic note-ref-{document_id} rows after symbol dwell.",
+    });
+    rows.push(AgentToolRow {
+        author_id: "note-ref-{document_id}",
+        surface: ManualSurface::Interop,
+        action_label: "Code refs: reveal a referencing note",
+        mcp_tool: "argus.click",
+        description: "After argus.inspect selects the exact dynamic row, argus.click routes document_id through the shared open-document command; require the attributed receipt and a fresh editor.rich.text observation for that document.",
     });
 
     // ── Locus interop edge (Pillar 6) ────────────────────────────────────────────────────────────────

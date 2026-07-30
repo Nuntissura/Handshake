@@ -306,6 +306,101 @@ impl IngestionEngine {
             }
                 sources.push((source_id, file.relative_path.clone()));
             }
+            // Reconcile sources that belonged to this root on the prior pass but were not
+            // observed in the current canonical walk. The optimized code-nav batch must retain
+            // the same deleted/moved lifecycle semantics as the general ingestion path: both the
+            // KnowledgeSource authority row and its served code-file index state become stale in
+            // the same transaction, so nav can never continue reporting the old symbol as fresh.
+            let seen_paths: Vec<String> = prepared
+                .iter()
+                .map(|file| file.relative_path.clone())
+                .collect();
+            let stale_candidates = query(
+                "SELECT source_id, relative_path, content_hash
+                 FROM knowledge_sources
+                 WHERE root_id = $1
+                   AND relative_path IS NOT NULL
+                   AND stale = FALSE
+                   AND NOT (relative_path = ANY($2::text[]))
+                 ORDER BY relative_path
+                 FOR UPDATE",
+            )
+            .bind(&root.root_id)
+            .bind(&seen_paths)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(StorageError::from)?;
+            let stale_marked = stale_candidates.len();
+            for candidate in stale_candidates {
+                let source_id: String = candidate
+                    .try_get("source_id")
+                    .map_err(StorageError::from)?;
+                let relative_path: String = candidate
+                    .try_get("relative_path")
+                    .map_err(StorageError::from)?;
+                let content_hash: String = candidate
+                    .try_get("content_hash")
+                    .map_err(StorageError::from)?;
+                let moved_to = prepared
+                    .iter()
+                    .find(|file| {
+                        file.content_hash == content_hash && file.relative_path != relative_path
+                    })
+                    .map(|file| file.relative_path.clone());
+                let disposition = if moved_to.is_some() {
+                    "moved"
+                } else {
+                    "deleted"
+                };
+
+                query(
+                    "UPDATE knowledge_sources
+                     SET stale = TRUE, updated_at = NOW()
+                     WHERE source_id = $1",
+                )
+                .bind(&source_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(StorageError::from)?;
+                query(
+                    "UPDATE knowledge_code_files
+                     SET stale = TRUE, updated_at = NOW()
+                     WHERE source_id = $1",
+                )
+                .bind(&source_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(StorageError::from)?;
+
+                let mut stale_event = NewKernelEvent::builder(
+                    ctx.kernel_task_run_id.clone(),
+                    ctx.session_run_id.clone(),
+                    KernelEventType::ValidationRecorded,
+                    ctx.actor.clone(),
+                )
+                .aggregate("knowledge_source_lifecycle", &source_id)
+                .source_component("knowledge_ingestion")
+                .payload(json!({
+                    "kind": "source_stale_marked",
+                    "disposition": disposition,
+                    "workspace_id": root.workspace_id,
+                    "root_id": root.root_id,
+                    "source_id": source_id,
+                    "relative_path": relative_path,
+                    "moved_to": moved_to,
+                    "run_token": run_token,
+                }));
+                if let Some(correlation_id) = &ctx.correlation_id {
+                    stale_event = stale_event.correlation_id(correlation_id.clone());
+                }
+                let stale_event = stale_event
+                    .build()
+                    .map_err(|err| IngestionError::Kernel(err.to_string()))?;
+                append_kernel_event_with_executor(&mut *tx, stale_event)
+                    .await
+                    .map_err(IngestionError::from)?;
+            }
+
             let finish_event = NewKernelEvent::builder(
             ctx.kernel_task_run_id.clone(),
             ctx.session_run_id.clone(),
@@ -315,7 +410,14 @@ impl IngestionEngine {
         .aggregate("knowledge_ingestion_run", run_token)
         .causation_id(start_event_id.clone())
         .source_component("knowledge_ingestion")
-        .payload(json!({"kind":"ingestion_run_finished","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token,"files_ingested":sources.len()}))
+        .payload(json!({
+            "kind": "ingestion_run_finished",
+            "workspace_id": root.workspace_id,
+            "root_id": root.root_id,
+            "run_token": run_token,
+            "files_ingested": sources.len(),
+            "stale_marked": stale_marked,
+        }))
         .build()
         .map_err(|err| IngestionError::Kernel(err.to_string()))?;
             append_kernel_event_with_executor(&mut *tx, finish_event)

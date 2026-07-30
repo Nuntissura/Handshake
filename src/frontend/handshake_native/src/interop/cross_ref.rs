@@ -139,6 +139,13 @@ pub enum CrossRefError {
     /// projection as the requested symbol would navigate to unrelated code, so it is rejected.
     #[error("backend identity mismatch: requested '{requested}', returned '{returned}'")]
     IdentityMismatch { requested: String, returned: String },
+    /// The backend still knows the symbol identity but explicitly marks its source index as not fresh.
+    /// Navigating to the persisted span would silently present stale code as current, so the shell
+    /// keeps the existing pane and exposes this typed recovery state until the source is re-indexed.
+    #[error(
+        "stale source for symbol '{symbol}': index state is '{state}'; re-index before navigation"
+    )]
+    StaleSource { symbol: String, state: String },
     /// The backend transport failed (down / non-2xx / parse). Surfaced as a typed error state.
     #[error("backend error: {0}")]
     Backend(String),
@@ -153,6 +160,7 @@ impl CrossRefError {
             CrossRefError::NoDefinition(_) => "no_definition",
             CrossRefError::NotFound(_) => "not_found",
             CrossRefError::IdentityMismatch { .. } => "identity_mismatch",
+            CrossRefError::StaleSource { .. } => "stale_source",
             CrossRefError::Backend(_) => "backend_error",
         }
     }
@@ -413,6 +421,22 @@ fn code_ref_from_symbol(
     let file_path = crate::code_editor::code_nav::symbol_file_path(&symbol.symbol_key)
         .filter(|path| !path.trim().is_empty())
         .ok_or_else(|| CrossRefError::NoDefinition(requested_ref.to_owned()))?;
+    let staleness = symbol
+        .staleness
+        .as_ref()
+        .ok_or_else(|| CrossRefError::StaleSource {
+            symbol: requested_ref.to_owned(),
+            state: "missing".to_owned(),
+        })?;
+    if !staleness.fresh {
+        return Err(CrossRefError::StaleSource {
+            symbol: requested_ref.to_owned(),
+            state: staleness
+                .state
+                .clone()
+                .unwrap_or_else(|| "unknown".to_owned()),
+        });
+    }
     Ok(CodeRef {
         symbol_entity_id: symbol.symbol_entity_id,
         symbol_key: symbol.symbol_key,
@@ -1278,6 +1302,14 @@ mod tests {
         assert!(
             !CrossRefError::Backend("down".into()).is_unresolved(),
             "transient backend error is not unresolved"
+        );
+        assert!(
+            !CrossRefError::StaleSource {
+                symbol: "KEN-STALE".into(),
+                state: "marked_stale".into(),
+            }
+            .is_unresolved(),
+            "stale source remains retryable after re-index"
         );
         assert!(!CrossRefError::NoWorkspace.is_unresolved());
     }
