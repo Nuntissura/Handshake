@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T01:55:02.1181651Z",
+  "updated_at_utc": "2026-07-30T09:19:14.6405647Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -106,21 +106,24 @@
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-30T01:55:02.1181651Z",
     "claim_takeover_note_2026_07_30": "KERNEL_BUILDER-20260728-221208 took over after MT-033 V3 handoff. Historical READY and FAIL_V2 evidence is preserved, but the live PostgreSQL restart/error/conflict boundary and canonical Argus create/open/reveal loop must be freshly proven before READY_FOR_VALIDATION_V3.",
+    "remediation_v3_in_progress": true,
+    "remediation_v3_status": "IMPLEMENTATION_AND_PROOF_COMPLETE_SCOPE_WAIVER_PENDING",
+    "scope_waiver_pending": true,
+    "completed_by": null,
     "ready_for_validation_at_utc": "2026-07-05T10:45:13.536Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260705-091218",
-    "ready_for_validation_reason": "MT-034 reopened repair is proof-refreshed and post-review hardened: ref_kind=code entity-id chips and hand-authored [[code:path#Symbol]] refs route through open-code-symbol to the mounted CodeSymbol pane, resolve via getCodeSymbol or lookup_symbols_by_name_path, load source_id, and prove visible line range contains line_start; NoteRefs rows preserve backend document_id separate from block_id and click through CMD_OPEN_DOCUMENT shell drain into the mounted Notes pane; manual/HBR content names the live ids/routes. Official validator has not run.",
-    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "missing_resource": {
-      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-      "reason": "The focused repair proved standalone/native-shell route behavior, integration route binding, and manual coverage. The seeded live PostgreSQL/handshake_core proofs for rich-document save/reload and NoteRefs content assertions did not run against a populated managed environment and are not faked.",
-      "required_resource": "Seeded managed handshake_core/PostgreSQL workspace with code-indexed symbols and rich documents containing code refs, available at http://127.0.0.1:37501 or HANDSHAKE_TEST_DB_URL for the native integration tests."
-    },
-    "ready_for_validation_summary": "MT-034 READY_FOR_VALIDATION evidence refreshed by KERNEL_BUILDER-20260705-091218: code ref entity ids and hand-authored path#Symbol refs now navigate through the mounted CodeSymbol shell path to file/line, NoteRefs rows preserve backend document_id and open through CMD_OPEN_DOCUMENT shell drain, manual/HBR wording names the routes and ids, post-review Dalton blockers are closed, and KB_READY_CHECKLIST PASS was emitted. Proofs passed: test_code_note_cross_ref 13/13, test_code_note_cross_ref --features integration 15/15, interop::cross_ref lib 15/15, manual_content 20/20, manual_pane_editors 8/8, neighboring fixture tests, rustfmt --check, scoped diff check, and artifact hygiene. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL save/reload and seeded NoteRefs content remain NEEDS_MANAGED_RESOURCE_PROOF.",
+    "ready_for_validation_reason": "Historical V1-era READY_FOR_VALIDATION record retained. The current V3 implementation and proof are complete at product source 5bbe4fdf3cb6786f65cc8827bbd9494f3c9dafd5, but the canonical mechanical track correctly blocks the V3 transition until the operator decides the backend and UserManual scope waiver.",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_ROOT_REVIEW_NO_REMAINING_PRODUCT_BLOCKER",
+    "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
+    "missing_resource": null,
+    "ready_for_validation_summary": "MT-034 V3 product implementation and proof are complete at committed source 5bbe4fdf. Default cross-ref, exact live PostgreSQL, canonical mounted Argus/WGPU, UserManual, cross-ref library, compile, artifact-root, receipt-parse, direct-image inspection, and cleanup surfaces pass. The V3 lifecycle transition is withheld because the canonical mechanical track reports the backend dependency outside packet scope and the backend plus UserManual paths outside the historical MT allowlist. Operator waiver is required; historical FAIL_V2 remains the validator verdict.",
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
-      "generated_at_utc": "2026-07-05T10:45:03.525Z",
       "verdict": "PASS",
+      "emitted_by": "KERNEL_BUILDER-20260728-221208",
+      "emitted_at_utc": "2026-07-30T09:22:34.412Z",
       "blockers": []
     }
   },
@@ -491,6 +494,200 @@
         "The full MT-034 live proof exits zero."
       ],
       "no_context_instruction": "Read MT-034.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v3": {
+    "schema_id": "hsk.mt_remediation_result@1",
+    "status": "IMPLEMENTATION_AND_PROOF_COMPLETE_SCOPE_WAIVER_PENDING",
+    "implemented_by": "KERNEL_BUILDER-20260728-221208",
+    "implemented_at_utc": "2026-07-30T09:19:14.6405647Z",
+    "product_source_sha": "5bbe4fdf3cb6786f65cc8827bbd9494f3c9dafd5",
+    "product_commit": "5bbe4fdf feat: MT-034 remediate code note cross references",
+    "touched_files": [
+      "src/backend/handshake_core/src/knowledge_ingestion/engine.rs",
+      "src/frontend/handshake_native/src/interop/cross_ref.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_code_note_cross_ref.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs"
+    ],
+    "scope_extension_requiring_operator_waiver": {
+      "status": "OPERATOR_WAIVER_REQUESTED_NOT_SELF_GRANTED",
+      "paths": [
+        "src/backend/handshake_core/src/knowledge_ingestion/engine.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs"
+      ],
+      "direct_blocker_closed": "The backend code-nav batch re-upserted present sources but never reconciled deleted or moved sources, so the required real stale-source proof continued serving the removed symbol as fresh. The current UserManual and its test are the canonical no-context surfaces required by the FAIL_V2 remediation.",
+      "minimum_change": "The backend change marks absent KnowledgeSource and knowledge_code_files rows stale in the existing transaction and emits an attributable lifecycle EventLedger entry; the two manual paths document and test only the MT-034 canonical Argus, persistence, recovery, and diagnostic-tier facts.",
+      "operator_request": "Approve these three under-scoped paths as the minimum dependency and UserManual extension required to make the MT-034 V3 acceptance surface true."
+    },
+    "proofs": [
+      "PASS: cargo test --test test_code_note_cross_ref => 18 passed, 0 failed.",
+      "PASS: cargo test --features integration --test test_code_note_cross_ref live_backend::v2_self_seeded_postgres_code_ref_round_trip_navigation_and_note_refs -j 1 -- --exact --nocapture --test-threads=1 => 1 passed, 0 failed in 160.63s against PostgreSQL 127.0.0.1:5544/handshake.",
+      "PASS: HANDSHAKE_GPU_SCREENSHOT=1 cargo test --features wgpu_screenshots --test test_code_note_cross_ref mt034_canonical_argus_create_open_and_reveal -j 1 -- --exact --nocapture --test-threads=1 => 1 passed, 0 failed.",
+      "PASS: cargo test --lib interop::cross_ref => 21 passed, 0 failed.",
+      "PASS: cargo test --test test_manual_content mt034_manual_covers_canonical_argus_restart_conflict_stale_and_diagnostics -- --exact => 1 passed, 0 failed.",
+      "PASS: cargo check --manifest-path src/backend/handshake_core/Cargo.toml with CARGO_BUILD_JOBS=1 and the isolated MT-034 target => exit 0 in 14m52s; 64 existing warnings, no errors.",
+      "PASS: git diff --check on the five product paths.",
+      "PASS: direct receipt parsing, artifact hashing, and direct visual inspection of both retained WGPU PNGs."
+    ],
+    "live_postgresql_proof": {
+      "receipt_path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-034/mt034-165276-1785400822527325400-v3-receipt.json",
+      "receipt_sha256": "771095534F65A2066D3B3AC34B3B5CC2EDC235D4F172D81EAFE6999B9E88D420",
+      "receipt_bytes": 2784,
+      "database": "postgresql://postgres@127.0.0.1:5544/handshake",
+      "backend_binary_sha256": "424797fe9c48f8e07c465f4bffcd3f43547203cda25bba97e90b5b433d5e0359",
+      "missing_identity_statuses": {
+        "index": 400,
+        "navigation": 400,
+        "save": 400
+      },
+      "missing_symbol_typed_unresolved": true,
+      "optimistic_conflict": {
+        "status": 409,
+        "committed_content_unchanged": true
+      },
+      "owned_backend_restart": {
+        "before_pid": 7316,
+        "after_pid": 193572,
+        "listener": "127.0.0.1:49377",
+        "listener_reclaimed": true,
+        "document_persisted": true,
+        "symbol_persisted": true,
+        "reverse_lookup_persisted": true
+      },
+      "stale_source": {
+        "state": "marked_stale",
+        "fresh": false,
+        "navigation_blocked_with_typed_recovery": true
+      },
+      "cleanup": {
+        "workspace_status": 204,
+        "source_fixture_removed": true,
+        "symbol_unresolved_after_cleanup": true
+      },
+      "shared_service_boundary": "Existing PostgreSQL parent PID 121448 on port 5544 was not stopped or restarted."
+    },
+    "accepted_artifacts": [
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-034/canonical-argus/MT-034-code-symbol-open-note-refs.png",
+        "bytes": 212793,
+        "sha256": "497C1F4F0C70F412F6A191DDDCD803D85EE4326E783BB5D6FAD054020A33BF30",
+        "kind": "STRICT_WGPU_CANONICAL_ARGUS_CODE_OPEN_AND_NOTE_REFS"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-034/canonical-argus/MT-034-create-open-reveal.json",
+        "bytes": 5281348,
+        "sha256": "63A0FB43512575986D721C76E75FA27CFF6CC453A850AACE4A4EA7CB48535B79",
+        "kind": "CANONICAL_ARGUS_CREATE_OPEN_REVEAL_ACTION_RECEIPT_TERMINAL_TREE"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-034/canonical-argus/MT-034-referencing-note-revealed.png",
+        "bytes": 255201,
+        "sha256": "217C2F12841DDD0CDAC8DCC94865B97D6746B54BAB6728C82C4593916B52A245",
+        "kind": "STRICT_WGPU_CANONICAL_ARGUS_REFERENCING_NOTE_REVEALED"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-034/mt034-165276-1785400822527325400-v3-receipt.json",
+        "bytes": 2784,
+        "sha256": "771095534F65A2066D3B3AC34B3B5CC2EDC235D4F172D81EAFE6999B9E88D420",
+        "kind": "REAL_POSTGRESQL_SAVE_RELOAD_RESTART_CONFLICT_STALE_MISSING_CLEANUP_RECEIPT"
+      }
+    ],
+    "canonical_argus": {
+      "flow": "create-open-reveal",
+      "stable_targets": [
+        "editor.rich.insert-slash-command",
+        "code-ref-chip-KEN-MT034-ARGUS",
+        "editor.code.text file-backed author-id",
+        "note-refs-panel",
+        "note-ref-DOC-ARGUS-34",
+        "editor.rich.text"
+      ],
+      "actions": 3,
+      "attribution": "All actions retain agent fa496ffe:client:wp-kernel-012-mt-034-create-open-reveal-agent.",
+      "receipt_posture": "Each target exposes an indeterminate generic action receipt because it has no action-specific completion predicate; each action is closed by a mandatory fresh product-state observation with a named passing terminal predicate and retained tree.",
+      "direct_visual_inspection": [
+        "The code-open capture visibly shows Mt034ArgusSymbol in the mounted file-backed code pane and the Note refs panel with DOC-ARGUS-34.",
+        "The reveal capture visibly shows active DOC-ARGUS-34 and the referencing rich text containing Mt034ArgusSymbol."
+      ]
+    },
+    "usermanual_diagnostics": {
+      "tier_1": "Read-only code-symbol navigation and reverse lookup are NOT_APPLICABLE-with-reason; RichDocument save is WIRED through KnowledgeRichDocumentSaved/save_receipt_event_id.",
+      "tier_2": "DEFERRED-with-reason because CodeNavClient and FindNotesHttp do not register an MT-034-specific operation watchdog or diagnostic event.",
+      "tier_3": "DEFERRED-with-reason because no code-reference-specific survivor payload or ring registration exists.",
+      "truthfulness_gate": "The manual does not infer feature-specific diagnostic coverage from generic application health."
+    },
+    "adversarial_review": {
+      "reviewer": "KERNEL_BUILDER root adversarial review",
+      "diff_attack_surfaces": [
+        "stale-versus-missing taxonomy and navigation fail-closed behavior",
+        "deleted/moved source reconciliation and same-transaction code-file staleness",
+        "live PostgreSQL identity, save, conflict, restart, reverse lookup, and cleanup",
+        "fixture process ownership and shared PostgreSQL non-interference",
+        "canonical Argus attribution, receipt, fresh terminal observation, and screenshot truth",
+        "approved central artifact-root enforcement and residue cleanup",
+        "UserManual canonical methods and truthful diagnostic-tier disposition"
+      ],
+      "counterfactuals": [
+        "Without the backend reconciliation hunk, deleting the indexed file leaves the symbol projection fresh and the required stale navigation block fails.",
+        "Without the frontend staleness gate, a persisted symbol can reopen an obsolete source span.",
+        "Without fresh terminal Argus inspection, a pre-action tree could be misused as create/open/reveal evidence.",
+        "Without conflict readback, HTTP 409 alone would not prove the committed code-ref content remained unchanged."
+      ],
+      "negative_probes": [
+        "Missing navigation identity returns HTTP 400 for index, navigation, and save.",
+        "A never-existing symbol is typed unresolved and distinct from marked-stale.",
+        "A stale expected_version returns HTTP 409 and fresh readback proves committed content unchanged.",
+        "Deleted source re-index returns marked_stale/fresh=false and the mounted shell retains the prior buffer.",
+        "Workspace cleanup makes the symbol unresolved and removes the owned source fixture."
+      ],
+      "remaining_findings": [],
+      "residual_uncertainty": [
+        "The repository post-commit hook cold-built a shared generic target and emitted a truncated false failure; the exact isolated cargo check subsequently passed in 14m52s. No hook-generated review request was relied on.",
+        "The backend scope dependency and canonical UserManual paths are outside the historical MT allowed_paths and remain an explicit operator-waiver request rather than a self-granted scope claim."
+      ]
+    },
+    "mechanical_track": {
+      "verdict": "FAIL_SCOPE_WAIVER_PENDING",
+      "timestamp_utc": "2026-07-30T09:24:19.892Z",
+      "correlation_id": "MECH-MT-034-1a0524a0",
+      "product_commit": "5bbe4fdf3cb6786f65cc8827bbd9494f3c9dafd5",
+      "worktree_confinement": "PASS",
+      "build_pass_evidence": "PASS",
+      "concerns": [
+        "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES: src/backend/handshake_core/src/knowledge_ingestion/engine.rs, src/frontend/handshake_native/src/manual_content_editors.rs, src/frontend/handshake_native/tests/test_manual_content.rs.",
+        "CHANGED_FILES_OUTSIDE_PACKET_IN_SCOPE_PATHS: src/backend/handshake_core/src/knowledge_ingestion/engine.rs."
+      ],
+      "disposition": "Not suppressed or waived by the implementer. Product proof is complete; lifecycle remains CLAIMED_V3_REMEDIATION until the operator grants or rejects the requested scope extension."
+    },
+    "artifact_cleanup": {
+      "status": "PASS_MT_TRANSIENTS_REMOVED_ACCEPTED_PROOF_PRESERVED",
+      "removed": [
+        "Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-034: cargo clean removed 15854 files, 30.0GiB.",
+        "Handshake_Artifacts/cargo/wp-kernel-012-mt-034: cargo clean removed 10843 files, 19.4GiB.",
+        "Handshake_Artifacts/handshake-cargo-target/debug: profile-scoped cargo clean removed 501 files, 124.5MiB."
+      ],
+      "verified_absent": [
+        "Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-034",
+        "Handshake_Artifacts/cargo/wp-kernel-012-mt-034",
+        "Handshake_Artifacts/handshake-cargo-target/debug",
+        "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-034-live-binding",
+        "D:/Handshake_Artifacts",
+        "wtc-native-editors-v1/Handshake_Artifacts",
+        "wt-gov-kernel/Handshake_Artifacts"
+      ],
+      "preserved": [
+        "The four accepted MT-034 artifacts listed above.",
+        "Handshake_Artifacts/handshake-cargo-target/wp1-v5-combined-check and all unrelated named targets."
+      ],
+      "shared_service_boundary": "PostgreSQL parent PID 121448 retained its 2026-07-28T23:07:41.2588741+02:00 start time and was not stopped or restarted."
+    },
+    "validator_boundary": "No V3 handoff has been issued: validator_verdict remains FAIL_V2, completed_by is null, and lifecycle remains CLAIMED_V3_REMEDIATION until the operator decides the explicit scope-waiver request. Historical FAIL_V1/FAIL_V2 verdict records remain preserved.",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "verdict": "PASS",
+      "emitted_at_utc": "2026-07-30T09:22:34.412Z"
     }
   },
   "validation_v2": {
