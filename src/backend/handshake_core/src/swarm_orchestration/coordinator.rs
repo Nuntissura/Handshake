@@ -9,7 +9,7 @@
 //! worker adapter in tests.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -205,6 +205,14 @@ struct PendingSpawn {
     dexterity_lane_id: Option<String>,
     dexterity_consent_receipt_id: Option<String>,
     checkout_lease: Option<CheckoutLeaseGuard>,
+    /// Set by `revoke_cloud_consent_receipt` when this in-flight spawn is
+    /// cancelled specifically because its lane-bound cloud consent was revoked
+    /// (and durably fenced) mid-flight. The fence commit happens before this
+    /// flag is set, so when it is observed the post-factory durable lane insert
+    /// would fail closed under CX-MM-007. The spawn path reads it during
+    /// factory-create compensation to surface the consent-revoked (CX-MM-007)
+    /// error instead of the generic factory-cancellation error.
+    revoke_fence: Arc<AtomicBool>,
 }
 
 #[allow(clippy::result_large_err)]
@@ -1033,6 +1041,10 @@ impl SwarmCoordinator {
             .map(|guard| guard.lease_ref().clone());
 
         let create_cancel = CancellationToken::new();
+        // Raised by `revoke_cloud_consent_receipt` if this spawn is cancelled
+        // because its lane-bound cloud consent was revoked mid-flight. Read
+        // during factory-create compensation to surface CX-MM-007.
+        let revoke_fence = Arc::new(AtomicBool::new(false));
         {
             let mut pending = inner
                 .pending_spawns
@@ -1054,6 +1066,7 @@ impl SwarmCoordinator {
                         dexterity_lane_id,
                         dexterity_consent_receipt_id,
                         checkout_lease,
+                        revoke_fence: revoke_fence.clone(),
                     },
                 )
                 .is_some()
@@ -1089,6 +1102,11 @@ impl SwarmCoordinator {
         let create_result = match (cancelled_during_create, create_result) {
             (false, result) => result,
             (true, Err(_)) => {
+                if revoke_fence.load(Ordering::SeqCst) {
+                    return Err(SwarmError::LedgerFailed(format!(
+                        "CX-MM-007 cloud consent revoked mid-flight; durable lane insert fenced closed for {instance_id}"
+                    )));
+                }
                 return Err(SwarmError::FactoryFailed(format!(
                     "spawn cancelled while factory create was pending for {instance_id}"
                 )));
@@ -1110,6 +1128,29 @@ impl SwarmCoordinator {
                             .await;
                     }
                 };
+                // If the cancellation was caused by a mid-flight cloud consent
+                // revocation, the durable lane insert this spawn was about to
+                // perform would fail closed under CX-MM-007 (the consent receipt
+                // is durably fenced/revoked). Surface that consent-revoked error
+                // rather than the generic factory-cancellation error, so callers
+                // see the true lane-bound-consent-no-longer-valid cause. The
+                // compensation itself (factory unload + token cancellation + no
+                // lane row) is identical either way.
+                let (cleanup_reason, primary_error) = if revoke_fence.load(Ordering::SeqCst) {
+                    (
+                        "spawn_cancelled_after_factory_create_consent_revoked",
+                        SwarmError::LedgerFailed(format!(
+                            "CX-MM-007 cloud consent revoked mid-flight; durable lane insert fenced closed for {instance_id}"
+                        )),
+                    )
+                } else {
+                    (
+                        "spawn_cancelled_after_factory_create",
+                        SwarmError::FactoryFailed(format!(
+                            "spawn cancelled after factory create compensation for {instance_id}"
+                        )),
+                    )
+                };
                 return self
                     .rollback_unregistered_after_factory_create(
                         &request,
@@ -1117,10 +1158,8 @@ impl SwarmCoordinator {
                         checkout_lease,
                         permit,
                         committed_memory_reservation,
-                        "spawn_cancelled_after_factory_create",
-                        SwarmError::FactoryFailed(format!(
-                            "spawn cancelled after factory create compensation for {instance_id}"
-                        )),
+                        cleanup_reason,
+                        primary_error,
                     )
                     .await;
             }
@@ -1522,10 +1561,17 @@ impl SwarmCoordinator {
                             .as_ref()
                             .is_some_and(|lane_id| target_lane_ids.contains(lane_id))
                 })
-                .map(|pending| pending.cancel.clone())
+                .map(|pending| (pending.cancel.clone(), pending.revoke_fence.clone()))
                 .collect::<Vec<_>>()
         };
-        for cancel in pending {
+        for (cancel, revoke_fence) in pending {
+            // Raise the fence before cancelling so the in-flight spawn observes
+            // the consent-revoked cause during factory-create compensation and
+            // surfaces CX-MM-007. The durable consent fence is already committed
+            // above (fence_cloud_consent_revocation), so this flag truthfully
+            // reflects that the post-factory durable lane insert would fail
+            // closed under CX-MM-007.
+            revoke_fence.store(true, Ordering::SeqCst);
             cancel.cancel();
         }
         let live = {

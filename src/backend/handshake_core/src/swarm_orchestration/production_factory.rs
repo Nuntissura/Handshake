@@ -1842,10 +1842,19 @@ impl ProductionModelSessionFactory {
                 detail: reason,
             })?;
 
-        // Both BYOK and the enclosing Official-CLI session are pidless. The
-        // Official-CLI bridge keeps every concrete child in its own real-PID
-        // lifecycle row; the session-level coordinator handle is never written
-        // as an operating-system identity.
+        // A BYOK cloud session is genuinely in-process with no Handshake-owned
+        // OS process, so its session-level START stays pidless (os_pid = None).
+        // The Official-CLI bridge is different: it runs inside a HandshakeNative
+        // attached sandbox HOSTED BY THIS coordinator process (see seed.rs
+        // UserManual "HandshakeNative attached-sandbox" contract), so the
+        // session-level START carries the REAL coordinator/host OS PID
+        // (`std::process::id()`). That is a genuine host PID, not a fabricated
+        // child pid, so it does not violate the MT-013 synthetic-pid-forbidden
+        // invariant (which forbids inventing a fake child pid for a process that
+        // truly has none). The coordinator-local synthetic scheduling id remains
+        // in `LiveSession::os_pid` for scheduling only and is still kept out of
+        // the ledger via `ledger_os_pid = None` (see factory.rs), so it never
+        // masquerades as a host PID.
         let os_pid = self.synthetic_pid(request);
         let session_engine_kind = match provider {
             ProviderKind::ByokCloud => ProcessEngineKind::ExternalCompat,
@@ -1857,6 +1866,10 @@ impl ProductionModelSessionFactory {
                 )))
             }
         };
+        let session_start_os_pid = match provider {
+            ProviderKind::OfficialCli => Some(std::process::id()),
+            _ => None,
+        };
         let (record_id, ledger_start, ledger_lifecycle) = self
             .record_cloud_session_start(
                 reservation,
@@ -1864,7 +1877,7 @@ impl ProductionModelSessionFactory {
                 model_id,
                 provider,
                 session_engine_kind,
-                None,
+                session_start_os_pid,
             )
             .await?;
         let cancel = CancellationToken::new();

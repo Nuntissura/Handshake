@@ -1014,15 +1014,52 @@ async fn record_hbr_int_009_tiers(
         ))
     })?;
 
-    // The launch service can prove only its own EventLedger/Flight Recorder
-    // production. Native internal diagnostics and Palmistry record their tiers
-    // later through the authenticated observation/readback boundary.
-    let rows = [(
-        ModelLaneDiagnosticTier::FlightRecorder,
-        ModelLaneDiagnosticTierState::Wired,
-        "operator-chat launch/capture emitted this run's EventLedger row",
-        None,
-    )];
+    // Write the COMPLETE run-level HBR-INT-009 triplet (one envelope per
+    // ModelLaneRun, per the MT-011 run-level design). The launch service can
+    // PROVE only its own EventLedger/Flight Recorder production, so it records
+    // FlightRecorder=Wired. It cannot prove the native internal_diagnostics
+    // producer or the authenticated Palmistry watcher from inside the launch
+    // context: those tiers are produced and read back later through the
+    // authenticated diagnostic observation/readback boundary
+    // (`api/palmistry.rs`), which records them as Wired against the same run
+    // with a later EventLedger seq. `diagnostic_tier_posture` selects the
+    // latest state per tier, so those deferred_with_reason rows are cleanly
+    // superseded (deferred -> wired) once the observation lands. Recording them
+    // as deferred_with_reason (not Wired) is the honest launch-context state and
+    // satisfies `validate_diagnostic_tier_posture`, which requires all three
+    // tiers present, none Missing, and a non-null follow_up_ref on every
+    // deferred tier.
+    let rows: [(
+        ModelLaneDiagnosticTier,
+        ModelLaneDiagnosticTierState,
+        &str,
+        Option<String>,
+    ); 3] = [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "operator-chat launch/capture emitted this run's EventLedger row",
+            None,
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+            "native internal_diagnostics producer records this tier later through the authenticated diagnostic observation/readback boundary; deferred in the launch-service context which cannot prove the native producer",
+            Some(format!(
+                "internal-diagnostics://observation-readback/run/{}",
+                run.run_id
+            )),
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+            "authenticated Palmistry watcher records this tier later through the diagnostic observation/readback boundary; deferred in the launch-service context which cannot prove the out-of-process watcher",
+            Some(format!(
+                "palmistry://observation-readback/run/{}",
+                run.run_id
+            )),
+        ),
+    ];
 
     for (tier, state, reason, follow_up_ref) in rows {
         let tier_label = tier.as_str();
@@ -1035,7 +1072,7 @@ async fn record_hbr_int_009_tiers(
                 state,
                 reason: reason.to_string(),
                 evidence_ref: format!("eventledger://kernel/{}", run.event_ledger_event_id),
-                follow_up_ref: follow_up_ref.map(str::to_string),
+                follow_up_ref,
                 event_ledger_stream_id: run.event_ledger_stream_id.clone(),
                 work_packet_id: work_packet_id.clone(),
                 micro_task_id: micro_task_id.clone(),
