@@ -1,0 +1,126 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-021",
+  "created_at_utc": "2026-07-30T00:30:00Z",
+  "updated_at_utc": "2026-07-30T00:30:00Z",
+  "authority_files": [
+    "../handshake_main/AGENTS.md",
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+  ],
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_STARTED",
+    "hbr_status": null,
+    "pre_implementation_adversarial_review_status": null,
+    "post_implementation_adversarial_review_status": null
+  },
+  "origin": {
+    "discovered_by": "KERNEL_BUILDER-20260729-225554",
+    "discovered_at_utc": "2026-07-30T00:30:00Z",
+    "discovery_context": "Found while verifying the three MT-017 final-hardening fixes on 2026-07-30. Deferred into its own MT per the Operator rule that an unexpected gap not belonging to the current MT is carried into a future MT in the same work packet so it is not lost."
+  },
+  "scope": {
+    "summary": "Close the WP-1 operator-surface gaps: make the WP-1 Orchestration Console swarm-dispatchable, and expose the missing WP-1 controls (cloud consent/export posture, swarm concurrency) in Options/Settings.",
+    "root_cause": "A 2026-07-30 audit of the native shell found the menu bar essentially complete - a MODELS menu exists (top_menu_bar.rs, MENU_DEFINITIONS ~:214-222) and all three WP-1 panes are reachable and Argus-proven: Wp1OrchestrationConsole via MODELS > Open Console (:716-724, proof tests/test_wp1_console_stream_pane_argus.rs:65-93), OperatorChatLaunch (:680-688), SwarmLaneDiagnostics (:707-715). TWO REAL GAPS REMAIN. (1) SWARM_ACCESSIBLE_ACTIONS (top_menu_bar.rs:274-288) lists 13 keys and OMITS menu.models.wp1-orchestration-console, so a swarm agent cannot dispatch the WP-1 console the way it can the other four MODELS leaves; the count is pinned by assert_eq!(len, 13) at :1016-1020. (2) settings_dialog.rs has 9 sections but NO cloud consent / export posture control anywhere (backend types exist at llm/guard.rs:55-195 and migration 0353, but api/mod.rs:350 stubs consent: None and no consent route exists in api/model_access.rs:354-366), and the Swarm section (:1177-1252) contains NO concurrency/lease control - its two interval rows are hardcoded read-only literals (settings.not-wired.swarm-reconcile-interval :1180, settings.not-wired.swarm-resource-poll-interval :1181).",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/",
+      "src/frontend/handshake_native/tests/",
+      "src/backend/handshake_core/src/api/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "owned_files": [
+      "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/workspace_settings.rs",
+      "src/frontend/handshake_native/src/app.rs"
+    ],
+    "forbidden_paths": [
+      "adding a settings section BEFORE the Layout section (settings_dialog.rs:1311-1314 is normative: earlier insertion pushes existing sections' widgets out of the coordinate-clickable viewport and regresses their kittest interaction proofs)",
+      "granting authority from a UI control - a Settings toggle must never widen consent or access scope",
+      "SQLite in any form"
+    ],
+    "acceptance_criteria": [
+      "AC-1: menu.models.wp1-orchestration-console is added to SWARM_ACCESSIBLE_ACTIONS and the pinned assert_eq!(len, 13) at top_menu_bar.rs:1016-1020 is updated to 14. A swarm agent can dispatch the WP-1 console through the same path as the other MODELS leaves; prove with an Argus/AccessKit test, not by inspection.",
+      "AC-2: Cloud consent / export posture is visible in Settings for each configured provider lane, including the current posture and the denial reason when access is refused, WITHOUT revealing restricted resource metadata (HBR-PRIV-008). If the backend cannot yet supply real posture (api/mod.rs:350 currently stubs consent: None), the UI MUST show an explicit not-wired/unavailable state and MUST NOT fabricate a posture. Decide and record whether wiring the backend consent route belongs here or in a follow-up MT.",
+      "AC-3: The Swarm settings section exposes at least one REAL concurrency control bound to actual runtime behaviour (e.g. the coordinator's max_concurrent budget), persisted through workspace settings, or - if the runtime does not yet accept a configured value - the section explicitly states the value is fixed and why, replacing the misleading hardcoded literals.",
+      "AC-4: Every new control carries a stable Argus author_id, follows the acknowledge_action_effect ack rule (settings_dialog.rs:1775-1783), and is added to the settings_author_ids_are_stable pin list (:1854-1868).",
+      "AC-5: Pre-existing coverage holes closed: the four WP-1 settings author_ids at settings_dialog.rs:120/124/126/128 currently have ZERO test references and are absent from the stability pin list; and tests/test_visual_interaction_proof.rs:902-912 lists only 6 of 9 section ids (omits cloud-models, model-runtime, diagnostics). Add the missing pins/ids.",
+      "AC-6: HBR-VIS - every changed surface is proven through headless non-intrusive Argus with before/after observation; no foregrounding, no OS cursor automation."
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_top_menu_bar -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_wp1_console_stream_pane_argus -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_visual_interaction_proof -- --nocapture",
+      "git diff --check"
+    ],
+    "risk_if_missed": "The WP-1 console stays undispatchable by the swarm it exists to observe, and the operator has no surface for cloud consent posture or swarm concurrency - the two controls that decide whether cloud data leaves the machine and how hard the machine is driven."
+  },
+  "implementation_notes": [
+    "Menu leaf convention (top_menu_bar.rs:403 menu_items): self.item(ui, \"menu.{menu}.{leaf}\", label, shortcut, enabled, MenuBarAction::NavigateToTab(\"<tab-id>\"), action); then add the arm to dispatch_menu_action (app.rs:3754, exhaustive match) and the string->PaneType arm in navigate_to_tab (app.rs:3731-3741).",
+    "Settings control convention is 7 steps: author_id const (:99-166) -> search gate + CollapsingHeader + set_author_id_ack_click section tag -> per-widget set_author_id / set_author_id_and_label -> ack INSIDE the guarded changed() block -> new SettingsOutcome variant (:433-485) -> handle in apply_settings_outcome (app.rs:3113-3220) -> persist across 5 coordinated edits in workspace_settings.rs (field :166-183, default :241-257, serialize :213-234, parse :383-451) plus DialogState::draft_settings (settings_dialog.rs:561-588).",
+    "The dialog never mutates app state directly (settings_dialog.rs:28-36, :505-519) - it returns a SettingsOutcome.",
+    "Settings persist to PostgreSQL via PUT /workspaces/{id}/settings (schema hsk.workspace_settings_state@1); there is no local settings file. BYOK keys deliberately bypass that blob."
+  ],
+  "required_build_rules": [
+    "HBR-VIS-001",
+    "HBR-VIS-002",
+    "HBR-VIS-003",
+    "HBR-QUIET-001",
+    "HBR-PRIV-008",
+    "HBR-MAN-004"
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "operator-surface truthfulness and privacy",
+    "risks": [
+      "Displaying a fabricated consent posture because the backend stubs consent: None",
+      "A Settings control that appears to grant or widen consent scope",
+      "Leaking restricted resource metadata through a denial reason",
+      "Inserting a section before Layout and silently regressing other sections' interaction proofs"
+    ],
+    "minimum_controls": [
+      "Any unwired value renders as an explicit not-wired state, never as a plausible default",
+      "Argus proof shows the rendered posture matches backend authorization state",
+      "Denial reasons are asserted to contain no restricted resource identifiers",
+      "Existing settings interaction proofs stay green"
+    ]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "operator-surface truthfulness (no fabricated state)",
+      "account/resource privacy and denial-reason leakage",
+      "Argus reachability and steering",
+      "settings persistence round-trip"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "durable_authority": "PostgreSQL workspace settings (hsk.workspace_settings_state@1) + EventLedger; no SQLite",
+    "rust_only_implementation": true,
+    "spec_realism_gate": "Controls must drive real runtime behaviour and be proven through Argus against the running shell; a rendered widget with no backend effect does not satisfy this MT."
+  }
+}

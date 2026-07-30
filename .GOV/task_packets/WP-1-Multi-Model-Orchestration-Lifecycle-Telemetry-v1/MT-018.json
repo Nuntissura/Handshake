@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-018",
   "created_at_utc": "2026-07-24T00:00:00Z",
-  "updated_at_utc": "2026-07-24T00:00:00Z",
+  "updated_at_utc": "2026-07-30T00:12:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-018.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -55,7 +55,8 @@
       "src/backend/handshake_core/src/storage/knowledge_crdt.rs",
       "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
       "src/backend/handshake_core/migrations/",
-      "src/backend/handshake_core/tests/"
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/src/user_manual/seed.rs"
     ],
     "owned_files": [
       "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs",
@@ -79,10 +80,11 @@
     "proof_commands": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_crdt_ai_edit_proposal_tests -- --test-threads=1"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_crdt_proposal_tests -- --test-threads=1"
     ],
     "risk_if_missed": "MT-002/005/009 CRDT admission retains ZERO positive end-to-end proof: the Proposal-kind CRDT authority path can never be exercised, so a whole class of the ModelLane CRDT contract is asserted only by negative tests. A future implementer may 'fix' the failing tests by fabricating an inconsistent proposal row, silently defeating the fail-closed design this WP exists to establish.",
-    "reference_only_paths": []
+    "reference_only_paths": [],
+    "root_cause_addendum_2026_07_30": "SECOND INDEPENDENT BLOCKER, omitted from root_cause above and VERIFIED at source: apply_approved_ai_edit also blocks BEFORE the resolver is ever reached. ai_edit_proposal.rs:702-709 calls knowledge_crdt::find_applied_crdt_update_sha256, which SELECTs kernel_crdt_updates.update_sha256 (knowledge_crdt.rs:1597-1623) — the Yjs-BINARY hash. Line 710 then compares that against applied_content_sha256, the JSON-diff hash computed at line 691. So the binder can only ever stamp a row when the persisted update_bytes ARE the JSON diff bytes, which then cannot decode as Yjs v1 at model_lane.rs:13123. Fixing only the resolver cross-check leaves the proposal un-mintable. The comment at ai_edit_proposal.rs:693-701 shows the INTENT was existence + row integrity; the implementation conflated the two hash spaces. Fix: make line 710 an existence check (stored_update_sha256.is_none()), still passing stored_update_sha256 into deny_applied_update_missing so the update_row_absent discriminator stays meaningful. Row integrity is already enforced by the resolver at model_lane.rs:13118-13127 and must not be duplicated."
   },
   "implementation_notes": [
     "Preferred direction (verify against spec + code before choosing): bind and cross-check on applied_update_id (identity) and verify the referenced kernel_crdt_updates row's OWN integrity (sha256(update_bytes)==update_sha256 + Update::decode_v1) independently, instead of requiring proposal.applied_update_sha256 to equal the Yjs update hash. The proposal's own content integrity (diff_sha256 over the JSON diff) stays a separate, still-enforced invariant.",
@@ -122,7 +124,7 @@
       "The reusable helper hard-codes an identity shortcut that a real caller could not reproduce, re-creating a scaffold-only proof."
     ],
     "minimum_controls": [
-      "Keep every existing denial test green; add a negative test proving an internally inconsistent proposal row (JSON-hash != real update hash but pointed at a real update id) is still refused.",
+      "Keep every existing denial test green; add negative tests proving a proposal row that is INTERNALLY INCONSISTENT under the post-fix definition is still refused: (a) applied_update_sha256 != the proposal's own diff_sha256, and (b) applied_update_id pointing at a different real update than the message's crdt_update_ref. NOTE 2026-07-30: the original wording of this control demanded that 'JSON-hash != real update hash but pointed at a real update id' still be REFUSED, which directly contradicted AC[0]/AC[1] — that exact combination is what the MT exists to ADMIT. Minimum controls must be enforceable through the acceptance criteria, so the control was the defect and was re-worded to the post-fix definition of internal inconsistency.",
       "Forward-only migration with explicit 0192 disposition note.",
       "Helper builds authority exclusively through real product APIs (apply_approved_ai_edit path or its governed equivalent), never by raw INSERT of an inconsistent row."
     ]
@@ -138,5 +140,19 @@
     "rust_only_implementation": "Rust backend + governed migration only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after the three real-PG proof targets pass against the Handshake-managed cluster; COMPLETED is validator-only."
   },
-  "validator_verdict": null
+  "validator_verdict": null,
+  "contract_repair_2026_07_30": {
+    "repaired_by": "KERNEL_BUILDER-20260729-225554",
+    "operator_disclosure_required": true,
+    "defects_repaired": [
+      "proof_commands named non-existent test target knowledge_crdt_ai_edit_proposal_tests; corrected to knowledge_crdt_proposal_tests (the real binary owning module hardening_applied_binding). As written the proof would have failed with 'no test target named ...'.",
+      "root_cause named only the resolver cross-check and omitted the binder site ai_edit_proposal.rs:702-723, which independently blocks minting. Recorded as root_cause_addendum_2026_07_30 rather than rewriting the operator-authored root_cause.",
+      "red_team.minimum_controls[0] contradicted AC[0]/AC[1] by forbidding the exact admission the MT requires; re-worded to the post-fix definition of internal inconsistency.",
+      "allowed_paths lacked user_manual/seed.rs while required_build_rules includes HBR-MAN-004 (same-change manual update). Added; disclosed as an out-of-scope unblock for waiver per HBR-STOP-005."
+    ],
+    "unresolved_needing_operator_input": [
+      "AC[5] names a 'MT-002 CRDT-targeting positive proof' with no test function name, and proof_commands contains no model_lane_schema_pg_tests entry. The intended test must be named or proof_commands extended.",
+      "AC[4] spec-enrichment branch resolves to SILENT: grep of .GOV/spec/master-spec-v02.202/spec-modules/ found zero hits for diff_sha256, applied_update_sha256, applied_update_id. Recording a local ASSUMPTION/PROVISIONAL DECISION per AC[4] rather than claiming a spec anchor. Pre-existing citation drift noted: migrations 0192 and 0290 both cite 02-system-architecture.md 2.3.13.11 as the anchor for the applied binding, but that section does not define these semantics."
+    ]
+  }
 }

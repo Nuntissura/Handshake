@@ -1,9 +1,9 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-29T16:15:50Z",
-  "total": 19,
-  "range": "MT-001..MT-018",
+  "generated_at_utc": "2026-07-30T00:30:00Z",
+  "total": 22,
+  "range": "MT-001..MT-022",
   "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
   "microtasks": [
     {
@@ -472,6 +472,21 @@
       "pre_implementation_adversarial_review_status": "N/A",
       "post_implementation_adversarial_review_status": "N/A",
       "adversarial_findings_status": "DEFERRED_FROM_MT-007"
+    },
+    {
+      "mt_id": "MT-020",
+      "status": "READY_FOR_DEV",
+      "summary": "Repair five PRE-EXISTING failing tests in the production_factory lib module that are invisible to MT-017's declared proof set, so the module is honestly green rather than green-by-narrow-filter."
+    },
+    {
+      "mt_id": "MT-021",
+      "status": "READY_FOR_DEV",
+      "summary": "Close the WP-1 operator-surface gaps: make the WP-1 Orchestration Console swarm-dispatchable, and expose the missing WP-1 controls (cloud consent/export posture, swarm concurrency) in Options/Settings."
+    },
+    {
+      "mt_id": "MT-022",
+      "status": "READY_FOR_DEV",
+      "summary": "Close the WP-1 in-product UserManual coverage gaps that are named packet acceptance criteria, and repoint the HBR-MAN-003 self-consistency check at the canonical UserManual corpus so such gaps cannot recur silently."
     }
   ]
 }

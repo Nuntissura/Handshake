@@ -1,0 +1,112 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-020",
+  "created_at_utc": "2026-07-30T00:30:00Z",
+  "updated_at_utc": "2026-07-30T00:30:00Z",
+  "authority_files": [
+    "../handshake_main/AGENTS.md",
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+  ],
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_STARTED",
+    "hbr_status": null,
+    "pre_implementation_adversarial_review_status": null,
+    "post_implementation_adversarial_review_status": null
+  },
+  "origin": {
+    "discovered_by": "KERNEL_BUILDER-20260729-225554",
+    "discovered_at_utc": "2026-07-30T00:30:00Z",
+    "discovery_context": "Found while verifying the three MT-017 final-hardening fixes on 2026-07-30. Deferred into its own MT per the Operator rule that an unexpected gap not belonging to the current MT is carried into a future MT in the same work packet so it is not lost."
+  },
+  "scope": {
+    "summary": "Repair five PRE-EXISTING failing tests in the production_factory lib module that are invisible to MT-017's declared proof set, so the module is honestly green rather than green-by-narrow-filter.",
+    "root_cause": "MT-017 proof command [16] runs ONLY swarm_orchestration::production_factory::tests::factory_dispatches_official_cli_to_cli_builder, which passes. Running the WHOLE module (2026-07-30, both parallel and serial: 27 passed / 5 failed, EXIT=101) exposes five failures that the narrow filter hides. TWO DISTINCT CAUSES. (a) FOUR tests fail with PROCESS_LEDGER_DURABILITY_ACK_TIMEOUT ('START row for process_uuid ... was not durably acknowledged within 5000 ms'): byok_cloud_provider_selection_honors_anthropic_when_openai_also_configured (production_factory.rs:2712), official_cli_provider_selection_honors_requested_provider (:2812), cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads (:2631), from_vault_factory_cloud_spawn_records_start_and_stop (:3210). All four build their ledger with ledger_pair() (production_factory.rs:2263-2272), which calls LedgerBatcher::manual_for_tests - a MANUAL batcher that spawns no writer task and therefore can never durably acknowledge a START row, while record_cloud_session_start awaits exactly that ack. The passing sibling factory_dispatches_official_cli_to_cli_builder instead uses an explicit LedgerBatcher::spawn plus drain_and_join_ledger_writer, which is why it is unaffected. (b) ONE test, production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan (:2423), asserts matches!(err, SwarmError::FactoryFailed(_)) for a missing-artifact local spawn but receives SwarmError::LedgerFailed from the ModelLaneStore dexterity guard at coordinator.rs:992 ('ModelLaneStore-backed coordinators require SpawnRequest::with_dexterity_launch before runtime creation'), because the coordinator is built with lazy_model_lane_store() (:2274-2279). The guard fires before the factory is ever reached, so the expectation is stale.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "owned_files": [
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs"
+    ],
+    "forbidden_paths": [
+      "deleting, #[ignore]-ing, or narrowing any failing test to make the module green",
+      "weakening or removing the durability-ack requirement in record_cloud_session_start",
+      "weakening the ModelLaneStore dexterity-launch guard at coordinator.rs:992",
+      "SQLite in any form"
+    ],
+    "acceptance_criteria": [
+      "AC-1: The four DURABILITY_ACK_TIMEOUT tests pass because the ledger is actually driven (drive/drain the manual batcher, or build these tests on a spawned LedgerBatcher like factory_dispatches_official_cli_to_cli_builder does). The durability-ack requirement in record_cloud_session_start MUST NOT be relaxed, shortened, or made conditional to achieve this.",
+      "AC-2: production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan is corrected to assert the behaviour the product actually guarantees. DECIDE explicitly and record the rationale: either the test should not use a ModelLaneStore-backed coordinator for a missing-artifact case, or the guard legitimately precedes factory dispatch and the expectation must change. Do NOT weaken the guard.",
+      "AC-3: The full module runs green with NO name filter: cargo test --lib swarm_orchestration::production_factory::tests (both default-parallel and --test-threads=1). Report both.",
+      "AC-4: No test is deleted, ignored, or renamed to dodge the failure; the count of executed tests does not decrease.",
+      "AC-5: Confirm and record whether these five failures also reproduce at commit 6fd044b0^ (i.e. before the MT-017 fixes). The MT-017 analysis concluded PRE-EXISTING on mechanism grounds - the ack requirement and ledger_pair() helper are untouched by that commit, and the BYOK path is byte-identical - but an A/B baseline was never run. Establish it here."
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib swarm_orchestration::production_factory::tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib swarm_orchestration::production_factory::tests -- --test-threads=1 --nocapture",
+      "git diff --check"
+    ],
+    "risk_if_missed": "The production_factory module carries five silent failures. Any future WP that widens the proof filter beyond the single declared test inherits a red module and cannot tell new breakage from old. Worse, the four ack timeouts mean the cloud-session START durability path has NO honest passing coverage in this module, so a real durability regression would be indistinguishable from the known noise."
+  },
+  "implementation_notes": [
+    "Do not 'fix' this by shortening the 5000 ms ack deadline or making the ack optional - that would delete the durability guarantee these tests exist to prove.",
+    "ledger_pair() at production_factory.rs:2263 is shared by several tests; changing it affects every caller. Prefer giving the four cloud tests a driven ledger over mutating the shared manual helper, unless a repo-wide audit shows every caller wants a driven batcher.",
+    "Reference the working pattern in factory_dispatches_official_cli_to_cli_builder (LedgerBatcher::spawn + drain_and_join_ledger_writer, ~production_factory.rs:3530-3592).",
+    "AC-5 baseline: `git stash` and `git checkout --` are gated destructive operations under AGENTS.md and Codex CX-108 and require same-turn Operator authorization. A non-destructive alternative is `git archive 6fd044b0^ | tar -x -C <tmp>` into a scratch dir with its own CARGO_TARGET_DIR."
+  ],
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-STOP-003"
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "test-honesty and durability-guarantee preservation",
+    "risks": [
+      "Making the module green by weakening the durability ack, which silently deletes the guarantee",
+      "Deleting or ignoring the five tests instead of repairing them",
+      "Mutating shared ledger_pair() and silently changing unrelated tests' semantics"
+    ],
+    "minimum_controls": [
+      "record_cloud_session_start still awaits a durable ack with an unchanged deadline; prove by diff",
+      "Executed test count does not decrease and no #[ignore] is added",
+      "Every other caller of ledger_pair() is enumerated and shown unaffected"
+    ]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "test-honesty / no-green-by-deletion",
+      "durability-guarantee preservation",
+      "shared-helper blast radius"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "durable_authority": "kernel_process_lifecycle (ProcessOwnershipLedger); PostgreSQL/EventLedger, no SQLite",
+    "rust_only_implementation": true,
+    "spec_realism_gate": "The four ack tests must pass because a real ledger writer acknowledged a real START row, not because the assertion was relaxed."
+  }
+}

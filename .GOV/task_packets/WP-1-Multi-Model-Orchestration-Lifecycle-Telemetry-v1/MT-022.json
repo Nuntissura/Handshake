@@ -1,0 +1,121 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-022",
+  "created_at_utc": "2026-07-30T00:30:00Z",
+  "updated_at_utc": "2026-07-30T00:30:00Z",
+  "authority_files": [
+    "../handshake_main/AGENTS.md",
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+  ],
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_STARTED",
+    "hbr_status": null,
+    "pre_implementation_adversarial_review_status": null,
+    "post_implementation_adversarial_review_status": null
+  },
+  "origin": {
+    "discovered_by": "KERNEL_BUILDER-20260729-225554",
+    "discovered_at_utc": "2026-07-30T00:30:00Z",
+    "discovery_context": "Found while verifying the three MT-017 final-hardening fixes on 2026-07-30. Deferred into its own MT per the Operator rule that an unexpected gap not belonging to the current MT is carried into a future MT in the same work packet so it is not lost."
+  },
+  "scope": {
+    "summary": "Close the WP-1 in-product UserManual coverage gaps that are named packet acceptance criteria, and repoint the HBR-MAN-003 self-consistency check at the canonical UserManual corpus so such gaps cannot recur silently.",
+    "root_cause": "A 2026-07-30 audit found 18 WP-1-relevant UserManual pages already seeded, but TWO gaps that are explicit packet acceptance criteria have ZERO coverage anywhere in the manual module. (1) ExternalEngineImport / external_compat compat lane: zero occurrences across user_manual/seed.rs, registry.rs and behavior_coverage.rs, despite live product code at model_runtime/invariant.rs:43,50,259,281,290,370, model_runtime/types.rs:106, llm/boot.rs:16,109,1268, llm/registry.rs:119 and Dexterity's explicit rejection path at swarm_orchestration/model_lane.rs:5363,8466 (packet.json:202 and the external_engine_import_compat_lane directive at :224). (2) Swarm budget / concurrency cap / circuit breaker / spawn-rejection semantics: max_concurrent, ResourceGovernor, SwarmBudget, concurrency_cap, lifetime_ceiling and breaker_open appear in the manual ONLY as SSE category labels at seed.rs:844, while the live behaviour is at coordinator.rs:803,805,907,919,929,940,952,965, events.rs:81,182 (FR-EVT-SWARM-SPAWN-REJECTED) and breaker.rs. Additionally SwarmCoordinator has 29 incidental mentions but no owning page. ROOT ENFORCEMENT DEFECT: HBR-MAN-003 requires every surface named in the manual to actually exist, but the scanner .GOV/roles_shared/checks/hbr-man-003-scan.mjs reads ONLY the LEGACY manual (MANUAL_CONTENT_PATH = src/backend/handshake_core/src/model_manual/content.rs at :29) and never the canonical user_manual corpus, AND it was deregistered from gov-check on 2026-06-03 (gov-check.mjs:96-98, 'Product-owned, not a governance gate'). The Rust gate compute_behavior_consistency (user_manual/behavior_coverage.rs:451) does enforce routes/symbols/schemas structurally but does NOT read prose, so symbol names inside section() markdown bodies are unverified free text.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/tests/",
+      ".GOV/roles_shared/checks/"
+    ],
+    "owned_files": [
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/src/user_manual/behavior_coverage.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs"
+    ],
+    "forbidden_paths": [
+      "creating a second manual surface - legacy ModelManual identifiers are ALIASES ONLY per CX-982-001",
+      "documenting a surface that does not exist in code (HBR-MAN-003)",
+      "SQLite in any form"
+    ],
+    "acceptance_criteria": [
+      "AC-1: ExternalEngineImport / external_compat has real UserManual coverage explaining purpose, why it is NOT swarm-spawnable, the Dexterity rejection path, expected inputs/outputs, failure modes and recovery, per CX-982-003.",
+      "AC-2: Swarm budget/concurrency semantics have real coverage: max_concurrent, concurrency_cap, lifetime_ceiling, breaker_open, and FR-EVT-SWARM-SPAWN-REJECTED - what the operator sees when a spawn is rejected and how to recover.",
+      "AC-3: Each new/changed entry records the HBR-INT-009 diagnostic posture (Flight Recorder / internal_diagnostics / Palmistry) as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason, and links the behaviour to Flight Recorder/EventLedger evidence (CX-982-004, HBR-MAN-004).",
+      "AC-4: USER_MANUAL_VERSION (user_manual/mod.rs:78) is bumped and the pages resync cleanly; no page is left unseeded or stale.",
+      "AC-5: HBR-MAN-003 enforcement is repaired for the canonical corpus. Either repoint/extend hbr-man-003-scan.mjs to read user_manual/seed.rs and re-register it in gov-check.mjs, OR implement the equivalent prose-symbol check in Rust next to compute_behavior_consistency. Record which was chosen and why. A drift MUST fail the gate - prove it by introducing a deliberately bogus surface name, observing the failure, then removing it.",
+      "AC-6: The existing exact-set assertion at tests/user_manual_behavior_coverage_tests.rs:270-295 (24 behavior keys) stays green, or is extended deliberately with the new keys and the inverse guard at behavior_coverage.rs:1609-1620 still holds."
+    ],
+    "proof_commands": [
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests -- --nocapture",
+      "git diff --check"
+    ],
+    "risk_if_missed": "Two named packet acceptance criteria stay undocumented, so a no-context model or the Operator cannot discover the external-compat lane or understand why a swarm spawn was rejected. Because the HBR-MAN-003 scanner points at the legacy manual and is deregistered, the canonical corpus has no enforced named-surface check and further drift accumulates silently - which is exactly how these two gaps survived."
+  },
+  "implementation_notes": [
+    "Page registration is test-enforced in 8 steps: builder fn -> seed_pages() vec (seed.rs:168-203) -> slug in page_manual_toc all_slugs (:209-249, BFS reachability test at :6155-6192) -> if it owns routes, SurfaceGroup variant + as_str + page_slug + requires_identity_headers + surface! rows in registry.rs -> UserManualToolEntry + BehaviorCoverageRow if it is a behavior proof target -> CompiledSurfaceAnchor + canonical_runtime_surface_id + assert_compiled for new internal behaviour -> SQL insert AND matching template for any new model_lane_schema_registry row -> behavior key added to the exact set at tests/user_manual_behavior_coverage_tests.rs:270-295.",
+    "Prefer surface_page() (seed.rs:880-919) for route-owning pages; it auto-injects purpose plus a registry-generated navigation/Routes section. Reference shapes: page_wp1_orchestration_console() (:831-878) and page_model_lane_diagnostics() (:2908-3097).",
+    "assert_compiled() (behavior_coverage.rs:176-276) turns a renamed Rust symbol into a COMPILE error - prefer anchoring new claims that way over free prose.",
+    "Known related drift, fix or explicitly defer: the legacy MANUAL_VERSION (model_manual/mod.rs:12) is what the stateful bump guard record_manual_drift_guard_run (atelier/model_manual_merge.rs:745,777,782) and hbr-man-001-paired-diff.mjs key on, NOT USER_MANUAL_VERSION - tracked in-code as migration_plan.rs row UMMIG-013."
+  ],
+  "required_build_rules": [
+    "HBR-MAN-001",
+    "HBR-MAN-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-INT-009"
+  ],
+  "red_team": {
+    "required": true,
+    "profile": "manual truthfulness and enforcement integrity",
+    "risks": [
+      "Documenting a surface that does not exist, which HBR-MAN-003 currently cannot catch for this corpus",
+      "Creating a second parallel manual surface instead of extending the canonical one",
+      "Claiming the enforcement gap is closed without proving the gate actually fails on drift"
+    ],
+    "minimum_controls": [
+      "Every named command/route/symbol is anchored to a compiled symbol or asserted against the live surface registry",
+      "The repaired gate is proven to FAIL on a deliberately bogus surface name before being accepted",
+      "Legacy ModelManual remains an alias with no new parallel content"
+    ]
+  },
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "manual truthfulness / named-surface existence",
+      "enforcement gate actually fails on drift",
+      "no parallel manual surface",
+      "HBR-INT-009 posture honesty"
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "durable_authority": "PostgreSQL user_manual pages/versions + EventLedger; no SQLite",
+    "rust_only_implementation": true,
+    "spec_realism_gate": "Manual content must be proven code-truthful by a gate that fails on drift; prose alone does not satisfy this MT."
+  }
+}

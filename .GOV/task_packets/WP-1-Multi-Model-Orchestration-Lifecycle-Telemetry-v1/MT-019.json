@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-07-29T03:23:21Z",
+  "updated_at_utc": "2026-07-30T00:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -44,21 +44,30 @@
     "summary": "Harden the spawned-process reclaim reaper beyond the MT-007 crash->restart boot case: cover the running-app window and decide fail-open vs fail-closed on kill failure. MT-007's blocker (generic reclaim wired into boot) is closed and runtime-proven; these are secondary residuals surfaced by adversarial review, deferred so they are not forgotten.",
     "root_cause": "The boot reclaimer only surfaces dead-prior-owner (crash->restart) orphans; the periodic staleness task restart pass is disabled post-boot, and its stale_sessions query vetoes rows lacking a model_lanes record, so a live-instance official-CLI (no-lane) orphan is reaped only at the NEXT boot.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs",
-      "src/backend/handshake_core/src/storage/knowledge_crdt.rs",
-      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
-      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/src/process_ledger/",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/user_manual/",
+      "src/backend/handshake_core/src/api/mod.rs",
       "src/backend/handshake_core/tests/"
     ],
     "owned_files": [
-      "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs",
-      "src/backend/handshake_core/src/storage/knowledge_crdt.rs"
+      "src/backend/handshake_core/src/process_ledger/reclaim.rs",
+      "src/backend/handshake_core/src/process_ledger/runtime.rs",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/model_runtime/cloud/official_cli_bridge.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/tests/process_reclaim_real_lifecycle_pg_tests.rs",
+      "src/backend/handshake_core/tests/process_ledger_reclaim_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
     ],
     "forbidden_paths": [
       "front-end UI changes",
       "app/src, app/src-tauri, React/TypeScript",
-      "weakening any resolver fail-closed gate to make the loop close",
-      "SQLite in any form"
+      "weakening the pid + creation-time + exe-sha256 process identity fence",
+      "fabricating a STOP from unproven kill evidence",
+      "SQLite in any form",
+      "database migrations (MT-019 requires none)"
     ],
     "acceptance_criteria": [
       "F1 (MAJOR): a same-instance mid-run official-CLI (no model_lanes row) orphan whose process terminated/reap-failed is reaped by the RUNNING app (staleness task or a CLI-session-end reclaim trigger), not only at next boot; add a runtime proof.",
@@ -69,23 +78,40 @@
       "F6 (MINOR): fold the staleness task inline restart loop (reclaim.rs ~4314) into reconcile_restart_orphans_at_boot with a caller-chosen error policy to prevent drift, OR document the intentional divergence; boot call site silently drops in-progress-reconcile sweep errors (ReclaimKillOperationSweep.reclaim_error).",
       "F7 (NIT): MT-007 boot proof uses ProductionSandboxKill::new (default registry) and bypasses the production_with_lease 30s timeout wrapper; add coverage exercising with_registry(production_process_sandbox_registry()) + timeout. free_loopback_udp_port has an ephemeral-port re-bind flake window; retry or skip."
     ],
-    "proof_commands": [],
+    "proof_commands": [
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_reclaim_tests -- --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests mt019_running_app_reclaims_same_instance_official_cli_orphan_without_reboot -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests mt019_running_app_reap_never_kills_a_live_same_instance_child -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests mt019_post_boot_staleness_task_resurfaces_restart_orphan -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests mt019_production_with_lease_boot_timeout_fails_closed_and_retains_lease -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_reclaim_tests mt019_boot_reconcile_surfaces_in_progress_sweep_reclaim_error -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact --nocapture",
+      "git diff --check"
+    ],
     "risk_if_missed": "A live-app official-CLI orphan can stay OPEN until the next restart; an un-reapable orphan is silently left open with an overstated fail-closed claim.",
     "reference_only_paths": []
   },
   "implementation_notes": [
-    "Preferred direction (verify against spec + code before choosing): bind and cross-check on applied_update_id (identity) and verify the referenced kernel_crdt_updates row's OWN integrity (sha256(update_bytes)==update_sha256 + Update::decode_v1) independently, instead of requiring proposal.applied_update_sha256 to equal the Yjs update hash. The proposal's own content integrity (diff_sha256 over the JSON diff) stays a separate, still-enforced invariant.",
-    "Do NOT relax any resolver gate to make the loop close; the fix is to stop conflating two distinct hashes, not to drop a check.",
-    "Migration discipline: never edit 0192 in place; add a forward migration and document whether 0192's applied_update_sha256=diff_sha256 CHECK is superseded, retained, or replaced, with reasoning.",
-    "Build ONE reusable admissible-CRDT-message test helper (real persisted Yjs update + real base snapshot + active lease with matching actor/session/trace identity; update session_id == lane session_id; lease correlation_id == update trace_id) and use it for every positive CRDT admission proof so future tests stop hand-rolling partial/synthetic postures.",
-    "If this MT changes any product behavior, storage/event contract, or diagnostic surface, update the in-product UserManual in the same change per HBR-MAN-004.",
-    "Rust-only backend change plus governed migration; PostgreSQL/EventLedger authority only; no SQLite."
+    "F1: reap at the hook, not by relaxing stale_sessions. Give GuardedCliChild an Option<Arc<Reclaim>> and call run_process(parent_session_id, process_uuid, ReclaimTrigger::Failure) from official_cli_bridge.rs leave_open_for_reconciliation. run_process uses active_process_for_session and bypasses the session-wide veto in stale_sessions. Existing in-repo precedent: api/palmistry.rs survivor cleanup and coordinator.rs teardown failure both already call run_process this way.",
+    "F1 DO NOT relax reclaim.rs stale_sessions None=>false to true: the row carries no liveness evidence and is owned by the LIVE instance, so that would kill healthy in-flight official-CLI children. A negative test must prove a live same-instance child is never killed.",
+    "F2: on the real boot path spawn_managed_staleness_reclaim_task_after_boot passes run_restart_pass=false, so restart_sessions runs exactly once inline in production_with_lease. A boot-pass TIMEOUT is already fail-closed (production_with_lease returns Err). The genuine gap is the SKIPPED case; add a periodic restart tick.",
+    "F3 OPERATOR DECISION 2026-07-30 = RESILIENT BOOT (fail-open + explicit surfacing + retry). Keep run_claimed returning Ok on KillOutcome::Failed. Make the fail-open explicit: count kill-failures separately, surface them out of boot (runtime.rs currently discards the whole report), and retry via F2. Do NOT make boot return Err: the native reclaim adapter is Windows-only and always returns Failed off-Windows, which would permanently brick boot; and fail-closed cannot distinguish a correct refusal-to-kill (pid-reuse guard) from a genuine reap failure.",
+    "F4: HANDSHAKE_STARTUP_RECOVERY_ONLY=1 returns in main.rs ~271 before production_with_lease (~447), so reconcile_restart_orphans_at_boot never runs and only reclaim_pidless_embedded_orphans executes. Any added pass must complete BEFORE managed_pg.stop() in that branch.",
+    "F5: reclaim.rs processes_reclaimed uses .len() over all ReclaimedProcess, counting Failed as reclaimed. Count only Killed|KilledPendingStop and add processes_kill_failed. The report has ZERO existing read sites (runtime.rs discards it), and derive(Default) means adding a field needs no other construction edit. Discrimination reference impl already exists in mt_executor/cancellation.rs TryFrom<ReclaimReport>.",
+    "F5: correct the doc overstatements - reclaim.rs RestartOrphanBootReconcileReport doc says fenced-closed (not a KillOutcome variant) and claims fail-closed error semantics; runtime.rs claims it reclaims every generic spawned-process orphan. Neither is true for kill failure.",
+    "F6: fold the staleness inline restart loop into reconcile_restart_orphans_at_boot with a caller-chosen error policy (abort vs log-and-continue) plus a cancellation hook - the same seam F3 needs. Also stop dropping ReclaimKillOperationSweep.reclaim_error at the boot call site.",
+    "F7: the MT-007 boot proof uses ProductionSandboxKill::new (default registry, HandshakeNative only) and calls reconcile_restart_orphans_at_boot directly, bypassing production_with_lease and its 30s timeout. production_process_sandbox_registry() and with_registry have ZERO occurrences under tests/. Add coverage using the production registry plus the timeout wrapper. Also retry free_loopback_udp_port: the drop-then-probe window lets another host process take the ephemeral port and silently veto surfacing.",
+    "HBR-MAN-004 landing spot: user_manual/seed.rs section(recovery, Hard-crash orphan reconcile) currently says nothing about restart_sessions, reconcile_restart_orphans_at_boot, the fail-open kill-failure contract, or the recovery-only exclusion. The behavior-coverage gate assertions are contains-based, so added text is safe.",
+    "NO MIGRATION REQUIRED: processes_kill_failed is an in-memory struct field; nothing in F1-F7 changes a table."
   ],
   "required_build_rules": [
     "HBR-INT-001",
     "HBR-INT-005",
     "HBR-INT-009",
-    "HBR-MAN-004"
+    "HBR-MAN-004",
+    "HBR-QUIET-003"
   ],
   "hbr_obligations": [
     "INT",
@@ -96,36 +122,58 @@
     "wp_validator_session": null,
     "post_implementation_adversarial_review_required": true,
     "post_implementation_review_lenses": [
-      "crdt_authority_integrity_and_spoofing_resistance",
-      "migration_safety_and_0192_supersession",
-      "postgres_eventledger_replay_correctness",
-      "spec_realism_negative_guards_and_no_loop_reintroduction"
+      "process-ownership kill safety / no-wrong-kill",
+      "boot availability and fail-open vs fail-closed blast radius",
+      "running-app reap window safety against live children",
+      "doc-vs-code honesty (fail-open claims, counter semantics)",
+      "HBR-QUIET-003 process ownership and orphan reclamation"
     ]
   },
   "red_team": {
     "required": true,
-    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "profile": "process-ownership kill safety and boot availability",
     "risks": [
-      "A lazy fix drops the resolver cross-check entirely, admitting any proposal ref.",
-      "A migration edits 0192 in place and breaks historical applied-binding rows.",
-      "The reusable helper hard-codes an identity shortcut that a real caller could not reproduce, re-creating a scaffold-only proof."
+      "F1 running-app reap kills a LIVE same-instance official-CLI child because the ledger row carries no liveness evidence",
+      "F3 fail-closed would brick boot permanently off-Windows where the native reclaim adapter always returns Failed",
+      "Weakening the pid + creation-time + exe-sha256 identity fence to force a kill, turning a pid-reuse victim into a wrong kill",
+      "Writing a STOP that was never proven, producing false durable evidence",
+      "F5 counter change silently altering an existing consumer"
     ],
     "minimum_controls": [
-      "Keep every existing denial test green; add a negative test proving an internally inconsistent proposal row (JSON-hash != real update hash but pointed at a real update id) is still refused.",
-      "Forward-only migration with explicit 0192 disposition note.",
-      "Helper builds authority exclusively through real product APIs (apply_approved_ai_edit path or its governed equivalent), never by raw INSERT of an inconsistent row."
+      "A negative runtime proof shows a live same-instance official-CLI child is never killed by the new running-app reap path",
+      "The pid-reuse guard proof (pid_reuse_guard_refuses_to_kill_a_mismatched_generation) stays green and still yields KillOutcome::Failed with the row left open",
+      "No STOP is written on any Failed outcome; the claim is released and the fence cleared",
+      "processes_kill_failed is proven to count Failed while processes_reclaimed counts only Killed and KilledPendingStop",
+      "Boot completes (does not Err) on an un-reapable orphan, per the recorded F3 operator decision"
     ]
   },
   "handshake_compatibility": {
     "native_rust_backend_first": true,
-    "durable_authority": [
-      "PostgreSQL",
-      "EventLedger",
-      "kernel_crdt_updates",
-      "knowledge_crdt_ai_edit_proposals"
-    ],
+    "durable_authority": "kernel_process_lifecycle (ProcessOwnershipLedger) + EventLedger; PostgreSQL-authoritative, no SQLite",
     "rust_only_implementation": "Rust backend + governed migration only.",
-    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after the three real-PG proof targets pass against the Handshake-managed cluster; COMPLETED is validator-only."
+    "spec_realism_gate": "Every F1-F7 proof must exercise the real reclaim runtime against Handshake-managed PostgreSQL with a real spawned child process. Mock adapters and fixture-only assertions cannot satisfy F1, F3, or F7."
   },
-  "validator_verdict": null
+  "validator_verdict": null,
+  "operator_decisions": [
+    {
+      "id": "F3-BOOT-KILL-FAILURE-POLICY",
+      "decided_at_utc": "2026-07-30T00:00:00Z",
+      "decided_by": "OPERATOR",
+      "question": "When boot cannot reap a spawned-process orphan (kill fails), should boot fail open or fail closed?",
+      "decision": "RESILIENT_BOOT_FAIL_OPEN_PLUS_SURFACE_PLUS_RETRY",
+      "rationale": "The Failed path is already truthful and idempotently retryable (claim released, fence cleared, no false STOP). Fail-closed would permanently brick boot off-Windows because the native reclaim adapter is Windows-only and always returns Failed, and it cannot distinguish a correct refusal-to-kill from a genuine reap failure.",
+      "implements_acceptance_criterion": "F3 / acceptance_criteria[2]"
+    }
+  ],
+  "contract_repair_2026_07_30": {
+    "repaired_by": "KERNEL_BUILDER-20260729-225554",
+    "reason": "MT-019 was authored as a copy-paste hybrid: owned_files, allowed_paths, forbidden_paths[2], implementation_notes, red_team, review lenses, and handshake_compatibility.durable_authority all carried MT-018 CRDT text unrelated to the reclaim subject, and proof_commands was empty.",
+    "preserved_verbatim": [
+      "scope.summary",
+      "scope.root_cause",
+      "scope.acceptance_criteria",
+      "scope.risk_if_missed"
+    ],
+    "operator_disclosure_required": true
+  }
 }
