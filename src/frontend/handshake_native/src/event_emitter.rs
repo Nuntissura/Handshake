@@ -601,6 +601,12 @@ pub struct EmitErrorEntry {
     pub error: EmitError,
 }
 
+/// MT-036-specific `DiagEventCode::Other.counter_a` lane for visible native-editor emit failures.
+/// The diagnostics ring is intentionally numeric/closed, so this lane makes the Flight Recorder POST
+/// failure observable to internal_diagnostics and Palmistry without adding an enum variant outside this
+/// MT's allowed surface.
+pub const MT036_NATIVE_EMIT_FAILURE_DIAG_COUNTER: u64 = 36_002;
+
 /// A bounded, thread-safe ring of the most recent emit failures (cap [`ERROR_RING_CAP`]). Shared between
 /// the emitter (which writes from off-frame tasks + the frame thread) and the FlightRecorderPane (which
 /// reads on the frame thread).
@@ -624,6 +630,7 @@ impl ErrorRing {
 
     /// Push a failure, evicting the oldest entry once the cap is reached (bounded — never unbounded).
     pub fn push(&self, entry: EmitErrorEntry) {
+        record_emit_failure_diagnostic(&entry);
         if let Ok(mut q) = self.inner.lock() {
             if q.len() >= ERROR_RING_CAP {
                 q.pop_front();
@@ -679,6 +686,33 @@ impl ErrorRing {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+}
+
+fn record_emit_failure_diagnostic(entry: &EmitErrorEntry) {
+    let failure_kind = match &entry.error {
+        EmitError::NoRuntime(_) => 1,
+        EmitError::Backpressure(_) => 2,
+        EmitError::WorkerClosed(_) => 3,
+        EmitError::WorkspaceMismatch { .. } => 4,
+        EmitError::PendingOverflow { .. } => 5,
+        EmitError::Transport(_) => 6,
+        EmitError::PersistenceTimeout { .. } => 7,
+    };
+    let timestamp_nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos().min(u64::MAX as u128) as u64)
+        .unwrap_or(0);
+    crate::diagnostics::record_with(
+        handshake_diag_ring::DiagEventCode::Other,
+        handshake_diag_ring::DiagPhase::Degraded,
+        handshake_diag_ring::DiagSeverity::Warn,
+        0,
+        failure_kind,
+        MT036_NATIVE_EMIT_FAILURE_DIAG_COUNTER,
+        entry.action.len() as u64,
+        0,
+        timestamp_nanos,
+    );
 }
 
 fn pending_frame_events_id() -> egui::Id {

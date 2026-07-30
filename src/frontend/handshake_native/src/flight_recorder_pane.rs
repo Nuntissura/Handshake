@@ -35,6 +35,17 @@ pub const FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX: &str = "flight-recorder.emit-
 /// AccessKit author_id PREFIX for one event row: `fr-event-{event_id}` (Role::ListItem).
 pub const FR_EVENT_ROW_AUTHOR_PREFIX: &str = "fr-event-";
 
+/// MT-036-specific `DiagEventCode::Other.counter_a` lane for Flight Recorder pane load lifecycle.
+/// The diagnostic substrate is a closed numeric allowlist, so the pane uses this exact counter lane
+/// instead of inventing a new enum variant outside this MT's allowed path.
+pub const MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER: u64 = 36_001;
+/// `DiagEvent.sequence_id` for a real Flight Recorder load beginning.
+pub const MT036_FLIGHT_RECORDER_LOAD_START_SEQ: u64 = 1;
+/// `DiagEvent.sequence_id` for a Flight Recorder load resolving to visible rows or an honest empty state.
+pub const MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ: u64 = 2;
+/// `DiagEvent.sequence_id` for a Flight Recorder load resolving to a visible failed state.
+pub const MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ: u64 = 3;
+
 /// The stable AccessKit author_id for one event row (`fr-event-{event_id}`). The event id is sanitized
 /// to `[A-Za-z0-9-]` so an arbitrary id yields a safe address.
 pub fn fr_event_row_author_id(event_id: &str) -> String {
@@ -131,6 +142,13 @@ impl FlightRecorderPane {
     /// decorative or perpetual spinner.
     pub fn begin_loading(&mut self) {
         self.state = LoadState::Loading;
+        record_flight_recorder_pane_diagnostic(
+            MT036_FLIGHT_RECORDER_LOAD_START_SEQ,
+            handshake_diag_ring::DiagPhase::Start,
+            handshake_diag_ring::DiagSeverity::Info,
+            0,
+            0,
+        );
     }
 
     /// Run a load through the query seam, transitioning the state. This is the one-shot resolve (no
@@ -138,8 +156,29 @@ impl FlightRecorderPane {
     /// invokes this when a queued async fetch's delivery cell resolves; a test calls it directly.
     pub fn load_now(&mut self) {
         match self.query.rows() {
-            Ok(rows) => self.state = LoadState::Loaded(rows),
-            Err(e) => self.state = LoadState::Failed(e),
+            Ok(rows) => {
+                let row_count = rows.rows.len() as u64;
+                let quarantined_count = rows.quarantined.len() as u64;
+                self.state = LoadState::Loaded(rows);
+                record_flight_recorder_pane_diagnostic(
+                    MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ,
+                    handshake_diag_ring::DiagPhase::Recovered,
+                    handshake_diag_ring::DiagSeverity::Info,
+                    row_count,
+                    quarantined_count,
+                );
+            }
+            Err(e) => {
+                let reason_len = e.len() as u64;
+                self.state = LoadState::Failed(e);
+                record_flight_recorder_pane_diagnostic(
+                    MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ,
+                    handshake_diag_ring::DiagPhase::Degraded,
+                    handshake_diag_ring::DiagSeverity::Warn,
+                    0,
+                    reason_len,
+                );
+            }
         }
     }
 
@@ -299,6 +338,30 @@ impl FlightRecorderPane {
             });
         }
     }
+}
+
+fn record_flight_recorder_pane_diagnostic(
+    sequence_id: u64,
+    phase: handshake_diag_ring::DiagPhase,
+    severity: handshake_diag_ring::DiagSeverity,
+    counter_b: u64,
+    metric_micros: u64,
+) {
+    let timestamp_nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos().min(u64::MAX as u128) as u64)
+        .unwrap_or(0);
+    crate::diagnostics::record_with(
+        handshake_diag_ring::DiagEventCode::Other,
+        phase,
+        severity,
+        0,
+        sequence_id,
+        MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
+        counter_b,
+        metric_micros,
+        timestamp_nanos,
+    );
 }
 
 #[cfg(test)]

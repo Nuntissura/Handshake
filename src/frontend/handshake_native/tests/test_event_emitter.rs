@@ -35,14 +35,17 @@ use screenshot_harness::ScreenshotHarness as Harness;
 use handshake_native::event_emitter::{
     native_editor_actor_id, EmitError, EmitErrorEntry, ErrorRing, EventLedgerTransport,
     NativeEditorEvent, NativeEditorEventEmitter, RuntimeChatLedgerTransport, UndoScope,
-    EMIT_PERMITS, NATIVE_EDITOR_SCHEMA_VERSION, NATIVE_EDITOR_WORK_PACKET_ID,
+    EMIT_PERMITS, MT036_NATIVE_EMIT_FAILURE_DIAG_COUNTER, NATIVE_EDITOR_SCHEMA_VERSION,
+    NATIVE_EDITOR_WORK_PACKET_ID,
 };
 use handshake_native::flight_recorder_pane::{
     fr_event_row_author_id, FlightRecorderPane, FlightRecorderQuery, FlightRecorderQueryRows,
     FlightRecorderRow, FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
     FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX, FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
     FLIGHT_RECORDER_PANE_AUTHOR_ID, FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
-    FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+    FLIGHT_RECORDER_REFRESH_AUTHOR_ID, MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ,
+    MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ, MT036_FLIGHT_RECORDER_LOAD_START_SEQ,
+    MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
 };
 use handshake_native::interop::interaction_bus::SharedSelection;
 use handshake_native::quick_switcher::ShellNavigator;
@@ -83,6 +86,17 @@ fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> 
         }
     }
     ids
+}
+
+fn diag_seen(counter_a: u64, sequence_id: u64, phase: handshake_diag_ring::DiagPhase) -> bool {
+    handshake_native::diagnostics::snapshot_last_n(handshake_native::diagnostics::BUFFER_CAP)
+        .iter()
+        .any(|event| {
+            event.event_code == handshake_diag_ring::DiagEventCode::Other.as_u16()
+                && event.counter_a == counter_a
+                && event.sequence_id == sequence_id
+                && event.phase_marker == phase.as_u8()
+        })
 }
 
 // ── Test doubles ──────────────────────────────────────────────────────────────────────────────────
@@ -449,12 +463,38 @@ fn flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids() {
         action: "document_saved".to_owned(),
         error: EmitError::Transport("backend unavailable".to_owned()),
     });
+    assert!(
+        diag_seen(
+            MT036_NATIVE_EMIT_FAILURE_DIAG_COUNTER,
+            6,
+            handshake_diag_ring::DiagPhase::Degraded,
+        ),
+        "visible Flight Recorder emit transport failures must also land in internal_diagnostics / \
+         Palmistry's shared numeric ring"
+    );
     let query = Arc::new(InjectedQuery(Ok(FlightRecorderQueryRows {
         rows: Vec::new(),
         quarantined: vec!["bad-fems-row: event_code mismatch".to_owned()],
     })));
     let mut pane = FlightRecorderPane::new(query, ring);
+    pane.begin_loading();
+    assert!(
+        diag_seen(
+            MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
+            MT036_FLIGHT_RECORDER_LOAD_START_SEQ,
+            handshake_diag_ring::DiagPhase::Start,
+        ),
+        "Flight Recorder loading must be a Tier-2/Tier-3 observable lifecycle edge"
+    );
     pane.load_now();
+    assert!(
+        diag_seen(
+            MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
+            MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ,
+            handshake_diag_ring::DiagPhase::Recovered,
+        ),
+        "Flight Recorder recovery/loaded state must be a Tier-2/Tier-3 observable lifecycle edge"
+    );
     let pane = Arc::new(pane);
     let pane_ui = Arc::clone(&pane);
     let mut harness = Harness::builder().build_ui(move |ui| {
@@ -477,6 +517,14 @@ fn flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids() {
     let query = Arc::new(InjectedQuery(Err("backend unreachable".to_owned())));
     let mut failed = FlightRecorderPane::new(query, ErrorRing::new());
     failed.load_now();
+    assert!(
+        diag_seen(
+            MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
+            MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ,
+            handshake_diag_ring::DiagPhase::Degraded,
+        ),
+        "Flight Recorder load failure must be a Tier-2/Tier-3 observable lifecycle edge"
+    );
     let failed = Arc::new(failed);
     let failed_ui = Arc::clone(&failed);
     let mut failure_harness = Harness::builder().build_ui(move |ui| {
