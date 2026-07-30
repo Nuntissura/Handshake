@@ -1473,7 +1473,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "ModelLaneStore::record_cloud_consent_receipt",
         "ModelLaneStore::replay_cloud_consent_authority",
         "ModelLaneStore::preflight_cloud_spawn_request",
-        "ModelLaneStore::revoke_cloud_consent_receipt",
+        "SwarmCoordinator::revoke_cloud_consent_receipt",
         "SwarmCoordinator::spawn_session",
         "factory.create",
         "hsk.model_lane_cloud_projection_plan@2",
@@ -1578,7 +1578,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "provider_call_attempted = false",
         "SwarmCoordinator::spawn_session preflight blocks before factory.create",
         "ModelLaneAuthority::Promoted rejects without approved PromotionGate",
-        "ModelLaneStore::revoke_cloud_consent_receipt",
+        "SwarmCoordinator::revoke_cloud_consent_receipt",
         "model_lane_terminal EventLedger evidence",
     ] {
         assert!(
@@ -1605,7 +1605,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "ModelLaneStore::record_cloud_consent_receipt",
         "ModelLaneStore::replay_cloud_consent_authority",
         "ModelLaneStore::preflight_cloud_spawn_request",
-        "ModelLaneStore::revoke_cloud_consent_receipt",
+        "SwarmCoordinator::revoke_cloud_consent_receipt",
         "hsk.model_lane_cloud_projection_plan@2",
         "hsk.model_lane_cloud_consent_receipt@2",
         "hsk.model_lane_cloud_consent_denial@1",
@@ -1664,7 +1664,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("confirm no lane-bound identity is present"));
     assert!(recovery_steps.contains("model_lane_cloud_consent_denial"));
     assert!(recovery_steps.contains("provider_call_attempted = false"));
-    assert!(recovery_steps.contains("ModelLaneStore::revoke_cloud_consent_receipt"));
+    assert!(recovery_steps.contains("SwarmCoordinator::revoke_cloud_consent_receipt"));
     assert!(recovery_steps.contains("failstate_code CX-MM-007"));
     assert!(recovery_steps.contains("ModelLaneAuthority::Advisory"));
     assert!(recovery_steps.contains("PromotionGate decision"));

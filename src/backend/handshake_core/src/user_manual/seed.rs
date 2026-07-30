@@ -189,6 +189,8 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_model_lane_diagnostics(),
         page_model_lane_navigation(),
         page_wp1_orchestration_console(),
+        page_external_compat_engine_import(),
+        page_swarm_budget_and_spawn_rejection(),
         page_model_lane_validation_harness(),
         page_embedded_model_lifecycle_ledger(),
         page_dedicated_embedding_model_routing(),
@@ -229,6 +231,8 @@ fn page_manual_toc() -> NewUserManualPage {
         "model-lane-diagnostics",
         "model-lane-navigation",
         "wp1-orchestration-console",
+        "external-compat-engine-import",
+        "swarm-budget-and-spawn-rejection",
         "model-lane-validation-harness",
         "embedded-model-lifecycle-ledger",
         "dedicated-embedding-model-routing",
@@ -875,6 +879,326 @@ fn page_wp1_orchestration_console() -> NewUserManualPage {
         ],
         vec!["2.3.13.11".into(), "10.15.8".into()],
     )
+}
+
+fn page_external_compat_engine_import() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "external-compat-engine-import".into(),
+        title: "External-Compat Engine Import — Offline Registration, Never A Swarm Lane".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["2.3.13.11".into(), "10.15.8".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "`ProviderKind::ExternalCompat` (wire label `external_compat`) is the RETAINED, \
+                 NON-AUTHORITATIVE OpenAI-compatible compat lane. It lets an Operator point \
+                 Handshake at an ALREADY-RUNNING local OpenAI-compatible HTTP endpoint that \
+                 Handshake does NOT own, start, supervise, or reclaim.\n\n\
+                 It is an OFFLINE REGISTRATION, not a Handshake-managed model runtime. The \
+                 authoritative local lane is the embedded ModelRuntime (Candle CPU baseline by \
+                 default, llama.cpp opt-in). `HANDSHAKE_LLM_PROVIDER` defaults to \
+                 `local_runtime`; there is no daemon auto-detect and no daemon fallback anywhere \
+                 on the boot path. When no local model is configured, boot fails CLOSED to \
+                 `DisabledLlmClient::completion` — it NEVER silently selects this compat lane.\n\n\
+                 Every external-compat registration must carry a signed \
+                 `ExternalEngineImportRecord` with four fields: `endpoint_url`, \
+                 `openai_compatible`, `operator_signed_at_utc`, `operator_signature`. \
+                 `ExternalEngineImportRecord::new` rejects an empty signature and a \
+                 non-loopback endpoint at construction time.",
+            ),
+            section(
+                "inputs_outputs",
+                "Inputs and outputs",
+                "Environment inputs read by `ProviderRegistry::from_env`:\n\n\
+                 - `HANDSHAKE_LLM_PROVIDER=openai_compat` — selects this lane (default is \
+                 `local_runtime`).\n\
+                 - `OPENAI_COMPAT_BASE_URL` — required.\n\
+                 - `OPENAI_COMPAT_MODEL` — required.\n\
+                 - `OPENAI_COMPAT_TIER` in {`local`, `cloud`} — default `cloud`.\n\
+                 - `OPENAI_COMPAT_API_KEY_ENV` — optional name of the env var holding the key; \
+                 falls back to `OPENAI_API_KEY`.\n\n\
+                 Runtime inputs on the registration path: a `LoadSpec` whose `provider` is \
+                 `ProviderKind::ExternalCompat`, whose `engine_origin` is the endpoint URL, and \
+                 whose `external_engine_import` carries the signed record. Validation runs \
+                 through `LocalModelAdapterInvariant::validate`, which delegates to \
+                 `EngineOriginValidator::validate_load_spec`.\n\n\
+                 Enforced invariants (all typed, all fail-closed):\n\n\
+                 1. The endpoint scheme must be `http` or `https`.\n\
+                 2. The endpoint host must be `localhost` or a loopback IP — remote engines are \
+                 refused.\n\
+                 3. `LoadSpec.engine_origin` must parse to EXACTLY the record's `endpoint_url`.\n\
+                 4. `openai_compatible` must be `true`.\n\
+                 5. The operator signature timestamp must not be in the future and must be no \
+                 older than the validator's signature max age (30 days by default).\n\n\
+                 Output: a `LocalModelAdapterInvariant` whose `provider` is \
+                 `ProviderKind::ExternalCompat` and whose `owned_process_engine_kind` is `None` \
+                 — the deliberate encoding of \"Handshake owns no process for this lane\". A \
+                 `ProviderKind::Local` spec that carries an import record is REJECTED for the \
+                 mirror-image reason.",
+            ),
+            section(
+                "safety",
+                "Why this lane is NOT swarm-spawnable",
+                "Dexterity (the model-lane launch and normalisation layer) and the production \
+                 session factory refuse `external_compat` at THREE independent gates. This is \
+                 intentional: a swarm lane must be attributable to a Handshake-owned process in \
+                 the ProcessOwnershipLedger, and an operator-owned external engine is not.\n\n\
+                 1. Launch-adapter selection — \
+                 `DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request` returns \
+                 `ModelLaneError::InvalidInput` with the exact text \
+                 \"Dexterity rejects external_compat launch bypass; use a registered Rust \
+                 adapter\".\n\
+                 2. Model-lane schema mapping — the spawn-provider mapping returns \
+                 `ModelLaneError::InvalidInput` with the exact text \"Dexterity model-lane \
+                 schema does not support external_compat provider\".\n\
+                 3. Session creation — the production model-session factory returns \
+                 `SwarmError::ProviderNotConfigured` with `provider = \"external_compat\"` and \
+                 `detail = \"external-compat imports are offline registrations, not \
+                 swarm-spawnable runtimes\"`.\n\n\
+                 There is no fourth path and no override flag. A model or operator that wants \
+                 parallel swarm lanes must register a Handshake-owned local runtime \
+                 (`ProviderKind::Local`) or a cloud/CLI lane instead.",
+            ),
+            section(
+                "failure_modes",
+                "Failure modes",
+                "All registration refusals are `ModelRuntimeError::AdapterMismatch` carrying an \
+                 `expected` / `got` pair, never a panic and never a silent downgrade:\n\n\
+                 - `expected: \"signed ExternalEngineImportRecord\"` — the operator signature was \
+                 empty.\n\
+                 - `expected: \"signed ExternalEngineImportRecord for \
+                 ProviderKind::ExternalCompat\"` — the spec selected the compat provider but \
+                 carried no import record.\n\
+                 - `expected: \"no ExternalEngineImportRecord for ProviderKind::Local\"` — an \
+                 import record was attached to a Handshake-owned local spec.\n\
+                 - `expected: \"ExternalEngineImportRecord endpoint bound to \
+                 LoadSpec.engine_origin\"` — the record endpoint and the spec engine origin \
+                 disagree.\n\
+                 - `expected: \"local OpenAI-compatible external engine endpoint\"` — the host is \
+                 neither `localhost` nor a loopback IP.\n\
+                 - `expected: \"local HTTP(S) external engine endpoint\"` — the scheme is not \
+                 `http`/`https`.\n\
+                 - `expected: \"OpenAI-compatible external engine endpoint\"` — \
+                 `openai_compatible` was `false`.\n\
+                 - `expected: \"non-future operator signature timestamp\"` / \
+                 `expected: \"operator signature no older than N days\"` — the signature is \
+                 post-dated or stale.\n\n\
+                 Swarm-side refusals are covered in the safety section above. Boot-side: a \
+                 missing `OPENAI_COMPAT_BASE_URL` or `OPENAI_COMPAT_MODEL` fails provider \
+                 resolution rather than falling back to a daemon.",
+            ),
+            section(
+                "recovery",
+                "Recovery",
+                "- Stale signature: re-sign the import with a current `operator_signed_at_utc` \
+                 and re-register. Do NOT back-date.\n\
+                 - Endpoint moved: update BOTH `LoadSpec.engine_origin` and the record's \
+                 `endpoint_url` — they are compared for equality, so changing one is always a \
+                 rejection.\n\
+                 - Remote endpoint required: not supported on this lane. Use a BYOK cloud lane \
+                 (see [[cloud-model-access]]) or an official-CLI lane instead.\n\
+                 - \"I wanted parallel lanes\": switch the registration to a Handshake-owned \
+                 local runtime and re-run the spawn; see [[model-lane-launch-adapters]].\n\
+                 - Return to the authoritative default: unset `HANDSHAKE_LLM_PROVIDER` (or set \
+                 it to `local_runtime`) and configure `HANDSHAKE_LOCAL_MODEL_PATH` plus \
+                 `HANDSHAKE_LOCAL_MODEL_SHA256`; see [[startup-and-run-commands]].",
+            ),
+            section(
+                "recovery",
+                "HBR-INT-009 diagnostic posture",
+                "- Tier-1 Flight Recorder / EventLedger: WIRED. Completions served through this \
+                 lane emit a `FlightRecorderEventType::LlmInference` record carrying \
+                 `trace_id`, `model_id`, token usage, prompt/response hashes, and latency. \
+                 Registration refusals surface as typed \
+                 `ModelRuntimeError::AdapterMismatch` returns to the caller.\n\
+                 - Tier-2 internal_diagnostics: DEFERRED-with-reason. No internal_diagnostics \
+                 producer is bound to the external-compat adapter path today. Because the lane \
+                 is not swarm-spawnable it never opens a ModelLaneRun, so it cannot be carried \
+                 by the per-run HBR-INT-009 envelope that the model-lane behaviors use. \
+                 Follow-up ref: \
+                 `internal-diagnostics://wp1/external-compat-engine-import/adapter-lane`.\n\
+                 - Tier-3 Palmistry: NOT_APPLICABLE-with-reason for the ENGINE. Palmistry is an \
+                 out-of-process watcher of Handshake-owned processes, and the external engine is \
+                 operator-owned and deliberately absent from the ProcessOwnershipLedger \
+                 (`owned_process_engine_kind` is `None`), so there is no Handshake process for \
+                 the watcher to attribute this lane to. The Handshake app process that hosts the \
+                 adapter remains covered by the ordinary app-level watcher; that coverage is \
+                 about the app, not about this lane.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-launch-adapters"),
+            page_link("model-runtime-registry-and-loom-degrade"),
+            page_link("startup-and-run-commands"),
+            page_link("cloud-model-access"),
+            page_link("swarm-budget-and-spawn-rejection"),
+            spec_anchor("2.3.13.11"),
+            spec_anchor("10.15.8"),
+        ],
+    }
+}
+
+fn page_swarm_budget_and_spawn_rejection() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "swarm-budget-and-spawn-rejection".into(),
+        title: "Swarm Budget, Concurrency Caps, Circuit Breaker, And Spawn Rejection".into(),
+        page_kind: "failure_recovery",
+        audience: "model_and_operator",
+        spec_anchors: vec!["2.3.13.11".into(), "10.15.8".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "`SwarmCoordinator::spawn_session` is THE single spawn entrypoint for parallel \
+                 model lanes. It is bounded on purpose: a runaway spawn loop must be refused \
+                 with a typed error and a durable event, never by draining the host.\n\n\
+                 Bounds live in `RunBudget`, which is plain data so it can be snapshotted, \
+                 serialised into the ledger, and asserted in tests:\n\n\
+                 - `max_concurrent` — semaphore permits for RUNNING sessions.\n\
+                 - `max_concurrent_cold_starts` — SIMULTANEOUS model/VM boots, bounded \
+                 separately because boot/networking is the scale wall, not the running count. A \
+                 boot slot is released the instant boot completes, so a running session never \
+                 holds one. Defaults to `max_concurrent`.\n\
+                 - `max_lifetime_spawns` — monotonic hard ceiling for the whole run \
+                 (HBR-SWARM-002 loop-cap semantics). Terminal: it cannot be replenished.\n\
+                 - `max_total_tokens`, `max_total_cost_micros` — optional accounting ceilings.\n\
+                 - `max_committed_memory_bytes` — optional no-overcommit cap on total live \
+                 committed memory; reserved BEFORE create/boot and released after terminal \
+                 teardown.\n\n\
+                 `RunBudget::defaulted(n)` caps concurrency at `min(cpus, n)` and draws the \
+                 lifetime ceiling from the HBR-SWARM-002 loop cap.",
+            ),
+            section(
+                "workflows",
+                "Admission order (the order the gates actually run)",
+                "1. Duplicate pre-check — a live registry entry for the same instance returns \
+                 `SwarmError::DuplicateInstance`.\n\
+                 2. Breaker ADMISSION gate — before any expensive work. If this instance's most \
+                 recent failure signature is currently suppressed, the spawn is refused \
+                 immediately so an Open breaker never pays the full load.\n\
+                 3. Global budget ceilings — tokens, then cost.\n\
+                 4. Committed-memory reservation.\n\
+                 5. Lifetime spawn ceiling — reserved atomically and rolled back if anything \
+                 downstream fails, so a rejected spawn does not permanently consume budget.\n\
+                 6. Concurrency permit — `try_acquire`, so an over-cap spawn returns a typed \
+                 error immediately instead of blocking forever.\n\
+                 7. Cold-start admission, then factory create.\n\n\
+                 Every refusal from steps 2-6 emits a spawn-rejection event BEFORE returning \
+                 its typed error, so a refusal is never silent.\n\n\
+                 Live headroom without reaching into coordinator internals: \
+                 `SwarmCoordinator::remaining` returns a `BudgetRemaining` snapshot with \
+                 `concurrency_permits_available`, `lifetime_spawns_remaining`, \
+                 `tokens_remaining`, `cost_micros_remaining`, \
+                 `committed_memory_bytes_remaining`, and `exhausted`.",
+            ),
+            section(
+                "failure_modes",
+                "What a rejected spawn looks like",
+                "Every rejection emits `SwarmEvent::SpawnRejected { instance_id, reason }`, \
+                 whose Flight Recorder id is `SwarmFrEventId::SpawnRejected` = \
+                 `FR-EVT-SWARM-SPAWN-REJECTED`. The `reason` strings are a closed set:\n\n\
+                 - `breaker_open` — paired with `SwarmError::BreakerOpen { signature, \
+                 cooldown_remaining_ms }`.\n\
+                 - `budget:tokens` — paired with `SwarmError::BudgetExhausted`.\n\
+                 - `budget:cost` — paired with `SwarmError::BudgetExhausted`.\n\
+                 - `budget:committed_memory` — the reservation would exceed \
+                 `max_committed_memory_bytes`.\n\
+                 - `budget:committed_memory_unestimated` — a memory ceiling is configured but \
+                 the request carried no estimate; fail-closed rather than admit an unbounded \
+                 reservation.\n\
+                 - `lifetime_ceiling` — paired with \
+                 `SwarmError::LifetimeSpawnCeilingReached { spawned, ceiling }`.\n\
+                 - `concurrency_cap` — paired with \
+                 `SwarmError::ConcurrencyCapReached { in_flight, cap }`.\n\n\
+                 The circuit breaker is keyed on failure IDENTITY, not on a task or instance id: \
+                 `FailureFingerprint::compute` hashes the `SwarmErrorClass` plus the first 96 \
+                 bytes of the error detail, so one systemic failure (bad artifact hash, CUDA \
+                 OOM) accumulates the SAME signature across many sessions. States are \
+                 `BreakerState::Closed` -> `BreakerState::Open` -> `BreakerState::HalfOpen`. \
+                 When Open, admission returns `AdmitDecision::Suppress` with the remaining \
+                 cooldown. Tripping emits `SwarmEvent::BreakerTripped { signature, \
+                 consecutive_failures }` = `FR-EVT-SWARM-BREAKER-TRIPPED`. Suppression uses \
+                 `SwarmErrorClass::BreakerOpen`.",
+            ),
+            section(
+                "navigation",
+                "What the operator sees, and where",
+                "Durable authority: the Flight Recorder / EventLedger record built from the \
+                 swarm event by `FlightRecorderSwarmSink::new`. That is the record to trust.\n\n\
+                 Live, NON-AUTHORITATIVE view: `ConsoleSwarmSink::shared` tees the same events \
+                 into the WP-1 orchestration console, readable headlessly with no pop-out \
+                 window:\n\n\
+                 `curl -N http://127.0.0.1:37501/wp1/diagnostics/console/stream`\n\n\
+                 A rejected spawn arrives as a `warn` entry in category \
+                 `ConsoleCategory::SpawnRejected` (wire label `spawn_rejected`), `subject` = the \
+                 instance id, `detail` = `spawn rejected: <reason>` with provider-originated \
+                 free text secret-redacted first. A tripped breaker arrives as a `warn` entry in \
+                 category `ConsoleCategory::Breaker` (wire label `breaker`), `subject` = the \
+                 fingerprint, `detail` = `circuit breaker tripped after N consecutive \
+                 failures`.\n\n\
+                 The console tee can never fail the coordinator — its `emit` always returns \
+                 `Ok`, and it is composed AFTER the durable sink. A subscriber that falls behind \
+                 the ring gets a `console_lagged` event carrying the dropped count, so a gap is \
+                 never silent. See [[wp1-orchestration-console]].",
+            ),
+            section(
+                "recovery",
+                "Recovery, per rejection reason",
+                "- `concurrency_cap`: BACK OFF AND RETRY. Do not force. The cap is transient; \
+                 permits free as sessions reach a terminal state. Check \
+                 `concurrency_permits_available` from `SwarmCoordinator::remaining` before \
+                 retrying, or raise `max_concurrent` for the next run.\n\
+                 - `lifetime_ceiling`: TERMINAL for this run. Retrying cannot help — the total \
+                 spawn budget is spent. Start a new run, or raise `max_lifetime_spawns` \
+                 deliberately. A spawn loop that hits this is the loop cap doing its job; fix \
+                 the loop, do not raise the ceiling blindly.\n\
+                 - `budget:tokens` / `budget:cost`: the accounting ceiling is exhausted. Raise \
+                 the ceiling for the next run or reduce work per lane.\n\
+                 - `budget:committed_memory`: wait for live sessions to tear down (reservations \
+                 release on terminal teardown) or lower per-session memory estimates.\n\
+                 - `budget:committed_memory_unestimated`: supply `committed_memory_bytes` on the \
+                 spawn request, or clear `max_committed_memory_bytes` if you do not want the \
+                 no-overcommit cap.\n\
+                 - `breaker_open`: DO NOT hammer. Read `cooldown_remaining_ms` from the error, \
+                 fix the underlying systemic failure (that is what the shared signature is \
+                 telling you), then retry after the cooldown. The breaker heals through \
+                 `BreakerState::HalfOpen` on a successful probe.\n\n\
+                 Attribution note: a rejected spawn never created a session, so it leaves NO \
+                 orphan process-ledger START. The factory owns the START and stops its own START \
+                 on failure; the coordinator owns the STOP on every terminal path.",
+            ),
+            section(
+                "recovery",
+                "HBR-INT-009 diagnostic posture",
+                "- Tier-1 Flight Recorder / EventLedger: WIRED. Every rejection and every \
+                 breaker trip is built into a Flight Recorder event by \
+                 `FlightRecorderSwarmSink::new` from the same `SwarmEvent` the coordinator \
+                 emits, so the durable evidence path is `FR-EVT-SWARM-SPAWN-REJECTED` and \
+                 `FR-EVT-SWARM-BREAKER-TRIPPED`.\n\
+                 - Tier-2 internal_diagnostics: DEFERRED-with-reason. A rejected spawn is \
+                 refused BEFORE any ModelLaneRun exists, so it cannot be carried by the \
+                 per-run HBR-INT-009 envelope that the `wp1.model_lane.*` behaviors declare as \
+                 RUN_LEVEL_WIRED. Today the operator-visible signal is the Flight Recorder \
+                 record plus the NON-AUTHORITATIVE console tee. Follow-up ref: \
+                 `internal-diagnostics://wp1/swarm-budget/spawn-rejection`.\n\
+                 - Tier-3 Palmistry: DEFERRED-with-reason, for the same reason: there is no \
+                 spawned Handshake-owned process for the out-of-process watcher to attribute a \
+                 rejected spawn to. Follow-up ref: \
+                 `palmistry://wp1/swarm-budget/spawn-rejection`.",
+            ),
+        ],
+        anchors: vec![
+            page_link("wp1-orchestration-console"),
+            page_link("model-lane-diagnostics"),
+            page_link("model-lane-recovery"),
+            page_link("external-compat-engine-import"),
+            route_anchor("GET", "/wp1/diagnostics/console/stream"),
+            spec_anchor("2.3.13.11"),
+            spec_anchor("10.15.8"),
+        ],
+    }
 }
 
 fn surface_page(
@@ -2722,7 +3046,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `model_lane_cloud_consent_denial` EventLedger rows with `CX-MM-007`, \
                  `consent_status`, `provider_call_attempted = false`, and \
                  `user_manual_behavior_ref`. Use \
-                 `ModelLaneStore::revoke_cloud_consent_receipt` to revoke a receipt; it cancels \
+                 `SwarmCoordinator::revoke_cloud_consent_receipt` to revoke a receipt; it cancels \
                  covered non-terminal lanes as `ModelLaneStatus::Cancelled`, sets \
                  `failstate_code = CX-MM-007`, writes a `model_lane_terminal` EventLedger row, \
                  and keeps the lane replayable.",
@@ -5032,7 +5356,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; NewModelLaneCloudProjectionPlan rows; NewModelLaneCloudConsentReceipt rows; BYOK cloud SpawnRequest with DexterityLaunchContract; cloud ModelLane rows with projection_plan_ref and consent_receipt_ref; revoked receipt id for cancellation proof."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts, schema registry rows hsk.model_lane_cloud_projection_plan@2, hsk.model_lane_cloud_consent_receipt@2, and hsk.model_lane_cloud_consent_denial@1, replay through ModelLaneStore::replay_cloud_consent_authority, single-lane cloud launch allowed only when durable ProjectionPlan and ConsentReceipt match projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets, single-run launch allowed only when durable run-scoped authority matches run_id plus the shared non-lane authority fields, missing/expired/mismatched/revoked consent rejected with CX-MM-007 and model_lane_cloud_consent_denial EventLedger payload provider_call_attempted = false, SwarmCoordinator::spawn_session preflight blocks before factory.create and spawn_cloud_consent_batch preflights every run-scoped request before dispatch, cloud ModelLaneMessage diagnostic_payload carries projection/redaction metadata, ModelLaneAuthority::Promoted rejects without approved PromotionGate, and ModelLaneStore::revoke_cloud_consent_receipt cancels every durable covered lane with failstate_code CX-MM-007 and per-lane model_lane_terminal EventLedger evidence."
+            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts, schema registry rows hsk.model_lane_cloud_projection_plan@2, hsk.model_lane_cloud_consent_receipt@2, and hsk.model_lane_cloud_consent_denial@1, replay through ModelLaneStore::replay_cloud_consent_authority, single-lane cloud launch allowed only when durable ProjectionPlan and ConsentReceipt match projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets, single-run launch allowed only when durable run-scoped authority matches run_id plus the shared non-lane authority fields, missing/expired/mismatched/revoked consent rejected with CX-MM-007 and model_lane_cloud_consent_denial EventLedger payload provider_call_attempted = false, SwarmCoordinator::spawn_session preflight blocks before factory.create and spawn_cloud_consent_batch preflights every run-scoped request before dispatch, cloud ModelLaneMessage diagnostic_payload carries projection/redaction metadata, ModelLaneAuthority::Promoted rejects without approved PromotionGate, and SwarmCoordinator::revoke_cloud_consent_receipt cancels every durable covered lane with failstate_code CX-MM-007 and per-lane model_lane_terminal EventLedger evidence."
                 .into(),
         schema_fields: vec![
             "NewModelLaneCloudProjectionPlan".into(),
@@ -5044,7 +5368,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "ModelLaneStore::record_cloud_consent_receipt".into(),
             "ModelLaneStore::replay_cloud_consent_authority".into(),
             "ModelLaneStore::preflight_cloud_spawn_request".into(),
-            "ModelLaneStore::revoke_cloud_consent_receipt".into(),
+            "SwarmCoordinator::revoke_cloud_consent_receipt".into(),
             "hsk.model_lane_cloud_projection_plan@2".into(),
             "hsk.model_lane_cloud_consent_receipt@2".into(),
             "hsk.model_lane_cloud_consent_denial@1".into(),
@@ -5082,7 +5406,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Record or replay the ProjectionPlan with ModelLaneStore::record_cloud_projection_plan, then compare projection_plan_hash and event_ledger_seq to kernel_event_ledger.".into(),
             "Record or replay the ConsentReceipt with ModelLaneStore::record_cloud_consent_receipt. For single_lane verify projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets; for single_run verify projection_plan_hash/run_id/scope_hash/retention/export/fan_out_targets and confirm no lane-bound identity is present.".into(),
             "For CX-MM-007 denials, inspect model_lane_cloud_consent_denial payloads and confirm provider_call_attempted = false before retrying with a new valid receipt.".into(),
-            "For revocations, call ModelLaneStore::revoke_cloud_consent_receipt and replay the affected run to confirm Cancelled lanes with failstate_code CX-MM-007.".into(),
+            "For revocations, call SwarmCoordinator::revoke_cloud_consent_receipt and replay the affected run to confirm Cancelled lanes with failstate_code CX-MM-007.".into(),
             "For cloud outputs, keep ModelLaneAuthority::Advisory until a PromotionGate decision exists; never write ModelLaneAuthority::Promoted directly.".into(),
             "For HBR-INT-009, inspect EventLedger rows; direct Flight Recorder event emission is DEFERRED-with-reason to FR-EVT-CLOUD wiring, internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],

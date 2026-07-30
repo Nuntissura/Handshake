@@ -26,7 +26,9 @@ use crate::swarm_orchestration::operator_chat::{
 use crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionStore;
 
 use super::registry::{wp009_surface_registry, SurfaceGroup};
-use super::store::{UserManualFeatureEntry, UserManualPage, UserManualToolEntry};
+use super::store::{
+    NewUserManualPage, UserManualFeatureEntry, UserManualPage, UserManualToolEntry,
+};
 use super::USER_MANUAL_VERSION;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -612,6 +614,1032 @@ fn compute_behavior_consistency(
         Ok(BehaviorConsistencyProof {
             behavior_id: row.behavior_id,
             checked_authorities,
+        })
+    } else {
+        Err(errors)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-022 / HBR-MAN-003: named-surface existence gate for the CANONICAL corpus.
+//
+// [`compute_behavior_consistency`] above proves ROUTES, compiled runtime-surface
+// SYMBOLS, and SCHEMA ids for the declared behavior rows. It never reads prose,
+// so a product symbol or Flight Recorder event id typed inside a `section(...)`
+// markdown body used to be unverified free text — which is exactly how the
+// `external_compat` and swarm-budget gaps survived, and how
+// `ModelLaneStore::revoke_cloud_consent_receipt` (the method actually lives on
+// `SwarmCoordinator`) drifted into three manual pages unnoticed.
+//
+// The legacy `.GOV/roles_shared/checks/hbr-man-003-scan.mjs` cannot close this:
+// it reads ONLY the legacy `model_manual/content.rs` file, it resolves names by
+// "does this string appear anywhere under src/", and it was deregistered from
+// `gov-check` on 2026-06-03 as product-owned. This gate is the product-owned
+// replacement, and it is strictly stronger than a text search: every accepted
+// name is bound to a real Rust item through [`ManualNamedSymbol::assert_compiled`]
+// or to a compiled Flight-Recorder id vocabulary, so a renamed product symbol
+// becomes a COMPILE error and an invented one becomes a TEST failure.
+//
+// Scan rule (deterministic, no heuristics):
+//  * Only `body_md` prose of seeded pages is scanned.
+//  * A SYMBOL claim is a backtick-delimited span whose text — after cutting at
+//    the first `(`, `{`, `<` or `[` and trimming — is a Rust path of the shape
+//    `Uppercase(::segment)+`. Anything else in backticks (routes, env vars,
+//    shell commands, JSON fields) is not a symbol claim and is ignored.
+//  * A FLIGHT RECORDER claim is any `FR-EVT-` token, backticked or not. It
+//    resolves when it is, or prefixes, a compiled event id — so a family
+//    reference such as `FR-EVT-AGENT-*` resolves through
+//    `FR-EVT-AGENT-TOOLCALL`.
+//  * [`PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES`] is the explicit, reviewable
+//    escape hatch for families the manual documents as DEFERRED wiring. It
+//    mirrors the legacy scanner's `CommandStatus::Planned` semantics: an
+//    exemption must be written down, never inferred.
+// ---------------------------------------------------------------------------
+
+/// Behavior id stamped on every named-surface failure so the error stream stays
+/// machine-groupable alongside the behavior-coverage errors.
+pub const MANUAL_NAMED_SURFACE_BEHAVIOR_ID: &str = "user_manual.named_surface";
+
+/// How a product symbol named by the manual is proven to exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManualNamedSymbolProof {
+    /// [`ManualNamedSymbol::assert_compiled`] references the real Rust item, so
+    /// a rename or deletion in product code fails the build here.
+    CompileAnchored,
+    /// The item is real but cannot be NAMED from this module (module-private,
+    /// `pub(super)`, or owned by a crate `handshake_core` does not depend on).
+    /// Recorded with an explicit reason instead of being silently accepted.
+    DeclaredNotNameableHere(&'static str),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManualNamedSymbol {
+    /// `AdmitDecision::Suppress`
+    AdmitDecisionSuppress,
+    /// `AppState::model_catalog`
+    AppStateModelCatalog,
+    /// `BreakerState::Closed`
+    BreakerStateClosed,
+    /// `BreakerState::HalfOpen`
+    BreakerStateHalfOpen,
+    /// `BreakerState::Open`
+    BreakerStateOpen,
+    /// `ConsoleCategory::Breaker`
+    ConsoleCategoryBreaker,
+    /// `ConsoleCategory::SpawnRejected`
+    ConsoleCategorySpawnRejected,
+    /// `ConsoleSwarmSink::shared`
+    ConsoleSwarmSinkShared,
+    /// `DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request`
+    DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest,
+    /// `DexterityLaunchContract::attach_to_spawn_request`
+    DexterityLaunchContractAttachToSpawnRequest,
+    /// `DisabledLlmClient::completion`
+    DisabledLlmClientCompletion,
+    /// `DisabledLlmClient::embedding`
+    DisabledLlmClientEmbedding,
+    /// `EmbeddedModelProcess::record_reserved_load_with_durable_ack`
+    EmbeddedModelProcessRecordReservedLoadWithDurableAck,
+    /// `EmbeddedModelProcess::shutdown`
+    EmbeddedModelProcessShutdown,
+    /// `EngineOriginValidator::validate_load_spec`
+    EngineOriginValidatorValidateLoadSpec,
+    /// `ExternalEngineImportRecord::new`
+    ExternalEngineImportRecordNew,
+    /// `FailureFingerprint::compute`
+    FailureFingerprintCompute,
+    /// `FinishReason::Cancelled`
+    FinishReasonCancelled,
+    /// `FlightRecorderEventType::LlmInference`
+    FlightRecorderEventTypeLlmInference,
+    /// `FlightRecorderSwarmSink::new`
+    FlightRecorderSwarmSinkNew,
+    /// `GuardedCliChild::terminate_and_collect`
+    GuardedCliChildTerminateAndCollect,
+    /// `HandshakeNativeSandboxAdapter::spawn_attached_with_stdio`
+    HandshakeNativeSandboxAdapterSpawnAttachedWithStdio,
+    /// `KernelEventType::ModelRuntimeSelectionRecorded`
+    KernelEventTypeModelRuntimeSelectionRecorded,
+    /// `LaunchAuthority::SubagentManager`
+    LaunchAuthoritySubagentManager,
+    /// `LiveCliSpawner::spawn`
+    LiveCliSpawnerSpawn,
+    /// `LlmClient::embedding`
+    LlmClientEmbedding,
+    /// `LlmClient::shutdown_gracefully`
+    LlmClientShutdownGracefully,
+    /// `LocalModelAdapterInvariant::validate`
+    LocalModelAdapterInvariantValidate,
+    /// `LocalModelRuntimeLlmClient::embedding`
+    LocalModelRuntimeLlmClientEmbedding,
+    /// `ModelCatalog::embedding_model_for_dim`
+    ModelCatalogEmbeddingModelForDim,
+    /// `ModelCatalog::list`
+    ModelCatalogList,
+    /// `ModelCatalog::record_selection_decision`
+    ModelCatalogRecordSelectionDecision,
+    /// `ModelCatalog::record_selection_decision_with_context`
+    ModelCatalogRecordSelectionDecisionWithContext,
+    /// `ModelLaneAuthority::Advisory`
+    ModelLaneAuthorityAdvisory,
+    /// `ModelLaneAuthority::Promoted`
+    ModelLaneAuthorityPromoted,
+    /// `ModelLaneError::InvalidInput`
+    ModelLaneErrorInvalidInput,
+    /// `ModelLaneStatus::Cancelled`
+    ModelLaneStatusCancelled,
+    /// `ModelLaneStore::consume_context_bundle_for_downstream`
+    ModelLaneStoreConsumeContextBundleForDownstream,
+    /// `ModelLaneStore::diagnostics_projection`
+    ModelLaneStoreDiagnosticsProjection,
+    /// `ModelLaneStore::preflight_cloud_spawn_request`
+    ModelLaneStorePreflightCloudSpawnRequest,
+    /// `ModelLaneStore::record_cloud_consent_receipt`
+    ModelLaneStoreRecordCloudConsentReceipt,
+    /// `ModelLaneStore::record_cloud_projection_plan`
+    ModelLaneStoreRecordCloudProjectionPlan,
+    /// `ModelLaneStore::record_context_bundle_artifact_binding`
+    ModelLaneStoreRecordContextBundleArtifactBinding,
+    /// `ModelLaneStore::record_context_bundle_handoff`
+    ModelLaneStoreRecordContextBundleHandoff,
+    /// `ModelLaneStore::record_message`
+    ModelLaneStoreRecordMessage,
+    /// `ModelLaneStore::record_promotion_decision`
+    ModelLaneStoreRecordPromotionDecision,
+    /// `ModelLaneStore::recover_run_after_restart`
+    ModelLaneStoreRecoverRunAfterRestart,
+    /// `ModelLaneStore::replay_cloud_consent_authority`
+    ModelLaneStoreReplayCloudConsentAuthority,
+    /// `ModelLaneStore::replay_context_bundle_handoffs`
+    ModelLaneStoreReplayContextBundleHandoffs,
+    /// `ModelLaneStore::replay_promotion_decisions`
+    ModelLaneStoreReplayPromotionDecisions,
+    /// `ModelLaneStore::replay_run`
+    ModelLaneStoreReplayRun,
+    /// `ModelLaneStore::validate_diagnostic_tier_posture`
+    ModelLaneStoreValidateDiagnosticTierPosture,
+    /// `ModelRuntimeError::AdapterMismatch`
+    ModelRuntimeErrorAdapterMismatch,
+    /// `ProviderKind::ExternalCompat`
+    ProviderKindExternalCompat,
+    /// `ProviderKind::Local`
+    ProviderKindLocal,
+    /// `ProviderRegistry::from_env`
+    ProviderRegistryFromEnv,
+    /// `Role::Dialog`
+    RoleDialog,
+    /// `Role::Window`
+    RoleWindow,
+    /// `RunBudget::defaulted`
+    RunBudgetDefaulted,
+    /// `RuntimeBinding::Subagent`
+    RuntimeBindingSubagent,
+    /// `SemanticUnavailableReason::DimMismatch`
+    SemanticUnavailableReasonDimMismatch,
+    /// `SemanticUnavailableReason::NoModel`
+    SemanticUnavailableReasonNoModel,
+    /// `SpawnRequest::with_dexterity_launch`
+    SpawnRequestWithDexterityLaunch,
+    /// `SwarmCoordinator::context_bundle_for_downstream_lane`
+    SwarmCoordinatorContextBundleForDownstreamLane,
+    /// `SwarmCoordinator::invoke_downstream_context_bundle`
+    SwarmCoordinatorInvokeDownstreamContextBundle,
+    /// `SwarmCoordinator::launch_operator_subagent_model_lane`
+    SwarmCoordinatorLaunchOperatorSubagentModelLane,
+    /// `SwarmCoordinator::remaining`
+    SwarmCoordinatorRemaining,
+    /// `SwarmCoordinator::retry_pending_session_cleanups`
+    SwarmCoordinatorRetryPendingSessionCleanups,
+    /// `SwarmCoordinator::revoke_cloud_consent_receipt`
+    SwarmCoordinatorRevokeCloudConsentReceipt,
+    /// `SwarmCoordinator::session_runtime`
+    SwarmCoordinatorSessionRuntime,
+    /// `SwarmCoordinator::spawn_session`
+    SwarmCoordinatorSpawnSession,
+    /// `SwarmError::BreakerOpen`
+    SwarmErrorBreakerOpen,
+    /// `SwarmError::BudgetExhausted`
+    SwarmErrorBudgetExhausted,
+    /// `SwarmError::ConcurrencyCapReached`
+    SwarmErrorConcurrencyCapReached,
+    /// `SwarmError::DuplicateInstance`
+    SwarmErrorDuplicateInstance,
+    /// `SwarmError::LifetimeSpawnCeilingReached`
+    SwarmErrorLifetimeSpawnCeilingReached,
+    /// `SwarmError::ProviderNotConfigured`
+    SwarmErrorProviderNotConfigured,
+    /// `SwarmErrorClass::BreakerOpen`
+    SwarmErrorClassBreakerOpen,
+    /// `SwarmEvent::BreakerTripped`
+    SwarmEventBreakerTripped,
+    /// `SwarmEvent::SpawnRejected`
+    SwarmEventSpawnRejected,
+    /// `SwarmFrEventId::SpawnRejected`
+    SwarmFrEventIdSpawnRejected,
+    /// `Update::decode_v1`
+    UpdateDecodeV1,
+}
+
+impl ManualNamedSymbol {
+    const ALL: &'static [ManualNamedSymbol] = &[
+        Self::AdmitDecisionSuppress,
+        Self::AppStateModelCatalog,
+        Self::BreakerStateClosed,
+        Self::BreakerStateHalfOpen,
+        Self::BreakerStateOpen,
+        Self::ConsoleCategoryBreaker,
+        Self::ConsoleCategorySpawnRejected,
+        Self::ConsoleSwarmSinkShared,
+        Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest,
+        Self::DexterityLaunchContractAttachToSpawnRequest,
+        Self::DisabledLlmClientCompletion,
+        Self::DisabledLlmClientEmbedding,
+        Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck,
+        Self::EmbeddedModelProcessShutdown,
+        Self::EngineOriginValidatorValidateLoadSpec,
+        Self::ExternalEngineImportRecordNew,
+        Self::FailureFingerprintCompute,
+        Self::FinishReasonCancelled,
+        Self::FlightRecorderEventTypeLlmInference,
+        Self::FlightRecorderSwarmSinkNew,
+        Self::GuardedCliChildTerminateAndCollect,
+        Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio,
+        Self::KernelEventTypeModelRuntimeSelectionRecorded,
+        Self::LaunchAuthoritySubagentManager,
+        Self::LiveCliSpawnerSpawn,
+        Self::LlmClientEmbedding,
+        Self::LlmClientShutdownGracefully,
+        Self::LocalModelAdapterInvariantValidate,
+        Self::LocalModelRuntimeLlmClientEmbedding,
+        Self::ModelCatalogEmbeddingModelForDim,
+        Self::ModelCatalogList,
+        Self::ModelCatalogRecordSelectionDecision,
+        Self::ModelCatalogRecordSelectionDecisionWithContext,
+        Self::ModelLaneAuthorityAdvisory,
+        Self::ModelLaneAuthorityPromoted,
+        Self::ModelLaneErrorInvalidInput,
+        Self::ModelLaneStatusCancelled,
+        Self::ModelLaneStoreConsumeContextBundleForDownstream,
+        Self::ModelLaneStoreDiagnosticsProjection,
+        Self::ModelLaneStorePreflightCloudSpawnRequest,
+        Self::ModelLaneStoreRecordCloudConsentReceipt,
+        Self::ModelLaneStoreRecordCloudProjectionPlan,
+        Self::ModelLaneStoreRecordContextBundleArtifactBinding,
+        Self::ModelLaneStoreRecordContextBundleHandoff,
+        Self::ModelLaneStoreRecordMessage,
+        Self::ModelLaneStoreRecordPromotionDecision,
+        Self::ModelLaneStoreRecoverRunAfterRestart,
+        Self::ModelLaneStoreReplayCloudConsentAuthority,
+        Self::ModelLaneStoreReplayContextBundleHandoffs,
+        Self::ModelLaneStoreReplayPromotionDecisions,
+        Self::ModelLaneStoreReplayRun,
+        Self::ModelLaneStoreValidateDiagnosticTierPosture,
+        Self::ModelRuntimeErrorAdapterMismatch,
+        Self::ProviderKindExternalCompat,
+        Self::ProviderKindLocal,
+        Self::ProviderRegistryFromEnv,
+        Self::RoleDialog,
+        Self::RoleWindow,
+        Self::RunBudgetDefaulted,
+        Self::RuntimeBindingSubagent,
+        Self::SemanticUnavailableReasonDimMismatch,
+        Self::SemanticUnavailableReasonNoModel,
+        Self::SpawnRequestWithDexterityLaunch,
+        Self::SwarmCoordinatorContextBundleForDownstreamLane,
+        Self::SwarmCoordinatorInvokeDownstreamContextBundle,
+        Self::SwarmCoordinatorLaunchOperatorSubagentModelLane,
+        Self::SwarmCoordinatorRemaining,
+        Self::SwarmCoordinatorRetryPendingSessionCleanups,
+        Self::SwarmCoordinatorRevokeCloudConsentReceipt,
+        Self::SwarmCoordinatorSessionRuntime,
+        Self::SwarmCoordinatorSpawnSession,
+        Self::SwarmErrorBreakerOpen,
+        Self::SwarmErrorBudgetExhausted,
+        Self::SwarmErrorConcurrencyCapReached,
+        Self::SwarmErrorDuplicateInstance,
+        Self::SwarmErrorLifetimeSpawnCeilingReached,
+        Self::SwarmErrorProviderNotConfigured,
+        Self::SwarmErrorClassBreakerOpen,
+        Self::SwarmEventBreakerTripped,
+        Self::SwarmEventSpawnRejected,
+        Self::SwarmFrEventIdSpawnRejected,
+        Self::UpdateDecodeV1,
+    ];
+
+    /// The exact text the manual prose is allowed to print between backticks.
+    fn literal(self) -> &'static str {
+        match self {
+            Self::AdmitDecisionSuppress => "AdmitDecision::Suppress",
+            Self::AppStateModelCatalog => "AppState::model_catalog",
+            Self::BreakerStateClosed => "BreakerState::Closed",
+            Self::BreakerStateHalfOpen => "BreakerState::HalfOpen",
+            Self::BreakerStateOpen => "BreakerState::Open",
+            Self::ConsoleCategoryBreaker => "ConsoleCategory::Breaker",
+            Self::ConsoleCategorySpawnRejected => "ConsoleCategory::SpawnRejected",
+            Self::ConsoleSwarmSinkShared => "ConsoleSwarmSink::shared",
+            Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => "DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request",
+            Self::DexterityLaunchContractAttachToSpawnRequest => "DexterityLaunchContract::attach_to_spawn_request",
+            Self::DisabledLlmClientCompletion => "DisabledLlmClient::completion",
+            Self::DisabledLlmClientEmbedding => "DisabledLlmClient::embedding",
+            Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => "EmbeddedModelProcess::record_reserved_load_with_durable_ack",
+            Self::EmbeddedModelProcessShutdown => "EmbeddedModelProcess::shutdown",
+            Self::EngineOriginValidatorValidateLoadSpec => "EngineOriginValidator::validate_load_spec",
+            Self::ExternalEngineImportRecordNew => "ExternalEngineImportRecord::new",
+            Self::FailureFingerprintCompute => "FailureFingerprint::compute",
+            Self::FinishReasonCancelled => "FinishReason::Cancelled",
+            Self::FlightRecorderEventTypeLlmInference => "FlightRecorderEventType::LlmInference",
+            Self::FlightRecorderSwarmSinkNew => "FlightRecorderSwarmSink::new",
+            Self::GuardedCliChildTerminateAndCollect => "GuardedCliChild::terminate_and_collect",
+            Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+            Self::KernelEventTypeModelRuntimeSelectionRecorded => "KernelEventType::ModelRuntimeSelectionRecorded",
+            Self::LaunchAuthoritySubagentManager => "LaunchAuthority::SubagentManager",
+            Self::LiveCliSpawnerSpawn => "LiveCliSpawner::spawn",
+            Self::LlmClientEmbedding => "LlmClient::embedding",
+            Self::LlmClientShutdownGracefully => "LlmClient::shutdown_gracefully",
+            Self::LocalModelAdapterInvariantValidate => "LocalModelAdapterInvariant::validate",
+            Self::LocalModelRuntimeLlmClientEmbedding => "LocalModelRuntimeLlmClient::embedding",
+            Self::ModelCatalogEmbeddingModelForDim => "ModelCatalog::embedding_model_for_dim",
+            Self::ModelCatalogList => "ModelCatalog::list",
+            Self::ModelCatalogRecordSelectionDecision => "ModelCatalog::record_selection_decision",
+            Self::ModelCatalogRecordSelectionDecisionWithContext => "ModelCatalog::record_selection_decision_with_context",
+            Self::ModelLaneAuthorityAdvisory => "ModelLaneAuthority::Advisory",
+            Self::ModelLaneAuthorityPromoted => "ModelLaneAuthority::Promoted",
+            Self::ModelLaneErrorInvalidInput => "ModelLaneError::InvalidInput",
+            Self::ModelLaneStatusCancelled => "ModelLaneStatus::Cancelled",
+            Self::ModelLaneStoreConsumeContextBundleForDownstream => "ModelLaneStore::consume_context_bundle_for_downstream",
+            Self::ModelLaneStoreDiagnosticsProjection => "ModelLaneStore::diagnostics_projection",
+            Self::ModelLaneStorePreflightCloudSpawnRequest => "ModelLaneStore::preflight_cloud_spawn_request",
+            Self::ModelLaneStoreRecordCloudConsentReceipt => "ModelLaneStore::record_cloud_consent_receipt",
+            Self::ModelLaneStoreRecordCloudProjectionPlan => "ModelLaneStore::record_cloud_projection_plan",
+            Self::ModelLaneStoreRecordContextBundleArtifactBinding => "ModelLaneStore::record_context_bundle_artifact_binding",
+            Self::ModelLaneStoreRecordContextBundleHandoff => "ModelLaneStore::record_context_bundle_handoff",
+            Self::ModelLaneStoreRecordMessage => "ModelLaneStore::record_message",
+            Self::ModelLaneStoreRecordPromotionDecision => "ModelLaneStore::record_promotion_decision",
+            Self::ModelLaneStoreRecoverRunAfterRestart => "ModelLaneStore::recover_run_after_restart",
+            Self::ModelLaneStoreReplayCloudConsentAuthority => "ModelLaneStore::replay_cloud_consent_authority",
+            Self::ModelLaneStoreReplayContextBundleHandoffs => "ModelLaneStore::replay_context_bundle_handoffs",
+            Self::ModelLaneStoreReplayPromotionDecisions => "ModelLaneStore::replay_promotion_decisions",
+            Self::ModelLaneStoreReplayRun => "ModelLaneStore::replay_run",
+            Self::ModelLaneStoreValidateDiagnosticTierPosture => "ModelLaneStore::validate_diagnostic_tier_posture",
+            Self::ModelRuntimeErrorAdapterMismatch => "ModelRuntimeError::AdapterMismatch",
+            Self::ProviderKindExternalCompat => "ProviderKind::ExternalCompat",
+            Self::ProviderKindLocal => "ProviderKind::Local",
+            Self::ProviderRegistryFromEnv => "ProviderRegistry::from_env",
+            Self::RoleDialog => "Role::Dialog",
+            Self::RoleWindow => "Role::Window",
+            Self::RunBudgetDefaulted => "RunBudget::defaulted",
+            Self::RuntimeBindingSubagent => "RuntimeBinding::Subagent",
+            Self::SemanticUnavailableReasonDimMismatch => "SemanticUnavailableReason::DimMismatch",
+            Self::SemanticUnavailableReasonNoModel => "SemanticUnavailableReason::NoModel",
+            Self::SpawnRequestWithDexterityLaunch => "SpawnRequest::with_dexterity_launch",
+            Self::SwarmCoordinatorContextBundleForDownstreamLane => "SwarmCoordinator::context_bundle_for_downstream_lane",
+            Self::SwarmCoordinatorInvokeDownstreamContextBundle => "SwarmCoordinator::invoke_downstream_context_bundle",
+            Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => "SwarmCoordinator::launch_operator_subagent_model_lane",
+            Self::SwarmCoordinatorRemaining => "SwarmCoordinator::remaining",
+            Self::SwarmCoordinatorRetryPendingSessionCleanups => "SwarmCoordinator::retry_pending_session_cleanups",
+            Self::SwarmCoordinatorRevokeCloudConsentReceipt => "SwarmCoordinator::revoke_cloud_consent_receipt",
+            Self::SwarmCoordinatorSessionRuntime => "SwarmCoordinator::session_runtime",
+            Self::SwarmCoordinatorSpawnSession => "SwarmCoordinator::spawn_session",
+            Self::SwarmErrorBreakerOpen => "SwarmError::BreakerOpen",
+            Self::SwarmErrorBudgetExhausted => "SwarmError::BudgetExhausted",
+            Self::SwarmErrorConcurrencyCapReached => "SwarmError::ConcurrencyCapReached",
+            Self::SwarmErrorDuplicateInstance => "SwarmError::DuplicateInstance",
+            Self::SwarmErrorLifetimeSpawnCeilingReached => "SwarmError::LifetimeSpawnCeilingReached",
+            Self::SwarmErrorProviderNotConfigured => "SwarmError::ProviderNotConfigured",
+            Self::SwarmErrorClassBreakerOpen => "SwarmErrorClass::BreakerOpen",
+            Self::SwarmEventBreakerTripped => "SwarmEvent::BreakerTripped",
+            Self::SwarmEventSpawnRejected => "SwarmEvent::SpawnRejected",
+            Self::SwarmFrEventIdSpawnRejected => "SwarmFrEventId::SpawnRejected",
+            Self::UpdateDecodeV1 => "Update::decode_v1",
+        }
+    }
+
+    fn proof(self) -> ManualNamedSymbolProof {
+        match self {
+            Self::AdmitDecisionSuppress => ManualNamedSymbolProof::CompileAnchored,
+            Self::AppStateModelCatalog => ManualNamedSymbolProof::CompileAnchored,
+            Self::BreakerStateClosed => ManualNamedSymbolProof::CompileAnchored,
+            Self::BreakerStateHalfOpen => ManualNamedSymbolProof::CompileAnchored,
+            Self::BreakerStateOpen => ManualNamedSymbolProof::CompileAnchored,
+            Self::ConsoleCategoryBreaker => ManualNamedSymbolProof::CompileAnchored,
+            Self::ConsoleCategorySpawnRejected => ManualNamedSymbolProof::CompileAnchored,
+            Self::ConsoleSwarmSinkShared => ManualNamedSymbolProof::CompileAnchored,
+            Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => ManualNamedSymbolProof::CompileAnchored,
+            Self::DexterityLaunchContractAttachToSpawnRequest => ManualNamedSymbolProof::CompileAnchored,
+            Self::DisabledLlmClientCompletion => ManualNamedSymbolProof::CompileAnchored,
+            Self::DisabledLlmClientEmbedding => ManualNamedSymbolProof::CompileAnchored,
+            Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => ManualNamedSymbolProof::DeclaredNotNameableHere(
+                "pub(super) inside llm::embedded_ledger; not nameable from user_manual. Verified by inspection at src/llm/embedded_ledger.rs.",
+            ),
+            Self::EmbeddedModelProcessShutdown => ManualNamedSymbolProof::CompileAnchored,
+            Self::EngineOriginValidatorValidateLoadSpec => ManualNamedSymbolProof::CompileAnchored,
+            Self::ExternalEngineImportRecordNew => ManualNamedSymbolProof::CompileAnchored,
+            Self::FailureFingerprintCompute => ManualNamedSymbolProof::CompileAnchored,
+            Self::FinishReasonCancelled => ManualNamedSymbolProof::CompileAnchored,
+            Self::FlightRecorderEventTypeLlmInference => ManualNamedSymbolProof::CompileAnchored,
+            Self::FlightRecorderSwarmSinkNew => ManualNamedSymbolProof::CompileAnchored,
+            Self::GuardedCliChildTerminateAndCollect => ManualNamedSymbolProof::DeclaredNotNameableHere(
+                "module-private struct GuardedCliChild inside model_runtime::cloud::official_cli_bridge; not nameable from user_manual. Verified by inspection at src/model_runtime/cloud/official_cli_bridge.rs.",
+            ),
+            Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => ManualNamedSymbolProof::CompileAnchored,
+            Self::KernelEventTypeModelRuntimeSelectionRecorded => ManualNamedSymbolProof::CompileAnchored,
+            Self::LaunchAuthoritySubagentManager => ManualNamedSymbolProof::CompileAnchored,
+            Self::LiveCliSpawnerSpawn => ManualNamedSymbolProof::CompileAnchored,
+            Self::LlmClientEmbedding => ManualNamedSymbolProof::CompileAnchored,
+            Self::LlmClientShutdownGracefully => ManualNamedSymbolProof::CompileAnchored,
+            Self::LocalModelAdapterInvariantValidate => ManualNamedSymbolProof::CompileAnchored,
+            Self::LocalModelRuntimeLlmClientEmbedding => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelCatalogEmbeddingModelForDim => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelCatalogList => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelCatalogRecordSelectionDecision => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelCatalogRecordSelectionDecisionWithContext => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneAuthorityAdvisory => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneAuthorityPromoted => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneErrorInvalidInput => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStatusCancelled => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreConsumeContextBundleForDownstream => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreDiagnosticsProjection => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStorePreflightCloudSpawnRequest => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecordCloudConsentReceipt => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecordCloudProjectionPlan => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecordContextBundleArtifactBinding => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecordContextBundleHandoff => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecordMessage => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecordPromotionDecision => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreRecoverRunAfterRestart => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreReplayCloudConsentAuthority => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreReplayContextBundleHandoffs => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreReplayPromotionDecisions => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreReplayRun => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelLaneStoreValidateDiagnosticTierPosture => ManualNamedSymbolProof::CompileAnchored,
+            Self::ModelRuntimeErrorAdapterMismatch => ManualNamedSymbolProof::CompileAnchored,
+            Self::ProviderKindExternalCompat => ManualNamedSymbolProof::CompileAnchored,
+            Self::ProviderKindLocal => ManualNamedSymbolProof::CompileAnchored,
+            Self::ProviderRegistryFromEnv => ManualNamedSymbolProof::CompileAnchored,
+            Self::RoleDialog => ManualNamedSymbolProof::DeclaredNotNameableHere(
+                "accesskit::Role belongs to the native frontend crate; handshake_core does not depend on accesskit, so the variant cannot be compile-anchored here. Proven instead by the native Argus tests named on the cloud-model-access page.",
+            ),
+            Self::RoleWindow => ManualNamedSymbolProof::DeclaredNotNameableHere(
+                "accesskit::Role belongs to the native frontend crate; handshake_core does not depend on accesskit, so the variant cannot be compile-anchored here. Proven instead by the native Argus tests named on the cloud-model-access page.",
+            ),
+            Self::RunBudgetDefaulted => ManualNamedSymbolProof::CompileAnchored,
+            Self::RuntimeBindingSubagent => ManualNamedSymbolProof::CompileAnchored,
+            Self::SemanticUnavailableReasonDimMismatch => ManualNamedSymbolProof::CompileAnchored,
+            Self::SemanticUnavailableReasonNoModel => ManualNamedSymbolProof::CompileAnchored,
+            Self::SpawnRequestWithDexterityLaunch => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorContextBundleForDownstreamLane => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorInvokeDownstreamContextBundle => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorRemaining => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorRetryPendingSessionCleanups => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorRevokeCloudConsentReceipt => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorSessionRuntime => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorSpawnSession => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorBreakerOpen => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorBudgetExhausted => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorConcurrencyCapReached => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorDuplicateInstance => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorLifetimeSpawnCeilingReached => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorProviderNotConfigured => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmErrorClassBreakerOpen => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmEventBreakerTripped => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmEventSpawnRejected => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmFrEventIdSpawnRejected => ManualNamedSymbolProof::CompileAnchored,
+            Self::UpdateDecodeV1 => ManualNamedSymbolProof::CompileAnchored,
+        }
+    }
+
+    /// Reference the real product item. A rename or removal in product code is a
+    /// COMPILE error here, so a manual page can never outlive the surface it names.
+    fn assert_compiled(self) {
+        match self {
+            Self::AdmitDecisionSuppress => {
+                let _ = |value: &crate::swarm_orchestration::AdmitDecision| matches!(value, crate::swarm_orchestration::AdmitDecision::Suppress { .. });
+            }
+            Self::AppStateModelCatalog => {
+                let _ = crate::AppState::model_catalog;
+            }
+            Self::BreakerStateClosed => {
+                let _ = |value: &crate::swarm_orchestration::BreakerState| matches!(value, crate::swarm_orchestration::BreakerState::Closed);
+            }
+            Self::BreakerStateHalfOpen => {
+                let _ = |value: &crate::swarm_orchestration::BreakerState| matches!(value, crate::swarm_orchestration::BreakerState::HalfOpen);
+            }
+            Self::BreakerStateOpen => {
+                let _ = |value: &crate::swarm_orchestration::BreakerState| matches!(value, crate::swarm_orchestration::BreakerState::Open);
+            }
+            Self::ConsoleCategoryBreaker => {
+                let _ = |value: &crate::console_stream::ConsoleCategory| matches!(value, crate::console_stream::ConsoleCategory::Breaker);
+            }
+            Self::ConsoleCategorySpawnRejected => {
+                let _ = |value: &crate::console_stream::ConsoleCategory| matches!(value, crate::console_stream::ConsoleCategory::SpawnRejected);
+            }
+            Self::ConsoleSwarmSinkShared => {
+                let _ = crate::console_stream::ConsoleSwarmSink::shared;
+            }
+            Self::DexterityLaunchAdapterRegistryAdapterKindForSpawnRequest => {
+                let _ = crate::swarm_orchestration::model_lane::DexterityLaunchAdapterRegistry::adapter_kind_for_spawn_request;
+            }
+            Self::DexterityLaunchContractAttachToSpawnRequest => {
+                // `attach_to_spawn_request` declares argument-position `impl
+                // Into<String>` parameters. Those cannot be turbofished
+                // (E0107), and a bare function-item reference cannot infer them
+                // either (E0283), so neither of the obvious anchor forms
+                // compiles. Coerce the function item to a concrete fn pointer
+                // instead: this still fails to compile if the symbol is renamed,
+                // moved, or its arity/return type changes, which is exactly the
+                // guarantee this anchor exists to provide -- and it additionally
+                // pins the signature shape.
+                let _: fn(
+                    crate::swarm_orchestration::SpawnRequest,
+                    String,
+                    String,
+                ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<
+                    crate::swarm_orchestration::SpawnRequest,
+                > = crate::swarm_orchestration::model_lane::DexterityLaunchContract::attach_to_spawn_request;
+            }
+            Self::DisabledLlmClientCompletion => {
+                let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::completion;
+            }
+            Self::DisabledLlmClientEmbedding => {
+                let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::embedding;
+            }
+            Self::EmbeddedModelProcessRecordReservedLoadWithDurableAck => {
+                // Declared-with-reason; see `proof()`.
+            }
+            Self::EmbeddedModelProcessShutdown => {
+                let _ = crate::llm::embedded_ledger::EmbeddedModelProcess::shutdown;
+            }
+            Self::EngineOriginValidatorValidateLoadSpec => {
+                let _ = crate::model_runtime::EngineOriginValidator::validate_load_spec;
+            }
+            Self::ExternalEngineImportRecordNew => {
+                // Argument-position `impl AsRef<str>` / `impl Into<String>`:
+                // a bare fn-item reference cannot infer them (E0283) and they
+                // cannot be turbofished (E0107). Coerce to a concrete fn
+                // pointer, which also pins arity and return type.
+                // `String` (not `&str`) for the `impl AsRef<str>` slot: a
+                // borrowed instantiation would need a higher-ranked fn pointer
+                // that the concrete instantiation cannot satisfy (E0308).
+                let _: fn(
+                    String,
+                    bool,
+                    chrono::DateTime<chrono::Utc>,
+                    String,
+                ) -> Result<
+                    crate::model_runtime::ExternalEngineImportRecord,
+                    crate::model_runtime::ModelRuntimeError,
+                > = crate::model_runtime::ExternalEngineImportRecord::new;
+            }
+            Self::FailureFingerprintCompute => {
+                let _ = crate::swarm_orchestration::FailureFingerprint::compute;
+            }
+            Self::FinishReasonCancelled => {
+                let _ = |value: &crate::model_runtime::FinishReason| matches!(value, crate::model_runtime::FinishReason::Cancelled);
+            }
+            Self::FlightRecorderEventTypeLlmInference => {
+                let _ = |value: &crate::flight_recorder::FlightRecorderEventType| matches!(value, crate::flight_recorder::FlightRecorderEventType::LlmInference);
+            }
+            Self::FlightRecorderSwarmSinkNew => {
+                let _ = crate::swarm_orchestration::FlightRecorderSwarmSink::<fn(crate::flight_recorder::FlightRecorderEvent) -> Result<(), String>>::new;
+            }
+            Self::GuardedCliChildTerminateAndCollect => {
+                // Declared-with-reason; see `proof()`.
+            }
+            Self::HandshakeNativeSandboxAdapterSpawnAttachedWithStdio => {
+                let _ = <crate::sandbox::HandshakeNativeSandboxAdapter as crate::sandbox::SandboxAdapter>::spawn_attached_with_stdio;
+            }
+            Self::KernelEventTypeModelRuntimeSelectionRecorded => {
+                let _ = |value: &crate::kernel::KernelEventType| matches!(value, crate::kernel::KernelEventType::ModelRuntimeSelectionRecorded);
+            }
+            Self::LaunchAuthoritySubagentManager => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::LaunchAuthority| matches!(value, crate::swarm_orchestration::model_lane::LaunchAuthority::SubagentManager);
+            }
+            Self::LiveCliSpawnerSpawn => {
+                let _ = <crate::model_runtime::cloud::LiveCliSpawner as crate::model_runtime::cloud::CliSubprocessSpawner>::spawn;
+            }
+            Self::LlmClientEmbedding => {
+                let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::embedding;
+            }
+            Self::LlmClientShutdownGracefully => {
+                let _ = <crate::llm::DisabledLlmClient as crate::llm::LlmClient>::shutdown_gracefully;
+            }
+            Self::LocalModelAdapterInvariantValidate => {
+                let _ = crate::model_runtime::LocalModelAdapterInvariant::validate;
+            }
+            Self::LocalModelRuntimeLlmClientEmbedding => {
+                let _ = <crate::llm::local_router::LocalModelRuntimeLlmClient as crate::llm::LlmClient>::embedding;
+            }
+            Self::ModelCatalogEmbeddingModelForDim => {
+                let _ = crate::model_runtime::ModelCatalog::embedding_model_for_dim;
+            }
+            Self::ModelCatalogList => {
+                let _ = crate::model_runtime::ModelCatalog::list;
+            }
+            Self::ModelCatalogRecordSelectionDecision => {
+                let _ = crate::model_runtime::ModelCatalog::record_selection_decision;
+            }
+            Self::ModelCatalogRecordSelectionDecisionWithContext => {
+                let _ = crate::model_runtime::ModelCatalog::record_selection_decision_with_context;
+            }
+            Self::ModelLaneAuthorityAdvisory => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneAuthority| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneAuthority::Advisory);
+            }
+            Self::ModelLaneAuthorityPromoted => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneAuthority| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneAuthority::Promoted);
+            }
+            Self::ModelLaneErrorInvalidInput => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneError| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneError::InvalidInput(..));
+            }
+            Self::ModelLaneStatusCancelled => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::ModelLaneStatus| matches!(value, crate::swarm_orchestration::model_lane::ModelLaneStatus::Cancelled);
+            }
+            Self::ModelLaneStoreConsumeContextBundleForDownstream => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::consume_context_bundle_for_downstream;
+            }
+            Self::ModelLaneStoreDiagnosticsProjection => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::diagnostics_projection;
+            }
+            Self::ModelLaneStorePreflightCloudSpawnRequest => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::preflight_cloud_spawn_request;
+            }
+            Self::ModelLaneStoreRecordCloudConsentReceipt => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::record_cloud_consent_receipt;
+            }
+            Self::ModelLaneStoreRecordCloudProjectionPlan => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::record_cloud_projection_plan;
+            }
+            Self::ModelLaneStoreRecordContextBundleArtifactBinding => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::record_context_bundle_artifact_binding;
+            }
+            Self::ModelLaneStoreRecordContextBundleHandoff => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::record_context_bundle_handoff;
+            }
+            Self::ModelLaneStoreRecordMessage => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::record_message;
+            }
+            Self::ModelLaneStoreRecordPromotionDecision => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::record_promotion_decision;
+            }
+            Self::ModelLaneStoreRecoverRunAfterRestart => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::recover_run_after_restart;
+            }
+            Self::ModelLaneStoreReplayCloudConsentAuthority => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::replay_cloud_consent_authority;
+            }
+            Self::ModelLaneStoreReplayContextBundleHandoffs => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::replay_context_bundle_handoffs;
+            }
+            Self::ModelLaneStoreReplayPromotionDecisions => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::replay_promotion_decisions;
+            }
+            Self::ModelLaneStoreReplayRun => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::replay_run;
+            }
+            Self::ModelLaneStoreValidateDiagnosticTierPosture => {
+                let _ = crate::swarm_orchestration::model_lane::ModelLaneStore::validate_diagnostic_tier_posture;
+            }
+            Self::ModelRuntimeErrorAdapterMismatch => {
+                let _ = |value: &crate::model_runtime::ModelRuntimeError| matches!(value, crate::model_runtime::ModelRuntimeError::AdapterMismatch { .. });
+            }
+            Self::ProviderKindExternalCompat => {
+                let _ = |value: &crate::model_runtime::ProviderKind| matches!(value, crate::model_runtime::ProviderKind::ExternalCompat);
+            }
+            Self::ProviderKindLocal => {
+                let _ = |value: &crate::model_runtime::ProviderKind| matches!(value, crate::model_runtime::ProviderKind::Local);
+            }
+            Self::ProviderRegistryFromEnv => {
+                let _ = crate::llm::registry::ProviderRegistry::from_env;
+            }
+            Self::RoleDialog => {
+                // Declared-with-reason; see `proof()`.
+            }
+            Self::RoleWindow => {
+                // Declared-with-reason; see `proof()`.
+            }
+            Self::RunBudgetDefaulted => {
+                let _ = crate::swarm_orchestration::RunBudget::defaulted;
+            }
+            Self::RuntimeBindingSubagent => {
+                let _ = |value: &crate::swarm_orchestration::model_lane::RuntimeBinding| matches!(value, crate::swarm_orchestration::model_lane::RuntimeBinding::Subagent);
+            }
+            Self::SemanticUnavailableReasonDimMismatch => {
+                let _ = |value: &crate::storage::loom::SemanticUnavailableReason| matches!(value, crate::storage::loom::SemanticUnavailableReason::DimMismatch { .. });
+            }
+            Self::SemanticUnavailableReasonNoModel => {
+                let _ = |value: &crate::storage::loom::SemanticUnavailableReason| matches!(value, crate::storage::loom::SemanticUnavailableReason::NoModel);
+            }
+            Self::SpawnRequestWithDexterityLaunch => {
+                let _ = crate::swarm_orchestration::SpawnRequest::with_dexterity_launch;
+            }
+            Self::SwarmCoordinatorContextBundleForDownstreamLane => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::context_bundle_for_downstream_lane;
+            }
+            Self::SwarmCoordinatorInvokeDownstreamContextBundle => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::invoke_downstream_context_bundle;
+            }
+            Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::launch_operator_subagent_model_lane;
+            }
+            Self::SwarmCoordinatorRemaining => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::remaining;
+            }
+            Self::SwarmCoordinatorRetryPendingSessionCleanups => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::retry_pending_session_cleanups;
+            }
+            Self::SwarmCoordinatorRevokeCloudConsentReceipt => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::revoke_cloud_consent_receipt;
+            }
+            Self::SwarmCoordinatorSessionRuntime => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::session_runtime;
+            }
+            Self::SwarmCoordinatorSpawnSession => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::spawn_session;
+            }
+            Self::SwarmErrorBreakerOpen => {
+                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::BreakerOpen { .. });
+            }
+            Self::SwarmErrorBudgetExhausted => {
+                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::BudgetExhausted { .. });
+            }
+            Self::SwarmErrorConcurrencyCapReached => {
+                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::ConcurrencyCapReached { .. });
+            }
+            Self::SwarmErrorDuplicateInstance => {
+                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::DuplicateInstance(..));
+            }
+            Self::SwarmErrorLifetimeSpawnCeilingReached => {
+                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::LifetimeSpawnCeilingReached { .. });
+            }
+            Self::SwarmErrorProviderNotConfigured => {
+                let _ = |value: &crate::swarm_orchestration::SwarmError| matches!(value, crate::swarm_orchestration::SwarmError::ProviderNotConfigured { .. });
+            }
+            Self::SwarmErrorClassBreakerOpen => {
+                let _ = |value: &crate::swarm_orchestration::SwarmErrorClass| matches!(value, crate::swarm_orchestration::SwarmErrorClass::BreakerOpen);
+            }
+            Self::SwarmEventBreakerTripped => {
+                let _ = |value: &crate::swarm_orchestration::SwarmEvent| matches!(value, crate::swarm_orchestration::SwarmEvent::BreakerTripped { .. });
+            }
+            Self::SwarmEventSpawnRejected => {
+                let _ = |value: &crate::swarm_orchestration::SwarmEvent| matches!(value, crate::swarm_orchestration::SwarmEvent::SpawnRejected { .. });
+            }
+            Self::SwarmFrEventIdSpawnRejected => {
+                let _ = |value: &crate::swarm_orchestration::SwarmFrEventId| matches!(value, crate::swarm_orchestration::SwarmFrEventId::SpawnRejected);
+            }
+            Self::UpdateDecodeV1 => {
+                let _ = <yrs::Update as yrs::updates::decoder::Decode>::decode_v1;
+            }
+        }
+    }
+}
+
+/// Flight Recorder event families the manual is allowed to name as PLANNED /
+/// DEFERRED wiring. This is the HBR-MAN-003 escape hatch and it is deliberately
+/// tiny and explicit: each entry must carry the reason the family has no
+/// compiled id yet. Adding an entry is a reviewable act, not a side effect.
+const PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES: &[(&str, &str)] = &[
+    (
+        "FR-EVT-CLOUD",
+        "cloud-escalation events are documented in flight_recorder (FR-EVT-CLOUD-001..004) but are \
+         not yet exposed as compiled id constants; the cloud pages cite this family only inside an \
+         explicit DEFERRED-with-reason HBR-INT-009 posture.",
+    ),
+    (
+        "FR-EVT-DEXTERITY",
+        "the Dexterity promotion-decision Flight Recorder family is not wired yet; the promotion \
+         page cites it only inside an explicit DEFERRED-with-reason HBR-INT-009 posture, and \
+         promotion authority today is durable EventLedger rows.",
+    ),
+];
+
+/// Every Flight Recorder event id the product can actually emit, assembled from
+/// compiled sources only: two exhaustive enums plus the free-standing `pub const`
+/// ids that have not been folded into `FrEventId` yet. Renaming any of them is a
+/// compile error here.
+fn compiled_flight_recorder_event_ids() -> Vec<&'static str> {
+    let mut ids: Vec<&'static str> = crate::flight_recorder::fr_event_registry::FrEventId::all()
+        .iter()
+        .map(|id| id.as_str())
+        .collect();
+    ids.extend(
+        crate::swarm_orchestration::SwarmFrEventId::all()
+            .iter()
+            .map(|id| id.as_str()),
+    );
+    ids.extend_from_slice(&[
+        crate::flight_recorder::events_agent_activity::FR_EVT_AGENT_TOOLCALL,
+        crate::flight_recorder::events_agent_activity::FR_EVT_AGENT_THINKING,
+        crate::flight_recorder::events_agent_activity::FR_EVT_AGENT_TEXT,
+        crate::flight_recorder::events_agent_activity::FR_EVT_AGENT_OTHER,
+        crate::loom_search::LOOM_SEMANTIC_DEGRADED_FR_EVENT,
+        crate::model_runtime::MODEL_SELECTION_FR_EVENT,
+        crate::kernel::work_profiles::PROVIDER_REF_MIGRATION_FR_EVENT,
+    ]);
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+/// What one clean [`verify_manual_named_surface_existence`] run actually checked.
+/// Counts are reported so a "gate passed" claim can be distinguished from a gate
+/// that silently scanned nothing.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ManualNamedSurfaceProof {
+    pub pages_scanned: usize,
+    pub sections_scanned: usize,
+    pub symbol_claims_checked: usize,
+    pub flight_recorder_event_claims_checked: usize,
+    pub compiled_symbol_vocabulary: usize,
+    pub compiled_flight_recorder_vocabulary: usize,
+}
+
+/// Backtick-delimited spans of a markdown body, in order.
+fn backticked_spans(text: &str) -> Vec<&str> {
+    let mut spans = Vec::new();
+    let mut inside = false;
+    for part in text.split('`') {
+        if inside {
+            spans.push(part);
+        }
+        inside = !inside;
+    }
+    spans
+}
+
+/// `true` when `value` has the shape of a Rust path rooted at a type or enum:
+/// an uppercase-initial first segment followed by at least one `::segment`.
+fn is_rust_symbol_path(value: &str) -> bool {
+    let mut segments = value.split("::");
+    let Some(first) = segments.next() else {
+        return false;
+    };
+    if !first
+        .chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_uppercase())
+    {
+        return false;
+    }
+    if !first.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return false;
+    }
+    let mut tail = 0usize;
+    for segment in segments {
+        if segment.is_empty()
+            || !segment
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            return false;
+        }
+        tail += 1;
+    }
+    tail >= 1
+}
+
+/// The symbol claim carried by one backticked span, if any. `Foo::bar(x)`,
+/// `Foo::Bar { .. }` and `Foo::<T>::bar` all reduce to their path head.
+fn manual_symbol_candidate(span: &str) -> Option<&str> {
+    let cut = span
+        .find(|c: char| matches!(c, '(' | '{' | '<' | '['))
+        .unwrap_or(span.len());
+    let candidate = span[..cut].trim();
+    if candidate.is_empty() || !is_rust_symbol_path(candidate) {
+        return None;
+    }
+    Some(candidate)
+}
+
+/// Every `FR-EVT-...` token in a body, with any trailing separator or wildcard
+/// trimmed so a family reference (`FR-EVT-AGENT-*`) reduces to its prefix.
+fn flight_recorder_event_tokens(text: &str) -> Vec<&str> {
+    const PREFIX: &str = "FR-EVT-";
+    let bytes = text.as_bytes();
+    let mut tokens = Vec::new();
+    let mut cursor = 0usize;
+    while let Some(offset) = text[cursor..].find(PREFIX) {
+        let start = cursor + offset;
+        let mut end = start + PREFIX.len();
+        while end < bytes.len()
+            && (bytes[end].is_ascii_uppercase() || bytes[end].is_ascii_digit() || bytes[end] == b'-')
+        {
+            end += 1;
+        }
+        let mut token = &text[start..end];
+        while let Some(trimmed) = token.strip_suffix('-') {
+            token = trimmed;
+        }
+        tokens.push(token);
+        cursor = end;
+    }
+    tokens
+}
+
+/// HBR-MAN-003 for the canonical `user_manual` corpus: every product symbol and
+/// Flight Recorder event id the seeded prose names must actually exist.
+///
+/// Pass the compiled-in corpus (`seed::seed_corpus().pages`). That corpus is the
+/// exact content the seeder writes to PostgreSQL — the stored row carries the
+/// same `content_hash` — so checking it checks what an operator or a no-context
+/// model will read back over `GET /usermanual/pages/:slug`.
+///
+/// Returns the scan counts on success, or one error per unresolvable claim.
+pub fn verify_manual_named_surface_existence(
+    pages: &[NewUserManualPage],
+) -> Result<ManualNamedSurfaceProof, Vec<BehaviorCoverageError>> {
+    let mut errors: Vec<BehaviorCoverageError> = Vec::new();
+
+    // (1) Vocabulary integrity: every declared symbol is either bound to a real
+    //     compiled item, or exempt WITH a written reason. `assert_compiled`
+    //     turns a product-side rename into a build failure right here.
+    let mut symbol_vocabulary: BTreeSet<&'static str> = BTreeSet::new();
+    for symbol in ManualNamedSymbol::ALL {
+        symbol.assert_compiled();
+        let literal = symbol.literal();
+        if !symbol_vocabulary.insert(literal) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                reason: format!("duplicate named-surface vocabulary entry `{literal}`"),
+            });
+        }
+        if let ManualNamedSymbolProof::DeclaredNotNameableHere(reason) = symbol.proof() {
+            if reason.trim().is_empty() {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                    reason: format!(
+                        "named-surface entry `{literal}` is exempt from compile anchoring without a written reason"
+                    ),
+                });
+            }
+        }
+    }
+    for (family, reason) in PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES {
+        if reason.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                reason: format!("planned Flight Recorder family `{family}` has no written reason"),
+            });
+        }
+    }
+
+    let event_vocabulary = compiled_flight_recorder_event_ids();
+
+    // (2) Corpus scan.
+    let mut sections_scanned = 0usize;
+    let mut symbol_claims_checked = 0usize;
+    let mut flight_recorder_event_claims_checked = 0usize;
+
+    for page in pages {
+        for section in &page.sections {
+            sections_scanned += 1;
+            for span in backticked_spans(&section.body_md) {
+                let Some(candidate) = manual_symbol_candidate(span) else {
+                    continue;
+                };
+                symbol_claims_checked += 1;
+                if !symbol_vocabulary.contains(candidate) {
+                    errors.push(BehaviorCoverageError {
+                        behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                        reason: format!(
+                            "UserManual page `{}` section `{}` names product symbol `{}`, which is \
+                             not in the compiled named-surface vocabulary (HBR-MAN-003: the manual \
+                             must never name a surface that does not exist). Either the symbol was \
+                             renamed/removed in product code, or the claim is fabricated. Fix the \
+                             prose, or add a ManualNamedSymbol entry that compile-anchors it.",
+                            page.slug, section.section_kind, candidate
+                        ),
+                    });
+                }
+            }
+            for token in flight_recorder_event_tokens(&section.body_md) {
+                flight_recorder_event_claims_checked += 1;
+                let resolved = event_vocabulary.iter().any(|id| id.starts_with(token));
+                let planned = PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES
+                    .iter()
+                    .any(|(family, _)| *family == token);
+                if !resolved && !planned {
+                    errors.push(BehaviorCoverageError {
+                        behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                        reason: format!(
+                            "UserManual page `{}` section `{}` names Flight Recorder event `{}`, \
+                             which is neither a compiled event id (nor a prefix of one) nor a \
+                             declared PLANNED family (HBR-MAN-003).",
+                            page.slug, section.section_kind, token
+                        ),
+                    });
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(ManualNamedSurfaceProof {
+            pages_scanned: pages.len(),
+            sections_scanned,
+            symbol_claims_checked,
+            flight_recorder_event_claims_checked,
+            compiled_symbol_vocabulary: symbol_vocabulary.len(),
+            compiled_flight_recorder_vocabulary: event_vocabulary.len(),
         })
     } else {
         Err(errors)

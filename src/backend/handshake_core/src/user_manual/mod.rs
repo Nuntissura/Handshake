@@ -54,10 +54,11 @@ pub use behavior_coverage::{
     model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
     operator_chat_launch_behavior_coverage_matrix,
     verify_cloud_model_access_behavior_coverage, verify_embedded_model_behavior_coverage,
-    verify_model_lane_behavior_coverage, verify_model_lane_behavior_evidence,
-    verify_model_runtime_registry_behavior_coverage,
+    verify_manual_named_surface_existence, verify_model_lane_behavior_coverage,
+    verify_model_lane_behavior_evidence, verify_model_runtime_registry_behavior_coverage,
     BehaviorConsistencyProof, BehaviorCoverageError, BehaviorCoverageRow, DiagnosticTierPosture,
-    ModelRuntimeProofExecutionStatus, ModelRuntimeRegistryBehaviorCoverageRow,
+    ManualNamedSurfaceProof, ModelRuntimeProofExecutionStatus,
+    ModelRuntimeRegistryBehaviorCoverageRow, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
     MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
 };
 pub use migration_plan::{
@@ -75,7 +76,7 @@ pub use store::{
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.16";
+pub const USER_MANUAL_VERSION: &str = "2.0.17";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all

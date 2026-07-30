@@ -10,16 +10,19 @@ use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneRecoveryState, ModelLaneStore, NewModelLaneDiagnosticTierStatus, NewModelLaneRun,
 };
 use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
-use handshake_core::user_manual::seed::ensure_seeded;
-use handshake_core::user_manual::store::{UserManualFeatureEntry, UserManualStore};
+use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
+use handshake_core::user_manual::store::{
+    NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualStore,
+};
 use handshake_core::user_manual::{
     cloud_model_access_behavior_coverage_matrix,
     dedicated_embedding_model_behavior_coverage_matrix, embedded_model_behavior_coverage_matrix,
     model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
     operator_chat_launch_behavior_coverage_matrix, verify_cloud_model_access_behavior_coverage,
-    verify_embedded_model_behavior_coverage, verify_model_lane_behavior_coverage,
-    verify_model_lane_behavior_evidence, verify_model_runtime_registry_behavior_coverage,
-    BehaviorCoverageError, DiagnosticTierPosture, ModelRuntimeProofExecutionStatus,
+    verify_embedded_model_behavior_coverage, verify_manual_named_surface_existence,
+    verify_model_lane_behavior_coverage, verify_model_lane_behavior_evidence,
+    verify_model_runtime_registry_behavior_coverage, BehaviorCoverageError, DiagnosticTierPosture,
+    ModelRuntimeProofExecutionStatus, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
     MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
     USER_MANUAL_VERSION,
 };
@@ -1315,5 +1318,208 @@ async fn model_lane_run_level_hbr_int_009_evidence_fails_closed_when_absent_or_i
             .iter()
             .any(|error| error.reason.contains("RUN_LEVEL_WIRED")),
         "gamed per-behavior WIRED must be rejected with a RUN_LEVEL_WIRED declaration error, got {errors:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MT-022 (AC-1 / AC-2 / AC-5): HBR-MAN-003 for the CANONICAL UserManual corpus.
+//
+// These are pure compiled-corpus checks, so they run on every invocation of this
+// proof binary and cannot be skipped by an unavailable resource.
+// ---------------------------------------------------------------------------
+
+fn scanned_body(corpus: &handshake_core::user_manual::seed::SeedCorpus, slug: &str) -> String {
+    let page = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == slug)
+        .unwrap_or_else(|| panic!("UserManual page {slug} missing from the seeded corpus"));
+    page.sections
+        .iter()
+        .map(|section| section.body_md.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn user_manual_names_only_surfaces_that_exist_in_compiled_product_code() {
+    let corpus = seed_corpus();
+    let proof = verify_manual_named_surface_existence(&corpus.pages).unwrap_or_else(|errors| {
+        panic!(
+            "HBR-MAN-003: the canonical UserManual corpus names {} surface(s) that do not exist: {}",
+            errors.len(),
+            errors
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>()
+                .join("\n  ")
+        )
+    });
+
+    assert_eq!(
+        proof.pages_scanned,
+        corpus.pages.len(),
+        "the gate must scan every seeded page, not a subset"
+    );
+    // Anti-vacuous-pass: a gate that scanned nothing is not a gate.
+    assert!(
+        proof.symbol_claims_checked >= 40,
+        "expected the corpus to make a substantial number of product-symbol claims, got {}",
+        proof.symbol_claims_checked
+    );
+    assert!(
+        proof.flight_recorder_event_claims_checked >= 4,
+        "expected the corpus to make Flight Recorder event claims, got {}",
+        proof.flight_recorder_event_claims_checked
+    );
+    assert!(
+        proof.compiled_flight_recorder_vocabulary >= 50,
+        "the compiled Flight Recorder vocabulary looks truncated: {}",
+        proof.compiled_flight_recorder_vocabulary
+    );
+}
+
+#[test]
+fn user_manual_named_surface_gate_fails_on_drift() {
+    // The AC-5 requirement: a gate nobody has seen fail is not a gate. Inject a
+    // symbol that does not exist and an event id that was never registered, and
+    // prove BOTH are reported.
+    let mut corpus = seed_corpus();
+    corpus.pages.push(NewUserManualPage {
+        slug: "mt022-drift-probe".into(),
+        title: "MT-022 drift probe (test-only)".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.15.8".into()],
+        sections: vec![NewManualSection {
+            section_kind: "purpose",
+            title: "Deliberately false claims".into(),
+            body_md: "Call `SwarmCoordinator::totally_not_a_real_method` and watch for \
+                      FR-EVT-SWARM-SPAWN-DENIED in the Flight Recorder."
+                .into(),
+            body_json: None,
+        }],
+        anchors: vec![],
+    });
+
+    let errors = verify_manual_named_surface_existence(&corpus.pages)
+        .expect_err("a manual page naming a non-existent surface MUST fail HBR-MAN-003");
+
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.reason.contains("SwarmCoordinator::totally_not_a_real_method")),
+        "the bogus product symbol must be reported, got {errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.reason.contains("FR-EVT-SWARM-SPAWN-DENIED")),
+        "the bogus Flight Recorder event id must be reported, got {errors:?}"
+    );
+    assert!(
+        errors
+            .iter()
+            .all(|error| error.behavior_id == MANUAL_NAMED_SURFACE_BEHAVIOR_ID),
+        "named-surface failures must carry the named-surface behavior id, got {errors:?}"
+    );
+
+    // Removing the drifted page returns the corpus to PASS: the failure is
+    // caused by the injected claim, not by an unrelated corpus problem.
+    corpus.pages.pop();
+    verify_manual_named_surface_existence(&corpus.pages)
+        .expect("the unmodified canonical corpus must pass once the drift is removed");
+}
+
+#[test]
+fn external_compat_engine_import_lane_is_documented_and_toc_reachable() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "external-compat-engine-import");
+
+    // AC-1: purpose, non-swarm-spawnability, the Dexterity rejection path,
+    // inputs/outputs, failure modes, recovery.
+    for required in [
+        "ProviderKind::ExternalCompat",
+        "ExternalEngineImportRecord",
+        "operator_signature",
+        "OPENAI_COMPAT_BASE_URL",
+        "Dexterity rejects external_compat launch bypass",
+        "Dexterity model-lane schema does not support external_compat provider",
+        "external-compat imports are offline registrations, not swarm-spawnable",
+        "SwarmError::ProviderNotConfigured",
+        "ModelRuntimeError::AdapterMismatch",
+        // AC-3 HBR-INT-009 posture: all three tiers stated, none silently skipped.
+        "Tier-1 Flight Recorder",
+        "Tier-2 internal_diagnostics",
+        "Tier-3 Palmistry",
+    ] {
+        assert!(
+            body.contains(required),
+            "external-compat-engine-import must document `{required}`"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc page");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link" && anchor.anchor_value == "external-compat-engine-import"
+        }),
+        "the new page must be reachable from the UserManual table of contents"
+    );
+}
+
+#[test]
+fn swarm_budget_rejection_and_recovery_is_documented_and_toc_reachable() {
+    let corpus = seed_corpus();
+    let body = scanned_body(&corpus, "swarm-budget-and-spawn-rejection");
+
+    // AC-2: the budget dimensions, every emitted rejection reason, the durable
+    // event, what the operator sees, and how to recover.
+    for required in [
+        "max_concurrent",
+        "max_concurrent_cold_starts",
+        "max_lifetime_spawns",
+        "max_committed_memory_bytes",
+        "concurrency_cap",
+        "lifetime_ceiling",
+        "breaker_open",
+        "budget:tokens",
+        "budget:cost",
+        "budget:committed_memory",
+        "budget:committed_memory_unestimated",
+        "FR-EVT-SWARM-SPAWN-REJECTED",
+        "FR-EVT-SWARM-BREAKER-TRIPPED",
+        "/wp1/diagnostics/console/stream",
+        "ConsoleCategory::SpawnRejected",
+        "SwarmError::ConcurrencyCapReached",
+        "SwarmError::LifetimeSpawnCeilingReached",
+        "BACK OFF AND RETRY",
+        "TERMINAL for this run",
+        // AC-3 HBR-INT-009 posture: all three tiers stated, none silently skipped.
+        "Tier-1 Flight Recorder",
+        "Tier-2 internal_diagnostics",
+        "Tier-3 Palmistry",
+    ] {
+        assert!(
+            body.contains(required),
+            "swarm-budget-and-spawn-rejection must document `{required}`"
+        );
+    }
+
+    let toc = corpus
+        .pages
+        .iter()
+        .find(|page| page.slug == "manual-toc")
+        .expect("manual-toc page");
+    assert!(
+        toc.anchors.iter().any(|anchor| {
+            anchor.anchor_kind == "page_link"
+                && anchor.anchor_value == "swarm-budget-and-spawn-rejection"
+        }),
+        "the new page must be reachable from the UserManual table of contents"
     );
 }
