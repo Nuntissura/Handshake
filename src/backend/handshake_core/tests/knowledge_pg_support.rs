@@ -44,6 +44,10 @@ static MIGRATED_TEMPLATE_DATABASE: OnceCell<String> = OnceCell::const_new();
 static TEMPLATE_HARNESS_CLEANUP: OnceLock<StdMutex<Option<TemplateHarnessCleanup>>> =
     OnceLock::new();
 static TEMPLATE_HARNESS_CLEANUP_REGISTERED: OnceLock<()> = OnceLock::new();
+/// Isolated `knowledge_test_*` schemas this process created, paired with the
+/// base URL they live on, so they can be dropped at process exit.
+static OWNED_TEST_SCHEMAS: OnceLock<StdMutex<Vec<(String, String)>>> = OnceLock::new();
+static SCHEMA_CLEANUP_REGISTERED: OnceLock<()> = OnceLock::new();
 
 const DATABASE_TEMPLATE_MODE_ENV: &str = "HANDSHAKE_TEST_PG_DATABASE_TEMPLATE";
 const TEMPLATE_AUTHORITY_SCHEMA: &str = "handshake_test_template_authority";
@@ -87,6 +91,103 @@ extern "C" fn clean_template_harness_at_process_exit() {
             eprintln!("PostgreSQL template-harness cleanup panicked");
             std::process::abort();
         }
+    }
+}
+
+/// Record an isolated schema so it is dropped when this test process exits.
+///
+/// Without this, every `knowledge_pg()` call leaks a `knowledge_test_<uuid>`
+/// schema (each carrying the full migrated table set) into the shared database
+/// forever. The leak is cumulative across every test process on the machine:
+/// once several hundred accumulate, `pg_catalog` grows to six figures of
+/// relations, autovacuum ANALYZE workers thrash it continuously, and the
+/// migration chain that a single test runs degrades from seconds to hours --
+/// which silently converts ordinary proof runs into environment failures.
+///
+/// Cleanup is deliberately best-effort: a test run must never fail, abort, or
+/// hang because teardown could not reach the database. Anything that could not
+/// be dropped is reported by name so the residue stays visible instead of
+/// silently accumulating again.
+fn register_test_schema_for_cleanup(base_url: &str, schema: &str) {
+    let registry = OWNED_TEST_SCHEMAS.get_or_init(|| StdMutex::new(Vec::new()));
+    match registry.lock() {
+        Ok(mut owned) => owned.push((base_url.to_string(), schema.to_string())),
+        Err(poisoned) => poisoned.into_inner().push((base_url.to_string(), schema.to_string())),
+    }
+    SCHEMA_CLEANUP_REGISTERED.get_or_init(|| {
+        // SAFETY: the callback has C ABI, never unwinds (it catches), captures
+        // no stack state, and reads only process-lifetime statics.
+        let registered = unsafe { atexit(drop_owned_test_schemas_at_process_exit) };
+        if registered != 0 {
+            eprintln!(
+                "WARNING: could not register isolated-schema cleanup; \
+                 knowledge_test_* schemas from this process will leak"
+            );
+        }
+    });
+}
+
+extern "C" fn drop_owned_test_schemas_at_process_exit() {
+    let Some(registry) = OWNED_TEST_SCHEMAS.get() else {
+        return;
+    };
+    let owned = match registry.lock() {
+        Ok(mut guard) => std::mem::take(&mut *guard),
+        Err(poisoned) => std::mem::take(&mut *poisoned.into_inner()),
+    };
+    if owned.is_empty() {
+        return;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        // Group by base URL so all schemas on one database drop in a single
+        // psql invocation.
+        let mut by_url: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for (url, schema) in owned {
+            by_url.entry(url).or_default().push(schema);
+        }
+        let psql = postgres_tool_path(Path::new(""), "psql");
+        for (url, schemas) in by_url {
+            let mut command = std::process::Command::new(&psql);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                command.creation_flags(CREATE_NO_WINDOW);
+            }
+            command
+                .arg(&url)
+                .arg("-X")
+                .arg("-w")
+                .arg("-q")
+                // Fail a blocked DROP fast instead of hanging teardown: this
+                // process may still be closing its own pooled connections.
+                .env("PGOPTIONS", "-c lock_timeout=5000")
+                .stdin(Stdio::null());
+            for schema in &schemas {
+                command
+                    .arg("-c")
+                    .arg(format!("DROP SCHEMA IF EXISTS {schema} CASCADE"));
+            }
+            match bounded_command_output(command, std::time::Duration::from_secs(60)) {
+                Ok(output) if output.status.success() => {}
+                Ok(output) => eprintln!(
+                    "WARNING: isolated-schema cleanup left {} schema(s) behind ({}): {}{}",
+                    schemas.len(),
+                    output.status,
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                ),
+                Err(error) => eprintln!(
+                    "WARNING: isolated-schema cleanup could not run ({error}); \
+                     leaked schemas: {}",
+                    schemas.join(", ")
+                ),
+            }
+        }
+    }));
+    if result.is_err() {
+        eprintln!("WARNING: isolated-schema cleanup panicked; schemas may remain");
     }
 }
 
@@ -416,6 +517,9 @@ pub async fn knowledge_pg() -> Option<KnowledgePg> {
         .execute(&mut conn)
         .await
         .expect("create isolated knowledge test schema");
+    // Register for teardown immediately after creation, so a schema is dropped
+    // even if migrations or the test itself later panic.
+    register_test_schema_for_cleanup(&url, &schema);
     sqlx::query("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public")
         .execute(&mut conn)
         .await

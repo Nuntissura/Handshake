@@ -464,6 +464,111 @@ async fn postgres_stale_source_selects_terminal_lane_exact_process_owner() {
     );
 }
 
+/// MT-019 P-1 regression: an open, adapter-owned, self-owned lifecycle row with
+/// a NULL `parent_session_id` must not abort the stale-session scan.
+///
+/// `parent_session_id` is nullable (migration 0021) and production writes such
+/// rows: the official-CLI auth-status probe
+/// (`model_runtime/cloud/access_config.rs`) sets only `session_id`, while the
+/// row still carries `sandbox_adapter_id` and the live
+/// `owner_runtime_instance_id`. Before the fix, `stale_sessions` selected that
+/// row and decoded it with the panicking `row.get::<String>`, raising
+/// `UnexpectedNullError` inside the spawned staleness task and silently killing
+/// the periodic reclaimer for the rest of the process lifetime -- every later
+/// boot re-armed it while the row stayed open.
+///
+/// The scan must return `Ok`, skip the session-less row, and still select a
+/// genuinely reclaimable sibling session in the same sweep.
+#[tokio::test]
+async fn postgres_stale_source_skips_null_parent_session_row_without_aborting_scan() {
+    use handshake_core::process_ledger::{
+        PostgresModelLaneStaleSessionSource, PostgresProcessLedgerStore,
+    };
+    use sqlx::postgres::PgPoolOptions;
+
+    let pg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("managed PostgreSQL is required for the NULL-parent-session staleness proof");
+    let pool = PgPoolOptions::new()
+        .max_connections(4)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect NULL-parent-session proof to isolated PostgreSQL schema");
+    let store = PostgresProcessLedgerStore::new(pool.clone());
+    let runtime_lease = handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+        Uuid::now_v7(),
+        "stale-source-test-host",
+    )
+    .expect("acquire stale-source runtime lease");
+    let runtime_owner = runtime_lease.descriptor().process_runtime_owner();
+
+    // The auth-status-probe shape: open, adapter-owned, owned by THIS live
+    // runtime instance, and deliberately carrying no parent session.
+    let session_less_process_uuid = Uuid::now_v7();
+    store
+        .write_batch(vec![LedgerEvent::Start(
+            ProcessStart::new(
+                ProcessEngineKind::HelperSubprocess,
+                "STALE_NULL_PARENT_SESSION_TEST",
+                None,
+            )
+            .with_process_uuid(session_less_process_uuid)
+            .with_sandbox_adapter_id("handshake_native")
+            .with_runtime_owner(runtime_owner.clone())
+            .with_os_pid(43_001),
+        )])
+        .await
+        .expect("seed session-less adapter-owned open process lifecycle");
+
+    // A genuinely reclaimable session in the same sweep, to prove the scan is
+    // still functional rather than merely non-panicking.
+    let session_id = format!("SR-STALE-NULLPARENT-{}", Uuid::now_v7());
+    let process_uuid = Uuid::now_v7();
+    store
+        .write_batch(vec![LedgerEvent::Start(
+            ProcessStart::new(
+                ProcessEngineKind::HelperSubprocess,
+                "STALE_NULL_PARENT_SESSION_TEST",
+                None,
+            )
+            .with_process_uuid(process_uuid)
+            .with_parent_session_id(session_id.clone())
+            // `ProcessStart::new` defaults `sandbox_adapter_id` to None and the
+            // staleness fixture only writes model_lane_runs/model_lanes, so
+            // without this the row is filtered out by the scan's
+            // `sandbox_adapter_id IS NOT NULL` predicate and the session could
+            // never be returned -- making the assertion below unfalsifiable.
+            .with_sandbox_adapter_id("handshake_native")
+            .with_runtime_owner(runtime_owner)
+            .with_os_pid(43_002),
+        )])
+        .await
+        .expect("seed reclaimable sibling open process lifecycle");
+    insert_model_lane_staleness_fixture(
+        &pool,
+        &session_id,
+        vec![ModelLaneStalenessSeed {
+            lane_id: format!("LANE-NULLPARENT-{}", Uuid::now_v7()),
+            process_uuid,
+            status: "failed",
+            heartbeat_at_utc: Some(Utc::now().to_rfc3339()),
+            reclaim_after_utc: None,
+        }],
+    )
+    .await;
+
+    let source = PostgresModelLaneStaleSessionSource::new(pool, runtime_lease.descriptor().clone());
+    let stale_sessions = source
+        .stale_sessions(Duration::from_secs(300))
+        .await
+        .expect("a NULL parent_session_id row must not abort the stale-session scan");
+
+    assert!(
+        stale_sessions.contains(&session_id),
+        "the session-less row must be skipped without suppressing a genuinely reclaimable session"
+    );
+}
+
 #[tokio::test]
 async fn close_reclaim_with_no_open_processes_kills_nothing() {
     let fixture = Fixture::new(HashMap::new(), HashSet::new());

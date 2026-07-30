@@ -4039,6 +4039,7 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
                    = 'process-ledger://' || lifecycle.process_uuid::text
             WHERE lifecycle.stopped_at IS NULL
               AND lifecycle.sandbox_adapter_id IS NOT NULL
+              AND lifecycle.parent_session_id IS NOT NULL
               AND lifecycle.owner_runtime_instance_id = $1::uuid
               AND lifecycle.owner_host_scope_id = $2
             ORDER BY lifecycle.parent_session_id, lanes.event_ledger_seq DESC
@@ -4060,9 +4061,29 @@ impl StaleSessionSource for PostgresModelLaneStaleSessionSource {
         // process-ownership evidence and must independently be reclaimable.
         // LEFT JOIN keeps unlinked open rows in the decision and makes them a
         // fail-closed veto instead of silently excluding them.
+        //
+        // `parent_session_id` is nullable (migration 0021) and real production
+        // paths write adapter-owned rows without one -- the official-CLI
+        // auth-status probe sets only `session_id`
+        // (model_runtime/cloud/access_config.rs). Such a row belongs to no
+        // coordinator session, so it cannot participate in a session-level
+        // reclaim decision at all; it is excluded in SQL above and defensively
+        // skipped here. Decoding it with the panicking `row.get::<String>`
+        // previously raised `UnexpectedNullError` inside the spawned staleness
+        // task, which silently killed the periodic reclaimer for the remaining
+        // process lifetime. Session-less orphans are reclaimed through the
+        // process-scoped path instead, never through this session-scoped scan.
         let mut session_reclaimable = BTreeMap::<String, bool>::new();
         for row in rows {
-            let session_id: String = row.get("parent_session_id");
+            let Some(session_id) = row.try_get::<Option<String>, _>("parent_session_id")? else {
+                tracing::warn!(
+                    target: "handshake::process_ledger::reclaim",
+                    "skipping open sandbox-owned lifecycle row with NULL parent_session_id in \
+                     stale-session scan; it belongs to no coordinator session and is reclaimed \
+                     through the process-scoped path"
+                );
+                continue;
+            };
             let row_reclaimable = match row.try_get::<Option<String>, _>("record_json")? {
                 Some(raw) => {
                     let record: Value = serde_json::from_str(&raw).map_err(|error| {
