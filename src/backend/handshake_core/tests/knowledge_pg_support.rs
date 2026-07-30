@@ -156,7 +156,6 @@ extern "C" fn drop_owned_test_schemas_at_process_exit() {
                 command.creation_flags(CREATE_NO_WINDOW);
             }
             command
-                .arg(&url)
                 .arg("-X")
                 .arg("-w")
                 .arg("-q")
@@ -169,15 +168,31 @@ extern "C" fn drop_owned_test_schemas_at_process_exit() {
                     .arg("-c")
                     .arg(format!("DROP SCHEMA IF EXISTS {schema} CASCADE"));
             }
+            // The connection target MUST be passed as `-d <url>`, never as a
+            // bare positional argument. psql's grammar is
+            // `psql [OPTION]... [DBNAME [USERNAME]]`, so a leading positional
+            // URL makes every following flag a surplus positional: psql prints
+            // `extra command-line argument "-c" ignored`, connects, executes
+            // NOTHING, and still exits 0. The first version of this cleanup did
+            // exactly that and was a silent no-op.
+            command.arg("-d").arg(&url);
             match bounded_command_output(command, std::time::Duration::from_secs(60)) {
-                Ok(output) if output.status.success() => {}
-                Ok(output) => eprintln!(
-                    "WARNING: isolated-schema cleanup left {} schema(s) behind ({}): {}{}",
-                    schemas.len(),
-                    output.status,
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                ),
+                // psql exits 0 even when an individual statement fails, so the
+                // exit status alone cannot be trusted: scan the output for a
+                // reported error before declaring the drop successful.
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let reported_error = stdout.contains("ERROR:")
+                        || stderr.contains("ERROR:")
+                        || stderr.contains("extra command-line argument");
+                    if !output.status.success() || reported_error {
+                        eprintln!(
+                            "WARNING: isolated-schema cleanup left schema(s) behind ({}): {}{}",
+                            output.status, stdout, stderr
+                        );
+                    }
+                }
                 Err(error) => eprintln!(
                     "WARNING: isolated-schema cleanup could not run ({error}); \
                      leaked schemas: {}",
