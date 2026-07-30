@@ -3291,6 +3291,30 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  verified update hash, \
                  and the post-update state vector; partial, missing, hash-mismatched, stale, or \
                  replay-reordered CRDT authority fails closed. \
+                 A `Proposal`-kind CRDT-bearing message additionally requires a \
+                 `crdt_proposal_ref` of the exact form `crdt-proposal://<proposal_id>` resolving \
+                 to an APPROVED (or promoted) `knowledge_crdt_ai_edit_proposals` row. Two \
+                 SEPARATE hash spaces meet on that row and must never be equated: \
+                 `applied_update_sha256` is the approved-DIFF hash \
+                 (`sha256(serde_json::to_vec(applied_diff))`, pinned to `diff_sha256` by \
+                 migration 0192), while `kernel_crdt_updates.update_sha256` is the hash of the \
+                 Yjs v1 BINARY update. Yjs update identity is carried SOLELY by \
+                 `applied_update_id`, which together with the proposal's \
+                 workspace/document/crdt_document columns pins the full `kernel_crdt_updates` \
+                 primary key; migration 0362 adds the composite foreign key that makes that \
+                 identity binding a schema invariant, and migration 0192's \
+                 `applied_update_sha256 = diff_sha256` CHECK is RETAINED with clarified \
+                 diff-hash semantics. Admission therefore checks identity \
+                 (`applied_update_id == kernel_crdt_updates.update_id`) plus internal \
+                 consistency (`applied_update_sha256 == the proposal's own diff_sha256`) plus \
+                 workspace/document/crdt_document/actor/actor_kind/session/correlation equality \
+                 with the resolved update; the referenced row's byte integrity \
+                 (`sha256(update_bytes)` parity and `Update::decode_v1`) is proven once by the \
+                 CRDT resolver and is not re-derived on the proposal path. The binder \
+                 (`apply_approved_ai_edit`) performs an EXISTENCE probe for the cited update row \
+                 and refuses with a durable `ai_edit_applied_update_missing` receipt when none \
+                 exists. Identity failure and internal-consistency failure emit DISTINCT \
+                 CX-MM-006 denial reasons so they are diagnosable apart. \
                  The harness is \
                  Rust-only product validation; React, TypeScript, Tauri/WebView, npm tests, \
                  terminal scrollback, provider chat history, and chat memory are not authority.",
@@ -3365,7 +3389,21 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  creates attempt four, and an AfterFailure fallback receives the canonical initial \
                  input plus typed failed-predecessor state and causal message-span linkage. Never \
                  repair an advisory routing output by inventing a `crdt-*://` URI; either keep all \
-                 CRDT fields null or commit a real Yjs v1 update and derived state vector first.",
+                 CRDT fields null or commit a real Yjs v1 update and derived state vector first. \
+                 On the `Proposal`-kind CRDT path, negative proof must also reject a fabricated \
+                 `crdt_proposal_ref` that resolves to no row, an un-approved proposal, an \
+                 approved proposal with no applied binding, an applied binding whose \
+                 `applied_update_id` names a DIFFERENT real persisted update than the message's \
+                 `crdt_update_ref`, and an internally inconsistent applied binding whose \
+                 `applied_update_sha256` is not the proposal's own `diff_sha256`. Recovery is \
+                 never to relax those gates: mint the proposal through \
+                 `record_ai_edit_proposal` -> `decide_ai_edit_proposal` -> \
+                 `apply_approved_ai_edit` against a REAL persisted Yjs update, and never bind by \
+                 raw INSERT. Flight Recorder evidence for every arm is the \
+                 `kernel_event_ledger` `model_lane_message` aggregate (zero appends on denial) \
+                 plus the `knowledge_crdt_denial_receipts` row for a refused binding; \
+                 internal_diagnostics and Palmistry posture for this surface follow the \
+                 HBR-INT-009 tier record carried by the ModelLane diagnostic tier rows.",
             ),
             section(
                 "run_commands",
@@ -3381,6 +3419,9 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact`; \
+                 Proposal-anchored CRDT admission (MT-018) proof commands: \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt018_ -- --test-threads=1`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_crdt_proposal_tests -- --test-threads=1`; \
                  The backend mixed-run command and native Argus command must run in the same shell \
                  with canonical `HANDSHAKE_ARTIFACTS_DIR` and one fresh \
                  `HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE`; the backend produces the typed \

@@ -6,6 +6,20 @@
 //! CRDT, replay-order, direct-endpoint, or HBR posture authority is missing.
 
 mod knowledge_pg_support;
+mod model_lane_crdt_support;
+
+// WP-1 MT-018: the real CRDT document seeder and the Yjs push/materialize
+// helpers now live in the shared `model_lane_crdt_support` module so every test
+// binary builds admissible CRDT authority the same canonical way. The aliases
+// keep the historical `mt009_*` call sites in this binary unchanged.
+use model_lane_crdt_support::{
+    append_yjs_text_update as mt009_append_yjs_text_update, apply_crdt_posture,
+    build_admissible_crdt_posture, push_yjs_update_for_test as mt009_push_yjs_update,
+    seed_real_crdt_document as mt009_seed_real_crdt_document,
+    yjs_envelope as mt009_yjs_envelope, yjs_materialize_doc as mt009_yjs_materialize_doc,
+    yjs_materialize_updates as mt009_yjs_materialize_updates, AdmissibleCrdtPosture,
+    CrdtProposalAnchoring, RealCrdtReceipts as Mt009RealCrdtReceipts,
+};
 
 use async_trait::async_trait;
 use base64::Engine;
@@ -24,7 +38,7 @@ use handshake_core::kernel::crdt::snapshot::{
 use handshake_core::kernel::crdt::state_vector::{verify_causal_chain, KnowledgeStateVectorV1};
 use handshake_core::kernel::crdt::yjs_bridge::{
     pull_yjs_updates, push_yjs_update, read_draft_head, YjsPushDenialReasonV1, YjsPushDenialV1,
-    YjsPushOutcomeV1, YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
+    YjsPushOutcomeV1, YJS_UPDATE_ENCODING_V1,
 };
 use handshake_core::kernel::{KernelEventType, NewKernelEvent};
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
@@ -85,8 +99,8 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::Barrier;
-use yrs::updates::{decoder::Decode, encoder::Encode};
-use yrs::{Doc, GetString, ReadTxn, StateVector, Text, Transact, Update};
+use yrs::updates::decoder::Decode;
+use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 
 #[tokio::test]
 async fn mt009_kernel_crdt_authority_rejects_truncate() {
@@ -2111,13 +2125,21 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         // `authority=PromotionCandidate` requires a proposal_ref (an advisory
         // routing proposal id, distinct from crdt_proposal_ref). Without it,
         // `validate_message_authority` rejects the message before the durable
-        // CRDT resolver runs. It is NOT a CRDT authority field: STATUS-kind CRDT
-        // messages carry `crdt_proposal_ref=None` (a Proposal-kind message would
-        // require an approved applied-proposal row, currently unsatisfiable).
+        // CRDT resolver runs. It is NOT a CRDT authority field.
+        //
+        // These three messages are deliberately STATUS-kind: this converge proof
+        // is about three DIFFERENT lane actors (local, cloud, operator) merging
+        // onto one shared document, and each carries its own real update/lease.
+        // The Proposal-kind CRDT path that WP-1 MT-018 unblocked is proven
+        // separately by
+        // `mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted`
+        // through the canonical `model_lane_crdt_support` posture builder.
         message.proposal_ref = Some(format!("proposal://mt009/real-yjs/{message_id}"));
         message.crdt_update_ref = Some(record.update_bytes_ref.clone());
         message.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
         message.crdt_state_vector = Some(record.state_vector_after.clone());
+        message.crdt_proposal_ref = None;
+        message.crdt_stale_base_ref = None;
         message
             .linked_span_contexts
             .push(format!("trace-{}", record.update_id));
@@ -2406,174 +2428,37 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
     );
 }
 
-/// Durable receipts persisted for one real CRDT document by
-/// [`mt009_seed_real_crdt_document`]. Everything here is a genuine
-/// PostgreSQL/EventLedger row created through `push_yjs_update` and
-/// `append_kernel_crdt_snapshot`, so a message that references these values
-/// exercises the real resolver, not a fabricated shortcut.
-struct Mt009RealCrdtReceipts {
-    /// `snapshot_bytes_ref` of a real snapshot covering `snapshot_covered_seq`.
-    snapshot_bytes_ref: String,
-    /// The snapshot's `covered_update_seq` (strictly less than the post-update
-    /// seq, so the resolver's causal-ordering guard is satisfied).
-    snapshot_covered_seq: i64,
-    /// `update_bytes_ref` of a real post-snapshot update (seq == 2) that fully
-    /// validates against its EventLedger event.
-    post_update_bytes_ref: String,
-    /// The post-snapshot update's server-derived `state_vector_after`.
-    post_update_state_vector_after: String,
-}
-
-/// Persist one real CRDT document into the isolated schema behind `db`: a
-/// pre-snapshot update (seq 1), a snapshot covering seq 1, and a post-snapshot
-/// update (seq 2). Mirrors the persistence path proven by
-/// `mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge`
-/// but trimmed to the minimum needed by the CRDT authority-binding negatives.
-async fn mt009_seed_real_crdt_document(
-    db: &(dyn Database + '_),
-    workspace_id: &str,
-    document_id: &str,
-    crdt_document_id: &str,
-    label: &str,
-) -> Mt009RealCrdtReceipts {
-    const DOCUMENT_SCHEMA_ID: &str = "hsk.doc.rich_document@1";
-    let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, &format!("{label}-local"))
-        .expect("typed local model actor for real CRDT seed");
-    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, &actor);
-    let session_id = format!("session-{label}");
-    let mut state_vector = KnowledgeStateVectorV1::new();
-    let canonical = Doc::new();
-
-    let pre_update_id = format!("{label}-yjs-pre");
-    let pre_bytes =
-        mt009_append_yjs_text_update(&canonical, u64::from(site.yjs_client_id), &format!("[{label}-pre]"));
-    mt009_push_yjs_update(
-        db,
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        DOCUMENT_SCHEMA_ID,
-        &pre_update_id,
-        &actor,
-        &site.site_id,
-        &session_id,
-        &pre_bytes,
-        &mut state_vector,
-        1,
-    )
-    .await;
-
-    let snapshot_state_vector = state_vector.encode();
-    let snapshot_bytes = canonical
-        .transact()
-        .encode_state_as_update_v1(&StateVector::default());
-    let snapshot_identity = knowledge_crdt_identity(
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        DOCUMENT_SCHEMA_ID,
-        &actor,
-        &format!("trace-{label}-snapshot"),
-    );
-    let snapshot_event = NewKernelEvent::builder(
-        format!("KTR-{}-SNAP", label.to_uppercase()),
-        session_id.clone(),
-        KernelEventType::KnowledgeCrdtSnapshotRecorded,
-        actor.to_kernel_actor(),
-    )
-    .aggregate("knowledge_crdt_document", crdt_document_id.to_string())
-    .idempotency_key(format!("{label}:snapshot"))
-    .source_component("mixed_model_lane_integration_pg_tests")
-    .payload(json!({
-        "covered_update_seq": 1,
-        "state_vector": &snapshot_state_vector,
-        "document_id": document_id,
-    }))
-    .build()
-    .expect("build real CRDT snapshot EventLedger event");
-    let snapshot_event = db
-        .append_kernel_event(snapshot_event)
-        .await
-        .expect("append real CRDT snapshot EventLedger event");
-    let snapshot = new_crdt_snapshot_record(CrdtSnapshotRecordInputV1 {
-        identity: &snapshot_identity,
-        snapshot_id: &format!("{label}-snapshot-1"),
-        covered_update_seq: 1,
-        snapshot_bytes: &snapshot_bytes,
-        snapshot_bytes_ref: &format!(
-            "postgres://kernel_crdt_snapshots/{crdt_document_id}/{label}-snapshot-1"
-        ),
-        state_vector: &snapshot_state_vector,
-        event_ledger_event_id: &snapshot_event.event_id,
-        promotion_evidence_update_ids: &[pre_update_id.as_str()],
-    });
-    db.append_kernel_crdt_snapshot(snapshot.clone(), snapshot_bytes.clone())
-        .await
-        .expect("persist real CRDT snapshot receipt and bytes");
-
-    let post_update_id = format!("{label}-yjs-post");
-    let post_bytes = mt009_append_yjs_text_update(
-        &canonical,
-        u64::from(site.yjs_client_id),
-        &format!("[{label}-post]"),
-    );
-    mt009_push_yjs_update(
-        db,
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        DOCUMENT_SCHEMA_ID,
-        &post_update_id,
-        &actor,
-        &site.site_id,
-        &session_id,
-        &post_bytes,
-        &mut state_vector,
-        2,
-    )
-    .await;
-
-    let records = db
-        .list_kernel_crdt_updates(workspace_id, document_id, crdt_document_id)
-        .await
-        .expect("list persisted real CRDT updates");
-    let post = records
-        .iter()
-        .find(|record| record.update_id == post_update_id)
-        .expect("post-snapshot update is durably persisted");
-
-    Mt009RealCrdtReceipts {
-        snapshot_bytes_ref: snapshot.snapshot_bytes_ref.clone(),
-        snapshot_covered_seq: 1,
-        post_update_bytes_ref: post.update_bytes_ref.clone(),
-        post_update_state_vector_after: post.state_vector_after.clone(),
-    }
-}
-
 /// Everything a caller needs to drive one ADMISSIBLE CRDT-bearing
 /// ModelLaneMessage through the shared `ModelLaneStore::record_message*`
 /// admission boundary, produced by [`mt009_build_admissible_crdt_message`].
 struct Mt009AdmissibleCrdtMessage {
-    /// A STATUS-kind ModelLaneMessage that PASSES admission as-is: it references
-    /// a real persisted Yjs update + real base snapshot, carries the server
-    /// derived post-update state vector, links the update's CRDT trace, and is
-    /// authorised by the active lease below. Record it with `record_message` (or
-    /// recompute `payload_sha256` first if using the payload-binding variant).
+    /// A ModelLaneMessage that PASSES admission as-is: it references a real
+    /// persisted Yjs update + real base snapshot, carries the server-derived
+    /// post-update state vector, links the update's CRDT trace, and is
+    /// authorised by the active lease below. When built with
+    /// [`CrdtProposalAnchoring::ApprovedApplied`] it also carries a
+    /// `crdt_proposal_ref` resolving to a REAL approved + applied proposal, so a
+    /// `Proposal`-kind message is admissible too. Record it with
+    /// `record_message` (or recompute `payload_sha256` first if using the
+    /// payload-binding variant).
     message: NewModelLaneMessage,
     /// The active `knowledge_crdt_agent_lane_leases` lease that authorises the
     /// message. Release it with `release_lease` after recording if desired.
     lease_id: String,
     /// The real CRDT receipts the message references.
     receipts: Mt009RealCrdtReceipts,
+    /// The full canonical posture (refs + lease + optional proposal ref).
+    posture: AdmissibleCrdtPosture,
     run_id: String,
     lane_id: String,
     crdt_document_id: String,
 }
 
-/// The single canonical way to build ONE admissible CRDT-bearing
-/// ModelLaneMessage. Future tests that need a message that PASSES CRDT admission
-/// should reuse this instead of hand-wiring the CRDT identity triangle, which is
-/// easy to get subtly wrong:
+/// This binary's thin adapter over the ONE canonical admissible-CRDT posture
+/// builder (`model_lane_crdt_support::build_admissible_crdt_posture`). It
+/// supplies this binary's `sample_message` fixture and a real run/lane, then
+/// lets the shared module own the CRDT identity triangle, which is easy to get
+/// subtly wrong:
 ///   * the seeded update's `session_id` must equal the source lane's
 ///     `session_id` (`validate_crdt_lane_session_uniqueness_tx`),
 ///   * the lease's `correlation_id` must equal the update's `trace_id`
@@ -2585,17 +2470,19 @@ struct Mt009AdmissibleCrdtMessage {
 /// It (1) seeds a real ModelLaneRun + local lane whose `session_id` is
 /// `session-{label}` via [`seed_run_lane`] (using `label` as the lane id so
 /// `sample_lane`'s `session-{lane_id}` matches the seeded update session),
-/// (2) seeds a real Yjs document (pre-update, snapshot, post-update) via
-/// [`mt009_seed_real_crdt_document`], (3) claims the exact active
-/// knowledge-agent lane lease, and (4) returns a STATUS-kind message carrying
-/// the real update/snapshot/state-vector refs plus the CRDT trace link.
+/// (2) seeds a real Yjs document (pre-update, snapshot, post-update),
+/// (3) builds the canonical posture (claiming the exact active knowledge-agent
+/// lane lease, and minting a REAL approved + applied AI edit proposal through
+/// `record_ai_edit_proposal` -> `decide_ai_edit_proposal` ->
+/// `apply_approved_ai_edit` when Proposal anchoring is requested), and
+/// (4) stamps that posture onto a `sample_message`.
 ///
-/// STATUS kind (not Proposal) is deliberate: a Proposal-kind CRDT message would
-/// require an approved applied-proposal row whose `applied_update_sha256` equals
-/// the Yjs-update hash, which is currently unsatisfiable (diff-hash vs
-/// update-hash conflation, deferred to the MT-018 CRDT-admission context), so
-/// `crdt_proposal_ref` is left `None`. `proposal_ref` is a routing-advisory id
-/// required by `authority=PromotionCandidate`, not a CRDT authority field.
+/// WP-1 MT-018 note: `kind` and `anchoring` are parameters precisely because the
+/// Proposal-kind path is no longer un-admittable. Before MT-018 a Proposal-kind
+/// CRDT message required `applied_update_sha256` (a JSON-diff hash) to equal
+/// `kernel_crdt_updates.update_sha256` (a Yjs-binary hash), which no honest row
+/// could satisfy; the helper therefore hard-coded Status kind and
+/// `crdt_proposal_ref = None`. That carve-out is gone.
 async fn mt009_build_admissible_crdt_message(
     store: &ModelLaneStore,
     db: &(dyn Database + '_),
@@ -2603,6 +2490,8 @@ async fn mt009_build_admissible_crdt_message(
     workspace_id: &str,
     label: &str,
     message_id: &str,
+    kind: ModelLaneMessageKind,
+    anchoring: CrdtProposalAnchoring,
 ) -> Mt009AdmissibleCrdtMessage {
     let run_id = format!("run-{label}");
     let lane_id = label.to_string();
@@ -2614,52 +2503,22 @@ async fn mt009_build_admissible_crdt_message(
         mt009_seed_real_crdt_document(db, workspace_id, &document_id, &crdt_document_id, label)
             .await;
 
-    // The seeded update's identity is deterministic in `label` (see
-    // `mt009_seed_real_crdt_document`): actor = LocalModel `{label}-local`,
-    // session = `session-{label}`, post-update id = `{label}-yjs-post`, and its
-    // trace = `trace-{label}-yjs-post`. `sample_lane` stamps the lane session as
-    // `session-{lane_id}` = `session-{label}`, so the update session is owned by
-    // exactly this lane.
-    let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, &format!("{label}-local"))
-        .expect("typed local model actor matching the seeded CRDT document");
-    let session_id = format!("session-{label}");
-    let update_trace_id = format!("trace-{label}-yjs-post");
-
-    let lease = match claim_lease(
-        db,
-        pool,
-        LeaseClaimRequestV1 {
-            lane_id: lane_id.clone(),
-            actor: actor.clone(),
-            session_id: session_id.clone(),
-            correlation_id: update_trace_id.clone(),
-            scope_kind: KnowledgeLeaseScopeKind::Document,
-            scope_id: crdt_document_id.clone(),
-            ttl_seconds: 3600,
-        },
-    )
-    .await
-    .expect("claim the exact active knowledge-agent lane lease for the admissible message")
-    {
-        LeaseClaimOutcomeV1::Claimed(lease) => lease,
-        other => panic!("admissible CRDT message lease must claim, got {other:?}"),
-    };
+    let posture =
+        build_admissible_crdt_posture(db, pool, &receipts, &lane_id, label, anchoring).await;
 
     // seq 2 == the post-snapshot update sequence produced by the seed helper.
     let mut message = sample_message(message_id, &run_id, &lane_id, "local", 2);
-    message.kind = ModelLaneMessageKind::Status;
+    // `authority=PromotionCandidate` requires a routing-advisory `proposal_ref`,
+    // which is NOT a CRDT authority field and is distinct from
+    // `crdt_proposal_ref`.
     message.proposal_ref = Some(format!("proposal://mt009/admissible/{message_id}"));
-    message.crdt_update_ref = Some(receipts.post_update_bytes_ref.clone());
-    message.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
-    message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
-    message.crdt_proposal_ref = None;
-    message.crdt_stale_base_ref = None;
-    message.linked_span_contexts.push(update_trace_id);
+    apply_crdt_posture(&mut message, &posture, kind);
 
     Mt009AdmissibleCrdtMessage {
         message,
-        lease_id: lease.lease_id,
+        lease_id: posture.lease_id.clone(),
         receipts,
+        posture,
         run_id,
         lane_id,
         crdt_document_id,
@@ -2694,8 +2553,14 @@ async fn mt009_admissible_crdt_message_helper_records_and_binds() {
         &workspace_id,
         "mt009-admissible-helper",
         "msg-mt009-admissible-helper",
+        ModelLaneMessageKind::Status,
+        CrdtProposalAnchoring::None,
     )
     .await;
+    assert!(
+        admissible.posture.crdt_proposal_ref.is_none(),
+        "a Status-anchored posture carries no crdt_proposal_ref"
+    );
 
     let stored = store
         .record_message(admissible.message.clone())
@@ -2713,6 +2578,567 @@ async fn mt009_admissible_crdt_message_helper_records_and_binds() {
     assert_eq!(binding.crdt_document_id, admissible.crdt_document_id);
     assert_eq!(binding.lane_id, admissible.lane_id);
     assert_eq!(stored.run_id, admissible.run_id);
+}
+
+/// Open an isolated real-PostgreSQL schema for one MT-018 proposal-path proof.
+/// Returns `None` only when the PostgreSQL binaries are genuinely absent (never
+/// a mock/SQLite fallback).
+async fn mt018_fixture(
+    context: &str,
+) -> Option<(PgPool, ModelLaneStore, PostgresDatabase, String)> {
+    let kpg = knowledge_pg_support::knowledge_pg().await?;
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .unwrap_or_else(|error| {
+            panic!("connect isolated schema for MT-018 {context} proof: {error}")
+        });
+    let store = ModelLaneStore::new(pool.clone());
+    Some((pool, store, db, workspace_id))
+}
+
+/// Read one proposal row's applied-binding columns straight from PostgreSQL.
+async fn mt018_applied_binding(
+    pool: &PgPool,
+    proposal_id: &str,
+) -> (String, Option<String>, Option<String>, String) {
+    let row = sqlx::query(
+        r#"
+        SELECT review_state, diff_sha256, applied_update_id, applied_update_sha256
+        FROM knowledge_crdt_ai_edit_proposals
+        WHERE proposal_id = $1
+        "#,
+    )
+    .bind(proposal_id)
+    .fetch_one(pool)
+    .await
+    .expect("read persisted AI edit proposal applied binding");
+    (
+        row.try_get("review_state").expect("review_state column"),
+        row.try_get("applied_update_id")
+            .expect("applied_update_id column"),
+        row.try_get("applied_update_sha256")
+            .expect("applied_update_sha256 column"),
+        row.try_get("diff_sha256").expect("diff_sha256 column"),
+    )
+}
+
+/// WP-1 MT-018 AC[1] POSITIVE PROOF: a `Proposal`-kind ModelLaneMessage that
+/// references an APPROVED + APPLIED AI edit proposal whose applied update is a
+/// real persisted Yjs update is ADMITTED, and replays with every applicable
+/// `crdt_*` field intact.
+///
+/// This is the exact admission that was impossible before MT-018: the resolver
+/// required `applied_update_sha256` (the approved JSON-diff hash) to equal
+/// `kernel_crdt_updates.update_sha256` (the Yjs v1 binary hash), and the binder
+/// independently required the persisted Yjs hash to equal the diff hash before
+/// it would stamp the row at all. Every artefact below is minted through the
+/// real product APIs — `push_yjs_update`, `append_kernel_crdt_snapshot`,
+/// `claim_lease`, `record_ai_edit_proposal`, `decide_ai_edit_proposal`,
+/// `apply_approved_ai_edit` — so no raw INSERT can fake the trail.
+#[tokio::test]
+async fn mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted() {
+    const LABEL: &str = "mt018-positive";
+    const MESSAGE_ID: &str = "msg-mt018-proposal-admitted";
+
+    let Some((pool, store, db, workspace_id)) = mt018_fixture("positive-admission").await else {
+        eprintln!("SKIP mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted: PostgreSQL binaries absent");
+        return;
+    };
+
+    let admissible = mt009_build_admissible_crdt_message(
+        &store,
+        &db,
+        &pool,
+        &workspace_id,
+        LABEL,
+        MESSAGE_ID,
+        ModelLaneMessageKind::Proposal,
+        CrdtProposalAnchoring::ApprovedApplied,
+    )
+    .await;
+
+    let proposal_ref = admissible
+        .posture
+        .crdt_proposal_ref
+        .clone()
+        .expect("an ApprovedApplied posture must carry a crdt_proposal_ref");
+    let proposal_id = proposal_ref
+        .strip_prefix("crdt-proposal://")
+        .expect("crdt_proposal_ref uses the crdt-proposal:// scheme")
+        .to_string();
+
+    // The durable proposal row is approved AND bound by identity to the real
+    // update the message cites, while its applied hash stays the approved DIFF
+    // hash (never the Yjs hash) — the exact separation MT-018 establishes.
+    let (review_state, applied_update_id, applied_update_sha256, diff_sha256) =
+        mt018_applied_binding(&pool, &proposal_id).await;
+    assert_eq!(review_state, "approved");
+    assert_eq!(
+        applied_update_id.as_deref(),
+        Some(admissible.receipts.post_update_id.as_str()),
+        "the proposal must bind to the real cited update by identity"
+    );
+    assert_eq!(
+        applied_update_sha256.as_deref(),
+        Some(diff_sha256.as_str()),
+        "applied_update_sha256 is the approved-diff hash (migration 0192 CHECK)"
+    );
+    let persisted_update_sha256: String = sqlx::query_scalar(
+        "SELECT update_sha256 FROM kernel_crdt_updates WHERE update_bytes_ref = $1",
+    )
+    .bind(&admissible.receipts.post_update_bytes_ref)
+    .fetch_one(&pool)
+    .await
+    .expect("read persisted Yjs update hash");
+    assert_ne!(
+        persisted_update_sha256, diff_sha256,
+        "the two hash spaces MUST differ; if they ever collide this proof is vacuous"
+    );
+
+    let stored = store
+        .record_message(admissible.message.clone())
+        .await
+        .expect("a Proposal-kind CRDT message backed by an approved applied proposal must be ADMITTED");
+    assert_eq!(stored.kind, ModelLaneMessageKind::Proposal);
+    assert_eq!(
+        stored.crdt_proposal_ref.as_deref(),
+        Some(proposal_ref.as_str())
+    );
+    assert_eq!(
+        stored.crdt_update_ref.as_deref(),
+        Some(admissible.receipts.post_update_bytes_ref.as_str())
+    );
+    assert_eq!(
+        stored.crdt_base_snapshot_ref.as_deref(),
+        Some(admissible.receipts.snapshot_bytes_ref.as_str())
+    );
+    assert_eq!(
+        stored.crdt_state_vector.as_deref(),
+        Some(admissible.receipts.post_update_state_vector_after.as_str())
+    );
+    let binding = stored
+        .crdt_authority_binding
+        .as_ref()
+        .expect("an admitted CRDT message must carry a resolved CRDT lease authority binding");
+    assert_eq!(binding.lease_id, admissible.lease_id);
+    assert_eq!(
+        binding.update_bytes_ref,
+        admissible.receipts.post_update_bytes_ref
+    );
+    assert_eq!(binding.crdt_document_id, admissible.crdt_document_id);
+
+    // Replay keeps every applicable crdt_* field intact (AC[1] second clause).
+    let replay = store
+        .replay_run(&admissible.run_id)
+        .await
+        .expect("replay the run holding the admitted Proposal-kind CRDT message");
+    let replayed = replay
+        .messages
+        .iter()
+        .find(|message| message.message_id == MESSAGE_ID)
+        .expect("the admitted Proposal-kind CRDT message must replay");
+    assert_eq!(replayed.kind, ModelLaneMessageKind::Proposal);
+    assert_eq!(
+        replayed.crdt_proposal_ref.as_deref(),
+        Some(proposal_ref.as_str())
+    );
+    assert_eq!(
+        replayed.crdt_update_ref.as_deref(),
+        Some(admissible.receipts.post_update_bytes_ref.as_str())
+    );
+    assert_eq!(
+        replayed.crdt_base_snapshot_ref.as_deref(),
+        Some(admissible.receipts.snapshot_bytes_ref.as_str())
+    );
+    assert_eq!(
+        replayed.crdt_state_vector.as_deref(),
+        Some(admissible.receipts.post_update_state_vector_after.as_str())
+    );
+    assert!(replayed.crdt_stale_base_ref.is_none());
+    let replayed_bytes = db
+        .read_kernel_crdt_update_bytes(
+            replayed
+                .crdt_update_ref
+                .as_deref()
+                .expect("replayed CRDT update ref"),
+        )
+        .await
+        .expect("the replayed CRDT reference must resolve to PostgreSQL Yjs bytes");
+    Update::decode_v1(&replayed_bytes)
+        .expect("the replayed proposal-anchored update must still be a decodable Yjs v1 update");
+
+    // Exact retry stays idempotent, and the idempotent path re-validates the
+    // stored CRDT authority (`validate_stored_crdt_message_authority_tx`), so
+    // this also proves the admitted proposal binding survives revalidation.
+    let idempotent_retry = store
+        .record_message(admissible.message.clone())
+        .await
+        .expect("an exact retry of an admitted Proposal-kind CRDT message must be idempotent");
+    assert_eq!(idempotent_retry.message_id, stored.message_id);
+    assert_eq!(
+        idempotent_retry.crdt_proposal_ref.as_deref(),
+        Some(proposal_ref.as_str())
+    );
+
+    // A duplicate idempotency_key carrying a DIFFERENT payload hash still fails
+    // closed on the proposal path (AC[2] duplicate/idempotency conflict arm).
+    let mut conflicting = admissible.message.clone();
+    conflicting.message_id = "msg-mt018-proposal-idempotency-conflict".into();
+    conflicting.message_span_id = "span-mt018-proposal-idempotency-conflict".into();
+    conflicting.payload_sha256 = "1".repeat(64);
+    let conflict_error = store
+        .record_message(conflicting)
+        .await
+        .expect_err("a reused idempotency_key with a different payload hash must fail closed");
+    assert_error_contains(&conflict_error, "already belongs to payload_sha256");
+    assert_no_message_row(&pool, "msg-mt018-proposal-idempotency-conflict").await;
+}
+
+/// WP-1 MT-018 red-team control (b) / AC[2]: a proposal whose
+/// `applied_update_id` points at a DIFFERENT real persisted update than the one
+/// the message cites must still fail closed. Both updates are genuine, fully
+/// valid `kernel_crdt_updates` rows on the same document, and every other
+/// identity column agrees — so the ONLY reason for denial is the applied-update
+/// identity mismatch the resolver still enforces.
+#[tokio::test]
+async fn mt018_proposal_bound_to_a_different_real_update_fails_closed() {
+    const LABEL: &str = "mt018-otherupd";
+    const MESSAGE_ID: &str = "msg-mt018-proposal-other-update";
+
+    let Some((pool, store, db, workspace_id)) = mt018_fixture("foreign-applied-update").await
+    else {
+        eprintln!("SKIP mt018_proposal_bound_to_a_different_real_update_fails_closed: PostgreSQL binaries absent");
+        return;
+    };
+
+    let run_id = format!("run-{LABEL}");
+    let lane_id = LABEL.to_string();
+    seed_run_lane(&store, &run_id, &lane_id, RuntimeBinding::Local).await;
+    let document_id = format!("doc-{LABEL}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
+    let mut receipts =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL)
+            .await;
+
+    // A SECOND fully real update on the same document (seq 3).
+    let other = model_lane_crdt_support::append_extra_real_update(
+        &db,
+        &mut receipts,
+        &format!("{LABEL}-yjs-other"),
+        "[mt018-other]",
+    )
+    .await;
+    assert_ne!(other.update_id, receipts.post_update_id);
+
+    // Correlate the proposal to the CITED update's trace so every identity gate
+    // passes, then bind it to the OTHER real update.
+    let proposal_id = model_lane_crdt_support::mint_approved_applied_proposal(
+        &db,
+        &pool,
+        &receipts,
+        &receipts.post_update_trace_id.clone(),
+        &other.update_id,
+        LABEL,
+    )
+    .await;
+    let (_, applied_update_id, _, _) = mt018_applied_binding(&pool, &proposal_id).await;
+    assert_eq!(
+        applied_update_id.as_deref(),
+        Some(other.update_id.as_str()),
+        "the negative fixture must really be bound to the other update"
+    );
+
+    let posture = build_admissible_crdt_posture(
+        &db,
+        &pool,
+        &receipts,
+        &lane_id,
+        LABEL,
+        CrdtProposalAnchoring::Explicit(format!("crdt-proposal://{proposal_id}")),
+    )
+    .await;
+    let mut message = sample_message(MESSAGE_ID, &run_id, &lane_id, "local", 2);
+    message.proposal_ref = Some(format!("proposal://mt018/other-update/{MESSAGE_ID}"));
+    apply_crdt_posture(&mut message, &posture, ModelLaneMessageKind::Proposal);
+
+    let error = store
+        .record_message(message)
+        .await
+        .expect_err("a proposal applied to a different real update must fail closed");
+    assert_error_contains(&error, "CX-MM-006");
+    assert_error_contains(&error, "CRDT authority resolution failed");
+    assert_error_contains(&error, "is not an approved applied proposal for update");
+    assert_no_message_row(&pool, MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
+        0,
+        "a foreign applied-update binding must not append a ModelLane message EventLedger event"
+    );
+}
+
+/// WP-1 MT-018 red-team control (a) / AC[2] + AC[6]: a proposal row that is
+/// INTERNALLY INCONSISTENT under the post-fix definition — its
+/// `applied_update_sha256` is not its own `diff_sha256` — must remain
+/// impossible, and must still fail closed if it somehow exists.
+///
+/// Two layers are proven:
+///   1. SCHEMA. The migration 0192 CHECK `applied_update_sha256 = diff_sha256`
+///      (RETAINED by migration 0362) refuses the mutation outright.
+///   2. RESOLVER. With that CHECK dropped inside this test's isolated schema
+///      only, the inconsistent row is written and the ModelLane resolver still
+///      refuses the message with its own distinct reason string — so the
+///      product does not depend on the schema backstop alone.
+#[tokio::test]
+async fn mt018_internally_inconsistent_applied_binding_fails_closed() {
+    const LABEL: &str = "mt018-inconsist";
+    const MESSAGE_ID: &str = "msg-mt018-proposal-inconsistent";
+
+    let Some((pool, store, db, workspace_id)) = mt018_fixture("internal-inconsistency").await
+    else {
+        eprintln!("SKIP mt018_internally_inconsistent_applied_binding_fails_closed: PostgreSQL binaries absent");
+        return;
+    };
+
+    let admissible = mt009_build_admissible_crdt_message(
+        &store,
+        &db,
+        &pool,
+        &workspace_id,
+        LABEL,
+        MESSAGE_ID,
+        ModelLaneMessageKind::Proposal,
+        CrdtProposalAnchoring::ApprovedApplied,
+    )
+    .await;
+    let proposal_ref = admissible
+        .posture
+        .crdt_proposal_ref
+        .clone()
+        .expect("ApprovedApplied posture carries a crdt_proposal_ref");
+    let proposal_id = proposal_ref
+        .strip_prefix("crdt-proposal://")
+        .expect("crdt-proposal:// scheme")
+        .to_string();
+    let forged_applied_sha256 = "9".repeat(64);
+
+    // Layer 1: the schema refuses the inconsistent binding.
+    let schema_error = sqlx::query(
+        "UPDATE knowledge_crdt_ai_edit_proposals SET applied_update_sha256 = $2 WHERE proposal_id = $1",
+    )
+    .bind(&proposal_id)
+    .bind(&forged_applied_sha256)
+    .execute(&pool)
+    .await
+    .expect_err("migration 0192's CHECK must refuse an applied hash that is not the approved diff hash");
+    assert!(
+        schema_error
+            .to_string()
+            .contains("chk_knowledge_crdt_ai_edit_proposals_applied"),
+        "the schema backstop must name the 0192 applied-binding CHECK: {schema_error}"
+    );
+
+    // Layer 2: drop the CHECK in THIS isolated test schema only, write the
+    // inconsistent row, and prove the resolver refuses it independently.
+    sqlx::query(
+        "ALTER TABLE knowledge_crdt_ai_edit_proposals DROP CONSTRAINT chk_knowledge_crdt_ai_edit_proposals_applied",
+    )
+    .execute(&pool)
+    .await
+    .expect("drop the applied-binding CHECK inside the isolated test schema");
+    let forged = sqlx::query(
+        "UPDATE knowledge_crdt_ai_edit_proposals SET applied_update_sha256 = $2 WHERE proposal_id = $1",
+    )
+    .bind(&proposal_id)
+    .bind(&forged_applied_sha256)
+    .execute(&pool)
+    .await
+    .expect("write the internally inconsistent applied binding with the CHECK removed");
+    assert_eq!(forged.rows_affected(), 1);
+    let (_, applied_update_id, applied_update_sha256, diff_sha256) =
+        mt018_applied_binding(&pool, &proposal_id).await;
+    assert_eq!(
+        applied_update_id.as_deref(),
+        Some(admissible.receipts.post_update_id.as_str()),
+        "identity still points at the real cited update, so only internal consistency is broken"
+    );
+    assert_ne!(applied_update_sha256.as_deref(), Some(diff_sha256.as_str()));
+
+    let error = store
+        .record_message(admissible.message.clone())
+        .await
+        .expect_err("an internally inconsistent applied binding must fail closed at the resolver");
+    assert_error_contains(&error, "CX-MM-006");
+    assert_error_contains(&error, "CRDT authority resolution failed");
+    assert_error_contains(
+        &error,
+        "applied_update_sha256 does not match its own approved diff_sha256",
+    );
+    assert_no_message_row(&pool, MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
+        0,
+        "an internally inconsistent proposal must not append a ModelLane message EventLedger event"
+    );
+}
+
+/// WP-1 MT-018 AC[2]: an APPROVED proposal that carries NO applied binding
+/// (`applied_update_id IS NULL`) must still fail closed. MT-018 relaxed the
+/// applied-HASH comparison, not the requirement that an applied binding exists
+/// and names the cited update.
+#[tokio::test]
+async fn mt018_approved_proposal_without_applied_binding_fails_closed() {
+    const LABEL: &str = "mt018-noapply";
+    const MESSAGE_ID: &str = "msg-mt018-proposal-not-applied";
+
+    let Some((pool, store, db, workspace_id)) = mt018_fixture("missing-applied-binding").await
+    else {
+        eprintln!("SKIP mt018_approved_proposal_without_applied_binding_fails_closed: PostgreSQL binaries absent");
+        return;
+    };
+
+    let run_id = format!("run-{LABEL}");
+    let lane_id = LABEL.to_string();
+    seed_run_lane(&store, &run_id, &lane_id, RuntimeBinding::Local).await;
+    let document_id = format!("doc-{LABEL}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
+    let receipts =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL)
+            .await;
+
+    // Recorded + APPROVED, but deliberately never applied.
+    let minted = model_lane_crdt_support::record_proposal(
+        &db,
+        &pool,
+        &receipts,
+        &receipts.post_update_trace_id.clone(),
+        LABEL,
+    )
+    .await;
+    model_lane_crdt_support::approve_proposal(&db, &pool, &minted.proposal_id, LABEL).await;
+    model_lane_crdt_support::release_proposal_lease(&db, &pool, &receipts, &minted).await;
+    let (review_state, applied_update_id, applied_update_sha256, _) =
+        mt018_applied_binding(&pool, &minted.proposal_id).await;
+    assert_eq!(review_state, "approved");
+    assert!(applied_update_id.is_none());
+    assert!(applied_update_sha256.is_none());
+
+    let posture = build_admissible_crdt_posture(
+        &db,
+        &pool,
+        &receipts,
+        &lane_id,
+        LABEL,
+        CrdtProposalAnchoring::Explicit(format!("crdt-proposal://{}", minted.proposal_id)),
+    )
+    .await;
+    let mut message = sample_message(MESSAGE_ID, &run_id, &lane_id, "local", 2);
+    message.proposal_ref = Some(format!("proposal://mt018/not-applied/{MESSAGE_ID}"));
+    apply_crdt_posture(&mut message, &posture, ModelLaneMessageKind::Proposal);
+
+    let error = store
+        .record_message(message)
+        .await
+        .expect_err("an approved-but-unapplied proposal must fail closed");
+    assert_error_contains(&error, "CX-MM-006");
+    assert_error_contains(&error, "is not an approved applied proposal for update");
+    assert_no_message_row(&pool, MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
+        0,
+        "a missing applied binding must not append a ModelLane message EventLedger event"
+    );
+}
+
+/// WP-1 MT-018 AC[2]: an UN-APPROVED proposal (still `review_state='proposed'`)
+/// and a FABRICATED `crdt_proposal_ref` that resolves to no row at all must both
+/// fail closed on the Proposal-kind path, with distinct denial reasons.
+#[tokio::test]
+async fn mt018_unapproved_and_fabricated_proposal_refs_fail_closed() {
+    const LABEL: &str = "mt018-unapproved";
+    const UNAPPROVED_MESSAGE_ID: &str = "msg-mt018-proposal-unapproved";
+    const FABRICATED_MESSAGE_ID: &str = "msg-mt018-proposal-fabricated";
+
+    let Some((pool, store, db, workspace_id)) = mt018_fixture("unapproved-and-fabricated").await
+    else {
+        eprintln!("SKIP mt018_unapproved_and_fabricated_proposal_refs_fail_closed: PostgreSQL binaries absent");
+        return;
+    };
+
+    let run_id = format!("run-{LABEL}");
+    let lane_id = LABEL.to_string();
+    seed_run_lane(&store, &run_id, &lane_id, RuntimeBinding::Local).await;
+    let document_id = format!("doc-{LABEL}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
+    let receipts =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL)
+            .await;
+
+    // Recorded but NEVER decided -> review_state = 'proposed'.
+    let minted = model_lane_crdt_support::record_proposal(
+        &db,
+        &pool,
+        &receipts,
+        &receipts.post_update_trace_id.clone(),
+        LABEL,
+    )
+    .await;
+    model_lane_crdt_support::release_proposal_lease(&db, &pool, &receipts, &minted).await;
+    let (review_state, _, _, _) = mt018_applied_binding(&pool, &minted.proposal_id).await;
+    assert_eq!(review_state, "proposed");
+
+    let posture = build_admissible_crdt_posture(
+        &db,
+        &pool,
+        &receipts,
+        &lane_id,
+        LABEL,
+        CrdtProposalAnchoring::Explicit(format!("crdt-proposal://{}", minted.proposal_id)),
+    )
+    .await;
+
+    let mut unapproved = sample_message(UNAPPROVED_MESSAGE_ID, &run_id, &lane_id, "local", 2);
+    unapproved.proposal_ref = Some(format!("proposal://mt018/unapproved/{UNAPPROVED_MESSAGE_ID}"));
+    apply_crdt_posture(&mut unapproved, &posture, ModelLaneMessageKind::Proposal);
+    let unapproved_error = store
+        .record_message(unapproved)
+        .await
+        .expect_err("an un-approved proposal must fail closed");
+    assert_error_contains(&unapproved_error, "CX-MM-006");
+    assert_error_contains(
+        &unapproved_error,
+        "is not an approved applied proposal for update",
+    );
+    assert_no_message_row(&pool, UNAPPROVED_MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, UNAPPROVED_MESSAGE_ID).await,
+        0
+    );
+
+    let mut fabricated = sample_message(FABRICATED_MESSAGE_ID, &run_id, &lane_id, "local", 2);
+    fabricated.proposal_ref =
+        Some(format!("proposal://mt018/fabricated/{FABRICATED_MESSAGE_ID}"));
+    apply_crdt_posture(&mut fabricated, &posture, ModelLaneMessageKind::Proposal);
+    // ULID-shaped but never persisted.
+    fabricated.crdt_proposal_ref = Some("crdt-proposal://01ARZ3NDEKTSV4RRFFQ69G5FAV".into());
+    let fabricated_error = store
+        .record_message(fabricated)
+        .await
+        .expect_err("a fabricated crdt_proposal_ref must fail closed");
+    assert_error_contains(&fabricated_error, "CX-MM-006");
+    assert_error_contains(
+        &fabricated_error,
+        "does not resolve to a persisted AI edit proposal",
+    );
+    assert_no_message_row(&pool, FABRICATED_MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, FABRICATED_MESSAGE_ID).await,
+        0
+    );
 }
 
 /// Count MODEL_RESPONSE_RECORDED EventLedger appends for one ModelLane message
@@ -5668,136 +6094,6 @@ fn cancellation_probe_request(cancel: CancellationToken) -> GenerateRequest {
         stop_sequences: Vec::new(),
         speculative_mode: None,
         structured_decoding: None,
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-const MT009_YJS_TEXT_NAME: &str = "mt009-shared-document";
-
-/// Generate a real Yjs v1 incremental update from a distinct author replica,
-/// apply it to the canonical authoring document, and return only the binary
-/// update that crossed the persistence boundary. This keeps the test's payload
-/// path identical to a real Yjs client rather than substituting label bytes.
-fn mt009_append_yjs_text_update(canonical: &Doc, client_id: u64, text: &str) -> Vec<u8> {
-    let canonical_state = canonical
-        .transact()
-        .encode_state_as_update_v1(&StateVector::default());
-    let author = Doc::with_client_id(client_id);
-    let author_text = author.get_or_insert_text(MT009_YJS_TEXT_NAME);
-    if !canonical_state.is_empty() {
-        author
-            .transact_mut()
-            .apply_update(Update::decode_v1(&canonical_state).expect("decode canonical Yjs state"))
-            .expect("apply canonical Yjs state to author replica");
-    }
-
-    let before = author.transact().state_vector();
-    {
-        let mut transaction = author.transact_mut();
-        let offset = author_text.len(&transaction);
-        author_text.insert(&mut transaction, offset, text);
-    }
-    let update = author.transact().encode_diff_v1(&before);
-    canonical
-        .transact_mut()
-        .apply_update(Update::decode_v1(&update).expect("decode generated Yjs update"))
-        .expect("apply generated Yjs update to canonical replica");
-    update
-}
-
-fn mt009_yjs_materialize_doc(doc: &Doc) -> (String, String) {
-    let text = doc.get_or_insert_text(MT009_YJS_TEXT_NAME);
-    let transaction = doc.transact();
-    (
-        text.get_string(&transaction),
-        base64::engine::general_purpose::STANDARD.encode(transaction.state_vector().encode_v1()),
-    )
-}
-
-/// Apply persisted Yjs bytes exactly as returned by PostgreSQL. The assertion
-/// helper intentionally does not read ModelLane diagnostic metadata, so a
-/// bogus label cannot make a corrupt update look materialized.
-fn mt009_yjs_materialize_updates(updates: &[Vec<u8>]) -> (String, String) {
-    let document = Doc::new();
-    for update_bytes in updates {
-        document
-            .transact_mut()
-            .apply_update(Update::decode_v1(update_bytes).expect("decode persisted Yjs update"))
-            .expect("apply persisted Yjs update");
-    }
-    mt009_yjs_materialize_doc(&document)
-}
-
-async fn mt009_push_yjs_update(
-    db: &(dyn Database + '_),
-    workspace_id: &str,
-    document_id: &str,
-    crdt_document_id: &str,
-    document_schema_id: &str,
-    update_id: &str,
-    actor: &KnowledgeActorIdV1,
-    site_id: &str,
-    session_id: &str,
-    update_bytes: &[u8],
-    state_vector: &mut KnowledgeStateVectorV1,
-    expected_seq: u64,
-) -> YjsUpdateEnvelopeV1 {
-    let before = state_vector.clone();
-    state_vector.increment(site_id);
-    let envelope = mt009_yjs_envelope(
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        document_schema_id,
-        update_id,
-        actor,
-        session_id,
-        update_bytes,
-        &before,
-        state_vector,
-    );
-    match push_yjs_update(db, &envelope)
-        .await
-        .expect("store real Yjs update in PostgreSQL/EventLedger")
-    {
-        YjsPushOutcomeV1::Stored { update_seq, .. } => {
-            assert_eq!(update_seq, expected_seq, "Yjs updates must be sequenced")
-        }
-        other => panic!("expected stored Yjs update, got {other:?}"),
-    }
-    envelope
-}
-
-#[allow(clippy::too_many_arguments)]
-fn mt009_yjs_envelope(
-    workspace_id: &str,
-    document_id: &str,
-    crdt_document_id: &str,
-    document_schema_id: &str,
-    update_id: &str,
-    actor: &KnowledgeActorIdV1,
-    session_id: &str,
-    update_bytes: &[u8],
-    before: &KnowledgeStateVectorV1,
-    after: &KnowledgeStateVectorV1,
-) -> YjsUpdateEnvelopeV1 {
-    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
-    YjsUpdateEnvelopeV1 {
-        schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
-        workspace_id: workspace_id.to_string(),
-        document_id: document_id.to_string(),
-        crdt_document_id: crdt_document_id.to_string(),
-        update_id: update_id.to_string(),
-        actor_id: actor.canonical(),
-        site_id: site.site_id,
-        session_id: session_id.to_string(),
-        trace_id: format!("trace-{update_id}"),
-        document_schema_id: document_schema_id.to_string(),
-        update_b64: base64::engine::general_purpose::STANDARD.encode(update_bytes),
-        update_sha256: sha256_hex(update_bytes),
-        state_vector_before: before.encode(),
-        state_vector_after: after.encode(),
-        encoding: YJS_UPDATE_ENCODING_V1.to_string(),
     }
 }
 

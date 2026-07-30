@@ -1025,11 +1025,22 @@ mod hardening_applied_binding {
     };
     use serde_json::json;
     use uuid::Uuid;
+    use yrs::updates::decoder::Decode;
+    use yrs::{Doc, ReadTxn, StateVector, Text, Transact, Update};
 
-    /// MT-074 V1 FAIL remediation helper: push a REAL `kernel_crdt_updates` row
-    /// whose persisted `update_sha256` is the canonical hash of `applied_diff`,
-    /// so an applied-binding for `update_id` can anchor to a genuine document
-    /// update. Mirrors the MT-067 push path (event ledger row + update row).
+    /// MT-074 V1 FAIL remediation helper, corrected by WP-1 MT-018: push a REAL
+    /// `kernel_crdt_updates` row carrying REAL Yjs v1 binary update bytes, so an
+    /// applied-binding for `update_id` can anchor to a genuine document update.
+    /// Mirrors the MT-067 push path (event ledger row + update row).
+    ///
+    /// MT-018: this helper previously pushed `serde_json::to_vec(applied_diff)`
+    /// as `update_bytes`, because the binder demanded the persisted
+    /// `update_sha256` equal the approved JSON-diff hash. Those are two
+    /// different hash spaces, and JSON diff bytes can never satisfy
+    /// `Update::decode_v1` in the ModelLane CRDT resolver — the row was
+    /// unusable as real CRDT authority. The binder now performs an EXISTENCE
+    /// probe, so this helper persists honest Yjs bytes and the row is
+    /// admissible everywhere.
     async fn insert_real_crdt_update(
         backend: &PostgresTestBackend,
         ws: &str,
@@ -1038,7 +1049,6 @@ mod hardening_applied_binding {
         actor: &KnowledgeActorIdV1,
         update_id: &str,
         update_seq: u64,
-        applied_diff: &serde_json::Value,
         suffix: &str,
     ) {
         let db = backend.database.clone();
@@ -1070,9 +1080,21 @@ mod hardening_applied_binding {
         .build()
         .expect("valid event");
         let stored_event = db.append_kernel_event(event).await.expect("append event");
-        // The persisted update_sha256 MUST be the canonical hash of the diff
-        // the binder will present, so use the serde_json bytes of applied_diff.
-        let bytes = serde_json::to_vec(applied_diff).expect("serialize applied diff");
+        // WP-1 MT-018: persist REAL Yjs v1 binary update bytes. `update_sha256`
+        // is derived from these bytes by `new_crdt_update_record`, and the bytes
+        // decode as a Yjs v1 update, so this row is genuine CRDT authority
+        // rather than a JSON blob wearing a CRDT row's clothes.
+        let author = Doc::with_client_id(u64::from(site.yjs_client_id));
+        let author_text = author.get_or_insert_text("mt074-applied-binding");
+        {
+            let mut transaction = author.transact_mut();
+            author_text.insert(&mut transaction, 0, &format!("[{update_id}]"));
+        }
+        let bytes = author
+            .transact()
+            .encode_state_as_update_v1(&StateVector::default());
+        Update::decode_v1(&bytes)
+            .expect("the pushed applied-binding bytes must be a real Yjs v1 update");
         let record = new_crdt_update_record(CrdtUpdateRecordInputV1 {
             identity: &identity,
             update_id,
@@ -1151,9 +1173,12 @@ mod hardening_applied_binding {
 
         // A push NOT matching the approved diff is rejected with a durable
         // mismatch receipt; the binding is refused. A REAL kernel_crdt_updates
-        // row is pushed carrying the tampered content, so the flow gets past the
-        // update-row existence gate and is caught by the approved-diff hash
-        // check (proving the two denial paths are distinct, not collapsed).
+        // row carrying REAL Yjs v1 bytes is pushed for the cited update id, so
+        // the flow gets past the update-row EXISTENCE gate and is caught by the
+        // approved-diff hash check (proving the two denial paths are distinct,
+        // not collapsed). WP-1 MT-018: the persisted Yjs hash is deliberately
+        // unrelated to the diff hash — only the diff the caller PRESENTS is
+        // compared against the approved `diff_sha256`.
         let tampered_diff = json!({"steps": [{"insert": "TAMPERED text"}]});
         insert_real_crdt_update(
             &backend,
@@ -1163,7 +1188,6 @@ mod hardening_applied_binding {
             &model,
             &format!("update-bad-{suffix}"),
             1,
-            &tampered_diff,
             &suffix,
         )
         .await;
@@ -1211,7 +1235,6 @@ mod hardening_applied_binding {
             &model,
             &format!("update-good-{suffix}"),
             2,
-            &approved_diff,
             &suffix,
         )
         .await;
@@ -1363,7 +1386,6 @@ mod hardening_applied_binding {
             &model,
             &absent_update_id,
             1,
-            &approved_diff,
             &suffix,
         )
         .await;

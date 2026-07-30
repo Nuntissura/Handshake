@@ -1332,9 +1332,17 @@ pub struct AiEditProposalRow {
     pub decided_event_id: Option<String>,
     pub promotion_requested_event_id: Option<String>,
     pub promotion_accepted_event_id: Option<String>,
-    /// Authority-hardening #5: the applied update bound to the approved diff
-    /// (set only when the applied content hashed to `diff_sha256`).
+    /// Authority-hardening #5: `kernel_crdt_updates.update_id` of the real
+    /// persisted update that applied the approved edit. Combined with
+    /// `workspace_id` + `document_id` + `crdt_document_id` this is the full
+    /// four-column PRIMARY KEY of `kernel_crdt_updates` (migration 0020), so it
+    /// is the ONLY carrier of Yjs update identity on this row.
     pub applied_update_id: Option<String>,
+    /// Authority-hardening #5: the approved-DIFF hash
+    /// (`sha256(serde_json::to_vec(applied_diff))`), always equal to
+    /// `diff_sha256` per the migration 0192 CHECK. WP-1 MT-018: this is NOT the
+    /// Yjs-v1 binary hash held in `kernel_crdt_updates.update_sha256` — the two
+    /// live in different hash spaces and must never be compared.
     pub applied_update_sha256: Option<String>,
     pub created_at_utc: DateTime<Utc>,
 }
@@ -1559,6 +1567,15 @@ pub async fn mark_ai_edit_proposal_promoted(
 /// applicable state, or it does not exist — so the caller can emit a durable
 /// `ai_edit_applied_mismatch` denial. Idempotent: re-binding the same update
 /// id + hash is a no-op that still returns the row.
+///
+/// WP-1 MT-018 semantics: `applied_content_sha256` is the approved-DIFF hash
+/// (`sha256(serde_json::to_vec(applied_diff))`) and is stored verbatim into
+/// `applied_update_sha256`. It is NOT the Yjs-v1 binary hash of the persisted
+/// `kernel_crdt_updates` row; Yjs row identity is carried solely by
+/// `applied_update_id` (plus the row's workspace/document/crdt_document
+/// columns, which together form the `kernel_crdt_updates` PRIMARY KEY). The
+/// `AND diff_sha256 = $3` predicate is therefore an INTERNAL-CONSISTENCY gate
+/// on the proposal's own approved content and is retained unchanged.
 pub async fn bind_applied_ai_edit_update(
     pool: &PgPool,
     proposal_id: &str,
@@ -1594,6 +1611,15 @@ pub async fn bind_applied_ai_edit_update(
 /// emits a durable denial even when the diff hash matches. The hash match alone
 /// is insufficient: an absent update id means there is no real document update
 /// to anchor the approved edit to.
+///
+/// WP-1 MT-018: this is an EXISTENCE probe. The returned value is the Yjs-v1
+/// BINARY hash of the persisted update bytes and lives in a different hash
+/// space from the proposal's approved-diff hash (`diff_sha256` /
+/// `applied_update_sha256`). Callers MUST NOT compare the two: doing so was
+/// only satisfiable by persisting JSON diff bytes as CRDT update bytes, which
+/// then fail `Update::decode_v1` in the ModelLane CRDT resolver. Byte integrity
+/// of the returned row is enforced where the bytes are actually read
+/// (`swarm_orchestration/model_lane.rs::resolve_model_lane_crdt_authority_tx`).
 pub async fn find_applied_crdt_update_sha256(
     pool: &PgPool,
     workspace_id: &str,

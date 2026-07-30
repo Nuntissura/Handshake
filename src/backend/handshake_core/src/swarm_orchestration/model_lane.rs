@@ -13814,7 +13814,7 @@ async fn validate_message_crdt_authority_tx(
             r#"
             SELECT workspace_id, document_id, crdt_document_id,
                    actor_id, actor_kind, session_id, correlation_id,
-                   review_state, applied_update_id, applied_update_sha256
+                   review_state, diff_sha256, applied_update_id, applied_update_sha256
             FROM knowledge_crdt_ai_edit_proposals
             WHERE proposal_id = $1
             FOR SHARE
@@ -13836,8 +13836,18 @@ async fn validate_message_crdt_authority_tx(
         let proposal_session_id: String = proposal.try_get("session_id")?;
         let proposal_correlation_id: String = proposal.try_get("correlation_id")?;
         let review_state: String = proposal.try_get("review_state")?;
+        let proposal_diff_sha256: String = proposal.try_get("diff_sha256")?;
         let applied_update_id: Option<String> = proposal.try_get("applied_update_id")?;
         let applied_update_sha256: Option<String> = proposal.try_get("applied_update_sha256")?;
+        // WP-1 MT-018: the proposal is bound to the referenced
+        // `kernel_crdt_updates` row by IDENTITY. Combined with the
+        // workspace/document/crdt_document equality above, `applied_update_id ==
+        // resolved.update_id` pins the full four-column PRIMARY KEY of
+        // `kernel_crdt_updates` (migration 0020), so the applied binding names
+        // exactly one real persisted update. That row's own byte integrity
+        // (`sha256(update_bytes) == update_sha256` plus `Update::decode_v1`) is
+        // already proven by `resolve_model_lane_crdt_authority_tx` and is not
+        // re-derived here.
         if proposal_workspace_id != resolved.workspace_id
             || proposal_document_id != resolved.document_id
             || proposal_crdt_document_id != resolved.crdt_document_id
@@ -13847,11 +13857,24 @@ async fn validate_message_crdt_authority_tx(
             || proposal_correlation_id != resolved.trace_id
             || !matches!(review_state.as_str(), "approved" | "promoted")
             || applied_update_id.as_deref() != Some(resolved.update_id.as_str())
-            || applied_update_sha256.as_deref() != Some(resolved.update_sha256.as_str())
         {
             return Err(crdt_authority_denied(format!(
                 "crdt_proposal_ref {proposal_ref} is not an approved applied proposal for update {}",
                 resolved.update_id
+            )));
+        }
+        // WP-1 MT-018: `applied_update_sha256` is the APPROVED-DIFF hash
+        // (`sha256(serde_json::to_vec(applied_diff))`, migration 0192 CHECK
+        // `applied_update_sha256 = diff_sha256`), NOT the Yjs-v1 binary hash
+        // carried by `kernel_crdt_updates.update_sha256`. Requiring the two to
+        // be equal was unsatisfiable and made every Proposal-kind CRDT message
+        // un-admittable. The surviving invariant is INTERNAL CONSISTENCY of the
+        // proposal row: its applied binding must still cite its own approved
+        // diff. A distinct reason string keeps identity failure and
+        // internal-consistency failure diagnosable apart.
+        if applied_update_sha256.as_deref() != Some(proposal_diff_sha256.as_str()) {
+            return Err(crdt_authority_denied(format!(
+                "crdt_proposal_ref {proposal_ref} applied_update_sha256 does not match its own approved diff_sha256"
             )));
         }
     }
@@ -15204,9 +15227,12 @@ fn validate_message_authority(input: &NewModelLaneMessage) -> ModelLaneResult<()
     // five unconditionally. The prior code required proposal_ref + all four
     // crdt_* fields whenever ANY was set, which (a) made a Proposal's kind-aware
     // proposal-ref rule dead code and (b) made every CRDT-bearing message
-    // unsatisfiable, since no proposal row can currently be minted whose
-    // applied_update_sha256 equals a Yjs-update hash (see the deferred spec-level
-    // fix for the diff-hash-vs-update-hash conflation). proposal_ref is required
+    // unsatisfiable, since at the time no proposal row could be minted whose
+    // applied_update_sha256 equalled a Yjs-update hash. WP-1 MT-018 removed that
+    // second blocker at its source: `applied_update_sha256` is the approved-DIFF
+    // hash and is cross-checked against the proposal's own `diff_sha256`, while
+    // Yjs update identity is carried by `applied_update_id`, so the Proposal-kind
+    // CRDT path is now genuinely admissible. proposal_ref is required
     // by AUTHORITY STATE (PromotionCandidate/Promoted) below, never by CRDT.
     //
     // Fail-closed is preserved: every field that IS present must be a valid
