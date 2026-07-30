@@ -14,7 +14,7 @@
   "title": "E5-MT-033-CkcEmbedsDragInRouteToStage",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T23:05:48.0444200Z",
+  "updated_at_utc": "2026-07-30T01:50:38.6640735Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED_V3_REMEDIATION",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [
       "MT-031",
       "MT-032",
@@ -36,13 +36,40 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": null,
+    "validated_at_utc": null,
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T23:05:48.0444200Z",
-    "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: exercise the real CKC embed drag-in and Route-to-Stage interop with persistence/receipt readback and typed unavailable/error behavior; then prove the mounted Atelier panel and route controls through canonical Argus stable-target inspection, safe steering, fresh post-action observation, screenshot/tree evidence, and the canonical UserManual path. Historical validator verdict remains FAIL_V2 until independent V3 validation."
+    "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: exercise the real CKC embed drag-in and Route-to-Stage interop with persistence/receipt readback and typed unavailable/error behavior; then prove the mounted Atelier panel and route controls through canonical Argus stable-target inspection, safe steering, fresh post-action observation, screenshot/tree evidence, and the canonical UserManual path. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
+    "remediation_v3_in_progress": false,
+    "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "completed_by": null,
+    "ready_for_validation_at_utc": "2026-07-30T01:50:38.6640735Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
+    "ready_for_validation_reason": "MT-033 FAIL_V2 remediation is committed at product source b6433155f54ab7f9d4f13b95f1a9bba7fcccdd4b. Real PostgreSQL proves physical Atelier drag-in, exact hsLink save/reload, immutable save receipt, Route-to-Stage flight-recorder and EventLedger correlation, and exact cleanup. Canonical mounted Argus success and typed-failure paths contain stable-target steering, fresh observations, terminal predicates/trees, and directly inspected WGPU captures. The current UserManual covers the workflow and recovery. Official V3 validation remains pending.",
+    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_ARGUS_ARTIFACT_ROOT_MANUAL_RUNTIME_AND_POSTGRESQL_RECEIPT_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",
+    "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
+    "ready_for_validation_summary": "MT-033 V3 is ready for independent validation from committed product source b6433155. Default, watchdog, UserManual, exact WGPU, real-PostgreSQL, artifact-root negative, direct JSON, direct PNG, and zero-residue proof surfaces pass. MT-specific Cargo outputs were removed while accepted proof and unrelated build output were preserved.",
+    "state_correction_history": [
+      {
+        "at_utc": "2026-07-30T01:50:38.6640735Z",
+        "by": "KERNEL_BUILDER-20260728-221208",
+        "reason": "MT-033 FAIL_V2 remediation is implemented, committed, runtime-proven, independently reviewed, and cleaned: the real PostgreSQL drag-save-route boundary, exact receipts/readback, canonical mounted Argus success/failure loop, current UserManual, approved artifact-root enforcement, and cleanup all pass. Official V3 validation remains pending.",
+        "previous_status": "CLAIMED_V3_REMEDIATION",
+        "new_status": "READY_FOR_VALIDATION_V3",
+        "previous_active": true
+      }
+    ],
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
+      "verdict": "PASS",
+      "emitted_by": "KERNEL_BUILDER-20260728-221208",
+      "emitted_at_utc": "2026-07-30T01:50:22.086Z"
+    }
   },
   "scope": {
     "summary": "Goal: let users drag CKC (Atelier/KERNEL-005) media items, characters, and moodboards into a native note or canvas pane as embedded loom:// references, and route any note selection or document to a Stage pane. Expected diff shape: (a) a new drag-source on the AtelierSidePanel widget that emits a DragPayload::AtelierRef; (b) a drop-target in the rich-text editor that converts a dropped AtelierRef into an embed node (similar to how React LoomTransclusionView.tsx inserts a loomTransclusion TipTap node); (c) a drop-target in the canvas pane that places a canvas node pinned to the atelier item; (d) a 'Route to Stage' command dispatched through the existing command_registry.rs + event_bus.rs that takes the current selection or document and opens/focuses the Stage pane with that content; (e) integration tests using a real PG backend to assert the embed survives a save/reload cycle.\n\nFiles to CREATE:\n  - src/frontend/handshake_native/src/interop/drag_payload.rs  — defines DragPayload enum: AtelierRef { item_id: String, item_kind: AtelierItemKind, label: String, loom_block_id: Option<String> }, LoomBlockRef { block_id: String, workspace_id: String }, PlainText(String). Also defines AtelierItemKind enum: Media | Character | Moodboard. (New interop/ subdir created INSIDE src/frontend/handshake_native/src/.)\n  - src/frontend/handshake_native/src/atelier_side_panel.rs  — an egui side-panel listing AtelierIntakeBatch items and AtelierCommandCorpus entries fetched from the existing backend via backend_client.rs (GET /atelier/intake/batches, GET /atelier/command-corpus). Each item row supports egui drag-source: on drag-start stores DragPayload::AtelierRef in ctx.data_mut. Rows display thumbnail path + label. Reuse the existing rail layout patterns from left_rail.rs / search_rail.rs. AccessKit: panel container author_id=\"atelier-side-panel\", role=List; each row author_id=\"atelier-item-{item_id}\", role=ListItem, actions=[Press, StartDrag].\n\nFiles to EDIT:\n  - src/frontend/handshake_native/src/lib.rs  — add `pub mod interop;` and `pub mod atelier_side_panel;` (module registration for the new interop/ subdir and the new flat atelier_side_panel module).\n  - src/frontend/handshake_native/src/rich_text/editor.rs  — (rich-text editor pane created by WP-012 / MT-013) add an egui drop-target zone over the editor area. When a drop is received from ctx.data(|d| d.get_temp::<DragPayload>(...)), match on AtelierRef: insert an embed node { node_type: 'atelierEmbed', item_id, item_kind, label, loom_block_id } into the document tree at the caret position. Serialize as a custom ProseMirror-style block in the rich doc JSON. On save, the block is stored as part of content_json and round-trips through saveRichDocument.\n  - src/frontend/handshake_native/src/canvas_board.rs  — add drop-target at canvas level. On AtelierRef drop at screen position: call PUT /canvas/{canvas_id}/graph (via backend_client.rs) with a new CanvasNodeInput { kind: 'atelier_ref', atelier_item_id, x, y, width, height, label }. Backend stores it; reload canvas graph. The placed node's header shows AtelierItemKind badge + label + loom:// chip if loom_block_id is Some.\n  - src/frontend/handshake_native/src/stage_pane.rs  — add or extend a StagePane widget (new flat module, registered in the existing pane_registry.rs and docked via split_layout.rs; header via pane_header.rs). The Stage pane accepts a StageContent enum: Document(RichDocLoad) | Selection(String, String) | AtelierItem(AtelierRef). Register a 'route-to-stage' command in command_registry.rs (MT-031): args = StageRouteArgs { content: StageContent }; the command opens the Stage pane tile (via split_layout.rs / egui_tiles) and sets its content.\n  - src/frontend/handshake_native/src/command_registry.rs  — register the 'route-to-stage' command descriptor; the route-to-stage handler emits the open/focus event over event_bus.rs and passes StageContent to stage_pane.rs.\n\nStep-by-step implementation notes:\n  1. egui drag-source: call ui.dnd_drag_source(egui::Id::new(item_id), payload, |ui| { ui.label(&row.label) }). The payload is DragPayload::AtelierRef. This is egui 0.28+ API; confirm version in src/frontend/handshake_native/Cargo.toml.\n  2. egui drop-target in rich-text pane: call let response = ui.dnd_drop_zone::<DragPayload, _>(egui::Frame::none(), |ui| { ... }); then check response.1 (the dropped payload) in each frame.\n  3. Embed node in rich doc JSON: define a custom block type \"atelier_embed\" in the document schema. Store as a JSONContent object node with attrs: { item_id, item_kind, label, loom_block_id }. The rich-text editor renders it as a small card widget inline (thumbnail if available, else text label with badge).\n  4. Canvas node creation for atelier drop: map screen position (egui Pos2) to canvas coordinates. Call updateCanvasGraph (api.ts ~1719: PUT /canvas/{id}/graph body { nodes: [{ kind, label, x, y, width, height, atelier_item_id }], edges: [] }) via the Rust backend_client.rs IPC client. Then reload via GET /canvas/{id}.\n  5. Route to Stage: the Stage pane is an egui_tiles tile in the docking layout managed by split_layout.rs. 'route-to-stage' command handler: find the Stage tile id in the tree, call tree.set_active_tile(stage_tile_id), then set stage_pane.content = StageContent::from(args). If Stage tile does not exist yet, insert it as a new floating pane (reuse popout_window.rs for the floating case).\n  6. Right-click context menu on rich-text selection: show 'Route to Stage' menu item via context_menu.rs / context_menu_surfaces.rs. This dispatches the 'route-to-stage' command through command_registry.rs with StageRouteArgs::Selection(selected_text, document_id).\n  7. Right-click context menu on canvas node: show 'Route to Stage' item (context_menu.rs) that routes the node's document or atelier item.\n  8. AtelierSidePanel data loading: call GET /atelier/intake/batches + GET /atelier/command-corpus via backend_client.rs on mount. Display in two sections: 'Media / Characters / Moodboards' (from intake items) and 'Command Corpus'. Refresh button fires a reload.\n  9. AccessKit (accessibility/*): atelier_side_panel rows have actions=[Press, StartDrag]; the Stage pane container has author_id=\"stage-pane\", role=Region. Use the existing accessibility/registry.rs + accessibility/snapshot.rs surfaces.\n  10. Tests: src/frontend/handshake_native/tests/test_ckc_embed.rs — (a) unit: DragPayload::AtelierRef serializes and deserializes correctly; (b) integration (real PG): create a canvas, PUT /canvas/{id}/graph with an atelier_ref node, reload, assert node appears with correct atelier_item_id; (c) integration: create a rich doc, insert an atelier_embed block, saveRichDocument, reload, assert the atelier_embed block survives round-trip; (d) kittest: simulate drag from atelier panel, drop on canvas, assert canvas node count increases by 1.\n\nDependencies / unblock conditions:\n  - MT-031 (command registration via command_registry.rs + event_bus.rs) merged.\n  - MT-032 (LoomBlockAddr, loom:// URI) merged — needed for loom_block_id in AtelierRef.\n  - MT-013 (rich-text embed NodeView infrastructure, rich_text/ module) merged — needed so the atelier_embed block has a renderer in the rich-text pane.\n  - Cross-WP: relies on WP-011 modules command_registry.rs, event_bus.rs, canvas_board.rs, pane_registry.rs, split_layout.rs, pane_header.rs, context_menu.rs, context_menu_surfaces.rs, accessibility/*, backend_client.rs, left_rail.rs, search_rail.rs (already merged in handshake-native).\n  - egui 0.28+ for dnd_drag_source / dnd_drop_zone API; confirm version in src/frontend/handshake_native/Cargo.toml.\n\nRisk if missed: CKC<->editor interconnection is one of the four named interconnection edges in the packet contract. Without this MT, dragging a character or moodboard into a note is impossible, breaking the 'melt-together' proof in MT-046.",
@@ -58,7 +85,9 @@
       "src/frontend/handshake_native/src/stage_pane.rs",
       "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
       "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs",
       "src/frontend/handshake_native/Cargo.toml"
     ],
     "forbidden_paths": [
@@ -359,6 +388,142 @@
         "The full CKC/embed suite passes."
       ],
       "no_context_instruction": "Read MT-033.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
+    }
+  },
+  "remediation_v3": {
+    "schema_id": "hsk.mt_remediation_result@1",
+    "status": "READY_FOR_VALIDATION_V3",
+    "implemented_by": "KERNEL_BUILDER-20260728-221208",
+    "implemented_at_utc": "2026-07-30T01:50:38.6640735Z",
+    "product_source_sha": "b6433155f54ab7f9d4f13b95f1a9bba7fcccdd4b",
+    "product_commit": "b6433155 feat: MT-033 remediate CKC Stage Argus proof",
+    "touched_files": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+      "src/frontend/handshake_native/tests/test_manual_content.rs"
+    ],
+    "operator_authorized_scope_extension": {
+      "authorization_basis": "The persistent operator objective explicitly requires: Ensure the internal Handshake user manual covers this work packet.",
+      "authorized_paths_only": [
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs"
+      ],
+      "reason": "These two current canonical UserManual surfaces are required to implement and verify the operator-mandated manual coverage. No other historical allowlist extension is claimed."
+    },
+    "proofs": [
+      "PASS: test_ckc_embed default surface 26 passed, 0 failed.",
+      "PASS: test_manual_content full surface 36 passed, 0 failed.",
+      "PASS: exact bounded backend-operation watchdog test 1 passed, 0 failed.",
+      "PASS: exact mounted WGPU canonical Argus success/failure test 1 passed, 0 failed.",
+      "PASS: exact real-PostgreSQL physical drag, save/reload, immutable save receipt, Route-to-Stage flight-recorder/EventLedger correlation, and cleanup test 1 passed, 0 failed.",
+      "PASS: no-local-artifact-directory guard.",
+      "PASS: unauthorized HANDSHAKE_ARTIFACTS_ROOT=D:/Handshake_Artifacts rejected with exit 101 and the directory remained absent.",
+      "PASS: direct JSON parse found all five success actions, all three failure actions, before/after observations, receipts, terminal refreshes, passed named predicates, and terminal trees.",
+      "PASS: direct visual inspection of both WGPU PNGs; success shows the mounted Atelier rows and routed Stage content without an obscuring modal, failure shows the typed unavailable state and empty Stage.",
+      "PASS: cargo check --manifest-path src/backend/handshake_core/Cargo.toml completed on current source with 64 warnings and no errors.",
+      "PASS: database residue query returned mt033_batches=0, mt033_items=0, mt033_native_ledger=0, mt033_task_ledger=0, mt033_workspaces=0."
+    ],
+    "live_postgresql_receipts": {
+      "save_receipt_id": "KE-019fb08e-c8fc-7272-b058-2ff7da1bafb7",
+      "route_receipt_id": "8cc85ce6-7bf1-4ed1-893e-357e38650549",
+      "route_causal_id": "stage-route-439c8977ee2e4dbda5863c69bdc05ef3",
+      "cleanup_result": "DELETE 9; three native receipt ids, three save receipt ids, owned workspace, documents, Atelier items, and batches absent after cleanup.",
+      "shared_service_boundary": "Existing PostgreSQL PID 121448 on port 5544 was not stopped or restarted."
+    },
+    "accepted_artifacts": [
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-033/canonical-argus/MT-033-atelier-stage-success.json",
+        "bytes": 5702017,
+        "sha256": "8FBD1169247BA3969236FEDA1F9E3BB3FB9A11659D02DF1F4F7A5CA79E986435",
+        "kind": "CANONICAL_ARGUS_SUCCESS_ACTION_OBSERVATION_RECEIPT_TREE"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-033/canonical-argus/MT-033-atelier-stage-success.png",
+        "bytes": 216656,
+        "sha256": "8CED065E29B8601719329B8F52FC1CEB2CA48F1CAAD26FB39741A80A86F6F25D",
+        "kind": "STRICT_WGPU_CANONICAL_ARGUS_SUCCESS"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-033/canonical-argus/MT-033-route-unavailable.json",
+        "bytes": 3343077,
+        "sha256": "5435CD146BF3BABF21A412A666D7FD11C9404741774E0CF11985F5273F2F13CA",
+        "kind": "CANONICAL_ARGUS_TYPED_FAILURE_ACTION_OBSERVATION_RECEIPT_TREE"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-033/canonical-argus/MT-033-route-unavailable.png",
+        "bytes": 145629,
+        "sha256": "3BF4F86CD75F105A0559FB7CDC754492178256BDF8E194CD771B0E47E2D2EA2D",
+        "kind": "STRICT_WGPU_CANONICAL_ARGUS_TYPED_FAILURE"
+      }
+    ],
+    "adversarial_review": {
+      "diff_attack_surfaces": [
+        "UserManual/runtime stable identifiers and typed-error wording",
+        "canonical Argus observation and receipt serialization",
+        "approved artifact-root portability and rejection behavior",
+        "physical pointer drag/drop versus accessibility click fallback",
+        "save/route producer-reader correlation and fixture cleanup",
+        "HBR diagnostic tier disposition"
+      ],
+      "independent_checks": [
+        "Exact live save, route, and causal identities were compared across fresh PostgreSQL readback.",
+        "No new AgentToolRows or wildcard manual claims remain.",
+        "Artifact-root derivation and the unauthorized alternate-root negative path were inspected.",
+        "All four retained artifacts were hashed; JSON structure and PNG content were directly inspected.",
+        "Database zero residue and the unchanged shared PostgreSQL boundary were verified."
+      ],
+      "counterfactuals": [
+        "Removing the backend-operation guards loses the Tier-2 stalled-operation observation.",
+        "Reverting the app failure wording causes runtime/manual/proof drift.",
+        "Replacing physical pointer drag/drop with an insert click no longer proves the required drag boundary."
+      ],
+      "boundaries": [
+        "Mounted Atelier pointer drag -> DragPayload -> rich-document save -> fresh GET -> save EventLedger -> mounted Stage route -> flight-recorder/EventLedger readback.",
+        "Canonical Argus stable target -> action receipt -> fresh before/after observation -> named terminal predicate/tree -> mounted WGPU screenshot."
+      ],
+      "negative_probes": [
+        "No active saved document produces the exact typed failure and explicitly empty Stage.",
+        "Unauthorized artifact root is rejected before artifact creation.",
+        "Cleanup discovers all owned receipt/document rows even when tracked readback identifiers are incomplete."
+      ],
+      "review_verdicts": [
+        "Independent Argus/artifact-root reviewer: PASS after root lock and modal-clear hardening.",
+        "Independent UserManual/runtime-scope reviewer: PASS after stable-id and HBR consistency inspection.",
+        "Root adversarial review: PASS on exact PostgreSQL receipts, cleanup code, artifacts, negative probes, and current compile gate."
+      ],
+      "remaining_findings": [],
+      "residual_uncertainty": [
+        "Terminal predicate fields are serialized after mandatory immediate assertions; a failed predicate panics before artifact write, but the recorded predicate and assertion are structurally coupled.",
+        "Fixed artifact filenames can retain stale files after an early failed rerun; this handoff mitigates that risk with a fresh successful run, timestamps, hashes, direct JSON parsing, and direct PNG inspection."
+      ]
+    },
+    "artifact_cleanup": {
+      "status": "PASS_MT_TRANSIENTS_REMOVED_ACCEPTED_PROOF_PRESERVED",
+      "removed": [
+        "D:/cargo-mt033 (21.3 GiB MT-specific frontend target)",
+        "Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-033 (16.4 GiB MT-specific backend target)",
+        "Handshake_Artifacts/handshake-cargo-target/debug recreated by final compile checks (2.0 GiB according to cargo clean)"
+      ],
+      "verified_absent": [
+        "D:/cargo-mt033",
+        "Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-033",
+        "Handshake_Artifacts/handshake-cargo-target/debug",
+        "D:/Handshake_Artifacts",
+        "wtc-native-editors-v1/Handshake_Artifacts"
+      ],
+      "preserved": [
+        "The four accepted MT-033 canonical Argus artifacts listed above.",
+        "Handshake_Artifacts/handshake-cargo-target/wp1-v5-combined-check (unrelated build output).",
+        "Accepted MT-032 WGPU proof artifacts."
+      ]
+    },
+    "validator_boundary": "Implementer handoff only: validator_verdict is PENDING_V3, completed_by is null, and historical FAIL_V1/FAIL_V2 verdict records remain preserved.",
+    "kb_ready_checklist_receipt": {
+      "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+      "verdict": "PASS",
+      "emitted_at_utc": "2026-07-30T01:50:22.086Z"
     }
   },
   "validation_v2": {
