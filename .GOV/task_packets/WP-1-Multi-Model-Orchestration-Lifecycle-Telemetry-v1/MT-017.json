@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-017",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-07-31T04:15:00Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
@@ -41,7 +41,7 @@
     "completed_by": null,
     "blocker": "The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
     "missing_resource": null,
-    "proof_status": "FAIL_V4: The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
+    "proof_status": "FAIL_V4 retained. Full declared suite run 2026-07-30 at head d154833b: 19/22 pass, 0 false passes, 3 environmental failures (steps 8/9/10). Isolated rerun of those three pending at head 45d24a6a. Not flippable until genuinely green.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
     "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_DIAGNOSTICS_USERMANUAL_AND_RUNTIME_AUDIT_GREEN",
@@ -325,5 +325,34 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "full_suite_run_2026_07_30": {
+    "run_by": "KERNEL_BUILDER-20260729-225554",
+    "head": "d154833b",
+    "worktree_dirty": 0,
+    "database": "handshake_wp1_proof (clean database created after the shared handshake catalog was found bloated to ~150k relations)",
+    "totals": "pass=19 fail=3 false_pass_zero_tests=0",
+    "verdict": "NOT_GREEN — MT-017 MUST NOT be flipped on this run",
+    "zero_test_guard": "0 proofs executed zero tests. This matters because cargo test --exact EXITS 0 when its filter matches nothing, so an exit-0 suite can contain proofs that ran nothing. Every step here reported a non-zero executed count or an explicit failure.",
+    "failures": [
+      {
+        "step": 8,
+        "rc": 1,
+        "cause": "ENVIRONMENTAL — not a product defect. The step chains a backend duckdb producer to a frontend consumer, and the consumer asserts the artifact is under 30 minutes old (test_swarm_lane_diagnostics_argus.rs:583). The backend half passed in 49.25s but the whole step took 5394s under machine load, so the freshness guard tripped on staleness. The guard itself is good design: it stops the frontend passing against a stale artifact from an earlier run."
+      },
+      {
+        "step": 9,
+        "rc": 127,
+        "cause": "ENVIRONMENTAL — starved on the cargo build lock. Its entire output is \"Blocking waiting for file lock on build directory\". Caused by the parent running --all-targets verification builds against the SAME CARGO_TARGET_DIR while the suite was live. Self-inflicted; no evidence produced."
+      },
+      {
+        "step": 10,
+        "rc": 127,
+        "cause": "ENVIRONMENTAL — same build-lock starvation as step 9."
+      }
+    ],
+    "parent_disclosure": "Two of the three failures were caused by the parent running concurrent cargo builds against the shared CARGO_TARGET_DIR during the suite. This is the third instance this session of a lane losing evidence to that shared directory (MT-022 hit EXIT=127 the same way). Per-lane target dirs would remove the class.",
+    "next_action": "Proofs 8, 9 and 10 re-run in ISOLATION at head 45d24a6a with nothing else touching cargo. MT-017 flips only if that rerun is genuinely green.",
+    "explicitly_not_done": "The 3 failures were NOT re-labelled environmental-and-therefore-passing. MT-017 already carries a V4 failure for accepting unproven claims; treating a diagnosis as a pass would repeat exactly that."
   }
 }
