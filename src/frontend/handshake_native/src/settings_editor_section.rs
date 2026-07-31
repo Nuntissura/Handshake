@@ -4,8 +4,10 @@
 //!
 //! The three editor-focused Settings sections the Handshake GUI look-and-behavior doc defines and that
 //! WP-KERNEL-011 only stubbed, mounted INTO the existing WP-011 [`crate::settings_dialog`] dialog (this
-//! module is NOT a new dialog / persistence system — it renders inside the existing one, and its values
-//! ride the SAME PostgreSQL-backed `GET`/`PUT /workspaces/:id/settings` payload WP-011 already stores):
+//! module is NOT a new dialog. It renders inside the existing dialog, and editor-specific values persist
+//! through canonical PostgreSQL-backed PreferenceRecord routes:
+//! `GET`/`PUT /workspaces/:id/preferences/:pref_id` and
+//! `POST /workspaces/:id/preferences/:pref_id/reset`.
 //!
 //! 1. **Editor** — [`render_editor_prefs`]: `editor_font_size` (a `DragValue`, clamped 6..=48),
 //!    `tab_size` (a `DragValue`, clamped 1..=16), `insert_spaces` (a `Checkbox`), `word_wrap` (a
@@ -19,7 +21,7 @@
 //! 3. **Keybindings (editor extension)** — [`render_editor_keybindings`]: ALL editor-specific actions
 //!    (MT-010 code chords + rich-editor commands), each row showing the action id/label, the current
 //!    binding (an editable text input), and the built-in default; a custom binding overrides the default
-//!    for that action and persists into the SEPARATE `editor_keybindings` list (NOT the WP-011
+//!    for that action and persists into `view-defaults.editor.keybinding-overrides` (NOT the WP-011
 //!    `keybindings` map — the backend deny-unknown-validates that map's keys; see the persistence note
 //!    below).
 //!
@@ -28,16 +30,16 @@
 //! Like the WP-011 dialog, this section is RENDER-ONLY over a read-only [`EditorSettingsView`] and
 //! returns an [`EditorSectionOutcome`] the shell applies + persists; it never borrows `&mut` app state.
 //! Transient per-row input drafts live in egui memory keyed to the dialog open generation (the same
-//! reset-on-reopen pattern the keybindings rows already use). The shell's debounced `PUT` carries the
-//! new fields because they are part of the SAME serialized [`crate::workspace_settings::WorkspaceSettingsState`].
+//! reset-on-reopen pattern the keybindings rows already use). The shell applies local edits immediately
+//! and schedules canonical PreferenceRecord writes/resets through [`crate::preference_client`].
 //!
 //! ## Persistence-authority note (RISK-001 / the load-bearing extensibility question)
 //!
 //! The backend `validate_workspace_settings_state_shape` accepts EXTRA top-level keys but
 //! deny-unknown-validates the `keybindings` map (its keys must be exactly the two WP-011 app actions).
-//! So `editor_prefs` + `syntax_palette` are NEW TOP-LEVEL keys (stored verbatim), but editor keybinding
-//! overrides live in a SEPARATE top-level `editor_keybindings` list — NOT the shared map. Writing editor
-//! bindings into the shared map would hard-fail every PUT. No SQLite, no new endpoint, no new save code.
+//! So editor values use separate `view-defaults.editor.*` PreferenceRecord ids — NOT the shared map.
+//! Writing editor bindings into the shared WP-011 map would hard-fail. No SQLite and no opaque
+//! workspace-settings editor blob.
 
 use egui::accesskit;
 

@@ -1883,9 +1883,15 @@ per highlight scope in Custom mode. The Keybindings section extends the editor b
 settings-keybind-row-<action_id> per code chord and every rich formatting command, plus \
 settings-keybind-reset-<action_id> to restore its built-in default. Custom code and rich chords replace that \
 action's default in the mounted editor immediately; an invalid stored rich chord is rejected while its working \
-default remains available. All values ride the SAME workspace-settings \
-payload and persist through PUT /workspaces/:id/settings (handshake_core PostgreSQL/EventLedger); reopening the \
-dialog GETs them back — the workspace-settings row is the only authority and there is no second settings store. \
+default remains available. Editor preferences persist through canonical PreferenceRecord ids, not an opaque \
+workspace-settings blob: scalar editor values use view-defaults.editor.font-size, tab-size, insert-spaces, \
+word-wrap, word-wrap-column, render-whitespace, minimap-enabled, sticky-scroll, line-numbers, line-height, \
+bracket-matching, indent-guides, and reading-mode-default; syntax uses view-defaults.editor.syntax-palette-mode \
+and view-defaults.editor.syntax-custom-colors; keybindings use view-defaults.editor.keybinding-overrides. The \
+runtime writes them with PUT /workspaces/:id/preferences/:pref_id, restores defaults with \
+POST /workspaces/:id/preferences/:pref_id/reset, and lists them back on reopen through the preferences API. The \
+Settings rows settings-editor-prefs-reset and settings-syntax-palette-reset reset their whole Editor and Syntax \
+groups through that same PreferenceRecord route; there is no second editor-settings store. \
 LIVE-EFFECT STATE: tab/indent settings, wrap, whitespace, minimap, sticky scroll, line-number visibility, \
 line height, bracket matching, indent guides, code keybindings, and rich keybindings apply to the mounted editors \
 without restart. Editor font size also applies LIVE to the mounted code editor and rich editor: a font-size change \
@@ -2725,6 +2731,39 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         });
     }
 
+    for &author_id in crate::top_menu_bar::EDITORS_MENU_LEAF_AUTHOR_IDS {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: editors_menu_leaf_surface(author_id),
+            action_label: "Use an EDITORS dropdown leaf",
+            mcp_tool: "click_widget",
+            description: "Open the EDITORS dropdown with menu-editors, then click_widget targets this real WP-012 menu leaf by author_id.",
+        });
+    }
+
+    for &(author_id, surface, action_label, description) in &[
+        (
+            crate::settings_editor_section::EDITOR_PREFS_RESET_AUTHOR_ID,
+            ManualSurface::Code,
+            "Reset Editor preferences to defaults",
+            "click_widget{target:'settings-editor-prefs-reset'} POSTs reset for the canonical scalar view-defaults.editor.* PreferenceRecords.",
+        ),
+        (
+            crate::settings_editor_section::SYNTAX_PALETTE_RESET_AUTHOR_ID,
+            ManualSurface::Code,
+            "Reset Syntax palette to defaults",
+            "click_widget{target:'settings-syntax-palette-reset'} POSTs reset for syntax-palette-mode and syntax-custom-colors PreferenceRecords.",
+        ),
+    ] {
+        rows.push(AgentToolRow {
+            author_id,
+            surface,
+            action_label,
+            mcp_tool: "click_widget",
+            description,
+        });
+    }
+
     // ── Code editor: every CODE_ACTION_CATALOG entry as editor.code.<action> ─────────────────────────
     // Both momentary Buttons and ToggleButtons are ACTIVATED by a click (a toggle carries its toggled
     // state separately), so every code action is driven by click_widget{target:<author_id>}.
@@ -3377,6 +3416,25 @@ fn editor_menu_leaf_surface(author_id: &str) -> ManualSurface {
         | crate::command_registry::CMD_EDITOR_GO_TO_LINE => ManualSurface::Code,
         id if id.starts_with("menu.edit.") || id.starts_with("menu-go-") => ManualSurface::Code,
         id if id.starts_with("menu.file.") => ManualSurface::Knowledge,
+        _ => ManualSurface::Knowledge,
+    }
+}
+
+fn editors_menu_leaf_surface(author_id: &str) -> ManualSurface {
+    match author_id {
+        "menu.editors.stage"
+        | "menu.editors.route-to-stage"
+        | "menu.editors.embed-stage-capture" => ManualSurface::Canvas,
+        "menu.editors.outline"
+        | "menu.editors.relevant-memory"
+        | "menu.editors.outgoing-links"
+        | "menu.editors.sidebar"
+        | "menu.editors.journal" => ManualSurface::Knowledge,
+        "menu.editors.format-document"
+        | "menu.editors.next-diagnostic"
+        | "menu.editors.prev-diagnostic"
+        | "menu.editors.rename-symbol"
+        | "menu.editors.quick-fix" => ManualSurface::Code,
         _ => ManualSurface::Knowledge,
     }
 }

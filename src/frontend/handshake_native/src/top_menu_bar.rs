@@ -181,6 +181,25 @@ pub const EDITOR_MENU_LEAF_AUTHOR_IDS: &[&str] = &[
     crate::command_registry::CMD_EDITOR_GO_TO_LINE,
 ];
 
+/// WP-KERNEL-012 HBR-MAN: operator-facing EDITORS-menu leaves that the UserManual documents as
+/// `author_id -> tool` rows. This stays beside the menu implementation so the manual can audit the
+/// exact public leaf catalog instead of duplicating a stale prose list.
+pub const EDITORS_MENU_LEAF_AUTHOR_IDS: &[&str] = &[
+    "menu.editors.outline",
+    "menu.editors.relevant-memory",
+    "menu.editors.outgoing-links",
+    "menu.editors.stage",
+    "menu.editors.route-to-stage",
+    "menu.editors.embed-stage-capture",
+    "menu.editors.sidebar",
+    "menu.editors.journal",
+    "menu.editors.format-document",
+    "menu.editors.next-diagnostic",
+    "menu.editors.prev-diagnostic",
+    "menu.editors.rename-symbol",
+    "menu.editors.quick-fix",
+];
+
 /// The disclosed reason shown on the disabled MT-052 GO-menu editor-navigation leaves until the editor is
 /// host-mounted (E11 MT-069), matching the MT-050 disabled-until-mounted precedent.
 pub const MENU_GO_EDITOR_DISABLED_REASON: &str =

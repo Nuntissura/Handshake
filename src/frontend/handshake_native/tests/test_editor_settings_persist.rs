@@ -1,11 +1,13 @@
 //! WP-KERNEL-012 MT-072 (E12) — editor Settings persistence proofs (PT-001).
 //!
 //! These proofs drive the REAL `HandshakeApp` headlessly via egui_kittest and prove the Editor settings
-//! sections persist THROUGH the SAME WP-011 PostgreSQL-backed `GET`/`PUT /workspaces/:id/settings`
-//! surface — there is NO new persistence system, NO SQLite, NO new endpoint (AC-009). A scriptable
-//! `StubSettingsTransport` records the PUT blob + serves a scripted GET, so the open -> change -> persist
-//! round-trip is provable with no live server. The managed proof in this file additionally exercises
-//! the real PostgreSQL GET/PUT, a real HTTP 503 first-save failure with exact Retry, and a fresh-app reopen.
+//! sections persist through canonical WP-012 PreferenceRecords
+//! (`GET`/`PUT /workspaces/:id/preferences/:pref_id` and
+//! `POST /workspaces/:id/preferences/:pref_id/reset`) — there is NO SQLite and no opaque editor-settings
+//! blob. A scriptable preference transport records writes + serves scripted loads, so the open -> change
+//! -> persist round-trip is provable with no live server. The managed proof in this file additionally
+//! exercises the real PostgreSQL preference routes, a real HTTP 503 first-save failure with exact Retry,
+//! and a fresh-app reopen.
 //!
 //! - AC-001: every current Editor preference, every syntax swatch, and code/rich keymap overrides issue
 //!   a PUT carrying those values; the GET-on-open path reloads identical values.
@@ -13,8 +15,8 @@
 //!   carries them as distinct keys and changing one does not change the other.
 //! - AC-006: a legacy WP-011-era settings doc (no editor keys) loads cleanly via the GET path (the dialog
 //!   opens against it with the editor defaults — no hard-fail).
-//! - AC-009: the ONLY persistence calls are the existing WP-011 GET/PUT — the stub transport is the sole
-//!   I/O surface; no other save path is exercised.
+//! - AC-009: the ONLY persistence calls are the canonical PreferenceRecord routes — the stub transport is
+//!   the sole unit-test I/O surface; no opaque editor-settings blob is exercised.
 
 mod pg_proof_support;
 

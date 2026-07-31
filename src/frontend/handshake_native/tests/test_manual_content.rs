@@ -14,7 +14,6 @@ use handshake_native::app::{
     MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID, NOTES_LOAD_ERROR_AUTHOR_ID, NOTES_LOAD_RETRY_AUTHOR_ID,
     TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
 };
-use handshake_native::graph::block_collection_view::RETRY_AUTHOR_ID as BCV_RETRY_AUTHOR_ID;
 use handshake_native::graph::wiki_page_panel::{
     CANCEL_AUTHOR_ID_PREFIX as WIKI_CANCEL_AUTHOR_ID_PREFIX,
     CONTENT_AUTHOR_ID_PREFIX as WIKI_CONTENT_AUTHOR_ID_PREFIX,
@@ -1302,6 +1301,52 @@ fn mt069_manual_agent_rows_cover_file_edit_go_menu_leaves() {
 }
 
 #[test]
+fn wp012_manual_agent_rows_cover_editors_menu_and_reset_leaves() {
+    let row_ids: HashSet<&str> = agent_tool_rows().iter().map(|row| row.author_id).collect();
+    for author_id in handshake_native::top_menu_bar::EDITORS_MENU_LEAF_AUTHOR_IDS {
+        assert!(
+            row_ids.contains(author_id),
+            "WP-012 manual agent-tool rows must document EDITORS menu leaf '{author_id}'"
+        );
+    }
+
+    for author_id in [
+        handshake_native::settings_editor_section::EDITOR_PREFS_RESET_AUTHOR_ID,
+        handshake_native::settings_editor_section::SYNTAX_PALETTE_RESET_AUTHOR_ID,
+    ] {
+        assert!(
+            row_ids.contains(author_id),
+            "WP-012 manual agent-tool rows must document Settings reset control '{author_id}'"
+        );
+    }
+}
+
+#[test]
+fn wp012_editor_settings_manual_names_preference_record_authority() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Editor Settings");
+    for required in [
+        "PreferenceRecord ids",
+        "view-defaults.editor.font-size",
+        "view-defaults.editor.syntax-palette-mode",
+        "view-defaults.editor.keybinding-overrides",
+        "PUT /workspaces/:id/preferences/:pref_id",
+        "POST /workspaces/:id/preferences/:pref_id/reset",
+        "settings-editor-prefs-reset",
+        "settings-syntax-palette-reset",
+    ] {
+        assert!(
+            body.contains(required),
+            "Editor Settings manual must document current preference authority '{required}'"
+        );
+    }
+    assert!(
+        !body.contains("persist through PUT /workspaces/:id/settings"),
+        "Editor Settings manual must not claim opaque workspace-settings persistence for editor preferences"
+    );
+}
+
+#[test]
 fn mt021_agent_tool_reference_covers_graph_toolbar_controls() {
     let rows = row_by_id();
 
@@ -1860,7 +1905,8 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "workspace filter is runtime-derived",
             "no dedicated preference",
             "settings-syntax-palette-mode",
-            "PUT /workspaces/:id/settings",
+            "PUT /workspaces/:id/preferences/:pref_id",
+            "POST /workspaces/:id/preferences/:pref_id/reset",
             "mounted code editor and rich editor",
             "repaints the mounted code editor",
             "settings.persist.retry",
