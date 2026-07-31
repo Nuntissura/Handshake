@@ -14,7 +14,7 @@
   "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T07:15:00.000Z",
+  "updated_at_utc": "2026-07-31T09:07:45.296Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED_V3_REMEDIATION",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [
       "MT-031",
       "MT-032",
@@ -37,7 +37,7 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
     "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
     "proof_status": "PARTIAL_V3_REMEDIATION_BLOCKED: product commits b9845c4757d70adcc27bd297c7e99c58c88d4429 and 459cd05504c774b01a4b981e5e0d2b1536bb40a9 wire Flight Recorder diagnostics and repair the live Notes File Save proof readiness race. Exact live real-PostgreSQL/backend proof now passes on committed head: cargo test --test test_event_emitter -j 1 event_emitter_native_editor_round_trip -- --exact --nocapture returned 1 passed/0 failed against HSK_TEST_BASE=http://127.0.0.1:37501 and HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5545/handshake. Not READY_FOR_VALIDATION_V3: the full declared test_event_emitter proof suite timed out during compile after 20 minutes, and cargo check also timed out after current edits. MT-035 dependency also remains CLAIMED_V3_REMEDIATION pending its own live-backend proof/status update.",
@@ -88,14 +88,22 @@
         "previous_status": "FAIL_V2",
         "new_status": "CLAIMED_V3_REMEDIATION",
         "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-31T09:07:45.296Z",
+        "by": "KERNEL_BUILDER-20260731-054620",
+        "reason": "Current-head MT-036 exact live native-editor round trip, full test_event_emitter suite, and cargo check passed after the active Notes save-readiness fix in product commit 459cd05504c774b01a4b981e5e0d2b1536bb40a9. KB_READY_CHECKLIST_RECEIPT emitted PASS with no blockers. KERNEL_BUILDER transitions only to READY_FOR_VALIDATION_V3; validator verdict is pending official validation.",
+        "previous_status": "CLAIMED_V3_REMEDIATION",
+        "new_status": "READY_FOR_VALIDATION_V3",
+        "previous_active": true
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260708-undo",
     "claimed_at_utc": "2026-07-08T17:47:27.434Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T17:47:27.434Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "ready_for_validation_at_utc": "2026-07-31T09:07:45.296Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-31T09:07:45.296Z)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260708-undo",
       "mode": "GAP-fixed (coder a2332fac + KERNEL_BUILDER authoritative proof)",
@@ -435,8 +443,8 @@
     }
   },
   "remediation_v3": {
-    "status": "CLAIMED_V3_REMEDIATION_BLOCKED",
-    "updated_at_utc": "2026-07-31T07:15:00.000Z",
+    "status": "READY_FOR_VALIDATION_V3",
+    "updated_at_utc": "2026-07-31T09:07:45.296Z",
     "implemented_product_commit": "459cd05504c774b01a4b981e5e0d2b1536bb40a9",
     "implemented_repairs": [
       "FlightRecorderPane::begin_loading records an exact MT-036 diagnostic Start edge using DiagEventCode::Other with counter_a=36001 and sequence_id=1.",
@@ -446,28 +454,35 @@
       "Product commit 459cd05504c774b01a4b981e5e0d2b1536bb40a9 fixes the live File Save proof race by waiting for the exact active Notes pane/document to bind a real SaveManager and expected text before invoking File > Save."
     ],
     "hbr_int_009_three_tier_posture": {
-      "tier_1_flight_recorder_eventledger": "WIRED for native-editor durable event rows by existing MT-036 V2 implementation; current V3 exact live real-PG proof passed on 2026-07-31 against hidden backend PID 92556 at 127.0.0.1:37501 and isolated PostgreSQL 5545.",
+      "tier_1_flight_recorder_eventledger": "WIRED for native-editor durable event rows by existing MT-036 V2 implementation; current V3 exact live real-PG proof passed on 2026-07-31 against an owned hidden backend at HSK_TEST_BASE=http://127.0.0.1:37501 and isolated PostgreSQL 127.0.0.1:5545.",
       "tier_2_internal_diagnostics": "WIRED by product commit b9845c4757d70adcc27bd297c7e99c58c88d4429 for Flight Recorder pane load start, load failure, load recovery, and visible native emit failures.",
       "tier_3_palmistry": "WIRED-through-shared-ring for the same MT-036 numeric diagnostics events whenever the production diagnostics writer/Palmistry watcher is installed; no foreground window launch is required."
     },
     "proofs": [
-      "PASS: cargo check -p handshake-native -j 1",
+      "PASS: cargo check -p handshake-native -j 1 on 2026-07-31; Finished dev profile successfully using disposable CARGO_TARGET_DIR=Z:/ct-wp012-mt036-rerun-native.",
       "PASS: cargo test --test test_event_emitter -j 1 flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids -- --exact --nocapture",
       "PASS: cargo test --test test_event_emitter -j 1 event_emitter_native_editor_round_trip -- --exact --nocapture against HSK_TEST_BASE=http://127.0.0.1:37501 and HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5545/handshake on committed product head 459cd05504c774b01a4b981e5e0d2b1536bb40a9; result 1 passed, 0 failed, 20 filtered out, finished in 26.87s after compile.",
-      "BLOCKED: cargo test --test test_event_emitter -j 1 -- --nocapture was attempted against the same live backend/PostgreSQL setup but timed out after 20 minutes during compile with no test summary; orphaned cargo/rustc processes were stopped and proof-owned build/data artifacts were cleaned.",
+      "PASS: cargo test --test test_event_emitter -j 1 -- --nocapture on 2026-07-31 against HSK_TEST_BASE=http://127.0.0.1:37501 and HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5545/handshake; result 21 passed, 0 failed, 0 ignored, 0 measured, 0 filtered out, test body finished in 32.77s after disposable target compilation.",
+      "PASS: KB_READY_CHECKLIST_RECEIPT emitted PASS with no blockers at 2026-07-31T09:07:45.296Z.",
       "PASS_WITH_LOW_CONCERN: mechanical helper MECH-MT-036-73ad9aa6 over range b9845c47^..b9845c47 passed worktree confinement, boundary, scope, and file-list checks; only BUILD_PASS_EVIDENCE_NOT_FOUND remains because no compile-gate log exists."
     ],
-    "blockers": [
-      {
-        "code": "FULL_DECLARED_PROOF_TIMEOUT",
-        "reason": "The exact live managed-resource proof passed on committed head 459cd05504c774b01a4b981e5e0d2b1536bb40a9, but the full declared cargo test --test test_event_emitter -j 1 -- --nocapture proof timed out after 20 minutes during compile with no test summary. Cargo check also timed out after current edits. MT-036 therefore remains CLAIMED_V3_REMEDIATION_BLOCKED until the full declared suite and compile gate are completed or the contract is narrowed by authority."
-      },
-      {
-        "code": "DEPENDENCY_NOT_READY",
-        "reason": "MT-036 depends on MT-035. MT-035 remains CLAIMED_V3_REMEDIATION pending its live-backend proof/status update; the operator granted prior scope waivers on 2026-07-30T17:27:18.890Z."
-      }
-    ],
-    "ready_for_validation_v3": false
+    "blockers": [],
+    "artifact_cleanup": {
+      "policy": "Operator requested proof-owned cargo/build/runtime artifacts be cleaned after each MT to save disk.",
+      "removed": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/ct-wp012-mt036-rerun-native",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/wp-kernel-012/mt036-full-rerun-20260731-103837"
+      ],
+      "retained": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe"
+      ],
+      "post_cleanup_checks": [
+        "No active cargo, rustc, or handshake_core process remained.",
+        "No active listener remained on 127.0.0.1:37501 or 127.0.0.1:5545.",
+        "Z: subst mapping was cleared."
+      ]
+    },
+    "ready_for_validation_v3": true
   },
   "validation_v2": {
   "schema_id": "hsk.mt_validation_verdict@1",
