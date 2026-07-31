@@ -1643,8 +1643,23 @@ fn event_emitter_native_editor_round_trip() {
         app_harness.state_mut().open_document(&document_id).opened(),
         "real shell re-focuses the mounted Notes document before File > Save"
     );
-    app_harness.run_steps(2);
     let live_ctx = app_harness.ctx.clone();
+    let save_ready_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        app_harness.run_steps(1);
+        if app_harness
+            .state()
+            .active_rich_document_save_ready_for_test(&document_id, &marker)
+        {
+            break;
+        }
+        let save_lifecycle = app_harness.state().editor_save_state_for_test(&live_ctx);
+        assert!(
+            std::time::Instant::now() < save_ready_deadline,
+            "timed out waiting for active Notes SaveManager before File > Save; {save_lifecycle}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
     let save_lifecycle = app_harness.state().editor_save_state_for_test(&live_ctx);
     assert!(
         app_harness

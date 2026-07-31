@@ -7032,6 +7032,34 @@ impl HandshakeApp {
     fn invoke_editor_save(&mut self) -> bool {
         let active_binding = self.active_rich_document_binding();
         let active_doc_id = active_binding.as_ref().map(|(_, id)| id.clone());
+        let active_doc_version_hint = active_doc_id.as_ref().and_then(|document_id| {
+            self.rich_doc_loads
+                .iter()
+                .find_map(|((_, loaded_document_id), load)| {
+                    (loaded_document_id == document_id)
+                        .then_some(load.loaded_version)
+                        .flatten()
+                })
+                .or_else(|| {
+                    self.editor_mounts
+                        .rich_documents
+                        .states_for_content_id(document_id)
+                        .into_iter()
+                        .find_map(|rich| {
+                            let state = rich.lock().unwrap_or_else(|p| p.into_inner());
+                            state
+                                .save
+                                .as_ref()
+                                .map(|save| save.doc_version)
+                                .or_else(|| {
+                                    state
+                                        .properties
+                                        .as_ref()
+                                        .map(|properties| properties.doc_metadata.doc_version)
+                                })
+                        })
+                })
+        });
         if let Some((pane_id, document_id)) = active_binding.as_ref() {
             self.editor_mounts
                 .rich_documents
@@ -7053,17 +7081,7 @@ impl HandshakeApp {
             .save
             .as_ref()
             .map(|save| save.doc_version)
-            .or_else(|| {
-                active_doc_id.as_ref().and_then(|document_id| {
-                    self.rich_doc_loads
-                        .iter()
-                        .find_map(|((_, loaded_document_id), load)| {
-                            (loaded_document_id == document_id)
-                                .then_some(load.loaded_version)
-                                .flatten()
-                        })
-                })
-            });
+            .or(active_doc_version_hint);
         if let Some(active_doc_id) = active_doc_id.as_deref() {
             let save_mismatch = state
                 .save
@@ -8538,9 +8556,62 @@ impl HandshakeApp {
                 })
             })
             .unwrap_or(None);
+        let active_doc_states = binding
+            .as_ref()
+            .map(|(_, document_id)| {
+                self.editor_mounts
+                    .rich_documents
+                    .states_for_content_id(document_id)
+                    .into_iter()
+                    .map(|rich| {
+                        let state = rich.lock().unwrap_or_else(|p| p.into_inner());
+                        let save = state
+                            .save
+                            .as_ref()
+                            .map(|save| (save.document_id().to_owned(), save.doc_version));
+                        let properties = state.properties.as_ref().map(|properties| {
+                            (
+                                properties.doc_metadata.rich_document_id.clone(),
+                                properties.doc_metadata.doc_version,
+                            )
+                        });
+                        let first_text = state.block_plain_text(0);
+                        (save, properties, first_text)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
         format!(
-            "active_pane={active_pane:?} pane_type={active_pane_type:?} target={target:?} binding={binding:?} save={save:?}"
+            "active_pane={active_pane:?} pane_type={active_pane_type:?} target={target:?} binding={binding:?} save={save:?} states={active_doc_states:?}"
         )
+    }
+
+    /// MT-036 live proof seam: verify the exact active Notes view, not a legacy primary-editor
+    /// shortcut, has loaded the requested backend document and bound its real SaveManager.
+    pub fn active_rich_document_save_ready_for_test(
+        &self,
+        expected_document_id: &str,
+        expected_text: &str,
+    ) -> bool {
+        let Some((pane_id, document_id)) = self.active_rich_document_binding() else {
+            return false;
+        };
+        if document_id != expected_document_id {
+            return false;
+        }
+        let rich_state = self
+            .editor_mounts
+            .rich_documents
+            .state_for_view(Some(&document_id), &pane_id);
+        let state = rich_state.lock().unwrap_or_else(|p| p.into_inner());
+        let save_matches = state
+            .save
+            .as_ref()
+            .is_some_and(|save| save.document_id() == expected_document_id);
+        let text_matches = state
+            .block_plain_text(0)
+            .is_some_and(|text| text.contains(expected_text));
+        save_matches && text_matches
     }
 
     /// Whether the quick-switcher overlay is requested open (MT-015 GO menu / Ctrl+P; overlay UI is
@@ -11491,8 +11562,9 @@ impl HandshakeApp {
         label: &str,
     ) -> Option<String> {
         let surface = pane_type.label();
-        let pane_id = self
-            .navigator_existing_tab_pane(&pane_type, &content_id)
+        let existing_tab_pane = self.navigator_existing_tab_pane(&pane_type, &content_id);
+        let pane_id = existing_tab_pane
+            .clone()
             .or_else(|| self.navigator_target_pane(&pane_type))?;
         let sidebar_block_to_bind =
             if matches!(pane_type, PaneType::LoomBlock) && !content_id.is_empty() {
@@ -11500,7 +11572,9 @@ impl HandshakeApp {
             } else {
                 None
             };
-        let doc_to_reload = if matches!(pane_type, PaneType::LoomWikiPage) && !content_id.is_empty()
+        let doc_to_reload = if existing_tab_pane.is_none()
+            && matches!(pane_type, PaneType::LoomWikiPage)
+            && !content_id.is_empty()
         {
             Some(content_id.clone())
         } else {
