@@ -900,3 +900,16 @@ required-features = ["test-utils"]
 name = "loom_block_collection_views_tests"
 path = "tests/loom_block_collection_views_tests.rs"
 required-features = ["test-utils"]
+
+# WP-1 MT-019: this suite imports `set_dead_owner_confirmation_gap_override_for_test`,
+# which is `#[cfg(feature = "test-utils")]`. Without an explicit `required-features`
+# declaration the target is auto-discovered and cargo tries to build it under the
+# DEFAULT feature set, where that import cannot resolve (E0432) -- which breaks
+# `cargo check --all-targets` even though every declared proof command passes,
+# because those all pass `--features test-utils`. Declaring the requirement makes
+# cargo skip the target when the feature is off, matching how every other
+# test-utils suite in this manifest is declared.
+[[test]]
+name = "process_reclaim_real_lifecycle_pg_tests"
+path = "tests/process_reclaim_real_lifecycle_pg_tests.rs"
+required-features = ["test-utils"]
