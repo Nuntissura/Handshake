@@ -1,27 +1,14 @@
 //! WP-1 MT-008: Dexterity lane diagnostics projection proof.
 
 mod knowledge_pg_support;
+mod model_lane_crdt_support;
 
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use base64::Engine;
 use futures::stream;
 use handshake_core::kernel::context_bundle::ContextBundle;
-use handshake_core::kernel::crdt::actor_site::{
-    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
-};
-use handshake_core::kernel::crdt::agent_lease::{
-    claim_lease, KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1,
-};
-use handshake_core::kernel::crdt::snapshot::{new_crdt_snapshot_record, CrdtSnapshotRecordInputV1};
-use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
-use handshake_core::kernel::crdt::yjs_bridge::{
-    push_yjs_update, YjsPushOutcomeV1, YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1,
-    YJS_UPDATE_ENVELOPE_SCHEMA_ID,
-};
-use handshake_core::kernel::{KernelEventType, NewKernelEvent};
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
     CancellationToken, Embedding, GenPrompt, GenerateRequest, GeneratedToken, KvCacheHandle,
@@ -55,14 +42,15 @@ use handshake_core::swarm_orchestration::{
     LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink, RunBudget, SpawnRequest,
     SwarmConfig, SwarmCoordinator, SwarmError,
 };
-use handshake_core::storage::Database;
+use model_lane_crdt_support::{
+    apply_crdt_posture, build_admissible_crdt_posture, seed_real_crdt_document,
+    CrdtProposalAnchoring,
+};
 use serde::Deserialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tower::ServiceExt;
-use yrs::updates::decoder::Decode;
-use yrs::{Doc, ReadTxn, StateVector, Text, Transact, Update};
 
 const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
 const OWNER: &str = "KERNEL_BUILDER-20260630-045713";
@@ -328,53 +316,57 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .await
         .expect("record routing validator diagnostics lane");
 
-    // Seed a REAL CRDT document on `lane-mt008-local`'s session and claim the
-    // exact active knowledge-agent lane lease, so the diagnostics source message
-    // carries CRDT authority references that resolve (rather than synthetic refs
-    // that fail closed) and its downstream promotion decision has real
-    // base-snapshot/state-vector inputs. STATUS kind avoids the unsatisfiable
-    // Proposal-kind `crdt_proposal_ref` rule, so `crdt_proposal_ref` stays None.
-    let crdt_actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "mt008-diag-local")
-        .expect("typed local model actor for diagnostics CRDT authority");
+    // Seed a REAL CRDT document on `lane-mt008-local`'s session through the ONE
+    // canonical MT-018 posture builder, so the diagnostics source message carries
+    // CRDT authority references that resolve (rather than synthetic refs that fail
+    // closed) and its downstream promotion decision has real base-snapshot /
+    // state-vector inputs.
+    //
+    // `CRDT_SEED_LABEL` is the lane id on purpose: `seed_real_crdt_document`
+    // derives the seeded update session as `session-{label}` and `sample_lane`
+    // derives the lane session as `session-{lane_id}`, so they must be the same
+    // string for `validate_crdt_lane_session_uniqueness_tx` to hold.
+    //
+    // WP-1 MT-018 (commit e5888b3d) removed the un-admittable Proposal-kind rule
+    // (`applied_update_sha256` is the approved-DIFF hash, cross-checked against
+    // the proposal's own `diff_sha256`, while Yjs update identity is carried by
+    // `applied_update_id`). This producer therefore emits the COMPLETE CRDT
+    // posture -- including a `crdt_proposal_ref` minted through the real
+    // `record_ai_edit_proposal` -> `decide_ai_edit_proposal` ->
+    // `apply_approved_ai_edit` chain and anchored to the SAME update the message
+    // cites -- instead of the pre-MT-018 Status-kind / `crdt_proposal_ref = None`
+    // carve-out. That carve-out produced a partial CRDT posture the native
+    // schema-v3 consumer contract rejects (`CRDT refs missing`).
+    const CRDT_SEED_LABEL: &str = "lane-mt008-local";
     let crdt_document_id = format!("crdt-mt008-diag-{workspace_id}");
-    let crdt_seed = mt008_seed_real_crdt_document(
+    let crdt_receipts = seed_real_crdt_document(
         &db,
         &workspace_id,
         &format!("doc-mt008-diag-{workspace_id}"),
         &crdt_document_id,
-        "session-lane-mt008-local",
-        &crdt_actor,
+        CRDT_SEED_LABEL,
     )
     .await;
-    let _crdt_lease = match claim_lease(
+    let crdt_posture = build_admissible_crdt_posture(
         &db,
         &pool,
-        LeaseClaimRequestV1 {
-            lane_id: "lane-mt008-local".into(),
-            actor: crdt_actor.clone(),
-            session_id: "session-lane-mt008-local".into(),
-            correlation_id: crdt_seed.trace_id.clone(),
-            scope_kind: KnowledgeLeaseScopeKind::Document,
-            scope_id: crdt_document_id.clone(),
-            ttl_seconds: 3600,
-        },
+        &crdt_receipts,
+        "lane-mt008-local",
+        CRDT_SEED_LABEL,
+        CrdtProposalAnchoring::ApprovedApplied,
     )
-    .await
-    .expect("claim the exact active diagnostics CRDT message lease")
-    {
-        LeaseClaimOutcomeV1::Claimed(lease) => lease,
-        other => panic!("diagnostics CRDT message lease must claim: {other:?}"),
-    };
+    .await;
+    let crdt_proposal_ref = crdt_posture
+        .crdt_proposal_ref
+        .clone()
+        .expect("ApprovedApplied anchoring mints a real crdt_proposal_ref");
 
     let mut source_message = sample_message("msg-mt008-001", "run-mt008-diag", "lane-mt008-local");
-    source_message.kind = ModelLaneMessageKind::Status;
-    source_message.crdt_update_ref = Some(crdt_seed.update_bytes_ref.clone());
-    source_message.crdt_base_snapshot_ref = Some(crdt_seed.snapshot_bytes_ref.clone());
-    source_message.crdt_state_vector = Some(crdt_seed.state_vector_after.clone());
-    source_message.crdt_proposal_ref = None;
-    source_message
-        .linked_span_contexts
-        .push(crdt_seed.trace_id.clone());
+    apply_crdt_posture(
+        &mut source_message,
+        &crdt_posture,
+        ModelLaneMessageKind::Proposal,
+    );
     source_message.payload_sha256 = ContextBundle::new(
         "mt017-diagnostics-routing-input",
         &source_message.run_id,
@@ -907,14 +899,29 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         projection.messages[0].proposal_ref.as_deref(),
         Some("proposal://mt008/msg-mt008-001")
     );
-    // The projected CRDT update ref is the REAL persisted `postgres://` update
-    // reference resolved at admission, not a synthetic string. `crdt_proposal_ref`
-    // is None because this is a STATUS-kind CRDT message.
+    // The projected CRDT posture is COMPLETE and every ref is real: the update
+    // ref is the persisted `postgres://` reference resolved at admission, and
+    // `crdt_proposal_ref` names an approved + applied `knowledge_crdt_ai_edit_proposals`
+    // row minted through the real product API chain and bound (by
+    // `applied_update_id`) to the SAME update this message cites. The native
+    // schema-v3 consumer requires exactly this complete set whenever a message
+    // targets CRDT at all.
     assert_eq!(
         projection.messages[0].crdt_update_ref.as_deref(),
-        Some(crdt_seed.update_bytes_ref.as_str())
+        Some(crdt_posture.crdt_update_ref.as_str())
     );
-    assert_eq!(projection.messages[0].crdt_proposal_ref.as_deref(), None);
+    assert_eq!(
+        projection.messages[0].crdt_base_snapshot_ref.as_deref(),
+        Some(crdt_posture.crdt_base_snapshot_ref.as_str())
+    );
+    assert_eq!(
+        projection.messages[0].crdt_state_vector.as_deref(),
+        Some(crdt_posture.crdt_state_vector.as_str())
+    );
+    assert_eq!(
+        projection.messages[0].crdt_proposal_ref.as_deref(),
+        Some(crdt_proposal_ref.as_str())
+    );
     assert_eq!(
         projection.messages[0].recovery_hint_ref.as_deref(),
         Some("usermanual://dexterity/diagnostics#message")
@@ -1363,210 +1370,6 @@ async fn diagnostics_store() -> (sqlx::PgPool, ModelLaneStore) {
         .expect("connect isolated diagnostics schema");
     let store = ModelLaneStore::new(pool.clone());
     (pool, store)
-}
-
-const MT008_YJS_TEXT_NAME: &str = "mt008-diagnostics-document";
-
-/// Build one deterministic Yjs v1 update against a shared canonical replica,
-/// mirroring the proven append helper in the mixed-lane suite.
-fn mt008_append_yjs_text_update(canonical: &Doc, client_id: u64, text: &str) -> Vec<u8> {
-    let canonical_state = canonical
-        .transact()
-        .encode_state_as_update_v1(&StateVector::default());
-    let author = Doc::with_client_id(client_id);
-    let author_text = author.get_or_insert_text(MT008_YJS_TEXT_NAME);
-    if !canonical_state.is_empty() {
-        author
-            .transact_mut()
-            .apply_update(Update::decode_v1(&canonical_state).expect("decode canonical Yjs state"))
-            .expect("apply canonical Yjs state to author replica");
-    }
-    let before = author.transact().state_vector();
-    {
-        let mut transaction = author.transact_mut();
-        let offset = author_text.len(&transaction);
-        author_text.insert(&mut transaction, offset, text);
-    }
-    let update = author.transact().encode_diff_v1(&before);
-    canonical
-        .transact_mut()
-        .apply_update(Update::decode_v1(&update).expect("decode generated Yjs update"))
-        .expect("apply generated Yjs update to canonical replica");
-    update
-}
-
-#[allow(clippy::too_many_arguments)]
-fn mt008_yjs_envelope(
-    workspace_id: &str,
-    document_id: &str,
-    crdt_document_id: &str,
-    document_schema_id: &str,
-    update_id: &str,
-    actor: &KnowledgeActorIdV1,
-    session_id: &str,
-    update_bytes: &[u8],
-    before: &KnowledgeStateVectorV1,
-    after: &KnowledgeStateVectorV1,
-) -> YjsUpdateEnvelopeV1 {
-    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
-    YjsUpdateEnvelopeV1 {
-        schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.to_string(),
-        workspace_id: workspace_id.to_string(),
-        document_id: document_id.to_string(),
-        crdt_document_id: crdt_document_id.to_string(),
-        update_id: update_id.to_string(),
-        actor_id: actor.canonical(),
-        site_id: site.site_id,
-        session_id: session_id.to_string(),
-        trace_id: format!("trace-{update_id}"),
-        document_schema_id: document_schema_id.to_string(),
-        update_b64: base64::engine::general_purpose::STANDARD.encode(update_bytes),
-        update_sha256: sha256_hex(update_bytes),
-        state_vector_before: before.encode(),
-        state_vector_after: after.encode(),
-        encoding: YJS_UPDATE_ENCODING_V1.to_string(),
-    }
-}
-
-/// Durable refs a real CRDT-bearing diagnostics message references.
-struct Mt008RealCrdt {
-    update_bytes_ref: String,
-    snapshot_bytes_ref: String,
-    state_vector_after: String,
-    trace_id: String,
-}
-
-/// Persist one real CRDT document (pre-update seq 1, snapshot covering seq 1,
-/// post-update seq 2) so a diagnostics ModelLaneMessage can carry CRDT authority
-/// references that RESOLVE at the shared admission boundary. `session_id` must
-/// equal the referencing lane's `session_id` and `actor` its expected CRDT actor
-/// kind (LocalModel here) so `validate_crdt_lane_session_uniqueness_tx` and the
-/// lease binding hold.
-async fn mt008_seed_real_crdt_document(
-    db: &(dyn Database + '_),
-    workspace_id: &str,
-    document_id: &str,
-    crdt_document_id: &str,
-    session_id: &str,
-    actor: &KnowledgeActorIdV1,
-) -> Mt008RealCrdt {
-    const DOCUMENT_SCHEMA_ID: &str = "hsk.doc.rich_document@1";
-    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, actor);
-    let canonical = Doc::new();
-    let mut state_vector = KnowledgeStateVectorV1::new();
-
-    // Pre-snapshot update (seq 1).
-    let pre_bytes =
-        mt008_append_yjs_text_update(&canonical, u64::from(site.yjs_client_id), "[mt008-pre]");
-    let before = state_vector.clone();
-    state_vector.increment(&site.site_id);
-    let pre_envelope = mt008_yjs_envelope(
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        DOCUMENT_SCHEMA_ID,
-        "mt008-diag-yjs-pre",
-        actor,
-        session_id,
-        &pre_bytes,
-        &before,
-        &state_vector,
-    );
-    assert!(matches!(
-        push_yjs_update(db, &pre_envelope)
-            .await
-            .expect("store pre-snapshot Yjs update"),
-        YjsPushOutcomeV1::Stored { update_seq: 1, .. }
-    ));
-
-    // Snapshot covering seq 1.
-    let snapshot_state_vector = state_vector.encode();
-    let snapshot_bytes = canonical
-        .transact()
-        .encode_state_as_update_v1(&StateVector::default());
-    let snapshot_identity = knowledge_crdt_identity(
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        DOCUMENT_SCHEMA_ID,
-        actor,
-        "trace-mt008-diag-snapshot",
-    );
-    let snapshot_event = NewKernelEvent::builder(
-        "KTR-MT008-DIAG-SNAP".to_string(),
-        session_id.to_string(),
-        KernelEventType::KnowledgeCrdtSnapshotRecorded,
-        actor.to_kernel_actor(),
-    )
-    .aggregate("knowledge_crdt_document", crdt_document_id.to_string())
-    .idempotency_key(format!("mt008-diag:{crdt_document_id}:snapshot"))
-    .source_component("swarm_lane_diagnostics_pg_tests")
-    .payload(json!({
-        "covered_update_seq": 1,
-        "state_vector": &snapshot_state_vector,
-        "document_id": document_id,
-    }))
-    .build()
-    .expect("build real CRDT snapshot EventLedger event");
-    let snapshot_event = db
-        .append_kernel_event(snapshot_event)
-        .await
-        .expect("append real CRDT snapshot EventLedger event");
-    let snapshot_bytes_ref =
-        format!("postgres://kernel_crdt_snapshots/{crdt_document_id}/mt008-diag-snapshot-1");
-    let snapshot = new_crdt_snapshot_record(CrdtSnapshotRecordInputV1 {
-        identity: &snapshot_identity,
-        snapshot_id: "mt008-diag-snapshot-1",
-        covered_update_seq: 1,
-        snapshot_bytes: &snapshot_bytes,
-        snapshot_bytes_ref: &snapshot_bytes_ref,
-        state_vector: &snapshot_state_vector,
-        event_ledger_event_id: &snapshot_event.event_id,
-        promotion_evidence_update_ids: &["mt008-diag-yjs-pre"],
-    });
-    db.append_kernel_crdt_snapshot(snapshot.clone(), snapshot_bytes)
-        .await
-        .expect("persist real CRDT snapshot receipt and bytes");
-
-    // Post-snapshot update (seq 2) -- the one the message references.
-    let post_bytes =
-        mt008_append_yjs_text_update(&canonical, u64::from(site.yjs_client_id), "[mt008-post]");
-    let before = state_vector.clone();
-    state_vector.increment(&site.site_id);
-    let post_envelope = mt008_yjs_envelope(
-        workspace_id,
-        document_id,
-        crdt_document_id,
-        DOCUMENT_SCHEMA_ID,
-        "mt008-diag-yjs-post",
-        actor,
-        session_id,
-        &post_bytes,
-        &before,
-        &state_vector,
-    );
-    assert!(matches!(
-        push_yjs_update(db, &post_envelope)
-            .await
-            .expect("store post-snapshot Yjs update"),
-        YjsPushOutcomeV1::Stored { update_seq: 2, .. }
-    ));
-
-    let records = db
-        .list_kernel_crdt_updates(workspace_id, document_id, crdt_document_id)
-        .await
-        .expect("list persisted real CRDT updates");
-    let post = records
-        .iter()
-        .find(|record| record.update_id == "mt008-diag-yjs-post")
-        .expect("post-snapshot update is durably persisted");
-
-    Mt008RealCrdt {
-        update_bytes_ref: post.update_bytes_ref.clone(),
-        snapshot_bytes_ref: snapshot.snapshot_bytes_ref.clone(),
-        state_vector_after: post.state_vector_after.clone(),
-        trace_id: post_envelope.trace_id.clone(),
-    }
 }
 
 fn sample_run(run_id: &str, lane_id: &str) -> NewModelLaneRun {
