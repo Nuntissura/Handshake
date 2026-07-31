@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T12:04:42.063Z",
+  "updated_at_utc": "2026-07-30T17:27:18.890Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -39,7 +39,7 @@
     ],
     "blocks": [],
     "validator_verdict": "FAIL_V2",
-    "proof_status": "V3_REMEDIATION_BLOCKED_NO_PRODUCT_CHANGE: current interconnect manifest sanity check passes structurally with 18 entries, 17 PASS, 1 SKIPPED, and 0 FAIL. MT-046 is not READY_FOR_VALIDATION_V3 because its declared dependencies MT-034, MT-035, and MT-036 remain CLAIMED_V3_REMEDIATION, the current V2 remediation requires rerun after shared native failures are green, and no current-source handshake_core.exe exists for backend-bound proof reruns after three 20-minute backend build attempts timed out or hit cap.",
+    "proof_status": "V3_REMEDIATION_BLOCKED_NO_PRODUCT_CHANGE: current interconnect manifest sanity check passes structurally with 18 entries, 17 PASS, 1 SKIPPED, and 0 FAIL. MT-046 is not READY_FOR_VALIDATION_V3 because its declared dependencies MT-035 and MT-036 remain CLAIMED_V3_REMEDIATION, the current V2 remediation requires rerun after shared native failures are green, and no current-source handshake_core.exe exists for backend-bound proof reruns after three 20-minute backend build attempts timed out or hit cap. MT-034 moved to READY_FOR_VALIDATION_V3 after the operator scope-waiver grant.",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -432,7 +432,7 @@
   },
   "remediation_v3": {
     "status": "CLAIMED_V3_REMEDIATION_BLOCKED",
-    "updated_at_utc": "2026-07-30T12:04:42.063Z",
+    "updated_at_utc": "2026-07-30T17:27:18.890Z",
     "product_changes": "NONE",
     "manifest_sanity": {
       "entries": 18,
@@ -452,7 +452,7 @@
     "blockers": [
       {
         "code": "DEPENDENCY_NOT_READY",
-        "reason": "MT-046 depends on MT-034, MT-035, and MT-036, which currently remain CLAIMED_V3_REMEDIATION. The MT-046 V2 remediation explicitly requires rerun after shared native failures are green."
+        "reason": "MT-046 depends on MT-035 and MT-036, which currently remain CLAIMED_V3_REMEDIATION. MT-034 moved to READY_FOR_VALIDATION_V3 after the operator waiver grant. The MT-046 V2 remediation explicitly requires rerun after shared native failures are green."
       },
       {
         "code": "NEEDS_MANAGED_RESOURCE_PROOF",

@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T09:19:14.6405647Z",
+  "updated_at_utc": "2026-07-30T17:27:18.890Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED_V3_REMEDIATION",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [
       "MT-031",
       "MT-032",
@@ -37,7 +37,7 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "PENDING_V3",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -100,6 +100,14 @@
         "previous_status": "FAIL_V2",
         "new_status": "CLAIMED_V3_REMEDIATION",
         "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-30T17:27:18.890Z",
+        "by": "KERNEL_BUILDER",
+        "reason": "Operator granted all pending scope waivers. MT-034 V3 implementation, exact live PostgreSQL proof, canonical Argus/WGPU proof, UserManual proof, mechanical evidence, and KB ready checklist were already complete; waiver was the only remaining V3 lifecycle blocker.",
+        "previous_status": "CLAIMED_V3_REMEDIATION",
+        "new_status": "READY_FOR_VALIDATION_V3",
+        "previous_active": true
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
@@ -108,16 +116,16 @@
     "claim_takeover_note_2026_07_30": "KERNEL_BUILDER-20260728-221208 took over after MT-033 V3 handoff. Historical READY and FAIL_V2 evidence is preserved, but the live PostgreSQL restart/error/conflict boundary and canonical Argus create/open/reveal loop must be freshly proven before READY_FOR_VALIDATION_V3.",
     "remediation_v3_in_progress": true,
     "remediation_v3_status": "IMPLEMENTATION_AND_PROOF_COMPLETE_SCOPE_WAIVER_PENDING",
-    "scope_waiver_pending": true,
+    "scope_waiver_pending": false,
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-05T10:45:13.536Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260705-091218",
-    "ready_for_validation_reason": "Historical V1-era READY_FOR_VALIDATION record retained. The current V3 implementation and proof are complete at product source 5bbe4fdf3cb6786f65cc8827bbd9494f3c9dafd5, but the canonical mechanical track correctly blocks the V3 transition until the operator decides the backend and UserManual scope waiver.",
+    "ready_for_validation_at_utc": "2026-07-30T17:27:18.890Z",
+    "ready_for_validation_by": "KERNEL_BUILDER",
+    "ready_for_validation_reason": "Operator granted the pending backend and UserManual scope waiver on 2026-07-30T17:27:18.890Z. Current V3 implementation and proof were already complete at product source 5bbe4fdf3cb6786f65cc8827bbd9494f3c9dafd5.",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_ROOT_REVIEW_NO_REMAINING_PRODUCT_BLOCKER",
     "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
     "missing_resource": null,
-    "ready_for_validation_summary": "MT-034 V3 product implementation and proof are complete at committed source 5bbe4fdf. Default cross-ref, exact live PostgreSQL, canonical mounted Argus/WGPU, UserManual, cross-ref library, compile, artifact-root, receipt-parse, direct-image inspection, and cleanup surfaces pass. The V3 lifecycle transition is withheld because the canonical mechanical track reports the backend dependency outside packet scope and the backend plus UserManual paths outside the historical MT allowlist. Operator waiver is required; historical FAIL_V2 remains the validator verdict.",
+    "ready_for_validation_summary": "MT-034 V3 product implementation and proof are complete at committed source 5bbe4fdf. Default cross-ref, exact live PostgreSQL, canonical mounted Argus/WGPU, UserManual, cross-ref library, compile, artifact-root, receipt-parse, direct-image inspection, and cleanup surfaces pass. The operator granted the pending backend and UserManual scope waiver, so the V3 lifecycle transition is now READY_FOR_VALIDATION_V3. Historical FAIL_V1/FAIL_V2 records remain preserved; the current validator verdict is PENDING_V3.",
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
@@ -511,7 +519,9 @@
       "src/frontend/handshake_native/tests/test_manual_content.rs"
     ],
     "scope_extension_requiring_operator_waiver": {
-      "status": "OPERATOR_WAIVER_REQUESTED_NOT_SELF_GRANTED",
+      "status": "OPERATOR_WAIVER_GRANTED",
+      "granted_at_utc": "2026-07-30T17:27:18.890Z",
+      "granted_by": "OPERATOR",
       "paths": [
         "src/backend/handshake_core/src/knowledge_ingestion/engine.rs",
         "src/frontend/handshake_native/src/manual_content_editors.rs",
@@ -645,7 +655,7 @@
       "remaining_findings": [],
       "residual_uncertainty": [
         "The repository post-commit hook cold-built a shared generic target and emitted a truncated false failure; the exact isolated cargo check subsequently passed in 14m52s. No hook-generated review request was relied on.",
-        "The backend scope dependency and canonical UserManual paths are outside the historical MT allowed_paths and remain an explicit operator-waiver request rather than a self-granted scope claim."
+        "The backend scope dependency and canonical UserManual paths are outside the historical MT allowed_paths; the operator granted the explicit waiver on 2026-07-30T17:27:18.890Z."
       ]
     },
     "mechanical_track": {
@@ -659,7 +669,7 @@
         "CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES: src/backend/handshake_core/src/knowledge_ingestion/engine.rs, src/frontend/handshake_native/src/manual_content_editors.rs, src/frontend/handshake_native/tests/test_manual_content.rs.",
         "CHANGED_FILES_OUTSIDE_PACKET_IN_SCOPE_PATHS: src/backend/handshake_core/src/knowledge_ingestion/engine.rs."
       ],
-      "disposition": "Not suppressed or waived by the implementer. Product proof is complete; lifecycle remains CLAIMED_V3_REMEDIATION until the operator grants or rejects the requested scope extension."
+      "disposition": "Not suppressed or waived by the implementer. Product proof is complete and the operator granted the requested scope extension on 2026-07-30T17:27:18.890Z; lifecycle moved to READY_FOR_VALIDATION_V3."
     },
     "artifact_cleanup": {
       "status": "PASS_MT_TRANSIENTS_REMOVED_ACCEPTED_PROOF_PRESERVED",
@@ -683,7 +693,7 @@
       ],
       "shared_service_boundary": "PostgreSQL parent PID 121448 retained its 2026-07-28T23:07:41.2588741+02:00 start time and was not stopped or restarted."
     },
-    "validator_boundary": "No V3 handoff has been issued: validator_verdict remains FAIL_V2, completed_by is null, and lifecycle remains CLAIMED_V3_REMEDIATION until the operator decides the explicit scope-waiver request. Historical FAIL_V1/FAIL_V2 verdict records remain preserved.",
+    "validator_boundary": "V3 handoff issued after operator scope-waiver grant: validator_verdict is PENDING_V3, completed_by is null, and lifecycle is READY_FOR_VALIDATION_V3 for official validator review. Historical FAIL_V1/FAIL_V2 verdict records remain preserved.",
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "verdict": "PASS",
