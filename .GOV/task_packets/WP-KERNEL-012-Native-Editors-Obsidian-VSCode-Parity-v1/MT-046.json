@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T17:27:18.890Z",
+  "updated_at_utc": "2026-07-31T08:34:04.940Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -39,7 +39,7 @@
     ],
     "blocks": [],
     "validator_verdict": "FAIL_V2",
-    "proof_status": "V3_REMEDIATION_BLOCKED_NO_PRODUCT_CHANGE: current interconnect manifest sanity check passes structurally with 18 entries, 17 PASS, 1 SKIPPED, and 0 FAIL. MT-046 is not READY_FOR_VALIDATION_V3 because its declared dependencies MT-035 and MT-036 remain CLAIMED_V3_REMEDIATION, the current V2 remediation requires rerun after shared native failures are green, and no current-source handshake_core.exe exists for backend-bound proof reruns after three 20-minute backend build attempts timed out or hit cap. MT-034 moved to READY_FOR_VALIDATION_V3 after the operator scope-waiver grant.",
+    "proof_status": "V3_REMEDIATION_BLOCKED_NO_PRODUCT_CHANGE: current interconnect manifest sanity check passes structurally with 18 entries, 17 PASS, 1 SKIPPED, and 0 FAIL. MT-046 is not READY_FOR_VALIDATION_V3 because MT-036 remains blocked on full declared proof/cargo-check timeout and MT-046's current V2 remediation requires rerun after shared native failures are green. MT-034 and MT-035 are now READY_FOR_VALIDATION_V3 after operator waiver/proof closure.",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -87,6 +87,14 @@
         "previous_status": "FAIL_V2",
         "new_status": "CLAIMED_V3_REMEDIATION",
         "previous_active": false
+      },
+      {
+        "at_utc": "2026-07-31T08:34:04.940Z",
+        "by": "KERNEL_BUILDER-20260731-054620",
+        "reason": "Dependency sync only: MT-035 moved to READY_FOR_VALIDATION_V3 after current-head default undo suite and live PostgreSQL canvas compensation proof passed. MT-046 remains CLAIMED_V3_REMEDIATION because MT-036 is still blocked on full declared proof/cargo-check timeout and MT-046 requires rerun after shared native failures are green.",
+        "previous_status": "CLAIMED_V3_REMEDIATION",
+        "new_status": "CLAIMED_V3_REMEDIATION",
+        "previous_active": true
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
@@ -432,7 +440,7 @@
   },
   "remediation_v3": {
     "status": "CLAIMED_V3_REMEDIATION_BLOCKED",
-    "updated_at_utc": "2026-07-30T17:27:18.890Z",
+    "updated_at_utc": "2026-07-31T08:34:04.940Z",
     "product_changes": "NONE",
     "manifest_sanity": {
       "entries": 18,
@@ -452,11 +460,11 @@
     "blockers": [
       {
         "code": "DEPENDENCY_NOT_READY",
-        "reason": "MT-046 depends on MT-035 and MT-036, which currently remain CLAIMED_V3_REMEDIATION. MT-034 moved to READY_FOR_VALIDATION_V3 after the operator waiver grant. The MT-046 V2 remediation explicitly requires rerun after shared native failures are green."
+        "reason": "MT-046 depends on MT-036, which remains blocked on full declared proof/cargo-check timeout. MT-034 and MT-035 are READY_FOR_VALIDATION_V3. The MT-046 V2 remediation explicitly requires rerun after shared native failures are green."
       },
       {
         "code": "NEEDS_MANAGED_RESOURCE_PROOF",
-        "reason": "Backend-bound interconnection scenario reruns require a current-source handshake_core.exe; no such binary exists under the canonical cargo target after three 20-minute backend build attempts timed out or hit cap. The latest attempt reached 1224s, produced no executable, and was cleaned with cargo clean removing 21.3GiB."
+        "reason": "Backend-bound interconnection scenario reruns require a current-source handshake_core.exe and a clean shared native gate. A current-source backend binary now exists under the canonical cargo target, but MT-046 still waits on MT-036 full declared proof/cargo-check closure before rerunning the interconnection suite."
       }
     ],
     "ready_for_validation_v3": false
