@@ -87,6 +87,7 @@ use std::time::{Duration, Instant};
 use egui::accesskit;
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
+use serde::{Deserialize, Serialize};
 
 use handshake_native::accessibility::editor_action_registry::EditorActionRegistry;
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
@@ -121,6 +122,7 @@ use handshake_native::tab_bar::TabState;
 use handshake_native::backend::knowledge_documents::{
     HskDocumentHeaders, KnowledgeDocumentsClient, HSK_HEADER_CORRELATION_ID,
 };
+use handshake_native::command_registry::CMD_VIEW_GRAPH;
 use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
 
 // ── artifact-hygiene guard (CX-212E) ─────────────────────────────────────────────────────────────
@@ -835,6 +837,255 @@ fn spawn_agent(
     (agent, rx, handle)
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "kind")]
+enum ProcessUiAction {
+    Click,
+    ClickWithPayload { payload: String },
+    Focus,
+    SetValue { text: String },
+    NativeSetValue { text: String },
+    ReplaceSelectedText { text: String },
+    Scroll,
+    Select,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct ProcessAgentRequest {
+    author_id: String,
+    action: ProcessUiAction,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct ProcessAgentLine {
+    pid: u32,
+    seq: usize,
+    label: String,
+    request: ProcessAgentRequest,
+    marker: String,
+}
+
+struct ProcessAgent {
+    child: std::process::Child,
+    label: String,
+    plan_path: PathBuf,
+    out_path: PathBuf,
+}
+
+impl From<&UiAction> for ProcessUiAction {
+    fn from(value: &UiAction) -> Self {
+        match value {
+            UiAction::Click => Self::Click,
+            UiAction::ClickWithPayload { payload } => Self::ClickWithPayload {
+                payload: payload.clone(),
+            },
+            UiAction::Focus => Self::Focus,
+            UiAction::SetValue { text } => Self::SetValue { text: text.clone() },
+            UiAction::NativeSetValue { text } => Self::NativeSetValue { text: text.clone() },
+            UiAction::ReplaceSelectedText { text } => {
+                Self::ReplaceSelectedText { text: text.clone() }
+            }
+            UiAction::Scroll => Self::Scroll,
+            UiAction::Select => Self::Select,
+        }
+    }
+}
+
+impl From<ProcessUiAction> for UiAction {
+    fn from(value: ProcessUiAction) -> Self {
+        match value {
+            ProcessUiAction::Click => Self::Click,
+            ProcessUiAction::ClickWithPayload { payload } => Self::ClickWithPayload { payload },
+            ProcessUiAction::Focus => Self::Focus,
+            ProcessUiAction::SetValue { text } => Self::SetValue { text },
+            ProcessUiAction::NativeSetValue { text } => Self::NativeSetValue { text },
+            ProcessUiAction::ReplaceSelectedText { text } => Self::ReplaceSelectedText { text },
+            ProcessUiAction::Scroll => Self::Scroll,
+            ProcessUiAction::Select => Self::Select,
+        }
+    }
+}
+
+impl From<&AgentRequest> for ProcessAgentRequest {
+    fn from(value: &AgentRequest) -> Self {
+        Self {
+            author_id: value.author_id.clone(),
+            action: ProcessUiAction::from(&value.action),
+        }
+    }
+}
+
+impl From<ProcessAgentRequest> for AgentRequest {
+    fn from(value: ProcessAgentRequest) -> Self {
+        Self {
+            author_id: value.author_id,
+            action: UiAction::from(value.action),
+        }
+    }
+}
+
+const MT043_AGENT_CHILD_ENV: &str = "HSK_MT043_AGENT_CHILD";
+const MT043_AGENT_PLAN_ENV: &str = "HSK_MT043_AGENT_PLAN";
+const MT043_AGENT_OUT_ENV: &str = "HSK_MT043_AGENT_OUT";
+const MT043_AGENT_LABEL_ENV: &str = "HSK_MT043_AGENT_LABEL";
+const MT043_AGENT_HOLD_AFTER_FIRST_ENV: &str = "HSK_MT043_AGENT_HOLD_AFTER_FIRST";
+
+fn process_agent_dir() -> PathBuf {
+    proof_log_path()
+        .parent()
+        .expect("MT-043 proof path has a parent")
+        .join("agent-ipc")
+}
+
+fn spawn_process_agent(
+    label: &str,
+    plan: Vec<AgentRequest>,
+    hold_after_first: bool,
+) -> ProcessAgent {
+    let safe_label: String = label
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let dir = process_agent_dir();
+    std::fs::create_dir_all(&dir).expect("create MT-043 process-agent IPC dir");
+    let run_id = format!("{}-{}", std::process::id(), uuid::Uuid::new_v4());
+    let plan_path = dir.join(format!("{safe_label}-{run_id}.plan.json"));
+    let out_path = dir.join(format!("{safe_label}-{run_id}.jsonl"));
+    let process_plan: Vec<ProcessAgentRequest> =
+        plan.iter().map(ProcessAgentRequest::from).collect();
+    std::fs::write(
+        &plan_path,
+        serde_json::to_vec(&process_plan).expect("serialize MT-043 process-agent plan"),
+    )
+    .expect("write MT-043 process-agent plan");
+
+    let executable = std::env::current_exe().expect("resolve MT-043 process-agent executable");
+    let mut command = Command::new(executable);
+    command
+        .arg("--exact")
+        .arg("mt043_process_agent_child")
+        .arg("--nocapture")
+        .env(MT043_AGENT_CHILD_ENV, "1")
+        .env(MT043_AGENT_PLAN_ENV, &plan_path)
+        .env(MT043_AGENT_OUT_ENV, &out_path)
+        .env(MT043_AGENT_LABEL_ENV, label)
+        .env(
+            MT043_AGENT_HOLD_AFTER_FIRST_ENV,
+            if hold_after_first { "1" } else { "0" },
+        )
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let child = command
+        .spawn()
+        .expect("spawn independently supervised MT-043 process agent");
+    ProcessAgent {
+        child,
+        label: label.to_owned(),
+        plan_path,
+        out_path,
+    }
+}
+
+fn read_process_agent_lines(path: &Path) -> Vec<ProcessAgentLine> {
+    let Ok(body) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    body.lines()
+        .filter_map(|line| serde_json::from_str::<ProcessAgentLine>(line).ok())
+        .collect()
+}
+
+fn recv_process_agent_line(
+    agent: &ProcessAgent,
+    seq: usize,
+    timeout: Duration,
+) -> ProcessAgentLine {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let lines = read_process_agent_lines(&agent.out_path);
+        if let Some(line) = lines.into_iter().find(|line| line.seq == seq) {
+            return line;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "MT-043 process agent {} did not emit request sequence {} within {:?}",
+            agent.label,
+            seq,
+            timeout
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn cleanup_process_agent_files(agent: &ProcessAgent) {
+    let _ = std::fs::remove_file(&agent.plan_path);
+    let _ = std::fs::remove_file(&agent.out_path);
+}
+
+fn run_process_agent_child() {
+    let plan_path = PathBuf::from(
+        std::env::var_os(MT043_AGENT_PLAN_ENV).expect("process-agent child receives plan path"),
+    );
+    let out_path = PathBuf::from(
+        std::env::var_os(MT043_AGENT_OUT_ENV).expect("process-agent child receives output path"),
+    );
+    let label =
+        std::env::var(MT043_AGENT_LABEL_ENV).unwrap_or_else(|_| "mt043-process-agent".to_owned());
+    let hold_after_first = std::env::var_os(MT043_AGENT_HOLD_AFTER_FIRST_ENV).as_deref()
+        == Some(std::ffi::OsStr::new("1"));
+    let plan: Vec<ProcessAgentRequest> =
+        serde_json::from_slice(&std::fs::read(&plan_path).expect("process-agent child reads plan"))
+            .expect("process-agent child parses plan");
+    std::fs::create_dir_all(out_path.parent().expect("process-agent output parent"))
+        .expect("create process-agent output parent");
+    let mut out = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&out_path)
+        .expect("open process-agent output");
+    for (seq, request) in plan.into_iter().enumerate() {
+        let line = ProcessAgentLine {
+            pid: std::process::id(),
+            seq,
+            label: label.clone(),
+            request,
+            marker: "REQUEST_READY".to_owned(),
+        };
+        writeln!(
+            out,
+            "{}",
+            serde_json::to_string(&line).expect("serialize process-agent output line")
+        )
+        .expect("write process-agent output line");
+        out.flush().expect("flush process-agent output line");
+        if hold_after_first && seq == 0 {
+            loop {
+                std::thread::sleep(Duration::from_secs(1));
+            }
+        }
+    }
+}
+
+#[test]
+fn mt043_process_agent_child() {
+    if std::env::var_os(MT043_AGENT_CHILD_ENV).as_deref() != Some(std::ffi::OsStr::new("1")) {
+        return;
+    }
+    run_process_agent_child();
+}
+
 // ── the UI-thread dispatch pump: resolve an agent request -> AccessKit event (the swarm IPC path) ──
 
 /// Resolve one agent [`AgentRequest`] against a CURRENT-FRAME AccessKit snapshot using the PRODUCTION
@@ -918,6 +1169,21 @@ fn dispatch_from_spawned_agent<S>(
     log.response(response, DbResult::Pass);
     join.join()
         .expect("channel-only single-request agent joins");
+}
+
+fn wait_for_enabled_author<S>(harness: &mut Harness<'_, S>, author_id: &str, step: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !harness.root().children_recursive().any(|node| {
+        let access = node.accesskit_node();
+        access.author_id() == Some(author_id) && !access.is_disabled()
+    }) {
+        harness.run_steps(1);
+        assert!(
+            Instant::now() < deadline,
+            "{step}: process-agent target {author_id} did not become enabled within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 /// The AccessKit actions probed for each node's steerable-capability list (the `resolve_target` input —
@@ -1772,22 +2038,16 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     let mount_deadline = Instant::now() + Duration::from_secs(5);
     loop {
         app_harness.run_steps(1);
-        let ids: Vec<String> = app_harness
+        if app_harness
             .root()
             .children_recursive()
-            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
-            .collect();
-        if ids.iter().any(|id| id == RICH_EDITOR_ROOT_AUTHOR_ID)
-            && ids
-                .iter()
-                .any(|id| id == handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID)
-            && ids.iter().any(|id| id == lsv2::QUERY_AUTHOR_ID)
+            .any(|node| node.accesskit_node().author_id() == Some(RICH_EDITOR_ROOT_AUTHOR_ID))
         {
             break;
         }
         assert!(
             Instant::now() < mount_deadline,
-            "STEP0 continuous Handshake app mount exceeded five seconds"
+            "STEP0 continuous Handshake rich-edit pane mount exceeded five seconds"
         );
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -2064,16 +2324,55 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     );
 
     let losing_text = format!("agent-b-recoverable-{nonce}");
-    dispatch_from_spawned_agent(
-        &mut app_harness_b,
-        &mut live_log,
-        AgentRequest {
+    let mut crashing_agent = spawn_process_agent(
+        "actor-b-crash-mid-edit",
+        vec![AgentRequest {
             author_id: RICH_EDITOR_ROOT_AUTHOR_ID.to_owned(),
             action: UiAction::NativeSetValue {
                 text: losing_text.clone(),
             },
-        },
-        "second mounted actor applied its independent stale edit",
+        }],
+        true,
+    );
+    let crashing_line = recv_process_agent_line(&crashing_agent, 0, Duration::from_secs(5));
+    let crashing_request: AgentRequest = crashing_line.request.clone().into();
+    live_log.note(&format!(
+        "PROCESS_AGENT label={} pid={} seq={} marker={} role=crashing-agent-mid-edit",
+        crashing_line.label, crashing_line.pid, crashing_line.seq, crashing_line.marker
+    ));
+    live_log.dispatch(
+        &crashing_request.author_id,
+        "SetValue",
+        Some(losing_text.as_str()),
+    );
+    wait_for_enabled_author(
+        &mut app_harness_b,
+        &crashing_request.author_id,
+        "crashing process edit",
+    );
+    dispatch_via_harness(&mut app_harness_b, &crashing_request)
+        .unwrap_or_else(|error| panic!("process-agent crash edit dispatch failed: {error}"));
+    app_harness_b.run_steps(1);
+    {
+        let losing_state = mounted_rich_b.lock().expect("crashing actor rich state");
+        assert_eq!(
+            count_json_strings_containing(&to_content_json_value(&losing_state.doc), &losing_text),
+            1,
+            "crashing process agent's acknowledged edit is mounted before termination"
+        );
+    }
+    terminate_child_tree_bounded(&mut crashing_agent.child, Duration::from_secs(1));
+    assert!(
+        !crashing_agent
+            .child
+            .try_wait()
+            .expect("poll terminated crashing process agent")
+            .is_none(),
+        "crashing process agent must be reaped after mid-edit termination"
+    );
+    live_log.response(
+        "crashing editor-agent process was killed after an acknowledged mounted edit",
+        DbResult::Pass,
     );
 
     // Actor A's editor.code.save commits first; actor B then submits its independently edited stale
@@ -2175,14 +2474,42 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         DbResult::Pass,
     );
 
-    dispatch_from_spawned_agent(
-        &mut app_harness_b,
-        &mut live_log,
+    let survivor_plan = vec![
         AgentRequest {
             author_id: CONFLICT_KEEP_SERVER_AUTHOR_ID.to_owned(),
             action: UiAction::Click,
         },
+        AgentRequest {
+            author_id: RICH_EDITOR_ROOT_AUTHOR_ID.to_owned(),
+            action: UiAction::ReplaceSelectedText {
+                text: losing_text.clone(),
+            },
+        },
+        AgentRequest {
+            author_id: "editor.rich.save".to_owned(),
+            action: UiAction::Click,
+        },
+    ];
+    let mut survivor_agent =
+        spawn_process_agent("actor-b-survivor-refetch-merge-save", survivor_plan, false);
+    let survivor_keep = recv_process_agent_line(&survivor_agent, 0, Duration::from_secs(5));
+    live_log.note(&format!(
+        "PROCESS_AGENT label={} pid={} seq={} marker={} role=survivor-merge-agent",
+        survivor_keep.label, survivor_keep.pid, survivor_keep.seq, survivor_keep.marker
+    ));
+    let keep_request: AgentRequest = survivor_keep.request.clone().into();
+    live_log.dispatch(&keep_request.author_id, "Click", None);
+    wait_for_enabled_author(
+        &mut app_harness_b,
+        &keep_request.author_id,
+        "survivor process keep-server",
+    );
+    dispatch_via_harness(&mut app_harness_b, &keep_request)
+        .unwrap_or_else(|error| panic!("survivor process keep-server dispatch failed: {error}"));
+    app_harness_b.run_steps(1);
+    live_log.response(
         "mounted conflict UI adopted the refetched server version",
+        DbResult::Pass,
     );
     {
         let losing_state = mounted_rich_b.lock().expect("loser rich state");
@@ -2195,16 +2522,24 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
             "refetched winner content is mounted before merge"
         );
     }
-    dispatch_from_spawned_agent(
+    let survivor_merge = recv_process_agent_line(&survivor_agent, 1, Duration::from_secs(5));
+    let merge_request: AgentRequest = survivor_merge.request.clone().into();
+    live_log.dispatch(
+        &merge_request.author_id,
+        "ReplaceSelectedText",
+        Some(losing_text.as_str()),
+    );
+    wait_for_enabled_author(
         &mut app_harness_b,
-        &mut live_log,
-        AgentRequest {
-            author_id: RICH_EDITOR_ROOT_AUTHOR_ID.to_owned(),
-            action: UiAction::ReplaceSelectedText {
-                text: losing_text.clone(),
-            },
-        },
+        &merge_request.author_id,
+        "survivor process merge",
+    );
+    dispatch_via_harness(&mut app_harness_b, &merge_request)
+        .unwrap_or_else(|error| panic!("survivor process merge dispatch failed: {error}"));
+    app_harness_b.run_steps(1);
+    live_log.response(
         "loser merged its recoverable edit into the adopted server document through mounted AccessKit",
+        DbResult::Pass,
     );
     {
         let losing_state = mounted_rich_b.lock().expect("loser merged rich state");
@@ -2220,15 +2555,31 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
             "the AccessKit merge preserved the winner's structured code node"
         );
     }
-    dispatch_from_spawned_agent(
+    let survivor_save = recv_process_agent_line(&survivor_agent, 2, Duration::from_secs(5));
+    let save_request: AgentRequest = survivor_save.request.clone().into();
+    live_log.dispatch(&save_request.author_id, "Click", None);
+    wait_for_enabled_author(
         &mut app_harness_b,
-        &mut live_log,
-        AgentRequest {
-            author_id: "editor.rich.save".to_owned(),
-            action: UiAction::Click,
-        },
-        "loser submitted the merged winner-plus-loser document",
+        &save_request.author_id,
+        "survivor process save",
     );
+    dispatch_via_harness(&mut app_harness_b, &save_request)
+        .unwrap_or_else(|error| panic!("survivor process save dispatch failed: {error}"));
+    app_harness_b.run_steps(1);
+    live_log.response(
+        "loser submitted the merged winner-plus-loser document",
+        DbResult::Pass,
+    );
+    let survivor_deadline = Instant::now() + Duration::from_secs(5);
+    while survivor_agent.child.try_wait().ok().flatten().is_none() {
+        assert!(
+            Instant::now() < survivor_deadline,
+            "survivor process agent exceeded five seconds after merge/save"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    cleanup_process_agent_files(&crashing_agent);
+    cleanup_process_agent_files(&survivor_agent);
     let merge_deadline = Instant::now() + Duration::from_secs(5);
     let (merge_receipt, merge_attribution) = loop {
         app_harness_b.run_steps(1);
@@ -2295,6 +2646,25 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     );
 
     // Search query + execution stay on the same app and the same production action channel.
+    app_harness
+        .state_mut()
+        .set_active_pane_for_test(Some(PaneId::from("pane-c")));
+    let search_mount_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        app_harness.run_steps(1);
+        if app_harness
+            .root()
+            .children_recursive()
+            .any(|node| node.accesskit_node().author_id() == Some(lsv2::QUERY_AUTHOR_ID))
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < search_mount_deadline,
+            "continuous Handshake search pane did not mount before live query dispatch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
     let search_plan = vec![
         AgentRequest {
             author_id: lsv2::QUERY_AUTHOR_ID.to_owned(),
@@ -2538,60 +2908,60 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     // Mount a fresh product Graph observer after persistence, with its pane fully configured before the
     // first frame. Every post-mount interaction below stays in the contract-authorized `graph.*`
     // ActionChannel namespace; no menu/palette bypass or direct state mutation participates in proof.
-    let graph_pane_type = handshake_native::editor_pane_factories::placeholder_pane_type(
-        handshake_native::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
-    );
     let mut graph_app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
     graph_app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
-    graph_app.bind_active_project_for_integration_test(workspace_id.clone());
-    // Reuse one of the shell's real pane slots so the pre-frame tab bar and split-layout route both
-    // exist. A synthetic pane id has no TabBarState and would fail before the Graph product surface
-    // mounts, proving only a harness construction error.
-    let graph_pane_id = PaneId::from("pane-a");
-    graph_app
-        .pane_registry()
-        .lock()
-        .unwrap()
-        .insert(PaneRecord::new(
-            graph_pane_id.clone(),
-            graph_pane_type.clone(),
-            workspace_id.clone(),
-            None,
-            LockState::Unlocked,
-            DirtyState::Clean,
-            PaneAuthority::System,
-        ));
-    let graph_tab = TabState::new(graph_pane_type);
-    let graph_bar = graph_app
-        .tab_bar_states_mut()
-        .get_mut(&graph_pane_id)
-        .expect("graph observer tab bar");
-    graph_bar.tabs = vec![graph_tab];
-    graph_bar.active_index = 0;
-    graph_app.set_active_pane_for_test(Some(graph_pane_id));
+    graph_app.set_active_project_id_for_test(&workspace_id);
+    assert!(
+        graph_app.dispatch_palette_action_for_test(CMD_VIEW_GRAPH),
+        "the View Graph command mounts the production Graph View pane"
+    );
+    let graph_view = graph_app.mounted_graph_view();
     let mut graph_harness = Harness::builder()
         .with_size(egui::vec2(900.0, 700.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), graph_app);
     let source_graph_author = handshake_native::graph::graph_view::node_author_id(&block_id);
     let target_graph_author = handshake_native::graph::graph_view::node_author_id(&target_block_id);
-    let graph_deadline = Instant::now() + Duration::from_secs(5);
+    let graph_deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        graph_harness.run_steps(1);
+        graph_harness.run_steps(2);
+        let graph_ready = graph_view
+            .lock()
+            .map(|view| {
+                view.nodes.iter().any(|node| node.block_id == block_id)
+                    && view
+                        .nodes
+                        .iter()
+                        .any(|node| node.block_id == target_block_id)
+            })
+            .unwrap_or(false);
         let authors: std::collections::HashSet<String> = graph_harness
             .root()
             .children_recursive()
             .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
             .collect();
-        if authors.contains(&source_graph_author) && authors.contains(&target_graph_author) {
+        if graph_ready
+            && authors.contains(&source_graph_author)
+            && authors.contains(&target_graph_author)
+        {
             break;
         }
         assert!(
             Instant::now() < graph_deadline,
-            "mounted Graph pane did not expose exact source+target nodes {source_graph_author} and {target_graph_author} after final save"
+            "mounted Graph pane did not expose exact source+target nodes {source_graph_author} and {target_graph_author} after final save; graph_authors={:?}; graph_state={:?}",
+            authors
+                .iter()
+                .filter(|author| author.starts_with("graph."))
+                .cloned()
+                .collect::<Vec<_>>(),
+            graph_view.lock().ok().map(|view| (
+                view.nodes.iter().map(|node| node.block_id.clone()).collect::<Vec<_>>(),
+                view.loading,
+                view.error.clone(),
+            ))
         );
         std::thread::sleep(Duration::from_millis(10));
     }
