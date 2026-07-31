@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T08:34:04.940Z",
+  "updated_at_utc": "2026-07-31T09:35:48.900Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,8 +25,8 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "CLAIMED_V3_REMEDIATION",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V3",
+    "active": false,
     "depends_on": [
       "MT-031",
       "MT-032",
@@ -38,8 +38,8 @@
       "MT-045"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
-    "proof_status": "V3_REMEDIATION_BLOCKED_NO_PRODUCT_CHANGE: current interconnect manifest sanity check passes structurally with 18 entries, 17 PASS, 1 SKIPPED, and 0 FAIL. MT-046 is not READY_FOR_VALIDATION_V3 because MT-036 remains blocked on full declared proof/cargo-check timeout and MT-046's current V2 remediation requires rerun after shared native failures are green. MT-034 and MT-035 are now READY_FOR_VALIDATION_V3 after operator waiver/proof closure.",
+    "validator_verdict": "PENDING_V3",
+    "proof_status": "READY_FOR_VALIDATION_V3: current-head interconnection capstone rerun passed against owned live backend/PostgreSQL. test_interconnect_ckc_to_note 7/7, test_interconnect_note_code_crossref 6/6 after setting HSK_PSQL_BIN to the installed PostgreSQL psql.exe, test_interconnect_loom_backlink_search 8/8 with IC-13 typed HSK-409-LOOM-AI-NO-MODEL skip, test_interconnect_shared_undo_ledger 5/5. Manifest sanity: 18 entries, 17 PASS, 1 SKIPPED, 0 FAIL. MT-034, MT-035, and MT-036 are READY_FOR_VALIDATION_V3.",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -95,14 +95,22 @@
         "previous_status": "CLAIMED_V3_REMEDIATION",
         "new_status": "CLAIMED_V3_REMEDIATION",
         "previous_active": true
+      },
+      {
+        "at_utc": "2026-07-31T09:35:48.900Z",
+        "by": "KERNEL_BUILDER-20260731-054620",
+        "reason": "MT-035 and MT-036 are READY_FOR_VALIDATION_V3, and the current-head MT-046 interconnection capstone rerun passed against owned live backend/PostgreSQL: edge1 7/7, edge2 6/6, edge3 8/8 with the contract-authorized typed IC-13 AI no-model skip, edge4 5/5, manifest 18 entries with 17 PASS, 1 SKIPPED, 0 FAIL. KB_READY_CHECKLIST_RECEIPT emitted PASS with no blockers. KERNEL_BUILDER transitions only to READY_FOR_VALIDATION_V3; validator verdict is pending official validation.",
+        "previous_status": "CLAIMED_V3_REMEDIATION",
+        "new_status": "READY_FOR_VALIDATION_V3",
+        "previous_active": true
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260708-vandp",
     "claimed_at_utc": "2026-07-08T18:04:39.357Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T18:04:39.357Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
+    "ready_for_validation_at_utc": "2026-07-31T09:35:48.900Z",
+    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-31T09:35:48.900Z)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260708-vandp",
       "mode": "VERIFY_AND_PROVE (substrate runtime-proven) + NEEDS_MANAGED_RESOURCE_PROOF (9 requires_pg)",
@@ -439,8 +447,8 @@
     }
   },
   "remediation_v3": {
-    "status": "CLAIMED_V3_REMEDIATION_BLOCKED",
-    "updated_at_utc": "2026-07-31T08:34:04.940Z",
+    "status": "READY_FOR_VALIDATION_V3",
+    "updated_at_utc": "2026-07-31T09:35:48.900Z",
     "product_changes": "NONE",
     "manifest_sanity": {
       "entries": 18,
@@ -457,17 +465,60 @@
         "src/frontend/handshake_native/tests/test_interconnect_manifest.json"
       ]
     },
-    "blockers": [
-      {
-        "code": "DEPENDENCY_NOT_READY",
-        "reason": "MT-046 depends on MT-036, which remains blocked on full declared proof/cargo-check timeout. MT-034 and MT-035 are READY_FOR_VALIDATION_V3. The MT-046 V2 remediation explicitly requires rerun after shared native failures are green."
+    "proof_rerun_2026_07_31": {
+      "environment": {
+        "cwd": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1/src/frontend/handshake_native",
+        "HSK_TEST_BASE": "http://127.0.0.1:37501",
+        "HANDSHAKE_TEST_PG_DSN": "postgresql://postgres@127.0.0.1:5545/handshake",
+        "HSK_PSQL_BIN": "C:/Program Files/PostgreSQL/16/bin/psql.exe",
+        "CARGO_TARGET_DIR": "Z:/ct-wp012-mt046-rerun-native",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_BUILD_JOBS": "1"
       },
-      {
-        "code": "NEEDS_MANAGED_RESOURCE_PROOF",
-        "reason": "Backend-bound interconnection scenario reruns require a current-source handshake_core.exe and a clean shared native gate. A current-source backend binary now exists under the canonical cargo target, but MT-046 still waits on MT-036 full declared proof/cargo-check closure before rerunning the interconnection suite."
-      }
-    ],
-    "ready_for_validation_v3": false
+      "commands": [
+        {
+          "command": "cargo test --test test_interconnect_ckc_to_note -j 1 -- --nocapture --test-threads=1",
+          "result": "PASS: 7 passed, 0 failed, 0 ignored; IC-01/02/03/04 live PostgreSQL and IC-05 substrate proof passed."
+        },
+        {
+          "command": "cargo test --test test_interconnect_note_code_crossref -j 1 -- --nocapture --test-threads=1",
+          "result": "PASS after environment correction: first attempt failed because psql was not on PATH for the bounded EventLedger receipt query; rerun with HSK_PSQL_BIN=C:/Program Files/PostgreSQL/16/bin/psql.exe passed 6 passed, 0 failed, 0 ignored."
+        },
+        {
+          "command": "cargo test --test test_interconnect_loom_backlink_search -j 1 -- --nocapture --test-threads=1",
+          "result": "PASS: 8 passed, 0 failed, 0 ignored; IC-13 returned the contract-authorized typed 409 HSK-409-LOOM-AI-NO-MODEL skip and typed_no_model_skip_classifier_is_fail_closed passed."
+        },
+        {
+          "command": "cargo test --test test_interconnect_shared_undo_ledger -j 1 -- --nocapture --test-threads=1",
+          "result": "PASS: 5 passed, 0 failed, 0 ignored; IC-15/16/17/18 passed."
+        },
+        {
+          "command": "python manifest sanity check over src/frontend/handshake_native/tests/test_interconnect_manifest.json",
+          "result": "PASS: ENTRIES 18; COUNTS {'PASS': 17, 'SKIPPED': 1}; FAIL 0."
+        },
+        {
+          "command": "just kb-ready-checklist WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 MT-046 --json --emit",
+          "result": "PASS: receipt emitted to ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl with no blockers."
+        }
+      ]
+    },
+    "blockers": [],
+    "artifact_cleanup": {
+      "policy": "Operator requested proof-owned cargo/build/runtime artifacts be cleaned after each MT to save disk.",
+      "removed": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/ct-wp012-mt046-rerun-native",
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/wp-kernel-012/mt046-rerun-20260731-111127"
+      ],
+      "retained": [
+        "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe"
+      ],
+      "post_cleanup_checks": [
+        "No active cargo, rustc, or handshake_core process remained.",
+        "No active listener remained on 127.0.0.1:37501 or 127.0.0.1:5545; only transient TIME_WAIT was observed on 37501.",
+        "Z: subst mapping was cleared."
+      ]
+    },
+    "ready_for_validation_v3": true
   },
   "validation_v2": {
   "schema_id": "hsk.mt_validation_verdict@1",
