@@ -2260,6 +2260,12 @@ mod tests {
         }
     }
 
+    /// A MANUAL batcher: no writer task exists, so nothing is written until the
+    /// test itself calls [`drained`]. That is fine for paths that only enqueue
+    /// rows, but it can NEVER satisfy a caller that awaits a store-level
+    /// durability acknowledgement while it is still inside `create()` —
+    /// `record_cloud_session_start` does exactly that. Cloud-session tests must
+    /// use [`spawned_ledger`] instead; see the comment there.
     fn ledger_pair() -> (LedgerBatcher, ProcessLedgerDrain) {
         LedgerBatcher::manual_for_tests(
             LedgerBatcherConfig {
@@ -2269,6 +2275,33 @@ mod tests {
             Arc::new(NoopOverflowSink),
         )
         .expect("manual ledger")
+    }
+
+    /// A DRIVEN ledger: `LedgerBatcher::spawn` starts the real background writer
+    /// task against `store`, so a START enqueued with a durable-ack permit is
+    /// actually flushed and acknowledged while the caller is still awaiting it.
+    ///
+    /// This is the same wiring the passing
+    /// `factory_dispatches_official_cli_to_cli_builder` uses. Any test that
+    /// drives `ProductionModelSessionFactory` down the CLOUD path
+    /// (`record_cloud_session_start`) needs it: that function awaits a durable
+    /// START ack under `PIDLESS_SESSION_START_DURABILITY_TIMEOUT`, and against a
+    /// manual batcher with no writer the ack can only ever time out. Pair with
+    /// [`drain_spawned`] so the writer is closed and joined, never detached.
+    fn spawned_ledger(
+        store: Arc<InMemoryStore>,
+    ) -> (
+        LedgerBatcher,
+        tokio::task::JoinHandle<Result<(), ProcessLedgerError>>,
+    ) {
+        LedgerBatcher::spawn(
+            store,
+            Arc::new(NoopOverflowSink),
+            LedgerBatcherConfig {
+                capacity: 4096,
+                ..LedgerBatcherConfig::default()
+            },
+        )
     }
 
     fn lazy_model_lane_store() -> ModelLaneStore {
@@ -2292,6 +2325,31 @@ mod tests {
 
     async fn drained(drain: &ProcessLedgerDrain, store: Arc<InMemoryStore>) -> Vec<LedgerEvent> {
         drain.drain_available_to(store.clone()).await.unwrap();
+        store.events.lock().unwrap().clone()
+    }
+
+    /// Close + join the writer started by [`spawned_ledger`] under a bounded
+    /// deadline and return what the store durably holds. The `Flushed`
+    /// assertion is part of the proof: a `TimedOut`/`JoinError` outcome would
+    /// mean the rows below were read from a writer that never finished.
+    async fn drain_spawned(
+        ledger: &LedgerBatcher,
+        writer_join: tokio::task::JoinHandle<Result<(), ProcessLedgerError>>,
+        store: Arc<InMemoryStore>,
+    ) -> Vec<LedgerEvent> {
+        let outcome = crate::process_ledger::drain_and_join_ledger_writer(
+            ledger,
+            writer_join,
+            Duration::from_secs(5),
+        )
+        .await;
+        assert!(
+            matches!(
+                outcome,
+                crate::process_ledger::LedgerDrainJoinOutcome::Flushed
+            ),
+            "the driven ledger writer must flush and terminate cleanly; got {outcome:?}"
+        );
         store.events.lock().unwrap().clone()
     }
 
@@ -2392,25 +2450,48 @@ mod tests {
         );
     }
 
+    /// Two admission stages of the same production wiring, in the order the
+    /// coordinator actually applies them.
+    ///
+    /// STAGE 1 — `build_production_swarm_coordinator` always returns a
+    /// ModelLaneStore-backed, dexterity-REQUIRED coordinator
+    /// (`SwarmCoordinator::new_with_model_lane_store`). Its contract guard runs
+    /// BEFORE factory dispatch and rejects any `SpawnRequest` that carries no
+    /// `with_dexterity_launch` contract, whatever the artifact looks like. This
+    /// stage therefore cannot observe a factory outcome at all, and asserting
+    /// `FactoryFailed` here was a stale expectation, not a product guarantee.
+    ///
+    /// AC-2 DECISION (MT-020): the guard legitimately precedes factory dispatch
+    /// AND a ModelLaneStore-backed coordinator is the wrong vehicle for the
+    /// missing-artifact case. Both halves of the original intent are kept, each
+    /// on the coordinator that can actually express it, and the guard itself is
+    /// untouched:
+    ///   * the ModelLaneStore-backed production coordinator is asserted to
+    ///     reject pre-dispatch with the SPECIFIC contract error (not merely
+    ///     "some LedgerFailed"), leaving no live session and no ledger row, and
+    ///   * the missing-artifact factory failure is asserted through a
+    ///     coordinator that is legitimately permitted to dispatch.
+    ///
+    /// Why STAGE 2 does not simply attach a Dexterity contract to STAGE 1's
+    /// request: on the factory-failure path a ModelLaneStore-backed coordinator
+    /// durably records a FAILED launch row (`store.record_prepared_launch`, see
+    /// coordinator.rs). `lazy_model_lane_store()` points at a pool that has no
+    /// reachable database, so that write fails and re-wraps the real
+    /// `FactoryFailed` cause into another `LedgerFailed`. Proving the
+    /// missing-artifact contract through that path would require real
+    /// PostgreSQL, which this `--lib` unit module deliberately does not use.
     #[tokio::test]
     async fn production_coordinator_constructs_and_rejects_unloadable_local_spawn_without_orphan() {
-        // Construct the production coordinator via the wiring helper, spawn a
-        // local-candle session whose artifact does not exist: the typed factory
-        // error propagates and the ledger carries no orphan START/STOP.
+        // ---- STAGE 1: production wiring helper + its pre-dispatch guard. ----
         let (ledger, drain) = ledger_pair();
         let store = Arc::new(InMemoryStore::default());
-        let emitted = Arc::new(Mutex::new(0usize));
-        let e2 = emitted.clone();
         let coordinator = build_production_swarm_coordinator(
             ledger,
             CloudLaneFactoryConfig::unconfigured(),
             lazy_model_lane_store(),
             Some(2),
             uuid::Uuid::now_v7(),
-            move |_ev| {
-                *e2.lock().unwrap() += 1;
-                Ok(())
-            },
+            |_ev| Ok(()),
         );
         let req = local_candle_req(
             instance(7),
@@ -2419,15 +2500,67 @@ mod tests {
         let err = coordinator
             .spawn_session(req)
             .await
-            .expect_err("unloadable spawn");
-        assert!(matches!(err, SwarmError::FactoryFailed(_)), "got {err}");
-        // No live session remains and the ledger has no orphan rows.
+            .expect_err("contract-less spawn on a ModelLaneStore-backed coordinator");
+        match &err {
+            SwarmError::LedgerFailed(detail) => assert!(
+                detail.contains("require SpawnRequest::with_dexterity_launch"),
+                "the rejection must be the Dexterity launch-contract guard, not \
+                 an unrelated ledger failure; got {detail}"
+            ),
+            other => panic!("expected the Dexterity launch-contract guard, got {other}"),
+        }
+        // Rejected pre-dispatch: no live session and no ledger row exists,
+        // because the factory was never reached to record a START.
         assert_eq!(coordinator.live_session_count(), 0);
         let rows = drained(&drain, store).await;
-        assert!(rows.is_empty(), "no orphan ledger rows; got {}", rows.len());
-        // A SpawnFailed/SpawnRejected event was emitted (sink ran).
         assert!(
-            *emitted.lock().unwrap() >= 1,
+            rows.is_empty(),
+            "a pre-dispatch rejection writes no ledger row; got {}",
+            rows.len()
+        );
+
+        // ---- STAGE 2: the missing-artifact factory failure itself, on a
+        // coordinator that is legitimately allowed to dispatch. ----
+        let (ledger2, drain2) = ledger_pair();
+        let store2 = Arc::new(InMemoryStore::default());
+        let sink = Arc::new(RecordingSwarmSink::new());
+        let factory2 = Arc::new(ProductionModelSessionFactory::new(
+            ledger2.clone(),
+            CloudLaneFactoryConfig::unconfigured(),
+            None,
+        ));
+        let dispatching = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+            crate::swarm_orchestration::SwarmConfig::new(
+                RunBudget::defaulted(2).with_concurrency(2),
+            ),
+            factory2,
+            sink.clone(),
+            ledger2,
+        );
+        let req2 = local_candle_req(
+            instance(8),
+            "D:/__handshake_no_such_swarm_model__/model.safetensors",
+        );
+        let err2 = dispatching
+            .spawn_session(req2)
+            .await
+            .expect_err("unloadable spawn");
+        assert!(
+            matches!(err2, SwarmError::FactoryFailed(_)),
+            "the typed factory error propagates; got {err2}"
+        );
+        // No live session remains and the ledger has no orphan rows: the
+        // factory stopped any START it recorded before returning.
+        assert_eq!(dispatching.live_session_count(), 0);
+        let rows2 = drained(&drain2, store2).await;
+        assert!(
+            rows2.is_empty(),
+            "no orphan ledger rows; got {}",
+            rows2.len()
+        );
+        // A SessionFailed/SpawnRejected event was emitted (sink ran).
+        assert!(
+            !sink.events().is_empty(),
             "the sink must have emitted at least one event"
         );
     }
@@ -2597,8 +2730,11 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn cloud_success_dispatch_records_start_and_teardown_records_stop_and_unloads() {
-        let (ledger, drain) = ledger_pair();
+        // DRIVEN ledger: the cloud dispatch path awaits a durable START ack, so
+        // a manual batcher with no writer task could only time out.
         let store = Arc::new(InMemoryStore::default());
+        let (ledger, ledger_writer) = spawned_ledger(store.clone());
+        let ledger_close = ledger.clone();
         let unloaded = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let cloud = CloudLaneFactoryConfig {
             openai: Some(Arc::new(OkCloudBuilder {
@@ -2639,7 +2775,7 @@ mod tests {
             .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
 
-        let rows = drained(&drain, store).await;
+        let rows = drain_spawned(&ledger_close, ledger_writer, store).await;
         let starts = rows
             .iter()
             .filter(|e| e.kind() == LedgerEventKind::Start)
@@ -2682,7 +2818,10 @@ mod tests {
             }
         }
 
-        let (ledger, _drain) = ledger_pair();
+        // DRIVEN ledger: the BYOK cloud path awaits a durable START ack.
+        let store = Arc::new(InMemoryStore::default());
+        let (ledger, ledger_writer) = spawned_ledger(store.clone());
+        let ledger_close = ledger.clone();
         let built = Arc::new(Mutex::new(Vec::new()));
         let cloud = CloudLaneFactoryConfig {
             anthropic: Some(Arc::new(RecordingCloudBuilder {
@@ -2716,6 +2855,23 @@ mod tests {
             "explicit provider flavor must select Anthropic, not legacy OpenAI-first fallback"
         );
         (live.teardown)().await.expect("teardown");
+        // This is a FACTORY-level test: the coordinator, which owns the STOP,
+        // is not in the picture. The reserved lifecycle inside `live` therefore
+        // still holds its unused STOP permit, and an outstanding permit keeps
+        // the writer's channel open past `begin_close()`. Release it before the
+        // bounded drain-and-join below, or the writer cannot terminate.
+        drop(live);
+        // The spawn only returns Ok once the START was durably acknowledged, so
+        // the row MUST already be in the store. Asserting it keeps the
+        // durability guarantee observable rather than implicit.
+        let rows = drain_spawned(&ledger_close, ledger_writer, store).await;
+        assert_eq!(
+            rows.iter()
+                .filter(|e| e.kind() == LedgerEventKind::Start)
+                .count(),
+            1,
+            "the durably acknowledged START is in the store"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -2753,7 +2909,10 @@ mod tests {
             }
         }
 
-        let (ledger, _drain) = ledger_pair();
+        // DRIVEN ledger: the official-CLI cloud path awaits a durable START ack.
+        let store = Arc::new(InMemoryStore::default());
+        let (ledger, ledger_writer) = spawned_ledger(store.clone());
+        let ledger_close = ledger.clone();
         let built = Arc::new(Mutex::new(Vec::new()));
         let contexts = Arc::new(Mutex::new(Vec::new()));
         let mut official_cli_by_provider: HashMap<String, Arc<dyn CloudRuntimeBuilder>> =
@@ -2868,6 +3027,21 @@ mod tests {
         assert_eq!(context.working_dir.as_deref(), Some("worktree-v6"));
         drop(captured);
         (live.teardown)().await.expect("teardown");
+        // FACTORY-level test: no coordinator owns the STOP, so release the
+        // reserved lifecycle (and its unused STOP permit) before the bounded
+        // drain-and-join, or the writer's channel cannot close. See the same
+        // note in `byok_cloud_provider_selection_honors_anthropic_...`.
+        drop(live);
+        // The spawn only returns Ok once the START was durably acknowledged, so
+        // the row MUST already be in the store.
+        let rows = drain_spawned(&ledger_close, ledger_writer, store).await;
+        assert_eq!(
+            rows.iter()
+                .filter(|e| e.kind() == LedgerEventKind::Start)
+                .count(),
+            1,
+            "the durably acknowledged START is in the store"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -3185,8 +3359,10 @@ mod tests {
         let vault: Arc<dyn SecretsVault> = Arc::new(InMemorySecretsVault::default());
         vault.put("openai", "sk-test-openai").expect("store key");
         let cloud = CloudLaneFactoryConfig::from_vault(vault, None, Some("openai".to_string()));
-        let (ledger, drain) = ledger_pair();
+        // DRIVEN ledger: the cloud dispatch path awaits a durable START ack.
         let store = Arc::new(InMemoryStore::default());
+        let (ledger, ledger_writer) = spawned_ledger(store.clone());
+        let ledger_close = ledger.clone();
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::new(
             ledger.clone(),
@@ -3214,7 +3390,7 @@ mod tests {
             .await
             .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
-        let rows = drained(&drain, store).await;
+        let rows = drain_spawned(&ledger_close, ledger_writer, store).await;
         let starts = rows
             .iter()
             .filter(|e| e.kind() == LedgerEventKind::Start)
@@ -3269,8 +3445,13 @@ mod tests {
             }
         };
 
-        let (ledger, drain) = ledger_pair();
+        // DRIVEN ledger: this env-gated test drives the same cloud path as its
+        // always-run siblings and therefore has the same durable-START-ack
+        // requirement. A manual batcher would make it fail the moment live
+        // credentials are supplied.
         let store = Arc::new(InMemoryStore::default());
+        let (ledger, ledger_writer) = spawned_ledger(store.clone());
+        let ledger_close = ledger.clone();
         let sink = Arc::new(RecordingSwarmSink::new());
         let factory = Arc::new(ProductionModelSessionFactory::new(
             ledger.clone(),
@@ -3328,7 +3509,7 @@ mod tests {
             .await
             .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
-        let rows = drained(&drain, store).await;
+        let rows = drain_spawned(&ledger_close, ledger_writer, store).await;
         let starts = rows
             .iter()
             .filter(|e| e.kind() == LedgerEventKind::Start)

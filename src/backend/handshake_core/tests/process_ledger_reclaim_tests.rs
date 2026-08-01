@@ -349,6 +349,12 @@ async fn postgres_stale_source_does_not_cross_reclaim_healthy_sibling_lane() {
     )
     .with_process_uuid(terminal_process_uuid)
     .with_parent_session_id(session_id.clone())
+    // `ProcessStart::new` defaults `sandbox_adapter_id` to None, and
+    // `stale_sessions` has always filtered on `sandbox_adapter_id IS NOT NULL`.
+    // Without this both rows are invisible to the scan, the session can never be
+    // returned, and the negative assertion below is UNFALSIFIABLE: it would keep
+    // passing even if cross-reclaim protection were deleted outright.
+    .with_sandbox_adapter_id("handshake_native")
     .with_runtime_owner(runtime_owner.clone())
     .with_os_pid(41_001);
     let healthy_start = ProcessStart::new(
@@ -358,6 +364,7 @@ async fn postgres_stale_source_does_not_cross_reclaim_healthy_sibling_lane() {
     )
     .with_process_uuid(healthy_process_uuid)
     .with_parent_session_id(session_id.clone())
+    .with_sandbox_adapter_id("handshake_native")
     .with_runtime_owner(runtime_owner)
     .with_os_pid(41_002);
     store
@@ -396,6 +403,14 @@ async fn postgres_stale_source_does_not_cross_reclaim_healthy_sibling_lane() {
         .await
         .expect("scan exact lane ownership");
 
+    // FALSIFIABILITY (MT-020 AC-6b): with `sandbox_adapter_id` seeded above both
+    // rows are genuinely visible to the scan, so the ONLY reason this session is
+    // withheld is the healthy sibling's non-reclaimable lane state. Verified by
+    // temporarily flipping the LANE-HEALTHY seed's `status` from "ready" to
+    // "failed" and re-running: the assertion below then FAILS
+    // ("a terminal open sibling must not make the healthy open lane's process
+    // reclaimable"). Before the `sandbox_adapter_id` fix the same flip changed
+    // nothing and the test still passed — that is what made it vacuous.
     assert!(
         !stale_sessions.contains(&session_id),
         "a terminal open sibling must not make the healthy open lane's process reclaimable"
@@ -434,6 +449,12 @@ async fn postgres_stale_source_selects_terminal_lane_exact_process_owner() {
             )
             .with_process_uuid(process_uuid)
             .with_parent_session_id(session_id.clone())
+            // `ProcessStart::new` defaults `sandbox_adapter_id` to None and
+            // `stale_sessions` has always filtered on
+            // `sandbox_adapter_id IS NOT NULL`, so without this the row is
+            // never visible to the scan and this session can never be
+            // selected — the assertion below could only ever fail.
+            .with_sandbox_adapter_id("handshake_native")
             .with_runtime_owner(runtime_lease.descriptor().process_runtime_owner())
             .with_os_pid(42_001),
         )])

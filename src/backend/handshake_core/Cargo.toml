@@ -913,3 +913,21 @@ required-features = ["test-utils"]
 name = "process_reclaim_real_lifecycle_pg_tests"
 path = "tests/process_reclaim_real_lifecycle_pg_tests.rs"
 required-features = ["test-utils"]
+
+# WP-1 MT-020 AC-7: `tests/model_lane_crdt_support.rs` is a SHARED SUPPORT
+# MODULE (`mod model_lane_crdt_support;` in mixed_model_lane_integration_pg_tests
+# and swarm_lane_diagnostics_pg_tests), not a suite of its own -- it declares no
+# `#[test]`. Cargo still auto-discovers any `tests/*.rs` as its own integration
+# target, and an undeclared target has `required-features = None`, so it was
+# being compiled under the DEFAULT feature set while BOTH of its consumers are
+# `required-features = ["test-utils"]`. That mismatch is a standing trap: adding
+# any test-utils-gated import to the shared module would break
+# `cargo check --all-targets` (default features) and therefore every dependent
+# crate, while every declared proof command -- which all pass
+# `--features test-utils` -- kept passing. The same class already broke this
+# packet twice (b53f475d, d154833b). Declaring the requirement makes cargo skip
+# the target when the feature is off, matching its consumers.
+[[test]]
+name = "model_lane_crdt_support"
+path = "tests/model_lane_crdt_support.rs"
+required-features = ["test-utils"]
