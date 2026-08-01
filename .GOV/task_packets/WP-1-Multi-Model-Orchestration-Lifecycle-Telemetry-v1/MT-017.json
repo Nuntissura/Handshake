@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-017",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-07-31T06:45:00Z",
+  "updated_at_utc": "2026-08-01T00:00:00Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -36,12 +36,12 @@
     "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER",
     "claimed_at_utc": "2026-07-16T23:03:45Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
-    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
+    "ready_for_validation_at_utc": "2026-08-01T00:00:00Z",
     "completed_by": null,
-    "blocker": "The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4 retained. Full suite 19/22 with 0 false passes; isolated rerun resolved step 9 (environmental) but exposed step 8 as a REAL backend/frontend CRDT-contract defect and step 10 as a declared-proof-command defect (missing HANDSHAKE_ARTIFACTS_DIR). Both must be fixed and re-proven before MT-017 can flip.",
+    "proof_status": "READY_FOR_VALIDATION_V5: full declared 22-proof suite GREEN at a single frozen revision efea010a with a clean tree. pass=22 fail=0 false_pass_zero_tests=0. Every step reports a non-zero executed count, so no proof passed vacuously.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
     "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_DIAGNOSTICS_USERMANUAL_AND_RUNTIME_AUDIT_GREEN",
@@ -382,5 +382,25 @@
     "change": "Added $env:HANDSHAKE_ARTIFACTS_DIR=$artifactRoot immediately after $artifactRoot is resolved. No assertion was weakened; this only makes the declared command runnable.",
     "correction_note": "A first attempt at this repair (commit 25bca824) CORRUPTED the command to ':HANDSHAKE_ARTIFACTS_DIR=;' because the patch was applied through a shell-quoted node -e string and bash expanded $env and $artifactRoot before node saw them. This entry supersedes that attempt; the command was rebuilt from a known-good prefix and gated on a well-formedness check before writing.",
     "operator_disclosure_required": true
+  },
+  "final_suite_2026_08_01": {
+    "verdict": "GREEN",
+    "head": "efea010a",
+    "worktree_dirty": 0,
+    "totals": "pass=22 fail=0 false_pass_zero_tests=0",
+    "database": "handshake_wp1_proof on the Handshake-managed PostgreSQL 16.11 (max_locks_per_transaction raised 64 -> 512 under operator authorization)",
+    "why_a_whole_rerun_was_required": "Every proof had passed at least once, but across THREE revisions (19 at d154833b, step 9 at 45d24a6a, steps 8 and 10 at efea010a). The V4 remediation plan requires freezing ONE current product source revision before revalidation, so a suite assembled from three revisions would not have satisfied it. Declaring green on that basis would have repeated exactly the failure this MT carries a V4 for: assembling a pass out of evidence that was never simultaneously true.",
+    "zero_test_guard": "false_pass_zero_tests=0 is load-bearing. `cargo test --exact` EXITS 0 when its filter matches nothing, so an exit-0 suite can contain proofs that executed nothing. The runner parses executed-test counts and marks any zero-count step FALSE_PASS_ZERO_TESTS, forcing SUITE_VERDICT=NOT_GREEN. None occurred.",
+    "defects_fixed_to_reach_green": [
+      "step 8 (efea010a) REAL PRODUCT DEFECT: the backend diagnostics producer emitted an incomplete CRDT posture (crdt_proposal_ref = None) while the native schema-v3 contract requires the complete set, so the frontend consumer failed with 'message msg-mt008-001 CRDT refs missing'. The None carried a comment claiming Status kind 'avoids the unsatisfiable Proposal-kind rule' - it recorded a genuine pre-MT-018 impossibility as if it were a design choice. MT-018 (e5888b3d) made proposal-anchored CRDT admissible, so the producer now mints a real approved+applied proposal through the product API chain via the canonical shared helper (CrdtProposalAnchoring::ApprovedApplied). The native contract was NOT relaxed.",
+      "step 10 (9c455c68) CONTRACT DEFECT: declared proof_commands[10] never exported HANDSHAKE_ARTIFACTS_DIR, which user_manual_api_tests.rs:257 requires, so it aborted with 0 tests executed. Proof [8] in the same contract already exported it. Repaired; no assertion weakened.",
+      "step 9 ENVIRONMENTAL, self-inflicted: starved on the cargo build lock because this session ran concurrent --all-targets verification builds against the same CARGO_TARGET_DIR while the suite was live. Passed once run in isolation."
+    ],
+    "execution_note_for_future_runs": "Declared proof [8] chains a backend producer to a frontend consumer that asserts the artifact is under 30 MINUTES old (test_swarm_lane_diagnostics_argus.rs:583). A cold frontend build takes ~37 minutes, so running the chain from cold fails on STALENESS even when the code is correct - that false negative masked the real defect above for two runs. Pre-build BOTH test binaries with --no-run first; the producer and consumer then complete in seconds."
+  },
+  "v4_remediation_plan_status": {
+    "item_1_dependency_remediation_and_frozen_revision": "MET. All declared dependencies (MT-003/004/006/007/008/009/010/011/012/013/014/015) are READY_FOR_VALIDATION_V5, and the full suite ran green at the single frozen revision efea010a with dirty=0.",
+    "item_2_internal_diagnostics_and_palmistry": "NEEDS VALIDATOR RULING - NOT claimed as met by this handoff. The V4 fail_report cited internal_diagnostics and Palmistry being 'explicitly deferred' as an INDEPENDENT reason beyond the proof suite, and stated that deferred labels do not satisfy it. Per Codex CX-981-005 those two tiers are BUILT by WP-KERNEL-012 and retrofitted by WP-KERNEL-016, so shipping them is outside WP-1's scope. WP-1 records the honest run-level HBR-INT-009 posture (Flight Recorder WIRED; internal_diagnostics and Palmistry DeferredWithReason at launch, superseded to Wired by the authenticated observation/readback boundary in api/palmistry.rs). The validator must decide whether that satisfies the V4 requirement or whether MT-017 remains blocked on WP-KERNEL-012/016.",
+    "item_3_argus_coverage_and_serial_rerun": "PARTIALLY MET / validator to rule. All MT-017 PostgreSQL, Yjs, cancellation, routing, diagnostics, UserManual and native proof commands were rerun SERIALLY with fresh nonce-bound artifacts at one frozen revision (the green suite above). Whether 'production Argus coverage for every WP panel/window' is fully satisfied is a validator judgement; MT-021 added swarm-dispatchable console reachability and settings author_id pins, but its frontend lib-unit suite still shows 9 failures needing a quiet-machine rerun (8 of them in files MT-021 never touched)."
   }
 }
