@@ -14,7 +14,7 @@
   "title": "E5-MT-032-EverythingIsLoomBlockBacklinks",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T22:54:51.5094833Z",
+  "updated_at_utc": "2026-07-31T21:07:13.6817583Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-032.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "PASS_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,10 +37,10 @@
       "MT-034",
       "MT-044"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "PASS_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T21:07:13.6817583Z",
     "ready_for_validation_v2_at_utc": "2026-07-15T21:31:57.0694829Z",
     "ready_for_validation_v2_by": "KERNEL_BUILDER",
     "ready_for_validation_v2_reason": "Managed PostgreSQL and mounted native runtime remediation is current and independently hardened: canonical Loom identities/backlinks/hash/update/delete proof passes; async deliveries are queued and identity-bound; save invalidation and sticky index warnings are workspace/source scoped and survive bounded-history eviction; create guards prevent duplicate notes across document and workspace round-trips; both adversarial reviewers returned READY.",
@@ -708,5 +708,55 @@
     "Wire or explicitly disposition all three diagnostic tiers, correct the canonical UserManual, and execute canonical Argus navigation plus fresh post-action observation."
   ],
   "no_context_instruction": "Read MT-032.json, packet, current spec, and HBR-INT-009. Correct the stale diagnostics/manual posture and prove real PostgreSQL plus canonical Argus before READY_FOR_VALIDATION_V3."
-}
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T21:07:13.6817583Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-032 inputs match committed HEAD"
+    },
+    "method": "Independent current-source review plus exact self-seeded real-PostgreSQL backlink/content-hash/canonical-Argus proof, owned backend restart proof, direct screenshot inspection, and negative-path verification.",
+    "diff_attack_surfaces": [
+      "LoomBlock/document identity mismatch or empty content hash",
+      "wrong-document navigation from a backlink row",
+      "stale navigation after command-bus contention",
+      "backlink/content loss across backend restart",
+      "missing-document and stale-version behavior"
+    ],
+    "independent_checks": [
+      "live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof passed against current-source handshake_core and PostgreSQL with an explicit external stage-binding root.",
+      "The mounted production shell exposed the exact backlink row, canonical Argus clicked it, and a terminal predicate proved the exact source document identity opened; argus.finish passed.",
+      "The live proof verified document/block identity, nonempty stable content hash, inbound backlink row, remove/restore/delete behavior, canvas Loom URI, and wrote a fresh strict GPU screenshot.",
+      "live_pg_owned_restart_preserves_document_backlink_and_content_hash passed with a verified backend PID change, preserved identities/content hash, backlink and content EventLedger receipt IDs, bounded reconnect recovery, missing 404, and stale 409.",
+      "Opened MT-032-canvas-live-B.png and verified the persisted Loom address is visibly rendered on the canvas card."
+    ],
+    "counterfactual_checks": [
+      "Deleting the source/target cannot leave a fabricated backlink success.",
+      "A stale version is rejected with 409 rather than overwriting current content.",
+      "Backend restart changes the owned PID while preserving PostgreSQL authority and the exact content/backlink identities.",
+      "The canonical backlink action cannot pass by opening a different document because the terminal author_id/value is bound to the exact source ID."
+    ],
+    "boundary_probes": [
+      "Real PostgreSQL and current-source handshake_core, not SQLite or mocks",
+      "Production-mounted HandshakeApp and ShellNavigator path",
+      "Canonical localhost Argus inspect-click-terminal-inspect path",
+      "Owned backend restart and reconnection boundary",
+      "Strict WGPU external screenshot and AccessKit identity"
+    ],
+    "negative_path_checks": [
+      "Missing document returns 404",
+      "Stale save returns 409",
+      "Transient reconnect recorded one network error and recovered",
+      "Remove/restore/delete sequence did not preserve stale backlinks"
+    ],
+    "pass_basis": "All MT-032 product acceptance boundaries were independently exercised from current HEAD on real PostgreSQL, including terminal canonical interaction proof and restart recovery. No product blocker remained.",
+    "remediation_required": false,
+    "residual_uncertainty": "WP-level HBR closure and recorded scope-waiver paperwork remain integration/governance concerns, not an MT-032 product-correctness blocker under the Operator's product-first validation instruction."
+  }
 }

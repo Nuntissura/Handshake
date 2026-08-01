@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T17:27:18.890Z",
+  "updated_at_utc": "2026-07-31T21:21:28.6047070Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,10 +37,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:21:28.6047070Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: note-to-code MIS-ROUTED live - clicked [[code:...]] chip emits WikilinkActivated ref_kind code and app.rs:6305-6312 sends every non-document ref_kind to open_loom_block, so a code chip opens the symbol_entity_id as a Loom block instead of the code editor at the symbol line; correct machinery exists (dispatch_code_ref_open, CMD_OPEN_CODE_SYMBOL, open_code_symbol) but is called only by tests and take_pending_code_symbol has no shell drain. Code-to-note dead-ends: mounted NoteRefsPanel click stages pending_navigation + CMD_OPEN_DOCUMENT which nothing drains - silent no-op. Fix: ref_kind==code arm routing to open_code_symbol + shell drain + live-shell kittest driving chip click to mounted code pane; run gated live resolve/find-notes tests.",
@@ -722,5 +722,112 @@
     "Drive create/open/reveal navigation through canonical Argus with stable targets and fresh observation; update the canonical UserManual diagnostics."
   ],
   "no_context_instruction": "Read MT-034.json, packet, and current spec. Re-prove the live cross-reference boundary and canonical Argus interaction before READY_FOR_VALIDATION_V3."
-}
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:21:28.6047070Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "committed_product_semantics": true,
+      "pre_existing_unrelated_dirty_files_preserved": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/frontend/handshake_native/tests/test_find_in_files.rs"
+      ]
+    },
+    "authority_compared": [
+      "MT-034 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "SPEC_CURRENT v02.202 resolved Master Spec modules",
+      "WP_VALIDATOR_PROTOCOL.md",
+      "ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      "current source/tests, fresh managed-PostgreSQL receipt, fresh canonical Argus JSON, and both directly inspected fresh PNGs"
+    ],
+    "method": "Fresh adversarial current-head validation of the complete focused integration binary, the exact managed-PostgreSQL case with the harness-required explicit DSN, the exact mounted WGPU/canonical-Argus create-open-reveal test, direct managed-receipt parsing, per-action receipt parsing, and direct visual inspection.",
+    "commands_and_results": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_code_note_cross_ref -- --nocapture --test-threads=1",
+        "result": "18 passed, 1 failed before live product execution because the owned-backend harness requires explicit HANDSHAKE_TEST_PG_DSN."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_code_note_cross_ref live_backend::v2_self_seeded_postgres_code_ref_round_trip_navigation_and_note_refs -- --exact --nocapture --test-threads=1",
+        "result": "PASS, 1 passed with HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5544/handshake. Fresh receipt proves exact symbol/index line, slash insertion, save/reload, reverse lookup, note open, missing identity 400 paths, stale expected-version 409 with unchanged content, typed missing symbol, stale source recovery, backend restart persistence, source removal, workspace 204 cleanup, and unresolved-after-cleanup."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_code_note_cross_ref mt034_canonical_argus_create_open_and_reveal -- --exact --nocapture --test-threads=1",
+        "result": "Test process PASS, 1 passed and emitted three fresh action records plus two fresh PNGs. Independent parsing found all three action receipts indeterminate; direct inspection also found a visible 'Load failed: http non-success status 404 Not Found' error in both purported success frames."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "code hsLink parsing/serialization, slash symbol lookup, rich-document save/reload, and unresolved rendering",
+      "code-ref chip to mounted code-pane resolution, exact source path and line reveal",
+      "cursor-dwell reverse lookup, NoteRefsPanel result, and note-row document navigation",
+      "identity headers, optimistic conflict, stale source, missing symbol, restart persistence, and cleanup",
+      "canonical Argus attribution, terminal completion receipts, fresh tree observations, and unobscured success rendering"
+    ],
+    "independent_checks_run": [
+      "All 18 non-live cases in the focused integration binary passed.",
+      "The exact live case passed against real PostgreSQL and a current-source owned backend after supplying its explicit DSN contract.",
+      "The fresh managed receipt contains concrete workspace, rich-document, symbol, save-receipt, line, restart-PID, conflict, stale-source, cleanup, and post-cleanup-unresolved evidence.",
+      "The exact WGPU test passed its later terminal tree predicates and wrote a fresh create/open/reveal JSON plus code-open and note-reveal PNGs.",
+      "All three action records for editor.rich.insert-slash-command, code-ref-chip-KEN-MT034-ARGUS, and note-ref-DOC-ARGUS-34 have receipt_status=indeterminate.",
+      "Both PNGs were opened directly. The target code symbol, note-ref panel, code chip, and revealed note are visible, but the left surface also visibly reports a 404 load failure; the second frame additionally carries unrelated endpoint/alias degradation."
+    ],
+    "counterfactual_checks": [
+      "A later visible symbol or note tab was not accepted as proof that the preceding Argus click caused it when the action receipt remained indeterminate.",
+      "A passing mock-backed WGPU flow was not allowed to replace the independently executed real-PostgreSQL persistence/restart proof.",
+      "The first live failure was classified as missing harness configuration rather than product failure because the exact case passed after the required explicit DSN was supplied.",
+      "The success screenshots were not accepted solely from filenames or test exit zero; direct inspection exposed the visible 404 error state."
+    ],
+    "boundary_probes": [
+      "missing identity 400 versus attributed index/navigation/save",
+      "current version save versus stale expected-version 409 with unchanged content",
+      "fresh source navigation versus stale source typed recovery",
+      "symbol present versus missing and post-cleanup unresolved",
+      "pre/post owned-backend restart persistence",
+      "Argus dispatch-time receipt versus later symbol/note terminal tree",
+      "intended success frame versus simultaneously visible 404/error overlays"
+    ],
+    "negative_path_checks": [
+      "Backend loss remains a typed error for both code-ref resolution and reverse lookup.",
+      "A different backend symbol identity and opaque source without a path are rejected rather than silently navigated.",
+      "Unresolved refs render without panic, stale source blocks silent navigation, and optimistic conflicts preserve committed content.",
+      "Workspace cleanup returns 204, the external source fixture is removed, and the symbol is unresolved after cleanup."
+    ],
+    "independent_findings": [
+      "The live code-note product boundary is current-head green and produces a strong managed receipt.",
+      "All three fresh canonical Argus mutating actions are indeterminate, so no action has a terminal causal receipt satisfying ARGUS-007/ARGUS-014.",
+      "The two fresh success screenshots are not clean success evidence: both visibly retain 'Load failed: http non-success status 404 Not Found'; the note-reveal frame also shows Runtime Chat EndpointMissing and a local-only alias warning.",
+      "The primary blocker is canonical action causality; the visible 404 is a second proof-quality blocker that must be eliminated or explicitly bound to a tested negative state rather than coexisting in success captures."
+    ],
+    "fail_report": "MT-034 FAIL_V4. Code<->note parsing, live symbol lookup, exact-line navigation, rich-document save/reload, reverse lookup, conflicts, stale/missing behavior, restart persistence, and cleanup are current-head green. PASS is prohibited because all three fresh canonical Argus actions are indeterminate and both intended success frames visibly contain a 404 load-failure state.",
+    "acceptance_impact": "The MT's mandatory mounted two-way navigation is not proven through terminal attributable actions, and the captured success surface simultaneously presents an error. Later tree predicates and a green test exit cannot replace the missing action receipts or a clean success-state visual.",
+    "remediation_plan": [
+      "Add action-specific completion to the canonical Argus driver/test path for each MT-034 mutation. The slash-command action must terminate only after the code-symbol dialog is freshly visible and tied to the click receipt; the code-ref chip action must terminate only after the exact symbol identity, canonical source path, and line are loaded in the mounted code pane; the note-ref row action must terminate only after the exact rich_document_id is the active note tab.",
+      "Finalize each action receipt with stable author_id, action kind, attributed agent/binding, before/after tree generation or hash, terminal predicate ID, terminal status, and correlation ID. For symbol navigation include symbol_entity_id, source identity/path, expected line, actual visible line range, and any navigation receipt. For note reveal include symbol_key, rich_document_id, and active-tab/document revision. Require zero indeterminate receipts.",
+      "Find the producer of the visible left-rail 'Load failed: http non-success status 404 Not Found' during the canonical success fixture. Seed or route the exact resource that the production shell requests, or isolate the proof workspace so unrelated loading does not fail. Do not merely hide the error text; assert that the success tree contains no load-failure status before capture.",
+      "Keep negative states separate from success evidence. If EndpointMissing, local-only alias resolution, missing symbol, stale source, or backend loss is intentionally tested, capture each in a named negative artifact with a terminal typed-failure receipt and expected recovery action; the create/open/reveal success frames must contain only the intended green state and no obscuring or contradictory error surface.",
+      "Change the WGPU proof to fail before artifact publication unless the three action receipts are terminal, the exact symbol/note identities match, the target line is visible, the active note matches DOC-ARGUS-34, and no unexpected error-status nodes are present. Write artifacts beneath a unique V4 run ID with HEAD SHA and per-action before/after tree hashes to prevent stale fixed-name proof reuse.",
+      "Rerun the complete integration binary once with HANDSHAKE_TEST_PG_DSN explicitly bound so it finishes 19 passed, 0 failed in one invocation. Preserve and recheck the live receipt fields for identity rejection, conflict, stale/missing paths, restart persistence, cleanup, source removal, and unresolved-after-cleanup.",
+      "Rerun the exact WGPU proof, parse every action receipt, and directly inspect both new success PNGs plus matching trees. Require three terminal receipts, zero indeterminate actions, zero unexpected 404/error states, readable layout, exact symbol line reveal, and exact referencing-note reveal."
+    ],
+    "verification_required": [
+      "One configured full focused integration run: 19 passed, 0 failed, 0 ignored against current-source owned backend and real PostgreSQL.",
+      "Fresh live receipt with exact symbol/document/save IDs, exact line, missing-identity 400s, conflict 409 with unchanged content, stale/missing typed states, distinct restart PIDs, persisted readback, 204 cleanup, source removal, and unresolved-after-cleanup.",
+      "Exact WGPU run with three terminal attributable action receipts and zero indeterminate records.",
+      "Direct inspection of fresh per-run JSON trees and both PNGs confirms exact code-symbol line and referencing-note reveal with no unexpected 404, EndpointMissing, alias-warning, or obscuring error surface in success evidence.",
+      "External artifact-root compliance and exact owned-backend teardown remain green."
+    ],
+    "no_context_instruction": "Read MT-034.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green code<->note implementation and the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Repair the canonical Argus action-completion receipts for slash activation, code-symbol open/reveal, and note-row reveal; eliminate the unexpected 404/error state from success captures without hiding genuine errors; run all 19 focused integration cases in one explicitly configured real-PostgreSQL invocation; rerun the exact WGPU proof under a unique V4 run ID; open every receipt/tree/PNG; require zero indeterminate actions and clean exact symbol/note identity evidence; then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
+    "remediation_required": true,
+    "residual_uncertainty": "The persisted cross-reference implementation is strongly proven. Remaining uncertainty is limited to action causality and why the success shell displays an unexpected 404 load failure during the mounted visual flow."
+  }
 }

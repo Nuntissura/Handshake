@@ -1,0 +1,176 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_OPERATOR_REQUEST_ONLY",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
+  "mt_id": "MT-802",
+  "created_at_utc": "2026-08-01T04:26:38.699Z",
+  "updated_at_utc": "2026-08-01T04:26:38.699Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-802.json",
+    "microtask_projection": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-802.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
+    "stub_contract": ".GOV/task_packets/stubs/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.contract.json",
+    "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
+    "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
+    "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json"
+  },
+  "markdown_projection": {
+    "path": "NOT_GENERATED_BY_DEFAULT",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": "NOT_GENERATED_BY_DEFAULT",
+    "projection_hash": "NOT_GENERATED_BY_DEFAULT",
+    "generated_at_utc": null,
+    "generator": "PENDING_DEMAND"
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-768",
+      "MT-798",
+      "MT-800"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Implement calibrated scan/reference fitting as an immutable-observation proposal pipeline split into parametric and residual contributions.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/tailor/bodykit/scan_fit.rs",
+      "src/backend/handshake_core/tests/bodykit_scan_fit.rs"
+    ],
+    "forbidden_paths": [],
+    "acceptance_criteria": [
+      "Camera/calibration/landmarks/dense correspondence/occlusion/scale/stages/confidence/error/locks/rejected observations and deterministic seed are persisted; single-view ambiguity and infeasible locked measurements remain visible.",
+      "Inputs, outputs, schemas, units, version/hash identities, capability state, authority/artifact ownership, privacy scope, diagnostics, cancellation/retry and unsupported behavior are explicit; a no-context implementer must not infer a provider, download, path, threshold or fallback.",
+      "Automated proof covers a successful offline Rust path plus missing/corrupt/stale/incompatible input, cancellation or adapter-removal as applicable; it verifies EventLedger/ArtifactStore/Flight Recorder consistency, no partial mutation, no hidden network/Python process and reproducible receipts."
+    ],
+    "proof_targets": [
+      "cargo test -p handshake_core --test bodykit_scan_fit"
+    ],
+    "risk_if_missed": "Without implement calibrated scan/reference fitting as an immutable-observation proposal pipeline split into parametric and residual contributions., BodyKit-v2 could ship an ambiguous, non-reproducible or non-professional production path."
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Non-UI contract: typed commands, state, receipts, diagnostics, and TraceProjection provide model/operator observability; the owning native projection is separately contracted."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "Tailor UserManual > Body providers, high-resolution heads, and rig evaluation"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    "HBR-INT",
+    "HBR-MAN",
+    "HBR-PRIV",
+    "HBR-SWARM"
+  ],
+  "resource_privacy_obligation": {
+    "required": true,
+    "hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "requirements": [
+      "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
+      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
+    ],
+    "expected_evidence": [
+      "cross_account_and_cross_space_negative_tests",
+      "derived_scope_non_widening_test",
+      "revocation_cache_context_handle_invalidation_test",
+      "log_trace_preview_non_disclosure_test"
+    ]
+  },
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "flight_recorder",
+      "posture": "DIRECT",
+      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "posture": "INHERITED",
+      "reason": "This MT emits typed diagnostics through its owning command or job and inherits retention, health, and projection behavior from the shared diagnostics substrate."
+    },
+    {
+      "tier": "palmistry",
+      "posture": "INHERITED",
+      "reason": "The owning native shell or scheduled job supplies Palmistry coverage; this MT must preserve operation identity and recovery handles."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "TAILOR_PROFESSIONAL_PRODUCTION_V1",
+    "risks": [
+      "Without implement calibrated scan/reference fitting as an immutable-observation proposal pipeline split into parametric and residual contributions., BodyKit-v2 could ship an ambiguous, non-reproducible or non-professional production path.",
+      "GUI, backend, agent, replay, and manual projections may drift if they do not consume the same typed authority."
+    ],
+    "minimum_controls": [
+      "One typed owner and exact stable ids are required.",
+      "Negative, concurrent, cancellation, recovery, and no-context proofs are required where applicable.",
+      "No validator PASS/FAIL is inferred from this pre-activation contract."
+    ]
+  },
+  "pre_activation_reconciliation": {
+    "status": "NEW_BUILD_READINESS_CONTRACT",
+    "original_scope_preserved": true,
+    "reason_codes": [
+      "MULTI_LENS_BUILD_READINESS_GAP"
+    ],
+    "required_changes_before_execution": [],
+    "dependency_graph_status": "SPEC_V02_203_RECONCILED_BODYKIT_V2_DAG_CANDIDATE",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json"
+  }
+}

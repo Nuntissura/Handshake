@@ -14,7 +14,7 @@
   "title": "E7-MT-043-SwarmEditProof",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T10:18:06.262Z",
+  "updated_at_utc": "2026-07-31T21:38:52.2604111Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-043.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "PASS_V4",
     "active": false,
     "depends_on": [
       "MT-041",
@@ -38,11 +38,11 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "PASS_V4",
     "proof_status": "READY_FOR_VALIDATION_V3: product commit 0249f0c66eb0d46b4e1253388dce56310d68190c updates the MT-043 proof harness only inside allowed proof paths. Current-head proof uses independently supervised hidden process-agent children, kills one process mid-edit after an acknowledged mounted edit, and proves survivor refetch/keep-server/merge/save, durable content, live search, EventLedger/Flight Recorder attribution, canonical loom_edges, graph identities, and cleanup refresh against owned HSK_TEST_BASE=http://127.0.0.1:37501 and PostgreSQL 127.0.0.1:5545. Exact live proof passed 1/1; full test_e7_swarm_edit_proof passed 14/14; fixture ends PROOF_PASS.",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:38:52.2604111Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: checked-in swarm proof log ends PROOF_PASS while STEP 2 (edit-code) and STEP 3 (add-backlink) are BLOCKED on typed blockers and STEP 4's search PASS is SEEDED (response pre-loaded; no search executes; harness disconnected from STEP 1 doc). Contract IN-043-11 mandates the log END with PROOF_FAIL-blocked-on-MT-041, HBR-STOP mandates stop-at-first-blocker, and the validator gate is keyed on the PROOF_FAIL marker; finish_fail() exists but is dead code. ZERO of AC-043-02..05 met as written. The STRATEGIC_GAP escalation is the MT's real value and stays: code_editor_text TextInput declares zero AccessKit text-insertion actions - swarm agents cannot WRITE text; wikilink-by-id pick missing. Fix: regenerate log with contract-conformant PROOF_FAIL marker (or explicit operator waiver on marker semantics), relabel STEP 4 lines seeded/GATED, re-run the full 4-step proof after MT-041 gains SetValue/ReplaceSelectedText + wikilink-by-id and E11 mounts the panes.",
@@ -486,5 +486,111 @@
     "Record exact process identities, immutable source hash, Palmistry/diagnostic survivors, canonical Argus observation, and external artifacts from one bounded run."
   ],
   "no_context_instruction": "Read MT-043.json, the swarm contract, and current spec. Build a real multi-process crash proof bound to the current source and return READY_FOR_VALIDATION_V3 only after independent replay."
-}
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "PASS_V4",
+    "verdict_label": "PASS V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:38:52.2604111Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "committed_product_semantics": true,
+      "pre_existing_unrelated_dirty_files_preserved": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/frontend/handshake_native/tests/test_find_in_files.rs"
+      ],
+      "expected_test_generated_tracked_proof_change": {
+        "path": "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt",
+        "diff_numstat": "19 insertions, 19 deletions",
+        "reason": "AC-043-06 explicitly requires the proof test to overwrite the checked-in log on every authoritative run."
+      }
+    },
+    "authority_compared": [
+      "MT-043 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "SPEC_CURRENT v02.202 resolved Master Spec modules",
+      "WP_VALIDATOR_PROTOCOL.md",
+      "current proof harness source, complete fresh stdout, final checked-in proof log, matching external proof log, real-PostgreSQL assertions, EventLedger/Flight Recorder records, and cleanup evidence"
+    ],
+    "method": "Fresh adversarial current-head execution of the entire proof-only binary with explicit current-source backend, real PostgreSQL, psql, external target, and external stage binding. The validator then independently parsed the final proof log, enumerated every dispatched namespace, verified all four required steps and cleanup markers, checked the final marker/hash, and reviewed the expected tracked-fixture regeneration.",
+    "commands_and_results": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_swarm_edit_proof -- --nocapture --test-threads=1",
+        "result": "PASS: 14 passed, 0 failed, 0 ignored. The independently supervised authoritative child passed 1/1 in 22.83 seconds and the complete parent target finished in 25.40 seconds, both below the contract's 30-second scenario bound."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "proof-only scope and absence of MT-043 application-code edits",
+      "out-of-process process-agent request boundary and channel-only action authority",
+      "allowed AccessKit author_id namespaces and absence of keyboard simulation",
+      "managed-PostgreSQL note creation, native code authoring/save, backlink persistence, search result activation, graph observation, and cleanup",
+      "mid-edit process death, conflict/refetch/keep-server/merge/save recovery, exactly-once content, and attribution",
+      "proof-log locking, stale-attempt fencing, verdict-injection resistance, watchdog failure write, process-tree termination, and 30-second bound"
+    ],
+    "independent_checks_run": [
+      "The final proof log contains 56 lines, 19 DISPATCH records, and the literal final line PROOF_PASS.",
+      "All 19 dispatched author_ids begin with an allowed editor., graph., or search. namespace; bad namespace count is zero.",
+      "The source test's self-check found no send_key, send_char, write_text, simulate_key, press_key, or type_text calls in the proof body.",
+      "STEP 1 created exact SwarmProofNote and SwarmProofTarget knowledge_rich_documents rows in the isolated workspace and mounted the exact source document.",
+      "STEP 2 opened the exact rich code block, authored code through AccessKit SetValue, saved through the exact persistence bridge, and final content has code_exact_count=1.",
+      "STEP 3 inserted the exact target hsLink, persisted one canonical loom_edges source-to-target row, and final content has backlink_exact_count=1.",
+      "STEP 4 set and ran the live search, activated search.result.KRD-019fba1cda8d78d3b620f6dc58fc33a2, and observed both graph nodes before cleanup.",
+      "Actor A and actor B have distinct exact-one EventLedger save receipts and distinct Flight Recorder event IDs with actor/task/session/correlation attribution.",
+      "The killed actor-B process left one recoverable acknowledged edit; the survivor adopted server state, merged once, saved, and final content has loser_edit_exact_count=1 at doc_version=3.",
+      "Document cleanup removed both canonical rows and edges, graph refresh removed both identities, sidecar-less crash-window cleanup removed the attempt workspace, and the final workspace cascade assertions passed.",
+      "The checked-in and external proof logs are byte-identical with SHA256 E592A14BB71EC7A6845AEAD6014A396ADF15A0569273EF415CE98FB657BE1313."
+    ],
+    "counterfactual_checks": [
+      "The standalone seeded surface diagnostic was not used as success authority; it explicitly ends PROOF_NOT_RUN and only the managed-PostgreSQL child can publish PROOF_PASS.",
+      "Implementer-injected code/backlink content was not accepted: the exact code and target identity were authored through AccessKit actions and verified in final persisted content.",
+      "An in-thread simulated crash was not accepted: an independently supervised process was killed after its mounted edit acknowledgement and a different survivor process performed recovery.",
+      "A search-result fixture was not accepted for STEP 4: the authoritative child used live search.query, search.run, and the exact persisted KRD result.",
+      "A duplicate or lost merge would fail the exact counts and distinct receipt assertions; the run proved one code block, one backlink, one recovered loser edit, and exactly one save receipt per actor."
+    ],
+    "boundary_probes": [
+      "external process request IPC versus application state ownership",
+      "actor A winner save versus actor B stale conflict and survivor merge",
+      "mounted editor state versus canonical PostgreSQL document/edge state",
+      "AccessKit action acknowledgement versus EventLedger and Flight Recorder attribution",
+      "live search result and graph identities before cleanup versus their absence after cleanup",
+      "active proof-log writer versus stale lock recovery, live slow writer protection, and bounded watchdog failure write",
+      "successful bounded child versus process-tree timeout termination and cleanup"
+    ],
+    "negative_path_checks": [
+      "Transient widget id slash-item-code is rejected by the namespace guard.",
+      "A stuck condition emits a step-named SWARM_PROOF_TIMEOUT.",
+      "The proof-log lock recovers from a killed writer but never steals from a live slow writer.",
+      "Payload text is forced to one line and cannot inject a terminal verdict.",
+      "Watchdog failure publication remains bounded under live log contention.",
+      "Owned child process-tree termination and timeout-workspace cleanup are bounded and tested."
+    ],
+    "independent_findings": [
+      "All four contract steps are proven through the required AccessKit namespace against one isolated real-PostgreSQL scenario.",
+      "The proof exceeds the base four-step requirement by demonstrating independently supervised mid-edit process failure, surviving acknowledged work, deterministic conflict recovery, exact merged persistence, and dual-ledger attribution.",
+      "The required checked-in proof fixture was freshly regenerated by the test and therefore appears as an expected validator-run working-tree change; its external duplicate and SHA256 provide independent integrity evidence.",
+      "No MT-043 product-code remediation is required. MT-042's separate canonical graph receipt failure does not invalidate this MT's independently passing channel-only four-step proof."
+    ],
+    "accepted_artifacts": [
+      {
+        "path": "src/frontend/handshake_native/tests/fixtures/swarm_edit_proof_log.txt",
+        "sha256": "E592A14BB71EC7A6845AEAD6014A396ADF15A0569273EF415CE98FB657BE1313",
+        "kind": "CHECKED_IN_REGENERATED_AUTHORITATIVE_PROOF_LOG"
+      },
+      {
+        "path": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-043/swarm_edit_proof_log.txt",
+        "sha256": "E592A14BB71EC7A6845AEAD6014A396ADF15A0569273EF415CE98FB657BE1313",
+        "kind": "EXTERNAL_AUTHORITATIVE_PROOF_LOG_COPY"
+      }
+    ],
+    "pass_basis": "MT-043 PASS_V4. The complete current-head proof target passes 14/14. Its independently supervised live child performs all four required AccessKit-only actions in one isolated real-PostgreSQL scenario, survives a killed editor-agent process, preserves and merges acknowledged work exactly once, proves distinct EventLedger/Flight Recorder attribution, cleans all owned rows/state, completes within the bound, and publishes a 56-line 19-action PROOF_PASS log in both required locations.",
+    "remediation_required": false,
+    "residual_uncertainty": "No acceptance-blocking uncertainty remains for MT-043. The tracked proof log contains run-specific IDs by contract and will change on every authoritative rerun; consumers must compare its terminal marker and current-run integrity rather than expect byte stability across runs."
+  }
 }

@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-651",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": "2026-07-16T18:27:29Z",
+  "updated_at_utc": "2026-08-01T04:26:38.699Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-651.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
@@ -34,7 +34,6 @@
   "markdown_projection": {
     "path": "NOT_GENERATED_BY_DEFAULT",
     "status": "NOT_GENERATED_BY_DEFAULT",
-    "source_file": "NOT_GENERATED_BY_DEFAULT",
     "source_hash": "NOT_GENERATED_BY_DEFAULT",
     "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
@@ -53,18 +52,20 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Author the UserManual BodyKit chapter per Section 13.27 (HBR-MAN + CX-982): purpose, channel workflow including decoupling and over-range, genital configuration in direct language, export profiles and round-trip, recipe save/share, all 8 MCP tools with exact wire names and examples, failure modes with recovery, and the diagnostics posture — sufficient for a no-context model to operate BodyKit end-to-end.",
+    "summary": "Author the BodyKit UserManual for the v02.203 native runtime, GNM-v3 provider, dependency bundles, project/body/face/anatomy/performance workflows, GLB/restricted USD delivery, optional Unreal, manual Blender and typed unsupported recovery.",
     "allowed_paths": [
       "src/backend/handshake_core/src/user_manual/seed.rs",
       "src/backend/handshake_core/src/tailor/bodykit/mod.rs"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "The chapter seeds into the UserManual store covering: BodyKit purpose and architecture summary; the channel workflow (region groups, decoupling guarantee, designed over-range, coupling links and isolation); genital configuration documented in direct production language; export profiles with unit/axis contracts and the FBX-via-Blender-bridge rule; recipes incl. PNG share cards; and the archetype QA surface.",
       "All 8 MCP tools are documented with their EXACT wire names (author_body, edit_body, get_body, solve_measurements, randomize_body, pose_body, configure_genitals, export_body), input/output schemas, and one worked example each.",
       "Common failure modes and recovery steps are documented (decouple violation -> suggested_fix loop, stale proxies, bridge-missing-Blender, license-guard rejection, infeasible measurement targets).",
       "The diagnostics posture section records the exact HBR-INT-009 DIRECT, INHERITED, or NOT_APPLICABLE posture, owning surface, reason, evidence route, correlation identifiers, and recovery handle for Flight Recorder, internal_diagnostics, and Palmistry across BodyKit surfaces; blank, generic, or deferred rows fail validation.",
-      "The manual self-consistency test passes, and the no-context operation test drives one documented flow (author -> edit -> export) using only chapter content."
+      "The manual self-consistency test passes, and the no-context operation test drives one documented flow (author -> edit -> export) using only chapter content.",
+      "The active TailorInterchangeProfile or runtime capability row records exact direction, versions, hashes, supported payloads, losses, unsupported cases, privacy behavior, artifacts and qualification receipts before the action is exposed.",
+      "Proof includes successful canonical Rust behavior plus one missing/removed-adapter or unsupported-direction case and demonstrates no partial authority mutation, silent fallback, data loss or false qualification.",
+      "The product path is Rust-owned, local and offline: Python/PyTorch, generated executable scripts, cloud services, implicit network access and runtime downloads are prohibited; optional adapters are pinned and removable."
     ],
     "proof_targets": [
       "cargo test -p handshake_core user_manual::bodykit_chapter_self_consistent_no_context_operable"
@@ -105,8 +106,10 @@
   "hbr_obligations": [
     "HBR-INT",
     "HBR-MAN",
+    "HBR-PRIV",
     "HBR-SWARM",
-    "HBR-VIS"
+    "HBR-QUIET",
+    "HBR-STOP"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -121,8 +124,8 @@
     },
     {
       "tier": "palmistry",
-      "posture": "INHERITED",
-      "reason": "The owning native shell or scheduled job supplies Palmistry coverage; this MT must preserve operation identity and recovery handles."
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
     }
   ],
   "handoff": {
@@ -154,7 +157,31 @@
     "required_changes_before_execution": [
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
-    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    "dependency_graph_status": "SPEC_V02_203_RECONCILED_BODYKIT_V2_DAG_CANDIDATE",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "requirements": [
+      "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
+      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
+    ],
+    "expected_evidence": [
+      "cross_account_and_cross_space_negative_tests",
+      "derived_scope_non_widening_test",
+      "revocation_cache_context_handle_invalidation_test",
+      "log_trace_preview_non_disclosure_test"
+    ]
   }
 }

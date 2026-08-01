@@ -14,7 +14,7 @@
   "title": "E10-MT-067-CalendarDailyNoteAndActivityInterop",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-23T07:28:42.1223942Z",
+  "updated_at_utc": "2026-07-31T23:06:30.6454687Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-067.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-019",
@@ -35,12 +35,12 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_REVIEWS_2026-07-23",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:06:30.6454687Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: CalendarInteropService is NEVER instantiated in the live shell - events_for_range/activity_spans_for_event/open_or_create_daily_note never called live; DailyJournalState constructed with event=None and no host calls set_calendar_unavailable or set_event_with_spans, so the contract-mandated operator-visible typed empty-state is unreachable; chip-click focus-calendar-event drain is an explicit no-op. Daily-note half IS live (LoomDailyJournal pane + DateNavigated routing). Fix: on daily-journal pane bind, issue one events_for_range/activity fetch and apply set_calendar_unavailable on EndpointUnavailable; amend carry note that the service is currently test-only.",
@@ -557,5 +557,82 @@
     "Add real PostgreSQL cases for Europe/Brussels near-midnight, DST gap/overlap, multi-day timed, and all-day events; then run canonical Argus navigation/re-observation and update canonical UserManual."
   ],
   "no_context_instruction": "Read MT-067.json and SPEC_CURRENT v02.201 calendar sections 2.0.1-2.1.2. Repair temporal semantics without rewriting the spec, prove real data and Argus behavior, then return READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:06:30.6454687Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "backend_binary": "../Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-019",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-030",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-037",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      }
+    ],
+    "method": "Read the complete MT-067 contract and current 20-test implementation; ran the full Calendar interop binary serially against real PostgreSQL and the current-source backend with GPU screenshot proof; inspected the exact failing source around both argus.finish calls and the canonical driver terminal-predicate contract; directly opened the generated Daily Journal screenshot; and compared current dependency states, live test results, UI evidence, and action terminality to all acceptance criteria and proof targets.",
+    "pass_evidence": [
+      "All three declared dependencies are independently green: MT-019, MT-030, and MT-037 are PASS_V1.",
+      "The complete current suite ran 20 non-ignored tests; 18 passed. Passing scenarios cover delegated/idempotent open-or-create logic, event-chip bus dispatch, read-only activity chips, 404/501 typed blockers, 503 retry/exhaustion, cancellation without FR residue, malformed response handling, preserved event state on activity failure, command identity, AccessKit structure, and no-SQLite/no-backend-edit gates.",
+      "The fresh GPU screenshot ../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-067/MT-067-daily-journal-calendar-interop.png has SHA-256 61E69B41AF58C540EAB59B045F5887B8342ACD6932C0BA2CA487D789B6818781 and was directly inspected. It visibly shows the June 21, 2026 Daily Journal, prev/next/Today controls, Sprint planning CalendarEvent chip, and DOC-A activity item, all readable and non-overlapping.",
+      "Both failing tests reached their product-state assertions and failed only at the final canonical Argus terminality gate, not at PostgreSQL reachability, temporal decoding, panel rendering, or typed error behavior."
+    ],
+    "fail_report": {
+      "summary": "MT-067 FAIL V4. The full Calendar suite exits 1 with 18 passed and 2 failed. canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event and open_or_create_daily_note_is_idempotent_against_real_pg_live both panic at canonical_argus_driver.rs:644 because their latest actions were never rebound to authoritative terminal snapshots with action-specific terminal predicates. The required canonical Argus proof therefore fails despite otherwise strong functional evidence.",
+      "acceptance_impact": "The MT's runtime proof set is not green and the Calendar navigation/click path is not authoritatively attributable to canonical actions. PASS is prohibited until the exact live and localhost actions are terminally rebound and the complete suite exits zero.",
+      "root_boundary": "CANONICAL_ARGUS_TERMINAL_REINSPECTION_AND_PREDICATE_BINDING",
+      "failure_evidence": [
+        "Exact full command used the current-source backend, real PostgreSQL, external Cargo target, HANDSHAKE_GPU_SCREENSHOT=1, and serial execution. Result: Cargo exit 1; 18 passed, 2 failed, 0 ignored; body 56.86 seconds.",
+        "canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event dispatched the CalendarEvent chip, asserted the immediate observation showed the CalendarEvent details and normalization badge, then called argus.finish() without assert_latest_terminal_predicate or reinspect_latest_terminal. canonical_argus_driver::finish rejected terminal_refreshed=false.",
+        "open_or_create_daily_note_is_idempotent_against_real_pg_live dispatched daily-journal-next-day, explicitly accepted receipt status applied OR indeterminate at tests/test_calendar_interop.rs:1267-1272, and called argus.finish() at line 1274 before the subsequent loop waited for the new date, journal identity, CalendarEvent, and ActivitySpan state. The final gate correctly rejected the provisional observation.",
+        "CanonicalArgusDriver::finish requires terminal_refreshed=true and at least one passed action-specific terminal predicate for every action. Neither failing call site supplies either requirement.",
+        "Because finish panics before durable canonical evidence serialization, the fresh run produced the general Calendar screenshot but no new successful source-bound canonical Argus JSON for the two failed action paths.",
+        "The screenshot proves fixture visual layout only; it does not prove the live date-navigation or CalendarEvent-chip action receipts and cannot replace the failed canonical gate."
+      ]
+    },
+    "remediation_plan": [
+      "1. In open_or_create_daily_note_is_idempotent_against_real_pg_live, do not call argus.finish immediately after the provisional next-day click. Retain the driver until the mounted host reaches the authoritative second-date terminal state.",
+      "2. After waiting for date B, bind the latest action with assert_latest_terminal_predicate_with_evidence. The predicate must inspect the fresh Argus tree for the exact selected date/date-header value, the exact new daily-note document identity, the exact CalendarEvent chip identity/content, and the expected ActivitySpan/document-chip state. Include runtime-generated date, doc_id, event_id, and span_id as evidence for external recomputation.",
+      "3. Bind the live next-day action to backend truth as well as UI truth: require the exact journal row for date B, no duplicate journal document, the expected CalendarEvent daily_note_doc_id, exact correlated Calendar/Event ActivitySpan Flight Recorder rows, and exclusion of date-A causal rows before argus.finish.",
+      "4. In canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event, replace the immediate-observation-only assertion with assert_latest_terminal_predicate after the CalendarEvent destination tab is authoritative. The predicate must verify the content-addressed CalendarEvent detail node, normalization badge, active PaneType::CalendarEvent, and exact EVENT-TRANSIENT-DATE-B content identity in the fresh terminal tree.",
+      "5. Do not accept indeterminate as sufficient final proof. A provisional receipt may initially be applied or indeterminate, but the official artifact must re-inspect after the product settles, retain the exact receipt, attach a passed action-specific terminal predicate, and then allow finish to succeed.",
+      "6. Serialize fresh canonical Argus JSON only after argus.finish succeeds. Include the ordered action target, receipt id/status, before snapshot, authoritative terminal snapshot, terminal predicate id/evidence/result, source SHA, backend/run identity, PostgreSQL entity IDs, Flight Recorder IDs, and paired screenshot path/hash.",
+      "7. Add a regression assertion that both Calendar call sites invoke a terminal predicate before finish, so future refactors cannot revert to immediate three-frame observations or print/pass functional evidence while canonical proof remains provisional.",
+      "8. Preserve the currently passing temporal, retry, cancellation, empty-state, read-only activity, AccessKit, and no-SQLite behavior. The remediation should be proof/control-flow hardening, not a rewrite of the lossless Calendar model.",
+      "9. Ensure cleanup and server shutdown still execute if a terminal predicate fails, and require zero exact run residue in PostgreSQL/EventLedger/Flight Recorder before writing PASS evidence."
+    ],
+    "verification_required": [
+      "Run canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event alone; require 1 passed, 0 failed and a terminal predicate proving the exact CalendarEvent destination after the chip click.",
+      "Run open_or_create_daily_note_is_idempotent_against_real_pg_live alone against real PostgreSQL/current-source backend; require 1 passed, 0 failed and a terminal next-day predicate bound to the exact new journal, CalendarEvent, ActivitySpan, and Flight Recorder identities.",
+      "Parse both fresh Argus artifacts and require terminal_refreshed=true, at least one passed action-specific terminal predicate per action, exact receipt retention, zero unbound/indeterminate-final actions, and exact source SHA/run binding.",
+      "Run the complete test_calendar_interop binary serially with real PostgreSQL, current-source backend, GPU mode, and external Cargo target; require 20 passed, 0 failed, 0 ignored and Cargo exit 0.",
+      "Open the fresh live and localhost screenshots and compare them to the terminal Argus trees; verify date/event/activity content, controls, selected destination, readability, and absence of overlap.",
+      "Query PostgreSQL/EventLedger/Flight Recorder after the live run and require exact idempotent journal identity plus zero scoped fixture residue after cleanup.",
+      "Re-run the retry/exhaustion, cancellation, 404/501 typed blocker, malformed payload, read-only activity, AccessKit, and no-SQLite tests to guard against proof-hardening regressions.",
+      "Return READY_FOR_VALIDATION for an independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-067.json completely, then packet.json, current SPEC_CURRENT v02.202 Calendar clauses, tests/test_calendar_interop.rs, and tests/native_gui_support/canonical_argus_driver.rs. Reproduce both finish failures at source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e or a declared successor. Move each finish after authoritative product settlement, bind exact action-specific terminal predicates with recomputable UI/backend evidence, serialize fresh artifacts only after finish, rerun focused and complete live/GPU proofs with external artifacts, directly inspect frames, verify zero residue, and hand off READY_FOR_VALIDATION without relying on prior V3 artifacts."
+  }
 }

@@ -14,7 +14,7 @@
   "title": "U2-MT-098-ChatboxPaneBesideWorksurface",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-24T16:10:00.000Z",
+  "updated_at_utc": "2026-07-31T23:33:46.4321471Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -33,10 +33,10 @@
     "blocks": [
       "MT-104"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:33:46.4321471Z",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt098",
       "mode": "VERIFY_AND_PROVE",
@@ -382,5 +382,73 @@
     "disposition": "operator menu-bar Runtime Chat item wired (CMD_VIEW_CHAT + menu.view.open-runtime-chat)",
     "kb_ready_checklist": "PASS",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:33:46.4321471Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-097",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      }
+    ],
+    "method": "Read the complete MT-098 contract, current Runtime Chat implementation/test source, V3 remediation evidence, canonical Argus gate, and MT-097 verdict; ran the complete test_runtime_chat_pane binary with GPU mode and the external Cargo/artifact root; inventoried canonical terminal-predicate calls; and directly inspected the fresh default side-by-side screenshot and the mounted unavailable/retry/cancellation/recovery screenshot against the expected real-pane, typed EndpointMissing, no-fabricated-assistant, and layout behavior.",
+    "pass_evidence": [
+      "Thirteen tests passed. They cover aggregate-proof guards, exact four-state error mapping, route-level versus semantic 404 distinction, duplicate/stale delivery suppression, app-owned worker lifetime, and the real default mounted tree.",
+      "runtime_chat_real_post_maps_router_404_to_typed_endpoint_missing passed, proving the client performs a real HTTP POST probe and maps router-level absence to the typed EndpointMissing state.",
+      "Distinct non-fallback failures and a semantic 404 from a registered route remain distinct rather than being misclassified as route absence.",
+      "The inspected default screenshot shows Code Symbol, Wiki Page, and Runtime Chat side by side without overlap or starvation. The real Chat pane visibly reports EndpointMissing and no assistant turn is fabricated.",
+      "The inspected canonical screenshot shows three user turns for initial send, retry, and cancellation/recovery attempts, followed by an EndpointMissing status explicitly stating that no assistant turn was appended.",
+      "MT-097, the only declared dependency, is independently green. The ignored mt108_argus_runtime_chat_real_server_loop belongs to MT-108 runner aggregation and is not treated as an MT-098 product failure."
+    ],
+    "fail_report": {
+      "summary": "MT-098 FAIL V4. The complete chat-pane binary returned 13 passed, 1 failed, and 1 MT-108-only ignored test. The sole applicable failure is mt098_mounted_chat_pane_canonical_argus_state_coverage: it drives focus, send, typed EndpointMissing, retry, cancellation, and recovery states, writes a screenshot/tree, then reaches canonical_argus_driver::finish without rebinding its actions to authoritative terminal snapshots and action-specific predicates. The product behavior is materially present, but the required canonical attribution chain is not.",
+      "acceptance_impact": "The mandatory mounted canonical state proof is red. Immediate/local assertions and a final screenshot cannot establish that each MCP action produced the exact observed transcript/status transition, that stale/cancelled completions were excluded, or that recovery was the terminal state for the correct generation.",
+      "root_boundary": "UNBOUND_CANONICAL_RUNTIME_CHAT_ACTIONS_WITH_GREEN_UNAVAILABLE_AND_LAYOUT_BEHAVIOR",
+      "failure_evidence": [
+        "The full test_runtime_chat_pane binary returned 13 passed, 1 failed, 1 ignored, Cargo exit 1 after 11.85 seconds.",
+        "mt098_mounted_chat_pane_canonical_argus_state_coverage panicked at tests/native_gui_support/canonical_argus_driver.rs:644: 'every canonical action must be rebound to an authoritative terminal snapshot'.",
+        "test_runtime_chat_pane.rs contains one MT-098 argus.finish call and zero assert_latest_terminal_predicate/reinspect_latest_terminal calls.",
+        "The failing test's stdout claims inspect, focus, first send, EndpointMissing, retry, cancellation, and recovery before finish; none of those action receipts is finalized by an authoritative state-specific predicate.",
+        "The final screenshot demonstrates the intended honest no-assistant result, but it does not bind each transcript entry/status change to the corresponding MCP receipt or prove stale/cancelled responses could not mutate the active generation.",
+        "The only ignored test is explicitly MT-108 runner-only and is excluded from the MT-098 failure basis; the defect is the red MT-098 canonical proof itself."
+      ]
+    },
+    "remediation_plan": [
+      "1. After every canonical Runtime Chat action, wait for the panel's authoritative generation/request state to settle, freshly reinspect the mounted AccessKit/product state, and bind an action-specific terminal predicate before argus.finish. Do not weaken the finish gate.",
+      "2. Bind focus/input SetValue to runtime-chat-input focus, exact draft text, active pane identity, and absence of transcript mutation before Send.",
+      "3. Bind the first Send to exactly one user turn, exact request generation/id, real RuntimeChatClient POST attempt, router-level 404 classification, EndpointMissing status, send-enabled/retry state, and zero assistant turns. Include endpoint and typed error as predicate evidence without fabricating a reply.",
+      "4. Bind Retry to a new request generation with the exact retained user draft/turn policy, no duplicate first-generation delivery, one attributable request, and the expected terminal typed unavailable state.",
+      "5. Bind Cancellation to cancellation of the exact in-flight generation, no late transcript/status mutation from that generation, correct worker/task ownership, and a truthful non-spinner terminal state.",
+      "6. Bind Recovery to the succeeding generation only: prove the replacement response/status wins, stale/cancelled completion is ignored, active generation clears, controls become usable, and no extra assistant/user turn appears. If the real route remains absent, label this client-state recovery rather than claiming backend chat success.",
+      "7. Export a source-bound canonical artifact containing ordered MCP actions, receipts, request generations, before/terminal trees, passed predicate evidence, exact transcript roles/text, typed errors, cancellation/stale-delivery disposition, screenshot paths, and teardown result. Write success stdout only after finish succeeds.",
+      "8. Preserve all thirteen green tests, honest EndpointMissing behavior, distinct semantic error mapping, no fabricated assistant reply, app-owned worker lifetime, stable AccessKit ids, MT-097 side-by-side layout, external artifacts, and the MT-108 runner-only boundary."
+    ],
+    "verification_required": [
+      "Run mt098_mounted_chat_pane_canonical_argus_state_coverage alone and require 1 passed, 0 failed with a retained receipt and passed terminal predicate for every focus/send/retry/cancel/recovery action.",
+      "Parse the fresh canonical artifact and require source_sha=current HEAD, terminal_refreshed=true, exact ordered action/receipt/generation mapping, non-empty passed predicate lists, zero unbound/rejected/duplicate actions, and argus_teardown_verified=true.",
+      "Prove first send and retry each produce their exact intended user-turn/request behavior, EndpointMissing is router-attributed, and no assistant turn is appended while the route is absent.",
+      "Prove cancellation and stale-delivery isolation under delayed responses: only the active generation may publish terminal state, cancelled/stale generations cannot mutate transcript/status, and all workers terminate.",
+      "Run runtime_chat_real_post_maps_router_404_to_typed_endpoint_missing, runtime_chat_non_fallback_responses_keep_distinct_typed_failures, registered_route_bare_semantic_404_is_not_misclassified_as_missing_route, duplicate_send_and_stale_delivery_cannot_mutate_active_generation, and live_type_and_click_after_dropped_injected_runtime_uses_app_owned_worker; require all green.",
+      "Run live_default_tree_contains_runtime_chat_beside_editors_and_screenshot and inspect the fresh screenshot/tree; require real panel/input/send nodes, three non-starved panes, readable non-overlapping layout, honest EndpointMissing text, and no fabricated assistant reply.",
+      "Run the complete MT-098 applicable suite and require 14 passed, 0 failed; retain the MT-108 runner-only ignore as a separately owned proof rather than relabeling it MT-098 acceptance.",
+      "Confirm MT-097 remains independently green and run the focused theme/AccessKit/build checks from AC-098-4/5 with the external Cargo target.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-098.json completely, packet.json, MT-097 verdict, runtime_chat/mod.rs, runtime_chat/panel.rs, pane_registry.rs, app.rs Chat factory/default panes, backend_client RuntimeChatClient, test_runtime_chat_pane.rs, and canonical_argus_driver.rs. Reproduce the single finish failure, bind focus/send/unavailable/retry/cancellation/recovery to exact fresh terminal predicates and request generations, preserve honest EndpointMissing/no-assistant behavior, rerun the applicable suite with external artifacts, inspect fresh frames, and hand off READY_FOR_VALIDATION without weakening canonical Argus or claiming backend-chat recovery while the endpoint is absent."
   }
 }

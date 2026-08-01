@@ -14,7 +14,7 @@
   "title": "E7-MT-042-KnowledgeGraphAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-24T10:05:00.000Z",
+  "updated_at_utc": "2026-07-31T21:34:54.9701088Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -39,10 +39,10 @@
       "MT-043",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:34:54.9701088Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the NEEDS_MANAGED_RESOURCE_PROOF test ac10_live_pg_round_trip is an unconditional panic! stub - NO real live-test body exists behind the #[ignore] and the integration feature gates nothing here; AC-042-05/06/07/10 + PROOF-042-D DB halves are un-runnable until the test is authored (MT-044/045/046 show the correct pattern). Same live-host orphan as MT-041: install_knowledge_action_registry never called by any host - knowledge.* actions exist only in kittests. Positive: real AccessKit click dispatch with JSON payloads, verified route corrections, malformed-payload no-panic. Fix: author the real live-PG round-trip body (placements row, tag-edge move, edge row SELECTs); shared registry install via the E11 wiring bundle.",
@@ -456,5 +456,108 @@
     "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-042/canonical-argus/mt042-knowledge-graph-argus.json",
     "kb_ready_checklist": "PASS",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:34:54.9701088Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "committed_product_semantics": true,
+      "pre_existing_unrelated_dirty_files_preserved": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/frontend/handshake_native/tests/test_find_in_files.rs"
+      ]
+    },
+    "authority_compared": [
+      "MT-042 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "SPEC_CURRENT v02.202 resolved Master Spec modules",
+      "WP_VALIDATOR_PROTOCOL.md",
+      "ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      "current registry/pane source, complete fresh AccessKit/live-PG output, dedicated canonical Argus output, fresh tree JSON, and directly inspected fresh PNG"
+    ],
+    "method": "Fresh adversarial current-head validation of the complete knowledge AccessKit/live-PostgreSQL binary and the dedicated integration+GPU canonical Argus binary, followed by direct receipt/tree parsing and direct visual inspection.",
+    "commands_and_results": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_knowledge_accesskit -- --nocapture --test-threads=1",
+        "result": "PASS: 24 passed, 0 failed. Live PostgreSQL proved populated graph identities/relationships, exact document open, Canvas placement/tree diff, Kanban tag move with direct loom_edges query, semantic edge add/remove, empty/backend-loss states, collision-safe identity, stale/offscreen rejection, malformed-payload safety, real request shapes, and cleanup."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration,wgpu_screenshots --test test_e7_knowledge_accesskit_argus -- --nocapture --test-threads=1",
+        "result": "FAIL: 2 passed, 1 failed. Empty and unreachable-backend error inspections passed. The live populated navigation test emitted receipt_status=indeterminate and then failed at CanonicalArgusDriver::finish with 'every canonical action must be rebound to an authoritative terminal snapshot'."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "stable graph/canvas/collection identities, roles, fixed controls, payload decoding, collision handling, and stale/offscreen rejection",
+      "mounted graph open, Canvas placement/remove, collection Kanban move, semantic edge add/remove, persisted PostgreSQL state, reload, and cleanup",
+      "empty and backend-error states, retry visibility, malformed payload safety, and no duplicate toolbar action",
+      "canonical Argus transport, action attribution, terminal receipt rebinding, fresh observation, finish gate, and unobscured mounted visual evidence"
+    ],
+    "independent_checks_run": [
+      "All 24 knowledge AccessKit cases passed, including the real-PostgreSQL AC-042-10 round trip and direct psql tag-edge authority query.",
+      "The live proof printed a before/after Canvas card diff and persisted Kanban move counts: done=1, todo=0.",
+      "The dedicated canonical suite loaded four real graph nodes and two relationships, inspected stable graph.node identities, and dispatched the exact graph-node navigation action.",
+      "The navigation action record is attributed and has receipt_id=1, but receipt_status=indeterminate; no authoritative terminal snapshot was attached.",
+      "The driver finish gate failed exactly on that unresolved action, so the previous V3 3/3 claim is not reproducible from current HEAD.",
+      "Direct inspection of the fresh PNG found the intended graph/navigation proof materially obscured by a failed 'Propose to Memory' modal showing HTTP 401, plus unrelated EndpointMissing/alias degradation."
+    ],
+    "counterfactual_checks": [
+      "The 24/24 raw AccessKit/live-PG suite was not accepted as a substitute for the MT's dedicated canonical out-of-process transport proof.",
+      "A fresh post-click tree and navigation-away observation were not allowed to convert an indeterminate click into success without causal terminal rebinding.",
+      "The historical V3 3/3 statement was not trusted over the fresh current-head 2/3 failure.",
+      "The screenshot was opened rather than accepted by filename; direct inspection exposed the obscuring failed modal."
+    ],
+    "boundary_probes": [
+      "populated graph versus empty workspace and unreachable backend",
+      "registered visible identity versus stale, hidden, unregistered, collision, and offscreen identities",
+      "Canvas owned placement versus new placement and unrelated state",
+      "Kanban todo tag versus persisted done tag",
+      "semantic edge add/remove versus projection-only visual edge",
+      "Argus dispatch receipt versus authoritative terminal navigation snapshot",
+      "intended success graph frame versus unrelated modal/error overlays"
+    ],
+    "negative_path_checks": [
+      "Malformed and missing parameter payloads are logged/dropped without UI panic.",
+      "Blank graph/canvas/collection identities are rejected.",
+      "Stale hidden and unregistered offscreen actions cannot mutate or open the wrong entity.",
+      "Empty graph exposes controls but no node identities; unreachable backend exposes Retry and no nodes.",
+      "The canonical finish gate correctly rejects the indeterminate action."
+    ],
+    "independent_findings": [
+      "KnowledgeActionRegistry behavior and its real-PostgreSQL graph, Canvas, collection, and semantic-edge mutations are current-head green.",
+      "The canonical populated graph navigation proof is current-head red because the graph.node click remains indeterminate and is not rebound to a terminal snapshot.",
+      "The fresh proof image is not usable success evidence because a failed FEMS proposal modal obscures the central surface and reports HTTP 401.",
+      "The dedicated canonical suite currently covers graph-node navigation plus empty/error inspection, but does not provide terminal canonical action receipts for Canvas placement/remove, Kanban move, or semantic edge add/remove required by the MT's model-action surface."
+    ],
+    "fail_report": "MT-042 FAIL_V4. The 24-case AccessKit and real-PostgreSQL mutation suite is green, including exact graph, Canvas, collection, semantic-edge, identity, negative, and cleanup behavior. The dedicated canonical Argus suite fails 2/3 because graph navigation remains indeterminate at finish, and the fresh success image is obscured by a failed HTTP-401 modal.",
+    "acceptance_impact": "The MT exists to expose knowledge actions to out-of-process swarm agents. An indeterminate canonical action and failed finish gate directly violate that acceptance boundary; raw in-process AccessKit dispatch and persisted backend correctness cannot replace terminal attributable transport proof.",
+    "remediation_plan": [
+      "In mt042_knowledge_graph_canonical_argus_navigate_reobserve, bind the graph.node click to an action-specific terminal predicate before finish. Completion must prove the exact raw block_id was opened in the mounted document pane, the active document identity matches the requested node, its backend load reached a terminal success revision, and the before/after tree generation changed under the same action correlation ID. Do not use disappearance of graph controls alone as completion.",
+      "Finalize the action receipt with stable author_id, requested raw block_id, attributed agent/binding, receipt ID, before/after tree hash or generation, target-selected state, terminal predicate ID/status, opened rich_document_id or Loom block identity, navigation correlation ID, and terminal success/failure. Assert zero indeterminate receipts before writing artifacts and call argus.finish only after all actions settle.",
+      "Prevent unrelated FEMS/Runtime Chat/alias overlays from contaminating the canonical success fixture. Clear only deterministic test-owned ephemeral overlays or seed the required service response before initial inspection; also assert that no unexpected modal/error-status author IDs are present before capture. Do not hide genuine graph errors—keep the unreachable-backend Retry proof as a separate named negative artifact.",
+      "Capture both the populated graph before action and exact opened-document after action as full mounted-shell screenshots plus trees from one unique V4 run ID. The before frame must visibly show the four real nodes/two relationships and graph controls; the after frame must show the exact opened entity and no obscuring modal.",
+      "Extend canonical coverage to the MT's remaining out-of-process mutation families: canvas.place-block and remove-placement, collection.kanban-move, graph.add-edge and remove-edge. For parameterized actions, bind the terminal receipt to backend-minted placement/edge IDs or persisted tag-edge state and a fresh mounted-tree projection; require zero indeterminate actions and preserve unrelated entities.",
+      "Add canonical negative/terminal receipts for malformed payload, stale/hidden identity, empty graph, and backend-error Retry. For Retry, record the initial typed failure, canonical click, request generation, and either terminal recovery with fresh nodes or terminal typed failure if the backend remains unavailable.",
+      "Rerun the 24-case AccessKit/live-PG suite and the entire canonical suite from current HEAD with explicit PostgreSQL/psql/backend bindings and external per-run artifacts. Directly inspect every receipt/tree/PNG and matching database row; require both suites exit zero, all mutations correlate to exact identities, workspace cleanup succeeds, and no canonical action remains unresolved."
+    ],
+    "verification_required": [
+      "Fresh AccessKit/live-PG suite: 24 passed, 0 failed, including direct PostgreSQL authority queries and cleanup.",
+      "Fresh canonical suite exits zero with terminal receipts for graph open, Canvas place/remove, Kanban move, semantic edge add/remove, Retry/recovery, and zero indeterminate/unresolved actions.",
+      "Every action record binds stable target, raw entity identity, agent attribution, before/after tree hashes or generations, terminal predicate/status, and matching backend receipt or persisted row identity.",
+      "Direct inspection of fresh before/after full-shell PNGs and trees confirms readable populated graph, exact opened document, exact Canvas/collection projections, separate empty/error states, and no obscuring unrelated modal.",
+      "Real-PostgreSQL state, unrelated-entity preservation, semantic edge/tag/placement cleanup, external artifact hygiene, and exact owned-backend teardown remain green."
+    ],
+    "no_context_instruction": "Read MT-042.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green registry and real-PostgreSQL implementation plus the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Repair graph-node terminal rebinding; eliminate unrelated modal/error contamination from success fixtures without hiding graph failures; add terminal canonical action receipts for Canvas, Kanban, and semantic-edge mutations; write unique V4 before/after proof bundles; rerun both focused suites with explicit backend/PostgreSQL/psql bindings; inspect every fresh receipt/tree/PNG and persisted row; require zero indeterminate actions and complete cleanup; then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
+    "remediation_required": true,
+    "residual_uncertainty": "The in-process action registry and persisted mutations are strongly proven. Remaining uncertainty is the causal safety and terminal observability of the out-of-process canonical action channel plus the contaminated mounted success visual."
   }
 }

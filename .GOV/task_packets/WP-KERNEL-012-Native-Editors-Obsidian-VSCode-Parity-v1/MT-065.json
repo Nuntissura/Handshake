@@ -14,7 +14,7 @@
   "title": "E9-MT-065-FemsInteropProofSuite",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-26T01:20:15.6333794Z",
+  "updated_at_utc": "2026-07-31T22:58:16.1146055Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-065.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-063",
@@ -33,10 +33,10 @@
       "MT-041"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:58:16.1146055Z",
     "claimed_by": "KERNEL_BUILDER-20260725-202657",
     "claimed_at_utc": "2026-07-25T23:09:01.4030151Z",
     "remediation_v3_in_progress": false,
@@ -378,5 +378,91 @@
     "Run canonical Argus transport for FEMS inspect, action, receipt, re-inspect, and screenshot/tree evidence; bind artifacts to the current source hash and refresh canonical UserManual."
   ],
   "no_context_instruction": "Read MT-065.json, MT-064 dependencies, and SPEC_CURRENT section 11.5.13. Repair the normative events and canonical Argus proof before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:58:16.1146055Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "backend_binary": "../Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-041",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-063",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-064",
+        "status": "NEEDS_REIMPLEMENTATION_V4",
+        "verdict": "FAIL_V4"
+      }
+    ],
+    "method": "Read the complete MT-065 machine contract and current test implementation; ran the exact default live proof binary serially against real PostgreSQL and the current-source backend; reran the sole failed FEMS-03 scenario with GPU screenshot proof enabled; parsed the fresh canonical Argus JSON; opened and directly inspected the fresh PNG; and compared the exact action receipts, persisted proposal, EventLedger event, source SHA, and dependency state to AC-065-01 through AC-065-08 and PROOF-065-A through PROOF-065-E.",
+    "pass_evidence": [
+      "The exact default test binary executed 17 non-ignored tests against postgresql://postgres@127.0.0.1:5544/handshake and the current-source debug backend; 16 passed, 1 failed, 0 ignored.",
+      "The passing live scenarios proved MemoryPack rendering and provenance, proposal creation/readback, correlated FR-EVT-MEM-001, review-gated no-auto-commit, approval/rejection persistence, duplicate replay, native restart recovery, source invalidation, cross-workspace/stale-KSRC rejection, PostgreSQL-only configuration, and shell/harness reuse.",
+      "The GPU rerun created a material screenshot and a 12,460,147-byte canonical Argus JSON bound to source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e.",
+      "The fresh screenshot was directly inspected and visibly shows Handshake with the Propose to Memory review-state dialog for proposal fe0fa9c9-0906-457a-8c66-7bb8810f88a4; the dialog states pending operator review and exposes Approve/Reject controls.",
+      "The fresh GPU run persisted proposal fe0fa9c9-0906-457a-8c66-7bb8810f88a4 and correlated FR-EVT-MEM-001 event a83550fb-b6d1-41bb-82dd-0829c0a0ec9a while keeping the proposal pending_review."
+    ],
+    "fail_report": {
+      "summary": "MT-065 FAIL V4. The exact live suite is not green: proof_fems_03_swarm_drives_fems_via_accesskit fails. A GPU rerun removed the initial headless-screenshot symptom and produced fresh material artifacts, but canonical_argus_driver::finish still rejected the proof because every dispatched action remained indeterminate rather than being rebound to an authoritative terminal snapshot. AC-065-01 and AC-065-04, plus PROOF-065-A and PROOF-065-D, are unmet. MT-064 is also a failed declared dependency.",
+      "acceptance_impact": "PASS is prohibited because the MT contract requires all live proofs to pass and specifically requires the full FEMS flow to be proven by stable AccessKit identifiers and action dispatch. Product side effects occurring despite indeterminate receipts do not prove that the canonical swarm action path completed authoritatively.",
+      "root_boundary": "CANONICAL_ARGUS_ACTION_TERMINALITY_AND_FAILED_DEPENDENCY",
+      "failure_evidence": [
+        "Default command: cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --test test_fems_interop_proofs -- --nocapture --test-threads=1. Result: Cargo exit 1; 16 passed, 1 failed, 0 ignored; body 232.03 seconds.",
+        "Default failure: proof_fems_03_swarm_drives_fems_via_accesskit panicked at tests/test_fems_interop_proofs.rs:3734 because the headless run returned a typed DEFERRED screenshot rather than the material screenshot required by this test.",
+        "GPU exact rerun: HANDSHAKE_GPU_SCREENSHOT=1 with proof_fems_03_swarm_drives_fems_via_accesskit --exact. Result: Cargo exit 1; 0 passed, 1 failed; body 30.80 seconds.",
+        "The GPU exact rerun reached proposal persistence and printed FEMS-03 PROVEN, then panicked at tests/native_gui_support/canonical_argus_driver.rs:644: every canonical action must be rebound to an authoritative terminal snapshot.",
+        "Fresh artifact ../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-065/canonical-argus/run-7199e4ab641141e5b22803a1404a64e7/mt065-fems-interop-canonical-argus.json has SHA-256 0D860745C6A72B81D19290C47A97FB5190FCDEEEF38BC6BD2C8DB02022233906 and records 15 exported action observations, all status indeterminate.",
+        "The final fresh Argus snapshot contains receipts 1 through 17, all indeterminate. Menu/category, refresh, tab, and class-selection targets report no action-specific completion predicate; transient menu rows, palette option, cancel, and confirm report that the target disappeared before its effect could be observed.",
+        "Fresh screenshot ../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-065/canonical-argus/run-7199e4ab641141e5b22803a1404a64e7/mt065-fems-interop-canonical-argus.png has SHA-256 6EAF0811CA12E1C5AB58EBA0B1ECBD542EF266F91E782C7549E97955BE949125 and was directly inspected; it is material visual evidence but cannot replace terminal action receipts.",
+        "The fresh artifact is correctly bound to source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e and proposal fe0fa9c9-0906-457a-8c66-7bb8810f88a4, so the failure is not stale-artifact lineage.",
+        "Declared dependency MT-064 is NEEDS_REIMPLEMENTATION_V4 / FAIL_V4; MT-041 and MT-063 are PASS_V1."
+      ]
+    },
+    "remediation_plan": [
+      "1. Repair the canonical Argus completion model for every FEMS-03 action used by this proof. Each receipt must have an action-specific terminal predicate tied to an authoritative post-action state; dispatch alone, target disappearance, and same-process state knowledge must not count as completion.",
+      "2. For menu category actions (menu-edit, menu-editors, menu-go), expose a stable observable expanded/open state or an equivalent authoritative menu-state node and bind Click completion to the expected state transition.",
+      "3. For transient menu and palette rows (menu.edit.quick-switcher, menu.editors.relevant-memory, menu.edit.select-all, menu.go.command-palette, command-palette.option.hs-fems-palette-propose-to-memory), bind completion to the durable effect the action causes rather than the row remaining mounted: quick-switcher visibility/selection, Relevant Memory pane activation, editor selection state, palette visibility, or proposal-dialog visibility respectively.",
+      "4. For editor.fems.memorypack-refresh, bind completion to a strictly newer generation/completed counter and a terminal ready/empty/error status for the same workspace/document context. A click without observing the generation transition must remain non-terminal.",
+      "5. For tab-pane-a-2, bind completion to the durable selected-tab/active-pane identity. For fems-class-procedural, expose and bind the selected radio value so the receipt proves the procedural class became authoritative.",
+      "6. For fems-propose-cancel, prove the proposal dialog is closed and canonical proposal/memory counts are unchanged after a bounded worker drain. For fems-propose-confirm, prove the dialog transitions through submission to a terminal status carrying the exact persisted proposal_id and correlated EventLedger event_id; target disappearance alone is insufficient.",
+      "7. Ensure the exported canonical Argus evidence includes every receipt actually dispatched. The fresh artifact exported observation entries for receipts 3 through 17 while the terminal snapshot contained receipts 1 through 17; the evidence contract must preserve a complete ordered 1:1 action/receipt list with target, expected action, completion predicate, terminal status, and observed effect.",
+      "8. Move the FEMS-03 success log after argus.finish() or an equivalent explicit all-receipts-terminal assertion. The current test prints 'FEMS-03 PROVEN' before the final gate panics, which creates a false-positive success line in a failed run.",
+      "9. Preserve GPU/headless honesty: keep a typed DEFERRED screenshot outcome for ordinary headless runs, but execute the official MT-065 proof through the governed GPU supervisor so the required material PNG is obtained with a hard wall-clock bound. Do not weaken AC-065-04 to accept DEFERRED visual proof.",
+      "10. Complete and independently pass MT-064 remediation before MT-065 revalidation, because MT-064 is a declared dependency and its canonical proposal-action proof currently fails the same terminal-receipt gate.",
+      "11. Do not mask this failure by deleting argus.finish(), accepting indeterminate receipts, inferring success from PostgreSQL/EventLedger side effects, or reusing the older July 28 green artifacts. Revalidation must generate new source-bound artifacts from the remediation HEAD.",
+      "12. Keep outputs under ../Handshake_Artifacts and preserve the real PostgreSQL/EventLedger/no-SQLite constraints. Any required production-source changes beyond MT-065's original proof-only allowed path must be routed through the authorized owning MT/WP scope rather than smuggled into this proof file."
+    ],
+    "verification_required": [
+      "Resolve MT-064 to an independently validated PASS before requesting MT-065 revalidation.",
+      "Run the exact full MT-065 default proof binary from the remediation HEAD against real PostgreSQL/EventLedger; require 17 passed, 0 failed, 0 ignored and Cargo exit 0.",
+      "Run proof_fems_03_swarm_drives_fems_via_accesskit under the governed GPU screenshot supervisor with HANDSHAKE_GPU_SCREENSHOT=1 and a hard timeout; require exit 0, a fresh material PNG, and a fresh JSON artifact bound to the exact source SHA.",
+      "Parse the fresh Argus artifact and assert every dispatched action has exactly one terminal PASS/observed receipt; require zero indeterminate, rejected, missing, duplicated, or unbound receipts.",
+      "Assert the ordered receipt list covers panel open, MemoryPack refresh, return to editor, selection, command-palette proposal open, cancel, reopen, procedural-class selection, and confirm, with durable before/after evidence for each action.",
+      "Assert the terminal confirm receipt carries the same proposal_id found by the live proposal read API and the same correlated FR-EVT-MEM-001 event identity found in EventLedger/Flight Recorder, while the proposal remains pending_review and committed-memory count remains unchanged.",
+      "Open the fresh PNG and compare it to the terminal Argus tree/snapshot; verify the expected review-state dialog/status and Approve/Reject controls are readable, non-overlapping, and attributable to the same proposal/run.",
+      "Confirm the FEMS-03 success message is emitted only after the receipt-terminalization gate passes.",
+      "Run the MT-declared test build proof with the external Cargo target and report any warnings attributable to the remediation; require build exit 0 and zero new warnings.",
+      "Return READY_FOR_VALIDATION for a new independent validator session without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-065.json completely, then packet.json, MT-041.json, MT-063.json, MT-064.json, and the resolved SPEC_CURRENT v02.202 FEMS/Flight Recorder/AccessKit clauses. Start from source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e or a declared successor. Reproduce the GPU FEMS-03 failure, repair authoritative action terminality in the owning product scope, ensure every receipt is durably rebound, resolve failed dependency MT-064, run the complete live suite and GPU proof with external artifacts, visually inspect the new frame, and hand off READY_FOR_VALIDATION without relying on prior verdicts or July 28 artifacts."
+  }
 }

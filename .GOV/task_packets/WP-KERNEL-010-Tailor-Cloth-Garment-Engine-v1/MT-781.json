@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-781",
   "created_at_utc": "2026-07-16T11:53:00Z",
-  "updated_at_utc": "2026-07-16T18:27:29Z",
+  "updated_at_utc": "2026-08-01T04:26:38.699Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-781.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
@@ -32,7 +32,6 @@
   "markdown_projection": {
     "path": "NOT_GENERATED_BY_DEFAULT",
     "status": "NOT_GENERATED_BY_DEFAULT",
-    "source_file": "NOT_GENERATED_BY_DEFAULT",
     "source_hash": "NOT_GENERATED_BY_DEFAULT",
     "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
@@ -84,14 +83,16 @@
       "MT-778",
       "MT-779",
       "MT-780",
-      "MT-782"
+      "MT-782",
+      "MT-741",
+      "MT-742"
     ],
     "blocks": [],
     "active": false,
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Prove the final professional Tailor lifecycle end to end across project creation, Cloth authoring/sewing/arrangement, simulation/repair, BodyKit creation/anatomy/contact, PoseKit/sheets/mix primitives, materials/lookdev, animation, render, publish/DCC, pillars, parallel agents, diagnostics, manual-only operation, recovery, and parity claim gating.",
+    "summary": "Prove the preserved v02.201 professional Tailor lifecycle without Python, cloud services or mandatory Blender/FBX success; BodyKit-v2 cinematic completion is extended by MT-842.",
     "allowed_paths": [
       "src/backend/handshake_core/tests/tailor_professional_e2e.rs",
       "src/frontend/handshake_native/tests/tailor_professional_e2e.rs",
@@ -105,7 +106,12 @@
       "Every required vendor capability and professional visual/metric artifact is directly inspected against pinned references; parity claim remains unavailable until the independent validator later accepts the implemented evidence.",
       "The proof traverses the complete 13.36 [TAI-GATE-004..005] workflow through exact 13.34 [TAI-UX-001] native surface families: create/recover project, Cloth pattern/sewing/arrangement/simulation/fabric/repair, BodyKit body/anatomy/pose/contact, interlink/mix, materials/groom, shared render/AOV queue, publish/DCC, optional pillar outages, diagnostics, parallel conflict, and recovery.",
       "Argus/AccessKit proves exact surface and dynamic entity ids plus empty/loading/populated/preview/conflict/failure/recovery/success states, accessibility, responsive layout, backend receipt agreement, and renderer-console cleanliness; the reviewer directly opens the selected captures and compares them with declared references rather than accepting snapshot metadata.",
-      "Manual-only proof starts with no conversation context and uses the exact task-specific Tailor UserManual entry to complete both GUI-only and backend-only routes, diagnose injected failures, recover, and confirm equivalent commands, authority versions, receipts, artifacts, Flight Recorder projection, and visible success state."
+      "Manual-only proof starts with no conversation context and uses the exact task-specific Tailor UserManual entry to complete both GUI-only and backend-only routes, diagnose injected failures, recover, and confirm equivalent commands, authority versions, receipts, artifacts, Flight Recorder projection, and visible success state.",
+      "The exact TailorSurfaceDescriptor row MT-781 enumerates every route, pane, control author_id, dynamic entity-key rule, action, state, help anchor, permission, undo policy, receipt, and command binding; wildcard-only evidence is rejected.",
+      "Applicable blank, loading, populated, stale/conflict, cancelled, failed, retry, permission, keyboard/focus, narrow/4K/DPI, overlap/clipping, and no-focus-steal states are covered by the registry-derived Argus matrix.",
+      "The active TailorInterchangeProfile or runtime capability row records exact direction, versions, hashes, supported payloads, losses, unsupported cases, privacy behavior, artifacts and qualification receipts before the action is exposed.",
+      "Proof includes successful canonical Rust behavior plus one missing/removed-adapter or unsupported-direction case and demonstrates no partial authority mutation, silent fallback, data loss or false qualification.",
+      "The product path is Rust-owned, local and offline: Python/PyTorch, generated executable scripts, cloud services, implicit network access and runtime downloads are prohibited; optional adapters are pinned and removable."
     ],
     "proof_targets": [
       "cargo test -p handshake_core --test tailor_professional_e2e",
@@ -160,7 +166,7 @@
     "same_change_update_required": true,
     "manual_version_bump_required": false,
     "target_entries": [
-      "Tailor UserManual > Professional end-to-end proof > Complete, diagnose, recover, and verify the full Cloth and BodyKit production lifecycle"
+      "Tailor UserManual > DCC parity and qualification"
     ],
     "expected_evidence": [
       "user_manual_diff",
@@ -173,25 +179,27 @@
   "hbr_obligations": [
     "HBR-INT",
     "HBR-MAN",
+    "HBR-PRIV",
     "HBR-SWARM",
     "HBR-VIS",
-    "HBR-QUIET"
+    "HBR-QUIET",
+    "HBR-STOP"
   ],
   "hbr_int_009_tier_obligations": [
     {
       "tier": "flight_recorder",
-      "posture": "INHERITED",
-      "reason": "The end-to-end test verifies the exact EventLedger and Flight Recorder identities emitted by each underlying Tailor action and job; it must not add a test-only lifecycle event family."
+      "posture": "DIRECT",
+      "reason": "This MT owns authoritative, job, or external-tool lifecycle events and must project the same event_id, run_id, actor_id, and correlation_id from EventLedger into Flight Recorder."
     },
     {
       "tier": "internal_diagnostics",
-      "posture": "INHERITED",
-      "reason": "The end-to-end test injects failures and consumes the bounded internal_diagnostics records and recovery actions owned by the exercised surfaces, jobs, solver, renderer, pillars, artifacts, and DCC harness."
+      "posture": "DIRECT",
+      "reason": "This MT must wire the shared internal_diagnostics API for its native, job, device, solver-run, or DCC failure modes with bounded structured evidence."
     },
     {
       "tier": "palmistry",
-      "posture": "INHERITED",
-      "reason": "Each exercised solver, renderer, export, and external DCC job owns Palmistry registration; the end-to-end test verifies bounded progress, cancellation, timeout, survivor-process, and recovery evidence without creating a second watcher."
+      "posture": "DIRECT",
+      "reason": "Long-running, native, or external-process work must register bounded progress and child/process identity with the shared Palmistry watcher; Tailor must not fork a watcher."
     }
   ],
   "handoff": {
@@ -219,8 +227,34 @@
     "reason_codes": [
       "MULTI_LENS_BUILD_READINESS_GAP"
     ],
-    "required_changes_before_execution": [],
-    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
-    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json"
+    "required_changes_before_execution": [
+      "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
+    ],
+    "dependency_graph_status": "SPEC_V02_203_RECONCILED_BODYKIT_V2_DAG_CANDIDATE",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "requirements": [
+      "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
+      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
+    ],
+    "expected_evidence": [
+      "cross_account_and_cross_space_negative_tests",
+      "derived_scope_non_widening_test",
+      "revocation_cache_context_handle_invalidation_test",
+      "log_trace_preview_non_disclosure_test"
+    ]
   }
 }

@@ -14,7 +14,7 @@
   "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T09:07:45.296Z",
+  "updated_at_utc": "2026-07-31T21:30:36.2514788Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -37,14 +37,14 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
     "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
     "proof_status": "PARTIAL_V3_REMEDIATION_BLOCKED: product commits b9845c4757d70adcc27bd297c7e99c58c88d4429 and 459cd05504c774b01a4b981e5e0d2b1536bb40a9 wire Flight Recorder diagnostics and repair the live Notes File Save proof readiness race. Exact live real-PostgreSQL/backend proof now passes on committed head: cargo test --test test_event_emitter -j 1 event_emitter_native_editor_round_trip -- --exact --nocapture returned 1 passed/0 failed against HSK_TEST_BASE=http://127.0.0.1:37501 and HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5545/handshake. Not READY_FOR_VALIDATION_V3: the full declared test_event_emitter proof suite timed out during compile after 20 minutes, and cargo check also timed out after current edits. MT-035 dependency also remains CLAIMED_V3_REMEDIATION pending its own live-backend proof/status update.",
     "post_implementation_adversarial_review_status": "PASS_2026-07-17_THIRD_REVIEW_NO_BLOCKING_FINDINGS",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:30:36.2514788Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: set_event_emitter has zero production callers - the emitter is NEVER installed in the shell, so every LIVE-wired emit call site (rich save, rich undo, route-to-stage) is a guaranteed no-op; zero editor events reach any transport outside tests; implementation_result overstates. FlightRecorderPane mounted nowhere and the only FlightRecorderQuery impl is the test mock - the observability pane cannot be opened. The typed backend blocker is REAL and verified (FR ingestion endpoint rejects native editor events: deny_unknown_fields, closed 3-variant enum, hardcoded actor_id, UUID session_id) - backend ingestion endpoint is new backend work to carry into a backend-scoped MT. Fix: install emitter at shell startup, mount FR pane + production query impl or record AC-7 blocked, carry backend ingestion endpoint. One-event-ledger leg of CX-003-VIS currently 0 percent functional live.",
@@ -506,5 +506,105 @@
     "Wire or explicitly disposition all three diagnostic tiers and capture the applicable canonical Argus or TraceProjection evidence; make canonical UserManual entries code-truthful."
   ],
   "no_context_instruction": "Read MT-036.json, HBR-INT-009, packet, and current spec. Close the three-tier and projection proof gaps, then return READY_FOR_VALIDATION_V3."
-}
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:30:36.2514788Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "committed_product_semantics": true,
+      "pre_existing_unrelated_dirty_files_preserved": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/frontend/handshake_native/tests/test_find_in_files.rs"
+      ]
+    },
+    "authority_compared": [
+      "MT-036 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "SPEC_CURRENT v02.202 resolved Master Spec modules",
+      "WP_VALIDATOR_PROTOCOL.md",
+      "ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      "current event-emitter, extension-seam, interaction-bus, Flight Recorder pane source/tests, fresh real-PostgreSQL run, and directly inspected fresh image"
+    ],
+    "method": "Fresh adversarial current-head validation in one configured integration+GPU focused run, followed by source-to-proof inspection for canonical Argus coverage and direct visual inspection of the emitted Flight Recorder image.",
+    "commands_and_results": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration,wgpu_screenshots --test test_event_emitter -- --nocapture --test-threads=1",
+        "result": "PASS: 22 passed, 0 failed, 0 ignored. The run covered schema/body construction, bounded failure ring, retry/backpressure, persistence outcomes, workspace-generation reclamation, registry callbacks, actor authority, all undo/redo scopes, route-to-Stage acknowledgement, parser quarantine, Flight Recorder AccessKit states, real-PostgreSQL mounted save/canvas/undo event emission and pane readback, and the GPU component screenshot."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "native editor event schema, authoritative actor/workspace/session identity, ordering, trace correlation, and exactly-once emission",
+      "mounted document save, Canvas placement, unified undo, durable Flight Recorder persistence, filtered readback, and cleanup",
+      "failure ring, retry/backpressure, timeout/persistence distinctions, parser quarantine, diagnostics and recovery",
+      "design-only EditorSurface registry object safety, selection callback, event callback, and actor consistency",
+      "Flight Recorder pane navigation, refresh/retry, row rendering, stable author IDs, canonical action receipts, fresh observation, and mounted visual context"
+    ],
+    "independent_checks_run": [
+      "All 22 focused cases passed in a single explicitly configured run against current-source backend and real PostgreSQL.",
+      "The live mounted test used the production Notes save dispatcher, Canvas place-block control, unified Undo dispatcher, durable GET /api/flight_recorder readback, production Flight Recorder open route, exact event-row AccessKit IDs, and workspace cleanup.",
+      "The live readback asserted exactly three newest-first correlated events: undo_fired, canvas_node_placed, document_saved; all shared one UUID trace/session span and the native-editor schema/workspace/actor fields.",
+      "Failure, retry, malformed-neighbor quarantine, FEMS lifecycle projection, backpressure, workspace revisit/generation, and persistence receipt outcomes passed.",
+      "Source inspection found no CanonicalArgusDriver use, no argus.inspect/click/set_value/screenshot sequence, and no durable per-action receipt/tree artifact in test_event_emitter.rs.",
+      "Direct inspection of MT-036-flight-recorder-pane.png showed a readable 720x320 detached component fixture containing one document_saved row and Refresh button, not the mounted application shell or the live three-event sequence."
+    ],
+    "counterfactual_checks": [
+      "A raw AccessKitActionRequest for Canvas placement and direct test-helper command dispatch were not accepted as canonical model-steering receipts.",
+      "The mounted live test's successful row assertions were not treated as a durable review artifact because its action/observation sequence, receipts, and tree are not serialized.",
+      "The detached seeded component screenshot was not allowed to substitute for the production mounted pane containing the exact PostgreSQL event IDs from the same run.",
+      "The backend/security ownership of flight-recorder route authorization was not reassigned to MT-036; this verdict is limited to MT-036's emitter/pane and proof boundary."
+    ],
+    "boundary_probes": [
+      "accepted emit versus backend failure, timeout, and queue capacity",
+      "valid row versus malformed adjacent row and schema drift",
+      "workspace revisit versus bounded emitter generation reclamation",
+      "local undo/redo versus cross-pane undo/redo and command-palette paths",
+      "document save, Canvas placement, and undo producer ordering through one ledger",
+      "production pane stable IDs versus canonical safe steering and terminal receipt evidence",
+      "detached component fixture versus mounted full-shell live PostgreSQL state"
+    ],
+    "negative_path_checks": [
+      "Failed POST is nonblocking and lands in the cap-20 error ring.",
+      "Repeated backpressure is coalesced and incoming events are rejected without losing the causal prefix.",
+      "Persistence receipts distinguish durable success, transport failure, and timeout.",
+      "Malformed neighboring rows and FEMS schema drift are quarantined while valid rows remain visible.",
+      "Retry/failure surfaces expose stable author IDs and diagnostics-ring events."
+    ],
+    "independent_findings": [
+      "The one-ledger emitter, live production producers, durable real-PostgreSQL readback, Flight Recorder pane row projection, failure handling, and extension-seam callbacks are current-head green.",
+      "The MT has no canonical Argus action evidence for opening the production Flight Recorder pane, refreshing/retrying it, or observing the live rows after steering.",
+      "No durable artifact binds the live action sequence to actor attribution, stable target, receipt status, before/after tree generations, exact event IDs, and terminal completion.",
+      "The only visual is a detached seeded component capture and therefore cannot prove mounted navigation, layout with neighboring panes, live exact three-event content, or recovery behavior."
+    ],
+    "fail_report": "MT-036 FAIL_V4. Native editor event emission, real-PostgreSQL durability/readback, exactly-once undo scopes, failure handling, parser quarantine, diagnostics, extension seams, and mounted row projection are current-head green with 22/22 tests. PASS is prohibited because no canonical Argus steering/receipt/tree artifact exists and the only screenshot is a detached seeded component rather than the mounted live Flight Recorder flow.",
+    "acceptance_impact": "FlightRecorderPane is an operator and model-facing GUI surface. ARGUS-002, ARGUS-007, ARGUS-012, and ARGUS-014 require reachable navigation, safe attributed steering, terminal receipts, fresh observation, and mounted visual evidence; the current tests prove behavior but not that acceptance surface.",
+    "remediation_plan": [
+      "Add a canonical Argus phase to the real-PostgreSQL event_emitter_native_editor_round_trip instead of creating a separate mock-only substitute. After the exact document save, Canvas placement, and undo events are durably visible, use stable product targets to open Flight Recorder, inspect it, refresh it, and re-observe the exact three event rows.",
+      "Persist one action record for each GUI mutation with stable author_id, action kind, attributed agent/binding, before/after tree generation or hash, receipt ID/status, terminal predicate ID/status, workspace ID, trace ID, and exact event IDs. Opening the pane terminates only when the production PaneType::FlightRecorder region is mounted; Refresh terminates only when the request generation completes and all expected rows from the same trace are freshly rendered. Require zero indeterminate receipts.",
+      "Drive the production controls through CanonicalArgusDriver rather than dispatch_palette_action_for_test or raw AccessKitActionRequest where an operator/model-facing action is being proved. Product setup may seed data directly, but the acceptance actions—open pane, Refresh, Retry, select/inspect row if supported—must use canonical inspect/steer/re-observe and finish gates.",
+      "Capture full mounted-shell PNGs and matching AccessKit trees from the same live run after the three-event sequence and after Refresh. Show the Flight Recorder pane in application context, exact document_saved/canvas_node_placed/undo_fired rows, readable labels/timestamps, no overlap, and appropriate loading/error/empty state visibility. Keep the 720x320 component image only as supplemental unit evidence.",
+      "Add a canonical negative/recovery flow: make one bounded pane load fail, record a terminal typed-failure receipt and visible Retry state with the matching internal_diagnostics event, restore the backend, click Retry canonically, and record a terminal recovery receipt plus fresh rows. Bind Flight Recorder/EventLedger, internal_diagnostics, and Palmistry disposition to the same run/correlation IDs.",
+      "Write a unique V4 proof bundle containing HEAD SHA, invocation, environment bindings without secrets, exact workspace/trace/event IDs, action matrix, per-action receipts, before/after trees, diagnostics references, PNG hashes, cleanup result, and owned-backend teardown. Fail before artifact publication unless all actions are terminal and every durable event matches the expected actor/workspace/schema/trace.",
+      "Rerun the complete 22-case integration+GPU binary against the current-source backend and real PostgreSQL, then directly inspect every receipt/tree/mounted PNG and the matching ledger rows. Require 22/22, zero indeterminate actions, exact three-event ordering/correlation, successful workspace cleanup, external artifact placement, and exact owned-backend termination."
+    ],
+    "verification_required": [
+      "One configured focused run: 22 passed, 0 failed, 0 ignored against current-source backend and real PostgreSQL.",
+      "Canonical live action matrix for Flight Recorder open, Refresh, injected failure, Retry, and recovery with zero indeterminate actions and matching terminal predicates.",
+      "Each action record binds stable target, agent attribution, before/after tree hashes or generations, terminal receipt, workspace/trace/event identities, and exact request generation.",
+      "Direct inspection of fresh full mounted-shell screenshots and trees from the same live run proves the exact three rows, readable layout, loading/error/retry/recovery visibility, and no contradictory or obscuring state.",
+      "Durable ledger ordering/correlation, diagnostics-tier evidence, workspace cleanup, external artifact hygiene, and exact owned-backend teardown remain green."
+    ],
+    "no_context_instruction": "Read MT-036.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, HBR-INT-009 in the resolved Master Spec, and SPEC_CURRENT v02.202. Preserve the green emitter, live producers, parser, diagnostics, and extension-seam implementation plus the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Extend the existing real-PostgreSQL mounted test with canonical Argus open/Refresh/failure/Retry/recovery actions, terminal causal receipts, exact event/trace binding, full-shell captures, and argus.finish; emit a unique V4 proof bundle; rerun all 22 cases; inspect every fresh receipt/tree/PNG and matching ledger row; require zero indeterminate actions and exact cleanup; then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
+    "remediation_required": true,
+    "residual_uncertainty": "Emitter and ledger correctness are strongly proven. Remaining uncertainty is confined to canonical model steering, causal action completion, and the mounted Flight Recorder visual/recovery experience."
+  }
 }

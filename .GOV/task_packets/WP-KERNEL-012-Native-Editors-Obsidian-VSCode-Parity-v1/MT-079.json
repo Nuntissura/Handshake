@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-07-24T16:10:00.000Z",
+  "updated_at_utc": "2026-07-31T23:27:24.9682223Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt079",
       "mode": "VERIFY_AND_PROVE",
@@ -51,10 +51,10 @@
       "MT-070",
       "MT-071"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:27:24.9682223Z",
     "ready_for_validation_at_utc": "2026-07-24T16:10:00.000Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
     "remediation_v3_in_progress": false,
@@ -387,5 +387,121 @@
     "disposition": "close not Argus-observable (product re-seeds base editor pane); covered by existing create/close/reopen runtime tests - disclosed",
     "kb_ready_checklist": "PASS",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:27:24.9682223Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-008",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-010",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-012",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-014",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-015",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-026",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-030",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-035",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-036",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-057",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      }
+    ],
+    "method": "Read the complete MT-079 host-mount contract, current implementation/test source, V3 remediation evidence, canonical Argus final gate, and all ten dependency verdicts; ran the two exact mt079_ canonical app-host tests with GPU mode and the external Cargo/artifact root; inventoried terminal-predicate/reinspection calls; and directly inspected the freshly captured mounted-editor lifecycle and menu-bar reachability screenshots against the claimed create/navigation/focus/popout/close and menu reachability behavior.",
+    "pass_evidence": [
+      "Both current-head tests mount real code and rich editor panes rather than placeholders and progress through their intended action sequences before the canonical final gate.",
+      "The inspected lifecycle screenshot shows a real code editor with gutter, syntax highlighting, outline, minimap, wrap/keybindings controls, stable Code Symbol identity, and a healthy backend/LSP status; the pane is readable and non-overlapping.",
+      "The inspected menu-reachability screenshot shows real Code Symbol and Wiki Page panes plus the newly opened Runtime Chat surface; mounted rich-editor controls and content are visible and readable.",
+      "The test stdout reports successful intermediate creation, code/rich steering, open_code_symbol/open_document navigation, popout addressability, all 13 View-menu leaves, and Runtime Chat activation before finish rejects the proof.",
+      "MT-010, MT-012, MT-015, MT-030, and MT-057 are independently green."
+    ],
+    "fail_report": {
+      "summary": "MT-079 FAIL V4. The two V3 canonical tests both fail: mt079_mounted_editor_panes_canonical_argus_lifecycle and mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus reach canonical_argus_driver::finish without rebinding their dispatched actions to authoritative terminal snapshots and action-specific predicates. The source contains two finish calls and no terminal predicate/reinspection calls. The lifecycle proof also omits canonical close behavior and relies on separate runtime tests plus automatic base-pane reseeding. MT-008, MT-014, MT-026, MT-035, and MT-036 are failed declared dependencies.",
+      "acceptance_impact": "The available screenshots and immediate assertions prove real mounts exist, but they do not provide canonical attributable completion for create, steering, navigation, focus, popout, close, or menu actions. The acknowledged close omission leaves the requested pane lifecycle incomplete. Five failed dependencies cover code navigation, embeds, close/reopen semantics, unified undo, and editor telemetry consumed by this host mount.",
+      "root_boundary": "UNBOUND_CANONICAL_APP_HOST_ACTIONS_INCOMPLETE_CLOSE_LIFECYCLE_AND_FIVE_FAILED_DEPENDENCIES",
+      "failure_evidence": [
+        "cargo test --test test_app_host_mount mt079_ ran 2 tests and returned 0 passed, 2 failed, 0 ignored, 38 filtered out; Cargo exit 1.",
+        "Both failures panic at tests/native_gui_support/canonical_argus_driver.rs:644 with 'every canonical action must be rebound to an authoritative terminal snapshot'.",
+        "test_app_host_mount.rs has argus.finish at the end of both MT-079 tests and no assert_latest_terminal_predicate or reinspect_latest_terminal call anywhere in the file.",
+        "The lifecycle test's stdout claims create, safe steer, navigation, and popout, but those effects are checked before finish and are not retained as product-specific terminal predicates tied to each receipt.",
+        "validation_v3 explicitly discloses that close is not Argus-observable and substitutes existing runtime tests because the product re-seeds a base editor pane; this does not prove a close action and exact post-close identity through the required canonical lifecycle.",
+        "The menu test opens Runtime Chat and captures a screenshot, then fails finish; its click is not bound to a terminal predicate proving exact menu item, active surface, single new pane identity, focus, and no duplicate activation.",
+        "MT-008, MT-014, MT-026, MT-035, and MT-036 are FAIL_V4; only five of ten declared dependencies are green."
+      ]
+    },
+    "remediation_plan": [
+      "1. For every action in both MT-079 canonical tests, wait for the app host to settle, freshly reinspect the owning AccessKit/product state, and bind an action-specific terminal predicate with recomputable evidence before argus.finish. Do not weaken the finish gate or treat stdout/screenshots as terminal proof.",
+      "2. Split the lifecycle into explicit create-code, create-rich, code wrap toggle, rich reading/edit toggle, open_code_symbol, open_document, focus, popout, close, and reopen actions. Retain one receipt and at least one product-specific terminal predicate for each action in execution order.",
+      "3. For pane creation, prove the exact PaneId/PaneType/factory is real, the placeholder subtree is absent, code_editor_text and the rich-editor author id are present, session workspace/runtime contexts are bound, and only one intended pane instance is created.",
+      "4. For navigation/focus, bind open_code_symbol and open_document to exact stable target identity, document/symbol payload, pane reuse-or-create outcome, active tab, focused editor author id, and protection against stale/duplicate completion. Cover code and rich panes independently.",
+      "5. For popout and close, prove the exact pane identity moves to the detached host, remains Argus-addressable, preserves editor state/session context, then closes without affecting sibling panes. Record whether base-pane reseeding creates a distinct new identity and prove the closed pane is absent before any reopen/reseed assertion.",
+      "6. For the View-menu matrix, bind each exercised menu click to the exact stable menu author id, intended PaneType, active surface, newly created or focused PaneId, exactly-once handler trace, and no duplicate pane. Bind Runtime Chat separately and preserve truthful EndpointMissing state without treating that diagnostic as success evidence.",
+      "7. Add canonical command-bus predicates for Save, Undo, Redo, and OpenCommandPalette. Prove code-pane command origin, MT-035 unified undo scope mutation, menu/keyboard stack identity, disabled/error behavior, and no command leakage to another pane or popout.",
+      "8. Add canonical rich pending-event predicates for WikilinkActivated, BacklinkActivated, TagActivated, and locus reference routing, including loading/error/hidden-tab paths. Prove the exact event is drained once, NavigationTarget is correct, and no event remains or routes twice.",
+      "9. Resolve MT-008, MT-014, MT-026, MT-035, and MT-036 to independent PASS verdicts, then rerun their consumed navigation/embed/close/undo/telemetry paths through the host-mount tests. Preserve the currently green MT-010/012/015/030/057 behavior.",
+      "10. Preserve real editor factories, context threading, no-backend/no-SQLite boundaries, external artifacts, source-bound screenshots, LSP process reclamation, stable author ids, and the currently green noncanonical host-mount tests. Do not replace product handlers with test-only seams."
+    ],
+    "verification_required": [
+      "Resolve MT-008, MT-014, MT-026, MT-035, and MT-036 to independent PASS verdicts while retaining the five green dependencies.",
+      "Run the lifecycle canonical test alone and require every create/steer/navigate/focus/popout/close/reopen action to have a retained receipt, fresh terminal snapshot, passed product-specific predicate, and 1 passed/0 failed.",
+      "Run the menu-bar canonical test alone and require exact author-id targeting, all 13 declared leaves, Runtime Chat exactly-once mount/focus behavior, terminal predicate evidence, and 1 passed/0 failed.",
+      "Parse both fresh canonical artifacts and require source_sha=current HEAD, terminal_refreshed=true, non-empty passed predicate lists for every action, exact pane identities, no unbound/rejected/duplicate actions, and argus_teardown_verified=true.",
+      "Run all core AC-079-1 through AC-079-5 tests: real subtree/no placeholder, context threading, command-bus unified undo, ShellNavigator code/rich focus, and rich event draining; require every test green including loading/error/hidden-tab variants.",
+      "Exercise exact close behavior for docked and popped-out code/rich panes, dirty save/discard/cancel, close-all, base-pane reseed identity, and reopen; require no state leakage, unwanted save, duplicate pane, or orphaned LSP process.",
+      "Run test_app_host_mount completely from current HEAD and require all tests green with no acceptance-critical ignore, then run test_top_menu_bar and swarm_accessible_actions_listed completely and require their declared counts green.",
+      "Inspect fresh lifecycle and menu screenshots against paired AccessKit trees at normal and narrow widths; verify real editor controls, focus/active tab, detached state, menu reachability, readable non-overlapping layout, and truthful diagnostics.",
+      "Run focused build/clippy/theme/artifact-boundary checks required by AC-079-7/8 with the external Cargo target and require zero failures or repo-local generated artifacts.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-079.json completely, packet.json, MT-008/010/012/014/015/026/030/035/036/057 verdicts, app.rs, editor_pane_factories.rs, pane_registry.rs, code_editor/panel.rs, test_app_host_mount.rs, canonical_argus_driver.rs, and the current host/navigation/undo/telemetry spec clauses. Reproduce both finish failures, bind every host action to a fresh product-specific terminal predicate, add exact close/reseed proof, resolve the five failed dependencies, rerun all focused suites with external artifacts, inspect fresh frames, and hand off READY_FOR_VALIDATION without weakening canonical Argus or substituting separate local tests for the required lifecycle."
   }
 }

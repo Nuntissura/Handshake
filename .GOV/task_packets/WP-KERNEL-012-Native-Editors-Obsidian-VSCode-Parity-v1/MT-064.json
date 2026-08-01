@@ -14,7 +14,7 @@
   "title": "E9-MT-064-FemsMemoryWriteProposalFromEditor",
   "group": "E9",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-25T22:56:57.3382940Z",
+  "updated_at_utc": "2026-07-31T22:48:14.5735617Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-064.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-063"
@@ -33,10 +33,10 @@
     "blocks": [
       "MT-074"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:48:14.5735617Z",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt064",
       "mode": "VERIFY_AND_PROVE",
@@ -405,5 +405,72 @@
       "Prove proposal persistence and exact EventLedger/Flight Recorder payload on real PostgreSQL, then drive the editor proposal UI through canonical Argus and update canonical UserManual."
     ],
     "no_context_instruction": "Read MT-064.json and SPEC_CURRENT v02.201 section 11.5.13 before editing. Correct the event schema, run real proposal/receipt and Argus proofs, and return READY_FOR_VALIDATION_V3."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:48:14.5735617Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012"
+    },
+    "dependency_state": {
+      "MT-063": {
+        "status": "PASS_V1",
+        "validator_verdict": "PASS_V1"
+      }
+    },
+    "pass_evidence": [
+      "cargo test --test test_memory_proposal completed 10/10 PASS in 0.07s from current HEAD.",
+      "The local suite proved build_proposal provenance, hard review_gated behavior for every class, typed MissingEndpoint with no fallback, real command dispatch, AccessKit dialog/radio/confirm roles, registry identity, canonical proposal acknowledgement shape, and no direct-commit or SQLite path.",
+      "The fresh mounted test persisted live PostgreSQL proposal 4cc5df4c-7f06-40c3-9233-e4a8f9a7ac16 with status pending_review and review_gated=true.",
+      "The correlated live Flight Recorder row event 75a1afc9-3d82-4906-b011-97316516a4fb has event_type=memory_write_proposed and exact event_code=FR-EVT-MEM-001.",
+      "The event contains proposal_hash 3c8b78c6a34c48ad3b8724fed1168902219b7fc194dea6ad99b1f5f420916cd2, matching artifact_ref artifact://sha256/3c8b78c6a34c48ad3b8724fed1168902219b7fc194dea6ad99b1f5f420916cd2, one scope_ref, op_count=1, requires_review_count=1, and no raw memory content.",
+      "The terminal mounted status correlated operation, proposal, and event IDs: state=completed; outcome=event_persisted; proposal_id=4cc5df4c-7f06-40c3-9233-e4a8f9a7ac16; event_id=75a1afc9-3d82-4906-b011-97316516a4fb.",
+      "The external canonical-Argus JSON is D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-064/canonical-argus/run-ac254752ff0b4d838574972e7611e99f/mt064-mounted-propose-dialog-argus.json, SHA-256 0C99A5245FAC3181FBE79BF6DDBBA639C679D729F4A9DBD1C3CA88C6381A009E."
+    ],
+    "fail_report": {
+      "summary": "MT-064 FAIL V4. The repaired proposal persistence and normative FR-EVT-MEM-001 payload are correct, but the required canonical mounted interaction proof fails its own finish gate. All seven Argus click receipts are indeterminate, including the procedural-class and confirm actions, so no canonical action is rebound to an authoritative terminal snapshot. The exact test exits 1 at CanonicalArgusDriver::finish even though the product side effects persisted.",
+      "command": "cargo test --locked --manifest-path src/frontend/handshake_native/Cargo.toml --target-dir ../Handshake_Artifacts/handshake-cargo-target --test test_memory_proposal_argus mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve -- --exact --nocapture --test-threads=1",
+      "runtime_result": "0 passed, 1 failed, 0 ignored; test body finished in 24.77s; Cargo exit code 1.",
+      "failure_evidence": [
+        "after_reinspect.action_receipts contains seven receipts and every status is indeterminate.",
+        "Receipt 6 for fems-class-procedural says the click was dispatched but exposes no action-specific completion predicate.",
+        "Receipt 7 for fems-propose-confirm says the click target disappeared before its effect could be observed.",
+        "The preceding menu/select-all/command-palette navigation receipts are also indeterminate: menu targets have no completion predicate and transient menu/listbox targets disappear before the effect is rebound.",
+        "The exact panic at tests/native_gui_support/canonical_argus_driver.rs:644 is: every canonical action must be rebound to an authoritative terminal snapshot.",
+        "A fresh after_reinspect tree and correct persistent side effects do not retroactively make an indeterminate action receipt authoritative; argus.finish correctly rejects the proof.",
+        "Screenshot evidence is typed DEFERRED on this headless host. The test contract explicitly permits that typed outcome, so screenshot deferral is not the V4 blocker."
+      ]
+    },
+    "remediation_plan": [
+      "Add action-specific completion predicates for every canonical step used by the mounted proposal flow. A dispatched action must not be marked completed merely because a later unrelated state exists; bind each receipt to the first fresh snapshot that proves that action's own effect.",
+      "For menu-edit, require a fresh tree generation showing the Edit menu's intended child/action surface open. For menu.edit.select-all, bind completion to an authoritative selection-state node/value showing the code selection range/content hash changed to the expected full selection, even though the transient menu item disappears.",
+      "For menu-go and menu.go.command-palette, bind completion to a fresh snapshot showing the command-palette surface open. For command-palette.option.hs-fems-palette-propose-to-memory, bind completion to a fresh snapshot containing fems-propose-dialog and all required class/confirm author_ids.",
+      "Expose the selected state/value of fems-class-procedural through AccessKit and define the radio click predicate as a fresh snapshot where that exact radio is selected and the proposal preview/class value is procedural. Receipt 6 must end completed with observed_value proving the selection.",
+      "Define the fems-propose-confirm successor predicate across target disappearance: a fresh snapshot must show fems-propose-status with state=completed and outcome=event_persisted, and its proposal_id/event_id must match the live proposal readback and correlated FR-EVT-MEM-001 row. Receipt 7 must end completed rather than indeterminate after the button disappears.",
+      "Update CanonicalArgusDriver action reconciliation so transient target disappearance is not automatically indeterminate when the action declares an authoritative successor predicate. Poll only bounded fresh generations, retain expected generation/node/role, record the matched successor generation/author_id/value, and fail with a typed rejection if the predicate never appears.",
+      "Add focused negative tests: wrong selected class, dialog opens without the requested command, proposal persists without the correlated FR event, status event IDs mismatch, confirm target disappears without terminal status, stale pre-action snapshot, backend 404/401/5xx, and timeout must all leave the receipt rejected/indeterminate and make finish fail.",
+      "Rerun the exact mounted test against current-source handshake_core and real PostgreSQL. Require all seven action receipts completed/accepted, zero indeterminate/rejected receipts, fresh before/after trees containing the stable author_ids, exact persisted proposal/event correlation, and argus.finish returning normally. Retain the new JSON plus SHA-256 and a real-GPU screenshot when available; a contract-valid typed DEFERRED screenshot may remain on headless hosts.",
+      "Rerun test_memory_proposal 10/10 plus the strict backend FR-EVT-MEM-001 validator/outbox retry, quarantine, review/commit fail-closed, exact Loom reference, and UserManual regressions cited by the V3 handoff. Parse the final artifact and independently assert event_code/proposal hash/artifact ref/scope/counts/no-raw-content and review_gated=true."
+    ],
+    "verification_required": [
+      "test_memory_proposal remains 10/10 PASS with no direct-commit, fallback, SQLite, or review_gated=false path.",
+      "The exact canonical mounted Argus test exits zero and argus.finish succeeds.",
+      "Every canonical action receipt in the mounted flow is terminal completed/accepted and bound to a fresh authoritative snapshot; there are zero indeterminate or rejected receipts.",
+      "The procedural-radio receipt proves selected procedural state, and the confirm receipt proves matching terminal proposal_id/event_id after the button disappears.",
+      "Live PostgreSQL readback and Flight Recorder show one correlated pending-review proposal and exact FR-EVT-MEM-001 fields: event_code, proposal_id, 64-char proposal_hash, matching artifact_ref digest, scope_refs, op_count, requires_review_count, and no raw memory content.",
+      "Negative stale/mismatch/missing-event/HTTP-failure/timeout cases fail closed at both the product operation and Argus finish gate.",
+      "All artifacts remain under ../Handshake_Artifacts, hashes parse/verify, scenario-owned rows and backend children are cleaned, and no repo-local target/test_output/screenshots are introduced."
+    ],
+    "no_context_instruction": "Read MT-064.json completely, packet.json, SPEC_CURRENT v02.202 section 11.5.13, memory_proposal.rs, test_memory_proposal.rs, test_memory_proposal_argus.rs, and canonical_argus_driver.rs. Start from external artifact run-ac254752ff0b4d838574972e7611e99f and its SHA-256. Preserve the now-correct proposal and FR-EVT-MEM-001 behavior. Repair canonical action completion predicates/rebinding for all seven actions—especially procedural selection and confirm successor status—add fail-closed negative tests, rerun the exact live mounted test until argus.finish succeeds with zero indeterminate receipts, then rerun local/backend/manual regressions. Return READY_FOR_VALIDATION only after every V4 verification requirement is evidenced; do not self-issue PASS."
   }
 }

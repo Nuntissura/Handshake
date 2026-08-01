@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-610",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": "2026-07-16T18:27:29Z",
+  "updated_at_utc": "2026-08-01T04:26:38.699Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-610.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
@@ -34,7 +34,6 @@
   "markdown_projection": {
     "path": "NOT_GENERATED_BY_DEFAULT",
     "status": "NOT_GENERATED_BY_DEFAULT",
-    "source_file": "NOT_GENERATED_BY_DEFAULT",
     "source_hash": "NOT_GENERATED_BY_DEFAULT",
     "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
@@ -53,20 +52,22 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Implement FBX delivery via the Blender-bridge ONLY per Section 13.26 and the file-format strategy verdict: reuse the MT-419 bridge pattern (glTF -> headless Blender -> FBX) for the body skeletal lane including blendshapes; a native FBX writer is PROHIBITED and the prohibition is guard-tested.",
+    "summary": "Make deterministic GLB and restricted USD the required BodyKit exports; FBX export is an honest typed unsupported capability until a no-Python writer passes the qualification matrix.",
     "allowed_paths": [
-      "src/backend/handshake_core/src/tailor/bodykit/export/fbx_bridge.rs",
+      "src/backend/handshake_core/src/tailor/bodykit/export/interchange/fbx_capability.rs",
       "src/backend/handshake_core/src/tailor/bodykit/export/bridge_scripts/"
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "FBX output is produced exclusively by driving headless Blender over the bridge (import the glTF core export, apply profile transforms, export FBX with blendshapes and skeleton); the bridge script is versioned in-repo.",
       "A guard test proves the prohibition: no FBX-writing code path exists in Rust (no fbx writer dependency in Cargo.lock for handshake_core/tailor-solver; grep-guard on symbol names), matching the spec-level native-FBX-write prohibition.",
       "Bridge failures (Blender missing, script error, version mismatch) surface as typed errors with the Blender stderr captured in the receipt; the lane records a SKIPPED-with-reason result in CI environments without Blender.",
-      "Bridged FBX carries cm units and the profile's axis contract; blendshape names survive the trip (verified by re-importing the FBX in Blender and diffing shape-key names)."
+      "Bridged FBX carries cm units and the profile's axis contract; blendshape names survive the trip (verified by re-importing the FBX in Blender and diffing shape-key names).",
+      "The active TailorInterchangeProfile or runtime capability row records exact direction, versions, hashes, supported payloads, losses, unsupported cases, privacy behavior, artifacts and qualification receipts before the action is exposed.",
+      "Proof includes successful canonical Rust behavior plus one missing/removed-adapter or unsupported-direction case and demonstrates no partial authority mutation, silent fallback, data loss or false qualification.",
+      "The product path is Rust-owned, local and offline: Python/PyTorch, generated executable scripts, cloud services, implicit network access and runtime downloads are prohibited; optional adapters are pinned and removable."
     ],
     "proof_targets": [
-      "cargo test -p handshake_core tailor::bodykit::export::fbx_bridge_roundtrip_blendshapes_survive"
+      "cargo test -p handshake_core tailor_v02_203_mt_610"
     ],
     "risk_if_missed": "Either the legacy UE/DCC FBX lane is missing entirely, or someone reinvents a native FBX writer against the explicit spec prohibition and ships a licensing/compatibility time bomb."
   },
@@ -104,9 +105,11 @@
   "hbr_obligations": [
     "HBR-INT",
     "HBR-MAN",
+    "HBR-PRIV",
     "HBR-SWARM",
     "HBR-VIS",
-    "HBR-QUIET"
+    "HBR-QUIET",
+    "HBR-STOP"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -154,7 +157,31 @@
     "required_changes_before_execution": [
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
-    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    "dependency_graph_status": "SPEC_V02_203_RECONCILED_BODYKIT_V2_DAG_CANDIDATE",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "requirements": [
+      "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
+      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
+    ],
+    "expected_evidence": [
+      "cross_account_and_cross_space_negative_tests",
+      "derived_scope_non_widening_test",
+      "revocation_cache_context_handle_invalidation_test",
+      "log_trace_preview_non_disclosure_test"
+    ]
   }
 }

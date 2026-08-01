@@ -14,7 +14,7 @@
   "title": "D8-MT-088-BackendDown-GracefulDegradation-FreezeFix",
   "group": "D2 internal_diagnostics (Tier 2 — backend-down HARD requirement)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-27T20:17:29.921Z",
+  "updated_at_utc": "2026-07-31T23:31:08.5923824Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-088.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -34,10 +34,10 @@
     "blocks": [
       "MT-096"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:31:08.5923824Z",
     "claimed_by": "KERNEL_BUILDER-20260726-052638",
     "claimed_at_utc": "2026-07-26T07:37:49.5952536Z",
     "completed_by": null,
@@ -460,5 +460,82 @@
     "adversarial_review": "TWO_INDEPENDENT_REVIEWS_TECHNICAL_REMEDIATION_PASS_NO_PRODUCT_BLOCKER_FORMAL_PASS_RESERVED_TO_OFFICIAL_VALIDATOR_AND_WP_HBR_CLOSURE",
     "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-27T20:17:29.921Z",
     "validator_boundary": "validator_verdict remains FAIL_V2 and completed_by remains null. This is an implementer READY_FOR_VALIDATION_V3 handoff, not self-validation. WP-wide packet_acceptance_matrix HBR rows remain validator/WP closure surfaces and were not falsely marked complete by this single MT."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:31:08.5923824Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target",
+      "palmistry_binary": "MISSING_AT_CANONICAL_DEBUG_PATH"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-082",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-084",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      }
+    ],
+    "method": "Read the complete MT-088 contract, V3 handoff, default and integrated proof source, current app/backend-client implementation, explicit block_on inventory, canonical Argus gate, and dependency verdicts; ran the complete default test_backend_down_responsive binary from current HEAD with the external Cargo target; traced every app.rs block_on call and its reachability; checked the live proof's ignore/prerequisite state and terminal-predicate calls; and distinguished a stale source-audit count from evidence that the original backend frame freeze itself returned.",
+    "pass_evidence": [
+      "The default MT binary passed 21 tests, including the direct backend-down responsive frame/heartbeat proof, exact down-event/degraded surface proof, recovery event, half-open bounded-request proof, malformed-body fail-closed behavior, split-source ownership, stale-generation suppression, worker/process reclamation, shutdown races, timeout/manual alignment, and request parser bounds.",
+      "backend_down_responsive and silent_half_open_peer_is_bounded_without_freezing_frames remain green, so the fresh run did not reproduce the original UI-frame freeze or CPU-to-zero symptom.",
+      "BackendUnreachable/BackendRecovered transition behavior, degraded UI state, reqwest connect/request timeouts, and bounded shutdown/recovery tests passed in the current default suite.",
+      "The newly counted fifth production app.rs block_on is in spawn_mcp_server, called during app construction for local MCP bind; it is not inside drive_layout_persistence, ui, update, pane render, or a backend request path. The four previously inventoried calls remain guarded drains/startup paths.",
+      "Both declared dependencies, MT-082 and MT-084, are independently green."
+    ],
+    "fail_report": {
+      "summary": "MT-088 FAIL V4. The complete default binary is red: 21 passed, frame_path_has_no_ui_thread_block_on failed, and the acceptance-critical integrated live PostgreSQL/Palmistry/Argus proof remains ignored. The source-audit failure is caused by inventory drift—app.rs now has five production block_on calls while the test hard-codes four—even though inspection identifies the fifth as the startup-only local MCP bind rather than the original backend frame path. The exact live proof cannot currently be rerun because palmistry.exe is absent from the canonical debug target, and its source reaches argus.finish without any terminal reinspection or action-specific predicate binding.",
+      "acceptance_impact": "AC-008-2/PT-008-B and AC-008-7 fail because the mandatory source audit/default MT suite is not green. The ignored/unavailable live proof leaves current-head real-PostgreSQL backend suspension/restart, mounted degraded/recovered UI, same-session Palmistry survival/reaping, and canonical attributable action evidence unverified. Prior V3 artifacts cannot replace a fresh current-head proof.",
+      "root_boundary": "STALE_BLOCK_ON_SAFETY_INVENTORY_PLUS_UNAVAILABLE_AND_UNBOUND_ACCEPTANCE_CRITICAL_LIVE_PROOF",
+      "failure_evidence": [
+        "The full default test_backend_down_responsive binary returned 21 passed, 1 failed, 1 ignored, Cargo exit 1 after 41.39 seconds.",
+        "frame_path_has_no_ui_thread_block_on failed at line 1552: actual production app.rs .block_on count 5 versus expected inventory count 4.",
+        "Current app.rs production calls are spawn_mcp_server local bind, poll_workspaces finished-handle drain, two abort-and-drain task calls, and poll_health finished-handle drain; later block_on calls are in trailing test modules excluded by the audit.",
+        "drive_layout_persistence still uses poll_layout_load plus spawn_layout_load and contains no synchronous load_layout/block_on; the direct backend-down and half-open responsiveness tests passed, so this run does not itself prove a frame-path regression.",
+        "backend_down_responsive_real_pg_palmistry_argus is ignored by default and requires current-source handshake_core, palmistry, isolated real PostgreSQL, and canonical Argus.",
+        "No palmistry.exe exists at ../Handshake_Artifacts/handshake-cargo-target/debug, so the governed exact live proof prerequisite is absent in the current validation environment.",
+        "The integrated live proof has one argus.finish call and zero assert_latest_terminal_predicate/reinspect_latest_terminal calls, so even with Palmistry built it does not satisfy the current canonical final-action gate."
+      ]
+    },
+    "remediation_plan": [
+      "1. Reconcile the production block_on inventory from source rather than merely changing 4 to 5. For each call, record owning function, invocation phase, thread, awaited operation, completion guard, timeout/bound, and proof that it cannot wait on backend I/O from update/ui/pane render.",
+      "2. Decide the startup MCP bind disposition from evidence. If SwarmMcpServer::bind is guaranteed local, bounded, and called before the frame loop, update the explicit inventory to five and add assertions for those properties. If it can wait on external state or an unbounded lock, convert it to spawn plus poll/readiness with a bounded degraded transport state.",
+      "3. Strengthen frame_path_has_no_ui_thread_block_on so it enumerates the exact approved call sites by function/signature instead of only a numeric count. Fail on any unknown call, and separately assert drive_layout_persistence, ui/update, pane factories, and render paths contain no backend-awaiting block_on or blocking lock.",
+      "4. Build handshake_core and the sibling Palmistry executable from current source into the canonical external Cargo target. Record binary hashes, modification-time/source provenance, exact crate inputs, and reject stale or alternate-target executables.",
+      "5. Run backend_down_responsive_real_pg_palmistry_argus explicitly with isolated real PostgreSQL, exact current-source backend/Palmistry binaries, unique diagnostics ring/survivor roots, and the same-listener suspension/restart path; do not accept the default ignore as proof.",
+      "6. In the integrated proof, bind each canonical action to a fresh authoritative terminal snapshot and action-specific predicate before finish: open Settings/Diagnostics, observe healthy, suspend owned backend, observe degraded, resume/replace exact listener, observe recovered, and verify exact pane/session identity throughout.",
+      "7. Bind the down transition to bounded frame durations, advancing heartbeat, exact backend endpoint, exactly one BackendUnreachable ring event, degraded AccessKit state, and no permanent spinner. Bind recovery to the same endpoint/session, exactly one BackendRecovered, heartbeat continuation, healthy AccessKit state, and no duplicate transition events.",
+      "8. Prove Palmistry in the same run: watcher attaches to the exact ring/process, survives backend suspension, observes the intended diagnostic sequence, writes the expected survivor/CleanShutdown record, terminates within the bound, and leaves no watcher/backend/layout-worker process or locked artifact.",
+      "9. Export a source-bound canonical evidence artifact only after finish succeeds, containing binary/source hashes, listener identity, PG DSN identity without secrets, action receipts, before/degraded/recovered trees/screenshots, terminal predicate evidence, frame/heartbeat series, exact ring events, Palmistry records, cleanup, and process-reaping results.",
+      "10. Preserve all 21 currently green negative/recovery/shutdown tests, both green dependencies, reqwest timeouts, off-thread layout persistence, event debouncing, and external-artifact policy. Do not weaken timing bounds, remove the live ignore without making prerequisites deterministic, or replace real suspension/Palmistry with a stub."
+    ],
+    "verification_required": [
+      "Run frame_path_has_no_ui_thread_block_on alone and require an exact named inventory with no unknown call sites and 1 passed/0 failed.",
+      "Run backend_down_responsive, backend_down_records_event_and_degrades_surface, silent_half_open_peer_is_bounded_without_freezing_frames, recovery_fires_recovered_event, and reqwest_clients_carry_connect_and_request_timeouts and require all green with original bounds intact.",
+      "Build current-source handshake_core and palmistry into ../Handshake_Artifacts/handshake-cargo-target and verify each binary's hash/source provenance and canonical target path.",
+      "Run the ignored integrated live proof explicitly and require 1 passed, 0 failed against isolated real PostgreSQL and the exact current-source binaries.",
+      "Parse the fresh canonical artifact and require terminal_refreshed=true, one retained receipt and passed product-specific predicate per action, exact listener/endpoint/session identity, no unbound/rejected/duplicate actions, and argus_teardown_verified=true.",
+      "Verify frame latency and heartbeat data across healthy, half-open/down, and recovered phases; require the declared worst-frame bound, continuous heartbeat advance, exactly one down event and one recovered event, and no spinner-only terminal state.",
+      "Verify Palmistry attaches to the exact ring/process, survives the same session, records the expected terminal state/CleanShutdown, exits within bound, and leaves no live child or locked artifact.",
+      "Run the complete test_backend_down_responsive binary and require 23 passed, 0 failed, 0 ignored when the live prerequisite profile is enabled; at minimum the default run must be 22 passed, 0 failed, 1 explicitly governed live test ignored and separately green.",
+      "Confirm MT-082 and MT-084 remain independently green at revalidation time and run the focused Settings Diagnostics AccessKit/manual recovery checks claimed by V3.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-088.json completely, packet.json, SPEC_CURRENT backend-down clauses, MT-082/084 verdicts, app.rs, backend_client.rs, diagnostics code, test_backend_down_responsive.rs, Palmistry source/manual, and canonical_argus_driver.rs. Reproduce the stale inventory failure, classify every block_on by exact reachability/bound, repair the named audit safely, build current binaries into the canonical external target, run the ignored real-PG/Palmistry proof explicitly, bind every action to a fresh terminal predicate, verify cleanup/reaping, rerun the full MT suite, and hand off READY_FOR_VALIDATION without weakening the freeze/recovery bounds or accepting prior V3 artifacts as current proof."
   }
 }

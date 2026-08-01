@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
   "mt_id": "MT-624",
   "created_at_utc": "2026-07-08T00:00:00Z",
-  "updated_at_utc": "2026-07-16T18:27:29Z",
+  "updated_at_utc": "2026-08-01T04:26:38.699Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/MT-624.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/packet.json",
@@ -34,7 +34,6 @@
   "markdown_projection": {
     "path": "NOT_GENERATED_BY_DEFAULT",
     "status": "NOT_GENERATED_BY_DEFAULT",
-    "source_file": "NOT_GENERATED_BY_DEFAULT",
     "source_hash": "NOT_GENERATED_BY_DEFAULT",
     "projection_hash": "NOT_GENERATED_BY_DEFAULT",
     "generated_at_utc": null,
@@ -54,7 +53,7 @@
     "validator_verdict": "PENDING"
   },
   "scope": {
-    "summary": "Build the Blender/UE round-trip verification harness per Section 13.26 (REQ-044): headless Blender scripts and UE-import checks that verify morphs, skeleton, correctives, scale, and orientation survive each export lane — with the Daz-bridge pain list encoded verbatim as named acceptance tests (morph selection stability, geograft-morph survival, bone rotation bugs, A-pose reference mismatch, 0.01 scale issues).",
+    "summary": "Split interchange proof into Rust structural round-trip, optional Unreal native C++ commandlet qualification, and operator-driven Blender import/inspection receipts; no generated scripts or Python execution.",
     "allowed_paths": [
       "src/backend/handshake_core/src/tailor/bodykit/export/roundtrip_harness.rs",
       "src/backend/handshake_core/src/tailor/bodykit/export/harness_scripts/",
@@ -62,11 +61,13 @@
     ],
     "forbidden_paths": [],
     "acceptance_criteria": [
-      "The Blender leg runs headless (blender --background --python) importing an export and asserting: all selected morphs present with correct names/ranges, skeleton hierarchy and bone count intact, driver-sidecar generators apply cleanly, world scale exact, up-axis correct.",
       "The UE leg validates via UE-import checks (commandlet or structural FBX/glTF assertions where a UE install is absent) covering skeleton compatibility, morph presence, and unit scale.",
       "The Daz-bridge pain list maps to named tests: morph_selection_stable, geograft_morphs_survive_single_mesh_lane, bone_rotation_correct_ue5, a_pose_reference_mismatch_fixed, no_scale_001_import_bug — each must pass on its owning lane.",
       "Toolchain absence (no Blender/UE in the environment) records a typed SKIPPED-with-reason result, never a silent pass; CI runners with tooling run the full harness.",
-      "Harness results integrate into EXPORT_BODY_VALID as round-trip check entries."
+      "Harness results integrate into EXPORT_BODY_VALID as round-trip check entries.",
+      "The active TailorInterchangeProfile or runtime capability row records exact direction, versions, hashes, supported payloads, losses, unsupported cases, privacy behavior, artifacts and qualification receipts before the action is exposed.",
+      "Proof includes successful canonical Rust behavior plus one missing/removed-adapter or unsupported-direction case and demonstrates no partial authority mutation, silent fallback, data loss or false qualification.",
+      "The product path is Rust-owned, local and offline: Python/PyTorch, generated executable scripts, cloud services, implicit network access and runtime downloads are prohibited; optional adapters are pinned and removable."
     ],
     "proof_targets": [
       "cargo test -p handshake_core tailor_bodykit_roundtrip::daz_bridge_pain_list_named_checks"
@@ -107,9 +108,11 @@
   "hbr_obligations": [
     "HBR-INT",
     "HBR-MAN",
+    "HBR-PRIV",
     "HBR-SWARM",
     "HBR-VIS",
-    "HBR-QUIET"
+    "HBR-QUIET",
+    "HBR-STOP"
   ],
   "hbr_int_009_tier_obligations": [
     {
@@ -157,7 +160,31 @@
     "required_changes_before_execution": [
       "Consume the signed technical refinement, canonical command/surface registries, classified HBR tiers, and task-oriented UserManual contract before execution."
     ],
-    "dependency_graph_status": "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE",
-    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.mt-reconciliation-prework.json"
+    "dependency_graph_status": "SPEC_V02_203_RECONCILED_BODYKIT_V2_DAG_CANDIDATE",
+    "authority": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json"
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "hbr_rows": [
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-007",
+      "HBR-PRIV-008"
+    ],
+    "requirements": [
+      "Resolve Principal, AuthenticatedSession and AccessSpace before every resource read or mutation.",
+      "Use PostgreSQL RLS/FORCE RLS and ResourceBroker-backed artifact/file handles; UI filtering is never the security boundary.",
+      "Derived resources preserve the intersection of source access scopes and must not leak existence through counts, search, previews, logs, traces, caches, diagnostics, exports or model context."
+    ],
+    "expected_evidence": [
+      "cross_account_and_cross_space_negative_tests",
+      "derived_scope_non_widening_test",
+      "revocation_cache_context_handle_invalidation_test",
+      "log_trace_preview_non_disclosure_test"
+    ]
   }
 }

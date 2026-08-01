@@ -14,7 +14,7 @@
   "title": "E10-MT-068-LocusWorkPacketCrossReferenceInterop",
   "group": "E10 Interop edges (cross-pillar force multipliers)",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-26T05:07:46.578Z",
+  "updated_at_utc": "2026-07-31T23:09:19.9384263Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-068.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt068",
       "mode": "VERIFY_AND_PROVE",
@@ -42,10 +42,10 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:09:19.9384263Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: clicking a locus chip in the live app is a dead-end - chip stages the ref + dispatches CMD_OPEN_LOCUS_REF but take_pending_locus_ref has ZERO call sites outside the bus and app.rs has zero locus references; no shell drain routes to the nav seam. NO carried_E11 disclosure for this (implementation_result reads as working navigation). LocusInteropService resolution has zero live call sites so the greyed-unavailable chip + tooltip (AC-005 operator-visible half) can never appear. VISUAL DEFECT: the cited proof screenshot itself shows overlapping/garbled glyph runs on the inline chips (chip does not consume the underlying text layout space) - contradicts the clean visual pass claim. Reverse-lookup case-sensitivity risk (lowercased key vs authored-case URIs). Fix: app.rs drain to ShellNavigator, chip layout fix + re-render, mixed-case seeded doc in the live proof.",
@@ -453,5 +453,81 @@
     "Drive the mounted Locus interaction through canonical Argus with stable targets, safe action, and fresh post-action inspection; align canonical UserManual diagnostics."
   ],
   "no_context_instruction": "Read MT-068.json and current authorities. Prove real persisted reference behavior and canonical Argus interaction before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:09:19.9384263Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "backend_binary": "../Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-030",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-032",
+        "status": "PASS_V4",
+        "verdict": "PASS_V4"
+      },
+      {
+        "mt_id": "MT-034",
+        "status": "NEEDS_REIMPLEMENTATION_V4",
+        "verdict": "FAIL_V4"
+      }
+    ],
+    "method": "Read the complete MT-068 contract and current test implementation; ran the ordinary Locus binary against real PostgreSQL/current-source backend with GPU proof; explicitly ran the runner-only ignored managed-PostgreSQL/canonical-Argus test; inspected the exact source-lineage failure and current git status; directly opened the fresh Locus chip screenshot; and compared dependency state, skipped-proof semantics, real reverse lookup, typed errors, navigation, AccessKit, and visual output to AC-001 through AC-010 and PT-001 through PT-007.",
+    "pass_evidence": [
+      "The ordinary Locus binary exited 0 with 20 passed, 0 failed, and 1 runner-only test intentionally ignored.",
+      "The ordinary run includes a real PostgreSQL case-robust reverse lookup that found a persisted mixed-case MT-034 structured hsLink through normalized mt-034 lookup and exact structured readback.",
+      "Passing tests prove pure parsing, resolved projection, typed unavailable endpoint, live 404 distinction, chip bus dispatch preserving uppercase identity, deduplicated reverse lookup and fail-closed candidate verification, save/reload round-trip, MT-032/MT-034 reuse gates, stable collision-free AccessKit IDs, read-only/no-SQLite behavior, and no repo-local artifact directory.",
+      "The fresh screenshot ../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-068/MT-068-locus-cross-ref-chips.png has SHA-256 D52F8B5FEB301827345774365B452CC6D544D61A884AD8F2D16EB15775C4A38A and was directly inspected. WP-KERNEL-012 and MT-034 chips consume their inline layout space cleanly with no glyph overlap; the reverse-reference footer is readable."
+    ],
+    "fail_report": {
+      "summary": "MT-068 FAIL V4. The mandatory runner-only real PostgreSQL/canonical Argus proof fails before execution because the current relevant runtime source is dirty, so no fresh source-bound persisted WP/MT resolution, restart, reverse lookup, navigation, Flight Recorder, cleanup, or four-frame visual artifact was produced. The ordinary suite's 20 green tests explicitly skip that acceptance proof. Declared dependency MT-034 is also FAIL_V4.",
+      "acceptance_impact": "AC-002, AC-003, AC-004, AC-010 and the live portions of PT-002 through PT-004 lack a successful current-source canonical run. A default command that exits zero while reporting the critical proof as ignored cannot replace the higher-priority external acceptance surface.",
+      "root_boundary": "CURRENT_SOURCE_PROVENANCE_GATE_SKIPPED_CANONICAL_PROOF_AND_FAILED_DEPENDENCY",
+      "failure_evidence": [
+        "Ordinary command result: Cargo exit 0; 20 passed, 0 failed, 1 ignored; body 33.20 seconds. resolve_locus_ref_against_real_pg_live was not executed because it is marked runner-only/ignored.",
+        "Explicit exact command used --exact --ignored with real PostgreSQL, current-source backend, GPU mode, and external Cargo target. Result: Cargo exit 1; 0 passed, 1 failed, 20 filtered out; body 0.15 seconds.",
+        "The exact live proof panicked at tests/test_locus_interop.rs:171 before fixture seeding because current_runtime_source_tree rejected dirty relevant paths tests/fixtures/swarm_edit_proof_log.txt, tests/perf_proof/perf_manifest.json, and tests/test_find_in_files.rs.",
+        "The validator preserved those prior/user-owned changes and did not reset, stash, clean, or add them to an ignore list. Therefore no fresh canonical JSON or four-frame WP/MT before/after screenshot set exists for source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e.",
+        "MT-034, the declared cross-reference node/resolution/reverse-lookup dependency, is NEEDS_REIMPLEMENTATION_V4 / FAIL_V4. MT-030 and MT-032 are green."
+      ]
+    },
+    "remediation_plan": [
+      "1. Re-establish a clean committed relevant runtime-source tree for the canonical Locus proof without discarding operator or prior-MT work. Resolve tests/fixtures/swarm_edit_proof_log.txt and tests/perf_proof/perf_manifest.json through their owning generated-evidence workflows, and preserve/commit the intentional test_find_in_files.rs formatting state as directed by its owner.",
+      "2. Prefer moving run-generated proof logs/manifests out of tracked test-source paths and into ../Handshake_Artifacts so later MT proofs do not dirty the runtime source tree. If they remain tracked authority fixtures, update them only through a deliberate owning-MT commit before cross-MT validation.",
+      "3. Do not weaken current_runtime_source_tree, expand its authority-file exceptions to include these dirty files, use git cleanup/reset/stash to hide them, or reuse the July 26 artifact. The official proof must bind to the exact clean remediation HEAD/tree and freshly recomputed source blobs.",
+      "4. Resolve MT-034 to an independently validated PASS before requesting MT-068 revalidation, because MT-068 explicitly reuses MT-034's CrossRef node, chip, resolution, and reverse-lookup machinery.",
+      "5. Run resolve_locus_ref_against_real_pg_live explicitly under the bounded governed runner with real PostgreSQL, current-source backend, GPU mode, and external artifacts. Require persisted WP and MT rows, save/reload survival, same-listener restart, live forward resolution, exact reverse lookup, missing-record handling, and cleanup.",
+      "6. Require both WP and MT chip clicks to travel through the mounted production bus/navigation seam and bind every canonical Argus action to fresh terminal observations and exact navigation identities. Do not accept same-process helper state or immediate click dispatch as final proof.",
+      "7. Require fresh diagnostics: resolved-then-reverse Flight Recorder causal order, exact EventLedger pending/complete mirror rows, case-robust canonical RichDocument lookup, exclusion of legacy/full-document alias false positives, and zero duplicate (document_id, block_id) results.",
+      "8. Generate and directly inspect all four fresh canonical frames (WP before/after and MT before/after). Preserve the already-correct no-overlap inline chip layout, readable labels, stable author IDs, and visible navigation destination.",
+      "9. Keep the critical live proof runner-only if isolation requires it, but provide one canonical supervisor command/manifest that runs the ordinary suite plus the ignored live test and fails the aggregate when either component is skipped, fails, times out, produces stale artifacts, or leaves residue."
+    ],
+    "verification_required": [
+      "Resolve MT-034 to an independent PASS verdict.",
+      "Run the ordinary test_locus_interop binary and require 20 passed, 0 failed; record the intentional runner-only test separately rather than counting the ignored row as acceptance completion.",
+      "Run resolve_locus_ref_against_real_pg_live with --exact --ignored under the bounded GPU supervisor; require 1 passed, 0 failed and Cargo exit 0.",
+      "Parse the fresh canonical JSON and recompute source SHA/tree, every declared source blob hash, PNG hashes, action log/receipt bindings, exact PostgreSQL WP/MT/document identities, Flight Recorder events, and EventLedger mirror counts.",
+      "Open all four fresh PNGs and compare each with its paired before/after Argus tree; verify clean chip layout, correct WP/MT label, exact navigation destination, stable/collision-free author IDs, and no overlap.",
+      "Run direct PostgreSQL post-proof queries and require zero seeded WP rows, MT rows, RichDocuments, legacy alias rows, and scoped EventLedger/Flight Recorder residue.",
+      "Run a single aggregate MT-068 proof entrypoint that terminalizes both ordinary and runner-only scenarios and reports no ignored mandatory scenario as PASS.",
+      "Return READY_FOR_VALIDATION for an independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-068.json completely, then packet.json, MT-030.json, MT-032.json, MT-034.json, current SPEC_CURRENT v02.202 Locus/cross-reference clauses, and tests/test_locus_interop.rs. Preserve the current user/prior-MT changes; do not clean or hide them. Establish a clean committed proof source through the owning workflows, resolve MT-034, rerun ordinary plus exact ignored live/GPU proofs against real PostgreSQL/current-source backend, generate new source-bound canonical artifacts, inspect all frames, verify exact receipts and zero residue, and hand off READY_FOR_VALIDATION without relying on the skipped default result or prior V3 artifacts."
+  }
 }

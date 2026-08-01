@@ -14,7 +14,7 @@
   "title": "E4-MT028-LoomSearchV2Surface",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T13:37:30.0277304Z",
+  "updated_at_utc": "2026-07-31T21:00:18.9572493Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-028.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,17 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-030",
       "MT-044"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T21:00:18.9572493Z",
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T11:16:14.0457023Z",
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: atomic or compensating save-as-view promotion/index authority with injected-failure restart proof, plus current-source canonical Argus across query, results, preview, persistence, error/empty, and reopened saved-view states. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
@@ -416,5 +416,34 @@
     "artifact_cleanup": "Rejected/diagnostic runs, transient fixture/stage/Argus binding directories, and the MT-specific Cargo target were removed after proof; only the accepted trace and managed receipt are retained.",
     "adversarial_review": "PASS after hardening: independent backend atomicity, operator/manual, accessibility/Argus, and final source-to-pane binding reviews found no remaining MT-028 product blocker.",
     "validator_instruction": "Independently rebuild from source_sha, rerun the real-PostgreSQL projection repair regression and canonical MT-028 Argus proof with a fresh run id, inspect the accepted trace and managed receipt, and preserve historical validation_v1/validation_v2 records. Do not mark completed unless official V3 validation passes."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T21:00:18.9572493Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-028 inputs match committed HEAD"
+    },
+    "method": "Current-source adversarial review, exact self-seeded managed Loom Search V2/PostgreSQL execution, fresh managed receipt inspection, and canonical action-evidence audit.",
+    "independent_checks": [
+      "Executed loom_search_v2_managed_mounted_search_facet_save_reload_cleanup from current HEAD with integration enabled, current-source handshake_core, real PostgreSQL, GPU enabled, and one test thread; the exact test passed.",
+      "Opened the fresh MT-028-managed-loom-search-v2-receipt.json and verified three seeded content types, populated facet counts/results, exact navigation, query/facet stale-delivery rejection, saved-view persistence/reopen, failure recovery, cleanup 204, and fresh-list absence.",
+      "The fresh run did not emit a current canonical-argus-matrix.jsonl, only a summary assertion that terminal predicates were used; that summary cannot replace per-action receipts.",
+      "The retained canonical matrix is bound to an older source run and its click/SetValue actions are indeterminate, including value changes that lack a causal mutation token."
+    ],
+    "fail_report": "MT-028 FAIL_V4. Current-head managed search, facets, stale-response rejection, saved-view persistence/reopen, failure recovery, and cleanup are green. V4 fails because no current per-action canonical Argus matrix was produced and the retained actions are indeterminate; the summary receipt's boolean terminal-predicate claim is not causal action evidence.",
+    "remediation_plan": [
+      "Persist a fresh canonical matrix during the exact managed test and write one terminal receipt per SetValue/click action with correlation ID, author_id, requested value/action, workspace/query generation, authoritative result/view revision, and pre/post tree hashes.",
+      "For SetValue, require a causal mutation token from the mounted input state and reject merely observing the requested value; for Search/Facet/Save/Reopen/Retry, require the corresponding terminal backend/readback state.",
+      "Rerun loom_search_v2_managed_mounted_search_facet_save_reload_cleanup from committed current HEAD with a fresh run ID, current-source backend, real PostgreSQL, external artifacts, GPU capture, and one test thread.",
+      "Open every current matrix row, receipt, tree, and screenshot; require zero indeterminate actions and prove populated, empty, error, stale-response, saved-view reopen, and cleanup states.",
+      "Retain the fresh managed receipt and verify its source/backend hashes, seeded IDs, saved-view block ID, EventLedger correlation, cleanup status, and fresh-list absence match the same run as the canonical matrix."
+    ],
+    "no_context_instruction": "Read MT-028.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green Loom Search V2 implementation. Emit a current per-action canonical Argus matrix with terminal causal receipts for SetValue/Search/Facet/Save/Reopen/Retry, rerun the exact managed real-PostgreSQL proof from committed current HEAD with external artifacts and a fresh run ID, open every receipt/tree/screenshot and the matching managed receipt, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

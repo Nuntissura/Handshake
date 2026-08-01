@@ -14,7 +14,7 @@
   "title": "E5-MT-033-CkcEmbedsDragInRouteToStage",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-30T01:50:38.6640735Z",
+  "updated_at_utc": "2026-07-31T21:16:18.9157080Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-033.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -36,10 +36,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:16:18.9157080Z",
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T23:05:48.0444200Z",
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: exercise the real CKC embed drag-in and Route-to-Stage interop with persistence/receipt readback and typed unavailable/error behavior; then prove the mounted Atelier panel and route controls through canonical Argus stable-target inspection, safe steering, fresh post-action observation, screenshot/tree evidence, and the canonical UserManual path. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
@@ -548,5 +548,107 @@
     "Run canonical Argus on the mounted Atelier panel and route controls, then record stable targets, action receipt, fresh inspection, and screenshot/tree evidence in the canonical UserManual path."
   ],
   "no_context_instruction": "Read MT-033.json and current authorities. Prove the real interop boundary and canonical Argus loop before returning READY_FOR_VALIDATION_V3."
-}
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:16:18.9157080Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "committed_product_semantics": true,
+      "pre_existing_unrelated_dirty_files_preserved": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/frontend/handshake_native/tests/test_find_in_files.rs"
+      ]
+    },
+    "authority_compared": [
+      "MT-033 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "SPEC_CURRENT v02.202 resolved Master Spec modules",
+      "WP_VALIDATOR_PROTOCOL.md",
+      "ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      "current committed product source, current test output, real PostgreSQL behavior, fresh canonical Argus records, and directly inspected fresh frames"
+    ],
+    "method": "Fresh adversarial per-MT review from current HEAD. The validator ran the complete focused integration binary, repaired only the missing runtime precondition by launching an exact owned current-source backend, reran AC-5 against real PostgreSQL, ran the exact mounted WGPU/canonical-Argus proof, parsed every emitted action receipt, and directly inspected both fresh PNGs before issuing the verdict.",
+    "commands_and_results": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_ckc_embed -- --nocapture --test-threads=1",
+        "result": "27 passed, 1 failed. The sole failure was ac5_atelier_side_panel_loads_from_live_pg because no backend was listening at the test's default HSK_TEST_BASE; all other focused integration cases passed."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_ckc_embed ac5_atelier_side_panel_loads_from_live_pg -- --exact --nocapture --test-threads=1",
+        "result": "PASS, 1 passed. A bounded hidden backend built from current source was launched on an ephemeral loopback port against postgresql://postgres@127.0.0.1:5544/handshake, its PID matched the listen report, AC-5 seeded and loaded the batch/item/corpus twice, cleanup reported deleted_batch=1, deleted_corpus=1, remaining_items=0, and the exact owned backend PID was stopped."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_ckc_embed atelier_panel_screenshot -- --exact --nocapture --test-threads=1",
+        "result": "Test process PASS, 1 passed, and emitted fresh success and typed-unavailable JSON/PNG artifacts. Artifact inspection nevertheless found all 8 mutating action receipts indeterminate, which violates the canonical Argus proof contract and prohibits an MT PASS."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "Atelier side-panel production mount, stable target IDs, item insertion fallback, and backend load boundary",
+      "CKC hsLink persistence and canvas placement against real PostgreSQL",
+      "Route-to-Stage dispatch, selection materialization, Flight Recorder/EventLedger correlation, and typed unavailable behavior",
+      "Canonical Argus action attribution, completion receipt causality, fresh observation, terminal predicates, and WGPU captures",
+      "external artifact-root placement and exact owned-backend teardown"
+    ],
+    "independent_checks_run": [
+      "The focused integration binary exercised 28 cases; 27 passed in the complete run and the sole missing-service case passed when rerun against a current-source owned backend and real PostgreSQL.",
+      "The live PostgreSQL CKC embed/canvas round trip passed and emitted exact document, canvas, placement, save-receipt, route-receipt, and causal identifiers with cleanup.",
+      "The exact mounted WGPU test passed its explicit tree predicates and emitted two fresh 1280x800 frames plus fresh JSON trees.",
+      "Direct PNG inspection confirmed that the success frame visibly contains the Atelier/CKC panel, item rows, inserted CKC chip, and routed Stage selection, while the failure frame visibly contains the typed saved-document prerequisite and explicit empty Stage state.",
+      "Direct JSON parsing found 5 success actions and 3 typed-unavailable actions, but every observation.receipt_status equals indeterminate."
+    ],
+    "counterfactual_checks": [
+      "The passing terminal tree predicates were not treated as causal action receipts: a later unrelated render could satisfy the same visible predicate after a rejected or lost click.",
+      "The passing real-PostgreSQL persistence test was not allowed to substitute for safe, attributable UI steering required by ARGUS-007 and the MT's mounted GUI acceptance surface.",
+      "The initial missing-backend AC-5 failure was not misdiagnosed as a product defect; the same exact test passed against a bounded current-source backend and verified cleanup."
+    ],
+    "boundary_probes": [
+      "backend absent versus current-source backend available",
+      "Atelier batch/item/corpus seed, two reads, and cleanup against real PostgreSQL",
+      "mounted success route versus no-active-saved-document typed failure",
+      "action dispatch receipt versus later terminal AccessKit predicate",
+      "external artifact root and exact owned-process termination"
+    ],
+    "negative_path_checks": [
+      "The no-active-saved-document path visibly reports 'activate a saved rich document first' and preserves '(nothing routed to Stage)'.",
+      "The bounded AC-5 backend was stopped by exact PID after the test and did not replace or restart the shared PostgreSQL service.",
+      "No indeterminate action was accepted as terminal success merely because the test process exited zero."
+    ],
+    "independent_findings": [
+      "All eight fresh canonical Argus action records have receipt_status=indeterminate.",
+      "Each indeterminate receipt records the rejection reason 'click was dispatched, but this target exposes no action-specific completion predicate'.",
+      "The separately serialized terminal_predicate objects pass, but they do not turn the action receipts into terminal causal receipts or prove that the requested action caused the observed state.",
+      "The fresh visual states are readable and materially demonstrate the intended success and typed-unavailable UI states; the blocker is receipt causality, not missing pixels or the CKC/PostgreSQL implementation."
+    ],
+    "fail_report": "MT-033 FAIL_V4. The CKC/Atelier embed, canvas, real-PostgreSQL round trip, mounted Stage route, and typed unavailable behavior are current-head green. PASS is prohibited because all 8 fresh canonical Argus mutating-action receipts are indeterminate and explicitly lack action-specific completion predicates; later tree predicates and screenshots do not establish causal, attributable action completion.",
+    "acceptance_impact": "The MT touches steerable GUI surfaces, so ARGUS-007 and ARGUS-014 require safe attributable steering with explicit completion receipts and fresh post-action observation. Eight indeterminate receipts leave that mandatory acceptance boundary unmet even though product behavior and rendered states are green.",
+    "remediation_plan": [
+      "Extend the canonical Argus action/driver contract used by test_ckc_embed so each click can be finalized against an action-specific completion predicate instead of permanently retaining the dispatch-time indeterminate receipt. The final receipt must name the requested action, stable author_id, agent/binding identity, before generation or tree hash, after generation or tree hash, terminal predicate ID, terminal status, and a correlation or causal ID.",
+      "Define exact terminal completion for every success action: menu-view completes only when menu.view.toggle-atelier is present in a fresh tree; menu.view.toggle-atelier completes only when atelier-side-panel plus the seeded item and typed character/moodboard blocker rows are mounted; the item action completes only when the exact hsLink chip/ref_kind/ref_value is present and the rich-document revision/content hash advances; menu-editors completes only when menu.editors.route-to-stage is present; route-to-stage completes only when the exact document/selection appears in Stage and the matching route Flight Recorder/EventLedger receipt ID and causal ID are available.",
+      "Define exact terminal completion for every typed-unavailable action: menu-operator completes on a fresh command-palette target, palette-open completes on a fresh dialog plus the exact route command, and route invocation completes with a terminal typed-failure receipt tied to the same action correlation ID while Stage still reads '(nothing routed to Stage)'. A typed failure is a valid terminal outcome; an indeterminate dispatch is not.",
+      "Make atelier_panel_screenshot assert, before writing proof artifacts, that all eight action receipts are terminal and that zero receipt_status values are indeterminate. Also assert that each serialized terminal predicate and any product receipt/correlation ID belongs to the same action record, so a later unrelated state change cannot satisfy the proof.",
+      "Emit proofs under a unique V4 run directory or run ID and include the current HEAD SHA, test invocation, timestamps, action matrix, per-action terminal receipts, before/after tree hashes, and PNG hashes. This prevents fixed-name artifacts from being mistaken for a fresh successful rerun after an early failure.",
+      "Rerun the full test_ckc_embed integration binary in one configured invocation with HSK_TEST_BASE pointing to a bounded current-source backend and real PostgreSQL; require 28/28 in that single run, exact cleanup, and exact owned-backend teardown. Then rerun the exact WGPU test and require 8/8 terminal action receipts with zero indeterminate rows.",
+      "Directly open both new PNGs and every action receipt/tree. Confirm the Atelier rows, inserted CKC reference, exact routed selection, typed unavailable text, empty Stage state, readable layout, and absence of an obscuring modal. Preserve the green CKC, canvas, persistence, and Stage implementation while repairing only the proof/receipt boundary."
+    ],
+    "verification_required": [
+      "One configured full integration run: 28 passed, 0 failed, 0 ignored against a current-source owned backend and real PostgreSQL.",
+      "Exact mounted WGPU/canonical-Argus run: 1 passed with 5 success plus 3 negative-path action records, all terminal and none indeterminate.",
+      "Per-action receipt review proves stable target, attributed agent/binding, requested action, before/after observation hashes or generations, terminal predicate, terminal status, and matching product causal/receipt identity where the action persists or routes data.",
+      "Direct inspection of both fresh 1280x800 PNGs and their matching fresh JSON trees from the same run ID.",
+      "Real-PostgreSQL seed/read/persistence/EventLedger cleanup and exact owned-backend PID teardown remain green."
+    ],
+    "no_context_instruction": "Read MT-033.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202 before editing. Work from committed current HEAD semantics in the WP worktree and preserve the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Do not rewrite the green CKC, canvas, persistence, or Stage behavior. Repair the canonical Argus driver/test boundary so all five success clicks and all three typed-unavailable clicks produce action-specific terminal causal receipts, rerun the entire 28-case integration binary against a bounded current-source backend plus real PostgreSQL, rerun the exact WGPU proof with zero indeterminate actions, open every fresh receipt/tree/PNG, verify cleanup and owned-process teardown, then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
+    "remediation_required": true,
+    "residual_uncertainty": "The current UI states and live data behavior are green; the remaining uncertainty is confined to whether a dispatched model action actually caused each observed state because the current action receipts are indeterminate."
+  }
 }

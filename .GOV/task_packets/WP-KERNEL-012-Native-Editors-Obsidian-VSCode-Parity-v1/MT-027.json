@@ -14,7 +14,7 @@
   "title": "E3-MT027-BlockCollectionViews",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T11:05:03.7847824Z",
+  "updated_at_utc": "2026-07-31T20:58:04.6767861Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-027.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,17 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-021",
       "MT-023"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:58:04.6767861Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: BlockCollectionView (table/kanban/calendar, 2006 lines) mounted by NO host; BlockViewEvent no consumer; BlockViewClient never constructed by a host. Not in MT-079/080 scope; no owner MT. Strongest widget of the orphan set (real DragAndDrop kanban proof, verified POST bodies) - mount-only work. Also MT-042 KnowledgeActionRegistry is never installed by app.rs, so collection swarm actions are doubly inert.",
@@ -697,5 +697,34 @@
     "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-027/integrated/mt027-v3-20260729-1410",
     "adversarial_review": "PASS: independent atomicity/migration, manual/UI, Argus/accessibility, Windows process/path/encoding and final receipt reviews found no remaining product blocker after hardening.",
     "validator_instruction": "Independently rerun tests/run_mt027_argus_proof.ps1 with a fresh RunId from committed source, inspect both receipts and the 24-row trace, and preserve historical validation_v1/validation_v2 records. Do not mark completed unless official V3 validation passes."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:58:04.6767861Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "src/frontend/handshake_native/tests/test_find_in_files.rs has a pre-existing rustfmt-only diff unrelated to MT-027; MT-027 compiled/runtime inputs match committed HEAD, but the wrapper's broad cleanliness gate does not exclude this unrelated file"
+    },
+    "method": "Current-source adversarial contract/source review, exact self-seeded real-PostgreSQL full round trip, fresh managed-backend receipt inspection, and retained/current canonical Argus evidence audit.",
+    "independent_checks": [
+      "Executed block_collection_views_live_pg_self_seed_full_round_trip from current HEAD with integration enabled, current-source handshake_core, PostgreSQL at 127.0.0.1:5544, GPU enabled, and one test thread; the exact test passed.",
+      "Opened the fresh managed-pg-receipt.json and verified it binds the current backend SHA, owned backend, PostgreSQL port/database, seeded tag/note/journal IDs, table/kanban/calendar view IDs, host dispatch, EventLedger attribution, and cleanup proof claims.",
+      "Audited the retained 24-action canonical matrix and current test implementation: actions have visible terminal predicates in test code, but the retained action receipts remain indeterminate and the current direct run emitted no fresh canonical matrix without the wrapper environment.",
+      "The required run_mt027_argus_proof.ps1 cannot currently bind a fresh official run in this shared worktree because its broad cleanliness preflight rejects the unrelated pre-existing test_find_in_files.rs formatting diff."
+    ],
+    "fail_report": "MT-027 FAIL_V4. The full real-PostgreSQL block-collection workflow is current-head green, including durable table/kanban/calendar operations, failure recovery, host dispatch, EventLedger attribution, and cleanup. V4 still fails because no fresh terminal canonical Argus matrix was produced for this source state, the retained 24 action receipts are indeterminate, and the official wrapper cannot run in the shared worktree due to an unrelated dirty-file gate.",
+    "remediation_plan": [
+      "Make every MT-027 canonical action receipt terminal by recording the named predicate result, source/action correlation ID, workspace/view ID, authoritative backend revision/readback, and fresh tree hash directly in each receipt rather than only asserting the tree in test code.",
+      "Change the wrapper cleanliness gate to validate the exact MT-027 compiled/configured input set or accept a validator-recorded hash-equivalent unrelated dirty exclusion; do not require mutation or deletion of the user's unrelated test_find_in_files.rs change.",
+      "Rerun run_mt027_argus_proof.ps1 with a fresh RunId from committed current HEAD, current-source backend, real PostgreSQL, external target/artifact roots, and bounded process supervision; require exit zero and zero survivors.",
+      "Inspect all 24 fresh rows and require zero indeterminate receipts across click and SetValue actions, including retry, sort, kanban move, calendar range, create, failure, and retry-create transitions.",
+      "Open the fresh screenshots/trees/managed-PG/process receipts and rerun the exact full round trip, verifying persisted view definitions/results, EventLedger correlation, cleanup absence, and no duplicate create on retry."
+    ],
+    "no_context_instruction": "Read MT-027.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, run_mt027_argus_proof.ps1, and SPEC_CURRENT v02.202. Preserve the current green real-PostgreSQL workflow. Persist each named terminal predicate into the Argus action receipt, narrow the wrapper cleanliness check to exact MT-027 inputs without touching unrelated user changes, rerun the official wrapper with a fresh RunId and external artifacts, inspect all 24 terminal rows plus backend/process receipts and screenshots, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

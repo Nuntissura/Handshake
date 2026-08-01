@@ -14,7 +14,7 @@
   "title": "E8-MT045-LargeDocPerformanceProof",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T04:17:12.2700575Z",
+  "updated_at_utc": "2026-07-31T22:07:14.4403872Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-044",
@@ -33,10 +33,10 @@
       "MT-060"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:07:14.4403872Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: the LR-05 cycle-aware transclusion resolver (resolve_transclusion_chain + CycleDetected) is defined INSIDE the test file - no product code contains transclusion cycle detection; contract framed it as a native improvement this MT must prove; a product render of a cyclic transclusion chain has no guard. LK-02 disclosed limitation: graph layout hard-caps at 200 nodes (naive O(n^2)); 1000-node budget architecturally unreachable - keep the Barnes-Hut work item; do not cite LK-02 as 1000-node capability. Positive: budgets asserted with env overrides, honest LC-06 reclassification, real requires_pg bodies. Fix: move the resolver into product code (rich_editor transclusion path) and have LR-05 call the product symbol; 12 REQUIRES_PG perf scenarios join the managed-PG batch.",
@@ -491,5 +491,83 @@
     "Fix the actual performance/setup failures, preserve immutable run/source provenance, ensure all 20 manifest rows are PASS, and rerun artifact hygiene plus freeze/diagnostic observation."
   ],
   "no_context_instruction": "Read MT-045.json and the current performance manifest before editing. Treat the 7 red rows as authoritative current failures, repair them without widening budgets, and return READY_FOR_VALIDATION_V3 with one immutable all-green run."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:07:14.4403872Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012",
+      "source_binding_clean_for_mt045_paths": true
+    },
+    "canonical_run": {
+      "run_id": "MT045-RUN-V4-20260731-VAL01",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1 -RunId MT045-RUN-V4-20260731-VAL01 -CommandTimeoutSeconds 1800 -PostgresDsn postgresql://postgres@127.0.0.1:5544/handshake",
+      "supervisor_projection": "Handshake_Artifacts/wp-kernel-012/mt-045/measurements/supervisor-current.json",
+      "run_artifacts": "Handshake_Artifacts/wp-kernel-012/mt-045/supervisor/MT045-RUN-V4-20260731-VAL01/",
+      "status": "FAIL",
+      "terminal_reason": "perf_proof_perf_lk03_tag_hub failed with exit code 101",
+      "completed_commands": 21,
+      "completed_performance_scenarios": 17,
+      "failed_scenario": "LK-03",
+      "not_executed_after_fail_fast": [
+        "LK-04",
+        "LK-05"
+      ],
+      "process_containment": "windows_job_object_kill_on_close",
+      "leaked_process_count_for_failed_command": 0,
+      "budget_overrides": [],
+      "cargo_profile": "release",
+      "cargo_locked": true,
+      "postgres_dsn": "postgresql://postgres@127.0.0.1:5544/handshake"
+    },
+    "pass_evidence_before_terminal_failure": [
+      "The supervisor built current-source handshake_core in the canonical external release target and recorded exit code 0.",
+      "All three required diagnostic preflights passed: heartbeat advancement, bounded idle repaint cadence, and the live diagnostics panel projection.",
+      "All LC-01..LC-08 code scenarios, all LR-01..LR-07 rich-text scenarios, and LK-01..LK-02 knowledge scenarios completed as exact one-test release commands before fail-fast stopped the run.",
+      "The supervisor bound the attempt to source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e, rejected inherited Cargo target/budget-skip overrides, and used the canonical sibling Handshake_Artifacts root.",
+      "A post-failure read-only PostgreSQL check found zero workspaces, zero loom_blocks, and zero loom_edges for the failed LK-03 workspace 019fba31-6fb2-7470-be6a-dac62425e2cf; PostgreSQL remained listening at 127.0.0.1:5544 under postgres PID 24608."
+    ],
+    "fail_report": {
+      "summary": "MT-045 FAIL V4. The fresh canonical release-profile supervisor did not complete the required 20-scenario matrix. LK-03 failed after its 5,000-block/5,000-tag-edge live fixture when GET /workspaces/{workspace_id}/loom/tags/{tag_id} did not return a response through the 15-second request-bounded product HTTP path; Cargo exited 101. Therefore LK-03 has no measured_value, no hit_count==5000 proof, and no <=2000 ms proof. The fail-fast supervisor did not execute LK-04 or LK-05 and terminally invalidated all 20 manifest rows as FAIL for this run.",
+      "failed_command": "cargo test --release --locked --target-dir ../Handshake_Artifacts/handshake-cargo-target --test test_perf_large_knowledge perf_proof_perf_lk03_tag_hub -- --exact --nocapture --test-threads=1",
+      "failure_evidence": [
+        "test_perf_large_knowledge reported: 0 passed, 1 failed, 4 filtered out; finished in 78.68s.",
+        "The panic at tests/pg_proof_support/mod.rs:1395 was: GET /workspaces/019fba31-6fb2-7470-be6a-dac62425e2cf/loom/tags/019fba31-6fb4-7e53-b884-b19a4f4f563b failed: error sending request for url (http://127.0.0.1:58463/...).",
+        "The failed command receipt records exit_code=101, timed_out=false at the 1,800-second command boundary, leaked_process_count=0, stdout SHA-256 2444672ada8c83b521df396b9191695d2836a95f84999f141c15a704cc2d2f2c, and stderr SHA-256 751c2deb467688b80d18a8fc27d8bea51008d71e1f14b9b3c597717de964c997.",
+        "The canonical manifest contains exactly 20 rows but all are terminal FAIL for suite_run_id MT045-RUN-V4-20260731-VAL01; LK-03, LK-04, and LK-05 have measured_value=null, measured_profile=release, override_applied=false, and gated=false.",
+        "The product storage path executes get_loom_block, an incoming sub_tag query, an incoming tag query returning complete LoomBlock rows, and a separate backlink COUNT. The tag query joins loom_edges to loom_blocks, applies DISTINCT, and orders all returned blocks. This exact route/query shape is the optimization target; the transport error alone does not prove which server-side stage consumed the time.",
+        "The owned backend runtime directory and backend stdout/stderr are deleted by LiveBackend::drop even on panic. Consequently this failed attempt retains the client error and supervisor command logs but not the backend log/error chain needed to distinguish a server query stall, server failure, or client timeout. Root cause beyond the observed route failure is not proven."
+      ]
+    },
+    "remediation_plan": [
+      "Preserve failure diagnostics first. Change the MT-045 live-backend fixture so a failed or panicking scenario retains its external backend-runtime directory, listen-report.json, backend.stdout.log, and backend.stderr.log under the scenario/run ID. Successful runs may still clean owned runtime directories. Emit the full reqwest error chain (including is_timeout/is_connect/is_request and source chain), the owned backend PID/exit status, and a health probe immediately after a request failure. Keep all retained files under ../Handshake_Artifacts and bind them into the supervisor failure projection with SHA-256 digests.",
+      "Reproduce only perf_proof_perf_lk03_tag_hub in release mode against the current-source release handshake_core and the verified PostgreSQL DSN, with default PERF_BUDGET_LK03_MS=2000 and no PERF_BUDGET_* or SKIP_PERF_TESTS overrides. Confirm the fixture reaches exactly 5,001 blocks (one tag hub plus 5,000 member blocks) and 5,000 member->tag edges through production HTTP before timing the GET. Record backend logs and the exact response/timeout stage.",
+      "Instrument the production GET /workspaces/:workspace_id/loom/tags/:tag_block_id path with per-stage timings for get_loom_block, incoming sub_tag lookup, incoming tag lookup, LoomBlock mapping/serialization, backlink COUNT, and HTTP response write. Use EXPLAIN (ANALYZE, BUFFERS) against a representative 5,000-edge workspace for the incoming-edge SELECT DISTINCT JOIN/ORDER BY query and the COUNT query. Do not infer the bottleneck from the client-side error.",
+      "Optimize the measured product route without widening the 2,000 ms budget or shrinking the 5,000-member fixture. Evaluate the existing (workspace_id,target_block_id) index against the actual plan; if supported by measured plans, add a composite index covering workspace_id, target_block_id, edge_type and source_block_id, remove avoidable DISTINCT/sort work only when result uniqueness remains contract-correct, and avoid redundant full-row mapping/serialization passes. If the endpoint contract must be paginated or summarized to meet the product requirement, change the authoritative MT/spec contract first; do not silently change LK-03's complete 5,000-result assertion.",
+      "Make LK-03 prove all three acceptance facts in one successful exact run: the HTTP response is valid, tagged_blocks length and backlink_count both equal 5,000, and measured query latency is <=2,000 ms under the release profile with override_applied=false. Add a regression that fails with a typed stage-specific diagnostic when the backend exits, the request exceeds its bound, or a partial result is returned.",
+      "After LK-03 is green, run the exact release-profile LK-04 and LK-05 tests because this V4 attempt never executed them. Require LK-04 to return its contract hit range within 2,000 ms and LK-05 to return the exact 200-folder/20-root/180-nested topology within 1,000 ms, using live PostgreSQL and current-source handshake_core.",
+      "Rerun the complete canonical run_mt045_perf_proof.ps1 with a new immutable RunId. The supervisor must execute one release build, all three diagnostics, and exactly 20 distinct scenario tests; it must finish PASS with no panic markers, no leaked child processes, unchanged PostgreSQL identity, no inherited CARGO_TARGET_DIR, no SKIP_PERF_TESTS, and no PERF_BUDGET_* overrides.",
+      "Parse and independently verify supervisor-current.json, current-run.json, latest-run-summary.json, the immutable runs/<RunId>.json plus digest, diagnostics-preflight.json plus digest, the immutable manifest snapshot, and the checked-in perf_manifest.json. Require source_sha to equal the candidate HEAD, exactly three test binaries, exactly 20 scenario IDs LC-01..LC-08/LR-01..LR-07/LK-01..LK-05, every status PASS, every measured_profile release, every override_applied=false, every gated=false, every required measured_value non-null, and zero FAIL rows.",
+      "Verify cleanup and failure boundaries: the failed-run artifacts remain inspectable, the successful run leaves no scenario-owned workspace/blocks/edges, no backend/test child remains, PostgreSQL at 127.0.0.1:5544 is the same pre-existing process and was never stopped, and no repo-local target or runtime artifact directory was created."
+    ],
+    "verification_required": [
+      "The exact LK-03 release test exits zero and records tagged_blocks=5000, backlink_count=5000, measured_value<=2000 ms, override_applied=false, and live PostgreSQL/current-source backend provenance.",
+      "A deliberate failing or forcibly terminated live-backend probe retains backend logs, listen receipt, PID/exit status, full client error classification, and SHA-256-bound failure artifacts outside the repo.",
+      "The exact LK-04 and LK-05 release tests each exit zero after the LK-03 repair; neither may be inferred from an earlier run.",
+      "A new full canonical supervisor run exits zero and publishes terminal PASS for the candidate HEAD with 21 prerequisite/scenario-success commands after the build plus all required immutable hashes; no command is filtered, ignored, skipped, gated, or budget-overridden.",
+      "The final manifest has exactly 20 unique canonical scenario IDs and 20 PASS rows with non-null measurements where required; LK-03/LK-04/LK-05 carry their exact result-count/topology assertions.",
+      "Post-run read-only database/process checks prove scenario workspace cleanup, zero owned child leaks, and preservation of the pre-existing PostgreSQL process; git status proves no repo-local build/runtime outputs were introduced."
+    ],
+    "no_context_instruction": "Read MT-045.json completely, then packet.json, SPEC_CURRENT v02.202 anchors, run_mt045_perf_proof.ps1, test_perf_large_knowledge.rs, perf_proof_support/mod.rs, pg_proof_support/mod.rs, and the current storage/API implementation for GET /loom/tags/{tag_id}. Start from retained run MT045-RUN-V4-20260731-VAL01 and its LK-03 stdout/stderr hashes. First make failure artifacts durable and diagnostic, then reproduce and optimize the exact live 5,000-tag route without budget overrides or fixture reduction. Run LK-03, LK-04, and LK-05 exactly, then one new complete canonical 20-scenario supervisor run. Return READY_FOR_VALIDATION only after every V4 verification requirement is evidenced; do not self-issue PASS."
+  }
 }

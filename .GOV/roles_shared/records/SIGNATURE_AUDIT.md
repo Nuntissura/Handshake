@@ -3,7 +3,7 @@
 **Authoritative registry of all user signatures consumed for spec enrichment and work packet creation**
 
 **Status:** ACTIVE
-**Updated:** 2026-03-28
+**Updated:** 2026-08-01
 **Authority:** ORCHESTRATOR_PROTOCOL Part 2.5 [CX-585A/B/C]
 
 ---
@@ -23,6 +23,7 @@
 
 | Signature | Used By | Date/Time | Purpose | Master Spec Version | Notes |
 |-----------|---------|-----------|---------|-------------------|-------|
+| ilja010820266000 | KERNEL_BUILDER | 2026-08-01 06:00 | Master Spec enrichment: Tailor and BodyKit-v2 Rust-native offline runtime, GNM-v3 default provider, high-resolution human creation, professional operator/model surfaces, dependency acquisition, privacy, shared pillars, cinematic qualification, and Blender/Unreal interchange | v02.203 | Consumed once for the copy-first v02.202 -> v02.203 spec enrichment after the operator approved the researched Tailor vision. It does not activate, assign, or sign WP-KERNEL-010 or its microtasks. |
 | ilja260720260635 | KERNEL_BUILDER | 2026-07-26 06:35 | Master Spec enrichment: account-bound resource privacy pillar, LocalAccount/Principal/AccessSpace/ResourceGrant/Persona separation, and future shared-workspace/SaaS/MCP continuity for WP-KERNEL-006/007/008 | v02.202 | Consumed once for the copy-first v02.201 -> v02.202 spec enrichment. It does not activate or sign any WP stub or microtask. |
 | ilja080720262117 | KERNEL_BUILDER | 2026-07-08 21:17 | Master Spec enrichment: v02.198 Section 13 two-submodule Tailor (Cloth 13.1-13.15 second-pass MD-parity reconciliation + BodyKit 13.16-13.27, anchors TAI-BK-001..240) for WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1 | v02.198 | Approved after deep MD-parity verification + BodyKit fold-in (research .GOV/reference/tailor_bodykit_research/; gap matrix + MT blueprint 06-gap-matrix-and-mt-plan.md). Signs the copy-first v02.197 -> v02.198 bundle bump. |
 | ilja150520260208 | Orchestrator | 2026-05-15 02:08 | Work packet creation: WP-KERNEL-003-Sandbox-Validation-Promotion-v1 | v02.185 | Approved after Technical Refinement (see .GOV/refinements/WP-KERNEL-003-Sandbox-Validation-Promotion-v1.md ). |

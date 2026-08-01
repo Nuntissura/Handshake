@@ -14,7 +14,7 @@
   "title": "E5-MT-035-UnifiedUndoScope",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T08:34:04.940Z",
+  "updated_at_utc": "2026-07-31T21:27:02.9216175Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-035.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-05T10:55:27.452Z",
@@ -36,10 +36,10 @@
       "MT-044",
       "MT-046"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:27:02.9216175Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: plain TYPING in the code editor records no undo entries - only format and line-op snapshots reach push_code_edit_undo; TextBuffer deliberately has no undo; live Ctrl+Z after typing does nothing in the code pane. MT-079 proof SEEDED the undo entry via push_code_edit_undo rather than recording from a typed edit, masking the gap; the two E11 #[ignore] carries still have unreachable!() bodies at tree tip. Undo-count indicator (AC-6) rendered only by the test bin; artifact PNG is a test-render crop not a live-shell capture. Fix: record typing-edit undo at the bus boundary (batched like RichUndoBatcher), convert both ignored tests to live proofs, mount the indicator or drop AC-6 from live claims. Rich-editor half is genuinely excellent and stays.",
@@ -622,5 +622,109 @@
       ]
     },
     "validator_instruction": "Independently rerun the MT-035 default undo suite and live PostgreSQL canvas compensation proof from current head. Preserve prior FAIL_V2 validation history; lifecycle.validator_verdict is PENDING_V3 until official validator review."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T21:27:02.9216175Z",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "committed_product_semantics": true,
+      "pre_existing_unrelated_dirty_files_preserved": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "src/frontend/handshake_native/tests/test_find_in_files.rs"
+      ]
+    },
+    "authority_compared": [
+      "MT-035 machine contract",
+      "WP-KERNEL-012 packet contract",
+      "SPEC_CURRENT v02.202 resolved Master Spec modules",
+      "WP_VALIDATOR_PROTOCOL.md",
+      "ARGUS_VISUAL_INSPECTION_PROTOCOL.md",
+      "current undo implementation/tests, configured focused output, exact real-PostgreSQL canvas proof, current Argus test implementation, and directly inspected fresh indicator image"
+    ],
+    "method": "Fresh adversarial current-head validation using one integration+GPU focused binary, an exact rerun of the sole missing-service live case against a bounded current-source backend and real PostgreSQL, source-level inspection of the canonical Argus proof path, and direct inspection of the freshly rendered indicator artifact.",
+    "commands_and_results": [
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration,wgpu_screenshots --test test_undo_scope -- --nocapture --test-threads=1",
+        "result": "30 passed, 1 failed. All local-first, redo, cross-pane, in-flight serialization, restart-empty, cap, coalescing, live editor, menu, and indicator cases passed. The sole failure was the real-PG canvas case attempting default http://127.0.0.1:37501 with no external backend listening."
+      },
+      {
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_undo_scope canvas_placement_undo_round_trip_live_pg -- --exact --nocapture --test-threads=1",
+        "result": "PASS, 1 passed against a bounded current-source backend on ephemeral loopback and PostgreSQL 127.0.0.1:5544; exact owned backend PID 219720 was stopped after the proof. The test created owned and unrelated placements, drove shell Ctrl+Shift+Z, verified only the owned placement disappeared on fresh reload, and cleaned its workspace."
+      }
+    ],
+    "diff_attack_surfaces": [
+      "focused-pane local-first undo/redo isolation and typing coalescing",
+      "cross-pane Stage and canvas compensation ordering, reentry blocking, failure attribution, and redo",
+      "session-only restart-empty history and non-serializability",
+      "pane/cross-pane caps and mounted undo-count indicator",
+      "real-PostgreSQL placement create, compensating delete, unrelated-placement survival, reload, and cleanup",
+      "canonical Argus safe steering, terminal action receipts, fresh observation, durable proof artifacts, and mounted visual context"
+    ],
+    "independent_checks_run": [
+      "Thirty non-live and mounted/GPU cases passed in the combined focused run.",
+      "The exact live PostgreSQL canvas compensation passed after supplying the backend precondition and terminated the exact owned backend process.",
+      "The V3 Argus test exercised menu-edit and menu.edit.undo-cross-pane and checked in-memory bus counts, blocked reentry, focused local independence, and restart-empty state.",
+      "Source inspection found that the Argus test does not call assert_latest_terminal_predicate, does not call argus.finish, and does not serialize the action receipts or trees to a durable artifact.",
+      "The only fresh PNG is MT-035-undo-count-indicator.png, a directly inspected detached 320x80 crop showing 'Undo (2)' rather than the indicator in its real pane/header context."
+    ],
+    "counterfactual_checks": [
+      "Passing in-memory count assertions were not treated as canonical model-steering evidence because no terminal action receipt/tree was retained for independent review.",
+      "The detached indicator crop was not accepted as proof that the control is correctly placed, readable, attributable to the focused pane, and updated in the mounted application shell.",
+      "The initial live failure was not treated as a product defect after the exact case passed against a bounded current-source backend.",
+      "A green Ctrl+Shift+Z key-path test was not allowed to substitute for the distinct required Argus menu action completion proof."
+    ],
+    "boundary_probes": [
+      "focused code local undo versus independent rich history",
+      "local ring empty versus cross-pane fallback",
+      "cross-pane compensation in flight versus concurrent retry and focused local undo",
+      "same-pane stale local redo versus cross-only Stage/canvas redo",
+      "session state before restart versus fresh empty scope",
+      "owned canvas placement versus unrelated placement after compensating delete",
+      "in-memory Argus click observation versus durable terminal receipt and mounted screenshot"
+    ],
+    "negative_path_checks": [
+      "Async undo without a runtime does not advance history.",
+      "Concurrent cross-pane undo is rejected as already in flight without reordering.",
+      "Canvas compensation failure is attributed to the origin board across A-B-A state changes.",
+      "Settings overlay prevents Ctrl+Z from mutating editor history.",
+      "Fresh app restart cannot replay interrupted session-only history."
+    ],
+    "independent_findings": [
+      "Unified undo behavior and the real-PostgreSQL canvas compensating delete are current-head green.",
+      "The test named mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_and_restart_empty is not a complete canonical Argus proof: it retains no receipt/tree artifact, asserts no terminal action predicate, and never invokes the driver's finish gate.",
+      "Because the click receipts are not persisted, an independent validator cannot verify receipt status, target selection, attribution, before/after generation, or causal completion from the artifact surface.",
+      "The only screenshot is an isolated 320x80 indicator widget. It cannot prove mounted pane-header placement, correct focused-pane association, layout coherence, or post-undo count change."
+    ],
+    "fail_report": "MT-035 FAIL_V4. Unified local/cross-pane undo logic, caps, restart-empty scope, live pane behavior, and real-PostgreSQL canvas compensation are current-head green. PASS is prohibited because the claimed canonical Argus path emits no durable action receipt/tree, has no terminal-predicate or finish gate, and the only visual artifact is a detached 320x80 indicator crop rather than the mounted undo flow.",
+    "acceptance_impact": "MT-035 changes keyboard/menu-driven GUI behavior and a pane-header indicator. ARGUS-002, ARGUS-007, ARGUS-012, and ARGUS-014 require independently reviewable safe steering, attributed terminal receipts, fresh post-action state, and mounted visual evidence; those proof surfaces are absent.",
+    "remediation_plan": [
+      "Upgrade mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_and_restart_empty into a durable canonical proof. Persist each menu-edit and menu.edit.undo-cross-pane action with stable author_id, agent/binding attribution, receipt ID/status, before/after tree generation or hash, requested command, terminal predicate, terminal result, and correlation ID under a unique V4 run directory.",
+      "Define action-specific terminal completion: opening Edit terminates only when menu.edit.undo-cross-pane is freshly visible and enabled; invoking cross-pane undo terminates only when the exact cross-pane entry moves to in-flight, the focused code local count remains unchanged, and the compensation operation/correlation ID is visible. A dispatch-time indeterminate receipt must fail the test even if later in-memory counts happen to match.",
+      "Complete the in-flight negative proof in the same artifact: record the second undo rejection as a terminal typed failure tied to the existing in-flight operation; record the independent focused-local undo as a separate terminal success; then settle or deterministically cancel the pending compensation before argus.finish so the driver proves no unresolved action is left behind.",
+      "Capture mounted 1400x900 shell frames before and after local undo, cross-pane undo, and restart. The frames and AccessKit trees must show the focused pane, undo-count-{pane_id}, Editors/Edit action, pending/terminal compensation status, and fresh empty history after restart. Replace the detached 320x80 crop as the acceptance artifact; it may remain only as a supplemental component test.",
+      "Make the proof call assert_latest_terminal_predicate for every mutation and argus.finish at the end. Fail before writing PASS artifacts unless all receipts are terminal, zero are indeterminate, attribution matches the validator agent, and no action remains in flight.",
+      "Rerun all 31 focused cases in one configured invocation with HSK_TEST_BASE bound to a bounded current-source backend and HANDSHAKE_TEST_PG_DSN bound to real PostgreSQL, so the full result is 31 passed, 0 failed. Preserve exact owned-backend PID teardown and workspace cleanup.",
+      "Directly inspect the new per-run JSON receipts/trees and mounted screenshots. Verify local-first isolation, cross-pane reentry blocking, independent focused local undo, terminal compensation/recovery, restart-empty scope, mounted indicator count changes, readable layout, and zero unresolved or indeterminate actions."
+    ],
+    "verification_required": [
+      "One configured full focused run: 31 passed, 0 failed, 0 ignored, including the live PostgreSQL canvas round trip.",
+      "Durable canonical Argus action matrix for Edit open, cross-pane undo, blocked retry, focused local undo, compensation settlement, and restart observation with zero indeterminate or unresolved actions.",
+      "Every mutating action has stable target, attribution, before/after tree hashes or generations, terminal predicate/status, and matching undo/compensation correlation identity.",
+      "Direct inspection of fresh mounted full-shell PNGs and matching trees proves focused-pane association, Undo count transitions, cross-pane state, readable layout, and fresh restart-empty history.",
+      "Real-PostgreSQL owned-placement removal, unrelated-placement survival, fresh reload, cleanup, external artifact placement, and exact owned-backend teardown remain green."
+    ],
+    "no_context_instruction": "Read MT-035.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green unified undo implementation and the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Convert the current in-memory Argus check into a durable terminal-receipt proof with action-specific predicates, settle the pending compensation before argus.finish, add full mounted-shell before/after/restart captures with undo-count pane context, run all 31 cases in one configured current-source-backend plus real-PostgreSQL invocation, inspect every fresh receipt/tree/PNG, require zero indeterminate or unresolved actions, then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
+    "remediation_required": true,
+    "residual_uncertainty": "Product undo behavior is strongly green. Remaining uncertainty is confined to model-steering causality, compensation settlement in the Argus proof, and whether the indicator behaves correctly in its mounted pane-header context rather than in a detached component crop."
   }
 }

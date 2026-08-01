@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-24T09:20:00.000Z",
+  "updated_at_utc": "2026-07-31T20:53:46.1158223Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -34,10 +34,10 @@
       "MT-024",
       "MT-027"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_at_utc": "2026-07-31T20:53:46.1158223Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: LoomTagsPanel/LoomTagHubPanel (978 lines) mounted by NO host - zero references in app.rs/editor_pane_factories/pane_registry/left_rail/module_switcher; events have no consumer; LoomTagClient never constructed for this panel. Not in MT-079/080 mount scope; no owner MT. Widget itself sound (real interactions, verified /loom/tags routes, matching PNGs). Fix: mount + event consumer wiring only.",
@@ -595,5 +595,34 @@
     "kb_ready_checklist": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl)",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS (queued for sub-agent resume; runtime proof + implementer review complete)",
     "note": "anti-scaffold satisfied: rollback-on-ledger-failure + restart-readback tests pass, which a mock/scaffold cannot."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:53:46.1158223Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-023 inputs match committed HEAD"
+    },
+    "method": "Current-source contract/source review and exact integration-enabled mounted canonical Argus execution against the shared current-source backend and real PostgreSQL.",
+    "independent_checks": [
+      "Inspected the current tags/tag-hub pane delivery guards, workspace sequencing, persisted relationship boundary, contract proof requirements, and prior V3 claims.",
+      "Executed mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve from current HEAD with integration enabled, current-source handshake_core, real PostgreSQL, GPU capture, and one test thread.",
+      "The test inspected tags.search plus three tag rows, clicked tags.row.tag-rust, and re-observed the tag-hub title and add-tag control with the list rows gone.",
+      "Despite the visible navigation change, the action receipt was indeterminate and the canonical driver failed the test because the action was not rebound to an authoritative terminal snapshot."
+    ],
+    "fail_report": "MT-023 FAIL_V4. The mounted tags surface visibly navigates from the tag list to the Rust tag hub, but the required interaction evidence is not causally valid: tags.row.tag-rust has an indeterminate receipt. The post-state alone cannot prove the attributed click, correct hub identity, relationship refresh, or failure-safe persistence behavior.",
+    "remediation_plan": [
+      "Add an action-specific terminal navigation receipt for tag-row activation containing the source tag ID, destination tag-hub ID, workspace/generation, and authoritative loaded hub revision or membership-query completion.",
+      "Bind the canonical Argus completion predicate to that receipt and to the fresh tag-hub.title.<id> state; do not infer success merely because list rows disappear.",
+      "Add or retain negative proof that delayed results after workspace/tag changes are rejected and failed add/remove tag writes preserve the prior visible membership with a typed error.",
+      "Rerun mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve with the current-source backend, real PostgreSQL, GPU capture, and --test-threads=1; require a non-indeterminate receipt and zero exit.",
+      "Open the regenerated pre/post tree, action receipt, and screenshot, then rerun focused tags filtering, hub membership, add/remove relationship, rollback, restart-readback, and EventLedger tests."
+    ],
+    "no_context_instruction": "Read MT-023.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the current tag/tag-hub implementation. Introduce an authoritative terminal tag-navigation receipt bound to tag ID, workspace generation, and loaded hub state; repair the canonical Argus predicate; rerun focused live PostgreSQL and mounted Argus proofs from committed current HEAD with external artifacts; open the regenerated terminal receipt/tree/screenshot; then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

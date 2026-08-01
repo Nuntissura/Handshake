@@ -14,7 +14,7 @@
   "title": "E3-MT021-LocalGlobalGraph",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-24T10:30:00.000Z",
+  "updated_at_utc": "2026-08-01T05:58:04.167Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-021.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -33,10 +33,10 @@
       "MT-023",
       "MT-024"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_at_utc": "2026-07-31T20:49:48.1846912Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: graph view IS mounted (PaneType::KernelDcc, app.rs:1101-1108) but NO host code ever loads data - LoomGraphClient::fetch_global/fetch_local never called at mount or ModeChanged; set_graph called only by widget tests. Mounted pane renders a permanently empty 0-node graph against a running backend. GraphEvent::ModeChanged/AddEdge/RemoveEdge fall to catch-all with a false comment claiming the widget owns them. Fix: initial fetch + graph-cell drain to set_graph + wire ModeChanged/edge events to the loom clients.",
@@ -84,22 +84,13 @@
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260704-195953",
-    "ready_for_validation_at_utc": "2026-07-24T10:30:00.000Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
-    "ready_for_validation_summary": "MT-021 V3: canonical Argus over real-PG graph — inspect/relayout/re-observe, empty state, and local/global switch proving DISTINCT real-PG queries (isolated node absent in local, returns in global). Validator PENDING; completed_by null.",
-    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "missing_resource": {
-      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-      "reason": "No seeded Handshake-managed PostgreSQL/backend environment was available for the live graph tests.",
-      "missing_env": [
-        "HANDSHAKE_TEST_WORKSPACE_ID",
-        "HANDSHAKE_TEST_GRAPH_WORKSPACE_ID",
-        "HANDSHAKE_BACKEND_URL",
-        "DATABASE_URL",
-        "HANDSHAKE_TEST_DB_URL"
-      ],
-      "required_resource": "Seeded live Handshake-managed PostgreSQL workspace with >=3 LoomBlocks for global views/all and a focused block/neighbourhood for local graph-search AC2."
-    },
+    "ready_for_validation_at_utc": "2026-08-01T05:58:04.167Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-020817",
+    "ready_for_validation_summary": "MT-021 V4 remediation: mounted real-PostgreSQL/GPU canonical Argus relayout is bound to exact generation 2 -> 3, stable deterministic layout SHA-256, four nodes, two edges, and an applied attributed receipt. Backend-order-independent force layout, truthful positive distinct AccessKit bounds, responsive controls, fit-to-canvas, and compact visible labels with full semantic AccessKit titles are proven. Graph module passed 12/12 and widget binary 8/8; independent adversarial re-review found no blocking defect and directly confirmed database cleanup. Official validator verdict remains FAIL_V4 pending V4 validation; completed_by remains null.",
+    "external_resource_proof_status": "PASS_V4_REAL_POSTGRESQL_GPU",
+    "missing_resource": null,
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_INDEPENDENT_REVIEW_PASS_2026-08-01",
     "kb_ready_checklist_receipt": {
       "verdict": "PASS",
       "generated_at_utc": "2026-07-04T21:48:29.828Z",
@@ -574,5 +565,33 @@
     "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-021/canonical-argus/",
     "kb_ready_checklist": "PASS",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:49:48.1846912Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-021 inputs match committed HEAD"
+    },
+    "method": "Focused graph unit proof, self-seeded real-PostgreSQL local/global integration proof, fresh mounted canonical Argus execution, and direct artifact/source review.",
+    "independent_checks": [
+      "graph::graph_view unit scope passed 8/8, covering convergence, idempotence, zoom bounds, node cap, empty/error stability, colors, and stable author-id sanitation.",
+      "graph_view_live_pg_self_seeds_local_global passed against the current-source backend and PostgreSQL, persisting four nodes/two edges and proving distinct global/local projections plus an addressable graph.node UUID.",
+      "mt021_mounted_graph_canonical_argus_inspect_steer_reobserve executed from current HEAD and failed after inspect -> graph.relayout click -> reinspection because the action receipt remained indeterminate.",
+      "Fresh current-run tree and screenshot were written under Handshake_Artifacts/handshake-test/wp-kernel-012-mt-021/canonical-argus; the runtime gate rejected them because visible post-state without causal receipt binding is insufficient."
+    ],
+    "fail_report": "MT-021 FAIL_V4. Graph computation and real PostgreSQL local/global loading are current-head green, but the required mounted interaction proof fails: graph.relayout produces an indeterminate canonical Argus receipt, so the unchanged four-node post-state is not authoritatively attributable to the action.",
+    "remediation_plan": [
+      "Give graph.relayout an action-specific terminal completion predicate, such as a new layout generation/receipt ID and authoritative post-layout state hash, rather than treating the continued presence of graph nodes as sufficient.",
+      "Rerun mt021_mounted_graph_canonical_argus_inspect_steer_reobserve with real PostgreSQL and --test-threads=1; require a terminal non-indeterminate receipt and zero test exit.",
+      "Open the regenerated pre/post trees and screenshot, confirm four real seeded nodes remain addressable, and correlate the relayout receipt with the post-layout generation/state hash.",
+      "Rerun the 8 graph unit tests and the exact self-seeded local/global integration test to preserve convergence, mode distinction, persistence, and negative-state coverage."
+    ],
+    "no_context_instruction": "Read MT-021.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green graph and PostgreSQL behavior. Implement an authoritative terminal completion signal for graph.relayout, bind canonical Argus to that signal, rerun the focused unit/live/Argus commands from committed current HEAD with external artifacts, open the new receipt/tree/screenshot, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

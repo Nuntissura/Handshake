@@ -1,9 +1,9 @@
 {
   "schema": "tailor.mt_index@1",
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
-  "generated_at_utc": "2026-07-16T17:48:48Z",
-  "total": 782,
-  "range": "MT-001..MT-782",
+  "generated_at_utc": "2026-08-01T04:26:38.699Z",
+  "total": 842,
+  "range": "MT-001..MT-842",
   "core_section_13_range": "MT-001..MT-332",
   "md_parity_additions_range": "MT-333..MT-448",
   "second_pass_parity_range": "MT-449..MT-477",
@@ -16,6 +16,12 @@
   "professional_cloth_ux_range": "MT-751..MT-759, MT-774, MT-777",
   "bodykit_production_range": "MT-760..MT-772, MT-775..MT-776",
   "dcc_parity_qualification_range": "MT-773, MT-778..MT-779, MT-781",
+  "bodykit_v2_native_runtime_range": "MT-783..MT-793",
+  "bodykit_v2_provider_runtime_range": "MT-794..MT-807",
+  "bodykit_v2_cinematic_performance_range": "MT-808..MT-820",
+  "bodykit_v2_interchange_range": "MT-821..MT-830",
+  "bodykit_v2_native_operator_and_pillars_range": "MT-831..MT-841",
+  "bodykit_v2_final_qualification": "MT-842",
   "by_group": {
     "SolverCore": 46,
     "KernelIntegration": 40,
@@ -51,14 +57,21 @@
     "BuildReadinessPlatform": 13,
     "ProfessionalClothUX": 11,
     "BodyKitProduction": 15,
-    "DccParityQualification": 4
+    "DccParityQualification": 4,
+    "NativeRuntimeSupply": 11,
+    "BodyProviderRuntime": 14,
+    "CinematicPerformance": 13,
+    "InterchangeDelivery": 10,
+    "NativeOperatorSurfaces": 9,
+    "ProjectPillars": 2,
+    "CinematicQualification": 1
   },
   "parity_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_PARITY_REVIEW_V3.json",
   "multi_lens_review": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/_MULTI_LENS_REVIEW.json",
   "build_readiness_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.build-readiness-prework.json",
   "technical_refinement_prework": ".GOV/task_packets/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1/WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1.technical-refinement-prework.json",
   "generator": ".GOV/roles_shared/scripts/wp/tailor-build-readiness.mjs",
-  "note": "Pre-activation projection of all 782 inactive template-exact MT contracts, reconciled to the operator-approved Master Spec v02.201 Tailor refinement. No packet hydration, activation, signature consumption, execution, or validator verdict is implied.",
+  "note": "Pre-activation projection of all 842 inactive machine-readable MT contracts under active Master Spec v02.203. MT-001..782 are preserved and reconciled; MT-783..842 add BodyKit-v2 native runtime, providers, cinematic production, interchange, professional UI, privacy/pillars and final proof. This index is not execution or validator authority.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -3300,7 +3313,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement glTF export (mesh + UV + PBR material + optional skeleton) of a promoted garment."
+      "summary": "Qualify the Rust-owned deterministic GLB garment export through Khronos validation, independent Rust reload, typed structural comparison, and optional manual DCC inspection."
     },
     {
       "mt_id": "MT-250",
@@ -3335,7 +3348,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement Alembic point-cache export of a simulated drape."
+      "summary": "Replace the legacy Alembic writer scope with Rust-owned time-varying cloth delivery through restricted USD mesh time samples or the canonical fixed-topology cache; unsupported Alembic export is explicit."
     },
     {
       "mt_id": "MT-253",
@@ -3347,7 +3360,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement the Blender export bridge (write to a watched handoff folder + manifest)."
+      "summary": "Produce a deterministic Blender manual-qualification package containing canonical GLB/USD artifacts, manifest, hashes, operator checklist, expected observations, capture slots, and a structured receipt; do not automate Blender."
     },
     {
       "mt_id": "MT-254",
@@ -3359,7 +3372,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement the UE export bridge (USD/FBX to a watched UE handoff folder + manifest)."
+      "summary": "Produce the Unreal delivery adapter using canonical GLB/USD artifacts plus an optional pinned native C++ Interchange editor commandlet that returns structured import and qualification receipts."
     },
     {
       "mt_id": "MT-255",
@@ -3834,7 +3847,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Wire animation export to OBJ-sequence/Alembic (render group) for the full cached range."
+      "summary": "Wire animation export to deterministic glTF animation, restricted USD time samples, or the canonical native cache for the selected frame range, with capability and loss receipts."
     },
     {
       "mt_id": "MT-297",
@@ -4099,7 +4112,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Define the production export package (mesh + UV/textures + materials + trims + animation cache + manifest) as the unit handed to Blender/UE."
+      "summary": "Define the production interchange package—mesh, rig, morphs, UV/textures, OpenPBR/MaterialX projection, trims, animation/cache, camera/light state, manifest and losses—for canonical delivery and optional DCC qualification."
     },
     {
       "mt_id": "MT-318",
@@ -4168,7 +4181,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Generate a Blender import script (.py) that sets up the garment with materials + animation on import."
+      "summary": "Generate a Rust-owned canonical GLB/USD garment package and Blender manual-qualification checklist/receipt; executable DCC scripts are prohibited."
     },
     {
       "mt_id": "MT-324",
@@ -4283,7 +4296,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Add the production-bridge integration test: promote garment -> export package as a job -> assert Blender-importable + complete + full FR trail."
+      "summary": "Prove promoted-garment delivery by Rust structural reload, optional Unreal native commandlet qualification, optional manual Blender evidence, and one complete EventLedger/Flight Recorder trail."
     },
     {
       "mt_id": "MT-333",
@@ -5175,7 +5188,8 @@
       "group": "UvTexture",
       "depends_on": [
         "MT-383",
-        "MT-742"
+        "MT-742",
+        "MT-741"
       ],
       "status": "PENDING",
       "summary": "Implement the FurStrandMaterial, authority storage, capability hooks, and validation foundation consumed by MT-774's in-WP shared groom/fur authoring, simulation, rendering, and export implementation."
@@ -5230,7 +5244,7 @@
         "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Implement generate_fabric_texture MCP tool: accepts a text prompt and optional reference image artifact_id, routes to a diffusion-capable LlmClient or image-generation backend, returns a texture artifact_id that can be assigned to a garment panel's albedo slot via assign_material or tailor_graphic_layer_add"
+      "summary": "Implement local-only fabric texture generation through the canonical Handshake image-generation capability using pre-acquired hash-locked local models; cloud providers and runtime downloads are excluded."
     },
     {
       "mt_id": "MT-389",
@@ -5322,7 +5336,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Extend the glTF morph-target export (MT-249) and the Alembic workaround path (MT-252) to carry blend-shape/morph channel animation weights as time-sampled data, matching MD 2026.0 morph animation capability"
+      "summary": "Export morph-channel animation through deterministic glTF weight tracks and qualified restricted USD/native-cache time samples with Rust reload and timing/name/delta comparison."
     },
     {
       "mt_id": "MT-395",
@@ -5588,7 +5602,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Extend Alembic export (MT-252) to write named morph-weight channel tracks as AbcGeom::IFloatGeomParam channels alongside the cloth mesh cache, and implement Alembic morph-channel import so avatar morph animation can drive cloth re-drape over the timeline."
+      "summary": "Represent named morph-weight animation in restricted USD or the canonical native cache and implement only a separately qualified limited Alembic import adapter; do not claim Alembic export."
     },
     {
       "mt_id": "MT-416",
@@ -5624,7 +5638,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Add frame-range parameters (start_frame: u32, end_frame: u32) to the glTF and Alembic export paths so operators and models can export a named sub-range of the cached animation, with optional marker-name resolution for start/end anchors."
+      "summary": "Apply named frame-range and marker resolution consistently to GLB animation, restricted USD time samples and native caches, preserving exact sample times and provenance."
     },
     {
       "mt_id": "MT-419",
@@ -5636,7 +5650,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement FBX animated-garment delivery with dense auto-key bake via the Blender-bridge conversion path (MD 2026.0 auto-key parity, R-ANIM-039): the export job emits glTF/Alembic-shim/OBJ-sequence artifacts plus a generated headless Blender script (extends the MT-323 bridge generator and MT-440 shim pattern) that bakes one joint-transform key per frame in the export range and writes the FBX from Blender. Native Rust FBX writing remains PROHIBITED per Master Spec 13.12 (no FBX writer in tailor-solver or handshake_core)."
+      "summary": "Implement dense animated-garment delivery through GLB animation, restricted USD time samples and native caches; FBX export returns a typed unsupported capability until a no-Python writer qualifies."
     },
     {
       "mt_id": "MT-420",
@@ -5668,7 +5682,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Verify and fail-close the FBX delivery contract (companion to MT-419; supersedes the earlier duplicate native fbx_key_baker scope which violated Master Spec 13.12): round-trip verification of the Blender-bridge FBX bake, EXPORT_VALID integration, negative guard proving no native FBX writer exists in the codebase, and the UserManual limitation entry for the FBX lane."
+      "summary": "Enforce the direction-specific interchange capability matrix: validate canonical GLB/USD delivery, return typed unsupported FBX export, allow a future qualified Rust writer, and prohibit hidden DCC execution."
     },
     {
       "mt_id": "MT-422",
@@ -5934,7 +5948,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Document and implement the Alembic import shim (Python/Blender-headless read + OBJ-sequence conversion) so Tailor can ingest pre-simulated cloth caches from Houdini and Maya as GarmentFrame sequences"
+      "summary": "Implement a limited pinned native Alembic/Ogawa import adapter for qualified fixture classes and convert accepted data to canonical GarmentFrame/native-cache state; unsupported properties fail typed."
     },
     {
       "mt_id": "MT-441",
@@ -5958,7 +5972,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement MDD (Lightwave/Maya point-cache) and PC2 (3ds Max/Houdini geometry-cache) binary export of simulated garment frame sequences as fast lightweight alternatives to OBJ sequence for DCC pipelines that support these formats natively"
+      "summary": "Implement Rust-owned MDD/PC2 cache export and independent Rust readback, with optional operator-driven DCC inspection recorded separately from automated proof."
     },
     {
       "mt_id": "MT-443",
@@ -6000,7 +6014,10 @@
         "MT-445",
         "MT-741",
         "MT-742",
-        "MT-743"
+        "MT-743",
+        "MT-747",
+        "MT-748",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement and qualify the LiveSync/EveryWear-equivalent real-time engine delivery lane: versioned live authoring previews, promotion auto-sync, auto-rig, LOD generation, texture bake, and explicit UE/standard-export engine adapters with fail-closed capability rows."
@@ -7055,7 +7072,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement UE Pose Driver and Blender shape-key-driver generator emission from the MT-535 driver sidecar (spec 13.19; GREQ-026/032, Diffeomorphic Auto-JCM precedent): generated per-export companion scripts/assets that rebuild corrective driver networks engine-side so JCM-equivalents run in Blender and UE without hand setup."
+      "summary": "Emit a DCC-neutral corrective/driver graph sidecar; Unreal reconstruction uses the optional native C++ commandlet and Blender reconstruction remains a documented manual qualification step."
     },
     {
       "mt_id": "MT-537",
@@ -7566,7 +7583,8 @@
         "MT-580",
         "MT-727",
         "MT-728",
-        "MT-742"
+        "MT-742",
+        "MT-741"
       ],
       "status": "PENDING",
       "summary": "Implement the editable VisemeTrack ingest/editor foundation consumed by MT-776's in-WP audio-to-viseme solver: timestamped viseme ids, weights, co-articulation, ARKit mapping, and reserved moan/gasp ids."
@@ -7583,7 +7601,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement face export (spec 13.23/13.26 boundary; AREQ-007, the Daz FACS-export-gap fix): every skeletal export lane emits the ARKit-52 blendshapes with exact names by default, the FACS extended set optionally per profile, expression assets as baked named combos, with round-trip verification contracts registered into the MT-624 Blender/UE harness and blendshape-budget linting (GREQ-012)."
+      "summary": "Export canonical face controls, ARKit/FACS/viseme mappings and morph animation through GLB/restricted USD with Rust structural reload, Unreal native qualification and optional manual Blender evidence."
     },
     {
       "mt_id": "MT-583",
@@ -7942,7 +7960,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement the export profile system per Section 13.26: typed BXP- profile rows for blender_gltf, blender_fbx_bridge, ue_fbx_bridge, ue_gltf, vrm, usd, and obj, each carrying an EXACT units/axis contract (ue_fbx_bridge: 1 unit = 1 cm, Z-up/X-forward; glTF lanes: meters, format-handled axes) plus per-profile knobs for influence caps, texture budgets, UV strategy, and morph-export rules (Part-3 contract, GREQ-004/010/039/040 fields)."
+      "summary": "Implement versioned TailorInterchangeProfile rows for deterministic GLB, restricted USD, native caches, optional Unreal commandlet, manual Blender qualification, import-only FBX/Alembic adapters and typed unsupported directions."
     },
     {
       "mt_id": "MT-609",
@@ -7954,7 +7972,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement the skeletal mesh export core per Section 13.26 via the glTF writer (the PRIMARY lane per the file-format strategy): skinned body with skeleton, skinning weights, and selected morph targets chosen by morph-export-rules, validating against the glTF 2.0 spec and the known UE 5.4 morph-corruption caveat."
+      "summary": "Implement the deterministic Rust GLB skeletal-mesh writer and independent Rust reload for skeleton, weights, morphs, animation, materials, cameras and lights, with explicit target loss reports."
     },
     {
       "mt_id": "MT-610",
@@ -7966,7 +7984,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement FBX delivery via the Blender-bridge ONLY per Section 13.26 and the file-format strategy verdict: reuse the MT-419 bridge pattern (glTF -> headless Blender -> FBX) for the body skeletal lane including blendshapes; a native FBX writer is PROHIBITED and the prohibition is guard-tested."
+      "summary": "Make deterministic GLB and restricted USD the required BodyKit exports; FBX export is an honest typed unsupported capability until a no-Python writer passes the qualification matrix."
     },
     {
       "mt_id": "MT-611",
@@ -7978,7 +7996,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Emit the corrective/driver sidecar with every skeletal export per Section 13.26 (Part-3 contract, GREQ-026): baked pose-space-named JCM blendshapes (jcm_thigh_fwd_90_l) plus the machine-readable driver sidecar JSON (bone channel -> morph curve) from MT-535, and package the MT-536 generator scripts (Blender shape-key drivers, UE Pose Driver setup) into the export bundle."
+      "summary": "Package corrective shapes and the machine-readable neutral rig-driver graph with every skeletal export; executable DCC scripts are prohibited and reconstruction is adapter/manual-profile specific."
     },
     {
       "mt_id": "MT-612",
@@ -8012,7 +8030,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement the UE export profile per Section 13.26 (GREQ-005/006/007): ue_fbx_bridge emits Manny/Quinn-compatible bone naming with the ik_* bone set, an IK Rig chain-definition JSON plus IK Retargeter asset data, and selectable T0/A-pose reference handling with the stored retarget base pose — the Daz-bridge A-pose-mismatch morph breakage encoded as a named regression test."
+      "summary": "Implement the Unreal profile over canonical GLB/USD plus the optional native C++ Interchange commandlet, including skeleton/IK mapping, units/axes, reference pose, materials, groom and structured losses."
     },
     {
       "mt_id": "MT-615",
@@ -8129,7 +8147,7 @@
         "MT-650"
       ],
       "status": "PENDING",
-      "summary": "Build the Blender/UE round-trip verification harness per Section 13.26 (REQ-044): headless Blender scripts and UE-import checks that verify morphs, skeleton, correctives, scale, and orientation survive each export lane — with the Daz-bridge pain list encoded verbatim as named acceptance tests (morph selection stability, geograft-morph survival, bone rotation bugs, A-pose reference mismatch, 0.01 scale issues)."
+      "summary": "Split interchange proof into Rust structural round-trip, optional Unreal native C++ commandlet qualification, and operator-driven Blender import/inspection receipts; no generated scripts or Python execution."
     },
     {
       "mt_id": "MT-625",
@@ -8142,7 +8160,7 @@
         "MT-650"
       ],
       "status": "PENDING",
-      "summary": "BkExport integration test per Section 13.26: the full archetype set exported through every seeded BXP- profile with EXPORT_BODY_VALID green per cell, round-trip verification passing on the ue_fbx_bridge and blender_gltf lanes, and deterministic re-export — the whole export surface proven on the extreme bodies it exists for."
+      "summary": "Run BodyKit archetype export integration over every applicable qualified interchange row, distinguishing required canonical success, optional qualification, manual evidence and typed unsupported directions."
     },
     {
       "mt_id": "MT-626",
@@ -8598,7 +8616,7 @@
         "MT-650"
       ],
       "status": "PENDING",
-      "summary": "Run the export QA matrix per Section 13.27: all 8 archetypes x all seeded BXP- export profiles with EXPORT_BODY_VALID green per cell and the MT-624 round-trip harness executed on the ue_fbx_bridge and blender_gltf lanes for every archetype — extreme morphs (oversized cock, extreme tits) proven to survive delivery (REQ-044 as a standing matrix)."
+      "summary": "Run the export QA matrix across all archetypes and applicable TailorInterchangeProfile rows with structural tolerances, material/color losses, optional Unreal receipts, manual Blender evidence and honest unsupported cells."
     },
     {
       "mt_id": "MT-645",
@@ -8663,7 +8681,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Bind BodyKit to the kernel sandbox per Section 13.27: model-authored body generation and validation execute in the kernel sandbox at process tier with fs-only capabilities — network and process-spawn attempts fail closed — and sandbox run receipts link to the body draft they produced."
+      "summary": "Bind every BodyKit core command to the local process sandbox and blocked-network profile; optional adapters are named local jobs and their removal never bypasses or disables core authoring, render, save or canonical export."
     },
     {
       "mt_id": "MT-650",
@@ -8688,7 +8706,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Author the UserManual BodyKit chapter per Section 13.27 (HBR-MAN + CX-982): purpose, channel workflow including decoupling and over-range, genital configuration in direct language, export profiles and round-trip, recipe save/share, all 8 MCP tools with exact wire names and examples, failure modes with recovery, and the diagnostics posture — sufficient for a no-context model to operate BodyKit end-to-end."
+      "summary": "Author the BodyKit UserManual for the v02.203 native runtime, GNM-v3 provider, dependency bundles, project/body/face/anatomy/performance workflows, GLB/restricted USD delivery, optional Unreal, manual Blender and typed unsupported recovery."
     },
     {
       "mt_id": "MT-652",
@@ -8721,7 +8739,7 @@
         "MT-650"
       ],
       "status": "PENDING",
-      "summary": "BodyKit end-to-end lifecycle test per Section 13.27 — the full loop, no-context provable: NL description -> author_body -> channel edits -> configure_genitals -> corrective re-bake -> garment drape via the Cloth bridge -> export through ue_fbx_bridge and blender_gltf -> every descriptor green -> EventLedger replay reconstructs identical state, driven exclusively through MCP tools."
+      "summary": "Prove the provider-neutral BodyKit lifecycle through registered commands, canonical GLB/restricted USD delivery, EventLedger replay and adapter removal without requiring FBX, Blender automation or cloud services."
     },
     {
       "mt_id": "MT-654",
@@ -9467,7 +9485,7 @@
         "MT-755"
       ],
       "status": "PENDING",
-      "summary": "Prove the end-to-end professional Tailor workflow: body/pose, pattern authoring, drape, fit QA, material/UV, animation, versioned publish, Blender/UE round trip, recovery, and no-context replay."
+      "summary": "Prove the professional Tailor workflow through native project/body/pattern/drape/material/animation/render and canonical interchange, with Rust reload, optional Unreal, manual Blender, recovery and no-context replay."
     },
     {
       "mt_id": "MT-710",
@@ -9643,7 +9661,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Qualify BodyPose and interlink unit, axis, skeleton, camera, contact, and animation round trips through the initial Blender and Unreal production profiles."
+      "summary": "Qualify BodyPose/interlink units, axes, skeleton, camera, contact and animation through Rust structural fixtures, optional Unreal native commandlet and separately recorded manual Blender inspection."
     },
     {
       "mt_id": "MT-721",
@@ -9876,7 +9894,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Implement OpenUSD composition and professional DCC qualification: layers, references, payloads, variants, collections, overrides, UsdSkel, materials, caches, validation, and version-pinned target adapters."
+      "summary": "Implement a restricted pure-Rust USD profile for only qualified layers, references, variants, UsdSkel, materials, curves, caches, cameras and lights, with explicit unsupported schemas and exact target qualification profiles."
     },
     {
       "mt_id": "MT-737",
@@ -9909,7 +9927,7 @@
         "MT-763"
       ],
       "status": "PENDING",
-      "summary": "Prove the BodyKit content-creator lifecycle: base asset, topology/morph edit, joint edit, weight/rigidity paint, transfer, skin/UDIM edit, anatomy configuration, pose/contact, cloth drape, publish, recovery, and replay."
+      "summary": "Prove the BodyKit creator lifecycle through native body/head/rig/morph/material/anatomy/contact/cloth/render and canonical interchange; optional DCC evidence cannot replace product-native proof."
     },
     {
       "mt_id": "MT-738",
@@ -9942,7 +9960,10 @@
       "group": "BuildReadinessPlatform",
       "depends_on": [
         "MT-001",
-        "MT-782"
+        "MT-782",
+        "MT-741",
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Create the versioned Tailor vendor-capability registry and parity-claim gate covering the MT-782-pinned Marvelous Designer and Daz Studio baselines; every capability stores independent `requirement_status` and `qualification_status` fields, and full-parity wording fails while any `required` row is not `qualified`."
@@ -9969,7 +9990,8 @@
       "mt_id": "MT-743",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-742"
+        "MT-742",
+        "MT-741"
       ],
       "status": "PENDING",
       "summary": "Integrate Tailor with the shared three-tier diagnostics contract: Flight Recorder projection, internal_diagnostics, and Palmistry watcher coverage classified DIRECT, INHERITED, or NOT_APPLICABLE for every MT and runtime operation."
@@ -9978,7 +10000,8 @@
       "mt_id": "MT-744",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-742"
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Integrate Tailor with Locus as an optional production-work projection for QA assignments, repair queues, production plans, claim/occupancy/resume state, and stable tailor:// references without making Locus product or job authority."
@@ -9987,7 +10010,8 @@
       "mt_id": "MT-745",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-742"
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Integrate Tailor garments, bodies, materials, recipes, captures, references, DCC reports, and mix graphs with Loom/Notes/ProjectKnowledgeIndex through stable shared references, backlinks, tags, search, and navigation."
@@ -9996,7 +10020,8 @@
       "mt_id": "MT-746",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-742"
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Integrate Tailor jobs with Calendar ActivitySpans/SessionSpans and optional production-block association, using CalendarMutation through WorkflowRun/calendar-sync for mutations and treating Calendar policy only as a scheduling hint."
@@ -10005,7 +10030,8 @@
       "mt_id": "MT-747",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-741"
+        "MT-741",
+        "MT-742"
       ],
       "status": "PENDING",
       "summary": "Establish the early canonical task-oriented Tailor UserManual framework, generated command/help bindings, BLOCKED-entry contract, and no-context discovery harness; MT-781 exclusively owns final content completeness and end-to-end manual-only operation proof, while legacy ModelManual content remains a compatibility shim only."
@@ -10015,7 +10041,8 @@
       "group": "BuildReadinessPlatform",
       "depends_on": [
         "MT-741",
-        "MT-750"
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Create the versioned TailorSurfaceDescriptor registry and generated Argus/AccessKit audit for exact routes, panes, controls, dynamic entity-key rules, actions, state projections, help anchors, permissions, undo policies, receipts, and command bindings."
@@ -10037,7 +10064,10 @@
       "mt_id": "MT-750",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-001"
+        "MT-001",
+        "MT-743",
+        "MT-747",
+        "MT-748"
       ],
       "status": "PENDING",
       "summary": "Activate the first real Tailor native surface integration seam against the merged WP-KERNEL-012 shell contract, replacing or graduating the design-only surface_extension_seam without assuming unused scaffold code is live."
@@ -10055,7 +10085,11 @@
         "MT-354",
         "MT-461",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the native professional 2D sewing and arrangement workspace for segment/free/1:N/M:N sewing, direction/range editing, length and gather diagnostics, arrangement points/bounds, wrap/curvature/offset/orientation, presets, preview, and correction."
@@ -10075,7 +10109,10 @@
         "MT-741",
         "MT-743",
         "MT-748",
-        "MT-782"
+        "MT-782",
+        "MT-742",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the native simulation control and performance workspace for quality/use-case/backend profiles, CPU/GPU selection, start/instant-stop/reset/freeze, collision and resolution controls, residual/contact/VRAM state, fallback, and device recovery."
@@ -10094,7 +10131,11 @@
         "MT-468",
         "MT-685",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the professional fabric calibration and material-authoring lab for measured coupons, calibration curves, paired drape comparison, preset provenance/versioning, per-face assignment, front/back swap, prints/graphics, loss diagnostics, and model-command parity."
@@ -10108,7 +10149,10 @@
         "MT-447",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Define and build Tailor project/workspace lifecycle: create, open, duplicate, archive, recent projects, dirty/pending drafts, checkpoints, close with active jobs, recovery, layout, and multi-agent occupancy."
@@ -10131,7 +10175,10 @@
         "MT-736",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the professional export/publish workspace for object selection, target profiles, units/axes, topology/weld/thickness, UV/material/texture, animation range, LOD, dependency/preflight, manifest diff, destination, atomic output, retry, and round-trip qualification."
@@ -10143,7 +10190,11 @@
         "MT-358",
         "MT-359",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the visual modular garment composer and block library over the existing typed modular block/swap contracts, including compatibility, preview, attachment diagnostics, atomic replacement, saved compositions, and backend/headless parity."
@@ -10155,7 +10206,11 @@
         "MT-347",
         "MT-360",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement Marvelous-compatible Pattern Archive semantics: active/archived panel state, dotted 2D retained outline, exclusion from 3D and simulation, restore, dependencies, undo/replay, API, and exact native UI behavior."
@@ -10166,7 +10221,11 @@
       "depends_on": [
         "MT-385",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build professional manual 2D/3D retopology over automatic draft generation: topology points, edges, triangles/quads, cross-seam ghosts, loops, symmetry, locks, projection, deformation preview, validation, and export."
@@ -10182,7 +10241,11 @@
         "MT-359",
         "MT-383",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Create reusable trim, button, buttonhole, zipper, topstitch, puckering, graphic, and multi-material colorway style assets with inheritance, previews, search, versioning, batch replacement, dependency invalidation, render variants, and export proof."
@@ -10203,7 +10266,8 @@
         "MT-726",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Implement the backend-only canonical command and backend-agent parity layer for BodyKit geometry, joint, weight/rigidity, transfer, skin, and anatomy creator operations, with EventLedger, semantic undo, leases, cancellation, stale-state rejection, recovery, and explicit consumption by the existing owning native surfaces."
@@ -10226,7 +10290,10 @@
         "MT-732",
         "MT-741",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the professional adult contact-staging workspace for penetrator/receiver selection, entry axis, insertion depth/girth sweeps, erection/gape, pair-collision policy, wetness, feasibility, strain/inversion diagnostics, timeline recording, preview/apply/revert, and headless parity."
@@ -10242,7 +10309,11 @@
         "MT-722",
         "MT-726",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the BodyKit face, FACS/ARKit, expression, eye, corrective, and viseme creator with typed backend commands, graph/timeline editing, symmetry/asymmetry, reference comparison, and native UI parity."
@@ -10263,7 +10334,11 @@
         "MT-733",
         "MT-741",
         "MT-745",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Build the unified professional Tailor asset browser with Daz Smart Content-compatible metadata: product/content type/category/tag/compatibility base, scene selection filtering, dependency resolution, package authoring, previews, search, favorites, recents, uncategorized/lost-and-found, and progressive hydration."
@@ -10275,7 +10350,10 @@
         "MT-735",
         "MT-741",
         "MT-742",
-        "MT-748"
+        "MT-748",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement the typed BodyKit/Cloth shader graph authoring system with nodes, sockets, parameters, subgraphs, preview compile, version diff, validation, MaterialX/OpenPBR translation, unsupported-node diagnostics, and agent/native parity."
@@ -10288,7 +10366,11 @@
         "MT-735",
         "MT-764",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement layered image and layered material authoring with image/paint/procedural groups, masks, blend modes, transforms, channel routing, front/back and region assignment, non-destructive versioning, preview/bake, and shader-graph integration."
@@ -10306,7 +10388,11 @@
         "MT-765",
         "MT-741",
         "MT-743",
-        "MT-782"
+        "MT-782",
+        "MT-742",
+        "MT-747",
+        "MT-748",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement one shared native final-render infrastructure for Cloth and BodyKit, integrated with the existing Handshake Photo Studio capability, with path tracing, render presets, physical cameras/lights, environment, denoise, tone mapping/color management, material/hair/volume support, deterministic reference scenes, and bounded GPU/CPU scheduling."
@@ -10321,7 +10407,10 @@
         "MT-766",
         "MT-741",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement the shared Cloth+BodyKit final-render AOV/canvas outputs, region/spot render, TailorRenderJobV1 queue, retry/priority/cancellation, output templates, comparison, history, and Render Library, integrated with the existing Handshake Photo Studio capability and backed by artifact manifests and no-context operation."
@@ -10339,7 +10428,10 @@
         "MT-741",
         "MT-742",
         "MT-748",
-        "MT-782"
+        "MT-782",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement reference-image-to-face/body transfer as an immutable proposal workflow separating landmarks, camera, lighting, shape, texture, and identity evidence, with manual correction, similarity matrices, lineage, and no silent authority writes."
@@ -10353,7 +10445,10 @@
         "MT-741",
         "MT-742",
         "MT-748",
-        "MT-782"
+        "MT-782",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement reusable Daz-class deformation fields with point/line/plane/spherical/cylindrical influences, falloff curves, weights, masks, transforms, stacks, animation, visualization, baking, and BodyKit/Cloth application."
@@ -10368,7 +10463,11 @@
         "MT-723",
         "MT-724",
         "MT-741",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement the Figure Setup workflow for node hierarchy, geometry/face groups, skeleton association, orientation/limits, labels, region mapping, weight initialization, validation, presets, and versioned figure construction."
@@ -10384,7 +10483,10 @@
         "MT-741",
         "MT-742",
         "MT-748",
-        "MT-782"
+        "MT-782",
+        "MT-743",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement UV, texture, weight, mask, and generic map transfer across compatible or changed topology/UV variants with cage/raycast/barycentric methods, projection-error inspection, seam policy, batch jobs, and atomic apply."
@@ -10397,7 +10499,8 @@
         "MT-733",
         "MT-740",
         "MT-741",
-        "MT-742"
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
       "summary": "Expand read-only user-owned DSON migration beyond morph dials to supported scene/preset nodes, transforms, hierarchy, materials, poses, cameras/lights, animation, and compatibility metadata with exact unsupported-feature reports and no Daz asset redistribution."
@@ -10413,7 +10516,7 @@
         "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Create the capability-scoped Tailor extension/plugin SDK for Rust and documented Python/Daz/Marvelous bridge adapters with manifests, typed command registration, permissions, sandboxing, version compatibility, reload/recovery, API introspection, and deterministic testing."
+      "summary": "Create a Rust-only capability-scoped Tailor adapter/plugin SDK with manifests, typed action registration, permissions, ABI/version negotiation, sandboxing, reload/recovery, introspection and deterministic tests; Python adapters are prohibited."
     },
     {
       "mt_id": "MT-774",
@@ -10426,10 +10529,13 @@
         "MT-766",
         "MT-741",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Own the shared Tailor groom core and replace the placeholder fur contract with production garment fur/fuzz: shared guide/fiber, mask, binding, collision, dynamics, grooming, LOD/card/strand, material, renderer, export, diagnostics, and receipt contracts plus Cloth-specific seam/graphic/deformation behavior and performance qualification."
+      "summary": "Implement production garment fur/fuzz with native guides/strands/cards, binding, dynamics, render and USD-curves-first interchange; unsupported DCC projections are explicit."
     },
     {
       "mt_id": "MT-775",
@@ -10442,10 +10548,13 @@
         "MT-774",
         "MT-741",
         "MT-743",
-        "MT-748"
+        "MT-748",
+        "MT-742",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Implement BodyKit strand-hair/groom authoring and export by consuming the MT-774 shared groom core for scalp/eyebrow/eyelash/body-hair guides, density/length/clump/curl/noise, surface binding under morphs, grooming tools, dynamics/collision, LOD/cards/strands, materials, render, and DCC qualification."
+      "summary": "Implement BodyKit strand/groom authoring, binding, dynamics, LOD, native render and USD-curves-first interchange with exact capability and loss receipts."
     },
     {
       "mt_id": "MT-776",
@@ -10457,10 +10566,12 @@
         "MT-742",
         "MT-743",
         "MT-748",
-        "MT-782"
+        "MT-782",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
-      "summary": "Implement the version-pinned speech-to-viseme/lip-sync pipeline with audio/transcript ingest, phoneme timing, co-articulation, emotion/intensity, editable curves, face/tongue/jaw integration, preview, bake, export, and exact connector/model provenance."
+      "summary": "Implement the provider-neutral BodyPerformanceTrack speech/viseme workflow with local Rust-owned processing and optional local Audio2Face adapter; preserve editable timing, confidence, rig mapping and provenance."
     },
     {
       "mt_id": "MT-777",
@@ -10476,7 +10587,10 @@
         "MT-741",
         "MT-743",
         "MT-748",
-        "MT-782"
+        "MT-782",
+        "MT-742",
+        "MT-747",
+        "MT-750"
       ],
       "status": "PENDING",
       "summary": "Implement native PBR map generation and a version-pinned optional Substance/SBSAR connector with parameter introspection, previews, texture bakes, manifests, color management, loss reporting, fail-closed availability, and material/layer/shader integration."
@@ -10489,10 +10603,12 @@
         "MT-740",
         "MT-742",
         "MT-755",
-        "MT-782"
+        "MT-782",
+        "MT-741",
+        "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Create the version/path/hash-locked black-box DCC reference harness and documented fixture workflow for local Daz Studio and Marvelous Designer, official APIs/docs/examples, exported scenes, screenshots, behavior captures, and version-delta reports without decompilation or runtime dependence."
+      "summary": "Create the exact-version black-box DCC qualification harness with Rust structural fixtures, Unreal native commandlet automation and manual Blender checklists/captures; executable Python is prohibited."
     },
     {
       "mt_id": "MT-779",
@@ -10541,10 +10657,12 @@
         "MT-776",
         "MT-777",
         "MT-778",
-        "MT-780"
+        "MT-780",
+        "MT-741",
+        "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Execute the feature-by-feature Marvelous Designer and Daz Studio parity qualification matrix over every required capability, GUI/backend/manual path, black-box reference fixture, export/import, visual artifact, failure path, and performance budget."
+      "summary": "Execute the feature-by-feature professional qualification matrix over Rust-native workflows, structural interchange, optional Unreal automation, manual Blender evidence, failure/recovery, visual output and performance budgets."
     },
     {
       "mt_id": "MT-780",
@@ -10610,19 +10728,696 @@
         "MT-778",
         "MT-779",
         "MT-780",
-        "MT-782"
+        "MT-782",
+        "MT-741",
+        "MT-742"
       ],
       "status": "PENDING",
-      "summary": "Prove the final professional Tailor lifecycle end to end across project creation, Cloth authoring/sewing/arrangement, simulation/repair, BodyKit creation/anatomy/contact, PoseKit/sheets/mix primitives, materials/lookdev, animation, render, publish/DCC, pillars, parallel agents, diagnostics, manual-only operation, recovery, and parity claim gating."
+      "summary": "Prove the preserved v02.201 professional Tailor lifecycle without Python, cloud services or mandatory Blender/FBX success; BodyKit-v2 cinematic completion is extended by MT-842."
     },
     {
       "mt_id": "MT-782",
       "group": "BuildReadinessPlatform",
       "depends_on": [
-        "MT-001"
+        "MT-001",
+        "MT-742",
+        "MT-743"
       ],
       "status": "PENDING",
-      "summary": "Lock Tailor implementation inputs before dependent solver, renderer, DCC, and performance work: crate/compiler versions, quality-profile numbers, tolerances, seeds/repeats/timeouts, fixture ids/hashes, hardware/backend/driver matrix, memory/performance/cancellation budgets, sparse solver decision, and DCC executable/version/hash configuration."
+      "summary": "Lock Tailor implementation and supply inputs: Rust/compiler/crate/model/SDK/config versions and hashes, offline dependency bundle, runtime precedence, profiles/tolerances/fixtures/hardware budgets, adapter identities, DCC profiles and rollback."
+    },
+    {
+      "mt_id": "MT-783",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-782"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the Rust-owned Tailor dependency acquisition tool and immutable TailorDependencyBundleV1 for crates, SDKs, models, weights, configs, shaders and fixtures."
+    },
+    {
+      "mt_id": "MT-784",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-783"
+      ],
+      "status": "PENDING",
+      "summary": "Enforce the Tailor Python, cloud, runtime-download and arbitrary-execution firewall across repository source, dependency graph, build, process tree and shipped bundle."
+    },
+    {
+      "mt_id": "MT-785",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-783",
+        "MT-784"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the versioned local Tailor ML/runtime registry with precedence Rust, Candle, qualified Mojo AOT, ONNX Runtime C API, then last-resort TensorFlow C API."
+    },
+    {
+      "mt_id": "MT-786",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-785"
+      ],
+      "status": "PENDING",
+      "summary": "Qualify Candle as BodyKit's preferred local Rust model runtime with the smallest pinned feature/device surface and no model download behavior."
+    },
+    {
+      "mt_id": "MT-787",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-785"
+      ],
+      "status": "PENDING",
+      "summary": "Qualify optional Mojo ahead-of-time kernels behind an owned stable C ABI without making Mojo the BodyKit application runtime."
+    },
+    {
+      "mt_id": "MT-788",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-785"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the owned minimal Rust FFI over the official ONNX Runtime C API for locally bundled provider graphs."
+    },
+    {
+      "mt_id": "MT-789",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-785"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a last-resort TensorFlow C API adapter that can qualify only a model proven impossible on Rust, Candle, Mojo AOT and ONNX lanes."
+    },
+    {
+      "mt_id": "MT-790",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-776",
+        "MT-783",
+        "MT-785"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the optional local NVIDIA Audio2Face adapter as a Rust FFI producer of canonical BodyPerformanceTrackV1."
+    },
+    {
+      "mt_id": "MT-791",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-783",
+        "MT-785"
+      ],
+      "status": "PENDING",
+      "summary": "Define the specialist capture adapter family and provider-neutral recorded color/depth/audio/inertial/calibration stream."
+    },
+    {
+      "mt_id": "MT-792",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-429",
+        "MT-535",
+        "MT-783"
+      ],
+      "status": "PENDING",
+      "summary": "Create the neutral RigLogic/DNA fixture corpus and optional pinned OpenRigLogic C++ oracle used only to qualify the owned Rust evaluator."
+    },
+    {
+      "mt_id": "MT-793",
+      "group": "NativeRuntimeSupply",
+      "depends_on": [
+        "MT-741",
+        "MT-742",
+        "MT-743",
+        "MT-783",
+        "MT-784"
+      ],
+      "status": "PENDING",
+      "summary": "Enforce the canonical Rust adapter lifecycle, capability discovery and adapter-removal build matrix for every vendor SDK, runtime, device and DCC boundary."
+    },
+    {
+      "mt_id": "MT-794",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-478",
+        "MT-741",
+        "MT-742",
+        "MT-783"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyProviderPackageV1 and the provider-neutral BodyEvaluatorV1 Rust trait, persistence, events, capability rows and action schemas."
+    },
+    {
+      "mt_id": "MT-795",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-783",
+        "MT-785",
+        "MT-794"
+      ],
+      "status": "PENDING",
+      "summary": "Acquire, pin, inspect and register Google GNM v3 as the default local BodyKit-v2 provider package."
+    },
+    {
+      "mt_id": "MT-796",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-786",
+        "MT-795"
+      ],
+      "status": "PENDING",
+      "summary": "Port the GNM-v3 evaluation graph and required preprocessing/postprocessing to the qualified Rust runtime ladder."
+    },
+    {
+      "mt_id": "MT-797",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-785",
+        "MT-794"
+      ],
+      "status": "PENDING",
+      "summary": "Evaluate and conditionally port an MHR provider as an optional full-body/LOD/corrective source behind BodyEvaluatorV1."
+    },
+    {
+      "mt_id": "MT-798",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-576",
+        "MT-794",
+        "MT-796"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyHeadPackageV1 as the canonical high-resolution head artifact family with topology, LOD, UV, landmarks, materials, oral/eye assets, rig maps and lineage."
+    },
+    {
+      "mt_id": "MT-799",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-584",
+        "MT-798"
+      ],
+      "status": "PENDING",
+      "summary": "Implement HeadBodyAssemblyV1 for replaceable source head/body, neck transition, skeleton, materials, grooms, attachments and LOD correspondence."
+    },
+    {
+      "mt_id": "MT-800",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-722",
+        "MT-799"
+      ],
+      "status": "PENDING",
+      "summary": "Implement reversible region-masked multiresolution BodyResidualLayerV1 for qualified detail outside the parametric basis."
+    },
+    {
+      "mt_id": "MT-801",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-531",
+        "MT-535",
+        "MT-800"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the measured corrective-regeneration versus residual-authoring decision engine and proposal report."
+    },
+    {
+      "mt_id": "MT-802",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-768",
+        "MT-798",
+        "MT-800"
+      ],
+      "status": "PENDING",
+      "summary": "Implement calibrated scan/reference fitting as an immutable-observation proposal pipeline split into parametric and residual contributions."
+    },
+    {
+      "mt_id": "MT-803",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-762",
+        "MT-798"
+      ],
+      "status": "PENDING",
+      "summary": "Implement native high-resolution face identity/expression geometry layers, regional controls, asymmetry, pore/wrinkle detail and corrective authoring."
+    },
+    {
+      "mt_id": "MT-804",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-803"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the coupled cinematic eye, eyelid, lash, brow, lip, teeth, gum, tongue and oral-cavity system."
+    },
+    {
+      "mt_id": "MT-805",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-723",
+        "MT-792",
+        "MT-798"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the owned Rust OpenRigLogic-compatible evaluator over a versioned neutral rig-logic graph."
+    },
+    {
+      "mt_id": "MT-806",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-723",
+        "MT-805"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the canonical face/figure rig solve graph, driver mapping, execution stack and debug state consumed by native tools and exports."
+    },
+    {
+      "mt_id": "MT-807",
+      "group": "BodyProviderRuntime",
+      "depends_on": [
+        "MT-703",
+        "MT-799",
+        "MT-805"
+      ],
+      "status": "PENDING",
+      "summary": "Implement topology/rig/corrective/material/groom transfer across the declared BodyKit LOD family and source replacements."
+    },
+    {
+      "mt_id": "MT-808",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-581",
+        "MT-776",
+        "MT-805"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyPerformanceTrackV1 as the canonical timestamped rig-neutral performance, expression, gaze, viseme, contact and confidence representation."
+    },
+    {
+      "mt_id": "MT-809",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-791",
+        "MT-808"
+      ],
+      "status": "PENDING",
+      "summary": "Implement capture synchronization, calibration, dropped-frame accounting and record/replay into BodyPerformanceTrack observations."
+    },
+    {
+      "mt_id": "MT-810",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-805",
+        "MT-808",
+        "MT-809"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the staged facial/body performance solve from synchronized observations through identity stabilization, expression/body solve, temporal filtering, retarget and correctives."
+    },
+    {
+      "mt_id": "MT-811",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-705",
+        "MT-808",
+        "MT-810"
+      ],
+      "status": "PENDING",
+      "summary": "Implement performance takes, clips, layers, markers, timecode, dope-sheet/curve state, retiming and selective bake commands."
+    },
+    {
+      "mt_id": "MT-812",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-726",
+        "MT-808"
+      ],
+      "status": "PENDING",
+      "summary": "Implement shot-aware cinematic appearance layers for wrinkles, compression/stretch, flush, sweat, tears, saliva, eye/mouth wetness and peach fuzz."
+    },
+    {
+      "mt_id": "MT-813",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-804",
+        "MT-810",
+        "MT-812"
+      ],
+      "status": "PENDING",
+      "summary": "Qualify eye, mouth, tongue, teeth, wetline and speech-contact behavior in static and animated cinematic fixtures."
+    },
+    {
+      "mt_id": "MT-814",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-775",
+        "MT-799",
+        "MT-810"
+      ],
+      "status": "PENDING",
+      "summary": "Implement coupled neck, shoulder, clavicle, jaw, hairline, collar and groom-attachment deformation qualification."
+    },
+    {
+      "mt_id": "MT-815",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-775",
+        "MT-814"
+      ],
+      "status": "PENDING",
+      "summary": "Harden cinematic scalp, hair, brow, lash and body-groom authoring, dynamics, wetness, LOD and render behavior."
+    },
+    {
+      "mt_id": "MT-816",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-726",
+        "MT-765",
+        "MT-812"
+      ],
+      "status": "PENDING",
+      "summary": "Harden cinematic skin/material evaluation using OpenPBR-aligned layers, UDIM detail, displacement, wetness, transmission and color provenance."
+    },
+    {
+      "mt_id": "MT-817",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-766",
+        "MT-813",
+        "MT-814",
+        "MT-816"
+      ],
+      "status": "PENDING",
+      "summary": "Define cinematic waist-up camera, lens, light, environment and native render qualification profiles."
+    },
+    {
+      "mt_id": "MT-818",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-767",
+        "MT-817"
+      ],
+      "status": "PENDING",
+      "summary": "Implement BodyConditioningBundleV1 for local image/scene generation with beauty, typed AOVs, camera/light state, timing, IDs and provenance."
+    },
+    {
+      "mt_id": "MT-819",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-818"
+      ],
+      "status": "PENDING",
+      "summary": "Implement Rust EXR multipart/arbitrary-channel write and reload for BodyConditioningBundle sequences."
+    },
+    {
+      "mt_id": "MT-820",
+      "group": "CinematicPerformance",
+      "depends_on": [
+        "MT-813",
+        "MT-814",
+        "MT-817",
+        "MT-819"
+      ],
+      "status": "PENDING",
+      "summary": "Create the immutable cinematic waist-up frame and sequence corpus plus direct-inspection sampling contract."
+    },
+    {
+      "mt_id": "MT-821",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-703",
+        "MT-740",
+        "MT-783"
+      ],
+      "status": "PENDING",
+      "summary": "Implement TailorInterchangeProfileV1 as the single direction-specific payload, capability, loss and DCC qualification matrix."
+    },
+    {
+      "mt_id": "MT-822",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-609",
+        "MT-821"
+      ],
+      "status": "PENDING",
+      "summary": "Harden the deterministic Rust GLB writer and independent Rust reload for BodyKit and Cloth production packages."
+    },
+    {
+      "mt_id": "MT-823",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-616",
+        "MT-821"
+      ],
+      "status": "PENDING",
+      "summary": "Qualify a restricted pure-Rust USD profile for USDA, UsdSkel, mesh time samples, curves, LOD variants, cameras, lights and material bindings."
+    },
+    {
+      "mt_id": "MT-824",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-764",
+        "MT-765",
+        "MT-821"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the canonical OpenPBR material vocabulary and qualified MaterialX/glTF/USD projections with machine-readable loss reports."
+    },
+    {
+      "mt_id": "MT-825",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-824"
+      ],
+      "status": "PENDING",
+      "summary": "Implement a qualified Rust-owned OCIO transform subset and optional pinned OCIO C adapter only for unsupported required transforms."
+    },
+    {
+      "mt_id": "MT-826",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-778",
+        "MT-821",
+        "MT-823"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the optional local Unreal native C++ Interchange editor plugin/commandlet adapter and structured qualification receipt."
+    },
+    {
+      "mt_id": "MT-827",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-778",
+        "MT-821",
+        "MT-822",
+        "MT-823"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the operator-driven Blender manual qualification profile, checklist, capture intake and structured evidence receipt."
+    },
+    {
+      "mt_id": "MT-828",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-366",
+        "MT-410",
+        "MT-438",
+        "MT-821"
+      ],
+      "status": "PENDING",
+      "summary": "Implement optional pinned FBX import through a small Rust-owned loader FFI and typed unsupported FBX export behavior."
+    },
+    {
+      "mt_id": "MT-829",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-440",
+        "MT-821",
+        "MT-823"
+      ],
+      "status": "PENDING",
+      "summary": "Implement optional limited Alembic/Ogawa import capability and typed unsupported export while canonical caches use USD/native forms."
+    },
+    {
+      "mt_id": "MT-830",
+      "group": "InterchangeDelivery",
+      "depends_on": [
+        "MT-822",
+        "MT-823",
+        "MT-824",
+        "MT-825",
+        "MT-826",
+        "MT-827",
+        "MT-828",
+        "MT-829"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the canonical structural round-trip comparator and interchange fixture matrix for geometry, rig, animation, materials, grooms, cameras, lights, caches and conditioning."
+    },
+    {
+      "mt_id": "MT-831",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-741",
+        "MT-748",
+        "MT-750"
+      ],
+      "status": "PENDING",
+      "summary": "Register TAILOR in the WP-KERNEL-012 native module switcher and contribute all Tailor actions to FILE EDIT VIEW GO RUN HELP without a private shell."
+    },
+    {
+      "mt_id": "MT-832",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-692",
+        "MT-831"
+      ],
+      "status": "PENDING",
+      "summary": "Implement the professional Tailor workspace shell, pane layout and Cloth/BodyKit task-tab registry."
+    },
+    {
+      "mt_id": "MT-833",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-690",
+        "MT-693",
+        "MT-748",
+        "MT-832"
+      ],
+      "status": "PENDING",
+      "summary": "Implement TailorActiveToolStateV1 and shared 2D/3D selection, transforms, gizmos, snapping, measurement, brush, mask and preview/apply tools."
+    },
+    {
+      "mt_id": "MT-834",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-627",
+        "MT-628",
+        "MT-633",
+        "MT-798",
+        "MT-833"
+      ],
+      "status": "PENDING",
+      "summary": "Build the BodyKit Creator provider/preset/recipe browser and searchable regional parameter editor with slider-plus-exact-numeric controls."
+    },
+    {
+      "mt_id": "MT-835",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-629",
+        "MT-802",
+        "MT-834"
+      ],
+      "status": "PENDING",
+      "summary": "Build the BodyKit measurements and scan-fit workspace with pinned viewport lines, targets, residuals, locks, confidence and source comparison."
+    },
+    {
+      "mt_id": "MT-836",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-722",
+        "MT-800",
+        "MT-801",
+        "MT-833"
+      ],
+      "status": "PENDING",
+      "summary": "Build the BodyKit geometry, morph, residual and corrective authoring workspace with topology outliner, sculpt tools, stacks, samples and RBF graph."
+    },
+    {
+      "mt_id": "MT-837",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-723",
+        "MT-724",
+        "MT-725",
+        "MT-805",
+        "MT-807",
+        "MT-833"
+      ],
+      "status": "PENDING",
+      "summary": "Build the BodyKit rig, solve-graph, weight/rigidity-paint and transfer workspaces with hierarchy, execution debugging and error overlays."
+    },
+    {
+      "mt_id": "MT-838",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-762",
+        "MT-808",
+        "MT-811",
+        "MT-833"
+      ],
+      "status": "PENDING",
+      "summary": "Build the BodyKit face and performance workspace for identity/expression, FACS/ARKit/visemes, eyes/jaw/tongue, correctives, takes, timeline and curves."
+    },
+    {
+      "mt_id": "MT-839",
+      "group": "NativeOperatorSurfaces",
+      "depends_on": [
+        "MT-726",
+        "MT-764",
+        "MT-765",
+        "MT-775",
+        "MT-817",
+        "MT-818",
+        "MT-833"
+      ],
+      "status": "PENDING",
+      "summary": "Build integrated BodyKit skin/material, groom, cinematic render and conditioning workspaces over shared native services."
+    },
+    {
+      "mt_id": "MT-840",
+      "group": "ProjectPillars",
+      "depends_on": [
+        "MT-694",
+        "MT-695",
+        "MT-702",
+        "MT-742",
+        "MT-754",
+        "MT-783",
+        "MT-831"
+      ],
+      "status": "PENDING",
+      "summary": "Harden Tailor multi-project save/recovery, semantic history/compare, scoped CRDT/leases and account-resource privacy across every BodyKit-v2 resource."
+    },
+    {
+      "mt_id": "MT-841",
+      "group": "ProjectPillars",
+      "depends_on": [
+        "MT-743",
+        "MT-744",
+        "MT-745",
+        "MT-747",
+        "MT-748",
+        "MT-831",
+        "MT-832",
+        "MT-840"
+      ],
+      "status": "PENDING",
+      "summary": "Complete Tailor Loom/Locus/Flight Recorder/internal-diagnostics/Palmistry integration, Jobs/Problems/history surfaces and model navigation/manual discovery for BodyKit-v2."
+    },
+    {
+      "mt_id": "MT-842",
+      "group": "CinematicQualification",
+      "depends_on": [
+        "MT-653",
+        "MT-709",
+        "MT-781",
+        "MT-820",
+        "MT-830",
+        "MT-831",
+        "MT-832",
+        "MT-833",
+        "MT-834",
+        "MT-835",
+        "MT-836",
+        "MT-837",
+        "MT-838",
+        "MT-839",
+        "MT-840",
+        "MT-841"
+      ],
+      "status": "PENDING",
+      "summary": "Prove the complete offline no-context Tailor/BodyKit-v2 movie-production lifecycle with two parallel projects and directly inspected lifelike waist-up still and sequence outputs."
     }
   ]
 }

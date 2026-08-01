@@ -14,7 +14,7 @@
   "title": "E12-MT-072-EditorSettingsSections",
   "group": "E12",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-24T10:30:00.000Z",
+  "updated_at_utc": "2026-07-31T23:19:34.2027350Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-072.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt072",
       "mode": "VERIFY_AND_PROVE",
@@ -44,10 +44,10 @@
     "blocks": [
       "MT-073"
     ],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:19:34.2027350Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: two operator-facing settings persist but do NOT affect the running editor - (1) syntax palette: panel.rs scope_to_color + minimap still read fixed HsSyntaxTokens; a Custom swatch edit changes only the resolve_scope_color seam; code comment instructs the validator to record AC-003 as seam-only yet implementation_result lists AC-003 under PASS; (2) editor_font_size has NO panel slot - the control is inert. Contrast: tab_size/insert_spaces/word_wrap/render_whitespace/keybinding overrides ARE fed live via sync_editor_prefs_to_panel. Live PUT->GET settings round-trip still NEEDS_MANAGED_RESOURCE_PROOF (proven only via stub transport). Fix: route render sites through resolve_scope_color, add font-size slots on both editors fed from sync_editor_prefs_to_panel, run the live managed-PG round-trip, downgrade AC-003 until then.",
@@ -510,5 +510,91 @@
     "external_artifacts": "KB_READY_CHECKLIST_RECEIPTS.jsonl + kernel_event_ledger KE- receipt",
     "kb_ready_checklist": "PASS",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:19:34.2027350Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "backend_binary": "../Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-001",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-010",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-069",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-071",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      }
+    ],
+    "method": "Read the complete MT-072 machine contract, current v02.202 section 10.17, focused implementation/tests, and dependency verdicts; ran test_editor_keybindings_table, test_editor_settings_persist, test_editor_settings_section_renders, and test_syntax_palette_live with GPU mode and external artifacts; ran test_editor_preference_records against the real PostgreSQL/backend stack; inspected the generated settings screenshot directly; and challenged persistence, typed validation, revisions, receipts, reset/history, mounted code/rich override consumption, legacy defaults, retry behavior, AccessKit coverage, and contract/spec consistency.",
+    "pass_evidence": [
+      "The four focused frontend binaries passed 39/39: test_editor_keybindings_table 6/6, test_editor_settings_persist 25/25, test_editor_settings_section_renders 4/4, and test_syntax_palette_live 4/4.",
+      "test_editor_preference_records passed 1/1 against live PostgreSQL and the current backend, proving the font-size default projection, typed 400 rejection without mutation, missing-id 404, set revision 1, recoverable receipt, durable PREFERENCE_RECORD_CHANGED EventLedger reference, fresh reread, reset revision 2, and newest-first history.",
+      "The mounted code editor consumes custom keybinding overrides and reset restores its default binding; the catalog includes code and rich-editor actions.",
+      "Live code/rich font sizing, editor preference synchronization, syntax palette modes and same-frame custom swatch behavior, retry redispatch, legacy defaults, AccessKit ids, and reset route dispatch are covered by the passing focused tests.",
+      "The inspected editor_settings_sections.png is readable and non-overlapping for the visible Editor section. All four declared MT dependencies are green."
+    ],
+    "fail_report": {
+      "summary": "MT-072 FAIL V4. The current implementation and its PreferenceRecord live-PG proof are substantially green, but no mounted rich-editor command dispatch consumes a persisted custom keybinding override; the focused test source explicitly records that this live seam does not exist. The authoritative MT criteria are also internally obsolete: AC-001/005/009 and PT-001/004 still mandate the superseded opaque workspaceSettings GET/PUT and same-map design, while current v02.202 section 10.17 and the remediated product use typed per-preference PostgreSQL records, validation, revisions, receipts, EventLedger events, reset, and history. The one live-PG test covers font size rather than every editor/syntax/keybinding preference, and the only refreshed screenshot is filtered to Editor, leaving Syntax and Keybindings without direct visual proof.",
+      "acceptance_impact": "AC-005's required rich-editor override behavior is not implemented/proven on the mounted rich editor. The stale AC-001/005/009 and PT-001/004 contract cannot truthfully be marked satisfied by a different current-spec architecture until the authority owner reconciles the MT to v02.202. Visual and live persistence evidence is incomplete across the full three-section surface.",
+      "root_boundary": "MISSING_MOUNTED_RICH_EDITOR_OVERRIDE_CONSUMPTION_PLUS_STALE_MT_CONTRACT_AND_INCOMPLETE_FULL_SURFACE_PROOF",
+      "failure_evidence": [
+        "test_editor_keybindings_table.rs states that rich-editor overrides have no live keymap seam on the mounted rich editor; its live override test exercises CodeEditorPanel::keymap only.",
+        "MT-072 AC-005 requires all code and rich-editor actions plus a custom override, but no focused test dispatches a rich-editor formatting command through a persisted custom chord in the mounted rich editor.",
+        "MT-072 AC-001, AC-009, PT-001, and PT-004 mandate the existing /workspaces/{workspace_id}/settings GET/PUT document path, whereas validation_v3 and current code use /workspaces/{workspace_id}/preferences/... PreferenceRecord routes.",
+        "Current Master Spec v02.202 section 10.17 normatively requires PostgreSQL PreferenceRecord storage, registry validation, revisioned set/reset/history, EventLedger change events, and recoverable receipts; reverting to the MT's old opaque /settings requirement would violate current authority.",
+        "test_editor_preference_records is a real live-PG proof and passed 1/1, but it mutates and rereads editor font size only; the remaining editor scalar preferences, syntax palette, and code/rich keybinding override records are covered through stub transport rather than a full live-PG reopen matrix.",
+        "The refreshed screenshot was captured with the settings search filtered to 'tab'. It proves the visible Editor controls are readable, but hides Syntax and Keybindings and therefore cannot prove the complete three-section layout or keybinding table visually.",
+        "The contract contains duplicate case-colliding waiver_GRANTED and waiver_granted keys, so ordinary case-insensitive PowerShell JSON parsing fails and machine consumers can observe ambiguous authority state."
+      ]
+    },
+    "remediation_plan": [
+      "1. Route an authority-owner refinement before product repair: reconcile MT-072 AC-001, AC-005, AC-009, PT-001, PT-004, implementation notes, and allowed paths with current SPEC_CURRENT v02.202 section 10.17. Preserve the typed PreferenceRecord architecture; do not regress the product to opaque /settings GET/PUT merely to satisfy stale text.",
+      "2. In that authorized refinement, define canonical stable preference ids and schemas for every Editor scalar, syntax palette state/swatch, and editor keybinding override, including value type, scope, default, source, bounds/domain, revision, redaction class, set/reset/history routes, EventLedger event, Flight Recorder projection, and receipt fields.",
+      "3. Explicitly resolve the keybinding shape deviation in the contract. If the separate namespaced editor-keybinding preference/list remains the current-spec design, authorize it and replace the stale same-workspaceSettings-map language; otherwise provide a schema-compatible migration that does not bypass deny-unknown validation.",
+      "4. Implement a live rich-editor keybinding seam that resolves custom-if-present-else-default from the canonical persisted override source before dispatch. Cover all MT-010 rich formatting commands, preserve existing default chords, and ensure reset removes only the selected override.",
+      "5. Add a mounted rich-editor test that persists a non-default chord, hydrates a fresh panel/client, sends that chord through the real input/command route, proves the exact formatting effect and attributable receipt/trace, proves the old default no longer invokes that action while overridden, then resets and proves the default works again.",
+      "6. Expand live PostgreSQL coverage from font size to the full authoritative settings set: every editor scalar, all palette modes plus at least one custom swatch, code keybinding override, and rich keybinding override. For each, prove typed projection, set, fresh-process/client reopen, exact revision, receipt, EventLedger reference, reset, and history without relying on StubPreferenceTransport.",
+      "7. Add adversarial live cases for numeric bounds, invalid enums/colors/chords, unknown preference ids, stale revision or concurrent writes, workspace isolation, backend loss/retry without edit loss, duplicate chord collision, reset idempotence, and legacy/default hydration. Assert rejected writes do not mutate revision, history, or mounted editor state.",
+      "8. Produce unfiltered current-head visual proof for Editor, Syntax, and Keybindings. Capture each section with its AccessKit tree; include long action labels, default/custom/source/revision/reset state, error/retry state, narrow-window layout, and enough rows to demonstrate code and rich-editor actions without overlap or clipping.",
+      "9. Have the governance authority owner remove the duplicate case-colliding waiver_GRANTED/waiver_granted fields and retain one schema-approved waiver field without losing either disclosure. Validate the JSON with both a case-sensitive parser and the repository's canonical contract validator.",
+      "10. Preserve all currently green behavior: typed PreferenceRecord validation, live font-size/palette application, code-editor override/reset, retry redispatch, legacy defaults, stable AccessKit ids, live-PG receipts/history, and the external-artifact boundary. Do not weaken tests or replace live proofs with mocks."
+    ],
+    "verification_required": [
+      "Obtain an authorized MT/refinement update that is internally consistent with SPEC_CURRENT v02.202 and clearly resolves the separate editor-keybinding preference/list design before revalidation.",
+      "Run the new mounted rich-editor custom-chord test alone and require override effect, default suppression while overridden, fresh hydration, reset, restored default, exact action trace, and 1 passed/0 failed.",
+      "Run a live-PostgreSQL matrix covering every editor scalar, syntax palette state/swatch, code override, and rich override; require exact typed records, fresh-client readback, monotonically correct revisions, recoverable receipts, EventLedger ids, reset values, and complete history.",
+      "Run invalid/bounds/unknown-id/stale-revision/workspace-isolation/backend-retry/chord-collision negative tests and prove rejected mutations leave durable and mounted state unchanged.",
+      "Run test_editor_keybindings_table, test_editor_settings_persist, test_editor_settings_section_renders, test_syntax_palette_live, and test_editor_preference_records completely from current HEAD with the external Cargo target and require all tests green with no required test ignored.",
+      "Inspect unfiltered Editor, Syntax, and Keybindings screenshots against paired AccessKit trees at normal and narrow widths; require readable controls, no overlap/clipping, stable author_ids, and visible default/custom/source/revision/reset/error state.",
+      "Parse MT-072.json with ordinary case-insensitive and case-sensitive JSON consumers and run the canonical contract/schema validator; require no duplicate/case-colliding keys and no stale /settings assertions.",
+      "Confirm MT-001, MT-010, MT-069, and MT-071 remain independently green at revalidation time.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-072.json completely, then packet.json, SPEC_CURRENT v02.202 section 10.17, the current preference API/schema/storage code, settings_editor_section.rs, settings_dialog.rs, workspace_settings.rs, code and rich editor keymap/dispatch code, and all five focused test binaries. First obtain an authorized contract refinement that preserves PreferenceRecord authority and resolves the editor-keybinding shape. Then implement mounted rich override consumption, broaden live-PG and visual proof, remove the duplicate waiver key through the governance owner, rerun all listed verification with external artifacts, and hand off READY_FOR_VALIDATION without regressing to opaque /settings persistence or relying on stub-only success."
   }
 }

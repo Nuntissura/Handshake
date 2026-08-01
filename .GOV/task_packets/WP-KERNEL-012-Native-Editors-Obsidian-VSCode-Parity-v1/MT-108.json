@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-28T11:32:54.134Z",
+  "updated_at_utc": "2026-07-31T23:36:08.8188448Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,14 +35,14 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "depends_on": [],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:36:08.8188448Z",
     "open_repair_plan_2026_07_03": {
       "schema_id": "hsk.mt_open_repair_plan@1",
       "created_at_utc": "2026-07-03T21:26:02Z",
@@ -433,5 +433,75 @@
     "Run one bounded supervisor from current source, produce correlated process/PID/source evidence and external artifacts, make ordinary tests hermetic or explicitly ignored runner-only gates, and ensure the full native suite is green."
   ],
   "no_context_instruction": "Read MT-108.json, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and current spec. Close all-surface coverage and execute the complete bounded Argus run before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:36:08.8188448Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target",
+      "latest_v3_evidence_source_sha": "e4148ca9d5b676a3d32399d89b9b944497df95a0"
+    },
+    "dependency_state": [],
+    "method": "Read the complete MT-108 residual-hardening contract, V3 manifest/supervisor evidence, current matrix/verifier/screenshot-marker code, prior failure ownership, and all current WP MT verdicts; ran test_screenshot_deferred_marker, test_mt108_argus_matrix, and test_mt108_argus_aggregate from current HEAD with the external Cargo target; distinguished local verifier-unit success from ignored runner-only execution; and compared AC-108-1/2/3 against the fresh per-MT failures and current authoritative WP state produced during this validation sequence.",
+    "pass_evidence": [
+      "The focused local MT-108 gate command passed 9 tests: seven screenshot-marker tests and two matrix-verifier unit/counterfactual tests.",
+      "AC-108-2's headless behavior is green: the runtime harness emitted a typed hsk.native_gui.screenshot_marker@5 DEFERRED marker with an explicit no-wgpu-adapter reason rather than silently claiming captured pixels.",
+      "Marker durability, concurrent JSONL integrity, isolated outcome wiring, render-site routing, CAPTURED versus DEFERRED distinction, and post-action phase constraints passed.",
+      "The current manifest and verifier binaries compile. Their ordinary runner-only scenario and post-run aggregate tests remain explicitly ignored instead of failing because supervisor identity/GPU context is absent.",
+      "The V3 record documents a broad 33-scenario headless/GPU matrix at source e4148ca9 and explicitly did not claim AC-108-3 green when test_loom_address failed. That historical disclosure is truthful but is not current-head closure."
+    ],
+    "fail_report": {
+      "summary": "MT-108 FAIL V4. AC-108-3 requires the full handshake-native suite green, but current-head per-MT validation has produced widespread deterministic failures and the WP authority currently contains 31 failed MT verdicts. MT-108's own focused local helpers pass, but its actual manifest scenario and post-run aggregate gates remain ignored runner-only tests and the last completed supervisor evidence is source-bound to e4148ca9, not current HEAD 8de72ebe. A capstone cannot pass on stale aggregate evidence while its owned full-suite acceptance surface is red.",
+      "acceptance_impact": "AC-108-3 is unequivocally unmet. AC-108-1 is also incomplete because residual items re-deferred or delegated to upstream MTs are not all closed at current HEAD. AC-108-2 is green locally, but that one systemic marker requirement cannot override the failed full-suite and current-source aggregate gates.",
+      "root_boundary": "CAPSTONE_FULL_SUITE_RED_STALE_SUPERVISOR_EVIDENCE_AND_UNEXECUTED_CURRENT_HEAD_RUNNER_GATES",
+      "failure_evidence": [
+        "The authoritative WP currently has 31 MTs with FAIL verdicts: MT-008, 014, 021-029, 033-036, 042, 045-046, 064-068, 070, 072, 074, 079, 088, 098, 108, and 109.",
+        "Fresh current-head failures in this validation include canonical terminal-predicate failures in MT-064, MT-065, MT-067, MT-070, MT-074, MT-079, and MT-098; additional direct failures include MT-066 Canvas cleanup, MT-068 dirty-source live-proof refusal, MT-072 rich-keymap/contract gaps, and MT-088 frame-audit drift.",
+        "The MT-108 local command passed screenshot/verifier unit tests but left mt108_argus_manifest_surface_route and mt108_verify_argus_evidence_manifest ignored; no current-head 33-scenario supervisor run was executed by those ordinary tests.",
+        "The latest V3 headless/GPU aggregate recorded in the contract is bound to e4148ca9d5b676a3d32399d89b9b944497df95a0, while the product validation head is 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e.",
+        "The V3 handoff itself records AC-108-3 as blocked by test_loom_address::mounted_backlink_event_retries_when_bus_is_contended, so even its historical evidence did not satisfy the full-suite criterion.",
+        "Current-head focused binaries run during this validation returned nonzero for context menus, other-pillar interop, app-host mount, backend-down audit, and Runtime Chat canonical coverage, independently disproving a zero-failure native suite.",
+        "The product worktree contains preserved operator/user changes, so a source-bound all-surface supervisor must either use a clean committed successor or explicitly prove which non-proof changes are outside its bound inputs; stale e4148ca9 artifacts cannot be relabeled current."
+      ]
+    },
+    "remediation_plan": [
+      "1. Treat MT-108 as the final capstone, not the owner of every upstream defect. Resolve each failed MT through its authoritative per-MT remediation and obtain independent PASS verdicts before rerunning AC-108-3; do not suppress upstream failures inside the aggregate runner.",
+      "2. Repair the canonical terminal-predicate cohort: MT-064/065/067/070/074/079/098 and any other Argus binary must rebind every action to a fresh authoritative product-specific terminal predicate before finish. Preserve screenshots as supporting evidence only.",
+      "3. Repair the persistence/resource cohort: close MT-066 Canvas foreign-key cleanup and full durable lifecycle, MT-068 source-bound Locus live proof, MT-072 full PreferenceRecord/rich-keymap contract alignment, and MT-088 current binary/Palmistry/live recovery proof.",
+      "4. Repair remaining failed owners MT-008/014/021-029/033-036/042/045-046 and their downstream dependency chains from their V4 reports. Require exact route, identity, teardown, persistence, and negative-path proof rather than carrying typed blockers into a capstone PASS.",
+      "5. Reproduce and fix test_loom_address::mounted_backlink_event_retries_when_bus_is_contended at current HEAD. Prove the contended bus exposes a retrying status, eventually retries or terminates by policy, does not silently drop the event, and leaves no global-state/order dependency.",
+      "6. Reconcile each of the twelve original MT-108 residual items in a machine-readable current disposition: IMPLEMENTED with test/evidence, DEFERRED with an owning MT that remains non-pass, or SUPERSEDED by current authority. AC-108-1 may pass only when no required item is silently absent and every defer has a truthful non-pass owner.",
+      "7. Keep AC-108-2 fail-closed marker behavior and extend the supervisor verifier to require the correct posture per scenario: real-GPU-required rows must have material CAPTURED frames; genuinely headless-allowed rows may use typed DEFERRED; BLOCKED/DEFERRED may not close a required pixel row.",
+      "8. Produce a clean committed successor source for the final proof without discarding the preserved user changes. Rebuild every selected test executable from that exact source into the canonical external target and record source/blob/binary hashes plus process start identity.",
+      "9. Run run_mt108_argus_proof.ps1 in headless mode from the successor source and require all manifest rows, process receipts, action chains, typed markers, cleanup, and the post-run verifier green. Then run the real-GPU mode and require every GPU-mandatory row materially captured and visually inspected.",
+      "10. Ensure every matrix scenario has stable author-id targeting, before observation, one ordered action/receipt chain, fresh terminal reinspection, non-tautological predicate evidence, source/process correlation, bounded timeout, exact teardown, and no orphan process or local artifact.",
+      "11. Run the complete handshake-native library, every current-source integration binary, bins/build, and required Palmistry tests serially or with proven isolation using --no-fail-fast and the external Cargo target. Capture a deterministic inventory and require zero failures, zero timeouts, and no acceptance-critical ignores after separately executing governed live tests.",
+      "12. Only after upstream verdicts, the full suite, headless supervisor, GPU supervisor, visual inspection, artifact hygiene, process reclamation, and manual contract are all current-head green should MT-108 return READY_FOR_VALIDATION. Preserve old e4148ca9 evidence as history, not current proof."
+    ],
+    "verification_required": [
+      "Require every currently failed upstream MT consumed by the WP capstone to have an independent PASS verdict or an explicit authority change that removes it from the capstone acceptance surface.",
+      "Run test_loom_address::mounted_backlink_event_retries_when_bus_is_contended alone, in its binary, and in the full-suite order; require green and identical retry-state behavior in all three contexts.",
+      "Run all per-item MT-108 targeted tests for find/replace, outline/folding, formatting toolbar, slash menu, rich find/replace, Runtime Chat, watchdog, Palmistry child stalls, workspace-root disposition, screenshot markers, and manual content; require every implemented item green and every defer machine-addressable.",
+      "Run test_screenshot_deferred_marker and require all 7 tests green, durable marker v5 JSONL, correct CAPTURED/DEFERRED/BLOCKED distinction, and no silent-green render site.",
+      "Run the headless MT-108 supervisor at current successor HEAD and require all 33 scenarios plus verifier complete with exact STARTED/COMPLETED/process-observation acknowledgements, zero failed/blocked lifecycle rows, valid typed headless markers, and no stale receipt closure.",
+      "Run the real-GPU MT-108 supervisor at the same source HEAD and require material frames for every required scenario, valid dimensions/phase/receipt binding, exact process identity, and zero DEFERRED marker on GPU-mandatory rows.",
+      "Invoke mt108_verify_argus_evidence_manifest explicitly after each supervisor run and require PASS with current source/blob/binary hashes, complete scenario set, unique surface/action coverage, exact receipts, cleanup, and process reclamation.",
+      "Directly inspect every material GPU frame or the contract-selected representative plus all anomalous/edge frames against its paired AccessKit tree and reference state; record readable controls, no overlap/clipping, correct active/error/disabled states, and exact post-action outcome.",
+      "Run the full handshake-native suite with --no-fail-fast and a deterministic inventory; require zero failed tests and zero timeouts. Execute every governed live/runner-only acceptance test separately and require green rather than counting default ignores as pass.",
+      "Run cargo build for native lib+bins, targeted clippy/theme/artifact checks, Palmistry tests, and process-reclamation guards using only ../Handshake_Artifacts/handshake-cargo-target; require zero repo-local target/output and zero orphan child.",
+      "Verify the final proof source equals the product HEAD being validated and that preserved user-dirty files are neither overwritten nor accidentally included as uncommitted proof inputs.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS or reusing e4148ca9 artifacts as current-head closure."
+    ],
+    "no_context_instruction": "Read MT-108.json completely, packet.json, SPEC_CURRENT v02.202, every current FAIL_V4 MT report, mt108_argus_matrix.json, run_mt108_argus_proof.ps1, mt108_matrix_verifier.rs, argus_surface_proof.rs, screenshot_marker/harness code, UserManual MT-108 section, and the complete current test inventory. Repair failures under their owning MTs first, resolve the twelve residual dispositions, create a clean committed successor without discarding user work, run both headless and real-GPU supervisors plus explicit aggregate verification, inspect material frames, run the entire native/Palmistry suite and build from the exact same source, and hand off only when AC-108-1/2/3 are all current-head green."
+  }
 }

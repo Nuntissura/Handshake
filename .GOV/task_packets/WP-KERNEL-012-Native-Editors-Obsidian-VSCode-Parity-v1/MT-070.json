@@ -14,7 +14,7 @@
   "title": "E11-MT-070-WireEditorContextMenusAndNavigationBus",
   "group": "E11",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-23T10:08:34.9555956Z",
+  "updated_at_utc": "2026-07-31T23:12:20.5687398Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-070.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt070",
       "mode": "VERIFY_AND_PROVE",
@@ -45,10 +45,10 @@
     "blocks": [
       "MT-072"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:12:20.5687398Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: the MT-070 context-menu layer is NOT wired into the live render loop - show_editor_body_menu/show_node_menu/editor_body_context_items/node_context_items have NO product call site (module WIRING STATUS comment discloses it); live code-editor right-click still shows the pre-existing 2-entry menu; canvas/loom node menus still use the MT-021 layer. navigation_bus::dispatch has NO product caller; NavigationTarget byte_offset intentionally ignored (no scroll-to-byte seam). implementation_result claims AC-070-1..9 PASS and omits the load-bearing disclosure that exists only in code comments - overstatement on the contract surface. Root cause recorded in-code: BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE (allowed_paths forbids the call-site files the scope mandates). Fix: resolve the allowed-paths conflict, wire panel.rs/canvas/loom call sites + shell nav-bus consumption, add scroll-to-byte seam carry, re-prove AC-070 against the live app, amend implementation_result.",
@@ -475,5 +475,99 @@
     "Run canonical Argus for each editor context menu and navigation action, including unavailable/disabled states and fresh post-action observation; update canonical UserManual."
   ],
   "no_context_instruction": "Read MT-070.json and context_menu_surfaces.rs. Fix the enabled/action mismatch, audit all menus for the same invariant, and prove them through canonical Argus before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:12:20.5687398Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "backend_binary": "../Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-008",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-030",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-048",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-049",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-050",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-057",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      }
+    ],
+    "method": "Read the complete MT-070 contract and current focused test surfaces; inventoried all canonical Argus call sites; ran test_context_menu_surfaces, test_navigation_bus, and test_editor_body_context_menu with GPU mode and external artifacts; reran the two binaries skipped after Cargo stopped on the first failure; inspected canonical_argus_driver finish requirements and the absence of terminal predicate calls in the context-menu suite; and compared real handler effects, disabled states, multi-pane ownership, navigation semantics, and dependency status to AC-070-1 through AC-070-9 and PT-070-1 through PT-070-6.",
+    "pass_evidence": [
+      "test_navigation_bus passed 5/5, including quick-switcher focus by stable pane id, code symbol opening, byte-offset application, typed PaneNotFound, and graph node dispatch through the navigation bus.",
+      "test_editor_body_context_menu passed 8/8, proving the live editor-body right-click surface, real Rename handler, copy-as-note-reference, Create-note-from-link staging, resolver readiness, duplicate-title/alias denial, and disabled unsaved-buffer behavior.",
+      "Within test_context_menu_surfaces, 28/34 tests passed. Passing tests cover real Rename/QuickFix/Format/Go-to-definition/Create-note action enums, no dead enabled handler, enabled-state/action-resolution equivalence, stable MenuItem ids, tab/header/explorer/project menus, disabled route/projection states, and node payload availability.",
+      "Five of six declared dependencies are green: MT-030, MT-048, MT-049, MT-050, and MT-057 are PASS_V1."
+    ],
+    "fail_report": {
+      "summary": "MT-070 FAIL V4. test_context_menu_surfaces exits 1 with 28 passed and 6 failed. Every failing mounted context-menu test reaches canonical_argus_driver::finish with at least one action that was never rebound to an authoritative terminal snapshot and action-specific terminal predicate. The separate navigation and live editor-body binaries pass 13/13, so the defect is canonical action proof rather than wholesale dispatch failure. MT-008 is also a failed declared dependency.",
+      "acceptance_impact": "The required mounted context-menu and cross-surface navigation proof is not green. AC-070-1 through AC-070-5 and PT-070-3 through PT-070-5 require handler side effects and exact routing to be attributable to the dispatched menu action; immediate/local assertions without terminal receipt binding cannot satisfy that contract.",
+      "root_boundary": "CANONICAL_ARGUS_TERMINAL_PREDICATES_ACROSS_MENU_MATRICES_AND_FAILED_MT008_DEPENDENCY",
+      "failure_evidence": [
+        "Combined focused command began with test_context_menu_surfaces and stopped after that binary failed: 28 passed, 6 failed, 0 ignored; body 53.51 seconds; Cargo exit 1.",
+        "The six failures are mt070_mounted_canvas_argus_routes_exact_source_into_stage, mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix, mt070_mounted_editor_body_localhost_argus_action_matrix, mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful, mt070_two_canvas_panes_retain_one_localhost_menu_owner_and_route_exact_origin, and mt070_two_graph_panes_localhost_action_channel_routes_owner_and_route_stays_disabled.",
+        "All six panic at tests/native_gui_support/canonical_argus_driver.rs:644 with 'every canonical action must be rebound to an authoritative terminal snapshot'.",
+        "test_context_menu_surfaces.rs has seven argus.finish call sites and zero assert_latest_terminal_predicate or reinspect_latest_terminal calls. The pending/failed projection test can pass because it dispatches no canonical action; that does not validate the action paths.",
+        "The separately rerun test_editor_body_context_menu and test_navigation_bus binaries passed 8/8 and 5/5 respectively, confirming the live handlers and core navigation primitives are operational outside the failed canonical matrices.",
+        "MT-008, which owns Peek/Go-to-Definition code navigation consumed by MT-070, is currently FAIL_V4."
+      ]
+    },
+    "remediation_plan": [
+      "1. For every canonical action in the six failing tests, wait for the owning product state to settle, then call assert_latest_terminal_predicate or assert_latest_terminal_predicate_with_evidence before argus.finish. A provisional applied/indeterminate receipt and immediate tree assertion are not final proof.",
+      "2. In mt070_mounted_canvas_argus_routes_exact_source_into_stage, bind the Route-to-Stage click to the exact originating pane/node identity, admitted InteractionBus request, Stage pane activation, exact routed content, and terminal route receipt. Include source pane/node/correlation values as recomputable evidence.",
+      "3. In mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix, bind Open note, Reveal node, and Create note actions individually to their durable destinations/effects. Reinspect after each action, prove exact target identity and exactly-once handler trace, and preserve ordered one-action/one-receipt evidence.",
+      "4. In mt070_mounted_editor_body_localhost_argus_action_matrix, bind Rename, Quick Fix, Format Selection, Peek/Go-to-Definition, and Create-note-from-link to distinct authoritative effects from their real MT-048/049/050/008/057 handlers. Do not use the action enum alone as proof that the handler completed.",
+      "5. In mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful, do not dispatch disabled items. Bind any action used to open/navigate the popup to a terminal predicate, then prove each unavailable entry is Role::MenuItem, disabled, carries its typed reason, exposes no Click action, and leaves handler traces/state unchanged.",
+      "6. In the two-Canvas and two-Graph ownership tests, bind popup-open and selected menu action to the exact source pane that owned the right-click. Prove only one menu owner exists, stale/non-owner panes do not consume the action, exact origin identity survives render/focus changes, and Graph Route remains disabled when its availability predicate is false.",
+      "7. Export a source-bound canonical artifact for each matrix containing action target, before snapshot, receipt id/status, terminal snapshot, predicate id/evidence/result, exact handler trace, pane ownership, and resulting NavigationTarget/product state. Write success output only after every finish call succeeds.",
+      "8. Add a static/regression gate that every Argus action in test_context_menu_surfaces is followed by terminal reinspection and at least one action-specific predicate before its driver is finished. Preserve the no-action disabled/projection case as an explicit zero-dispatch assertion.",
+      "9. Resolve MT-008 to an independently validated PASS and rerun the real Peek/Go-to-Definition menu action against its current backend-bound code-nav path; MT-070 cannot pass while that declared action dependency is red.",
+      "10. Preserve the currently green live editor-body, navigation-bus, no-dead-enabled, byte-offset, create-note denial, and stable MenuItem behavior. Do not weaken canonical_argus_driver::finish or accept indeterminate receipts without authoritative terminal predicates."
+    ],
+    "verification_required": [
+      "Resolve MT-008 to an independent PASS verdict.",
+      "Run each of the six formerly failing Argus tests alone and require 1 passed, 0 failed with at least one passed action-specific terminal predicate for every dispatched action.",
+      "Parse each fresh canonical artifact and require exact receipt retention, terminal_refreshed=true, non-empty passed predicate lists, ordered one-to-one action mapping, exact pane/target identity, and zero unbound/rejected/duplicate actions.",
+      "Run test_context_menu_surfaces completely and require 34 passed, 0 failed, 0 ignored.",
+      "Run test_navigation_bus and test_editor_body_context_menu completely and require 5/5 and 8/8 to preserve the live handler/navigation baseline.",
+      "Exercise the MT-008 Peek/Go-to-Definition entry through the mounted editor-body menu against the current backend path and require its exact navigation destination/byte offset in the terminal snapshot.",
+      "Inspect any fresh menu/action screenshots or matrix frames against their paired AccessKit trees; verify one popup owner, readable non-overlapping items, truthful disabled states, correct MenuItem roles, and stable author IDs.",
+      "Run a single focused MT-070 aggregate command/supervisor over all three binaries and require 47 passed, 0 failed, 0 ignored and Cargo exit 0.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-070.json completely, then packet.json, MT-008.json, MT-030.json, MT-048.json, MT-049.json, MT-050.json, MT-057.json, current SPEC_CURRENT v02.202 context-menu/navigation clauses, test_context_menu_surfaces.rs, test_navigation_bus.rs, test_editor_body_context_menu.rs, and canonical_argus_driver.rs. Reproduce the six finish failures at source SHA 8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e or a declared successor, bind every dispatched action to an authoritative product-specific terminal predicate, resolve MT-008, rerun all focused matrices with external artifacts, inspect any frames, and hand off READY_FOR_VALIDATION without weakening the final gate or relying on prior V3 counts."
+  }
 }

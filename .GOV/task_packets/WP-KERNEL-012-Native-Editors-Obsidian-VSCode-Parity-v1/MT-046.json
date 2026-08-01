@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T09:35:48.900Z",
+  "updated_at_utc": "2026-07-31T22:44:10.2012618Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -38,11 +38,11 @@
       "MT-045"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "proof_status": "READY_FOR_VALIDATION_V3: current-head interconnection capstone rerun passed against owned live backend/PostgreSQL. test_interconnect_ckc_to_note 7/7, test_interconnect_note_code_crossref 6/6 after setting HSK_PSQL_BIN to the installed PostgreSQL psql.exe, test_interconnect_loom_backlink_search 8/8 with IC-13 typed HSK-409-LOOM-AI-NO-MODEL skip, test_interconnect_shared_undo_ledger 5/5. Manifest sanity: 18 entries, 17 PASS, 1 SKIPPED, 0 FAIL. MT-034, MT-035, and MT-036 are READY_FOR_VALIDATION_V3.",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:44:10.2012618Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: IC-07 (manifest PASS) fabricates its copy-as-note-reference half - the test constructs the [[code:...]] string itself and writes it to its own MockClipboard; NO production copy-as-note-reference command exists anywhere in src/. Per MT-046's own VERIFY-OR-BLOCKER discipline this should have been a typed blocker, not PASS. The clipboard edge of HBR-INT-012-01 is unproven. IC-06/09 inject triggering events programmatically (sanctioned, minor). Positive: IC-15/16/18 unified-undo substrate proofs genuinely real on ONE bus with real product adapters; IC-17 correctly REQUIRES_PG. Fix: downgrade IC-07 to BLOCKED/PARTIAL, build the copy-as-note-reference command (or typed blocker), drive IC-06/09 from rendered chips via AccessKit at re-run; 9 REQUIRES_PG scenarios join the managed-PG batch.",
@@ -542,5 +542,71 @@
     "Drive each mounted interconnection through canonical Argus with stable author_ids, safe action, fresh observation, and screenshot/tree evidence; keep only the explicitly permitted AI gate skipped."
   ],
   "no_context_instruction": "Read MT-046.json, dependencies, packet, and current spec. Close the shared-suite and full canonical Argus matrix before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T22:44:10.2012618Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "branch": "feat/WP-KERNEL-012"
+    },
+    "fresh_product_evidence": {
+      "backend": "current-source D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "postgres": "postgresql://postgres@127.0.0.1:5544/handshake",
+      "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts",
+      "results": [
+        "Fresh external attempt receipts recorded IC-01, IC-02, and IC-03 PASS during the first serialized binary invocation.",
+        "Exact interconnect_ic04_ckc_character_wikilink_backlink passed 1/1 in 103.69s with the typed CKC-character backlink persisted and reloaded.",
+        "Exact interconnect_ic05_route_selection_to_stage passed 1/1 in 0.29s with the mounted EDITORS route projecting stage-routed-content through AccessKit.",
+        "test_interconnect_note_code_crossref passed 6/6 in 432.14s; live IC-06/07/08/09 assertions all passed.",
+        "test_interconnect_loom_backlink_search passed 8/8 in 412.71s; live IC-10/11/12/14 passed and IC-13 emitted the contract-authorized typed 409 HSK-409-LOOM-AI-NO-MODEL skip.",
+        "test_interconnect_shared_undo_ledger passed 5/5 in 224.46s; live IC-15/17 and shared-stack IC-16/18 passed.",
+        "All 18 canonical scenario receipt files were freshly rewritten between 2026-07-31T22:10:35Z and 2026-07-31T22:37:51Z: 17 PASS and IC-13 SKIPPED.",
+        "The protected catalog contains exactly 18 unique IDs IC-01..IC-18, 17 PASS, one SKIPPED, zero FAIL, SHA-256 D0C30CB69432C468A03ED38F928727243B470F6C9B9B2B6AB818069A064E45EA."
+      ]
+    },
+    "fail_report": {
+      "summary": "MT-046 FAIL V4. Current product assertions are individually green (17 PASS plus the one permitted typed IC-13 skip), but the MT's acceptance surface is not complete or trustworthy as one current-source run. The 18 fresh attempts are split across two run IDs, current-run.json is non-terminal RUNNING with only 14 scenarios, no receipt/run projection binds source SHA 8de72ebe..., and the contract's 18-test-function requirement is violated by 19 functions whose names match interconnect_. In addition, required dependency MT-045 is FAIL_V4, and MT-033/034/035/036 remain FAIL_V4, so MT-046 cannot close its capstone dependency or mounted canonical-Argus obligations.",
+      "acceptance_failures": [
+        "Run aggregation is not atomic. IC-01..IC-04 were recorded under MT046-RUN-019fb7852a5a7e73bf73719d38126e95, while IC-05..IC-18 were recorded under MT046-RUN-019fba42be287f438f30b99ff71e73b1.",
+        "The final current-run.json is status=RUNNING, scenario_count=14, run_id=MT046-RUN-019fba42be287f438f30b99ff71e73b1, and SHA-256 3C98943C40C77AD9C4F435C0BFB7A1B718CF794E7A93092C75AF98341E5D4432. It omits IC-01..IC-04 and has no immutable terminal PASS summary.",
+        "Scenario receipts and run projections contain no source_sha, backend binary digest, PostgreSQL identity, Cargo command/profile, or manifest digest. Fresh timestamps alone cannot bind the results to the candidate HEAD.",
+        "begin_scenario_run reuses an existing RUNNING current-run when HSK_MT046_RUN_ID is absent and starts a new run when a scenario already has a terminal entry. That permits stale scenario contamination and splits ordinary multi-command validation into unrelated runs.",
+        "Static inspection finds 19 #[test] functions named interconnect_* across the four declared binaries (5 + 5 + 5 + 4), not the contract-required 18. IC-06 has both interconnect_ic06_code_panel_focus_boundary_probe and interconnect_ic06_open_code_block_from_note.",
+        "The initial combined four-binary command exceeded a five-minute outer capture while still in the first binary; the Cargo tree continued outside the capture and did not produce a durable command-level terminal receipt. Individual binaries then required 432.14s, 412.71s, and 224.46s. MT-046 has no canonical bounded supervisor to contain, time, and terminally publish these commands.",
+        "Dependency MT-045 is NEEDS_REIMPLEMENTATION_V4/FAIL_V4 after canonical LK-03 failure. MT-033, MT-034, MT-035, and MT-036 also have current FAIL_V4 verdicts, so MT-046's declared dependency list is not green.",
+        "The fresh proofs exercise AccessKit/in-process mounted substrates but do not provide one complete canonical Argus inspect/steer/re-observe run with stable author_ids, action receipts, fresh terminal tree snapshots, and screenshots for the mounted cross-surface interactions required by the prior validator remediation and failed dependencies."
+      ]
+    },
+    "remediation_plan": [
+      "Close dependencies first: repair and obtain fresh independent PASS verdicts for MT-033, MT-034, MT-035, MT-036, and MT-045. Do not promote MT-046 while any declared dependency remains FAIL/NEEDS_REIMPLEMENTATION.",
+      "Create or extend one canonical MT-046 supervisor that owns a unique required HSK_MT046_RUN_ID, records candidate HEAD/source SHA, builds or verifies the exact current-source handshake_core binary and its SHA-256, binds the real PostgreSQL endpoint/process identity, invokes all four declared test binaries serially with explicit per-binary and whole-run deadlines, contains/reaps their process trees, and publishes one immutable terminal summary plus digest under ../Handshake_Artifacts.",
+      "Make begin_scenario_run fail closed when HSK_MT046_RUN_ID is absent in canonical mode. Never attach new attempts to an arbitrary pre-existing RUNNING current-run. At supervisor start, publish a new run projection for the requested ID; archive/retain prior current-run content as historical evidence rather than merging it. Reject any attempt whose run ID or source binding differs from the supervisor.",
+      "Add source/provenance fields to every attempt and run artifact: source_sha, dirty-source policy/result, supervisor run ID, test binary and exact test name, Cargo profile/locked flag, backend path+SHA-256, PostgreSQL DSN identity without credentials, manifest SHA-256, process IDs, started/completed timestamps, exit code, timeout/leak state, and stdout/stderr paths+hashes. Add completed_at to terminal attempt receipts.",
+      "Restore the one-scenario/one-filtered-test contract. Either fold interconnect_ic06_code_panel_focus_boundary_probe into interconnect_ic06_open_code_block_from_note, rename it outside the interconnect_ acceptance filter as a supplemental regression, or explicitly revise the authoritative MT contract. The canonical filtered discovery must report exactly 18 distinct interconnect_ functions mapped one-to-one to IC-01..IC-18.",
+      "Run all 18 scenario tests under the one supervisor/run ID. Require IC-01..IC-12 and IC-14..IC-18 PASS. IC-13 may be SKIPPED only when the live endpoint returns the exact typed 409 HSK-409-LOOM-AI-NO-MODEL; any environment-only, missing-service, transport, 5xx, malformed, or silent skip is FAIL.",
+      "Terminalize the run only after the exact 18-ID set is present. Publish current-run.json, latest-run-summary.json, and immutable runs/<RunId>.json with status PASS, exact_scenario_set=true, terminal_scenario_count=18, all_statuses_accepted=true, source/backend/manifest bindings, command receipts, and SHA-256 sidecars. Add negative tests proving stale current-run content, duplicate scenario attempts, wrong run IDs, missing source binding, failed commands, timeouts, and unauthorized skips cannot produce PASS.",
+      "For the mounted cross-surface capstone, drive the applicable Stage/CKC/note/code/Loom/search/undo interactions through canonical Argus: inspect the initial tree, perform the safe action against stable author_ids, capture non-indeterminate action receipts, re-observe a fresh terminal tree, call the canonical finish gate, and retain screenshot/tree artifacts. Cover failure/never-started paths as well as success so substrate-only AccessKit tests do not stand in for mounted product proof.",
+      "After the canonical run, parse-verify all attempt/run JSON and hashes, confirm 17 PASS plus exactly one authorized IC-13 SKIPPED, verify no repo-local target/test_output/screenshots were created, prove scenario workspaces and owned children are cleaned, and rerun the same supervisor a second time with a new run ID to prove idempotency without stale receipt reuse."
+    ],
+    "verification_required": [
+      "Every declared dependency listed in MT-046.lifecycle.depends_on has a current independent PASS verdict; specifically MT-033/034/035/036/045 are no longer FAIL_V4.",
+      "Canonical discovery reports exactly 18 interconnect_ test functions with a one-to-one IC-01..IC-18 mapping, while supplemental guard/hygiene tests are separately named and counted.",
+      "One fresh canonical supervisor invocation exits zero and one immutable source-bound run contains exactly 18 terminal scenario receipts: 17 PASS plus only IC-13 SKIPPED for HSK-409-LOOM-AI-NO-MODEL.",
+      "Every attempt and run summary binds HEAD SHA, backend SHA-256, manifest SHA-256, exact command/profile, real PostgreSQL identity, timestamps, exit/timeout/leak state, and stdout/stderr hashes; current-run and latest/immutable summaries agree byte-for-byte on the accepted scenario set.",
+      "Negative provenance tests prove old RUNNING state, duplicate IDs, cross-run receipts, wrong source SHA, failed/timeout commands, and unauthorized skips force terminal FAIL and cannot be merged into PASS.",
+      "Canonical Argus artifacts show stable author_ids, authoritative non-indeterminate action receipts, fresh terminal trees, successful finish gates, and inspected screenshots for the required mounted interconnections.",
+      "A second new-RunId invocation also passes with newly created attempt IDs and no scenario-owned database rows, child processes, locks, or repo-local artifacts left behind."
+    ],
+    "no_context_instruction": "Read MT-046.json completely, its dependency MT verdicts, packet.json, SPEC_CURRENT v02.202 anchors, all four test_interconnect_*.rs files, interconnect_support/mod.rs, and the fresh external attempts written between 2026-07-31T22:10:35Z and 22:37:51Z. Preserve the green product assertions, but do not reuse their mixed run projections. Repair dependency failures, make the canonical run ID/source/backend/manifest bindings mandatory, restore exactly 18 filtered scenario tests, add fail-closed provenance/timeout behavior, run all four binaries under one supervisor and one run ID, complete the mounted canonical-Argus matrix, and prove a second idempotent run. Return READY_FOR_VALIDATION only after every V4 verification requirement is evidenced; do not self-issue PASS."
+  }
 }

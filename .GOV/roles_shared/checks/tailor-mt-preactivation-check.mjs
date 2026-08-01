@@ -13,13 +13,13 @@ const PARITY_PATH = path.join(PACKET_DIR, "_PARITY_REVIEW_V3.json");
 const BUILD_READY_PATH = path.join(PACKET_DIR, `${WP_ID}.build-readiness-prework.json`);
 const REFINEMENT_PREWORK_PATH = path.join(PACKET_DIR, `${WP_ID}.technical-refinement-prework.json`);
 const STUB_PATH = path.join(ROOT, ".GOV", "task_packets", "stubs", `${WP_ID}.contract.json`);
-const EXPECTED_TOTAL = 782;
+const EXPECTED_TOTAL = 842;
 const EXPECTED_IDS = Array.from({ length: EXPECTED_TOTAL }, (_, index) => `MT-${String(index + 1).padStart(3, "0")}`);
 const EXPECTED_ID_SET = new Set(EXPECTED_IDS);
-const DELTA_IDS = Array.from({ length: 43 }, (_, index) => `MT-${String(index + 740).padStart(3, "0")}`);
-const RECONCILIATION_STATUS = "SPEC_V02_201_RECONCILED_BUILD_READY_DAG_CANDIDATE";
-const ACTIVE_SPEC_VERSION = "v02.201";
-const ACTIVE_SPEC_ENTRYPOINT = ".GOV/spec/master-spec-v02.201/indexed-spec-manifest.json";
+const DELTA_IDS = Array.from({ length: 103 }, (_, index) => `MT-${String(index + 740).padStart(3, "0")}`);
+const RECONCILIATION_STATUS = "SPEC_V02_203_RECONCILED_BODYKIT_V2_DAG_CANDIDATE";
+const ACTIVE_SPEC_VERSION = "v02.203";
+const ACTIVE_SPEC_ENTRYPOINT = ".GOV/spec/master-spec-v02.203/indexed-spec-manifest.json";
 const CAPABILITY_REQUIREMENT_VALUES = ["required", "accepted_exclusion", "optional", "deliberate_exceedance"];
 const CAPABILITY_QUALIFICATION_VALUES = ["unimplemented", "implemented_unqualified", "qualified", "stale", "failed", "unsupported"];
 const REQUIRED_MANUAL_EVIDENCE = [
@@ -39,29 +39,22 @@ const REQUIRED_INTERFACE_TARGETS = new Map([
   ["MT-750", ["surface_extension_seam", "handshake_native/src/tailor"]],
   ["MT-780", ["tailor/contract_gate"]],
   ["MT-782", ["implementation_profile"]],
+  ["MT-783", ["tailor/dependencies"]],
+  ["MT-794", ["bodykit/providers"]],
+  ["MT-808", ["bodykit/performance/track"]],
+  ["MT-821", ["tailor/interchange/profile"]],
+  ["MT-831", ["tailor/module_registration"]],
+  ["MT-840", ["tailor/projects_v2"]],
 ]);
-const EXPECTED_DIAGNOSTIC_POSTURES = new Map([
-  ["MT-740", { flight_recorder: "NOT_APPLICABLE", internal_diagnostics: "DIRECT", palmistry: "NOT_APPLICABLE" }],
-  ["MT-742", { flight_recorder: "DIRECT", internal_diagnostics: "DIRECT", palmistry: "NOT_APPLICABLE" }],
-  ["MT-743", { flight_recorder: "DIRECT", internal_diagnostics: "DIRECT", palmistry: "DIRECT" }],
-  ["MT-747", { flight_recorder: "NOT_APPLICABLE", internal_diagnostics: "DIRECT", palmistry: "NOT_APPLICABLE" }],
-  ["MT-748", { flight_recorder: "NOT_APPLICABLE", internal_diagnostics: "DIRECT", palmistry: "NOT_APPLICABLE" }],
-  ["MT-780", { flight_recorder: "NOT_APPLICABLE", internal_diagnostics: "NOT_APPLICABLE", palmistry: "NOT_APPLICABLE" }],
-  ["MT-781", { flight_recorder: "INHERITED", internal_diagnostics: "INHERITED", palmistry: "INHERITED" }],
-  ["MT-782", { flight_recorder: "DIRECT", internal_diagnostics: "DIRECT", palmistry: "NOT_APPLICABLE" }],
-]);
+const EXPECTED_DIAGNOSTIC_POSTURES = new Map();
 const REQUIRED_DELTA_ANCHORS = new Map([
-  ["MT-740", ["TAI-PRO-006", "TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-741", ["TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-742", ["TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-743", ["TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-748", ["TAI-INT-006", "TAI-ACT-010"]],
-  ["MT-749", ["TAI-INT-006", "TAI-ACT-010"]],
-  ["MT-750", ["TAI-INT-006", "TAI-ACT-010"]],
-  ["MT-768", ["TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-778", ["TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-780", ["TAI-ACT-008", "TAI-ACT-009", "TAI-ACT-010"]],
-  ["MT-781", ["TAI-INT-006", "TAI-ACT-010"]],
+  ["MT-783", ["TAI-V2-RUN-008", "TAI-V2-QA-005"]],
+  ["MT-794", ["TAI-V2-BDY-001", "TAI-V2-BDY-002"]],
+  ["MT-808", ["TAI-V2-PERF-001"]],
+  ["MT-821", ["TAI-V2-IO-001"]],
+  ["MT-831", ["TAI-V2-UX-001"]],
+  ["MT-840", ["TAI-V2-PRJ-003", "TAI-V2-PRJ-006"]],
+  ["MT-842", ["TAI-V2-QA-008", "TAI-V2-QA-009"]],
 ]);
 const failures = [];
 
@@ -96,6 +89,16 @@ const REQUIRED_SPEC_ANCHORS = [
   ...anchorRange("TAI-UX", 5),
   ...anchorRange("TAI-QA", 7),
   ...anchorRange("TAI-GATE", 5),
+  ...anchorRange("TAI-V2-RUN", 10),
+  ...anchorRange("TAI-V2-BDY", 12),
+  "TAI-V2-BDY-002A",
+  ...anchorRange("TAI-V2-PERF", 10),
+  ...anchorRange("TAI-V2-IO", 10),
+  ...anchorRange("TAI-V2-PRJ", 10),
+  ...anchorRange("TAI-V2-ACT", 7),
+  ...anchorRange("TAI-V2-UX", 12),
+  ...anchorRange("TAI-V2-QA", 9),
+  ...anchorRange("TAI-V2-RES", 3),
 ];
 
 let resolvedSpec = null;
@@ -127,12 +130,12 @@ if (resolvedSpec && activeSpecText) {
   if (resolvedSpec.versionTag !== ACTIVE_SPEC_VERSION) fail(`active spec version is ${resolvedSpec.versionTag}, expected ${ACTIVE_SPEC_VERSION}`);
   if (resolvedSpec.specEntryPointPath !== ACTIVE_SPEC_ENTRYPOINT) fail(`active spec entrypoint is ${resolvedSpec.specEntryPointPath}`);
   for (const anchor of REQUIRED_SPEC_ANCHORS) {
-    if (!activeSpecText.includes(`[${anchor}]`)) fail(`active v02.201 spec is missing exact anchor [${anchor}]`);
+    if (!activeSpecText.includes(`[${anchor}]`)) fail(`active v02.203 spec is missing exact anchor [${anchor}]`);
   }
   if (!activeSpecText.includes("ReferenceCpuF64") || !activeSpecText.includes("InteractiveGpuXpbd") || !activeSpecText.includes("FinalCpuBarrierF64")) {
-    fail("active v02.201 spec does not expose all three named Tailor solver lanes");
+    fail("active v02.203 spec does not preserve all three named Tailor solver lanes");
   }
-  if (!/reference oracle is not a production-performance tier/i.test(activeSpecText) || !/two production tiers/i.test(activeSpecText)) fail("active v02.201 spec does not classify the reference oracle separately from the two production tiers");
+  if (!/reference oracle is not a production-performance tier/i.test(activeSpecText) || !/two production tiers/i.test(activeSpecText)) fail("active v02.203 spec does not preserve the reference-oracle/two-production-tier distinction");
   const capabilitySpecStart = activeSpecText.indexOf("[TAI-PRO-001]");
   const capabilitySpecEnd = activeSpecText.indexOf("[TAI-PRO-002]", capabilitySpecStart);
   const capabilitySpec = capabilitySpecStart >= 0 && capabilitySpecEnd > capabilitySpecStart ? activeSpecText.slice(capabilitySpecStart, capabilitySpecEnd) : "";
@@ -144,11 +147,11 @@ if (resolvedSpec && activeSpecText) {
 if (index.schema !== "tailor.mt_index@1") fail(`index schema is ${index.schema}`);
 if (index.wp_id !== WP_ID) fail(`index wp_id is ${index.wp_id}`);
 if (index.total !== EXPECTED_TOTAL) fail(`index total is ${index.total}, expected ${EXPECTED_TOTAL}`);
-if (index.range !== "MT-001..MT-782") fail(`index range is ${index.range}`);
+if (index.range !== "MT-001..MT-842") fail(`index range is ${index.range}`);
 if (!Array.isArray(index.microtasks) || index.microtasks.length !== EXPECTED_TOTAL) fail(`index microtask count is ${index.microtasks?.length}`);
 
 const indexIds = index.microtasks?.map((item) => item.mt_id) || [];
-if (!sameStringArray(indexIds, EXPECTED_IDS)) fail("index ids are not exactly MT-001..MT-782 in order");
+if (!sameStringArray(indexIds, EXPECTED_IDS)) fail("index ids are not exactly MT-001..MT-842 in order");
 if (new Set(indexIds).size !== EXPECTED_TOTAL) fail("index contains duplicate MT ids");
 
 const contracts = new Map();
@@ -212,8 +215,13 @@ for (const id of EXPECTED_IDS) {
   }
 
   if (!Array.isArray(mt.hbr_obligations) || mt.hbr_obligations.length === 0) fail(`${id}: hbr_obligations empty`);
-  const validHbr = new Set(["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET", "HBR-MAN", "HBR-STOP"]);
+  const validHbr = new Set(["HBR-INT", "HBR-SWARM", "HBR-VIS", "HBR-QUIET", "HBR-MAN", "HBR-STOP", "HBR-PRIV"]);
   for (const obligation of mt.hbr_obligations || []) if (!validHbr.has(obligation)) fail(`${id}: invalid HBR obligation ${obligation}`);
+  if (!mt.hbr_obligations?.includes("HBR-PRIV")) fail(`${id}: HBR-PRIV obligation missing`);
+  if (mt.resource_privacy_obligation?.required !== true) fail(`${id}: resource_privacy_obligation missing or not required`);
+  for (const row of ["HBR-PRIV-001", "HBR-PRIV-002", "HBR-PRIV-003", "HBR-PRIV-004", "HBR-PRIV-005", "HBR-PRIV-006", "HBR-PRIV-007", "HBR-PRIV-008"]) {
+    if (!mt.resource_privacy_obligation?.hbr_rows?.includes(row)) fail(`${id}: resource privacy row missing ${row}`);
+  }
 
   const tiers = mt.hbr_int_009_tier_obligations;
   if (!Array.isArray(tiers) || tiers.length !== 3) fail(`${id}: expected exactly three diagnostic tiers`);
@@ -267,12 +275,12 @@ for (const id of EXPECTED_IDS) {
     }
   }
 
-  if (id === "MT-781") {
-    if (!gui?.gui_creation_required || !gui?.operator_surface_required || !gui?.argus_required) fail("MT-781: final professional lifecycle lacks direct GUI/Argus proof ownership");
-    if (!mt.scope.allowed_paths.some((item) => /handshake_native/i.test(item))) fail("MT-781: final professional lifecycle lacks a native GUI product path");
+  if (id === "MT-842") {
+    if (!gui?.gui_creation_required || !gui?.operator_surface_required || !gui?.argus_required) fail("MT-842: final BodyKit-v2 lifecycle lacks direct GUI/Argus proof ownership");
+    if (!mt.scope.allowed_paths.some((item) => /handshake_native/i.test(item))) fail("MT-842: final BodyKit-v2 lifecycle lacks a native GUI product path");
     const finalProof = [...(mt.scope.acceptance_criteria || []), ...(mt.scope.proof_targets || [])].join("\n");
     for (const proofTerm of ["Argus", "AccessKit", "accessibility", "recovery", "renderer-console", "no-context", "GUI-only", "backend-only"]) {
-      if (!finalProof.toLowerCase().includes(proofTerm.toLowerCase())) fail(`MT-781: final proof omits ${proofTerm}`);
+      if (!finalProof.toLowerCase().includes(proofTerm.toLowerCase())) fail(`MT-842: final proof omits ${proofTerm}`);
     }
   }
 
@@ -336,7 +344,7 @@ if (review.schema !== "tailor.multi_lens_review@1") fail(`review schema is ${rev
 if (!Array.isArray(review.per_mt) || review.per_mt.length !== EXPECTED_TOTAL) fail(`review per_mt count is ${review.per_mt?.length}`);
 const reviewIds = review.per_mt?.map((item) => item.mt_id) || [];
 if (!sameStringArray(reviewIds, EXPECTED_IDS) || new Set(reviewIds).size !== EXPECTED_TOTAL) fail("review does not account for every MT exactly once in order");
-const universalReviewLenses = ["feature_scope", "backend_parallel_agents", "authority_artifacts_events", "diagnostics_palmistry", "user_manual_no_context", "flight_recorder", "recovery_accessibility_quiet", "dependency_dag"];
+const universalReviewLenses = ["feature_scope", "backend_parallel_agents", "authority_artifacts_events", "diagnostics_palmistry", "user_manual_no_context", "flight_recorder", "resource_privacy", "recovery_accessibility_quiet", "dependency_dag"];
 for (const item of review.per_mt || []) {
   if (!Array.isArray(item.lenses_applied) || item.lenses_applied.length < universalReviewLenses.length) {
     fail(`${item.mt_id}: multi-lens review does not record the universal review set`);
@@ -366,24 +374,25 @@ if (parity.schema !== "tailor.parity_review@3") fail(`parity schema is ${parity.
 if (!String(parity.baseline?.marvelous_designer).includes("NOT_INSPECTED")) fail("Marvelous local binary is presented as inspected without evidence");
 if (!String(parity.claim_law).includes("runtime") || !String(parity.claim_law).includes("QUALIFIED")) fail("parity claim law is not proof-gated");
 
-if (buildReady.status !== "CONTRACT_BUILD_READY_PENDING_SIGNATURE_SPEC_AND_ACTIVATION") fail(`build-readiness status is ${buildReady.status}`);
-if (buildReady.implementation_authority !== false || buildReady.activation_changed !== false || buildReady.active_spec_changed !== false) fail("build-readiness prework exceeds non-execution authority");
+if (buildReady.status !== "SPEC_V02_203_RECONCILED_CONTRACT_CANDIDATE_PENDING_PACKET_AND_ACTIVATION") fail(`build-readiness status is ${buildReady.status}`);
+if (buildReady.implementation_authority !== false || buildReady.activation_changed !== false || buildReady.active_spec_changed !== true) fail("build-readiness prework misstates non-execution or completed spec transition");
+if (buildReady.active_spec_version !== ACTIVE_SPEC_VERSION || buildReady.active_spec_entrypoint !== ACTIVE_SPEC_ENTRYPOINT) fail("build-readiness active spec identity drift");
 if (!String(buildReady.remaining_external_input).includes("NOT_INSPECTED")) fail("build-readiness prework hides unresolved Marvelous reference input");
 
-if (refinement.status !== "SPEC_V02_201_APPLIED_NON_EXECUTION_BUILD_READY_CANDIDATE_PENDING_PACKET_ACTIVATION_AND_DEPENDENCY_GATES" || refinement.execution_authority !== false) fail("technical refinement prework status/authority does not match active-v02.201 non-execution truth");
+if (refinement.status !== "OPERATOR_APPROVED_SPEC_V02_203_RECORDED_NON_EXECUTION_REFINEMENT" || refinement.execution_authority !== false) fail("technical refinement status/authority does not match active-v02.203 non-execution truth");
 if (!Array.isArray(refinement.microtask_plan) || refinement.microtask_plan.length !== EXPECTED_TOTAL) fail(`technical refinement microtask plan count is ${refinement.microtask_plan?.length}`);
-if (!Array.isArray(refinement.approved_spec_enrichment) || refinement.approved_spec_enrichment.length === 0) fail("technical refinement does not record the applied v02.201 enrichment");
-if (!Array.isArray(refinement.proposed_spec_enrichment) || refinement.proposed_spec_enrichment.length !== 0) fail("technical refinement still presents the applied v02.201 enrichment as proposed");
+if (!Array.isArray(refinement.approved_spec_enrichment) || refinement.approved_spec_enrichment.length === 0) fail("technical refinement does not record the applied v02.203 enrichment");
+if (!Array.isArray(refinement.proposed_spec_enrichment) || refinement.proposed_spec_enrichment.length !== 0) fail("technical refinement still presents the applied v02.203 enrichment as proposed");
 const refinementText = JSON.stringify(refinement);
 for (const lane of ["ReferenceCpuF64", "InteractiveGpuXpbd", "FinalCpuBarrierF64"]) if (!refinementText.includes(lane)) fail(`technical refinement omits solver lane ${lane}`);
 if (!/non-production ReferenceCpuF64/i.test(refinementText) || !/two production tiers/i.test(refinementText)) fail("technical refinement does not distinguish the CPU oracle from the two production tiers");
-if (refinement.capability_dimension_contract?.requirement_field !== "requirement_status" || refinement.capability_dimension_contract?.qualification_field !== "qualification_status") fail("technical refinement capability dimension field names drift from v02.201");
-if (!sameStringArray(refinement.capability_dimension_contract?.requirement_values, CAPABILITY_REQUIREMENT_VALUES)) fail("technical refinement requirement_status enum drifts from v02.201");
-if (!sameStringArray(refinement.capability_dimension_contract?.qualification_values, CAPABILITY_QUALIFICATION_VALUES)) fail("technical refinement qualification_status enum drifts from v02.201");
+if (refinement.capability_dimension_contract?.requirement_field !== "requirement_status" || refinement.capability_dimension_contract?.qualification_field !== "qualification_status") fail("technical refinement capability dimension field names drift from v02.203");
+if (!sameStringArray(refinement.capability_dimension_contract?.requirement_values, CAPABILITY_REQUIREMENT_VALUES)) fail("technical refinement requirement_status enum drifts from v02.203");
+if (!sameStringArray(refinement.capability_dimension_contract?.qualification_values, CAPABILITY_QUALIFICATION_VALUES)) fail("technical refinement qualification_status enum drifts from v02.203");
 if (!String(refinement.capability_dimension_contract?.independence_rule).includes("neither may be inferred")) fail("technical refinement does not keep capability dimensions independent");
 
 const deltaKeys = Object.keys(refinement.spec_delta_map || {});
-if (!sameStringArray(deltaKeys, DELTA_IDS)) fail("technical refinement spec_delta_map is not exactly MT-740..MT-782 in order");
+if (!sameStringArray(deltaKeys, DELTA_IDS)) fail("technical refinement spec_delta_map is not exactly MT-740..MT-842 in order");
 for (const id of DELTA_IDS) {
   const delta = refinement.spec_delta_map?.[id];
   if (!delta || !Array.isArray(delta.anchors) || delta.anchors.length === 0) {
@@ -391,7 +400,7 @@ for (const id of DELTA_IDS) {
     continue;
   }
   for (const anchor of delta.anchors) {
-    if (!REQUIRED_SPEC_ANCHORS.includes(anchor)) fail(`${id}: spec_delta_map uses unknown v02.201 anchor ${anchor}`);
+    if (!REQUIRED_SPEC_ANCHORS.includes(anchor)) fail(`${id}: spec_delta_map uses unknown v02.203 anchor ${anchor}`);
     if (activeSpecText && !activeSpecText.includes(`[${anchor}]`)) fail(`${id}: spec_delta_map anchor is absent from the active spec ${anchor}`);
   }
   for (const requiredAnchor of REQUIRED_DELTA_ANCHORS.get(id) || []) {
@@ -432,20 +441,20 @@ for (const retainedPath of refinement.absorbed_preworks?.absorbed_retained_files
 }
 
 if (stub.execution_authority !== "NON_EXECUTION_STUB") fail("stub execution authority changed");
-if (stub.lifecycle?.status !== "SPEC_V02_201_APPLIED_BUILD_READY_CANDIDATE_HELD_FOR_PACKET_ACTIVATION_AND_DEPENDENCY_GATES") fail(`stub lifecycle does not reflect active-v02.201 held-candidate truth: ${stub.lifecycle?.status}`);
+if (stub.lifecycle?.status !== "SPEC_V02_203_APPLIED_BODYKIT_V2_REFINEMENT_APPROVED_HELD_FOR_PACKET_ACTIVATION_AND_DEPENDENCY_GATES") fail(`stub lifecycle does not reflect active-v02.203 held-candidate truth: ${stub.lifecycle?.status}`);
 if (stub.lifecycle?.user_signature_required !== true) fail("stub no longer requires a separate activation signature");
 if (stub.microtasks?.total !== EXPECTED_TOTAL || stub.activation_status?.microtasks?.total !== EXPECTED_TOTAL) fail("stub MT totals drift");
 if (stub.professional_production_hardening?.implementation_authority !== false || stub.professional_production_hardening?.activation_changed !== false) fail("stub hardening block exceeds prep authority");
-if (stub.professional_production_hardening?.active_spec_changed !== true || stub.professional_production_hardening?.active_spec_version !== ACTIVE_SPEC_VERSION) fail("stub hides the completed v02.201 active-spec transition");
-if (stub.spec_trace?.active_bundle_at_stub_time !== ACTIVE_SPEC_ENTRYPOINT) fail("stub spec trace does not point to active v02.201");
+if (stub.professional_production_hardening?.active_spec_changed !== true || stub.professional_production_hardening?.active_spec_version !== ACTIVE_SPEC_VERSION) fail("stub hides the completed v02.203 active-spec transition");
+if (stub.spec_trace?.active_bundle_at_stub_time !== ACTIVE_SPEC_ENTRYPOINT) fail("stub spec trace does not point to active v02.203");
 if (stub.native_shell_toolkit_integration?.shell_packet !== "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1") fail("stub names a stale native-shell packet");
 if (!String(stub.native_shell_toolkit_integration?.pane_type).includes("UNVERIFIED")) fail("stub falsely presents the Tailor pane as live before WP-KERNEL-012 containment proof");
-if (!String(stub.draft_scope?.historical_draft_scope_status).includes("SUPERSEDED_BY_ACTIVE_v02_201")) fail("stub does not quarantine its retained historical draft scope, acceptance, and render claims");
+if (!String(stub.draft_scope?.historical_draft_scope_status).includes("SUPERSEDED_BY_ACTIVE_v02_203")) fail("stub does not quarantine its retained historical draft scope, acceptance, and render claims");
 if (!String(stub.draft_scope?.current_scope_correction).includes("native final-quality rendering")) fail("stub does not record Tailor native final-render ownership");
-if (stub.activation_status?.spec_enrichment?.version !== ACTIVE_SPEC_VERSION || stub.activation_status?.spec_enrichment?.status !== "DONE_APPROVED_ACTIVE_AND_VALIDATED") fail("stub activation status records stale spec-enrichment truth");
-if (stub.activation_status?.spec_enrichment?.refinement_approval_evidence !== "APPROVE REFINEMENT WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1 (v02.201 changelog approval evidence)") fail("stub refinement approval evidence is missing or drifted");
-if (Object.hasOwn(stub.activation_status?.spec_enrichment || {}, "signature")) fail("stub mislabels refinement approval as an activation signature");
-if (stub.activation_status?.spec_enrichment?.user_signature_consumed !== false || stub.activation_status?.spec_enrichment?.user_signature !== null) fail("stub falsely consumes or records an activation user signature");
+if (stub.activation_status?.spec_enrichment?.version !== ACTIVE_SPEC_VERSION || stub.activation_status?.spec_enrichment?.status !== "DONE_OPERATOR_APPROVED_ACTIVE_AND_VALIDATED") fail("stub activation status records stale spec-enrichment truth");
+if (!String(stub.activation_status?.spec_enrichment?.refinement_approval_evidence).includes("Operator approved")) fail("stub refinement approval evidence is missing or drifted");
+if (stub.activation_status?.spec_enrichment?.master_spec_signature_recorded !== true) fail("stub does not record the governed Master Spec signature event");
+if (stub.activation_status?.spec_enrichment?.activation_user_signature_consumed !== false || stub.activation_status?.spec_enrichment?.activation_user_signature !== null) fail("stub falsely consumes or records a WP activation signature");
 
 if (fs.existsSync(path.join(PACKET_DIR, "packet.json"))) fail("official packet.json exists during held pre-activation prep");
 if (fs.existsSync(path.join(PACKET_DIR, "refinement.json"))) fail("official refinement.json exists during held non-execution prep");
@@ -469,7 +478,7 @@ console.log(JSON.stringify({
   spec_delta_rows: Object.keys(refinement.spec_delta_map).length,
   min_acceptance_criteria: Math.min(...[...contracts.values()].map((mt) => mt.scope.acceptance_criteria.length)),
   gui_mt_count: [...contracts.values()].filter((mt) => mt.gui_obligation.gui_creation_required).length,
-  final_gui_argus_proof_owned_by_mt_781: contracts.get("MT-781").gui_obligation.gui_creation_required && contracts.get("MT-781").gui_obligation.argus_required,
+  final_gui_argus_proof_owned_by_mt_842: contracts.get("MT-842").gui_obligation.gui_creation_required && contracts.get("MT-842").gui_obligation.argus_required,
   manual_obligations_classified: contracts.size,
   task_specific_manual_targets: [...contracts.values()].filter((mt) => mt.user_manual_obligation.required && mt.user_manual_obligation.target_entries.length > 0).length,
   manual_not_applicable_contracts: [...contracts.values()].filter((mt) => !mt.user_manual_obligation.required).length,

@@ -1,14 +1,14 @@
 {
   "schema": "tailor.parity_review@3",
   "wp_id": "WP-KERNEL-010-Tailor-Cloth-Garment-Engine-v1",
-  "reviewed_at_utc": "2026-07-16T11:53:00Z",
+  "reviewed_at_utc": "2026-08-01T04:26:38.699Z",
   "review_authority": "ADVISORY_PRE_ACTIVATION_ONLY_NO_RUNTIME_PARITY_VERDICT",
   "supersedes_planning_conclusions_from": [
     "_PARITY_REVIEW.json",
     "_PARITY_REVIEW_V2.json"
   ],
   "baseline": {
-    "marvelous_designer": "Official Marvelous Designer 2026.0 documentation and Python/API surface; local executable NOT_INSPECTED pending exact path/version/hash.",
+    "marvelous_designer": "Official Marvelous Designer 2026.0 documentation and API behavior as black-box parity evidence; local executable NOT_INSPECTED pending exact path/version/hash. Python surfaces are research evidence only and prohibited from the Handshake path.",
     "daz_studio": "Locally verified Daz Studio 6.25.2026.14722 General Release; Qt 6.10.3; OpenSubdiv 3.5.0; Iray 2025.0.3; RTX 3090 24 GiB reference.",
     "daz_evidence": "PREP_SESSION_VERIFIED_LOCAL_LOG; activation must resolve the Daz executable/log roots through operator-controlled configuration and record path/version/hash in the DCC fixture manifest."
   },
@@ -38,7 +38,13 @@
     "extension_plugin_api": "MT-773",
     "vendor_fixture_harness": "MT-778",
     "full_qualification_matrix": "MT-779",
-    "final_professional_e2e": "MT-781"
+    "final_professional_e2e": "MT-781",
+    "bodykit_v2_native_runtime": "MT-783..793",
+    "gnm_v3_and_provider_neutral_bodykit": "MT-794..807",
+    "cinematic_performance_and_conditioning": "MT-808..820",
+    "canonical_interchange_and_dcc_qualification": "MT-821..830",
+    "professional_native_operator_and_model_surfaces": "MT-831..841",
+    "movie_production_e2e": "MT-842"
   },
   "explicit_low_roi_legacy_state": {
     "poser_cr2_pz3": "UNSUPPORTED_CANDIDATE_PENDING_OPERATOR_REFINEMENT_DECISION",
@@ -55,6 +61,22 @@
     "https://docs.daz3d.com/public/dson_spec/start",
     "https://github.com/daz3d/DazBridgeUtils",
     "https://github.com/daz3d/DazToBlender",
-    "https://github.com/daz3d/DazToUnreal"
+    "https://github.com/daz3d/DazToUnreal",
+    "https://github.com/google/GNM",
+    "https://github.com/facebookresearch/MHR",
+    "https://github.com/EpicGames/OpenRigLogic",
+    "https://github.com/NVIDIA/Audio2Face-3D-SDK",
+    "https://github.com/huggingface/candle",
+    "https://docs.modular.com/mojo/cli/build",
+    "https://onnxruntime.ai/docs/get-started/with-c.html",
+    "https://www.tensorflow.org/install/lang_c",
+    "https://github.com/KhronosGroup/glTF",
+    "https://openusd.org/release/api/usd_skel_page_front.html",
+    "https://academysoftwarefoundation.github.io/OpenPBR/",
+    "https://github.com/AcademySoftwareFoundation/MaterialX",
+    "https://docs.rs/exr/latest/exr/",
+    "https://dev.epicgames.com/documentation/unreal-engine/importing-assets-using-interchange-in-unreal-engine",
+    "https://docs.blender.org/manual/en/latest/files/import_export/index.html",
+    "https://doc.rust-lang.org/cargo/commands/cargo-vendor.html"
   ]
 }

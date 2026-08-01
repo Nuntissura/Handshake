@@ -14,7 +14,7 @@
   "title": "E10-MT-074-OtherPillarInteropProofSuite",
   "group": "E10",
   "created_at_utc": "2026-06-21T00:00:00Z",
-  "updated_at_utc": "2026-07-26T07:24:07.2893239Z",
+  "updated_at_utc": "2026-07-31T23:24:59.5934803Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-074.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "NEEDS_REIMPLEMENTATION_V4",
     "active": false,
     "depends_on": [
       "MT-066",
@@ -35,12 +35,12 @@
       "MT-042"
     ],
     "blocks": [],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_THREE_INDEPENDENT_ADVERSARIAL_REVIEWS_NO_BLOCKER_2026-07-26",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:24:59.5934803Z",
     "completed_by": null,
     "claimed_by": "KERNEL_BUILDER-20260726-052638",
     "claimed_at_utc": "2026-07-26T05:31:19.6688168Z",
@@ -481,5 +481,100 @@
     "For every mounted pillar surface, execute canonical Argus inspect, stable-target action, receipt, fresh re-inspect, and screenshot/tree evidence; update canonical UserManual diagnostics."
   ],
   "no_context_instruction": "Read MT-074.json and all referenced interop MTs. Re-prove every scenario on real resources and through canonical Argus before READY_FOR_VALIDATION_V3."
-}
+},
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "verdict_label": "FAIL V4",
+    "validated_by": "WP_VALIDATOR-20260731-195928",
+    "validated_at_utc": "2026-07-31T23:24:59.5934803Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "backend_binary": "../Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+      "cargo_target": "../Handshake_Artifacts/handshake-cargo-target",
+      "stage_binding_root": "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/stage-binding"
+    },
+    "dependency_state": [
+      {
+        "mt_id": "MT-066",
+        "status": "NEEDS_REIMPLEMENTATION_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-067",
+        "status": "NEEDS_REIMPLEMENTATION_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-068",
+        "status": "NEEDS_REIMPLEMENTATION_V4",
+        "verdict": "FAIL_V4"
+      },
+      {
+        "mt_id": "MT-041",
+        "status": "PASS_V1",
+        "verdict": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-042",
+        "status": "FAIL_V4",
+        "verdict": "FAIL_V4"
+      }
+    ],
+    "method": "Read the complete proof-only MT-074 contract, implementation evidence, current test source, manifest, canonical Argus driver gate, and declared dependency verdicts; ran the four other_pillar_interop scenarios against real PostgreSQL and an explicitly selected current backend with an isolated Stage binding root and external Cargo/artifact roots; inspected the four current-run Stage, Calendar, Locus, and aggregate screenshots directly; and checked every Argus finish call for terminal reinspection/predicate binding.",
+    "pass_evidence": [
+      "All four scenarios progressed far enough to drive their real product paths and emit current-run screenshots rather than failing setup, database, backend, or missing-route initialization.",
+      "The inspected OP-01 Stage screenshot shows routed content and an embed-back result with a SHA-256 marker; the saved rich note is visible beside the Stage pane.",
+      "The inspected OP-02 Calendar screenshot shows a concrete Calendar Event with Notes/Activity tabs and a stable event/document correlation id.",
+      "The inspected OP-03 Locus screenshot shows the locus URI, resolved Kernel DCC target, WP id, and referencing note in the mounted app.",
+      "The inspected OP-04 aggregate Stage frame is readable and non-overlapping in the tested viewport; the incidental alias-resolution and Runtime Chat diagnostics are visibly identified and do not substitute for interop proof.",
+      "MT-041 is independently green."
+    ],
+    "fail_report": {
+      "summary": "MT-074 FAIL V4. The correctly configured current-head command ran four scenarios and failed 0/4. OP-01 Stage, OP-02 Calendar, OP-03 Locus, and OP-04 aggregate each reach canonical_argus_driver::finish after dispatching actions, but none binds every action to a fresh authoritative terminal snapshot and action-specific terminal predicate. The source has six Argus finish calls and zero terminal-predicate/reinspection calls. MT-066, MT-067, MT-068, and MT-042 are also failed declared dependencies.",
+      "acceptance_impact": "OP-01 through OP-04 do not pass the MT's required end-to-end/canonical swarm proof. Screenshots and intermediate persisted assertions show useful effects but cannot attribute completion to each driven action or replace the canonical terminal gate. The MT cannot pass while four declared upstream surfaces remain failed.",
+      "root_boundary": "UNBOUND_CANONICAL_ARGUS_ACTIONS_ACROSS_ALL_INTEROP_SCENARIOS_AND_FOUR_FAILED_DEPENDENCIES",
+      "failure_evidence": [
+        "With HANDSHAKE_TEST_PG_DSN, HSK_TEST_BACKEND_BIN, and an isolated HANDSHAKE_TEST_STAGE_BINDING_ROOT configured, cargo test --test test_other_pillar_interop_proofs other_pillar_interop ran 4 tests and returned 0 passed, 4 failed, 0 ignored after 91.01 seconds.",
+        "Every failure panicked at tests/native_gui_support/canonical_argus_driver.rs:644: 'every canonical action must be rebound to an authoritative terminal snapshot'.",
+        "The four failing tests are other_pillar_op01_stage_route_embed_back_other_pillar_interop, other_pillar_op02_calendar_bind_activity_span_other_pillar_interop, other_pillar_op03_locus_resolve_reverse_other_pillar_interop, and other_pillar_op04_swarm_accesskit_other_pillar_interop.",
+        "test_other_pillar_interop_proofs.rs contains six argus.finish calls and no assert_latest_terminal_predicate or reinspect_latest_terminal call, so the failure is systematic rather than one missing scenario assertion.",
+        "Current-run screenshots exist for OP-01, OP-02, OP-03, and OP-04, but canonical Argus rejects action proof that ends with only local state/screenshot assertions and no terminal predicate.",
+        "The static manifest still reports every OP entry as READY_FOR_RUNTIME even though the current configured runtime command fails all four; it does not project the failed current-run verdict or evidence path.",
+        "MT-066, MT-067, MT-068, and MT-042 are FAIL_V4, leaving only MT-041 green among MT-074's five declared dependencies."
+      ]
+    },
+    "remediation_plan": [
+      "1. For each canonical action in OP-01 through OP-04, wait for the owning backend/UI state to settle, call the driver's fresh terminal reinspection API, and bind an action-specific predicate with recomputable evidence before any argus.finish call. Do not weaken or bypass the finish gate.",
+      "2. OP-01 Stage: bind route-to-Stage to the exact source pane, selected byte range, admitted command/receipt, Stage preview content, workspace/doc identity, and STAGE_ROUTE event. Bind embed-back separately to the produced artifact id/hash, exact origin document mutation, fresh GET block tree, matching SHA-256, STAGE_EMBED_BACK event, and persisted revision.",
+      "3. OP-02 Calendar: bind the event-binding action to the exact daily-note doc id and CalendarEvent id in both directions after fresh GET. Bind ActivitySpan correlation separately to the fixed date, exact edited-document set, durable correlation entity, and the expected CALENDAR_EVENT_BOUND then ACTIVITY_SPAN_CORRELATED events.",
+      "4. OP-03 Locus: bind resolve to the exact locus URI, WP/MT stable ids, title/anchor, mounted chip state, and LOCUS_REF_RESOLVED event. Bind reverse lookup separately to the persisted index query containing the exact referencing document and LOCUS_REVERSE_LOOKUP event.",
+      "5. OP-04 aggregate: preserve author-id-only targeting and bind each Stage, Calendar, and Locus action to a separate fresh AccessKit tree plus the same product-specific durable predicate used by OP-01/02/03. Prove stable ids across reinspections, exact action ordering, no coordinate/label targeting, and one retained receipt per action.",
+      "6. Rework the six Argus lifecycles so every action receipt remains retained through terminal proof, terminal_refreshed is true, every action has at least one passed non-tautological predicate, and teardown occurs only after all artifact writes and cleanup assertions complete.",
+      "7. Update other_pillar_interop_manifest.json from the current run through a deterministic result path: each OP must become PASS only after its canonical finish succeeds; failures must record FAIL plus the exact predicate/action/evidence path; typed BLOCKED remains reserved for genuinely unavailable dependencies, never failed proof.",
+      "8. Resolve MT-066, MT-067, MT-068, and MT-042 to independent PASS verdicts, then rerun MT-074 against their accepted Stage, Calendar, Locus, and KnowledgeGraph surfaces. Do not treat MT-074 screenshots as a substitute for upstream acceptance.",
+      "9. Preserve exact PostgreSQL DSN use, current-source backend selection, isolated Stage binding root, source-bound artifacts, DropGuard cleanup, SHA-256 provenance, causal FR ordering, no-mock/no-SQLite guards, and proof-only allowed paths.",
+      "10. Add a regression/static assertion that every dispatched canonical action in this proof binary is followed by terminal reinspection and a product-specific predicate before finish; require an explicit zero-action assertion for any scenario intended only to inspect disabled/unavailable state."
+    ],
+    "verification_required": [
+      "Resolve MT-066, MT-067, MT-068, and MT-042 to independent PASS verdicts while preserving MT-041 PASS.",
+      "Run OP-01 alone and require Stage route plus embed-back terminal predicates, exact persisted SHA-256 provenance, ordered STAGE_ROUTE/STAGE_EMBED_BACK events, cleanup, and 1 passed/0 failed.",
+      "Run OP-02 alone and require exact bidirectional CalendarEvent/daily-note persistence, exact ActivitySpan document set, ordered events, terminal predicates, cleanup, and 1 passed/0 failed.",
+      "Run OP-03 alone and require exact locus target resolution, persisted reverse lookup, both events, terminal predicates, cleanup, and 1 passed/0 failed.",
+      "Run OP-04 alone and require author-id-only actions for all three edges, fresh AccessKit terminal trees, stable ids, one action/receipt/predicate chain per edge, and 1 passed/0 failed.",
+      "Parse every fresh canonical artifact and require source_sha=current HEAD, proof_paths_clean_against_source_sha=true, terminal_refreshed=true, non-empty passed predicate lists, no unbound/rejected/duplicate actions, cleanup_verified=true, and argus_teardown_verified=true.",
+      "Run the four-test other_pillar_interop filter with real PostgreSQL/current backend/isolated Stage root and require 4 passed, 0 failed, 0 ignored and Cargo exit 0.",
+      "Run the complete test_other_pillar_interop_proofs binary and require all 15 tests green with no acceptance-critical ignore, then verify the manifest has exactly four PASS entries and zero FAIL/BLOCKED/READY_FOR_RUNTIME entries.",
+      "Inspect fresh Stage, saved-rich, Calendar, Locus, and aggregate screenshots against their AccessKit trees; verify readable non-overlapping surfaces, exact stable identities, and visible terminal results corresponding to the retained receipts.",
+      "Run the no-local-store/no-fake-db, manifest shape, source-bound provenance, fixture cleanup, killed-owner recovery, and no-glue/no-double guards and require all green.",
+      "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS."
+    ],
+    "no_context_instruction": "Read MT-074.json completely, packet.json, MT-041/042/066/067/068 verdicts, test_other_pillar_interop_proofs.rs, other_pillar_interop_manifest.json, pg_proof_support, canonical_argus_driver, and current Stage/Calendar/Locus/Flight Recorder APIs. Reproduce the four finish failures with real PostgreSQL, current backend, isolated Stage binding root, and external artifacts; bind every action to a fresh product-specific terminal predicate; resolve all failed dependencies; rerun all scenarios and guards; inspect fresh artifacts; and hand off READY_FOR_VALIDATION without weakening canonical Argus or replacing persisted proof with screenshots/local assertions."
+  }
 }

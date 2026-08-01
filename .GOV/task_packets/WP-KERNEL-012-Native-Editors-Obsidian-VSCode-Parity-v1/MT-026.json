@@ -14,7 +14,7 @@
   "title": "E3-MT026-CanvasBoardLoomBlocks",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-24T10:55:00.000Z",
+  "updated_at_utc": "2026-07-31T20:55:43.6669050Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,16 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-021"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_at_utc": "2026-07-31T20:55:43.6669050Z",
     "claimed_by": "KERNEL_BUILDER-20260705-013720",
     "ready_for_validation_at_utc": "2026-07-24T10:55:00.000Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
@@ -517,5 +517,34 @@
     "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-026/canonical-argus/",
     "kb_ready_checklist": "PASS",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:55:43.6669050Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-026 inputs match committed HEAD"
+    },
+    "method": "Current-source contract/source review and exact integration-enabled mounted canonical Argus zoom/remove/reobserve execution against the shared current-source backend and real PostgreSQL.",
+    "independent_checks": [
+      "Inspected current canvas host event wiring, placement/group/edge mutation paths, source-block preservation invariant, persisted refresh behavior, and V3 knowledge-action claims.",
+      "Executed mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve from current HEAD with integration enabled, current-source handshake_core, real PostgreSQL, GPU capture, and one test thread.",
+      "The test self-seeded a real workspace/board with two placements, clicked canvas.zoom-in, removed one placement, and re-observed the removed placement absent, the second placement present, and the source block retained.",
+      "Both the zoom and remove receipts were indeterminate, so the canonical driver failed the exact test despite the plausible persisted/visible post-state."
+    ],
+    "fail_report": "MT-026 FAIL_V4. Current mounted canvas state and real-PostgreSQL mutation effects are visible, including source-block retention after placement removal, but neither zoom nor removal is causally proven by a terminal action receipt. The canonical test exits nonzero because both receipts are indeterminate.",
+    "remediation_plan": [
+      "Emit a terminal viewport receipt for zoom/pan containing board ID, prior and resulting viewport revision/scale/offset, action ID, and authoritative persisted-or-session state according to the contract.",
+      "Emit a terminal placement-removal receipt containing workspace/board/placement/block IDs, mutation revision, backend/EventLedger correlation, authoritative refreshed placement absence, and explicit source-block existence confirmation.",
+      "Bind canonical Argus completion to those receipts and fresh state generations; never treat placement target disappearance or unchanged node presence as sufficient proof.",
+      "Rerun mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve with current-source handshake_core, real PostgreSQL, GPU capture, and --test-threads=1; require terminal non-indeterminate zoom/removal receipts and zero exit.",
+      "Open the regenerated trees/receipts/screenshot and rerun focused coordinate round-trip, placement/create/move/group/remove, semantic/visual edge, viewport reload, rollback, source preservation, and EventLedger tests."
+    ],
+    "no_context_instruction": "Read MT-026.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green canvas and source-block semantics. Add authoritative terminal viewport and placement-mutation receipts bound to board/placement/revision/EventLedger state, repair the canonical Argus predicates, rerun focused real-PostgreSQL and mounted proofs from committed current HEAD with external artifacts, open the regenerated receipts/trees/screenshot, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

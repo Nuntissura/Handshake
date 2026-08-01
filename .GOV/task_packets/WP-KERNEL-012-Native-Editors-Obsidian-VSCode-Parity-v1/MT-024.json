@@ -14,7 +14,7 @@
   "title": "E3-MT024-PinsFavoritesBacklinksUnlinked",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-24T16:35:00.000Z",
+  "updated_at_utc": "2026-07-31T20:54:26.6590835Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-024.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -33,10 +33,10 @@
       "MT-023"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_at_utc": "2026-07-31T20:54:26.6590835Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit BLOCKER: LoomSidebarPanel (pins/favorites/backlinks/unlinked/breadcrumbs, 1055 lines) mounted by NO host; SidebarEvent zero consumers; LoomSidebarClient never constructed; two-call pin removal + bookmarks-changed emission explicitly delegated to a host that does not exist - no pin/favorite mutation can ever fire in the running app. Fix: mount + SidebarEvent-to-client wiring + ShellEvent::BookmarkRemoved emission (event_bus notify seam is half-wired: project_tree consumes but nothing emits).",
@@ -483,5 +483,34 @@
     "kb_ready_checklist": "PASS",
     "disclosure": "sidebar collapse (manual AccessKit node) did not register accesskit_clicked over canonical transport; steered via reliable Button path; follow-up noted (MT-024)",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:54:26.6590835Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-024 inputs match committed HEAD"
+    },
+    "method": "Current-source contract/source review and exact integration-enabled mounted canonical Argus execution against the shared current-source backend and real PostgreSQL.",
+    "independent_checks": [
+      "Inspected the mounted sidebar event/client wiring, pins/favorites/backlinks/unlinked/breadcrumb state, mutation rollback requirements, and the V3 disclosure about incomplete canonical action registration.",
+      "Executed mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve from current HEAD with integration enabled, current-source handshake_core, real PostgreSQL, GPU capture, and one test thread.",
+      "The test inspected populated sidebar sections and the pin removal control, clicked sidebar.pin.block-001.remove, then re-observed the pin rows gone with a Pins error/Retry state while the other sections remained.",
+      "The removal receipt was indeterminate and the exact test exited nonzero at the canonical driver terminal-snapshot gate."
+    ],
+    "fail_report": "MT-024 FAIL_V4. The mounted sidebar changes after the pin-removal click, but the required proof cannot distinguish a successful persisted removal from a failed request, stale refresh, or target disappearance. The action receipt is indeterminate, and the post-state itself shows a Pins error/Retry condition rather than authoritative successful persistence.",
+    "remediation_plan": [
+      "Add a single authoritative pin-removal operation receipt containing workspace ID, block ID, mutation/revision ID, backend outcome, EventLedger correlation, and final persisted pin-order revision.",
+      "Make the canonical completion predicate wait for either terminal success plus authoritative refreshed pin absence or terminal typed failure plus the original pin preserved; target disappearance alone must never count as success.",
+      "Repair the disclosed canonical action-registration gap so every required sidebar control used by Argus has a stable registered author_id and observable action result.",
+      "Rerun mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve against current-source handshake_core and real PostgreSQL; require a terminal non-indeterminate receipt, zero test exit, and no ambiguous Pins error state on the success path.",
+      "Open the regenerated receipt/tree/screenshot and rerun focused pin/favorite/backlink/unlinked/breadcrumb tests, including failed write rollback, stale delivery rejection, persisted reload, and EventLedger evidence."
+    ],
+    "no_context_instruction": "Read MT-024.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve existing sidebar behavior that is green. Implement a terminal pin-removal receipt and success/failure completion predicate that cannot be satisfied by target disappearance, register every required sidebar Argus action, rerun focused real-PostgreSQL and canonical mounted proofs from committed current HEAD with external artifacts, open the terminal receipt/tree/screenshot, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

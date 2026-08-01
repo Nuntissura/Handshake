@@ -14,7 +14,7 @@
   "title": "E4-MT029-FindInFiles",
   "group": "E4 Search",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-29T19:23:32.2925872Z",
+  "updated_at_utc": "2026-07-31T21:03:56.3039188Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-029.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,17 +25,17 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [],
     "blocks": [
       "MT-030",
       "MT-044"
     ],
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
-    "validated_by": null,
-    "validated_at_utc": null,
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T21:03:56.3039188Z",
     "claimed_by": "KERNEL_BUILDER-20260728-221208",
     "claimed_at_utc": "2026-07-29T13:40:26.5271244Z",
     "claim_takeover_note_2026_07_29": "KERNEL_BUILDER-20260728-221208 claimed the exact FAIL_V2 remediation: re-prove real persisted search-preview-apply with stale, conflict, partial-success, and backend-loss behavior; then drive the mounted Find in Files workflow through canonical Argus with stable author_ids, safe action receipts, fresh post-action inspection, screenshot/tree evidence, and canonical UserManual coverage. Historical validator verdict remains FAIL_V2 until independent V3 validation.",
@@ -434,5 +434,35 @@
       "expected_receipt_kind": "REVIEW_RESPONSE"
     },
     "validator_instruction": "Independently rebuild source_sha, rerun the managed-PostgreSQL consolidated proof and canonical MT-029 Argus workflow with a fresh run id, inspect all terminal predicates plus the rendered screenshot/tree, and preserve historical validation_v1/validation_v2 records. Do not mark completed unless official V3 validation passes."
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T21:03:56.3039188Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "src/frontend/handshake_native/tests/test_find_in_files.rs has a pre-existing rustfmt-only diff; validator inspected the diff as formatting-only and bound runtime behavior to the same compiled semantics while preserving the user's change"
+    },
+    "method": "Current-source adversarial review, exact managed search/replace/bookmark PostgreSQL execution, explicit psql/EventLedger binding, fresh receipt and screenshot inspection, and canonical action-evidence audit.",
+    "independent_checks": [
+      "The first exact run failed truthfully because bare psql was not on PATH; reran the same test with HSK_PSQL_BIN bound to the installed PostgreSQL 16 psql.exe rather than weakening the EventLedger gate.",
+      "find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip then passed against current-source handshake_core and PostgreSQL, covering 501-hit pagination, regex/case/word/path/tag/source options, preview/apply, version conflict, partial success, cancellation tail, bookmark restore/remove, navigation, backend-loss recovery, and cleanup.",
+      "Opened the fresh managed receipt and verified nonblank save/EventLedger receipt IDs, before/after hashes, Saved versus Conflict outcomes, stale-preview blocking, cross-workspace rejection, cleanup 204/fresh-list absence, and exact rich-document navigation identity.",
+      "Opened the fresh MT-029-managed-mounted-runtime.png: the Find-in-Files panel is obscured by a failed Propose to Memory modal and runtime-chat error state, so the frame is not acceptable primary visual proof of the requested surface.",
+      "No current canonical-argus-matrix.jsonl was emitted by the fresh run; the retained older matrix contains indeterminate SetValue/click receipts and cannot bind current HEAD."
+    ],
+    "fail_report": "MT-029 FAIL_V4. The destructive search/preview/apply, conflict/partial-success, bookmark, EventLedger, navigation, recovery, and cleanup behavior is current-head green after explicit psql binding. V4 fails because the fresh visual is materially obscured by an unrelated failed modal and no current per-action terminal Argus matrix exists; retained actions are indeterminate.",
+    "remediation_plan": [
+      "Isolate the mounted Find-in-Files proof state so no unrelated FEMS/runtime-chat modal can cover the query/results/preview/apply/bookmark controls; explicitly close or prevent unrelated overlays before capture without disabling their product behavior globally.",
+      "Emit a fresh canonical matrix from the exact managed test with terminal causal receipts for query/replacement SetValue, options, Search, Preview, Apply, conflict/partial-success, bookmark save/restore/remove, navigation, retry, and cancellation.",
+      "For destructive Apply, bind terminal success to the exact per-document before/after hashes and EventLedger save receipt IDs; bind conflict/failure to preserved content and typed receipt state. Do not accept value echo or target disappearance as completion.",
+      "Rerun with HSK_PSQL_BIN explicitly set, current-source backend, real PostgreSQL, external artifacts, GPU capture, and one test thread; require exact test exit zero and zero indeterminate matrix rows.",
+      "Open the unobscured screenshot, every action receipt/tree, and the matching managed receipt; verify pagination, stale preview, partial conflict, cancellation, bookmark remount, navigation identity, cleanup, and no repo-local artifacts."
+    ],
+    "no_context_instruction": "Read MT-029.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green Find-in-Files implementation and the user's formatting-only test diff. Isolate the proof UI from unrelated overlays, emit terminal per-action Argus receipts tied to document hashes/EventLedger IDs, rerun the exact managed proof with explicit HSK_PSQL_BIN and real PostgreSQL from committed current HEAD semantics, open the unobscured frame and every receipt/tree/managed record, then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }

@@ -14,7 +14,7 @@
   "title": "E3-MT025-WikiPageProjectionOverlay",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-24T16:35:00.000Z",
+  "updated_at_utc": "2026-07-31T20:55:07.0130837Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-025.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,16 +25,16 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "active": false,
     "depends_on": [
       "MT-021"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V2",
+    "validator_verdict": "FAIL_V4",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "validated_at_utc": "2026-07-31T20:55:07.0130837Z",
     "claimed_by": "KERNEL_BUILDER-20260705-013720",
     "ready_for_validation_at_utc": "2026-07-24T16:35:00.000Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
@@ -474,5 +474,34 @@
     "kb_ready_checklist": "PASS",
     "disclosure": "sidebar collapse (manual AccessKit node) did not register accesskit_clicked over canonical transport; steered via reliable Button path; follow-up noted (MT-024)",
     "adversarial_review": "PENDING_PARALLEL_MULTILENS"
+  },
+  "validation_v4": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-31T20:55:07.0130837Z",
+    "session": "WP_VALIDATOR-20260731-195928",
+    "spec_version": "v02.202",
+    "source_state": {
+      "head_sha": "8de72ebe0c3cdca2cad1c7273f1c6b75a2c61d3e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_product_delta": "Only the unrelated pre-existing rustfmt-only test_find_in_files.rs diff is present; MT-025 inputs match committed HEAD"
+    },
+    "method": "Current-source contract/source review and exact integration-enabled mounted canonical Argus edit/cancel/reload execution against the shared current-source backend and real PostgreSQL.",
+    "independent_checks": [
+      "Inspected the projection-versus-overlay authority model, mounted wiki-pane routing, persistence/error behavior, and the requirement that source projection content remain read-only while overlay edits are additive.",
+      "Executed mt025_mounted_wiki_canonical_argus_edit_save_reload_surface from current HEAD with integration enabled, current-source handshake_core, real PostgreSQL, GPU capture, and one test thread.",
+      "The test inspected title/metadata/content/edit, clicked Edit, re-observed edit-area/save/cancel, clicked Cancel, and re-observed read-only content with the edit area gone.",
+      "Both Edit and Cancel receipts were indeterminate, so the canonical driver failed the test even though the visible state sequence looked plausible."
+    ],
+    "fail_report": "MT-025 FAIL_V4. The mounted wiki projection visibly enters and exits overlay-edit mode, but neither the Edit nor Cancel action has an authoritative terminal receipt. The test therefore cannot causally prove that the requested action opened the correct overlay, that Cancel discarded only the overlay draft, or that the read-only source projection remained unchanged.",
+    "remediation_plan": [
+      "Emit a terminal edit-mode transition receipt bound to projection ID, overlay/draft identity, workspace generation, source projection revision, and the post-action edit-mode generation.",
+      "Emit a separate terminal cancel receipt that proves the draft was discarded, no write request was sent, the original source projection revision/content remains authoritative, and edit mode closed.",
+      "For Save, bind success to the persisted overlay revision and refreshed readback; bind failure/conflict to a typed terminal error while retaining edit mode and the draft. Never use widget disappearance alone as completion.",
+      "Rerun mt025_mounted_wiki_canonical_argus_edit_save_reload_surface against current-source handshake_core and real PostgreSQL with GPU capture and --test-threads=1; require terminal non-indeterminate Edit/Cancel/Save receipts and zero exit.",
+      "Open the regenerated pre/edit/post trees, receipts, and screenshot, then rerun focused overlay save/reload/cancel/error/conflict tests to prove no source-projection mutation and no silent write fallback."
+    ],
+    "no_context_instruction": "Read MT-025.json, packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the read-only projection plus additive overlay model. Add authoritative terminal receipts for Edit, Cancel, and Save/failure bound to projection/draft/revision state; repair canonical Argus predicates; rerun focused real-PostgreSQL and mounted proofs from committed current HEAD with external artifacts; open every regenerated receipt/tree/screenshot; then return READY_FOR_VALIDATION_V4 without self-issuing PASS."
   }
 }
