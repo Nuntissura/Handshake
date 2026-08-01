@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-020",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-07-31T07:00:00Z",
+  "updated_at_utc": "2026-08-01T01:00:00Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -111,5 +111,23 @@
     "durable_authority": "kernel_process_lifecycle (ProcessOwnershipLedger); PostgreSQL/EventLedger, no SQLite",
     "rust_only_implementation": true,
     "spec_realism_gate": "The four ack tests must pass because a real ledger writer acknowledged a real START row, not because the assertion was relaxed."
+  },
+  "related_findings_2026_08_01": {
+    "note": "RECORDED FOR ROUTING, NOT an acceptance criterion of the in-flight MT-020 work. Preserved here so it is not lost.",
+    "finding": "The handshake-native frontend lib-unit suite has NINE deterministic failures: 406 passed / 9 failed at head efea010a.",
+    "hypothesis_refuted": "These were initially suspected to be load-induced flakes, because the first observation happened while 6+ concurrent cargo builds were running. REFUTED: re-run on a completely quiet machine (0 builders) reproduces the SAME 9 failures, and faster (11.62s vs 24.90s). They are deterministic.",
+    "attribution": "NOT caused by WP-1. Eight are in subsystems WP-1 never touched: mcp::session (4), mcp::argus, mcp::server, internal_diagnostics, module_switcher. The ninth is in app.rs, which MT-021 did modify, but it is a string-literal mismatch - expected \"click target handler did not acknowledge the requested action effect\" vs actual \"target handler did not acknowledge the requested action effect\" - and MT-021 diff on app.rs is +27/-0, pure insertions inside impl HandshakeApp touching no existing string. Pre-existing message drift.",
+    "failing_tests": [
+      "app::causal_argus_receipt_tests::missing_drawer_client_cannot_acknowledge_confirm_discard_receipt",
+      "internal_diagnostics::tests::palmistry_supervisor_is_lifetime_scoped_and_never_retains_plaintext_http_body",
+      "mcp::argus::tests::same_target_parallel_clicks_are_serialized_without_action_id_overwrite",
+      "mcp::server::tests::handle_line_rejects_bad_token_over_wire_shape",
+      "mcp::session::tests::click_through_session_enqueues_and_attributes",
+      "mcp::session::tests::contended_exclusive_lease_returns_lease_timeout",
+      "mcp::session::tests::list_widgets_takes_a_shared_lease_and_succeeds",
+      "mcp::session::tests::relabelled_mutation_retains_authenticated_principal_in_all_evidence",
+      "module_switcher::tests::definitions_match_react"
+    ],
+    "routing": "Belongs to the handshake-native shell owner, not WP-1. Needs its own item. Note module_switcher::tests::definitions_match_react compares native module definitions against the React app - and the React/Tauri stack is SUPERSEDED per Codex CX-009-VIS and frozen since 2026-07-23, so that test may be asserting parity with a deliberately frozen surface."
   }
 }
