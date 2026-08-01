@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-020",
   "created_at_utc": "2026-07-30T00:30:00Z",
-  "updated_at_utc": "2026-08-01T01:00:00Z",
+  "updated_at_utc": "2026-08-01T02:00:00Z",
   "authority_files": [
     "../handshake_main/AGENTS.md",
     ".GOV/codex/Handshake_Codex_v1.4.md",
@@ -17,19 +17,19 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [],
     "blocks": [],
     "active": false,
     "validator_verdict": null,
-    "claimed_by": null,
-    "claimed_at_utc": null,
-    "ready_for_validation_by": null,
-    "ready_for_validation_at_utc": null,
+    "claimed_by": "KERNEL_BUILDER-20260729-225554",
+    "claimed_at_utc": "2026-08-01T00:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
+    "ready_for_validation_at_utc": "2026-08-01T02:00:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "NOT_STARTED",
+    "proof_status": "READY_FOR_VALIDATION_V5: production_factory module green with NO name filter in BOTH thread modes (32 passed / 0 failed each); reclaim suite 31 passed / 0 failed; both build configurations green.",
     "hbr_status": null,
     "pre_implementation_adversarial_review_status": null,
     "post_implementation_adversarial_review_status": null
@@ -129,5 +129,34 @@
       "module_switcher::tests::definitions_match_react"
     ],
     "routing": "Belongs to the handshake-native shell owner, not WP-1. Needs its own item. Note module_switcher::tests::definitions_match_react compares native module definitions against the React app - and the React/Tauri stack is SUPERSEDED per Codex CX-009-VIS and frozen since 2026-07-23, so that test may be asserting parity with a deliberately frozen surface."
+  },
+  "implementation_2026_08_01": {
+    "implemented_by": "KERNEL_BUILDER-20260729-225554 (delegated coder; diff reviewed and claims independently verified by parent)",
+    "commit": "50517aec",
+    "per_ac": {
+      "AC-1": "DONE. Four tests awaited a durable START-row ack from LedgerBatcher::manual_for_tests, which spawns no writer, so the ack could never arrive. Converted to a driven LedgerBatcher::spawn + drain_and_join_ledger_writer, with the drain asserting Flushed so a TimedOut writer cannot silently back the row assertions.",
+      "AC-2": "DONE. Split into two stages: stage 1 keeps the ModelLaneStore-backed coordinator and asserts the SPECIFIC dexterity-guard error rather than 'some LedgerFailed'; stage 2 asserts the original missing-artifact contract on a coordinator permitted to dispatch. Recorded rationale: attaching a Dexterity contract would NOT have worked, because the factory-failure path durably records a FAILED launch row and the lazy store has no reachable database, so the real FactoryFailed would be re-wrapped as another LedgerFailed.",
+      "AC-3": "DONE. default-parallel 32 passed / 0 failed; --test-threads=1 32 passed / 0 failed.",
+      "AC-4": "DONE. Executed count unchanged at 32; no test deleted, #[ignore]d, or renamed.",
+      "AC-5": "DONE. A/B baseline established NON-DESTRUCTIVELY (git archive of 6fd044b0^ = 3bbc72b3 into a scratch tree with its own CARGO_TARGET_DIR; no git stash or checkout --). All five targets reproduce PRE-EXISTING with identical mechanisms: 26 passed / 6 failed.",
+      "AC-6": "DONE, falsifiability proven DIFFERENTIALLY in both directions. post-fix + sibling flipped reclaimable -> FAILED ('a terminal open sibling must not make the healthy open lane's process reclaimable'). pre-fix + the SAME mutation -> ok. The identical change that now breaks the test changed nothing before, which demonstrates the vacuity rather than arguing it. Restored, full suite 31 passed / 0 failed.",
+      "AC-7": "DONE. tests/model_lane_crdt_support.rs now declares required-features = [\"test-utils\"], so cargo no longer builds a shared support module under a configuration none of its consumers use."
+    },
+    "parent_verification": [
+      "coordinator.rs diff = 0 lines, so the ModelLaneStore dexterity guard and the durability ack were genuinely untouched.",
+      "PIDLESS_SESSION_START_DURABILITY_TIMEOUT is still Duration::from_secs(5); it appears in the diff only inside a test doc comment.",
+      "Earliest changed line in production_factory.rs is 2262, inside the test module - no product code altered.",
+      "Exactly three files modified, matching the report."
+    ],
+    "new_finding_retroactively_validating_mt017": "The AC-5 baseline run showed a SIXTH test failing at 6fd044b0^ that is NOT in MT-020's scope: factory_dispatches_official_cli_to_cli_builder, failing on 'official CLI bridge session carries its coordinator PID identity'. It passes at HEAD. That is retroactive A/B confirmation that MT-017's official-CLI host-PID change genuinely fixed a real defect - a fix this session had previously only verified by source inspection and by noting the assertion predated the change.",
+    "disclosures": [
+      "An adjacent env-gated test (real_cloud_spawn_generate_when_credentialed) was converted to the driven ledger too. It SKIPs without credentials so it never appeared in the failing set, but it drives the identical cloud path and would fail the moment live credentials existed. Same file, same defect class.",
+      "AC-2 stage 1 drops an old `emitted >= 1` sink assertion, because the guard rejects pre-dispatch without emitting any event; that assertion now lives in stage 2 via RecordingSwarmSink. Flagged for the validator in case it should be pinned either way.",
+      "Two tests were strengthened beyond the minimum (provider-selection tests now also assert starts == 1; drain asserts Flushed). Both additive.",
+      "ledger_pair() body is unchanged, so all 22 remaining callers keep identical semantics; the full caller list is in the coder handback."
+    ],
+    "not_verified": [
+      "cargo clippy, just gov-check, and the wider test suite were not run - outside the declared proof set for this MT."
+    ]
   }
 }
