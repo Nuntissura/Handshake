@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-07-30T15:30:00Z",
+  "updated_at_utc": "2026-08-01T02:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -299,5 +299,25 @@
     "cross_lane_consequence": "swarm_runtime.rs:1210 returns CoordinatorFailed when the lease is not released, so draining with open rows now reports shutdown incomplete. Truthful, but the Tauri owner should close its rows before draining or read the new lease_retained_reason. app/src-tauri is out of lane and was not modified.",
     "waiver_requested": "tests/focus_audit_tests.rs, one line, forced by ReclaimableProcess.parent_session_id -> Option<String>. Inside scope.allowed_paths but not owned_files.",
     "regression_fixed_in_same_commit": "b53f475d had added an UNGATED compile anchor on SwarmCoordinator::session_runtime, which is #[cfg(any(test, feature=\"test-utils\"))]. handshake_core therefore failed to build with DEFAULT features (E0599), breaking every dependent crate including the Tauri shell. It escaped review because verification used --features test-utils only. Anchor now carries the same gate as its symbol; both feature configurations verified green."
-  }
+  },
+  "operator_waivers_2026_08_01": [
+    {
+      "id": "WAIVER-MT019-FOCUS-AUDIT-TESTS",
+      "granted_by": "OPERATOR",
+      "granted_at_utc": "2026-08-01T02:30:00Z",
+      "scope": "src/backend/handshake_core/tests/focus_audit_tests.rs - one line",
+      "why": "Forced by the ReclaimableProcess.parent_session_id -> Option<String> type change required by P-1/P-2. The file is inside scope.allowed_paths (tests/) but was not listed in scope.owned_files.",
+      "disclosure": "Single line: parent_session_id: Some(...). No behavioural change to the test; it only satisfies the new Option type.",
+      "status": "GRANTED"
+    },
+    {
+      "id": "WAIVER-MT019-TAURI-SHUTDOWN-SEMANTICS",
+      "granted_by": "OPERATOR",
+      "granted_at_utc": "2026-08-01T02:30:00Z",
+      "scope": "Behaviour change observable in app/src-tauri/src/commands/swarm_runtime.rs:1210 (NOT modified - app/src-tauri is out of lane)",
+      "why": "P-4(a) stops the UDP runtime lease being released while the owning process is still alive, which is what allowed one Handshake instance to conclude another was dead and kill its healthy children. As a consequence, draining while the instance still owns open rows now yields lease_released=false, so that call site reports CoordinatorFailed / shutdown incomplete where it previously reported Completed.",
+      "disclosure": "The new report is TRUTHFUL - shutdown genuinely is incomplete while open rows remain. The Tauri owner should either close its rows before draining or read the new lease_retained_reason. Note the Tauri stack is superseded per Codex CX-009-VIS and frozen since 2026-07-23, so the blast radius is the legacy shell.",
+      "status": "GRANTED"
+    }
+  ]
 }
