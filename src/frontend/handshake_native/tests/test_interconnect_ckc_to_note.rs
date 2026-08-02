@@ -32,6 +32,7 @@ use handshake_native::interop::{
     AtelierItemKind, AtelierRef, DragPayload, EditorSurfaceKind, InteractionBus, SharedSelection,
     CMD_ROUTE_TO_STAGE,
 };
+use handshake_native::module_switcher::ModuleId;
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
@@ -46,7 +47,9 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
 use handshake_native::stage_pane::{StageContent, STAGE_ROUTED_CONTENT_AUTHOR_ID};
 use handshake_native::tab_bar::TabState;
 
-use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{
+    json_has_author_id, json_node_by_author_id, live_author_id_selected, CanonicalArgusDriver,
+};
 use interconnect_support::{
     assert_no_local_artifact_dir, author_node_value, require_live_backend,
     save_rich_document_via_production_manager, ScenarioAttempt,
@@ -728,12 +731,75 @@ fn supplemental_mt046_argus_ic04_ckc_module() {
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic04-ckc-module");
     let initial = argus.inspect(&mut harness);
     assert!(json_has_author_id(&initial, "module-ckc"));
-    argus.click_expect_applied_and_reinspect(&mut harness, "module-ckc");
+    let selection = argus.click_expect_applied_and_reinspect(&mut harness, "module-ckc");
+    assert_eq!(
+        selection.target_selected_before,
+        Some(false),
+        "IC-04: CKC must begin unselected in the live AccessKit tree"
+    );
+    harness.run_steps(1);
+    assert_eq!(
+        live_author_id_selected(&harness, "module-ckc"),
+        Some(true),
+        "IC-04: the next mounted frame must expose CKC as selected"
+    );
+    assert_eq!(
+        harness.state().active_module(),
+        ModuleId::Ckc,
+        "IC-04: the applied click must select CKC in mounted product state"
+    );
     argus.assert_latest_terminal_predicate(&mut harness, "ckc-module-selected-terminal", |tree| {
-        json_node_by_author_id(tree, "module-ckc")
-            .and_then(|node| node.get("selected"))
-            .and_then(serde_json::Value::as_bool)
-            == Some(true)
+        let Some(observer) = json_node_by_author_id(tree, "mt033.argus-action-completion")
+            .and_then(|node| node.get("value"))
+            .and_then(serde_json::Value::as_str)
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        else {
+            return false;
+        };
+        let Some(semantic) = observer
+            .get("semantic_value")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        else {
+            return false;
+        };
+        let Some(terminal) = observer
+            .get("terminal_detail")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        else {
+            return false;
+        };
+
+        json_has_author_id(tree, "module-ckc")
+            && observer.get("schema").and_then(serde_json::Value::as_str)
+                == Some("handshake.click-completion/v1")
+            && observer.get("mode").and_then(serde_json::Value::as_str) == Some("observer")
+            && observer.get("effect").and_then(serde_json::Value::as_str)
+                == Some("mt033.ckc-stage-action")
+            && observer.get("state").and_then(serde_json::Value::as_str) == Some("applied")
+            && semantic.get("action").and_then(serde_json::Value::as_str) == Some("select-module")
+            && semantic.get("target").and_then(serde_json::Value::as_str) == Some("module-ckc")
+            && semantic
+                .get("expected_module")
+                .and_then(serde_json::Value::as_str)
+                == Some("CKC")
+            && semantic
+                .get("expected_selected")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
+            && terminal
+                .get("selected_author_id")
+                .and_then(serde_json::Value::as_str)
+                == Some("module-ckc")
+            && terminal
+                .get("selected_module")
+                .and_then(serde_json::Value::as_str)
+                == Some("CKC")
+            && terminal
+                .get("state_changed")
+                .and_then(serde_json::Value::as_bool)
+                == Some(true)
     });
     let terminal_frame = harness.render_proof_frame("IC-04 mounted CKC selected terminal tree");
     argus.finish_require_no_indeterminate();
