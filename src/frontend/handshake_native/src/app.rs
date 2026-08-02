@@ -6211,6 +6211,16 @@ impl HandshakeApp {
         .to_string()
     }
 
+    fn mt033_module_semantic(target: &str, module_id: ModuleId) -> String {
+        serde_json::json!({
+            "action": "select-module",
+            "target": target,
+            "expected_module": module_id.as_str(),
+            "expected_selected": true,
+        })
+        .to_string()
+    }
+
     fn project_mt033_argus_completion(&self, snapshot: &mut crate::accessibility::UiTreeSnapshot) {
         for author_id in ["menu-view", "menu-editors", "menu-operator"] {
             if let Some(value) = self.mt033_argus_action_completion.menu_token(author_id) {
@@ -6243,6 +6253,7 @@ impl HandshakeApp {
                     })
                     .to_string(),
                 ),
+                "module-ckc" => Some(Self::mt033_module_semantic(author_id, ModuleId::Ckc)),
                 _ if author_id.starts_with("atelier-item-") => {
                     Some(self.mt033_item_semantic(author_id))
                 }
@@ -6252,7 +6263,7 @@ impl HandshakeApp {
                 if let Some(value) = self.mt033_argus_action_completion.target_declaration(
                     author_id,
                     &semantic,
-                    author_id.starts_with("atelier-item-"),
+                    author_id.starts_with("atelier-item-") || author_id == "module-ckc",
                 ) {
                     declarations.push((author_id.to_owned(), value));
                 }
@@ -30121,7 +30132,40 @@ impl HandshakeApp {
             // A non-active module button was clicked: retab the active pane + move the highlight. The
             // change is detected by the MT-006/MT-009 layout change-detector below, which schedules the
             // debounced save (no synchronous save here — rapid clicks coalesce).
-            if self.set_module(module_id) {
+            let module_target = module_id.definition().data_id;
+            let attributed = module_target == "module-ckc"
+                && self.mt033_dispatched_target().as_deref() == Some(module_target);
+            if attributed {
+                self.mt033_argus_action_completion.begin(
+                    module_target,
+                    Self::mt033_module_semantic(module_target, module_id),
+                );
+            }
+            let changed = self.set_module(module_id);
+            if attributed {
+                if self.module_switcher.active() == module_id {
+                    self.mt033_argus_action_completion.complete_applied(
+                        module_target,
+                        serde_json::json!({
+                            "selected_module": module_id.as_str(),
+                            "selected_author_id": module_target,
+                            "state_changed": changed,
+                        })
+                        .to_string(),
+                    );
+                } else {
+                    self.mt033_argus_action_completion.complete_failed(
+                        module_target,
+                        "Module switch did not select the requested module".to_owned(),
+                        serde_json::json!({
+                            "requested_module": module_id.as_str(),
+                            "active_module": self.module_switcher.active().as_str(),
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            if changed {
                 ctx.request_repaint();
             }
         }
