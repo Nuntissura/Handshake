@@ -1109,7 +1109,9 @@ fn assert_lk03_stage_diagnostics(
         .filter_map(|(request_id, lines)| {
             lines
                 .iter()
-                .any(|line| line.contains("response_construction"))
+                .any(|line| {
+                    diagnostic_field(line, "stage").as_deref() == Some("response_construction")
+                })
                 .then(|| request_id.clone())
         })
         .collect();
@@ -1137,7 +1139,7 @@ fn assert_lk03_stage_diagnostics(
     for (stage, expected_count) in expected {
         let actual = measured_lines
             .iter()
-            .filter(|line| line.contains(stage))
+            .filter(|line| diagnostic_field(line, "stage").as_deref() == Some(stage))
             .count();
         assert_eq!(
             actual, expected_count,
@@ -1149,7 +1151,8 @@ fn assert_lk03_stage_diagnostics(
         for stage in ["incoming_edge_query", "loom_block_mapping"] {
             assert!(
                 measured_lines.iter().any(|line| {
-                    line.contains(stage) && line.contains("edge_type") && line.contains(edge_type)
+                    diagnostic_field(line, "stage").as_deref() == Some(stage)
+                        && diagnostic_field(line, "edge_type").as_deref() == Some(edge_type)
                 }),
                 "LK-03: {stage} diagnostic must identify edge_type={edge_type}"
             );
@@ -1205,10 +1208,18 @@ fn strip_ansi_csi(value: &str) -> String {
 
 #[test]
 fn diagnostic_field_ignores_ansi_sgr_boundaries() {
-    let line = "\u{1b}[1mloom_tag_hub_request\u{1b}[0m{\u{1b}[3mrequest_id\u{1b}[0m\u{1b}[2m=\u{1b}[0m\"019fc27f-d8ac-7ed3-b0ad-30084b61f543\"}";
+    let line = "\u{1b}[1mloom_tag_hub_request\u{1b}[0m{\u{1b}[3mrequest_id\u{1b}[0m\u{1b}[2m=\u{1b}[0m\"019fc27f-d8ac-7ed3-b0ad-30084b61f543\" \u{1b}[3mstage\u{1b}[0m\u{1b}[2m=\u{1b}[0m\"tag_hub_storage_total_after_workspace_lookup\"}";
     assert_eq!(
         diagnostic_field(line, "request_id").as_deref(),
         Some("019fc27f-d8ac-7ed3-b0ad-30084b61f543")
+    );
+    assert_eq!(
+        diagnostic_field(line, "stage").as_deref(),
+        Some("tag_hub_storage_total_after_workspace_lookup")
+    );
+    assert_ne!(
+        diagnostic_field(line, "stage").as_deref(),
+        Some("workspace_lookup")
     );
 }
 
