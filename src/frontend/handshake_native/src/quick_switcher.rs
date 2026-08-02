@@ -79,6 +79,11 @@ pub const SWITCHER_LIST_NODE_ID: u64 = 16;
 pub const SWITCHER_DIALOG_AUTHOR_ID: &str = "quick-switcher.dialog";
 /// Stable out-of-process author_id for the switcher search box.
 pub const SWITCHER_SEARCH_AUTHOR_ID: &str = "quick-switcher.search";
+/// Payload-capable model-facing search action. Its closed JSON payload contains `query` and
+/// `expected_result_author_id`, allowing app-owned completion to bind the query to its mounted row.
+pub const SWITCHER_SEARCH_ACTION_AUTHOR_ID: &str = "quick-switcher.search-submit";
+pub const SWITCHER_SEARCH_ACTION_PAYLOAD_ERROR: &str =
+    "quick-switcher search payload must contain only non-empty query and expected_result_author_id";
 /// Stable out-of-process author_id for the switcher list container.
 pub const SWITCHER_LIST_AUTHOR_ID: &str = "quick-switcher.list";
 /// Stable out-of-process author_id for the switcher header Close button. Like the result rows and the
@@ -91,6 +96,34 @@ pub const SWITCHER_CLOSE_AUTHOR_ID: &str = "quick-switcher.close";
 /// The author_id prefix for a result ROW (a `ListBoxOption`). Each row's full author_id is
 /// `{ROW_AUTHOR_ID_PREFIX}{source_kind}.{stable(ref_id)}`, in egui's hashed id space (dynamic count).
 pub const ROW_AUTHOR_ID_PREFIX: &str = "quick-switcher.option.";
+
+/// Closed-schema payload accepted by the model-facing Quick Switcher search action. Parsing lives
+/// beside the UI boundary so the renderer and the app-owned completion observer cannot disagree
+/// about whether an action is valid.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct QuickSwitcherSearchActionPayload {
+    pub query: String,
+    pub expected_result_author_id: String,
+}
+
+pub fn parse_search_action_payload(
+    raw: &str,
+) -> Result<QuickSwitcherSearchActionPayload, &'static str> {
+    let mut payload = serde_json::from_str::<QuickSwitcherSearchActionPayload>(raw)
+        .map_err(|_| SWITCHER_SEARCH_ACTION_PAYLOAD_ERROR)?;
+    payload.query = payload.query.trim().to_owned();
+    if payload.query.is_empty()
+        || payload.query.len() > 256
+        || !payload
+            .expected_result_author_id
+            .starts_with(ROW_AUTHOR_ID_PREFIX)
+        || payload.expected_result_author_id.len() > 512
+    {
+        return Err(SWITCHER_SEARCH_ACTION_PAYLOAD_ERROR);
+    }
+    Ok(payload)
+}
 
 /// The nine Loom-graph source kinds the quick switcher searches, in the React
 /// `QUICK_SWITCHER_SOURCE_KINDS` order. Passed verbatim as the `source_kinds` query param.
@@ -647,7 +680,7 @@ fn stable_part(value: &str) -> String {
 }
 
 /// The author_id of a result row: `quick-switcher.option.{source_kind}.{stable(ref_id)}`.
-fn row_author_id(hit: &LoomGraphSearchHit) -> String {
+pub(crate) fn row_author_id(hit: &LoomGraphSearchHit) -> String {
     format!(
         "{ROW_AUTHOR_ID_PREFIX}{}.{}",
         hit.source_kind,
@@ -911,6 +944,9 @@ pub struct SearchManager {
     loading: bool,
     /// The last transient search error message (cleared on a fresh successful fold-in).
     error: Option<String>,
+    /// Sequence of the latest accepted delivery. Search-action completion uses this to distinguish a
+    /// result delivered after its own dispatch from a matching row left over by an earlier search.
+    completed_sequence: Option<u64>,
 }
 
 impl SearchManager {
@@ -961,6 +997,26 @@ impl SearchManager {
         SearchAction::Idle
     }
 
+    /// Immediately dispatch an explicit Search-button submission. Unlike [`Self::tick`], this does
+    /// not wait for the debounce and always creates a fresh sequence, including when the submitted
+    /// text equals the last query. That makes the visible button a real operator control and gives a
+    /// parameterized model action a distinct causal request generation.
+    pub fn submit(&mut self, query: &str, has_workspace: bool) -> SearchAction {
+        if query.is_empty() || !has_workspace {
+            return SearchAction::Idle;
+        }
+        self.pending_query = Some(query.to_owned());
+        self.pending_since = None;
+        self.last_query_sent = query.to_owned();
+        self.sequence = self.sequence.wrapping_add(1);
+        self.loading = true;
+        self.error = None;
+        SearchAction::Fire {
+            query: query.to_owned(),
+            sequence: self.sequence,
+        }
+    }
+
     /// Fold a delivered search result into the manager IFF its sequence is the latest dispatched one
     /// (red-team MC2). A stale delivery (an earlier, slower request) is dropped. Returns `true` when a
     /// delivery was accepted (so the app can request a repaint).
@@ -968,6 +1024,7 @@ impl SearchManager {
         if delivery.sequence != self.sequence {
             return false; // stale: a newer query has since been dispatched.
         }
+        self.completed_sequence = Some(delivery.sequence);
         self.loading = false;
         match delivery.outcome {
             Ok(hits) => {
@@ -1001,6 +1058,10 @@ impl SearchManager {
     /// dropped by [`drain`]).
     pub fn sequence(&self) -> u64 {
         self.sequence
+    }
+
+    pub fn completed_sequence(&self) -> Option<u64> {
+        self.completed_sequence
     }
 
     /// True when a query change is waiting on the debounce timer to elapse (i.e. a `Fire` is still
@@ -1072,6 +1133,9 @@ pub struct SwitcherFrame {
     pub outcome: SwitcherOutcome,
     /// The current (untrimmed) query text this frame, for the shell's debounce tick.
     pub query: String,
+    /// A valid explicit Search-button submission. The shell bypasses debounce and creates a fresh
+    /// search generation when this is true.
+    pub search_submitted: bool,
 }
 
 /// Render the quick-switcher overlay and return the [`SwitcherFrame`] for this frame.
@@ -1141,6 +1205,7 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
         return SwitcherFrame {
             outcome: SwitcherOutcome::Close,
             query: state.query,
+            search_submitted: false,
         };
     }
 
@@ -1172,6 +1237,7 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
         return SwitcherFrame {
             outcome: SwitcherOutcome::Close,
             query: state.query,
+            search_submitted: false,
         };
     }
 
@@ -1181,6 +1247,7 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
     let list_egui_id = unsafe { egui::Id::from_high_entropy_bits(SWITCHER_LIST_NODE_ID) };
 
     let mut close_clicked = false;
+    let mut search_submitted = false;
     let mut clicked_open: Option<LoomGraphSearchHit> = None;
     let mut hovered_index: Option<usize> = None;
 
@@ -1213,11 +1280,57 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
 
             // Search input pinned to the fixed search id so its AccessKit NodeId is stable. Focus on the
             // first frame after (re-)open only (port of the React focus-on-open setTimeout(0)).
-            let edit = egui::TextEdit::singleline(&mut state.query)
-                .id(search_egui_id)
-                .hint_text("Open by title, block, symbol, WP, MT, manual, or wiki page")
-                .desired_width(f32::INFINITY);
-            let edit_response = ui.add(edit);
+            let mut payload_query = None;
+            let edit_response = ui
+                .horizontal(|ui| {
+                    let edit = egui::TextEdit::singleline(&mut state.query)
+                        .id(search_egui_id)
+                        .hint_text("Open by title, block, symbol, WP, MT, manual, or wiki page")
+                        .desired_width(f32::INFINITY);
+                    let edit_response = ui.add(edit);
+                    let submit = ui
+                        .push_id(SWITCHER_SEARCH_ACTION_AUTHOR_ID, |ui| {
+                            ui.add_enabled(view.has_workspace, egui::Button::new("Search"))
+                        })
+                        .inner;
+                    ui.ctx().accesskit_node_builder(submit.id, |node| {
+                        node.set_author_id(SWITCHER_SEARCH_ACTION_AUTHOR_ID.to_owned());
+                        node.set_label("Search the quick switcher".to_owned());
+                        if view.has_workspace {
+                            // A fresh modal snapshot can inherit Disabled from the backdrop. The
+                            // product's workspace binding is authoritative for this control.
+                            node.clear_disabled();
+                            node.add_action(accesskit::Action::Click);
+                        } else {
+                            node.set_disabled();
+                            node.remove_action(accesskit::Action::Click);
+                        }
+                    });
+                    let mut payload_action_seen = false;
+                    ui.input(|input| {
+                        for request in
+                            input.accesskit_action_requests(submit.id, accesskit::Action::Click)
+                        {
+                            if let Some(accesskit::ActionData::Value(value)) = &request.data {
+                                payload_action_seen = true;
+                                payload_query = parse_search_action_payload(value)
+                                    .ok()
+                                    .map(|payload| payload.query);
+                            }
+                        }
+                    });
+                    search_submitted = if payload_action_seen {
+                        payload_query.is_some()
+                    } else {
+                        submit.clicked() && view.has_workspace
+                    };
+                    edit_response
+                })
+                .inner;
+            if let Some(query) = payload_query {
+                state.query = query;
+                state.selected_index = 0;
+            }
             if edit_response.changed() {
                 state.selected_index = 0;
             }
@@ -1297,7 +1410,11 @@ pub fn show(ctx: &egui::Context, view: SwitcherView<'_>) -> SwitcherFrame {
 
     let query = state.query.clone();
     persist(ctx, state_id, &state);
-    SwitcherFrame { outcome, query }
+    SwitcherFrame {
+        outcome,
+        query,
+        search_submitted,
+    }
 }
 
 /// Persist the transient switcher UI state back into egui memory.
@@ -1903,6 +2020,56 @@ mod tests {
         assert_eq!(mgr.results().len(), 1);
         assert_eq!(mgr.results()[0].ref_id, "KRD-new");
         assert!(!mgr.loading());
+    }
+
+    #[test]
+    fn explicit_submit_creates_fresh_sequence_even_for_same_query() {
+        let mut manager = SearchManager::default();
+        let first = manager.submit("proof", true);
+        let first_sequence = match first {
+            SearchAction::Fire { sequence, .. } => sequence,
+            SearchAction::Idle => panic!("enabled explicit submit must fire"),
+        };
+        assert!(manager.drain(SearchDelivery {
+            sequence: first_sequence,
+            outcome: Ok(vec![hit("loom_block", "proof-1")]),
+        }));
+
+        let second = manager.submit("proof", true);
+        let second_sequence = match second {
+            SearchAction::Fire { sequence, .. } => sequence,
+            SearchAction::Idle => panic!("repeated explicit submit must refire"),
+        };
+        assert!(second_sequence > first_sequence);
+        assert_eq!(manager.completed_sequence(), Some(first_sequence));
+        assert!(manager.loading());
+    }
+
+    #[test]
+    fn model_search_payload_schema_rejects_unknown_keys() {
+        let valid = serde_json::json!({
+            "query": "proof",
+            "expected_result_author_id": "quick-switcher.option.loom_block.proof-1",
+        })
+        .to_string();
+        assert_eq!(
+            parse_search_action_payload(&valid).expect("closed valid payload"),
+            QuickSwitcherSearchActionPayload {
+                query: "proof".to_owned(),
+                expected_result_author_id: "quick-switcher.option.loom_block.proof-1".to_owned(),
+            }
+        );
+
+        let unknown_key = serde_json::json!({
+            "query": "proof",
+            "expected_result_author_id": "quick-switcher.option.loom_block.proof-1",
+            "unexpected": true,
+        })
+        .to_string();
+        assert_eq!(
+            parse_search_action_payload(&unknown_key),
+            Err(SWITCHER_SEARCH_ACTION_PAYLOAD_ERROR)
+        );
     }
 
     #[test]

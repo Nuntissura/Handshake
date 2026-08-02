@@ -48,7 +48,7 @@ use handshake_native::rich_editor::document_model::node::{
 };
 use handshake_native::theme::HsTheme;
 
-use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use interconnect_support::{
     assert_no_local_artifact_dir, author_ids, event_ledger_payload, loom_ai_residue_counts,
     require_live_backend, save_rich_document_via_production_manager, write_immutable_external_json,
@@ -188,6 +188,57 @@ fn create_block(be: &LiveBackend, content_type: &str, title: &str) -> String {
         .or_else(|| block["id"].as_str())
         .expect("requires_pg: created block id")
         .to_owned()
+}
+
+fn quick_switcher_result_author_id(source_kind: &str, ref_id: &str) -> String {
+    let mut stable_ref_id = String::with_capacity(ref_id.len());
+    let mut last_dash = true;
+    for ch in ref_id.trim().to_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() {
+            stable_ref_id.push(ch);
+            last_dash = false;
+        } else if !last_dash {
+            stable_ref_id.push('-');
+            last_dash = true;
+        }
+    }
+    while stable_ref_id.ends_with('-') {
+        stable_ref_id.pop();
+    }
+    if stable_ref_id.is_empty() {
+        stable_ref_id.push_str("item");
+    }
+    format!("quick-switcher.option.{source_kind}.{stable_ref_id}")
+}
+
+fn json_author_ids_with_prefix(value: &serde_json::Value, prefix: &str) -> Vec<String> {
+    fn collect(value: &serde_json::Value, prefix: &str, found: &mut Vec<String>) {
+        match value {
+            serde_json::Value::Object(object) => {
+                if let Some(author_id) = object
+                    .get("author_id")
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|author_id| author_id.starts_with(prefix))
+                {
+                    found.push(author_id.to_owned());
+                }
+                for child in object.values() {
+                    collect(child, prefix, found);
+                }
+            }
+            serde_json::Value::Array(values) => {
+                for child in values {
+                    collect(child, prefix, found);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut found = Vec::new();
+    collect(value, prefix, &mut found);
+    found.sort();
+    found
 }
 
 fn is_typed_no_model_response(status: u16, body: &serde_json::Value) -> bool {
@@ -937,6 +988,7 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
     let backend_binding = backend.owned_backend_binding_receipt();
     const PROBE: &str = "MT046_ARGUS_IC14_SEARCH";
     let seeded_block = create_block(&backend, "note", PROBE);
+    let seeded_result_author_id = quick_switcher_result_author_id("loom_block", &seeded_block);
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -957,41 +1009,151 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(3);
 
-    // Opening the overlay is setup for the safe canonical action below. A menu row disappears as
-    // it opens the dialog, so clicking that transient row cannot yield the contract-required
-    // non-indeterminate Argus receipt. The shipped QuickSwitcher proof uses this same production
-    // open seam before steering the persistent search field through canonical Argus.
-    harness.state_mut().open_quick_switcher();
-    harness.run_steps(3);
-
-    let initial_frame = harness.render_proof_frame("IC-14 mounted quick-switcher initial tree");
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic14-quick-switcher");
-    let initial_tree = argus.inspect(&mut harness);
-    assert!(json_has_author_id(&initial_tree, SWITCHER_DIALOG_AUTHOR_ID));
-    assert!(json_has_author_id(&initial_tree, SWITCHER_SEARCH_AUTHOR_ID));
-
-    argus.set_value_and_reinspect(&mut harness, SWITCHER_SEARCH_AUTHOR_ID, PROBE);
-    for _ in 0..20 {
+    // Binding a managed workspace starts MT-064's pending-review refresh. Let that independent
+    // operation terminalize, then clear only its incidental failure notice before capturing or
+    // steering IC-14. The seam refuses to cancel a real proposal, submission, or review action.
+    let fems_notice_deadline = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
         harness.run_steps(1);
-        if argus
-            .inspect(&mut harness)
-            .to_string()
-            .contains(&seeded_block)
+        if harness
+            .state_mut()
+            .clear_incidental_fems_notice_for_integration_test()
         {
-            break;
+            harness.run_steps(1);
+            if harness
+                .state_mut()
+                .clear_incidental_fems_notice_for_integration_test()
+            {
+                break;
+            }
         }
-        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            std::time::Instant::now() < fems_notice_deadline,
+            "IC-14 timed out waiting for incidental FEMS notice to terminalize"
+        );
+        std::thread::sleep(Duration::from_millis(20));
     }
-    argus.assert_latest_terminal_predicate_with_evidence(
+
+    let initial_frame =
+        harness.render_proof_frame("IC-14 mounted shell before quick-switcher open");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic14-quick-switcher");
+    argus.inspect(&mut harness);
+    argus.click_and_reinspect(&mut harness, "menu-view");
+    argus.assert_latest_terminal_predicate(
         &mut harness,
-        "quick-switcher-search-terminal-result",
-        serde_json::json!({"seeded_block_id": seeded_block, "query": PROBE}),
-        |tree| tree.to_string().contains(PROBE),
+        "view-menu-exposes-quick-switcher",
+        |tree| json_has_author_id(tree, "menu.view.open-quick-switcher"),
+    );
+    argus.click_and_reinspect(&mut harness, "menu.view.open-quick-switcher");
+    let opened_tree = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "quick-switcher-open-terminal-mounted-controls",
+        |tree| {
+            json_has_author_id(tree, SWITCHER_DIALOG_AUTHOR_ID)
+                && json_has_author_id(tree, SWITCHER_SEARCH_AUTHOR_ID)
+        },
+    );
+    assert!(json_has_author_id(&opened_tree, SWITCHER_DIALOG_AUTHOR_ID));
+    assert!(json_has_author_id(&opened_tree, SWITCHER_SEARCH_AUTHOR_ID));
+    let dialog_frame = harness.render_proof_frame("IC-14 mounted quick-switcher dialog");
+    let query_before_rejected = json_node_by_author_id(&opened_tree, SWITCHER_SEARCH_AUTHOR_ID)
+        .and_then(|node| node.get("value"))
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let results_before_rejected = json_author_ids_with_prefix(
+        &opened_tree,
+        handshake_native::quick_switcher::ROW_AUTHOR_ID_PREFIX,
+    );
+
+    let rejected = argus.click_with_payload_expect_typed_rejected_and_reinspect(
+        &mut harness,
+        handshake_native::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+        serde_json::json!({
+            "query": PROBE,
+            "expected_result_author_id": seeded_result_author_id,
+            "unexpected": true,
+        }),
+        "payload must contain only non-empty query and expected_result_author_id",
+    );
+    let rejected_tree = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "malformed-search-rejected-without-seeded-result",
+        serde_json::json!({
+            "receipt_id": rejected.receipt_id,
+            "expected_absent_author_id": seeded_result_author_id,
+            "query_before_rejected": query_before_rejected.clone(),
+            "results_before_rejected": results_before_rejected.clone(),
+        }),
+        |tree| {
+            tree["action_receipts"].as_array().is_some_and(|receipts| {
+                receipts.iter().any(|receipt| {
+                    receipt["receipt_id"].as_u64() == Some(rejected.receipt_id)
+                        && receipt["status"].as_str() == Some("rejected")
+                })
+            }) && json_node_by_author_id(tree, SWITCHER_SEARCH_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .cloned()
+                .unwrap_or(serde_json::Value::Null)
+                == query_before_rejected
+                && json_author_ids_with_prefix(
+                    tree,
+                    handshake_native::quick_switcher::ROW_AUTHOR_ID_PREFIX,
+                ) == results_before_rejected
+                && !json_has_author_id(tree, &seeded_result_author_id)
+        },
+    );
+    assert!(
+        !json_has_author_id(&rejected_tree, &seeded_result_author_id),
+        "IC-14 malformed payload must not mount the seeded result"
+    );
+    assert_eq!(
+        json_node_by_author_id(&rejected_tree, SWITCHER_SEARCH_AUTHOR_ID)
+            .and_then(|node| node.get("value"))
+            .cloned()
+            .unwrap_or(serde_json::Value::Null),
+        query_before_rejected,
+        "IC-14 closed-schema rejection must not mutate the visible query"
+    );
+    assert_eq!(
+        json_author_ids_with_prefix(
+            &rejected_tree,
+            handshake_native::quick_switcher::ROW_AUTHOR_ID_PREFIX,
+        ),
+        results_before_rejected,
+        "IC-14 closed-schema rejection must not mutate the visible result set"
+    );
+    let search = argus.click_with_payload_expect_applied_and_reinspect(
+        &mut harness,
+        handshake_native::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+        serde_json::json!({
+            "query": PROBE,
+            "expected_result_author_id": seeded_result_author_id,
+        }),
+    );
+    let terminal_tree = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "search-applied-with-exact-seeded-result",
+        serde_json::json!({
+            "receipt_id": search.receipt_id,
+            "expected_result_author_id": seeded_result_author_id,
+        }),
+        |tree| {
+            tree["action_receipts"].as_array().is_some_and(|receipts| {
+                receipts.iter().any(|receipt| {
+                    receipt["receipt_id"].as_u64() == Some(search.receipt_id)
+                        && receipt["status"].as_str() == Some("applied")
+                })
+            }) && json_has_author_id(tree, &seeded_result_author_id)
+        },
+    );
+    assert!(
+        json_has_author_id(&terminal_tree, &seeded_result_author_id),
+        "IC-14 receipt-bound terminal tree must retain the exact seeded result row {seeded_result_author_id}"
     );
     let terminal_frame = harness.render_proof_frame("IC-14 quick-switcher terminal result tree");
     argus.finish_require_no_indeterminate();
 
-    assert!(initial_frame.is_some() && terminal_frame.is_some());
+    assert!(initial_frame.is_some() && dialog_frame.is_some() && terminal_frame.is_some());
     let proof_dir = interconnect_support::external_artifact_dir("canonical-argus")
         .join(std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID").expect("IC-14 matrix run id"))
         .join("IC-14");
@@ -1010,6 +1172,10 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
             "source_sha": std::env::var("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA").unwrap(),
             "process_correlation_id": std::env::var("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID").unwrap(),
             "workspace_id": workspace_id,
+            "query": PROBE,
+            "query_input_path": "canonical-argus.click-with-payload",
+            "seeded_block_id": seeded_block,
+            "seeded_result_author_id": seeded_result_author_id,
             "process_id": std::process::id(),
             "backend_binding": backend_binding,
             "runtime_diagnostics": runtime_diagnostics,

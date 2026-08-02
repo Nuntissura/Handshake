@@ -798,9 +798,9 @@ try {
             test_binary = 'test_interconnect_loom_backlink_search'
             test_name = 'supplemental_mt046_argus_ic14_quick_switcher_search'
             invocation = 'ignored-exact'
-            targets = @('menu-view', 'menu.view.open-quick-switcher', 'quick-switcher.search')
-            statuses = @('applied', 'applied', 'applied')
-            target_count = 3
+            targets = @('menu-view', 'menu.view.open-quick-switcher', 'quick-switcher.search-submit', 'quick-switcher.search-submit')
+            statuses = @('applied', 'applied', 'rejected', 'applied')
+            target_count = 4
             frame_count = 3
         },
         [ordered]@{

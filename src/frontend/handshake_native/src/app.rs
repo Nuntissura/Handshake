@@ -76,6 +76,18 @@ pub const MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID: &str =
 const MT036_FLIGHT_RECORDER_OPEN_EFFECT: &str = "mt036.open-flight-recorder";
 const MT036_FLIGHT_RECORDER_OPEN_CONTEXT: &str = "wp-kernel-012-mt-036-v4";
 
+/// MT-046 V4: app-owned completion for the transient EDIT/VIEW/GO menu leaves which mount the
+/// production Quick Switcher. The popup leaf disappears after dispatch, so the durable observer
+/// terminalizes the click only after the overlay's real dialog and search input are mounted.
+pub const MT046_QUICK_SWITCHER_OPEN_COMPLETION_AUTHOR_ID: &str =
+    "mt046.quick-switcher-open-completion";
+const MT046_QUICK_SWITCHER_OPEN_EFFECT: &str = "mt046.open-quick-switcher";
+const MT046_QUICK_SWITCHER_OPEN_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
+pub const MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID: &str =
+    "mt046.quick-switcher-search-completion";
+const MT046_QUICK_SWITCHER_SEARCH_EFFECT: &str = "mt046.search-quick-switcher";
+const MT046_QUICK_SWITCHER_SEARCH_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
+
 /// Stable observer node used to causally terminalize MT-042 graph-node navigation through Argus.
 pub const MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID: &str = "mt042.graph-open-completion";
 const MT042_GRAPH_OPEN_EFFECT: &str = "mt042.graph-open-node";
@@ -179,6 +191,345 @@ impl Mt036FlightRecorderOpenCompletion {
                 )
             }
             crate::mcp::action::ClickCompletionState::Failed => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt046QuickSwitcherOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    target: Option<String>,
+    semantic: Option<String>,
+    expected_open_count: Option<u64>,
+    terminal_detail: Option<String>,
+}
+
+impl Default for Mt046QuickSwitcherOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            target: None,
+            semantic: None,
+            expected_open_count: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl Mt046QuickSwitcherOpenCompletion {
+    fn semantic(target: &str) -> String {
+        serde_json::json!({
+            "action": "open-quick-switcher",
+            "target": target,
+            "expected_dialog": crate::quick_switcher::SWITCHER_DIALOG_AUTHOR_ID,
+            "expected_search": crate::quick_switcher::SWITCHER_SEARCH_AUTHOR_ID,
+        })
+        .to_string()
+    }
+
+    fn declaration(&self, target: &str) -> Option<String> {
+        (self.state != crate::mcp::action::ClickCompletionState::Pending)
+            .then(|| {
+                crate::mcp::action::serialize_observer_click_target(
+                    MT046_QUICK_SWITCHER_OPEN_EFFECT,
+                    MT046_QUICK_SWITCHER_OPEN_CONTEXT,
+                    self.generation,
+                    MT046_QUICK_SWITCHER_OPEN_COMPLETION_AUTHOR_ID,
+                    &Self::semantic(target),
+                )
+            })
+            .flatten()
+    }
+
+    fn begin(&mut self, target: &str, expected_open_count: u64) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.target = Some(target.to_owned());
+        self.semantic = Some(Self::semantic(target));
+        self.expected_open_count = Some(expected_open_count);
+        self.terminal_detail = None;
+    }
+
+    fn complete_if_mounted(
+        &mut self,
+        overlay_open: bool,
+        open_count: u64,
+        dialog_mounted: bool,
+        search_mounted: bool,
+    ) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending
+            && overlay_open
+            && self.expected_open_count == Some(open_count)
+            && dialog_mounted
+            && search_mounted
+        {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "quick_switcher_open": true,
+                    "quick_switcher_open_count": open_count,
+                    "dialog_author_id": crate::quick_switcher::SWITCHER_DIALOG_AUTHOR_ID,
+                    "search_author_id": crate::quick_switcher::SWITCHER_SEARCH_AUTHOR_ID,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT046_QUICK_SWITCHER_OPEN_EFFECT,
+                    MT046_QUICK_SWITCHER_OPEN_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.target.as_deref(),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT046_QUICK_SWITCHER_OPEN_EFFECT,
+                    MT046_QUICK_SWITCHER_OPEN_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt046QuickSwitcherSearchCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    query: Option<String>,
+    expected_result_author_id: Option<String>,
+    dispatched_search_sequence: Option<u64>,
+    semantic: Option<String>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl Default for Mt046QuickSwitcherSearchCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            query: None,
+            expected_result_author_id: None,
+            dispatched_search_sequence: None,
+            semantic: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt046QuickSwitcherSearchCompletion {
+    fn semantic() -> String {
+        serde_json::json!({
+            "action": "search-quick-switcher",
+            "target": crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+            "payload_schema": ["query", "expected_result_author_id"],
+        })
+        .to_string()
+    }
+
+    fn declaration(&self) -> Option<String> {
+        let default_semantic = Self::semantic();
+        crate::mcp::action::serialize_persistent_observer_click_target(
+            MT046_QUICK_SWITCHER_SEARCH_EFFECT,
+            MT046_QUICK_SWITCHER_SEARCH_CONTEXT,
+            self.generation,
+            MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID,
+            self.semantic.as_deref().unwrap_or(&default_semantic),
+        )
+    }
+
+    fn begin(
+        &mut self,
+        payload: Option<String>,
+        semantic: String,
+        explicit_submission: Option<(String, u64)>,
+    ) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.semantic = Some(semantic);
+        self.query = None;
+        self.expected_result_author_id = None;
+        self.dispatched_search_sequence = None;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+
+        let parsed = payload
+            .as_deref()
+            .ok_or(crate::quick_switcher::SWITCHER_SEARCH_ACTION_PAYLOAD_ERROR)
+            .and_then(crate::quick_switcher::parse_search_action_payload);
+        let Ok(parsed) = parsed else {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error =
+                Some(crate::quick_switcher::SWITCHER_SEARCH_ACTION_PAYLOAD_ERROR.to_owned());
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "payload_present": payload.is_some(),
+                    "payload_bytes": payload.as_deref().map_or(0, str::len),
+                    "payload_omitted": true,
+                })
+                .to_string(),
+            );
+            return;
+        };
+        self.query = Some(parsed.query.clone());
+        self.expected_result_author_id = Some(parsed.expected_result_author_id);
+        match explicit_submission.as_ref() {
+            Some((query, sequence)) if query == &parsed.query => {
+                self.dispatched_search_sequence = Some(*sequence);
+            }
+            _ => {
+                self.state = crate::mcp::action::ClickCompletionState::Failed;
+                self.terminal_error = Some(
+                    "valid quick-switcher search payload did not create a fresh explicit dispatch"
+                        .to_owned(),
+                );
+                self.terminal_detail = Some(
+                    serde_json::json!({
+                        "query": parsed.query,
+                        "explicit_submission": explicit_submission,
+                    })
+                    .to_string(),
+                );
+            }
+        }
+    }
+
+    fn observe_dispatch_and_delivery(
+        &mut self,
+        overlay_open: bool,
+        snapshot_query: &str,
+        search: &crate::quick_switcher::SearchManager,
+        snapshot: &crate::accessibility::UiTreeSnapshot,
+    ) {
+        if self.state != crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        let Some(query) = self.query.as_deref() else {
+            return;
+        };
+        let Some(expected) = self.expected_result_author_id.as_deref() else {
+            return;
+        };
+
+        let Some(sequence) = self.dispatched_search_sequence else {
+            return;
+        };
+        if search.completed_sequence() != Some(sequence) {
+            return;
+        }
+
+        let match_count = snapshot.author_id_match_count(expected);
+        if overlay_open && snapshot_query == query && search.error().is_none() && match_count == 1 {
+            let result = snapshot
+                .find_unique_by_author_id(expected)
+                .expect("one exact Quick Switcher result in captured snapshot");
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "query": query,
+                    "search_sequence": sequence,
+                    "completed_sequence": search.completed_sequence(),
+                    "expected_result_author_id": expected,
+                    "mounted_visible_unique": true,
+                    "mounted_result_node_id": result.node_id,
+                    "mounted_result_role": result.role,
+                    "mounted_result_label": result.label,
+                })
+                .to_string(),
+            );
+            return;
+        }
+
+        self.state = crate::mcp::action::ClickCompletionState::Failed;
+        self.terminal_error = Some(match search.error() {
+            Some(error) => format!("quick-switcher search delivery failed: {error}"),
+            None if !overlay_open => {
+                "quick-switcher closed before search delivery mounted".to_owned()
+            }
+            None if snapshot_query != query => {
+                "quick-switcher query changed before search delivery mounted".to_owned()
+            }
+            None if match_count == 0 => {
+                "expected quick-switcher result was absent from the captured AccessKit snapshot"
+                    .to_owned()
+            }
+            None => {
+                "expected quick-switcher result was not unique in the captured AccessKit snapshot"
+                    .to_owned()
+            }
+        });
+        self.terminal_detail = Some(
+            serde_json::json!({
+                "query": query,
+                "search_sequence": sequence,
+                "completed_sequence": search.completed_sequence(),
+                "expected_result_author_id": expected,
+                "captured_snapshot_match_count": match_count,
+                "overlay_open": overlay_open,
+                "snapshot_query": snapshot_query,
+                "delivery_error": search.error(),
+            })
+            .to_string(),
+        );
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT046_QUICK_SWITCHER_SEARCH_EFFECT,
+                    MT046_QUICK_SWITCHER_SEARCH_CONTEXT,
+                    self.generation,
+                    self.state,
+                    (self.state == crate::mcp::action::ClickCompletionState::Pending)
+                        .then_some(crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT046_QUICK_SWITCHER_SEARCH_EFFECT,
+                    MT046_QUICK_SWITCHER_SEARCH_CONTEXT,
+                    self.generation,
+                    crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT046_QUICK_SWITCHER_SEARCH_EFFECT,
+                    MT046_QUICK_SWITCHER_SEARCH_CONTEXT,
+                    self.generation,
+                    crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+                    self.semantic.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
         }
     }
 }
@@ -3408,6 +3759,10 @@ pub struct HandshakeApp {
     /// Last rendered query retained so canonical MCP capture on a fresh egui context reproduces the
     /// same visible result rows instead of silently reverting the dynamic overlay to an empty query.
     quick_switcher_snapshot_query: String,
+    /// The exact query + sequence created by the latest explicit Search-button submission. MT-046's
+    /// completion observer consumes this once, preventing an older debounced query/result from
+    /// satisfying a later parameterized model action.
+    quick_switcher_explicit_search_submission: Option<(String, u64)>,
     /// The Loom-graph search transport the quick switcher (MT-017) drives: `GET graph-search`,
     /// `GET/POST quick-switcher/recents` against the REAL PostgreSQL backend. A synchronous seam
     /// ([`crate::quick_switcher::LoomGraphSearchTransport`]) so the search state machine stays
@@ -3797,6 +4152,10 @@ pub struct HandshakeApp {
     mt035_argus_action_completion: Mt035ArgusActionCompletion,
     /// MT-036 V4 action completion for the transient menu leaf which mounts Flight Recorder.
     mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion,
+    /// MT-046 V4 action completion for the transient menu leaves which mount Quick Switcher.
+    mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion,
+    /// MT-046 V4 payload-bound completion for a Quick Switcher query and exact mounted result.
+    mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion,
     /// MT-042 V4 app-owned terminal observer for exact graph-node document navigation.
     mt042_graph_open_completion: Mt042GraphOpenCompletion,
     /// MT-027: the per-session HMAC token gating every MCP request. Generated at startup; written into
@@ -5348,6 +5707,7 @@ impl HandshakeApp {
             quick_switcher_open: false,
             quick_switcher_open_count: 0,
             quick_switcher_snapshot_query: String::new(),
+            quick_switcher_explicit_search_submission: None,
             quick_switcher_transport,
             quick_switcher_search: crate::quick_switcher::SearchManager::default(),
             quick_switcher_results_cell: Arc::new(Mutex::new(None)),
@@ -5481,6 +5841,8 @@ impl HandshakeApp {
             mt034_last_resolved_code_ref: None,
             mt035_argus_action_completion: Mt035ArgusActionCompletion::default(),
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
+            mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
+            mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
@@ -7478,6 +7840,120 @@ impl HandshakeApp {
         }
     }
 
+    fn project_mt046_quick_switcher_open_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        let dialog_mounted = snapshot.iter_nodes().any(|node| {
+            node.author_id.as_deref() == Some(crate::quick_switcher::SWITCHER_DIALOG_AUTHOR_ID)
+        });
+        let search_mounted = snapshot.iter_nodes().any(|node| {
+            node.author_id.as_deref() == Some(crate::quick_switcher::SWITCHER_SEARCH_AUTHOR_ID)
+        });
+        self.mt046_quick_switcher_open_completion
+            .complete_if_mounted(
+                self.quick_switcher_open,
+                self.quick_switcher_open_count,
+                dialog_mounted,
+                search_mounted,
+            );
+
+        for target in [
+            "menu.edit.quick-switcher",
+            "menu.view.open-quick-switcher",
+            "menu.go.quick-switcher",
+        ] {
+            if let Some(value) = self
+                .mt046_quick_switcher_open_completion
+                .declaration(target)
+            {
+                mt033_set_snapshot_node_value(&mut snapshot.root, target, &value);
+            }
+        }
+
+        if let Some(value) = self.mt046_quick_switcher_open_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT046_QUICK_SWITCHER_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT046_QUICK_SWITCHER_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT046_QUICK_SWITCHER_OPEN_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-046 Quick Switcher open completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    fn project_mt046_quick_switcher_search_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        if self.mt046_quick_switcher_search_completion.state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((target, payload, semantic)) = activation {
+                let expected_semantic = Mt046QuickSwitcherSearchCompletion::semantic();
+                if target == crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID
+                    && semantic.as_deref() == Some(expected_semantic.as_str())
+                {
+                    let explicit_submission = self.quick_switcher_explicit_search_submission.take();
+                    self.mt046_quick_switcher_search_completion.begin(
+                        payload,
+                        expected_semantic,
+                        explicit_submission,
+                    );
+                }
+            }
+        }
+
+        self.mt046_quick_switcher_search_completion
+            .observe_dispatch_and_delivery(
+                self.quick_switcher_open,
+                &self.quick_switcher_snapshot_query,
+                &self.quick_switcher_search,
+                snapshot,
+            );
+
+        if let Some(value) = self.mt046_quick_switcher_search_completion.declaration() {
+            mt033_set_snapshot_node_value(
+                &mut snapshot.root,
+                crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+                &value,
+            );
+        }
+        if let Some(value) = self.mt046_quick_switcher_search_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID)
+                        .value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-046 Quick Switcher search completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
     /// Capture the live UI tree into the shared MCP snapshot slot. Runs `ui()` once on a fresh
     /// AccessKit-enabled context with `capturing_snapshot` set, so the async pollers / event drains /
     /// layout scheduler are skipped (no double side effects); the resulting `accesskit::TreeUpdate` is
@@ -7522,6 +7998,8 @@ impl HandshakeApp {
             self.project_mt034_argus_completion(&mut snapshot);
             self.project_mt035_argus_completion(&mut snapshot);
             self.project_mt036_flight_recorder_open_completion(&mut snapshot);
+            self.project_mt046_quick_switcher_open_completion(&mut snapshot);
+            self.project_mt046_quick_switcher_search_completion(&mut snapshot);
             self.project_mt042_graph_open_completion(&mut snapshot);
             match self.mcp_action_channel.lock() {
                 Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
@@ -7696,6 +8174,7 @@ impl HandshakeApp {
             quick_switcher_open: false,
             quick_switcher_open_count: 0,
             quick_switcher_snapshot_query: String::new(),
+            quick_switcher_explicit_search_submission: None,
             // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub
             // via `set_quick_switcher_transport`; without one, the switcher shows the empty/no-result
             // state and never performs I/O.
@@ -7829,6 +8308,8 @@ impl HandshakeApp {
             mt034_last_resolved_code_ref: None,
             mt035_argus_action_completion: Mt035ArgusActionCompletion::default(),
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
+            mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
+            mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
@@ -11346,10 +11827,28 @@ impl HandshakeApp {
     /// generation, so it does not wipe an in-progress query). The GO menu, the Ctrl+P chord, and tests
     /// all route through here.
     pub fn open_quick_switcher(&mut self) {
+        let attributed_target = self.mt033_dispatched_target().filter(|target| {
+            matches!(
+                target.as_str(),
+                "menu.edit.quick-switcher"
+                    | "menu.view.open-quick-switcher"
+                    | "menu.go.quick-switcher"
+            )
+        });
+        if let Some(target) = attributed_target {
+            let expected_open_count = if self.quick_switcher_open {
+                self.quick_switcher_open_count
+            } else {
+                self.quick_switcher_open_count.wrapping_add(1)
+            };
+            self.mt046_quick_switcher_open_completion
+                .begin(&target, expected_open_count);
+        }
         if !self.quick_switcher_open {
             self.quick_switcher_open = true;
             self.quick_switcher_open_count = self.quick_switcher_open_count.wrapping_add(1);
             self.quick_switcher_snapshot_query.clear();
+            self.quick_switcher_explicit_search_submission = None;
             // Fire the durable recents load once on this open (red-team: load on open, not per-frame).
             self.quick_switcher_recents_pending = true;
             // Fresh open: clear the previous open's search state so a re-open starts clean.
@@ -14303,6 +14802,7 @@ impl HandshakeApp {
     /// after a jump. Safe to call when already closed.
     pub fn close_quick_switcher(&mut self) {
         self.quick_switcher_open = false;
+        self.quick_switcher_explicit_search_submission = None;
     }
 
     /// Toggle the quick switcher open/closed (MT-017 Ctrl+P chord). Opening bumps the open generation
@@ -14822,17 +15322,25 @@ impl HandshakeApp {
                 recents_error: self.quick_switcher_recents_error.as_deref(),
             },
         );
-        if !self.capturing_snapshot {
+        if !self.capturing_snapshot || frame.search_submitted {
             self.quick_switcher_snapshot_query = frame.query.clone();
         }
 
-        // 5. Tick the debounce state machine with the live query; spawn the search when it says Fire
-        //    (red-team MC4: only with a workspace).
+        // 5. An explicit Search-button submission creates a fresh sequence immediately; ordinary text
+        //    edits retain the 150 ms debounce. Both paths use the same off-frame transport and delivery
+        //    gate (red-team MC4: only with a workspace).
         let trimmed = frame.query.trim().to_owned();
-        let action =
+        let explicit_submission = frame.search_submitted;
+        let action = if explicit_submission {
+            self.quick_switcher_search.submit(&trimmed, has_workspace)
+        } else {
             self.quick_switcher_search
-                .tick(&trimmed, has_workspace, std::time::Instant::now());
+                .tick(&trimmed, has_workspace, std::time::Instant::now())
+        };
         if let crate::quick_switcher::SearchAction::Fire { query, sequence } = action {
+            if explicit_submission {
+                self.quick_switcher_explicit_search_submission = Some((query.clone(), sequence));
+            }
             if let (Some(transport), Some(handle)) = (
                 self.quick_switcher_transport.clone(),
                 self.runtime_handle.clone(),
@@ -14845,6 +15353,15 @@ impl HandshakeApp {
                         *slot = Some(crate::quick_switcher::SearchDelivery { sequence, outcome });
                     }
                 });
+            } else {
+                let _accepted =
+                    self.quick_switcher_search
+                        .drain(crate::quick_switcher::SearchDelivery {
+                            sequence,
+                            outcome: Err(
+                                "Quick Switcher search transport is unavailable".to_owned()
+                            ),
+                        });
             }
             ctx.request_repaint();
         } else if self.quick_switcher_search.loading()
@@ -17555,6 +18072,15 @@ impl HandshakeApp {
     }
 
     fn close_open_top_menu_after_leaf(&mut self, ctx: &egui::Context) {
+        // A model leaf can dispatch while `refresh_mcp_snapshot` renders its isolated context. Close
+        // the corresponding popup in the stored live frame as well; otherwise the next live frame
+        // observes that stale popup and resurrects `mcp_open_top_menu`, leaving the newly opened
+        // overlay disabled behind it.
+        if self.capturing_snapshot {
+            if let Some(live_ctx) = self.frame_ctx.clone() {
+                crate::top_menu_bar::close_all_menu_popups(&live_ctx);
+            }
+        }
         crate::top_menu_bar::close_all_menu_popups(ctx);
         self.mcp_open_top_menu = None;
         self.mcp_open_top_menu_state = None;
@@ -30559,19 +31085,251 @@ mod mt033_argus_causality_and_menu_tests {
 
     #[test]
     fn dispatched_leaf_closes_actual_popup_and_persisted_mcp_menu_state() {
-        let ctx = egui::Context::default();
+        let live_ctx = egui::Context::default();
+        let snapshot_ctx = egui::Context::default();
         let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
         let menu = crate::top_menu_bar::MenuId::Editors;
         app.mcp_open_top_menu = Some(menu);
-        app.mcp_open_top_menu_state = Some(app.menu_bar_state(&ctx));
-        crate::top_menu_bar::set_menu_popup_open(&ctx, menu, true);
-        assert_eq!(crate::top_menu_bar::open_menu(&ctx), Some(menu));
+        app.mcp_open_top_menu_state = Some(app.menu_bar_state(&live_ctx));
+        app.frame_ctx = Some(live_ctx.clone());
+        app.capturing_snapshot = true;
+        crate::top_menu_bar::set_menu_popup_open(&live_ctx, menu, true);
+        crate::top_menu_bar::set_menu_popup_open(&snapshot_ctx, menu, true);
+        assert_eq!(crate::top_menu_bar::open_menu(&live_ctx), Some(menu));
+        assert_eq!(crate::top_menu_bar::open_menu(&snapshot_ctx), Some(menu));
 
-        app.close_open_top_menu_after_leaf(&ctx);
+        app.close_open_top_menu_after_leaf(&snapshot_ctx);
 
-        assert!(crate::top_menu_bar::open_menu(&ctx).is_none());
+        assert!(crate::top_menu_bar::open_menu(&live_ctx).is_none());
+        assert!(crate::top_menu_bar::open_menu(&snapshot_ctx).is_none());
         assert!(app.mcp_open_top_menu.is_none());
         assert!(app.mcp_open_top_menu_state.is_none());
+    }
+
+    #[test]
+    fn quick_switcher_search_action_is_enabled_in_canonical_snapshot() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.bind_active_project_for_integration_test("workspace-mt046-search");
+        app.open_quick_switcher();
+
+        let snapshot = app.capture_mcp_snapshot_for_navigation();
+        let node = snapshot
+            .find_unique_by_author_id(crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID)
+            .expect("Quick Switcher search action is uniquely mounted");
+
+        assert!(
+            !node.disabled,
+            "mounted Quick Switcher search action: {node:?}"
+        );
+        assert!(node.actions.iter().any(|action| action == "Click"));
+    }
+
+    #[test]
+    fn quick_switcher_search_action_is_disabled_without_workspace() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.set_active_project_id_for_test("");
+        app.open_quick_switcher();
+
+        let snapshot = app.capture_mcp_snapshot_for_navigation();
+        let node = snapshot
+            .find_unique_by_author_id(crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID)
+            .expect("Quick Switcher search action remains visibly mounted");
+        assert!(
+            node.disabled,
+            "search cannot run without a workspace: {node:?}"
+        );
+    }
+
+    fn mt046_search_snapshot(
+        expected_result_author_id: Option<&str>,
+    ) -> crate::accessibility::UiTreeSnapshot {
+        let children = expected_result_author_id
+            .into_iter()
+            .map(|author_id| crate::accessibility::UiTreeNode {
+                id: author_id.to_owned(),
+                author_id: Some(author_id.to_owned()),
+                node_id: 46,
+                role: "ListBoxOption".to_owned(),
+                label: Some("MT-046 current result".to_owned()),
+                value: None,
+                disabled: false,
+                actions: vec!["Click".to_owned()],
+                bounds: None,
+                children: Vec::new(),
+            })
+            .collect::<Vec<_>>();
+        crate::accessibility::UiTreeSnapshot {
+            widget_count: children.len() + 1,
+            captured_at_utc: "mt046-test".to_owned(),
+            root: crate::accessibility::UiTreeNode {
+                id: "root".to_owned(),
+                author_id: None,
+                node_id: 1,
+                role: "Window".to_owned(),
+                label: None,
+                value: None,
+                disabled: false,
+                actions: Vec::new(),
+                bounds: None,
+                children,
+            },
+        }
+    }
+
+    fn mt046_search_hit(ref_id: &str) -> crate::quick_switcher::LoomGraphSearchHit {
+        crate::quick_switcher::LoomGraphSearchHit {
+            result_kind: "loom_block".to_owned(),
+            source_kind: "loom_block".to_owned(),
+            ref_id: ref_id.to_owned(),
+            title: "MT-046 current result".to_owned(),
+            excerpt: String::new(),
+            block: serde_json::Value::Null,
+            score: 1.0,
+            metadata: serde_json::Value::Null,
+        }
+    }
+
+    #[test]
+    fn quick_switcher_completion_requires_fresh_matching_delivery_and_captured_row() {
+        const QUERY: &str = "MT046 current result";
+        const EXPECTED: &str = "quick-switcher.option.loom_block.current-result";
+        let payload = serde_json::json!({
+            "query": QUERY,
+            "expected_result_author_id": EXPECTED,
+        })
+        .to_string();
+        let semantic = Mt046QuickSwitcherSearchCompletion::semantic();
+        let snapshot = mt046_search_snapshot(Some(EXPECTED));
+        let mut search = crate::quick_switcher::SearchManager::default();
+
+        let stale_sequence = match search.submit(QUERY, true) {
+            crate::quick_switcher::SearchAction::Fire { sequence, .. } => sequence,
+            crate::quick_switcher::SearchAction::Idle => panic!("first search fires"),
+        };
+        assert!(search.drain(crate::quick_switcher::SearchDelivery {
+            sequence: stale_sequence,
+            outcome: Ok(vec![mt046_search_hit("current-result")]),
+        }));
+
+        let fresh_sequence = match search.submit(QUERY, true) {
+            crate::quick_switcher::SearchAction::Fire { sequence, .. } => sequence,
+            crate::quick_switcher::SearchAction::Idle => panic!("fresh explicit search fires"),
+        };
+        let mut completion = Mt046QuickSwitcherSearchCompletion::default();
+        completion.begin(
+            Some(payload),
+            semantic,
+            Some((QUERY.to_owned(), fresh_sequence)),
+        );
+        completion.observe_dispatch_and_delivery(true, QUERY, &search, &snapshot);
+        assert_eq!(
+            completion.state,
+            crate::mcp::action::ClickCompletionState::Pending,
+            "the visible row delivered by the stale sequence cannot satisfy the fresh action"
+        );
+
+        assert!(search.drain(crate::quick_switcher::SearchDelivery {
+            sequence: fresh_sequence,
+            outcome: Ok(vec![mt046_search_hit("current-result")]),
+        }));
+        completion.observe_dispatch_and_delivery(true, QUERY, &search, &snapshot);
+        assert_eq!(
+            completion.state,
+            crate::mcp::action::ClickCompletionState::Applied
+        );
+        assert!(completion
+            .terminal_detail
+            .as_deref()
+            .is_some_and(|detail| detail.contains("mounted_result_node_id")));
+    }
+
+    #[test]
+    fn quick_switcher_completion_terminalizes_absent_row_and_backend_error() {
+        const QUERY: &str = "MT046 current result";
+        const EXPECTED: &str = "quick-switcher.option.loom_block.current-result";
+        let payload = || {
+            serde_json::json!({
+                "query": QUERY,
+                "expected_result_author_id": EXPECTED,
+            })
+            .to_string()
+        };
+
+        for outcome in [
+            Ok(Vec::new()),
+            Err("backend unavailable for exact search generation".to_owned()),
+        ] {
+            let mut search = crate::quick_switcher::SearchManager::default();
+            let sequence = match search.submit(QUERY, true) {
+                crate::quick_switcher::SearchAction::Fire { sequence, .. } => sequence,
+                crate::quick_switcher::SearchAction::Idle => panic!("explicit search fires"),
+            };
+            let mut completion = Mt046QuickSwitcherSearchCompletion::default();
+            completion.begin(
+                Some(payload()),
+                Mt046QuickSwitcherSearchCompletion::semantic(),
+                Some((QUERY.to_owned(), sequence)),
+            );
+            assert!(search.drain(crate::quick_switcher::SearchDelivery { sequence, outcome }));
+            completion.observe_dispatch_and_delivery(
+                true,
+                QUERY,
+                &search,
+                &mt046_search_snapshot(None),
+            );
+            assert_eq!(
+                completion.state,
+                crate::mcp::action::ClickCompletionState::Failed,
+                "current delivery without the exact captured row must terminalize"
+            );
+            assert!(completion.terminal_error.is_some());
+        }
+    }
+
+    #[test]
+    fn oversized_malformed_quick_switcher_payload_terminalizes_rejected() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.bind_active_project_for_integration_test("workspace-mt046-oversized");
+        app.open_quick_switcher();
+        let initial = app.capture_mcp_snapshot_for_navigation();
+        let payload = "x".repeat(1024 * 1024);
+
+        let receipt_id = {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            let outcome = channel
+                .enqueue(
+                    &initial,
+                    crate::quick_switcher::SWITCHER_SEARCH_ACTION_AUTHOR_ID,
+                    crate::mcp::action::UiAction::ClickWithPayload { payload },
+                )
+                .expect("one-MiB payload is admitted by the action channel boundary");
+            assert_eq!(channel.drain_revalidated_into_events(&initial).len(), 1);
+            outcome.receipt_id
+        };
+
+        let terminal = app.capture_mcp_snapshot_for_navigation();
+        let observer = terminal
+            .find_unique_by_author_id(MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID)
+            .expect("oversized malformed action retains its exact failure observer");
+        let observer_value = observer.value.as_deref().expect("serialized failure token");
+        assert!(observer_value.len() < 2048);
+        assert!(observer_value.contains("payload_bytes"));
+        assert!(!observer_value.contains(&"x".repeat(256)));
+
+        let receipt = app
+            .mcp_action_channel
+            .lock()
+            .expect("action channel")
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("exact oversized-payload receipt");
+        assert_eq!(
+            receipt.status,
+            crate::mcp::action::ActionReceiptStatus::Rejected
+        );
+        assert!(receipt.rejection.as_deref().is_some_and(|reason| reason
+            .contains("payload must contain only non-empty query and expected_result_author_id")));
     }
 }
 
