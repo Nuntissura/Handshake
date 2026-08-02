@@ -382,6 +382,32 @@ fn symbol_matches_exact_path_name(
         && !symbol.symbol_entity_id.trim().is_empty()
 }
 
+/// Whether a resolved backend projection is the exact symbol reference the operator requested.
+///
+/// Persisted rich-note links may carry either the backend's opaque entity id or the authored
+/// `<path>#<name>` identity. The latter resolves to an opaque id, so completion observers must compare
+/// it against the canonical `symbol_key` instead of requiring the returned id to equal the authored
+/// reference. Exact path and name matching keeps a same-named symbol in another file from satisfying
+/// the action receipt.
+pub(crate) fn code_ref_matches_requested_ref(code_ref: &CodeRef, requested_ref: &str) -> bool {
+    let requested_ref = requested_ref.trim();
+    if requested_ref.is_empty() {
+        return false;
+    }
+    if code_ref.symbol_entity_id == requested_ref {
+        return true;
+    }
+    let Some((requested_path, requested_name)) = parse_path_symbol_ref(requested_ref) else {
+        return false;
+    };
+    let Some((resolved_path, resolved_name)) = parse_path_symbol_ref(&code_ref.symbol_key) else {
+        return false;
+    };
+    normalized_symbol_path(resolved_path) == normalized_symbol_path(requested_path)
+        && normalized_symbol_path(&code_ref.file_path) == normalized_symbol_path(requested_path)
+        && resolved_name == requested_name
+}
+
 fn code_ref_from_symbol(
     requested_ref: &str,
     symbol: CodeSymbolNavProjection,
@@ -1352,6 +1378,40 @@ mod tests {
             &exact,
             "src/target.rs",
             "Symbol"
+        ));
+    }
+
+    #[test]
+    fn resolved_code_ref_matches_opaque_id_or_exact_authored_path_and_name() {
+        let resolved = CodeRef {
+            symbol_entity_id: "KEN-OPAQUE".to_owned(),
+            symbol_key: "rust:ic06_fixture_src/lib.rs#my_function".to_owned(),
+            source_id: "KSRC-1".to_owned(),
+            file_path: "ic06_fixture_src/lib.rs".to_owned(),
+            line_start: 6,
+            line_end: 8,
+        };
+
+        assert!(code_ref_matches_requested_ref(&resolved, "KEN-OPAQUE"));
+        assert!(code_ref_matches_requested_ref(
+            &resolved,
+            r"ic06_fixture_src\lib.rs#my_function"
+        ));
+        assert!(!code_ref_matches_requested_ref(
+            &resolved,
+            "ic06_fixture_src/other.rs#my_function"
+        ));
+        assert!(!code_ref_matches_requested_ref(
+            &resolved,
+            "ic06_fixture_src/lib.rs#other_function"
+        ));
+        assert!(!code_ref_matches_requested_ref(&resolved, "KEN-OTHER"));
+
+        let mut inconsistent = resolved;
+        inconsistent.file_path = "ic06_fixture_src/other.rs".to_owned();
+        assert!(!code_ref_matches_requested_ref(
+            &inconsistent,
+            "ic06_fixture_src/lib.rs#my_function"
         ));
     }
 

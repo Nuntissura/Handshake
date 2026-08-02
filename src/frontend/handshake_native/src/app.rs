@@ -6439,7 +6439,14 @@ impl HandshakeApp {
             let Some(code_ref) = self.mt034_last_resolved_code_ref.as_ref() else {
                 return;
             };
-            if code_ref.symbol_entity_id != symbol_entity_id {
+            // A rich-note code chip may carry an authored `<path>#<name>` reference. Resolution
+            // returns the backend's opaque entity id, so terminalize against the exact canonical
+            // symbol identity while the current-operation guard in `drain_code_ref_navigation`
+            // prevents an unrelated navigation delivery from populating this completion state.
+            if !crate::interop::cross_ref::code_ref_matches_requested_ref(
+                code_ref,
+                symbol_entity_id,
+            ) {
                 return;
             }
             let panel = self.active_mounted_code_panel();
