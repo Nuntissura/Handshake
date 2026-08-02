@@ -13,13 +13,16 @@
 //! ## Artifact hygiene (CX-212E, HARD)
 //! No artifact is ever written under `src/`. The hygiene guard fails the run on a repo-local artifact dir.
 
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::created_canvas_placement_from_response;
@@ -43,10 +46,12 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
 use handshake_native::stage_pane::{StageContent, STAGE_ROUTED_CONTENT_AUTHOR_ID};
 use handshake_native::tab_bar::TabState;
 
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use interconnect_support::{
     assert_no_local_artifact_dir, author_node_value, require_live_backend,
     save_rich_document_via_production_manager, ScenarioAttempt,
 };
+use screenshot_harness::ScreenshotHarness;
 
 fn pane(id: &str) -> PaneId {
     Arc::from(id)
@@ -180,7 +185,8 @@ fn interconnect_ic05_route_selection_to_stage() {
     app.set_active_pane_for_test(Some(rich_pane));
     let rich_state = app.mounted_rich_state();
     let stage = app.mounted_stage();
-    let mut harness = Harness::builder()
+    let mut harness = ScreenshotHarness::builder()
+        .proof_mt_id("MT-046")
         .with_size(egui::vec2(1100.0, 760.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(3);
@@ -209,6 +215,7 @@ fn interconnect_ic05_route_selection_to_stage() {
         );
     }
     harness.run_steps(1);
+    let initial_frame = harness.render_proof_frame("IC-05 initial mounted editors tree");
     let bus = InteractionBus::get_or_init(&harness.ctx);
     let (published_selection, published_focus) = {
         let bus = bus.lock().unwrap();
@@ -227,20 +234,16 @@ fn interconnect_ic05_route_selection_to_stage() {
          selection={published_selection:?}, focus={published_focus:?}"
     );
 
-    let editors_menu_id = harness
-        .root()
-        .children_recursive()
-        .find(|node| node.accesskit_node().author_id() == Some("menu-editors"))
-        .map(|node| node.accesskit_node().id())
-        .expect("IC-05: mounted EDITORS MenuItem has stable author_id");
-    harness.event(egui::Event::AccessKitActionRequest(
-        egui::accesskit::ActionRequest {
-            action: egui::accesskit::Action::Click,
-            target: editors_menu_id,
-            data: None,
-        },
-    ));
-    harness.run_steps(2);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic05-route-selection");
+    let initial_tree = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial_tree, "menu-editors"));
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu-editors");
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "editors-menu-open-route-action-visible",
+        |tree| json_has_author_id(tree, "menu.editors.route-to-stage"),
+    );
+    let menu_frame = harness.render_proof_frame("IC-05 editors menu action tree");
     let route_menu = harness
         .root()
         .children_recursive()
@@ -256,14 +259,19 @@ fn interconnect_ic05_route_selection_to_stage() {
         !route_menu.1,
         "IC-05: rich selection enables Route to Stage"
     );
-    harness.event(egui::Event::AccessKitActionRequest(
-        egui::accesskit::ActionRequest {
-            action: egui::accesskit::Action::Click,
-            target: route_menu.0,
-            data: None,
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu.editors.route-to-stage");
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "selection-routed-to-stage-terminal-tree",
+        |tree| {
+            json_node_by_author_id(tree, STAGE_ROUTED_CONTENT_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains(SELECTED))
         },
-    ));
-    harness.run_steps(5);
+    );
+    let terminal_frame = harness.render_proof_frame("IC-05 routed Stage terminal tree");
+    argus.finish_require_no_indeterminate();
 
     assert!(
         bus.lock()
@@ -294,6 +302,15 @@ fn interconnect_ic05_route_selection_to_stage() {
         "shared_app_bus": true,
         "production_accesskit_author_id": STAGE_ROUTED_CONTENT_AUTHOR_ID,
         "manual_pending_route_drain": false,
+        "argus": {
+            "initial_tree": true,
+            "stable_actions": ["menu-editors", "menu.editors.route-to-stage"],
+            "fresh_terminal_tree": true,
+            "finish_gate": "finish_require_no_indeterminate",
+            "initial_frame": initial_frame.is_some(),
+            "menu_frame": menu_frame.is_some(),
+            "terminal_frame": terminal_frame.is_some(),
+        },
     }));
     assert_no_local_artifact_dir();
     println!(
@@ -684,6 +701,44 @@ fn interconnect_ic04_ckc_character_wikilink_backlink() {
         "negative_missing_character_status": negative_status,
     }));
     println!("IC-04 LIVE-PG PASS: typed CKC character backlink persisted and reloaded");
+}
+
+/// Mounted CKC navigation producer for the MT-046 canonical Argus matrix. This stays outside the
+/// protected `interconnect_` namespace and does not emit a scenario attempt.
+#[test]
+#[ignore = "run only through run_mt046_interconnect_proof.ps1"]
+fn supplemental_mt046_argus_ic04_ckc_module() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("IC-04 CKC Argus runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    let mut harness = ScreenshotHarness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let initial_frame = harness.render_proof_frame("IC-04 mounted CKC initial module tree");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic04-ckc-module");
+    let initial = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial, "module-ckc"));
+    argus.click_expect_applied_and_reinspect(&mut harness, "module-ckc");
+    argus.assert_latest_terminal_predicate(&mut harness, "ckc-module-selected-terminal", |tree| {
+        json_node_by_author_id(tree, "module-ckc")
+            .and_then(|node| node.get("selected"))
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+    });
+    let terminal_frame = harness.render_proof_frame("IC-04 mounted CKC selected terminal tree");
+    argus.finish_require_no_indeterminate();
+    assert!(initial_frame.is_some() && terminal_frame.is_some());
+    assert_no_local_artifact_dir();
 }
 
 // ── Hygiene guard (runs in the default suite). ────────────────────────────────────────────────────────

@@ -19,15 +19,20 @@
 //!
 //! Artifact hygiene (CX-212E): no artifact under `src/`.
 
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -37,7 +42,7 @@ use handshake_native::code_editor::panel::{
 };
 use handshake_native::code_editor::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID;
 use handshake_native::command_registry::CMD_VIEW_RICH_NOTE;
-use handshake_native::find_in_files::{QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID};
+use handshake_native::find_in_files::{result_author_id, QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID};
 use handshake_native::interop::{ClipboardPayload, InteractionBus};
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
@@ -54,7 +59,7 @@ use interconnect_support::{
 };
 
 #[test]
-fn interconnect_ic06_code_panel_focus_boundary_probe() {
+fn supplemental_ic06_code_panel_focus_boundary_probe() {
     let panel = Arc::new(CodeEditorPanel::with_instance(
         "fn focus_probe() {}\n",
         "rs",
@@ -173,6 +178,7 @@ fn indexed_source_fixture() -> SourceFixture {
 fn interconnect_ic06_open_code_block_from_note() {
     let attempt = ScenarioAttempt::begin("IC-06");
     let mut be = require_live_backend();
+    let backend_binding = be.owned_backend_binding_receipt();
     let fixture = indexed_source_fixture();
     let index = be.post_json(
         &format!("/workspaces/{}/code-nav/index", be.workspace_id),
@@ -305,8 +311,12 @@ fn interconnect_ic06_open_code_block_from_note() {
         "IC-06: chip navigation must transfer AccessKit focus to the code editor text surface; focused nodes={focused_author_ids:?}; egui focused={egui_focused:?}; active panel live-text focus={live_code_text_has_focus}; active panel focus pending={focus_request_pending}; active panel text author={active_panel_text_author}; rendered code text authors={rendered_code_text_authors:?}"
     );
 
-    be.assert_cleanup();
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-06")
+        .expect("IC-06: publish fixture-owned backend runtime diagnostics");
     attempt.pass(serde_json::json!({
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
         "accesskit_chip": chip_id,
         "destination_file": expected_file,
         "caret_byte": expected_byte,
@@ -332,6 +342,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     use handshake_native::code_editor::Cursor;
     let mut be = require_live_backend();
     let workspace_id = be.workspace_id.clone();
+    let backend_binding = be.owned_backend_binding_receipt();
 
     // (1) Mount both product editors in one app, then activate the REAL code-body context-menu command.
     let src = "fn my_function() {\n    let x = 1;\n}\n";
@@ -710,9 +721,13 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         "IC-07: exact save receipt records the persisted code reference target"
     );
     let _ = be.delete(&format!("/knowledge/documents/{document_id}"));
-    be.assert_cleanup();
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-07")
+        .expect("IC-07: publish fixture-owned backend runtime diagnostics");
 
     attempt.pass(serde_json::json!({
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
         "workspace_id": workspace_id,
         "document_id": document_id,
         "note_reference": note_ref,
@@ -739,6 +754,7 @@ fn interconnect_ic08_shared_find_replace() {
     let attempt = ScenarioAttempt::begin("IC-08");
     let mut be = require_live_backend();
     let workspace_id = be.workspace_id.clone();
+    let backend_binding = be.owned_backend_binding_receipt();
     let probe = format!("SHARED_FIND_PROBE_{}", uuid::Uuid::new_v4().simple());
     let code_source = format!("// {probe}\nfn ic08_search_fixture() {{}}\n");
     let code_created = be.post_json(
@@ -938,8 +954,13 @@ fn interconnect_ic08_shared_find_replace() {
         results.note.mounted_match_count, 1,
         "IC-08: mounted rich-note scan remains distinct from backend entry count"
     );
-
+    drop(harness);
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-08")
+        .expect("IC-08: publish fixture-owned backend runtime diagnostics");
     let evidence = serde_json::json!({
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
         "workspace_id": workspace_id,
         "query": probe,
         "code_block_id": code_block_id,
@@ -949,8 +970,6 @@ fn interconnect_ic08_shared_find_replace() {
         "mounted_note_matches": results.note.mounted_match_count,
         "dispatches": dispatches,
     });
-    drop(harness);
-    be.assert_cleanup();
     attempt.pass(evidence);
     assert_no_local_artifact_dir();
     println!(
@@ -969,6 +988,7 @@ fn interconnect_ic08_shared_find_replace() {
 fn interconnect_ic09_diagnostic_note_reference() {
     let attempt = ScenarioAttempt::begin("IC-09");
     let mut be = require_live_backend();
+    let backend_binding = be.owned_backend_binding_receipt();
     let note_created = be.post_json(
         "/knowledge/documents",
         &serde_json::json!({
@@ -1064,17 +1084,713 @@ fn interconnect_ic09_diagnostic_note_reference() {
         "IC-09: diagnostic-chip navigation must transfer AccessKit focus to the rich editor"
     );
 
+    let _ = be.delete(&format!("/knowledge/documents/{note_doc_id}"));
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-09")
+        .expect("IC-09: publish fixture-owned backend runtime diagnostics");
     attempt.pass(serde_json::json!({
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
         "diagnostic_chip_author_id": chip_id,
         "document_id": note_doc_id,
         "destination_surface": "editor.rich.text",
         "focused_pane": active_pane.as_ref(),
     }));
-    let _ = be.delete(&format!("/knowledge/documents/{note_doc_id}"));
-    be.assert_cleanup();
     assert_no_local_artifact_dir();
     println!(
         "IC-09 PASS: AccessKit diagnostic note chip opened {note_doc_id} in the focused rich editor"
+    );
+}
+
+fn finish_supplemental_mt046_argus(
+    scenario_id: &str,
+    argus: CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    initial: serde_json::Value,
+    terminal: serde_json::Value,
+    scenario_evidence: serde_json::Value,
+) {
+    let proof_dir = supplemental_mt046_tree_dir(scenario_id);
+    let workspace_ids = scenario_evidence
+        .get("workspace_ids")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!([]));
+    let envelope = serde_json::json!({
+        "schema_id": "hsk.mt046.scenario-evidence@1",
+        "run_id": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"),
+        "scenario_id": scenario_id,
+        "source_sha": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+        "process_correlation_id": required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID"),
+        "workspace_ids": workspace_ids,
+        "evidence": scenario_evidence,
+    });
+    let _ = harness.render_proof_frame(&format!("{scenario_id} mounted terminal frame"));
+    assert!(harness.last_screenshot_outcome().is_some());
+    argus.finish_require_no_indeterminate();
+    write_immutable_json(&proof_dir.join("initial-tree.json"), &initial);
+    write_immutable_json(&proof_dir.join("terminal-tree.json"), &terminal);
+    write_immutable_json(&proof_dir.join("scenario-evidence.json"), &envelope);
+    assert_no_local_artifact_dir();
+}
+
+fn required_mt046_env(name: &str) -> String {
+    std::env::var(name)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| panic!("MT-046 supplemental Argus proof requires {name}"))
+}
+
+fn supplemental_mt046_tree_dir(scenario_id: &str) -> PathBuf {
+    PathBuf::from(required_mt046_env("HANDSHAKE_PROOF_ARTIFACT_DIR"))
+        .join(required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"))
+        .join("trees")
+        .join(scenario_id)
+}
+
+fn write_immutable_json(path: &std::path::Path, value: &serde_json::Value) {
+    use sha2::{Digest as _, Sha256};
+    use std::io::Write as _;
+
+    let parent = path.parent().expect("MT-046 evidence path has a parent");
+    std::fs::create_dir_all(parent).expect("create MT-046 unified tree directory");
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .unwrap_or_else(|error| {
+            panic!(
+                "create immutable MT-046 evidence {}: {error}",
+                path.display()
+            )
+        });
+    let mut bytes = serde_json::to_vec_pretty(value).expect("serialize MT-046 evidence");
+    bytes.push(b'\n');
+    file.write_all(&bytes).unwrap_or_else(|error| {
+        panic!(
+            "write immutable MT-046 evidence {}: {error}",
+            path.display()
+        )
+    });
+    file.sync_all().unwrap_or_else(|error| {
+        panic!("sync immutable MT-046 evidence {}: {error}", path.display())
+    });
+    let digest = format!("{:x}", Sha256::digest(&bytes));
+    let digest_path = path.with_extension("json.sha256");
+    let mut digest_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&digest_path)
+        .unwrap_or_else(|error| {
+            panic!(
+                "create immutable MT-046 evidence digest {}: {error}",
+                digest_path.display()
+            )
+        });
+    digest_file
+        .write_all(
+            format!(
+                "{digest}  {}\n",
+                path.file_name().unwrap().to_string_lossy()
+            )
+            .as_bytes(),
+        )
+        .unwrap_or_else(|error| {
+            panic!(
+                "write immutable MT-046 evidence digest {}: {error}",
+                digest_path.display()
+            )
+        });
+    digest_file.sync_all().unwrap_or_else(|error| {
+        panic!(
+            "sync immutable MT-046 evidence digest {}: {error}",
+            digest_path.display()
+        )
+    });
+}
+
+fn write_supplemental_mt046_workspace_receipt(
+    scenario_id: &str,
+    workspace_id: &str,
+    backend_binding: &serde_json::Value,
+    runtime_diagnostics: &serde_json::Value,
+) {
+    let run_id = required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID");
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.mt046.workspace-binding@1",
+        "run_id": run_id.clone(),
+        "scenario_id": scenario_id,
+        "source_sha": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+        "process_id": std::process::id(),
+        "process_correlation_id": required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID"),
+        "workspace_id": workspace_id,
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
+    });
+    let path = external_artifact_dir("canonical-argus")
+        .join(run_id)
+        .join(scenario_id)
+        .join("workspace.json");
+    write_immutable_json(&path, &receipt);
+    write_immutable_json(
+        &supplemental_mt046_tree_dir(scenario_id).join("backend-runtime-diagnostics.json"),
+        &serde_json::json!({
+            "schema_id": "hsk.mt046.backend-runtime-diagnostics@1",
+            "run_id": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"),
+            "scenario_id": scenario_id,
+            "source_sha": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+            "process_id": std::process::id(),
+            "process_correlation_id": required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID"),
+            "workspace_id": workspace_id,
+            "backend_binding": backend_binding,
+            "runtime_diagnostics": runtime_diagnostics,
+        }),
+    );
+}
+
+fn json_has_author_id_prefix(value: &serde_json::Value, prefix: &str) -> bool {
+    match value {
+        serde_json::Value::Object(object) => {
+            object
+                .get("author_id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|author_id| author_id.starts_with(prefix))
+                || object
+                    .values()
+                    .any(|child| json_has_author_id_prefix(child, prefix))
+        }
+        serde_json::Value::Array(children) => children
+            .iter()
+            .any(|child| json_has_author_id_prefix(child, prefix)),
+        _ => false,
+    }
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic06_note_to_code() {
+    let mut be = require_live_backend();
+    let workspace_id = be.workspace_id.clone();
+    let backend_binding = be.owned_backend_binding_receipt();
+    let fixture = indexed_source_fixture();
+    let index = be.post_json(
+        &format!("/workspaces/{}/code-nav/index", be.workspace_id),
+        &serde_json::json!({"root_path": fixture.root.to_string_lossy()}),
+    );
+    assert!(index["symbol_count"].as_u64().unwrap_or(0) >= 1);
+    let literal_ref = "ic06_fixture_src/lib.rs#my_function".to_owned();
+    let chip_id = code_ref_chip_author_id(&literal_ref);
+    let (mut app, runtime) = editor_shell();
+    app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(be.workspace_id.clone());
+    app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
+    let mut paragraph = BlockNode::new(NodeKind::Paragraph);
+    paragraph.children.push(Child::HsLink(HsLinkNode::new(
+        "code",
+        literal_ref,
+        "my_function",
+    )));
+    app.mounted_rich_state().lock().unwrap().doc = BlockNode::doc(vec![paragraph]);
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic06");
+    let initial = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial, &chip_id));
+    argus.click_expect_applied_and_reinspect(&mut harness, &chip_id);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline
+        && !author_ids(&harness)
+            .iter()
+            .any(|id| id.starts_with(CODE_EDITOR_TEXT_AUTHOR_ID))
+    {
+        harness.step();
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let terminal =
+        argus.assert_latest_terminal_predicate(&mut harness, "code-editor-mounted", |tree| {
+            tree.to_string().contains(CODE_EDITOR_TEXT_AUTHOR_ID)
+        });
+    finish_supplemental_mt046_argus(
+        "IC-06",
+        argus,
+        &mut harness,
+        initial,
+        terminal,
+        serde_json::json!({
+            "workspace_ids": [workspace_id.clone()],
+            "backend_binding": backend_binding.clone(),
+            "target": chip_id,
+            "terminal_surface": CODE_EDITOR_TEXT_AUTHOR_ID,
+        }),
+    );
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-06")
+        .expect("IC-06 supplemental: publish fixture-owned backend runtime diagnostics");
+    write_supplemental_mt046_workspace_receipt(
+        "IC-06",
+        &workspace_id,
+        &backend_binding,
+        &runtime_diagnostics,
+    );
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic07_copy_note_reference() {
+    use handshake_native::code_editor::Cursor;
+    let (mut app, _runtime) = editor_shell();
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    let panel = app.mounted_code_panel();
+    panel.set_text("fn my_function() {}\n");
+    panel.set_cursors(vec![Cursor::selection(3, 14)]);
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic07");
+    let initial = argus.inspect(&mut harness);
+    argus.click_expect_applied_and_reinspect(&mut harness, "code_editor_ctx_rename_symbol");
+    let copy_id = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
+    argus.assert_latest_terminal_predicate(&mut harness, "disabled-copy-visible", |tree| {
+        json_has_author_id(tree, &copy_id)
+    });
+    argus.click_expect_typed_rejected_and_reinspect(&mut harness, &copy_id, "disabled");
+    argus.assert_latest_terminal_predicate(&mut harness, "unsaved-copy-rejected", |tree| {
+        tree["action_receipts"]
+            .as_array()
+            .is_some_and(|rows| rows.iter().any(|row| row["status"] == "rejected"))
+    });
+    harness.key_press(egui::Key::Escape);
+    harness.run_steps(2);
+    panel.set_file_path("src/lib.rs");
+    harness.run_steps(2);
+    argus.click_expect_applied_and_reinspect(&mut harness, "code_editor_ctx_rename_symbol");
+    let stale_copy_snapshot = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "copy-item-enabled-before-stale-hide",
+        |tree| json_has_author_id(tree, &copy_id),
+    );
+    let clipboard_before_stale = InteractionBus::get_or_init(&harness.ctx)
+        .lock()
+        .unwrap()
+        .clipboard_read_text();
+    harness.key_press(egui::Key::Escape);
+    harness.run_steps(2);
+    let never_started_raw = argus.click_from_snapshot_expect_rpc_rejected(
+        &mut harness,
+        &copy_id,
+        &stale_copy_snapshot,
+        "no live widget",
+    );
+    let clipboard_after_stale = InteractionBus::get_or_init(&harness.ctx)
+        .lock()
+        .unwrap()
+        .clipboard_read_text();
+    assert_eq!(
+        clipboard_after_stale, clipboard_before_stale,
+        "stale-hidden copy action must be rejected before clipboard mutation"
+    );
+    let process_correlation_id = required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
+    let never_started = serde_json::json!({
+        "schema_id": "hsk.mt046.argus-never-started@1",
+        "run_id": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"),
+        "scenario_id": "IC-07",
+        "source_sha": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+        "process_id": std::process::id(),
+        "process_correlation_id": process_correlation_id.clone(),
+        "correlation_id": format!("{process_correlation_id}:never-started:{copy_id}"),
+        "target": copy_id.clone(),
+        "error": never_started_raw["response"]["error"].clone(),
+        "response": never_started_raw["response"].clone(),
+        "before": never_started_raw["before"].clone(),
+        "after": never_started_raw["after"].clone(),
+        "state_unchanged": {
+            "clipboard_before": clipboard_before_stale.clone(),
+            "clipboard_after": clipboard_after_stale.clone(),
+            "equal": true,
+            "file_path": panel.file_path(),
+            "selection": "my_function",
+        },
+        "canonical_stale_snapshot": never_started_raw,
+    });
+    argus.click_expect_applied_and_reinspect(&mut harness, "code_editor_ctx_rename_symbol");
+    argus.assert_latest_terminal_predicate(&mut harness, "copy-item-enabled", |tree| {
+        json_has_author_id(tree, &copy_id)
+    });
+    let copy_observation = argus.click_expect_applied_and_reinspect(&mut harness, &copy_id);
+    harness.run_steps(1);
+    let expected_clipboard = "[[code:src/lib.rs#my_function]]";
+    let clipboard_after_copy = InteractionBus::get_or_init(&harness.ctx)
+        .lock()
+        .unwrap()
+        .clipboard_read_text();
+    assert_eq!(clipboard_after_copy.as_deref(), Some(expected_clipboard));
+    let copy_receipt_id = copy_observation.receipt_id;
+    let terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "exact-copy-receipt-clipboard-menu-closed",
+        serde_json::json!({
+            "receipt_id": copy_receipt_id,
+            "clipboard": expected_clipboard,
+            "context_menu_prefix": "ctx-menu.",
+            "context_menu_closed": true,
+        }),
+        |tree| {
+            tree["action_receipts"].as_array().is_some_and(|rows| {
+                rows.iter().any(|row| {
+                    row["receipt_id"].as_u64() == Some(copy_receipt_id)
+                        && row["status"] == "applied"
+                })
+            }) && clipboard_after_copy.as_deref() == Some(expected_clipboard)
+                && !json_has_author_id_prefix(tree, "ctx-menu.")
+        },
+    );
+    finish_supplemental_mt046_argus(
+        "IC-07",
+        argus,
+        &mut harness,
+        initial,
+        terminal,
+        serde_json::json!({
+            "workspace_ids": [],
+            "successful_target": copy_id,
+            "successful_receipt_id": copy_receipt_id,
+            "clipboard": expected_clipboard,
+            "never_started_artifact": "never-started.json",
+        }),
+    );
+    write_immutable_json(
+        &supplemental_mt046_tree_dir("IC-07").join("never-started.json"),
+        &never_started,
+    );
+    assert_no_local_artifact_dir();
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic08_shared_find() {
+    let mut be = require_live_backend();
+    let workspace_id = be.workspace_id.clone();
+    let backend_binding = be.owned_backend_binding_receipt();
+    let probe = format!("MT046_ARGUS_SHARED_FIND_{}", uuid::Uuid::new_v4().simple());
+    let code_source = format!("// {probe}\nfn mt046_argus_shared_find() {{}}\n");
+    let code_created = be.post_json(
+        &format!("/workspaces/{workspace_id}/loom/import"),
+        &serde_json::json!({
+            "bytes_b64": base64::engine::general_purpose::STANDARD.encode(code_source),
+            "original_filename": format!("mt046_{probe}.rs"),
+            "mime": "text/x-rust",
+        }),
+    );
+    let code_block_id = code_created["block_id"]
+        .as_str()
+        .or_else(|| code_created["id"].as_str())
+        .expect("IC-08 Argus: managed code Loom block id")
+        .to_owned();
+    let note_created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": workspace_id,
+            "title": "IC-08 Argus managed rich note",
+            "content_json": {
+                "type": "doc",
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{"type": "text", "text": format!("managed note {probe}")}]
+                }]
+            }
+        }),
+    );
+    let note_document_id = note_created["document"]["rich_document_id"]
+        .as_str()
+        .expect("IC-08 Argus: managed rich-document id")
+        .to_owned();
+    let seeded_search = be.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/graph-search?q={probe}&limit=500&offset=0"
+    ));
+    let seeded_hits = seeded_search
+        .as_array()
+        .expect("IC-08 Argus: graph-search seed precondition returns an array");
+    let code_source_kind = seeded_hits
+        .iter()
+        .find(|hit| hit["ref_id"].as_str() == Some(code_block_id.as_str()))
+        .and_then(|hit| hit["source_kind"].as_str())
+        .expect("IC-08 Argus: exact code Loom hit source kind")
+        .to_owned();
+    let note_source_kind = seeded_hits
+        .iter()
+        .find(|hit| hit["ref_id"].as_str() == Some(note_document_id.as_str()))
+        .and_then(|hit| hit["source_kind"].as_str())
+        .expect("IC-08 Argus: exact rich-note hit source kind")
+        .to_owned();
+    let code_result_id = result_author_id(&code_source_kind, &code_block_id);
+    let note_result_id = result_author_id(&note_source_kind, &note_document_id);
+
+    let (mut app, runtime) = editor_shell();
+    app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    app.mounted_rich_state().lock().unwrap().doc = BlockNode::doc(vec![BlockNode::paragraph(
+        &format!("mounted note contains {probe}"),
+    )]);
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    let ctx = harness.ctx.clone();
+    assert!(harness
+        .state_mut()
+        .dispatch_palette_action_for_test_with_ctx(
+            &ctx,
+            handshake_native::command_registry::CMD_EDITOR_FIND_IN_FILES,
+        ));
+    harness.run_steps(2);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic08");
+    let initial = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial, QUERY_AUTHOR_ID));
+    assert!(json_has_author_id(&initial, SEARCH_AUTHOR_ID));
+    let set_query = argus.set_value_and_reinspect(&mut harness, QUERY_AUTHOR_ID, &probe);
+    assert_eq!(
+        set_query.receipt_status, "applied",
+        "IC-08 Argus query SetValue must be decisively Applied"
+    );
+    let set_query_receipt_id = set_query.receipt_id;
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "exact-shared-find-query-applied",
+        serde_json::json!({"query":probe,"receipt_id":set_query_receipt_id}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(probe.as_str())
+                && tree["action_receipts"].as_array().is_some_and(|receipts| {
+                    receipts.iter().any(|receipt| {
+                        receipt["receipt_id"].as_u64() == Some(set_query_receipt_id)
+                            && receipt["status"] == "applied"
+                    })
+                })
+        },
+    );
+    let search = argus.click_expect_applied_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
+    let search_receipt_id = search.receipt_id;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        harness.run_steps(1);
+        let fresh = argus.inspect(&mut harness);
+        let exact_results_present = json_has_author_id(&fresh, &code_result_id)
+            && json_has_author_id(&fresh, &note_result_id)
+            && json_node_by_author_id(&fresh, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(probe.as_str());
+        if exact_results_present {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "IC-08 Argus: exact code/rich result nodes did not appear; code={code_result_id}, note={note_result_id}, fresh={fresh}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "exact-code-and-rich-results-visible",
+        serde_json::json!({
+            "query": probe,
+            "search_receipt_id": search_receipt_id,
+            "code": {"source_kind":code_source_kind,"ref_id":code_block_id,"author_id":code_result_id},
+            "note": {"source_kind":note_source_kind,"ref_id":note_document_id,"author_id":note_result_id},
+        }),
+        |tree| {
+            json_has_author_id(tree, &code_result_id)
+                && json_has_author_id(tree, &note_result_id)
+                && json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    == Some(probe.as_str())
+                && tree["action_receipts"]
+                    .as_array()
+                    .is_some_and(|receipts| {
+                        receipts.iter().any(|receipt| {
+                            receipt["receipt_id"].as_u64() == Some(search_receipt_id)
+                                && receipt["status"] == "applied"
+                        })
+                    })
+        },
+    );
+    finish_supplemental_mt046_argus(
+        "IC-08",
+        argus,
+        &mut harness,
+        initial,
+        terminal,
+        serde_json::json!({
+            "workspace_ids": [workspace_id],
+            "backend_binding": backend_binding.clone(),
+            "query": probe,
+            "set_value_receipt_id": set_query_receipt_id,
+            "search_receipt_id": search_receipt_id,
+            "code_result_author_id": code_result_id,
+            "note_result_author_id": note_result_id,
+            "code_block_id": code_block_id,
+            "note_document_id": note_document_id,
+        }),
+    );
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-08")
+        .expect("IC-08 supplemental: publish fixture-owned backend runtime diagnostics");
+    write_supplemental_mt046_workspace_receipt(
+        "IC-08",
+        &workspace_id,
+        &backend_binding,
+        &runtime_diagnostics,
+    );
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic09_diagnostic_to_note() {
+    let mut be = require_live_backend();
+    let workspace_id = be.workspace_id.clone();
+    let backend_binding = be.owned_backend_binding_receipt();
+    let created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": be.workspace_id.clone(),
+            "title": "IC-09 Argus destination",
+            "content_json": {"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Argus diagnostic destination"}]}]}
+        }),
+    );
+    let doc_id = created["document"]["rich_document_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (mut app, runtime) = editor_shell();
+    app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(be.workspace_id.clone());
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    let panel = app.mounted_code_panel();
+    panel.set_text("fn main() { missing(); }\n");
+    panel.push_diagnostic_note_reference(0, DiagnosticSeverity::Error, "related note", &doc_id);
+    let chip_id = panel.diagnostic_note_reference_author_id(0);
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic09");
+    let initial = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial, &chip_id));
+    let open_note = argus.click_expect_applied_and_reinspect(&mut harness, &chip_id);
+    let open_receipt_id = open_note.receipt_id;
+    let rich_document_author_id = format!("rich-editor.document.{doc_id}");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(1);
+        let active_tab_matches = harness.state().active_pane().is_some_and(|pane_id| {
+            harness
+                .state()
+                .tab_bar_states()
+                .get(pane_id)
+                .and_then(|bar| bar.active())
+                .is_some_and(|tab| {
+                    tab.pane_type == PaneType::LoomWikiPage
+                        && tab.content_id.as_deref() == Some(doc_id.as_str())
+                })
+        });
+        let rich_text_focused = harness.root().children_recursive().any(|node| {
+            node.accesskit_node().author_id() == Some("editor.rich.text")
+                && node.accesskit_node().is_focused()
+        });
+        let ids = author_ids(&harness);
+        if active_tab_matches
+            && rich_text_focused
+            && ids.contains("editor.rich.text")
+            && ids.contains(rich_document_author_id.as_str())
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "IC-09 Argus: exact document/tab/focus state did not mount; doc={doc_id}, ids={ids:?}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let active_pane_id = harness
+        .state()
+        .active_pane()
+        .expect("IC-09 Argus: exact destination pane is active")
+        .to_string();
+    let active_tab_content_id = harness
+        .state()
+        .tab_bar_states()
+        .get(harness.state().active_pane().unwrap())
+        .and_then(|bar| bar.active())
+        .and_then(|tab| tab.content_id.clone())
+        .expect("IC-09 Argus: exact destination tab carries content_id");
+    let rich_text_focused = harness.root().children_recursive().any(|node| {
+        node.accesskit_node().author_id() == Some("editor.rich.text")
+            && node.accesskit_node().is_focused()
+    });
+    let terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "exact-scoped-rich-document-active-tab-focused",
+        serde_json::json!({
+            "receipt_id": open_receipt_id,
+            "document_author_id": rich_document_author_id,
+            "document_id": doc_id,
+            "active_pane_id": active_pane_id,
+            "active_tab_content_id": active_tab_content_id,
+            "rich_text_author_id": "editor.rich.text",
+            "rich_text_focused": rich_text_focused,
+        }),
+        |tree| {
+            json_node_by_author_id(tree, &rich_document_author_id)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(doc_id.as_str())
+                && json_has_author_id(tree, "editor.rich.text")
+                && active_tab_content_id == doc_id
+                && rich_text_focused
+                && tree["action_receipts"].as_array().is_some_and(|receipts| {
+                    receipts.iter().any(|receipt| {
+                        receipt["receipt_id"].as_u64() == Some(open_receipt_id)
+                            && receipt["status"] == "applied"
+                    })
+                })
+        },
+    );
+    finish_supplemental_mt046_argus(
+        "IC-09",
+        argus,
+        &mut harness,
+        initial,
+        terminal,
+        serde_json::json!({
+            "workspace_ids": [workspace_id.clone()],
+            "backend_binding": backend_binding.clone(),
+            "document_id": doc_id,
+            "document_author_id": rich_document_author_id,
+            "active_pane_id": active_pane_id,
+            "active_tab_content_id": active_tab_content_id,
+            "rich_text_focused": rich_text_focused,
+            "receipt_id": open_receipt_id,
+        }),
+    );
+    let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-09")
+        .expect("IC-09 supplemental: publish fixture-owned backend runtime diagnostics");
+    write_supplemental_mt046_workspace_receipt(
+        "IC-09",
+        &workspace_id,
+        &backend_binding,
+        &runtime_diagnostics,
     );
 }
 

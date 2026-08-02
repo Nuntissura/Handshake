@@ -18,13 +18,19 @@
 //!
 //! Artifact hygiene (CX-212E): no artifact under `src/`.
 
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 
 use std::time::Duration;
 
 use egui_kittest::Harness;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::backend_client::LoomSearchV2Response;
 use handshake_native::graph::graph_view::{
     node_author_id as native_graph_node_author_id, GraphEdge as NativeGraphEdge,
@@ -33,7 +39,8 @@ use handshake_native::graph::graph_view::{
 use handshake_native::loom_graph::{GraphNode, LoomGraphColors, LoomGraphSurface};
 use handshake_native::loom_search_v2::sorted_facets;
 use handshake_native::quick_switcher::{
-    open_target_for_hit, LoomGraphSearchHit, QuickSwitcherTarget,
+    open_target_for_hit, LoomGraphSearchHit, QuickSwitcherTarget, SWITCHER_DIALOG_AUTHOR_ID,
+    SWITCHER_SEARCH_AUTHOR_ID,
 };
 use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
 use handshake_native::rich_editor::document_model::node::{
@@ -41,10 +48,13 @@ use handshake_native::rich_editor::document_model::node::{
 };
 use handshake_native::theme::HsTheme;
 
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 use interconnect_support::{
     assert_no_local_artifact_dir, author_ids, event_ledger_payload, loom_ai_residue_counts,
-    require_live_backend, save_rich_document_via_production_manager, LiveBackend, ScenarioAttempt,
+    require_live_backend, save_rich_document_via_production_manager, write_immutable_external_json,
+    LiveBackend, ScenarioAttempt,
 };
+use screenshot_harness::ScreenshotHarness;
 
 /// Build a note doc that carries a wikilink hsLink atom referencing `target_block_id` (the cross-surface
 /// link that the backend backlink indexer keys on at save time — CTRL-2).
@@ -915,6 +925,102 @@ fn interconnect_ic14_quick_switcher_both_editors() {
         "negative_absent_result_count": negative_results,
     }));
     println!("IC-14 LIVE-PG PASS: the quick-switcher q-route returned BOTH the note + code block with full fields");
+}
+
+/// Canonical mounted Argus producer for the IC-14 Loom/search/quick-switcher lane. Kept outside the
+/// protected `interconnect_` namespace so the manifest remains exactly one function per IC scenario.
+#[test]
+#[ignore = "run only through run_mt046_interconnect_proof.ps1"]
+fn supplemental_mt046_argus_ic14_quick_switcher_search() {
+    let mut backend = require_live_backend();
+    let workspace_id = backend.workspace_id.clone();
+    let backend_binding = backend.owned_backend_binding_receipt();
+    const PROBE: &str = "MT046_ARGUS_IC14_SEARCH";
+    let seeded_block = create_block(&backend, "note", PROBE);
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("IC-14 Argus runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    let mut harness = ScreenshotHarness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    let initial_frame = harness.render_proof_frame("IC-14 mounted shell initial tree");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic14-quick-switcher");
+    let initial_tree = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial_tree, "menu-view"));
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu-view");
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "view-menu-exposes-quick-switcher",
+        |tree| json_has_author_id(tree, "menu.view.open-quick-switcher"),
+    );
+
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu.view.open-quick-switcher");
+    argus.assert_latest_terminal_predicate(&mut harness, "quick-switcher-dialog-mounted", |tree| {
+        json_has_author_id(tree, SWITCHER_DIALOG_AUTHOR_ID)
+            && json_has_author_id(tree, SWITCHER_SEARCH_AUTHOR_ID)
+    });
+    let dialog_frame = harness.render_proof_frame("IC-14 quick-switcher dialog tree");
+
+    argus.set_value_and_reinspect(&mut harness, SWITCHER_SEARCH_AUTHOR_ID, PROBE);
+    for _ in 0..20 {
+        harness.run_steps(1);
+        if argus
+            .inspect(&mut harness)
+            .to_string()
+            .contains(&seeded_block)
+        {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "quick-switcher-search-terminal-result",
+        serde_json::json!({"seeded_block_id": seeded_block, "query": PROBE}),
+        |tree| tree.to_string().contains(PROBE),
+    );
+    let terminal_frame = harness.render_proof_frame("IC-14 quick-switcher terminal result tree");
+    argus.finish_require_no_indeterminate();
+
+    assert!(initial_frame.is_some() && dialog_frame.is_some() && terminal_frame.is_some());
+    let proof_dir = interconnect_support::external_artifact_dir("canonical-argus")
+        .join(std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID").expect("IC-14 matrix run id"))
+        .join("IC-14");
+    let _ = backend.delete(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{seeded_block}"
+    ));
+    let runtime_diagnostics = backend
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-14")
+        .expect("IC-14: publish fixture-owned backend runtime diagnostics");
+    write_immutable_external_json(
+        &proof_dir.join("workspace.json"),
+        &serde_json::json!({
+            "schema_id": "hsk.mt046.workspace-binding@1",
+            "run_id": std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID").unwrap(),
+            "scenario_id": "IC-14",
+            "source_sha": std::env::var("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA").unwrap(),
+            "process_correlation_id": std::env::var("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID").unwrap(),
+            "workspace_id": workspace_id,
+            "process_id": std::process::id(),
+            "backend_binding": backend_binding,
+            "runtime_diagnostics": runtime_diagnostics,
+        }),
+    );
+    assert_no_local_artifact_dir();
 }
 
 // ── Hygiene guard (runs in the default suite). ────────────────────────────────────────────────────────

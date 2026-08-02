@@ -18,15 +18,26 @@
 
 #![allow(dead_code)] // each suite uses a subset of the helpers; the others are not dead in aggregate.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
+use sha2::{Digest, Sha256};
+
+thread_local! {
+    static CURRENT_BACKEND_BINDING: std::cell::RefCell<Option<serde_json::Value>> = const {
+        std::cell::RefCell::new(None)
+    };
+    static CURRENT_BACKEND_RUNTIME_RECEIPT: std::cell::RefCell<Option<serde_json::Value>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
 
 // ── External scenario receipts; protected manifest is catalog-only ───────────────────────────────────
 
@@ -45,16 +56,38 @@ pub struct ScenarioAttempt {
     run_id: String,
     started_at: String,
     terminal: bool,
+    canonical: bool,
 }
 
 impl ScenarioAttempt {
     pub fn begin(scenario_id: &str) -> Self {
+        CURRENT_BACKEND_BINDING.with(|binding| {
+            binding.borrow_mut().take();
+        });
+        CURRENT_BACKEND_RUNTIME_RECEIPT.with(|receipt| {
+            receipt.borrow_mut().take();
+        });
         assert!(
             expected_scenario_ids().contains(scenario_id),
             "MT-046 runtime receipt rejected unknown scenario id {scenario_id}"
         );
+        let expected_proof = expected_proof_fn(scenario_id);
+        let current_thread = std::thread::current();
+        let test_thread = current_thread.name().unwrap_or("unnamed-test");
+        assert_eq!(test_thread, expected_proof, "MT-046 scenario {scenario_id} must be emitted only by manifest proof_fn {expected_proof}");
         let attempt_id = uuid::Uuid::now_v7().to_string();
         let started_at = chrono::Utc::now().to_rfc3339();
+        let canonical = std::env::var("HSK_MT046_CANONICAL").as_deref() == Ok("1");
+        if !canonical {
+            return Self {
+                scenario_id: scenario_id.to_owned(),
+                attempt_id,
+                run_id: "NONCANONICAL-DIRECT-TEST".to_owned(),
+                started_at,
+                terminal: false,
+                canonical: false,
+            };
+        }
         let run_id = begin_scenario_run(scenario_id, &attempt_id, &started_at);
         let attempt = Self {
             scenario_id: scenario_id.to_owned(),
@@ -62,22 +95,27 @@ impl ScenarioAttempt {
             run_id,
             started_at,
             terminal: false,
+            canonical: true,
         };
-        attempt.write("RUNNING", serde_json::json!({}), None);
+        // `begin_scenario_run` is the sole transient RUNNING projection. Immutable attempt history is
+        // terminal-only so every file under `measurements/attempts` can be sealed by the supervisor.
         attempt
     }
 
     pub fn pass(mut self, evidence: serde_json::Value) {
-        self.write("PASS", evidence, None);
+        self.write("PASS", bind_backend_evidence(evidence), None);
         self.terminal = true;
     }
 
     pub fn skipped(mut self, reason: &str, evidence: serde_json::Value) {
-        self.write("SKIPPED", evidence, Some(reason));
+        self.write("SKIPPED", bind_backend_evidence(evidence), Some(reason));
         self.terminal = true;
     }
 
     fn write(&self, status: &str, evidence: serde_json::Value, terminal_reason: Option<&str>) {
+        if !self.canonical {
+            return;
+        }
         write_entry(
             &self.scenario_id,
             &self.attempt_id,
@@ -97,13 +135,35 @@ impl ScenarioAttempt {
     }
 }
 
+fn bind_backend_evidence(mut evidence: serde_json::Value) -> serde_json::Value {
+    let binding = CURRENT_BACKEND_BINDING.with(|current| current.borrow().clone());
+    let object = evidence
+        .as_object_mut()
+        .expect("MT-046 scenario evidence must be a JSON object");
+    match binding {
+        Some(binding) => {
+            object.insert("backend_binding".to_owned(), binding);
+        }
+        None => {
+            object.insert("backend_not_used".to_owned(), serde_json::json!(true));
+        }
+    }
+    let runtime_receipt = CURRENT_BACKEND_RUNTIME_RECEIPT
+        .with(|current| current.borrow().clone())
+        .or_else(|| object.get("runtime_diagnostics").cloned());
+    if let Some(receipt) = runtime_receipt {
+        object.insert("backend_runtime_receipt".to_owned(), receipt);
+    }
+    evidence
+}
+
 impl Drop for ScenarioAttempt {
     fn drop(&mut self) {
-        if !self.terminal {
+        if self.canonical && !self.terminal {
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 self.write(
                     "FAIL",
-                    serde_json::json!({}),
+                    bind_backend_evidence(serde_json::json!({})),
                     Some("scenario_aborted_before_terminal_receipt"),
                 );
             }));
@@ -148,6 +208,8 @@ fn write_entry(
         None => panic!("interconnect receipt lock {lock_path:?} unavailable for {scenario_id}"),
     };
 
+    let provenance = required_supervisor_provenance();
+    let recorded_at = chrono::Utc::now().to_rfc3339();
     let receipt = serde_json::json!({
         "schema_id": "hsk.wp_kernel_012.interconnection_proof@2",
         "work_packet_id": "WP-KERNEL-012",
@@ -158,8 +220,11 @@ fn write_entry(
         "started_at": started_at,
         "status": status,
         "terminal_reason": terminal_reason,
-        "recorded_at": chrono::Utc::now().to_rfc3339(),
+        "recorded_at": &recorded_at,
+        "completed_at": (status != "RUNNING").then_some(recorded_at),
         "process_id": std::process::id(),
+        "test_thread": std::thread::current().name().unwrap_or("unnamed-test"),
+        "provenance": provenance,
         "catalog_reference": {
             "path": "tests/test_interconnect_manifest.json",
             "scenario_id": scenario_id,
@@ -192,12 +257,78 @@ fn write_entry(
     std::fs::create_dir_all(&attempts)
         .unwrap_or_else(|error| panic!("interconnect attempt directory {attempts:?}: {error}"));
     let history_path = attempts.join(format!(
-        "{}--{attempt_id}.json",
-        scenario_id.to_ascii_lowercase()
+        "{}--{attempt_id}--{}.json",
+        scenario_id.to_ascii_lowercase(),
+        status.to_ascii_lowercase()
     ));
-    std::fs::copy(&path, &history_path).unwrap_or_else(|error| {
-        panic!("write interconnect attempt history {history_path:?}: {error}")
+    let history = std::fs::read(&path)
+        .unwrap_or_else(|error| panic!("read interconnect attempt receipt {path:?}: {error}"));
+    let mut immutable = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&history_path)
+        .unwrap_or_else(|error| {
+            panic!("create immutable attempt history {history_path:?}: {error}")
+        });
+    immutable.write_all(&history).unwrap_or_else(|error| {
+        panic!("write immutable attempt history {history_path:?}: {error}")
     });
+    immutable.sync_all().unwrap_or_else(|error| {
+        panic!("flush immutable attempt history {history_path:?}: {error}")
+    });
+    let digest = format!("{:x}", Sha256::digest(&history));
+    std::fs::write(
+        history_path.with_extension("json.sha256"),
+        format!(
+            "{digest}  {}\n",
+            history_path.file_name().unwrap().to_string_lossy()
+        ),
+    )
+    .unwrap_or_else(|error| panic!("write immutable attempt digest {history_path:?}: {error}"));
+}
+
+fn required_env(name: &str) -> String {
+    std::env::var(name)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| panic!("canonical MT-046 proof requires non-empty {name}"))
+}
+
+fn required_supervisor_provenance() -> serde_json::Value {
+    static TEST_EXECUTABLE: OnceLock<(String, String)> = OnceLock::new();
+    let (executable, executable_sha256) = TEST_EXECUTABLE.get_or_init(|| {
+        let path = std::env::current_exe()
+            .unwrap_or_else(|error| panic!("resolve current MT-046 test executable: {error}"));
+        let bytes = std::fs::read(&path).unwrap_or_else(|error| {
+            panic!("read current MT-046 test executable {path:?}: {error}")
+        });
+        (
+            path.display().to_string(),
+            format!("{:x}", Sha256::digest(bytes)),
+        )
+    });
+    serde_json::json!({
+        "supervisor_run_id": required_env("HSK_MT046_RUN_ID"),
+        "source_sha": required_env("HSK_MT046_SOURCE_SHA"),
+        "candidate_source_id": required_env("HSK_MT046_CANDIDATE_SOURCE_ID"),
+        "source_dirty_policy": required_env("HSK_MT046_SOURCE_DIRTY_POLICY"),
+        "source_dirty_result_sha256": required_env("HSK_MT046_SOURCE_DIRTY_RESULT_SHA256"),
+        "candidate_source_binding_path": required_env("HSK_MT046_CANDIDATE_BINDING_PATH"),
+        "candidate_source_binding_sha256": required_env("HSK_MT046_CANDIDATE_BINDING_SHA256"),
+        "test_binary": required_env("HSK_MT046_TEST_BINARY"),
+        "cargo_profile": required_env("HSK_MT046_CARGO_PROFILE"),
+        "cargo_locked": required_env("HSK_MT046_CARGO_LOCKED") == "true",
+        "backend_path": required_env("HSK_MT046_BACKEND_PATH"),
+        "backend_sha256": required_env("HSK_MT046_BACKEND_SHA256"),
+        "postgres_identity": required_env("HSK_MT046_POSTGRES_IDENTITY"),
+        "manifest_sha256": required_env("HSK_MT046_MANIFEST_SHA256"),
+        "supervisor_pid": required_env("HSK_MT046_SUPERVISOR_PID"),
+        "command_receipt_path": required_env("HSK_MT046_COMMAND_RECEIPT_PATH"),
+        "stdout_path": required_env("HSK_MT046_STDOUT_PATH"),
+        "stderr_path": required_env("HSK_MT046_STDERR_PATH"),
+        "test_executable_path": executable,
+        "test_executable_sha256": executable_sha256,
+    })
 }
 
 fn expected_scenario_ids() -> HashSet<String> {
@@ -224,6 +355,20 @@ fn expected_scenario_ids() -> HashSet<String> {
     ids
 }
 
+fn expected_proof_fn(scenario_id: &str) -> String {
+    let path = manifest_path();
+    let rows: Vec<serde_json::Value> = serde_json::from_str(
+        &std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("read MT-046 catalog {path:?}: {error}")),
+    )
+    .unwrap_or_else(|error| panic!("parse MT-046 catalog {path:?}: {error}"));
+    rows.iter()
+        .find(|row| row["scenario_id"].as_str() == Some(scenario_id))
+        .and_then(|row| row["proof_fn"].as_str())
+        .unwrap_or_else(|| panic!("MT-046 catalog lacks proof_fn for {scenario_id}"))
+        .to_owned()
+}
+
 fn begin_scenario_run(scenario_id: &str, attempt_id: &str, started_at: &str) -> String {
     let directory = external_artifact_dir("measurements");
     std::fs::create_dir_all(&directory)
@@ -232,54 +377,92 @@ fn begin_scenario_run(scenario_id: &str, attempt_id: &str, started_at: &str) -> 
     let _guard = FileLock::acquire(&lock_path, Duration::from_secs(10))
         .unwrap_or_else(|| panic!("interconnect run-state lock unavailable for {scenario_id}"));
     let state_path = directory.join("current-run.json");
-    let requested_run = std::env::var("HSK_MT046_RUN_ID")
-        .ok()
-        .filter(|value| !value.trim().is_empty());
-    let existing = std::fs::read_to_string(&state_path)
-        .ok()
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok());
-    let existing_scenario = existing
-        .as_ref()
-        .and_then(|state| state.pointer(&format!("/scenarios/{scenario_id}")));
-    let existing_terminal = existing_scenario
-        .and_then(|entry| entry.get("status"))
-        .and_then(serde_json::Value::as_str)
-        .is_some_and(|status| status != "RUNNING");
-    let existing_status = existing
-        .as_ref()
-        .and_then(|state| state.get("status"))
-        .and_then(serde_json::Value::as_str);
-    let existing_run_id = existing
-        .as_ref()
-        .and_then(|state| state.get("run_id"))
-        .and_then(serde_json::Value::as_str);
-    let must_start = requested_run
-        .as_deref()
-        .is_some_and(|requested| existing_run_id != Some(requested))
-        || existing_run_id.is_none()
-        || matches!(existing_status, Some("PASS" | "FAIL"))
-        || existing_terminal;
-    let run_id = if must_start {
-        requested_run.unwrap_or_else(|| format!("MT046-RUN-{}", uuid::Uuid::now_v7().simple()))
-    } else {
-        existing_run_id.expect("checked present").to_owned()
-    };
-    let mut state = if must_start {
-        serde_json::json!({
-            "schema_id": "hsk.wp_kernel_012.interconnection_run@1",
-            "work_packet_id": "WP-KERNEL-012",
-            "micro_task_id": "MT-046",
-            "run_id": run_id,
-            "started_at": started_at,
-            "status": "RUNNING",
-            "expected_scenario_count": 18,
-            "catalog_reference": "tests/test_interconnect_manifest.json",
-            "catalog_semantics": "catalog_only_expected_outcomes_not_runtime_verdict",
-            "scenarios": {},
-        })
-    } else {
-        existing.expect("checked present")
-    };
+    let run_id = required_env("HSK_MT046_RUN_ID");
+    let provenance = required_supervisor_provenance();
+    let text = std::fs::read_to_string(&state_path).unwrap_or_else(|error| {
+        panic!(
+            "canonical supervisor must initialize MT-046 current-run before {scenario_id}: {error}"
+        )
+    });
+    let mut state: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|error| panic!("parse supervisor-owned MT-046 current-run: {error}"));
+    assert_eq!(
+        state["run_id"].as_str(),
+        Some(run_id.as_str()),
+        "MT-046 scenario rejected stale/mixed supervisor run id"
+    );
+    assert_eq!(
+        state["status"].as_str(),
+        Some("RUNNING"),
+        "MT-046 scenario requires a supervisor-owned RUNNING run"
+    );
+    assert_eq!(
+        state["provenance"]["source_sha"], provenance["source_sha"],
+        "MT-046 source SHA changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["candidate_source_id"], provenance["candidate_source_id"],
+        "MT-046 candidate source identity changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["source_dirty_policy"], provenance["source_dirty_policy"],
+        "MT-046 dirty-source policy changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["source_dirty_result_sha256"], provenance["source_dirty_result_sha256"],
+        "MT-046 dirty-source result changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["candidate_source_binding"],
+        provenance["candidate_source_binding_path"],
+        "MT-046 candidate binding path changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["candidate_source_binding_sha256"],
+        provenance["candidate_source_binding_sha256"],
+        "MT-046 candidate binding digest changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["cargo_profile"], provenance["cargo_profile"],
+        "MT-046 Cargo profile changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["cargo_locked"], provenance["cargo_locked"],
+        "MT-046 Cargo locked state changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["backend_path"], provenance["backend_path"],
+        "MT-046 backend path changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["backend_sha256"], provenance["backend_sha256"],
+        "MT-046 backend hash changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["postgres"]["dsn"], provenance["postgres_identity"],
+        "MT-046 PostgreSQL identity changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["manifest_sha256"], provenance["manifest_sha256"],
+        "MT-046 manifest hash changed after supervisor preflight"
+    );
+    assert_eq!(
+        state["provenance"]["supervisor_pid"]
+            .as_u64()
+            .map(|value| value.to_string()),
+        provenance["supervisor_pid"].as_str().map(str::to_owned),
+        "MT-046 supervisor PID changed after preflight"
+    );
+    assert!(
+        provenance["test_executable_path"]
+            .as_str()
+            .is_some_and(|path| path.contains(provenance["test_binary"].as_str().unwrap())),
+        "MT-046 test binary env does not match current executable"
+    );
+    assert!(
+        state["scenarios"].get(scenario_id).is_none(),
+        "MT-046 run {run_id} rejected duplicate scenario {scenario_id}"
+    );
     state["updated_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
     state["scenarios"][scenario_id] = serde_json::json!({
         "attempt_id": attempt_id,
@@ -321,58 +504,14 @@ fn update_scenario_run(
     state["scenarios"][scenario_id]["recorded_at"] =
         serde_json::json!(chrono::Utc::now().to_rfc3339());
     state["scenarios"][scenario_id]["attempt_receipt_path"] = serde_json::json!(format!(
-        "attempts/{}--{attempt_id}.json",
-        scenario_id.to_ascii_lowercase()
+        "attempts/{}--{attempt_id}--{}.json",
+        scenario_id.to_ascii_lowercase(),
+        status.to_ascii_lowercase()
     ));
     state["updated_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
 
-    let scenarios = state["scenarios"]
-        .as_object()
-        .expect("MT-046 run scenarios object");
-    let terminal: HashMap<String, String> = scenarios
-        .iter()
-        .filter_map(|(id, entry)| {
-            let status = entry.get("status")?.as_str()?;
-            (status != "RUNNING").then_some((id.clone(), status.to_owned()))
-        })
-        .collect();
-    if terminal.len() == 18 {
-        let actual: HashSet<String> = terminal.keys().cloned().collect();
-        let expected = expected_scenario_ids();
-        let ids_exact = actual == expected;
-        let statuses_valid = scenarios.iter().all(|(id, entry)| {
-            let status = entry.get("status").and_then(serde_json::Value::as_str);
-            let reason = entry
-                .get("terminal_reason")
-                .and_then(serde_json::Value::as_str);
-            status == Some("PASS")
-                || (id == "IC-13"
-                    && status == Some("SKIPPED")
-                    && reason == Some("HSK-409-LOOM-AI-NO-MODEL"))
-        });
-        let overall = if ids_exact && statuses_valid {
-            "PASS"
-        } else {
-            "FAIL"
-        };
-        state["status"] = serde_json::json!(overall);
-        state["completed_at"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
-        state["terminal_scenario_count"] = serde_json::json!(terminal.len());
-        state["exact_scenario_set"] = serde_json::json!(ids_exact);
-        state["all_statuses_accepted"] = serde_json::json!(statuses_valid);
-        state["accepted_skip_policy"] = serde_json::json!({"scenario_id": "IC-13", "terminal_reason": "HSK-409-LOOM-AI-NO-MODEL"});
-        let runs = directory.join("runs");
-        std::fs::create_dir_all(&runs)
-            .unwrap_or_else(|error| panic!("create interconnect run summaries {runs:?}: {error}"));
-        write_json_atomic(&runs.join(format!("{run_id}.json")), &state);
-        write_json_atomic(&directory.join("latest-run-summary.json"), &state);
-        write_json_atomic(&state_path, &state);
-        assert_eq!(
-            overall, "PASS",
-            "MT-046 run {run_id} cannot pass: exact_ids={ids_exact} statuses_valid={statuses_valid} terminal={terminal:?}"
-        );
-        return;
-    }
+    // Only the source-bound supervisor may seal/terminalize the overall run because process exit,
+    // stdout/stderr hashes, timeout, and descendant-leak evidence do not exist inside this process yet.
     write_json_atomic(&state_path, &state);
 }
 
@@ -448,6 +587,44 @@ pub fn external_artifact_dir(subdir: &str) -> PathBuf {
     root.join("wp-kernel-012").join("mt-046").join(subdir)
 }
 
+pub fn write_immutable_external_json(path: &Path, value: &serde_json::Value) {
+    let parent = path
+        .parent()
+        .expect("MT-046 immutable evidence path has a parent");
+    std::fs::create_dir_all(parent)
+        .unwrap_or_else(|error| panic!("create MT-046 evidence directory {parent:?}: {error}"));
+    let mut bytes = serde_json::to_vec_pretty(value).expect("serialize MT-046 immutable evidence");
+    bytes.push(b'\n');
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .unwrap_or_else(|error| panic!("create immutable MT-046 evidence {path:?}: {error}"));
+    file.write_all(&bytes)
+        .unwrap_or_else(|error| panic!("write immutable MT-046 evidence {path:?}: {error}"));
+    file.sync_all()
+        .unwrap_or_else(|error| panic!("flush immutable MT-046 evidence {path:?}: {error}"));
+    let digest = format!("{:x}", Sha256::digest(&bytes));
+    let digest_path = path.with_extension("json.sha256");
+    let mut digest_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&digest_path)
+        .unwrap_or_else(|error| panic!("create MT-046 evidence digest {digest_path:?}: {error}"));
+    digest_file
+        .write_all(
+            format!(
+                "{digest}  {}\n",
+                path.file_name().unwrap().to_string_lossy()
+            )
+            .as_bytes(),
+        )
+        .unwrap_or_else(|error| panic!("write MT-046 evidence digest {digest_path:?}: {error}"));
+    digest_file
+        .sync_all()
+        .unwrap_or_else(|error| panic!("flush MT-046 evidence digest {digest_path:?}: {error}"));
+}
+
 /// Assert NO repo-local artifact directory exists under the crate (CX-212E hygiene). Checks BOTH
 /// `test_output/` AND `tests/screenshots/`; a tracked artifact under `src/` is a hygiene FAILURE — this
 /// guard fails the run if one appears. Per CX-212E the rule OVERRIDES any repo-local path a contract names.
@@ -493,9 +670,177 @@ mod pg_proof_support;
 
 #[allow(unused_imports)]
 // Each integration test crate consumes a different fixture entrypoint.
-pub use pg_proof_support::{
-    require_live_backend, require_reachable_backend, LiveBackend, DEFAULT_BASE,
-};
+pub use pg_proof_support::DEFAULT_BASE;
+
+pub struct LiveBackend {
+    inner: pg_proof_support::LiveBackend,
+    cleanup_complete: bool,
+}
+
+impl std::ops::Deref for LiveBackend {
+    type Target = pg_proof_support::LiveBackend;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::ops::DerefMut for LiveBackend {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl LiveBackend {
+    pub fn assert_cleanup_and_publish_runtime_diagnostics(
+        &mut self,
+        scenario_id: &str,
+    ) -> Result<serde_json::Value, String> {
+        let receipt = self
+            .inner
+            .assert_cleanup_and_publish_runtime_diagnostics(scenario_id)?;
+        CURRENT_BACKEND_RUNTIME_RECEIPT.with(|current| {
+            *current.borrow_mut() = Some(receipt.clone());
+        });
+        self.cleanup_complete = true;
+        Ok(receipt)
+    }
+
+    pub fn assert_cleanup(&mut self) {
+        if std::env::var("HSK_MT046_CANONICAL").as_deref() == Ok("1") {
+            let scenario = std::thread::current()
+                .name()
+                .unwrap_or("unnamed-test-thread");
+            self.assert_cleanup_and_publish_runtime_diagnostics(scenario)
+                .unwrap_or_else(|error| {
+                    panic!("publish MT-046 owned backend runtime diagnostics: {error}")
+                });
+        } else {
+            self.inner.assert_cleanup();
+            self.cleanup_complete = true;
+        }
+    }
+}
+
+impl Drop for LiveBackend {
+    fn drop(&mut self) {
+        if self.cleanup_complete || std::env::var("HSK_MT046_CANONICAL").as_deref() != Ok("1") {
+            return;
+        }
+        let scenario = std::thread::current()
+            .name()
+            .unwrap_or("unnamed-test-thread");
+        let publication = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.inner
+                .assert_cleanup_and_publish_runtime_diagnostics(scenario)
+        }));
+        if let Ok(Ok(receipt)) = publication {
+            CURRENT_BACKEND_RUNTIME_RECEIPT.with(|current| {
+                *current.borrow_mut() = Some(receipt);
+            });
+            self.cleanup_complete = true;
+        }
+    }
+}
+
+/// Start a fixture-owned current-source backend and immediately publish an immutable, run-bound
+/// ownership receipt while the child is live. The supervisor independently binds this receipt to the
+/// exact test process, backend binary, PostgreSQL identity, and retained runtime diagnostics.
+pub fn require_live_backend() -> LiveBackend {
+    let backend = pg_proof_support::require_live_backend();
+    publish_owned_backend_binding_receipt(&backend);
+    LiveBackend {
+        inner: backend,
+        cleanup_complete: false,
+    }
+}
+
+pub fn require_reachable_backend() -> LiveBackend {
+    let backend = pg_proof_support::require_reachable_backend();
+    publish_owned_backend_binding_receipt(&backend);
+    LiveBackend {
+        inner: backend,
+        cleanup_complete: false,
+    }
+}
+
+fn publish_owned_backend_binding_receipt(backend: &pg_proof_support::LiveBackend) {
+    if std::env::var("HSK_MT046_CANONICAL").as_deref() != Ok("1") {
+        return;
+    }
+    let run_id = required_env("HSK_MT046_RUN_ID");
+    let correlation_id = required_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
+    let provenance = required_supervisor_provenance();
+    let backend_binding = backend.owned_backend_binding_receipt();
+    CURRENT_BACKEND_BINDING.with(|current| {
+        *current.borrow_mut() = Some(backend_binding.clone());
+    });
+    let backend_pid = backend_binding["backend_pid"]
+        .as_u64()
+        .expect("owned backend binding requires a child PID");
+    let test_thread = std::thread::current()
+        .name()
+        .unwrap_or("unnamed-test-thread");
+    let directory = external_artifact_dir("backend-bindings").join(&run_id);
+    std::fs::create_dir_all(&directory)
+        .unwrap_or_else(|error| panic!("create MT-046 backend binding directory: {error}"));
+    let filename = format!(
+        "{}--{}--{}.json",
+        test_thread.replace(|character: char| !character.is_ascii_alphanumeric(), "-"),
+        std::process::id(),
+        backend_pid
+    );
+    let path = directory.join(filename);
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.wp_kernel_012.mt046_owned_backend_binding@1",
+        "run_id": run_id,
+        "source_sha": provenance["source_sha"],
+        "candidate_source_id": provenance["candidate_source_id"],
+        "test_binary": provenance["test_binary"],
+        "test_thread": test_thread,
+        "test_process_id": std::process::id(),
+        "test_executable_path": provenance["test_executable_path"],
+        "test_executable_sha256": provenance["test_executable_sha256"],
+        "process_correlation_id": correlation_id,
+        "process_scenario_id": std::env::var("HANDSHAKE_PROOF_PROCESS_SCENARIO_ID").ok(),
+        "backend_parent_process_id": std::process::id(),
+        "backend": backend_binding,
+        "recorded_at": chrono::Utc::now().to_rfc3339(),
+    });
+    let mut bytes = serde_json::to_vec_pretty(&receipt)
+        .expect("serialize MT-046 owned backend binding receipt");
+    bytes.push(b'\n');
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .unwrap_or_else(|error| {
+            panic!("create immutable MT-046 backend binding {path:?}: {error}")
+        });
+    file.write_all(&bytes)
+        .unwrap_or_else(|error| panic!("write MT-046 backend binding {path:?}: {error}"));
+    file.sync_all()
+        .unwrap_or_else(|error| panic!("flush MT-046 backend binding {path:?}: {error}"));
+    let digest = format!("{:x}", Sha256::digest(&bytes));
+    let digest_path = path.with_extension("json.sha256");
+    let mut digest_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&digest_path)
+        .unwrap_or_else(|error| panic!("create MT-046 backend binding digest: {error}"));
+    digest_file
+        .write_all(
+            format!(
+                "{digest}  {}\n",
+                path.file_name().unwrap().to_string_lossy()
+            )
+            .as_bytes(),
+        )
+        .unwrap_or_else(|error| panic!("write MT-046 backend binding digest: {error}"));
+    digest_file
+        .sync_all()
+        .unwrap_or_else(|error| panic!("flush MT-046 backend binding digest: {error}"));
+}
 
 /// Evidence returned by the same production SaveManager + RichDocSaveBackend path mounted by the
 /// native rich editor. Interconnect proofs use this instead of issuing their own direct save PUT.

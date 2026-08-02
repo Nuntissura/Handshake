@@ -15,18 +15,23 @@
 //!
 //! Artifact hygiene (CX-212E): no artifact under `src/`.
 
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 
 use std::sync::Arc;
 
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::panel::CODE_EDITOR_TEXT_AUTHOR_ID;
-use handshake_native::interop::InteractionBus;
+use handshake_native::interop::{undo_count_author_id, InteractionBus};
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
@@ -106,6 +111,266 @@ fn rich_content(state: &RichEditorState) -> String {
     to_content_json_value(&state.doc).to_string()
 }
 
+fn run_supplemental_mt046_argus_undo(scenario_id: &str, edit_rich: bool, edit_code: bool) {
+    let rich_pane = pane("pane-b");
+    let code_pane = pane("pane-a");
+    let (mut app, _runtime) = editor_shell();
+    app.set_active_pane_for_test(Some(if edit_code {
+        code_pane.clone()
+    } else {
+        rich_pane.clone()
+    }));
+    let rich_doc = app.mounted_rich_state();
+    let rich_before = BlockNode::doc(vec![BlockNode::paragraph("argus-note-base")]);
+    let rich_after = BlockNode::doc(vec![BlockNode::paragraph("argus-note-EDITED")]);
+    rich_doc.lock().unwrap().doc = rich_before.clone();
+    let code_panel = app.mounted_code_panel();
+    code_panel.set_text("let argus_code = 0;\n");
+    let code_before = code_panel.buffer();
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-046")
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    if edit_rich {
+        let before_json = to_content_json_value(&rich_before);
+        let after_json = to_content_json_value(&rich_after);
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        push_rich_edit_undo(
+            &mut bus.lock().unwrap(),
+            rich_pane.clone(),
+            &rich_doc,
+            before_json,
+            after_json,
+            rich_restore(),
+            "argus rich edit",
+        );
+        rich_doc.lock().unwrap().doc = rich_after.clone();
+    }
+    if edit_code {
+        code_panel.set_text("let argus_code = 999;\n");
+        let code_after = code_panel.buffer();
+        handshake_native::code_editor::interop_adapter::push_code_edit_undo(
+            &mut InteractionBus::get_or_init(&harness.ctx).lock().unwrap(),
+            code_pane.clone(),
+            &code_panel,
+            code_before.clone(),
+            code_after,
+            "argus code edit",
+        );
+    }
+
+    let focused_author = if edit_code {
+        CODE_EDITOR_TEXT_AUTHOR_ID
+    } else {
+        "editor.rich.text"
+    };
+    focus_accesskit(&mut harness, focused_author);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), &format!("mt046-{scenario_id}"));
+    let initial = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&initial, "menu-edit"));
+    let rich_undo_author_id = undo_count_author_id(rich_pane.as_ref());
+    let code_undo_author_id = undo_count_author_id(code_pane.as_ref());
+    let initial_rich_value = json_node_by_author_id(&initial, &rich_undo_author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    let initial_code_value = json_node_by_author_id(&initial, &code_undo_author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    if edit_rich {
+        assert_eq!(initial_rich_value.as_deref(), Some("Undo (1)"));
+        assert_eq!(
+            rich_content(&rich_doc.lock().unwrap()),
+            to_content_json_value(&rich_after).to_string()
+        );
+    }
+    if edit_code {
+        assert_eq!(initial_code_value.as_deref(), Some("Undo (1)"));
+        assert_eq!(code_panel.buffer().to_string(), "let argus_code = 999;\n");
+    }
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu-edit");
+    argus.assert_latest_terminal_predicate(&mut harness, "undo-menu-item-enabled", |tree| {
+        json_has_author_id(tree, "menu.edit.undo")
+    });
+    let undo = argus.click_expect_applied_and_reinspect(&mut harness, "menu.edit.undo");
+    let undo_receipt_id = undo.receipt_id;
+    let expected_focused_undo_author_id = if edit_code {
+        code_undo_author_id.as_str()
+    } else {
+        rich_undo_author_id.as_str()
+    };
+    let code_before_text = code_before.to_string();
+    let rich_before_text = to_content_json_value(&rich_before).to_string();
+    let rich_after_text = to_content_json_value(&rich_after).to_string();
+    let terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "exact-focused-undo-restored-state",
+        serde_json::json!({
+            "receipt_id": undo_receipt_id,
+            "focused_author_id": focused_author,
+            "focused_undo_count_author_id": expected_focused_undo_author_id,
+            "focused_undo_count_initial_value": "Undo (1)",
+            "focused_undo_count_terminal_value": "Undo (0)",
+            "initial_code": if edit_code { Some("let argus_code = 999;\n") } else { None },
+            "terminal_code": if edit_code { Some(code_before_text.as_str()) } else { None },
+            "initial_rich": if edit_rich { Some(rich_after_text.as_str()) } else { None },
+            "terminal_rich": if edit_rich && !edit_code { Some(rich_before_text.as_str()) } else if edit_rich { Some(rich_after_text.as_str()) } else { None },
+            "ic18_retained_rich_undo_count_value": if edit_rich && edit_code { Some("Undo (1)") } else { None },
+        }),
+        |tree| {
+            let focused_undo_restored = json_node_by_author_id(tree, expected_focused_undo_author_id)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("Undo (0)");
+            let exact_receipt_applied = tree["action_receipts"]
+                .as_array()
+                .is_some_and(|receipts| {
+                    receipts.iter().any(|receipt| {
+                        receipt["receipt_id"].as_u64() == Some(undo_receipt_id)
+                            && receipt["status"] == "applied"
+                    })
+                });
+            let exact_editor_state = if edit_code {
+                code_panel.buffer().to_string() == code_before_text
+            } else {
+                rich_content(&rich_doc.lock().unwrap()) == rich_before_text
+            };
+            let ic18_retained_rich = !edit_rich
+                || !edit_code
+                || (rich_content(&rich_doc.lock().unwrap()) == rich_after_text
+                    && json_node_by_author_id(tree, &rich_undo_author_id)
+                        .and_then(|node| node.get("value"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some("Undo (1)"));
+            json_has_author_id(tree, focused_author)
+                && focused_undo_restored
+                && exact_receipt_applied
+                && exact_editor_state
+                && ic18_retained_rich
+        },
+    );
+
+    if edit_code {
+        assert_eq!(code_panel.buffer().to_string(), code_before.to_string());
+        assert_eq!(
+            InteractionBus::get_or_init(&harness.ctx)
+                .lock()
+                .unwrap()
+                .local_undo_count(&code_pane),
+            0
+        );
+    } else {
+        assert_eq!(rich_doc.lock().unwrap().doc, rich_before);
+    }
+    if edit_rich && edit_code {
+        assert!(rich_content(&rich_doc.lock().unwrap()).contains("argus-note-EDITED"));
+        assert_eq!(
+            InteractionBus::get_or_init(&harness.ctx)
+                .lock()
+                .unwrap()
+                .local_undo_count(&rich_pane),
+            1
+        );
+    }
+
+    let scenario_evidence = serde_json::json!({
+        "schema_id": "hsk.mt046.scenario-evidence@1",
+        "run_id": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"),
+        "scenario_id": scenario_id,
+        "source_sha": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+        "process_correlation_id": required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID"),
+        "workspace_ids": [],
+        "target": "menu.edit.undo",
+        "receipt_id": undo_receipt_id,
+        "focused_author_id": focused_author,
+        "initial": {
+            "code_undo_count_value": initial_code_value,
+            "rich_undo_count_value": initial_rich_value,
+            "code": if edit_code { Some("let argus_code = 999;\n") } else { None },
+            "rich": if edit_rich { Some(rich_after_text.as_str()) } else { None },
+        },
+        "terminal": {
+            "focused_undo_count_value": "Undo (0)",
+            "code": code_panel.buffer().to_string(),
+            "rich": rich_content(&rich_doc.lock().unwrap()),
+            "ic18_rich_undo_count_value": if edit_rich && edit_code { Some("Undo (1)") } else { None },
+        },
+    });
+    let _ = harness.render_proof_frame(&format!("{scenario_id} mounted undo terminal"));
+    assert!(harness.last_screenshot_outcome().is_some());
+    argus.finish_require_no_indeterminate();
+    let proof_dir = supplemental_mt046_tree_dir(scenario_id);
+    write_immutable_json(&proof_dir.join("initial-tree.json"), &initial);
+    write_immutable_json(&proof_dir.join("terminal-tree.json"), &terminal);
+    write_immutable_json(
+        &proof_dir.join("scenario-evidence.json"),
+        &scenario_evidence,
+    );
+    assert_no_local_artifact_dir();
+}
+
+fn required_mt046_env(name: &str) -> String {
+    std::env::var(name)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| panic!("MT-046 supplemental Argus proof requires {name}"))
+}
+
+fn supplemental_mt046_tree_dir(scenario_id: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(required_mt046_env("HANDSHAKE_PROOF_ARTIFACT_DIR"))
+        .join(required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"))
+        .join("trees")
+        .join(scenario_id)
+}
+
+fn write_immutable_json(path: &std::path::Path, value: &serde_json::Value) {
+    use std::io::Write as _;
+
+    let parent = path.parent().expect("MT-046 evidence path has a parent");
+    std::fs::create_dir_all(parent).expect("create MT-046 unified tree directory");
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .unwrap_or_else(|error| {
+            panic!(
+                "create immutable MT-046 evidence {}: {error}",
+                path.display()
+            )
+        });
+    file.write_all(&serde_json::to_vec_pretty(value).expect("serialize MT-046 evidence"))
+        .unwrap_or_else(|error| {
+            panic!(
+                "write immutable MT-046 evidence {}: {error}",
+                path.display()
+            )
+        });
+    file.sync_all().unwrap_or_else(|error| {
+        panic!("sync immutable MT-046 evidence {}: {error}", path.display())
+    });
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic15_rich_undo() {
+    run_supplemental_mt046_argus_undo("IC-15", true, false);
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic16_code_undo() {
+    run_supplemental_mt046_argus_undo("IC-16", false, true);
+}
+
+#[test]
+#[ignore = "run only by MT-046 canonical supervisor with per-process matrix metadata"]
+fn supplemental_mt046_argus_ic18_scoped_undo() {
+    run_supplemental_mt046_argus_undo("IC-18", true, true);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // IC-15 — Undo crosses rich editor edit (LIVE-PG PASS): persist EDIT_A, route the Ctrl+Z operation through
 // the ONE shared bus undo scope, persist the restored snapshot, and GET backend authority to prove EDIT_A
@@ -116,6 +381,7 @@ fn rich_content(state: &RichEditorState) -> String {
 fn interconnect_ic15_undo_rich_editor() {
     let attempt = ScenarioAttempt::begin("IC-15");
     let mut be = require_live_backend();
+    let backend_binding = be.owned_backend_binding_receipt();
     let rich_pane = pane("pane-b");
 
     let before_doc = BlockNode::doc(vec![BlockNode::paragraph("base")]);
@@ -249,8 +515,12 @@ fn interconnect_ic15_undo_rich_editor() {
         (200..300).contains(&delete_status) || delete_status == 404,
         "IC-15: explicit document cleanup returned {delete_status}"
     );
-    be.assert_cleanup();
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-15")
+        .expect("IC-15: publish fixture-owned backend runtime diagnostics");
     attempt.pass(serde_json::json!({
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
         "edit": "EDIT_A",
         "ctrl_z_via_shared_bus": true,
         "backend_get_absent_after_undo": true,
@@ -506,6 +776,7 @@ fn interconnect_ic17_event_ledger_records() {
 
     let mut be = require_live_backend();
     let ws = be.workspace_id.clone();
+    let backend_binding = be.owned_backend_binding_receipt();
 
     // (1) create a note, (2) save it (insert text), (3) add a wikilink, (4) save again.
     let plain = BlockNode::doc(vec![BlockNode::paragraph("event ledger note")]);
@@ -645,8 +916,12 @@ fn interconnect_ic17_event_ledger_records() {
 
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
     let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{linked_block_id}"));
-    be.assert_cleanup();
+    let runtime_diagnostics = be
+        .assert_cleanup_and_publish_runtime_diagnostics("IC-17")
+        .expect("IC-17: publish fixture-owned backend runtime diagnostics");
     attempt.pass(serde_json::json!({
+        "backend_binding": backend_binding,
+        "runtime_diagnostics": runtime_diagnostics,
         "workspace_id": ws,
         "document_id": doc_id,
         "note_block_id": note_block_id,
