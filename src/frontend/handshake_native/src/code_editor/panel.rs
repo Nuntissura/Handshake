@@ -75,7 +75,9 @@ use crate::interop::cross_ref::{
     find_code_ref_notes_with, FindNotesHttp, FindNotesSearch, SymbolDwellTracker,
 };
 use crate::interop::InteractionBus;
-use crate::mcp::action::{serialize_observer_click_state, ClickCompletionState};
+use crate::mcp::action::{
+    serialize_observer_click_state, serialize_same_target_click_completion, ClickCompletionState,
+};
 use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
 
@@ -1306,6 +1308,9 @@ pub struct CodeEditorPanel {
     /// this panel's real editor-body menu so that fresh Argus inspection can reproduce that dynamic
     /// popup without inventing an alternate action surface.
     context_menu_open_for_snapshot: std::sync::atomic::AtomicBool,
+    /// Monotonic action receipt generation for the always-mounted context-menu opener. Every real
+    /// pointer or AccessKit open advances exactly once; snapshot replay never advances it.
+    context_menu_open_generation: AtomicU64,
     snapshot_capture_mode: std::sync::atomic::AtomicBool,
 
     // ── MT-051 line-edit buffer transforms ────────────────────────────────────────────────────────
@@ -2332,6 +2337,7 @@ impl CodeEditorPanel {
             pending_create_note_link: Mutex::new(None),
             wikilink_resolver_index: Mutex::new(None),
             context_menu_open_for_snapshot: std::sync::atomic::AtomicBool::new(false),
+            context_menu_open_generation: AtomicU64::new(0),
             snapshot_capture_mode: std::sync::atomic::AtomicBool::new(false),
             // MT-071: seed indent from the document so the Indent segment + Tab key reflect the file's
             // actual style on open (tab-indented file -> Tabs; 4-space file -> Spaces 4), defaulting to
@@ -9128,6 +9134,8 @@ impl CodeEditorPanel {
         if resp.secondary_clicked() {
             self.context_menu_open_for_snapshot
                 .store(true, Ordering::Relaxed);
+            self.context_menu_open_generation
+                .fetch_add(1, Ordering::Relaxed);
         }
         if self.snapshot_capture_mode.load(Ordering::Relaxed)
             && self.context_menu_open_for_snapshot.load(Ordering::Relaxed)
@@ -9178,6 +9186,14 @@ impl CodeEditorPanel {
                     B::CreateNoteFromLink => self.stage_create_note_from_link(),
                 }
             }
+        } else if !self.snapshot_capture_mode.load(Ordering::Relaxed)
+            && !crate::context_menu::is_open(ui.ctx(), resp.id)
+        {
+            // Escape/click-outside closes egui's popup without producing a confirmed item. Mirror that
+            // real closed state into the snapshot replay latch so a later Argus inspection cannot
+            // resurrect a stale menu. Snapshot capture itself must remain read-only for this latch.
+            self.context_menu_open_for_snapshot
+                .store(false, Ordering::Relaxed);
         }
 
         // Always-present MenuItem AccessKit node carrying the exact contract author_id (AC-005). A swarm
@@ -9203,13 +9219,6 @@ impl CodeEditorPanel {
                 self.instance
             ))
         };
-        ui.ctx().accesskit_node_builder(node_id, move |node| {
-            node.set_role(accesskit::Role::MenuItem);
-            node.set_author_id(author.clone());
-            node.set_label("Rename Symbol".to_owned());
-            node.set_value("Open the code-editor context menu at Rename Symbol".to_owned());
-            node.add_action(accesskit::Action::Click);
-        });
         let open_context_menu = ui.input(|input| {
             input
                 .accesskit_action_requests(node_id, accesskit::Action::Click)
@@ -9223,8 +9232,32 @@ impl CodeEditorPanel {
             crate::context_menu::request_open(ui.ctx(), resp.id, rect.center());
             self.context_menu_open_for_snapshot
                 .store(true, Ordering::Relaxed);
+            self.context_menu_open_generation
+                .fetch_add(1, Ordering::Relaxed);
             ui.ctx().request_repaint();
         }
+        // Emit after consuming the AccessKit request so this exact rendered tree carries the advanced
+        // generation that acknowledges the open. Emitting the baseline first would let the action
+        // channel inspect a stale Ready value and conservatively terminalize as Indeterminate.
+        let open_generation = self.context_menu_open_generation.load(Ordering::Relaxed);
+        let open_completion = serialize_same_target_click_completion(
+            "code-editor.open-context-menu",
+            "wp-kernel-012-ic07",
+            open_generation,
+            if open_generation == 0 {
+                ClickCompletionState::Ready
+            } else {
+                ClickCompletionState::Applied
+            },
+        )
+        .expect("code-editor context-menu opener completion token is valid");
+        ui.ctx().accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::MenuItem);
+            node.set_author_id(author.clone());
+            node.set_label("Rename Symbol".to_owned());
+            node.set_value(open_completion.clone());
+            node.add_action(accesskit::Action::Click);
+        });
 
         // MT-049 (AC-007 / HBR-SWARM): the always-addressable 'Quick Fix...' context-menu node. A swarm
         // agent reads/activates it by `code_editor_ctx_quick_fix` to arm the SAME request+open_menu flow as

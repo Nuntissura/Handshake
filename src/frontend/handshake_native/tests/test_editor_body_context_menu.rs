@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use egui_kittest::kittest::NodeT;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 
 use handshake_native::code_editor::panel::CODE_EDITOR_CONTEXT_SURFACE_AUTHOR_ID;
@@ -92,6 +92,114 @@ fn click_menu_item(harness: &mut Harness<'_>, ctx_menu_author_id: &str) {
         .unwrap_or_else(|| panic!("open menu item {ctx_menu_author_id} is live"))
         .click();
     harness.run();
+}
+
+fn context_menu_opener_completion(harness: &Harness<'_>) -> serde_json::Value {
+    let raw = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some("code_editor_ctx_rename_symbol"))
+        .and_then(|n| n.accesskit_node().value())
+        .expect("the stable context-menu opener carries a completion value");
+    serde_json::from_str(&raw).expect("the context-menu opener completion value is valid JSON")
+}
+
+// ── The stable Argus opener acknowledges each real open and does not resurrect Escape-closed UI ──
+
+#[test]
+fn stable_context_menu_opener_advances_completion_and_escape_stays_closed() {
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    let caret = SNIPPET.find("my_function").expect("snippet ident") + 3;
+    panel.set_single_cursor(caret);
+    let mut harness = harness_for(Arc::clone(&panel));
+
+    let baseline = context_menu_opener_completion(&harness);
+    assert_eq!(baseline["mode"], "same_target");
+    assert_eq!(baseline["effect"], "code-editor.open-context-menu");
+    assert_eq!(baseline["context"], "wp-kernel-012-ic07");
+    assert_eq!(baseline["generation"], 0);
+    assert_eq!(baseline["state"], "ready");
+
+    harness
+        .get_by(|node| node.author_id() == Some("code_editor_ctx_rename_symbol"))
+        .click_accesskit();
+    harness.run_steps(2);
+
+    let first_applied = context_menu_opener_completion(&harness);
+    assert_eq!(first_applied["generation"], 1);
+    assert_eq!(first_applied["state"], "applied");
+    assert!(
+        live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _)| author_id == "ctx-menu.code_editor_ctx_rename_symbol"),
+        "the acknowledged opener exposes the real typed popup leaf"
+    );
+
+    harness.key_press(egui::Key::Escape);
+    harness.run_steps(2);
+    assert!(
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _)| author_id.starts_with("ctx-menu.")),
+        "Escape closes the real popup"
+    );
+
+    panel.set_snapshot_capture_mode(true);
+    harness.run_steps(2);
+    panel.set_snapshot_capture_mode(false);
+    assert!(
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _)| author_id.starts_with("ctx-menu.")),
+        "snapshot capture does not resurrect an Escape-closed popup"
+    );
+
+    harness
+        .get_by(|node| node.author_id() == Some("code_editor_ctx_rename_symbol"))
+        .click_accesskit();
+    harness.run_steps(2);
+    let second_applied = context_menu_opener_completion(&harness);
+    assert_eq!(second_applied["generation"], 2);
+    assert_eq!(second_applied["state"], "applied");
+    assert!(
+        live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _)| author_id == "ctx-menu.code_editor_ctx_rename_symbol"),
+        "the second acknowledged opener exposes the same real popup leaf"
+    );
+
+    // Exercise egui's real click-outside dismissal path at the viewport corner, away from the popup
+    // anchored in the editor body. This path also produces no confirmed menu item.
+    let outside = egui::pos2(2.0, 2.0);
+    harness.event(egui::Event::PointerMoved(outside));
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: outside,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::default(),
+        });
+    }
+    harness.run_steps(2);
+    assert!(
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _)| author_id.starts_with("ctx-menu.")),
+        "a real pointer click outside closes the popup"
+    );
+
+    panel.set_snapshot_capture_mode(true);
+    harness.run_steps(2);
+    panel.set_snapshot_capture_mode(false);
+    assert!(
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _)| author_id.starts_with("ctx-menu.")),
+        "snapshot capture does not resurrect a click-outside-closed popup"
+    );
+    let after_outside_snapshot = context_menu_opener_completion(&harness);
+    assert_eq!(after_outside_snapshot["generation"], 2);
+    assert_eq!(after_outside_snapshot["state"], "applied");
 }
 
 // ── The live panel's right-click shows the 5 MT-070 entries + the MT-046 entry ────────────────────
