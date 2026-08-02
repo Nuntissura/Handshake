@@ -283,8 +283,11 @@ foreach ($priorPath in @($currentRunPath, $latestRunPath)) {
     }
 }
 $attemptRoot = Join-Path $measurementRoot 'attempts'
-if ((Test-Path -LiteralPath $attemptRoot) -and
-    (Get-ChildItem -LiteralPath $attemptRoot -File | Select-String -SimpleMatch $RunId -Quiet)) {
+$attemptRunMatches = if (Test-Path -LiteralPath $attemptRoot) {
+    @(Get-ChildItem -LiteralPath $attemptRoot -File |
+        Select-String -SimpleMatch $RunId -List)
+} else { @() }
+if (@($attemptRunMatches).Count -ne 0) {
     throw "RunId '$RunId' already appears in immutable attempt history"
 }
 
@@ -527,11 +530,21 @@ $postgresProcess = Get-Process -Id $listener.OwningProcess
 if (-not $postgresProcess.ProcessName.Equals('postgres', [StringComparison]::OrdinalIgnoreCase)) {
     throw "The PostgreSQL endpoint is owned by '$($postgresProcess.ProcessName)', not postgres"
 }
+$postgresExecutable = [IO.Path]::GetFullPath([string]$postgresProcess.Path)
+$psql = Join-Path (Split-Path $postgresExecutable -Parent) 'psql.exe'
+if (-not (Test-Path -LiteralPath $psql -PathType Leaf)) {
+    throw "The verified PostgreSQL runtime has no sibling psql executable: '$psql'"
+}
+$psql = [IO.Path]::GetFullPath($psql)
+$psqlSha256 = Get-FileSha256 $psql
 $postgresReceipt = [ordered]@{
     dsn = $postgresIdentity
     pid = [int]$postgresProcess.Id
     process_name = $postgresProcess.ProcessName
     start_time_utc = ([DateTimeOffset]$postgresProcess.StartTime).ToUniversalTime().ToString('O')
+    executable = $postgresExecutable
+    psql_path = $psql
+    psql_sha256 = $psqlSha256
     lifecycle = 'existing_internal_postgresql_preserved'
 }
 
@@ -735,6 +748,7 @@ try {
     $env:CARGO_TARGET_DIR = $targetRoot
     $env:HSK_TEST_BACKEND_BIN = $backendPath
     $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
+    $env:HSK_PSQL_BIN = $psql
     $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = Join-Path $runRoot 'stage-binding'
     $env:HSK_MT045_RUN_ID = $RunId # pg_proof_support's current generic managed-backend receipt key
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
@@ -1261,7 +1275,6 @@ try {
         }
     }
 
-    $psql = (Get-Command psql -CommandType Application).Source
     $workspaceCleanup = [Collections.Generic.List[object]]::new()
     foreach ($workspaceId in $workspaceIds) {
         if ($workspaceId -notmatch '^[A-Za-z0-9_-]{1,128}$') {
