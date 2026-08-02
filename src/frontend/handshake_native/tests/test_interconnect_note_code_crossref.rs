@@ -1282,6 +1282,11 @@ fn supplemental_mt046_argus_ic06_note_to_code() {
     let (mut app, runtime) = editor_shell();
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(be.workspace_id.clone());
+    // The backend returns the canonical repo-relative symbol path. Anchor the mounted code panel in
+    // this exact indexed fixture root so the product resolver can load, paint, and acknowledge the
+    // real definition instead of searching from the test process working directory.
+    app.mounted_code_panel()
+        .set_file_path(fixture.root.join("README.md").to_string_lossy());
     app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
     let mut paragraph = BlockNode::new(NodeKind::Paragraph);
     paragraph.children.push(Child::HsLink(HsLinkNode::new(
