@@ -5,6 +5,7 @@
 use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::screenshot_harness::screenshot_marker;
 use egui_kittest::kittest::NodeT;
@@ -255,6 +256,40 @@ impl CanonicalArgusDriver {
         self.rpc(ARGUS_INSPECT_METHOD, serde_json::json!({}))["result"].clone()
     }
 
+    fn inspect_until_receipt_terminal(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        receipt_id: u64,
+        action_label: &str,
+    ) -> serde_json::Value {
+        let deadline = Instant::now() + Duration::from_secs(15);
+        loop {
+            harness.run_steps(1);
+            let snapshot = self.inspect(harness);
+            let receipt = snapshot["action_receipts"]
+                .as_array()
+                .and_then(|receipts| {
+                    receipts
+                        .iter()
+                        .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+                })
+                .unwrap_or_else(|| {
+                    panic!("fresh argus.inspect returns {action_label} receipt {receipt_id}")
+                });
+            let status = receipt["status"]
+                .as_str()
+                .expect("Argus receipt has a typed status");
+            if !matches!(status, "queued" | "dispatched") {
+                return snapshot;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {action_label} receipt {receipt_id} to leave {status}: {receipt}"
+            );
+            std::thread::yield_now();
+        }
+    }
+
     pub fn click_and_reinspect(
         &mut self,
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
@@ -329,9 +364,7 @@ impl CanonicalArgusDriver {
         for event in raw_input.events {
             harness.event(event);
         }
-        harness.run_steps(3);
-
-        let after = self.inspect(harness);
+        let after = self.inspect_until_receipt_terminal(harness, receipt_id, "click");
         let target_selected_after = live_author_id_selected(harness, author_id);
         let receipt = after["action_receipts"]
             .as_array()
@@ -380,6 +413,19 @@ impl CanonicalArgusDriver {
         payload: serde_json::Value,
     ) -> ArgusObservation {
         let before = self.inspect(harness);
+        self.click_with_payload_from_snapshot_and_reinspect_with_status_policy(
+            harness, author_id, payload, before, false,
+        )
+    }
+
+    fn click_with_payload_from_snapshot_and_reinspect_with_status_policy(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        payload: serde_json::Value,
+        before: serde_json::Value,
+        allow_typed_rejected: bool,
+    ) -> ArgusObservation {
         let target_selected_before = live_author_id_selected(harness, author_id);
         assert!(
             json_has_author_id(&before, author_id),
@@ -416,9 +462,7 @@ impl CanonicalArgusDriver {
         for event in raw_input.events {
             harness.event(event);
         }
-        harness.run_steps(3);
-
-        let after = self.inspect(harness);
+        let after = self.inspect_until_receipt_terminal(harness, receipt_id, "parameterized click");
         let target_selected_after = live_author_id_selected(harness, author_id);
         let receipt = after["action_receipts"]
             .as_array()
@@ -433,8 +477,9 @@ impl CanonicalArgusDriver {
             .expect("Argus receipt has a typed status")
             .to_owned();
         assert!(
-            matches!(receipt_status.as_str(), "applied" | "indeterminate"),
-            "Argus parameterized receipt is terminal and non-rejected: {receipt}"
+            matches!(receipt_status.as_str(), "applied" | "indeterminate")
+                || (allow_typed_rejected && receipt_status == "rejected"),
+            "Argus parameterized receipt status is allowed: {receipt}"
         );
         let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
         bind_screenshot_to_matrix_receipt(receipt_id);
@@ -456,6 +501,53 @@ impl CanonicalArgusDriver {
             terminal_predicates: Vec::new(),
         };
         self.observations.push(observation.clone());
+        observation
+    }
+
+    pub fn click_with_payload_expect_typed_rejected_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        payload: serde_json::Value,
+        expected_message: &str,
+    ) -> ArgusObservation {
+        assert!(
+            !expected_message.is_empty(),
+            "expected rejection message is required"
+        );
+        let before = self.inspect(harness);
+        let observation = self.click_with_payload_from_snapshot_and_reinspect_with_status_policy(
+            harness, author_id, payload, before, true,
+        );
+        assert_eq!(observation.receipt_status, "rejected");
+        let receipt = observation.after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+            })
+            .expect("typed-Rejected parameterized observation retains its exact receipt");
+        assert!(
+            receipt["rejection"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_message)),
+            "typed-Rejected parameterized receipt must carry {expected_message:?}: {receipt}"
+        );
+        observation
+    }
+
+    pub fn click_with_payload_expect_applied_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        payload: serde_json::Value,
+    ) -> ArgusObservation {
+        let observation = self.click_with_payload_and_reinspect(harness, author_id, payload);
+        assert_eq!(
+            observation.receipt_status, "applied",
+            "{author_id} parameterized action must produce an action-specific Applied receipt"
+        );
         observation
     }
 
@@ -568,18 +660,24 @@ impl CanonicalArgusDriver {
             .observations
             .last_mut()
             .expect("preceding canonical observation");
-        let receipt_present = after["action_receipts"].as_array().is_some_and(|receipts| {
-            receipts.iter().any(|receipt| {
-                receipt["receipt_id"].as_u64() == Some(observation.receipt_id)
-                    && matches!(
-                        receipt["status"].as_str(),
-                        Some("applied" | "indeterminate")
-                    )
+        let receipt = after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
             })
-        });
+            .expect("terminal reinspection must retain the exact action receipt");
+        let receipt_status = receipt["status"]
+            .as_str()
+            .expect("terminal reinspection receipt has a typed status");
         assert!(
-            receipt_present,
-            "terminal reinspection must retain the exact action receipt"
+            matches!(receipt_status, "applied" | "rejected" | "indeterminate"),
+            "terminal reinspection receipt must remain terminal: {receipt}"
+        );
+        assert_eq!(
+            receipt_status, observation.receipt_status,
+            "terminal reinspection cannot change the exact action's terminal status"
         );
         observation.after = after.clone();
         observation.terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
@@ -673,6 +771,20 @@ impl CanonicalArgusDriver {
         assert_eq!(self.server.leases().active_resource_count(), 0);
         self.server.shutdown();
         drop(self.runtime);
+    }
+
+    pub fn finish_require_no_indeterminate(self) {
+        assert!(
+            self.observations
+                .iter()
+                .all(|observation| observation.receipt_status != "indeterminate"),
+            "strict canonical proof cannot retain an indeterminate action: {:?}",
+            self.observations
+                .iter()
+                .map(|observation| (&observation.receipt_id, &observation.receipt_status))
+                .collect::<Vec<_>>()
+        );
+        self.finish();
     }
 }
 
