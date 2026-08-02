@@ -708,9 +708,8 @@ impl LiveBackend {
 
     pub fn assert_cleanup(&mut self) {
         if std::env::var("HSK_MT046_CANONICAL").as_deref() == Ok("1") {
-            let scenario = std::thread::current()
-                .name()
-                .unwrap_or("unnamed-test-thread");
+            let current_thread = std::thread::current();
+            let scenario = current_thread.name().unwrap_or("unnamed-test-thread");
             self.assert_cleanup_and_publish_runtime_diagnostics(scenario)
                 .unwrap_or_else(|error| {
                     panic!("publish MT-046 owned backend runtime diagnostics: {error}")
@@ -727,9 +726,8 @@ impl Drop for LiveBackend {
         if self.cleanup_complete || std::env::var("HSK_MT046_CANONICAL").as_deref() != Ok("1") {
             return;
         }
-        let scenario = std::thread::current()
-            .name()
-            .unwrap_or("unnamed-test-thread");
+        let current_thread = std::thread::current();
+        let scenario = current_thread.name().unwrap_or("unnamed-test-thread");
         let publication = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.inner
                 .assert_cleanup_and_publish_runtime_diagnostics(scenario)
@@ -778,9 +776,8 @@ fn publish_owned_backend_binding_receipt(backend: &pg_proof_support::LiveBackend
     let backend_pid = backend_binding["backend_pid"]
         .as_u64()
         .expect("owned backend binding requires a child PID");
-    let test_thread = std::thread::current()
-        .name()
-        .unwrap_or("unnamed-test-thread");
+    let current_thread = std::thread::current();
+    let test_thread = current_thread.name().unwrap_or("unnamed-test-thread");
     let directory = external_artifact_dir("backend-bindings").join(&run_id);
     std::fs::create_dir_all(&directory)
         .unwrap_or_else(|error| panic!("create MT-046 backend binding directory: {error}"));
