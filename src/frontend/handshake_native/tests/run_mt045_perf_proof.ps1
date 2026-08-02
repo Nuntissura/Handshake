@@ -2215,7 +2215,14 @@ Start-Sleep -Seconds 30
             $boundRetained[0].trigger -cne "request_failure" -or
             $boundRetained[0].stage -cne "request_send" -or
             $null -eq $boundRetained[0].reqwest_error -or
-            $boundRetained[0].reqwest_error.is_connect -ne $true -or
+            -not (
+                $boundRetained[0].reqwest_error.is_request -eq $true -or
+                $boundRetained[0].reqwest_error.is_connect -eq $true -or
+                $boundRetained[0].reqwest_error.is_timeout -eq $true -or
+                $boundRetained[0].reqwest_error.is_body -eq $true -or
+                $boundRetained[0].reqwest_error.is_decode -eq $true -or
+                $boundRetained[0].reqwest_error.is_builder -eq $true
+            ) -or
             @($boundRetained[0].reqwest_error.source_chain).Count -lt 1 -or
             $null -eq $boundRetained[0].immediate_health -or
             $boundRetained[0].immediate_health.reachable -ne $false -or
