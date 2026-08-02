@@ -299,6 +299,19 @@ impl CanonicalArgusDriver {
         self.click_from_snapshot_and_reinspect(harness, author_id, before)
     }
 
+    pub fn click_expect_applied_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+    ) -> ArgusObservation {
+        let observation = self.click_and_reinspect(harness, author_id);
+        assert_eq!(
+            observation.receipt_status, "applied",
+            "{author_id} must produce an action-specific Applied receipt"
+        );
+        observation
+    }
+
     pub fn click_expect_rejected(
         &mut self,
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
