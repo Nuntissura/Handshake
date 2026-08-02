@@ -204,6 +204,22 @@ impl UiTreeSnapshot {
         self.iter_nodes()
             .find(|n| n.author_id.as_deref() == Some(author_id))
     }
+
+    /// Resolve a stable author id only when it appears exactly once. Model actions must fail closed
+    /// on duplicate ids because choosing the first depth-first match makes behavior tree-order dependent.
+    pub fn find_unique_by_author_id(&self, author_id: &str) -> Option<&UiTreeNode> {
+        let mut matches = self
+            .iter_nodes()
+            .filter(|node| node.author_id.as_deref() == Some(author_id));
+        let first = matches.next()?;
+        matches.next().is_none().then_some(first)
+    }
+
+    pub fn author_id_match_count(&self, author_id: &str) -> usize {
+        self.iter_nodes()
+            .filter(|node| node.author_id.as_deref() == Some(author_id))
+            .count()
+    }
 }
 
 /// The full set of AccessKit actions, used to enumerate which ones a node supports. AccessKit exposes
