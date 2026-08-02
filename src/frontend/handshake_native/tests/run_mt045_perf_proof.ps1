@@ -2151,6 +2151,33 @@ Start-Sleep -Seconds 30
         $env:HSK_PSQL_BIN = $script:mt045PsqlPath
         $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
         $env:HSK_TEST_BACKEND_BIN = $backendBinary
+        $probeDiagnosticResults = [Collections.Generic.List[object]]::new()
+        foreach ($entry in @(
+            @("test_heartbeat", "heartbeat_advances_by_n_over_n_frames"),
+            @("test_heartbeat", "idle_repaint_cadence_is_bounded"),
+            @("test_diagnostics_panel", "panel_projects_live_heartbeat_frame_and_events")
+        )) {
+            $bin = $entry[0]
+            $test = $entry[1]
+            $result = Invoke-BoundedCargo -Label "probe-diagnostic-$test" -Arguments @(
+                "test", "--release", "--locked", "--target-dir", $targetRoot,
+                "--test", $bin, $test, "--", "--exact", "--nocapture", "--test-threads=1"
+            ) -WorkingDirectory $crateRoot -LogRoot $runRoot
+            Assert-ExactTestResult -CommandResult $result -ExpectedTest $test
+            $probeDiagnosticResults.Add($result)
+        }
+        $probeDiagnosticReceiptPath = Join-Path $runRoot "diagnostics-preflight.json"
+        $probeDiagnosticReceiptSha256 = Write-ImmutableJson -Path $probeDiagnosticReceiptPath -Value ([ordered]@{
+            schema_id = "hsk.wp_kernel_012.mt045_diagnostics_preflight@1"
+            work_packet_id = "WP-KERNEL-012"
+            micro_task_id = "MT-045"
+            run_id = $RunId
+            source_sha = $sourceSha
+            status = "PASS"
+            tests = $probeDiagnosticResults
+            completed_at = [DateTimeOffset]::UtcNow.ToString("O")
+        })
+        $env:HSK_MT045_DIAGNOSTIC_RECEIPT = $probeDiagnosticReceiptPath
         $env:HSK_MT045_RETAINED_FAILURE_PROBE = "1"
         Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
         $expectedFailureObserved = $false
@@ -2213,6 +2240,10 @@ Start-Sleep -Seconds 30
                 build_receipt = $backendBuildReceipt
                 executable = $backendBinary
                 sha256 = $backendSha256
+            }
+            diagnostics = [ordered]@{
+                receipt = $probeDiagnosticReceiptPath
+                sha256 = $probeDiagnosticReceiptSha256
             }
             expected_failure_command = $script:lastFailedCommandReceipt
             failure_binding = $boundRetained[0]
