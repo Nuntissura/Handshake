@@ -10,9 +10,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260729-v5"
+$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260802-v6"
 $mt045JobRunnerSource = @'
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -25,11 +26,12 @@ public sealed class Mt045JobRunResult
     public int ExitCode { get; set; }
     public bool TimedOut { get; set; }
     public uint LeakedProcessCount { get; set; }
+    public ulong[] LeakedProcessIds { get; set; }
 }
 
 public static class Mt045JobRunner
 {
-    public const string SourceId = "mt045-job-runner-20260729-v5";
+    public const string SourceId = "mt045-job-runner-20260802-v6";
     private const uint CREATE_SUSPENDED = 0x00000004;
     private const uint CREATE_NO_WINDOW = 0x08000000;
     private const uint STARTF_USESTDHANDLES = 0x00000100;
@@ -44,6 +46,7 @@ public static class Mt045JobRunner
     private const uint INFINITE = 0xffffffff;
     private const int STD_INPUT_HANDLE = -10;
     private const int JobObjectBasicAccountingInformation = 1;
+    private const int JobObjectBasicProcessIdList = 3;
     private const int JobObjectExtendedLimitInformation = 9;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -151,6 +154,14 @@ public static class Mt045JobRunner
         IntPtr job,
         int informationClass,
         out JOBOBJECT_BASIC_ACCOUNTING_INFORMATION information,
+        uint informationLength,
+        IntPtr returnLength);
+
+    [DllImport("kernel32.dll", EntryPoint = "QueryInformationJobObject", SetLastError = true)]
+    private static extern bool QueryInformationJobObjectRaw(
+        IntPtr job,
+        int informationClass,
+        IntPtr information,
         uint informationLength,
         IntPtr returnLength);
 
@@ -266,6 +277,58 @@ public static class Mt045JobRunner
             ThrowLastWin32("QueryInformationJobObject failed");
         }
         return accounting.ActiveProcesses;
+    }
+
+    private static ulong[] QueryProcessIds(IntPtr job)
+    {
+        const int capacity = 4096;
+        var headerSize = sizeof(uint) * 2;
+        var bufferSize = headerSize + (IntPtr.Size * capacity);
+        var buffer = Marshal.AllocHGlobal(bufferSize);
+        try
+        {
+            if (!QueryInformationJobObjectRaw(
+                job,
+                JobObjectBasicProcessIdList,
+                buffer,
+                (uint)bufferSize,
+                IntPtr.Zero))
+            {
+                ThrowLastWin32("QueryInformationJobObject process-id list failed");
+            }
+            var assigned = unchecked((uint)Marshal.ReadInt32(buffer, 0));
+            var returned = unchecked((uint)Marshal.ReadInt32(buffer, sizeof(uint)));
+            if (returned < assigned)
+            {
+                throw new InvalidOperationException(
+                    "Job Object process-id list exceeded the fixed diagnostic capacity");
+            }
+            var processIds = new ulong[returned];
+            for (var index = 0; index < returned; index++)
+            {
+                processIds[index] = unchecked((ulong)Marshal.ReadIntPtr(
+                    buffer,
+                    headerSize + (index * IntPtr.Size)).ToInt64());
+            }
+            return processIds;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    private static ulong[] QueryDescendantProcessIds(IntPtr job, uint rootProcessId)
+    {
+        var descendants = new List<ulong>();
+        foreach (var processId in QueryProcessIds(job))
+        {
+            if (processId != rootProcessId)
+            {
+                descendants.Add(processId);
+            }
+        }
+        return descendants.ToArray();
     }
 
     private static void WaitForJobDrain(IntPtr job, int timeoutMilliseconds, string operation)
@@ -443,22 +506,24 @@ public static class Mt045JobRunner
                 ThrowLastWin32("GetExitCodeProcess failed");
             }
 
-            uint activeProcesses = 0;
+            ulong[] leakedProcessIds = new ulong[0];
             if (!timedOut)
             {
                 var descendantTimer = Stopwatch.StartNew();
                 while (true)
                 {
-                    activeProcesses = QueryActiveProcessCount(job);
+                    leakedProcessIds = QueryDescendantProcessIds(
+                        job,
+                        unchecked((uint)processInformation.dwProcessId));
                     if (
-                        activeProcesses == 0 ||
+                        leakedProcessIds.Length == 0 ||
                         descendantTimer.ElapsedMilliseconds >= descendantExitGraceMilliseconds)
                     {
                         break;
                     }
                     Thread.Sleep(100);
                 }
-                if (activeProcesses != 0)
+                if (leakedProcessIds.Length != 0)
                 {
                     TerminateJobAndDrain(job, "Descendant-leak cleanup");
                 }
@@ -469,7 +534,8 @@ public static class Mt045JobRunner
                 RootProcessId = processInformation.dwProcessId,
                 ExitCode = unchecked((int)exitCode),
                 TimedOut = timedOut,
-                LeakedProcessCount = activeProcesses
+                LeakedProcessCount = unchecked((uint)leakedProcessIds.Length),
+                LeakedProcessIds = leakedProcessIds
             };
             runCompleted = true;
             return result;
@@ -776,6 +842,7 @@ function Invoke-BoundedCargo {
         runner_error = $null
         timed_out = $nativeResult.TimedOut
         leaked_process_count = $nativeResult.LeakedProcessCount
+        leaked_process_ids = @($nativeResult.LeakedProcessIds)
         exit_code = $nativeResult.ExitCode
         root_process_id = $nativeResult.RootProcessId
         process_containment = "windows_job_object_kill_on_close"
