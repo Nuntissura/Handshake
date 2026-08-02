@@ -99,6 +99,28 @@ pub fn json_has_author_id(value: &serde_json::Value, expected: &str) -> bool {
     }
 }
 
+fn json_author_value(value: &serde_json::Value, expected: &str) -> Option<Option<String>> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.get("author_id").and_then(|value| value.as_str()) == Some(expected) {
+                return Some(
+                    object
+                        .get("value")
+                        .and_then(|value| value.as_str())
+                        .map(ToOwned::to_owned),
+                );
+            }
+            object
+                .values()
+                .find_map(|value| json_author_value(value, expected))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|value| json_author_value(value, expected)),
+        _ => None,
+    }
+}
+
 pub fn json_node_by_author_id<'a>(
     value: &'a serde_json::Value,
     expected: &str,
@@ -312,6 +334,40 @@ impl CanonicalArgusDriver {
         observation
     }
 
+    pub fn click_expect_typed_rejected_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        expected_message: &str,
+    ) -> ArgusObservation {
+        assert!(
+            !expected_message.is_empty(),
+            "expected rejection message is required"
+        );
+        let before = self.inspect(harness);
+        let observation = self
+            .click_from_snapshot_and_reinspect_with_status_policy(harness, author_id, before, true);
+        assert_eq!(
+            observation.receipt_status, "rejected",
+            "{author_id} must produce a causally bound typed-Rejected receipt"
+        );
+        let receipt = observation.after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+            })
+            .expect("typed-Rejected observation retains its exact receipt");
+        assert!(
+            receipt["rejection"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_message)),
+            "typed-Rejected receipt must carry {expected_message:?}: {receipt}"
+        );
+        observation
+    }
+
     pub fn click_expect_rejected(
         &mut self,
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
@@ -334,6 +390,56 @@ impl CanonicalArgusDriver {
         response
     }
 
+    pub fn click_from_snapshot_expect_rpc_rejected(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        before: &serde_json::Value,
+        expected_message: &str,
+    ) -> serde_json::Value {
+        assert!(
+            !expected_message.is_empty(),
+            "expected rejection message is required"
+        );
+        assert!(
+            json_has_author_id(before, author_id),
+            "cached canonical tree saw target {author_id} before it became stale/hidden"
+        );
+        let live_before_click = self.inspect(harness);
+        let before_value = json_author_value(before, author_id);
+        let live_value = json_author_value(&live_before_click, author_id);
+        assert!(
+            live_value.is_none() || live_value != before_value,
+            "cached rejection proof requires target {author_id} to be hidden or carry a changed declaration before dispatch"
+        );
+        let response = self.rpc_unchecked(
+            ARGUS_CLICK_METHOD,
+            serde_json::json!({ "target": author_id }),
+        );
+        assert_eq!(response["error"]["code"], -32000, "{response}");
+        assert!(
+            response["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected_message)),
+            "{response}"
+        );
+        let after = self.inspect(harness);
+        let after_value = json_author_value(&after, author_id);
+        assert!(
+            after_value.is_none() || after_value != before_value,
+            "cached rejection proof requires target {author_id} to be hidden or carry a changed declaration"
+        );
+        serde_json::json!({
+            "target": author_id,
+            "before": before,
+            "live_before_click": live_before_click,
+            "after": after,
+            "before_target_value": before_value,
+            "after_target_value": after_value,
+            "response": response,
+        })
+    }
+
     /// Click against an already-inspected canonical snapshot. This models the real inspect -> external
     /// focus/state change -> click race without silently refreshing away the exact target the client saw.
     pub fn click_from_snapshot_and_reinspect(
@@ -341,6 +447,16 @@ impl CanonicalArgusDriver {
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
         author_id: &str,
         before: serde_json::Value,
+    ) -> ArgusObservation {
+        self.click_from_snapshot_and_reinspect_with_status_policy(harness, author_id, before, false)
+    }
+
+    fn click_from_snapshot_and_reinspect_with_status_policy(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        before: serde_json::Value,
+        allow_typed_rejected: bool,
     ) -> ArgusObservation {
         let target_selected_before = live_author_id_selected(harness, author_id);
         assert!(
@@ -392,8 +508,9 @@ impl CanonicalArgusDriver {
             .expect("Argus receipt has a typed status")
             .to_owned();
         assert!(
-            matches!(receipt_status.as_str(), "applied" | "indeterminate"),
-            "Argus receipt is terminal and non-rejected: {receipt}"
+            matches!(receipt_status.as_str(), "applied" | "indeterminate")
+                || (allow_typed_rejected && receipt_status == "rejected"),
+            "Argus receipt status is allowed: {receipt}"
         );
         let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
         bind_screenshot_to_matrix_receipt(receipt_id);
