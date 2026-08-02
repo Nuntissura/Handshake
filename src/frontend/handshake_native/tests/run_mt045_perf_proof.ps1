@@ -1614,7 +1614,11 @@ function Get-FailureDiagnosticBindings {
                     ) {
                         throw "failure diagnostic request/health URLs do not match the retained listener: $receiptPath"
                     }
-                    $processExecutable = [IO.Path]::GetFullPath([string]$receipt.process.executable_path)
+                    $processExecutableText = [string]$receipt.process.executable_path
+                    if ($processExecutableText.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+                        $processExecutableText = $processExecutableText.Substring(4)
+                    }
+                    $processExecutable = [IO.Path]::GetFullPath($processExecutableText)
                     $expectedExecutable = [IO.Path]::GetFullPath((Join-Path $targetRoot "release\handshake_core.exe"))
                     if (
                         -not $processExecutable.Equals($expectedExecutable, [StringComparison]::OrdinalIgnoreCase) -or
