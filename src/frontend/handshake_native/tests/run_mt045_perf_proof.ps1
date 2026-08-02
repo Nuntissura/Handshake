@@ -1059,13 +1059,24 @@ $expectedScenarioIds = @(
     "LK-01", "LK-02", "LK-03", "LK-04", "LK-05"
 )
 
+function Get-Mt045ComparablePath {
+    param([Parameter(Mandatory)][string]$Path)
+    if ($Path.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw "extended UNC paths are forbidden in MT-045 evidence: $Path"
+    }
+    if ($Path.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+        $Path = $Path.Substring(4)
+    }
+    return [IO.Path]::GetFullPath($Path)
+}
+
 function Assert-NoReparsePath {
     param(
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][string]$Boundary
     )
-    $fullPath = [IO.Path]::GetFullPath($Path)
-    $fullBoundary = [IO.Path]::GetFullPath($Boundary).TrimEnd("\")
+    $fullPath = Get-Mt045ComparablePath -Path $Path
+    $fullBoundary = (Get-Mt045ComparablePath -Path $Boundary).TrimEnd("\")
     $boundaryPrefix = $fullBoundary + "\"
     if (
         $fullPath -cne $fullBoundary -and
@@ -1614,11 +1625,7 @@ function Get-FailureDiagnosticBindings {
                     ) {
                         throw "failure diagnostic request/health URLs do not match the retained listener: $receiptPath"
                     }
-                    $processExecutableText = [string]$receipt.process.executable_path
-                    if ($processExecutableText.StartsWith('\\?\', [StringComparison]::Ordinal)) {
-                        $processExecutableText = $processExecutableText.Substring(4)
-                    }
-                    $processExecutable = [IO.Path]::GetFullPath($processExecutableText)
+                    $processExecutable = Get-Mt045ComparablePath -Path ([string]$receipt.process.executable_path)
                     $expectedExecutable = [IO.Path]::GetFullPath((Join-Path $targetRoot "release\handshake_core.exe"))
                     if (
                         -not $processExecutable.Equals($expectedExecutable, [StringComparison]::OrdinalIgnoreCase) -or
