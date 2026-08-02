@@ -1013,12 +1013,23 @@ if (-not $DiagnosticsSelfTest) {
     $pgStartTimeUtc = $pgProcess.StartTime.ToUniversalTime()
 }
 else {
-    $sourceSha = "diagnostics-self-test"
-    $initialManifestGitObject = $null
-    $headManifestJson = "[]"
+    $sourceSha = Invoke-GitText -Repository $repoRoot -Arguments @("rev-parse", "HEAD")
+    Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
+    $initialManifestGitObject = Invoke-GitText -Repository $repoRoot -Arguments @(
+        "rev-parse", "${sourceSha}:$manifestRepoPath"
+    )
+    $headManifestJson = Invoke-GitText -Repository $repoRoot -Arguments @(
+        "show", "${sourceSha}:$manifestRepoPath"
+    )
     $initialManifestSha256 = Get-StringSha256 -Value $headManifestJson
-    $pgPid = 0
-    $pgStartTimeUtc = [DateTime]::MinValue
+    $pgListener = Get-NetTCPConnection -LocalAddress "127.0.0.1" -LocalPort 5544 -State Listen -ErrorAction Stop |
+        Select-Object -First 1
+    $pgProcess = Get-Process -Id $pgListener.OwningProcess -ErrorAction Stop
+    if ($pgProcess.ProcessName -cne "postgres") {
+        throw "Port 5544 is not owned by PostgreSQL (pid=$($pgListener.OwningProcess), process=$($pgProcess.ProcessName))"
+    }
+    $pgPid = $pgProcess.Id
+    $pgStartTimeUtc = $pgProcess.StartTime.ToUniversalTime()
 }
 
 function Assert-PostgresPreserved {
@@ -1580,6 +1591,39 @@ function Get-FailureDiagnosticBindings {
                             sha256 = $file.sha256
                         }
                     }
+                    $listenBinding = @($retainedFiles | Where-Object { $_.name -ceq "listen-report.json" })
+                    if ($listenBinding.Count -ne 1) {
+                        throw "failure diagnostic lacks one retained listen report: $receiptPath"
+                    }
+                    $listenReport = Get-Content -LiteralPath $listenBinding[0].path -Raw | ConvertFrom-Json
+                    if (
+                        $listenReport.schema_id -cne "handshake.backend-listen-report.v1" -or
+                        -not (Test-IsJsonInteger $listenReport.pid) -or
+                        [uint64]$listenReport.pid -ne [uint64]$receipt.process.pid -or
+                        [string]::IsNullOrWhiteSpace([string]$listenReport.listen_addr)
+                    ) {
+                        throw "failure diagnostic listen report does not match its owned process: $receiptPath"
+                    }
+                    $expectedBaseUrl = "http://$($listenReport.listen_addr)"
+                    if (
+                        $receipt.trigger -ceq "request_failure" -and
+                        (
+                            [string]$receipt.reqwest_error.url -cne "$expectedBaseUrl/health" -or
+                            [string]$receipt.immediate_health.url -cne "$expectedBaseUrl/health"
+                        )
+                    ) {
+                        throw "failure diagnostic request/health URLs do not match the retained listener: $receiptPath"
+                    }
+                    $processExecutable = [IO.Path]::GetFullPath([string]$receipt.process.executable_path)
+                    $expectedExecutable = [IO.Path]::GetFullPath((Join-Path $targetRoot "release\handshake_core.exe"))
+                    if (
+                        -not $processExecutable.Equals($expectedExecutable, [StringComparison]::OrdinalIgnoreCase) -or
+                        -not (Test-Path -LiteralPath $processExecutable -PathType Leaf) -or
+                        [string]::IsNullOrWhiteSpace([string]$receipt.process.executable_sha256) -or
+                        (Get-FileSha256 -Path $processExecutable) -cne [string]$receipt.process.executable_sha256
+                    ) {
+                        throw "failure diagnostic executable identity/hash does not match the rebuilt backend: $receiptPath"
+                    }
                     $bindings += [ordered]@{
                         binding_status = "BOUND"
                         binding_source = "rust_failure_receipt"
@@ -1593,6 +1637,12 @@ function Get-FailureDiagnosticBindings {
                         process = $receipt.process
                         immediate_health = $receipt.immediate_health
                         reqwest_error = $receipt.reqwest_error
+                        backend_identity = [ordered]@{
+                            pid = [uint64]$listenReport.pid
+                            listen_addr = [string]$listenReport.listen_addr
+                            executable = $processExecutable
+                            executable_sha256 = [string]$receipt.process.executable_sha256
+                        }
                         retained_files = $retainedFiles
                     }
                 }
@@ -1625,6 +1675,10 @@ function Get-FailureDiagnosticBindings {
 if ($DiagnosticsSelfTest) {
     $selfTestRoot = [IO.Path]::GetFullPath((Join-Path $artifactRoot "wp-kernel-012\mt-045\diagnostics-self-test\$RunId"))
     $selfTestWorkspaceId = $null
+    $retainedFailureProofComplete = $false
+    $realFailureProbeStarted = $false
+    $canonicalFailureDiagnosticsRoot = $failureDiagnosticsRoot
+    $failureDiagnosticsRoot = Join-Path $selfTestRoot "counterfactual-failure-diagnostics"
     if (-not $selfTestRoot.StartsWith($artifactPrefix, [StringComparison]::OrdinalIgnoreCase)) {
         throw "diagnostics self-test root escaped Handshake_Artifacts: $selfTestRoot"
     }
@@ -2068,8 +2122,112 @@ Start-Sleep -Seconds 30
             throw "enumeration-failure self-test did not degrade nonthrowingly to INVALID"
         }
 
+        # Run one real current-source request failure through the fixture-owned backend. The Rust
+        # fixture must publish a complete typed receipt before the expected Cargo failure returns.
+        $failureDiagnosticsRoot = $canonicalFailureDiagnosticsRoot
+        if (Test-Path -LiteralPath $backendRuntimeRunRoot) {
+            [IO.Directory]::Delete($backendRuntimeRunRoot, $true)
+        }
+        if (Test-Path -LiteralPath $failureDiagnosticsRoot) {
+            throw "real retained-failure proof root already exists: $failureDiagnosticsRoot"
+        }
+        [void][IO.Directory]::CreateDirectory($failureDiagnosticsRoot)
+        $backendBuildReceipt = Invoke-BoundedCargo -Label "build-current-source-backend-release" -Arguments @(
+            "build", "--release", "--locked", "--target-dir", $targetRoot,
+            "--manifest-path", "..\..\backend\handshake_core\Cargo.toml",
+            "--bin", "handshake_core", "--features", "app-runtime"
+        ) -WorkingDirectory $crateRoot -LogRoot $runRoot
+        $backendBinary = Join-Path $targetRoot "release\handshake_core.exe"
+        if (-not (Test-Path -LiteralPath $backendBinary -PathType Leaf)) {
+            throw "diagnostics self-test requires the current-source release backend at $backendBinary"
+        }
+        $backendBinary = (Resolve-Path -LiteralPath $backendBinary).Path
+        $backendSha256 = Get-FileSha256 -Path $backendBinary
+        $env:HSK_MT045_CANONICAL_RUN = "1"
+        $env:HSK_MT045_RUN_ID = $RunId
+        $env:HSK_MT045_SOURCE_SHA = $sourceSha
+        $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
+        $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
+        $env:HSK_PSQL_BIN = $script:mt045PsqlPath
+        $env:HANDSHAKE_TEST_STAGE_BINDING_ROOT = (Join-Path $runRoot "binding")
+        $env:HSK_TEST_BACKEND_BIN = $backendBinary
+        $env:HSK_MT045_RETAINED_FAILURE_PROBE = "1"
+        Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
+        $expectedFailureObserved = $false
+        $realFailureProbeStarted = $true
+        try {
+            $null = Invoke-BoundedCargo -Label "retained-request-failure-probe" -Arguments @(
+                "test", "--release", "--locked", "--target-dir", $targetRoot,
+                "--test", "test_perf_large_knowledge", "perf_proof_perf_lk03_tag_hub", "--",
+                "--exact", "--nocapture", "--test-threads=1"
+            ) -WorkingDirectory $crateRoot -LogRoot $runRoot -TimeoutSeconds 600
+        }
+        catch {
+            if (
+                $null -eq $script:lastFailedCommandReceipt -or
+                $script:lastFailedCommandReceipt.timed_out -ne $false -or
+                $script:lastFailedCommandReceipt.exit_code -eq 0 -or
+                $script:lastFailedCommandReceipt.leaked_process_count -ne 0
+            ) {
+                throw "retained request-failure probe did not fail cleanly under the bounded Job: $($_.Exception.Message)"
+            }
+            $expectedFailureObserved = $true
+        }
+        finally {
+            Remove-Item Env:HSK_MT045_RETAINED_FAILURE_PROBE -ErrorAction SilentlyContinue
+        }
+        if (-not $expectedFailureObserved) {
+            throw "retained request-failure probe unexpectedly passed"
+        }
+        $retainedBindings = @(Get-FailureDiagnosticBindings -ExpectedCommand $script:lastFailedCommandReceipt)
+        $boundRetained = @($retainedBindings | Where-Object { $_.binding_status -ceq "BOUND" })
+        if (
+            $retainedBindings.Count -ne 1 -or
+            $boundRetained.Count -ne 1 -or
+            $boundRetained[0].binding_source -cne "rust_failure_receipt" -or
+            $boundRetained[0].trigger -cne "request_failure" -or
+            $boundRetained[0].stage -cne "request_send" -or
+            $null -eq $boundRetained[0].reqwest_error -or
+            $boundRetained[0].reqwest_error.is_connect -ne $true -or
+            @($boundRetained[0].reqwest_error.source_chain).Count -lt 1 -or
+            $null -eq $boundRetained[0].immediate_health -or
+            $boundRetained[0].immediate_health.reachable -ne $false -or
+            $boundRetained[0].process.owned -ne $true -or
+            $boundRetained[0].process.termination -notin @("already_exited_and_reaped", "terminated_and_reaped") -or
+            -not ([string]$boundRetained[0].backend_identity.executable).Equals($backendBinary, [StringComparison]::OrdinalIgnoreCase) -or
+            [string]$boundRetained[0].backend_identity.executable_sha256 -cne $backendSha256 -or
+            @($boundRetained[0].retained_files).Count -ne 3
+        ) {
+            throw "retained request-failure probe did not publish one complete typed Rust receipt"
+        }
+        Assert-SourceBindingClean -Repository $repoRoot -Paths $sourcePaths
+        $retainedProofPath = Join-Path $runRoot "retained-failure-proof.json"
+        $retainedProofSha256 = Write-ImmutableJson -Path $retainedProofPath -Value ([ordered]@{
+            schema_id = "hsk.wp_kernel_012.mt045_retained_failure_proof@1"
+            work_packet_id = "WP-KERNEL-012"
+            micro_task_id = "MT-045"
+            run_id = $RunId
+            source_sha = $sourceSha
+            postgres = [ordered]@{ pid = $pgPid; start_time_utc = $pgStartTimeUtc.ToString("O") }
+            backend = [ordered]@{
+                build_receipt = $backendBuildReceipt
+                executable = $backendBinary
+                sha256 = $backendSha256
+            }
+            expected_failure_command = $script:lastFailedCommandReceipt
+            failure_binding = $boundRetained[0]
+            completed_at = [DateTimeOffset]::UtcNow.ToString("O")
+        })
+        Assert-PostgresPreserved
+        $retainedFailureProofComplete = $true
+
         Write-Output ([ordered]@{
             status = "PASS"
+            source_sha = $sourceSha
+            retained_failure_proof = $retainedProofPath
+            retained_failure_proof_sha256 = $retainedProofSha256
+            retained_failure_receipt = $boundRetained[0].receipt
+            retained_failure_receipt_sha256 = $boundRetained[0].receipt_sha256
             malformed_all_missing = "INVALID"
             null_process_exit = "INVALID"
             failed_workspace_cleanup = "INVALID"
@@ -2122,7 +2280,11 @@ Start-Sleep -Seconds 30
                 throw "diagnostics self-test final exact workspace cleanup failed"
             }
         }
-        foreach ($path in @($selfTestRoot, $failureDiagnosticsRoot, $backendRuntimeRunRoot, $runRoot)) {
+        $cleanupPaths = @($selfTestRoot)
+        if (-not $realFailureProbeStarted -or $retainedFailureProofComplete) {
+            $cleanupPaths += $backendRuntimeRunRoot
+        }
+        foreach ($path in $cleanupPaths) {
             $fullPath = [IO.Path]::GetFullPath($path)
             if (
                 $fullPath.StartsWith($artifactPrefix, [StringComparison]::OrdinalIgnoreCase) -and

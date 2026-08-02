@@ -325,6 +325,9 @@ fn perf_proof_perf_lk03_tag_hub() {
         return;
     };
     let mut be = require_be();
+    if std::env::var("HSK_MT045_RETAINED_FAILURE_PROBE").as_deref() == Ok("1") {
+        be.trigger_retained_request_failure_probe();
+    }
 
     // FIXTURE (NOT timed, impl note 8): a tag-hub block + 5000 blocks each carrying that tag (an edge
     // from each member block to the tag hub). Created through the public routes; NOT counted in the

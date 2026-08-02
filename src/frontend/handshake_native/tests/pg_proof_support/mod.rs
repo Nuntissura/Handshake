@@ -798,6 +798,21 @@ fn wait_for_health(
 }
 
 impl LiveBackend {
+    /// Produce an inspectable, typed request-failure receipt from the real fixture-owned backend.
+    /// This is only called by the MT-045 diagnostics proof when its explicit environment gate is set.
+    pub fn trigger_retained_request_failure_probe(&mut self) -> ! {
+        {
+            let mut owned = self.owned_backend.borrow_mut();
+            let child = owned
+                .as_mut()
+                .expect("retained request-failure proof requires a fixture-owned backend");
+            force_kill_tree_and_reap(child, "deliberate MT-045 retained-failure probe")
+                .unwrap_or_else(|error| panic!("{error}"));
+        }
+        let _ = self.get_json("/health");
+        panic!("retained request-failure proof unexpectedly reached a response")
+    }
+
     pub fn owned_runtime_roots_for_proof(&self) -> Vec<PathBuf> {
         self.owned_runtime_roots
             .iter()
@@ -1602,7 +1617,7 @@ impl LiveBackend {
 
         let health = self.immediate_health_snapshot();
         let mut stable_logs = false;
-        let process = {
+        let mut process = {
             let mut child_slot = self.owned_backend.borrow_mut();
             let mut clear_child = false;
             let receipt = match child_slot.as_mut() {
@@ -1696,6 +1711,27 @@ impl LiveBackend {
             }
             receipt
         };
+        if process["owned"] == true {
+            let executable = self
+                .owned_binary
+                .as_ref()
+                .ok_or_else(|| "fixture-owned backend has no executable identity".to_owned())?;
+            let executable = std::fs::canonicalize(executable).map_err(|error| {
+                format!(
+                    "canonicalize fixture-owned backend executable {}: {error}",
+                    executable.display()
+                )
+            })?;
+            let executable_sha256 = sha256_file(&executable)?;
+            let process_object = process
+                .as_object_mut()
+                .ok_or_else(|| "fixture-owned process receipt is not an object".to_owned())?;
+            process_object.insert("executable_path".to_owned(), serde_json::json!(executable));
+            process_object.insert(
+                "executable_sha256".to_owned(),
+                serde_json::json!(executable_sha256),
+            );
+        }
         let request_error = request_error.map(reqwest_error_receipt);
         let active_runtime_root = self
             .owned_runtime_roots
