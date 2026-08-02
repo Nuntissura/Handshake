@@ -338,6 +338,28 @@ impl PendingStageRoute {
     }
 }
 
+/// One admitted typed Route-to-Stage failure. A stable request id and causal action id travel with the
+/// message so a model receipt cannot be settled by an older operator failure that happens to have the
+/// same text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingStageRouteError {
+    pub message: String,
+    pub request_id: String,
+    pub causal_action_id: String,
+}
+
+impl PendingStageRouteError {
+    fn new(message: impl Into<String>, causal_action_id: Option<&str>) -> Self {
+        Self {
+            message: message.into(),
+            request_id: format!("stage-route-error-{}", uuid::Uuid::now_v7().simple()),
+            causal_action_id: causal_action_id
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("stage-route-{}", uuid::Uuid::now_v7().simple())),
+        }
+    }
+}
+
 /// One clipboard payload. The bus caches the RICHEST variant in memory so a same-session cross-pane
 /// Paste recovers a `LoomBlockRef`/`AtelierRef` the plain-text OS clipboard would have flattened; the
 /// OS clipboard always receives the plain-text projection ([`ClipboardPayload::as_plain_text`]).
@@ -470,6 +492,34 @@ impl CommandBus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UndoTransitionOperation {
+    LocalUndo,
+    CrossPaneUndo,
+    CompensationSettled,
+    CompensationCancelled,
+}
+
+/// Exact session-only outcome of the most recent undo transition. `action_id` is the async
+/// compensation identity/correlation id when one exists; pending snapshots bind blocked retry and
+/// local-while-cross-pending proofs to the same operation rather than a coincidental count change.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UndoTransitionObservation {
+    pub generation: u64,
+    pub operation: UndoTransitionOperation,
+    pub result: UndoResult,
+    pub pane_id: Option<PaneId>,
+    pub action_id: Option<String>,
+    pub direction: Option<crate::undo_stack::AsyncUndoDirection>,
+    pub description: Option<String>,
+    pub local_before: Option<usize>,
+    pub local_after: Option<usize>,
+    pub cross_before: usize,
+    pub cross_after: usize,
+    pub pending_before: Option<crate::undo_stack::PendingCrossPaneObservation>,
+    pub pending_after: Option<crate::undo_stack::PendingCrossPaneObservation>,
+}
+
 /// The one shared interaction substrate. Held in egui app data as `Arc<Mutex<InteractionBus>>` and
 /// retrieved by every pane via [`Self::get_or_init`].
 pub struct InteractionBus {
@@ -520,7 +570,7 @@ pub struct InteractionBus {
     pending_stage_route: Option<PendingStageRoute>,
     /// One-shot visible failure for Route-to-Stage. Kept distinct from content so a command with no
     /// valid selection/document cannot silently open an empty Stage or overwrite prior routed content.
-    pending_stage_error: Option<String>,
+    pending_stage_error: Option<PendingStageRouteError>,
     /// WP-KERNEL-012 MT-034 (E5): the symbol entity id an Open-Code-Symbol request staged (from a
     /// clicked `[[code:…]]` chip). The shell drains it via [`Self::take_pending_code_symbol`] each frame
     /// and routes it through the MT-030 ShellNavigator `open_code_symbol` seam. `None` when nothing is
@@ -540,6 +590,11 @@ pub struct InteractionBus {
     /// the bus is held in egui app data which is NOT persisted, so the scope is empty on restart
     /// (POLICY-3). The scope itself cannot serialize (no `Serialize` impl).
     undo_scope: UnifiedUndoScope,
+    /// Monotonic, session-only product observation of the last real undo transition. Argus uses this
+    /// exact operation/correlation snapshot instead of inferring causality from changed ring counts.
+    undo_transition_generation: u64,
+    last_undo_transition: Option<UndoTransitionObservation>,
+    undo_transition_log: VecDeque<UndoTransitionObservation>,
     /// The app's tokio runtime handle, installed by the shell via [`Self::set_undo_runtime`] so the bus
     /// can dispatch a canvas COMPENSATING undo (POLICY-4 `undo_async_fn`) onto the runtime off the egui
     /// frame thread (HBR-QUIET). `None` in a headless unit test (an async undo is then reported as a
@@ -596,6 +651,9 @@ impl InteractionBus {
             pending_locus_ref: None,
             pending_memory_proposal_request: None,
             undo_scope: UnifiedUndoScope::new(),
+            undo_transition_generation: 0,
+            last_undo_transition: None,
+            undo_transition_log: VecDeque::new(),
             undo_runtime: None,
             event_emitter: None,
             event_emitters_by_workspace: BTreeMap::new(),
@@ -763,6 +821,9 @@ impl InteractionBus {
         // completion for a discarded provisional action is then rejected by
         // `complete_cross_pane_async` instead of repopulating the new workspace's ring.
         self.undo_scope = UnifiedUndoScope::new();
+        self.undo_transition_generation = 0;
+        self.last_undo_transition = None;
+        self.undo_transition_log.clear();
         // Never leave the previous workspace's emitter as the active capture source. A retained emitter
         // for a returning workspace can be reused; a first visit stays unbound until the shell installs
         // that workspace's emitter later in the same frame.
@@ -1166,10 +1227,20 @@ impl InteractionBus {
     }
 
     /// Stage a typed Route-to-Stage failure for the shell to render on the Stage pane.
-    pub fn request_route_to_stage_error(&mut self, message: impl Into<String>) {
-        if self.pending_stage_route.is_none() {
-            self.pending_stage_error = Some(message.into());
+    pub fn request_route_to_stage_error(&mut self, message: impl Into<String>) -> bool {
+        self.request_route_to_stage_error_correlated(message, None)
+    }
+
+    pub fn request_route_to_stage_error_correlated(
+        &mut self,
+        message: impl Into<String>,
+        causal_action_id: Option<&str>,
+    ) -> bool {
+        if self.pending_stage_route.is_some() || self.pending_stage_error.is_some() {
+            return false;
         }
+        self.pending_stage_error = Some(PendingStageRouteError::new(message, causal_action_id));
+        true
     }
 
     /// The content staged for a Route-to-Stage open, WITHOUT consuming it (tests / peek).
@@ -1196,7 +1267,12 @@ impl InteractionBus {
     }
 
     /// Take the pending typed Route-to-Stage failure.
-    pub fn take_pending_stage_error(&mut self) -> Option<String> {
+    pub fn pending_stage_error(&self) -> Option<&PendingStageRouteError> {
+        self.pending_stage_error.as_ref()
+    }
+
+    /// Take the exact identity-bearing pending typed Route-to-Stage failure.
+    pub fn take_pending_stage_error(&mut self) -> Option<PendingStageRouteError> {
         self.pending_stage_error.take()
     }
 
@@ -1251,7 +1327,7 @@ impl InteractionBus {
         content_kind: &str,
         causal_action_id: Option<&str>,
     ) -> bool {
-        if self.pending_stage_route.is_some() {
+        if self.pending_stage_route.is_some() || self.pending_stage_error.is_some() {
             return false;
         }
         let route = self.build_pending_stage_route(content, content_kind, causal_action_id);
@@ -1263,19 +1339,27 @@ impl InteractionBus {
         true
     }
 
-    /// Re-admit the exact retained route after shell contention. Producer event
-    /// identity and the semantic content kind are reused byte-for-byte.
-    pub fn retry_pending_stage_route(
-        &mut self,
-        ctx: &egui::Context,
-        route: PendingStageRoute,
-    ) -> bool {
-        if self.pending_stage_route.is_some() || !self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE) {
+    /// Admit an already-built route while retaining its exact producer event and causal identities.
+    pub fn admit_stage_route(&mut self, ctx: &egui::Context, route: PendingStageRoute) -> bool {
+        if self.pending_stage_route.is_some()
+            || self.pending_stage_error.is_some()
+            || !self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE)
+        {
             return false;
         }
         self.pending_stage_error = None;
         self.pending_stage_route = Some(route);
         true
+    }
+
+    /// Re-admit the exact retained route after shell contention. Producer event identity and the
+    /// semantic content kind are reused byte-for-byte.
+    pub fn retry_pending_stage_route(
+        &mut self,
+        ctx: &egui::Context,
+        route: PendingStageRoute,
+    ) -> bool {
+        self.admit_stage_route(ctx, route)
     }
 
     /// Stage a typed failure and dispatch the same named command as a successful route. This keeps
@@ -1285,8 +1369,24 @@ impl InteractionBus {
         ctx: &egui::Context,
         message: impl Into<String>,
     ) -> bool {
-        self.request_route_to_stage_error(message);
-        self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE)
+        self.route_to_stage_error_correlated(ctx, message, None)
+    }
+
+    pub fn route_to_stage_error_correlated(
+        &mut self,
+        ctx: &egui::Context,
+        message: impl Into<String>,
+        causal_action_id: Option<&str>,
+    ) -> bool {
+        if !self.request_route_to_stage_error_correlated(message, causal_action_id) {
+            return false;
+        }
+        if self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE) {
+            true
+        } else {
+            self.pending_stage_error = None;
+            false
+        }
     }
 
     // ── Cross-pane Open-Code-Symbol navigation (MT-034 code<->note cross-refs) ──────────────────────────
@@ -1507,6 +1607,39 @@ impl InteractionBus {
         &self.surface_registry
     }
 
+    fn record_undo_transition(&mut self, mut observation: UndoTransitionObservation) {
+        self.undo_transition_generation = self.undo_transition_generation.wrapping_add(1).max(1);
+        observation.generation = self.undo_transition_generation;
+        self.last_undo_transition = Some(observation.clone());
+        self.undo_transition_log.push_back(observation);
+        while self.undo_transition_log.len() > 16 {
+            self.undo_transition_log.pop_front();
+        }
+    }
+
+    /// Last exact undo operation/result observed in this in-memory workspace session.
+    pub fn last_undo_transition(&self) -> Option<&UndoTransitionObservation> {
+        self.last_undo_transition.as_ref()
+    }
+
+    /// Exact transitions after a caller's baseline, retained long enough for one bounded Argus
+    /// capture even when an async compensation settles before the next accessibility snapshot.
+    pub fn undo_transitions_after(
+        &self,
+        generation: u64,
+    ) -> impl Iterator<Item = &UndoTransitionObservation> {
+        self.undo_transition_log
+            .iter()
+            .filter(move |row| row.generation > generation)
+    }
+
+    /// Exact pending compensation identity, if one backend-touching transition awaits reconciliation.
+    pub fn pending_cross_pane_observation(
+        &self,
+    ) -> Option<crate::undo_stack::PendingCrossPaneObservation> {
+        self.undo_scope.pending_cross_pane_observation()
+    }
+
     /// Push a LOCAL-pane undo action onto `pane_id`'s ring (POLICY-1). Each pane calls this after
     /// applying an edit, capturing the previous snapshot in the action's `undo_fn` via a `Weak` back-ref
     /// (RISK-3 / MC-3).
@@ -1545,13 +1678,33 @@ impl InteractionBus {
         if self.undo_scope.local_undo_requires_runtime(pane_id) && !self.can_dispatch_async() {
             return Some(Self::missing_undo_runtime_result());
         }
+        let local_before = self.undo_scope.local_undo_count(pane_id);
+        let cross_before = self.undo_scope.cross_pane_undo_count();
+        let pending_before = self.undo_scope.pending_cross_pane_observation();
         let action = self.undo_scope.pop_undo_local(pane_id)?;
+        let action_id = action.async_action_id.clone();
+        let description = action.description.clone();
         let result = self.invoke_undo(action);
         // MT-036: emit the ONE-ledger `undo_fired` HERE so EVERY local undo entry point records exactly
         // once — the Ctrl+Z chord, the command-palette `Undo`, and the shell keybind all route through this
         // method (POLICY-1 scope=local). An empty ring returned above via `?`, so a no-op undo is NOT an
         // event. Before MT-036 only the chord site emitted, leaving palette/keybind undo silent.
         self.emit_undo_fired_event(crate::event_emitter::UndoScope::Local, pane_id.as_ref());
+        self.record_undo_transition(UndoTransitionObservation {
+            generation: 0,
+            operation: UndoTransitionOperation::LocalUndo,
+            result: result.clone(),
+            pane_id: Some(pane_id.clone()),
+            action_id,
+            direction: Some(crate::undo_stack::AsyncUndoDirection::Undo),
+            description: Some(description),
+            local_before: Some(local_before),
+            local_after: Some(self.undo_scope.local_undo_count(pane_id)),
+            cross_before,
+            cross_after: self.undo_scope.cross_pane_undo_count(),
+            pending_before,
+            pending_after: self.undo_scope.pending_cross_pane_observation(),
+        });
         Some(result)
     }
 
@@ -1577,14 +1730,45 @@ impl InteractionBus {
     /// `None` when the cross-pane ring is empty.
     pub fn undo_cross_pane(&mut self) -> Option<UndoResult> {
         if self.undo_scope.cross_pane_async_pending() {
-            return Some(UndoResult::err(
+            let pending = self.undo_scope.pending_cross_pane_observation();
+            let result = UndoResult::err(
                 "a canvas compensating undo/redo is already in flight; wait for canonical reconciliation",
-            ));
+            );
+            self.record_undo_transition(UndoTransitionObservation {
+                generation: 0,
+                operation: UndoTransitionOperation::CrossPaneUndo,
+                result: result.clone(),
+                pane_id: self.focus_owner.clone(),
+                action_id: pending.as_ref().map(|row| row.action_id.clone()),
+                direction: pending.as_ref().map(|row| row.direction),
+                description: pending.as_ref().map(|row| row.description.clone()),
+                local_before: self
+                    .focus_owner
+                    .as_ref()
+                    .map(|pane| self.undo_scope.local_undo_count(pane)),
+                local_after: self
+                    .focus_owner
+                    .as_ref()
+                    .map(|pane| self.undo_scope.local_undo_count(pane)),
+                cross_before: self.undo_scope.cross_pane_undo_count(),
+                cross_after: self.undo_scope.cross_pane_undo_count(),
+                pending_before: pending.clone(),
+                pending_after: pending,
+            });
+            return Some(result);
         }
         if self.undo_scope.cross_pane_undo_requires_runtime() && !self.can_dispatch_async() {
             return Some(Self::missing_undo_runtime_result());
         }
+        let pane_id = self.focus_owner.clone();
+        let local_before = pane_id
+            .as_ref()
+            .map(|pane| self.undo_scope.local_undo_count(pane));
+        let cross_before = self.undo_scope.cross_pane_undo_count();
+        let pending_before = self.undo_scope.pending_cross_pane_observation();
         let action = self.undo_scope.pop_undo_cross_pane()?;
+        let action_id = action.async_action_id.clone();
+        let description = action.description.clone();
         let result = self.invoke_undo(action);
         // MT-036: emit the ONE-ledger `undo_fired` with scope=cross_pane (POLICY-2). This path was
         // ENTIRELY silent before MT-036 (UndoScope::CrossPane was dead-in-prod). The originating pane label
@@ -1594,6 +1778,23 @@ impl InteractionBus {
             .map(|p| p.as_ref().to_owned())
             .unwrap_or_else(|| "cross-pane".to_owned());
         self.emit_undo_fired_event(crate::event_emitter::UndoScope::CrossPane, &pane_label);
+        self.record_undo_transition(UndoTransitionObservation {
+            generation: 0,
+            operation: UndoTransitionOperation::CrossPaneUndo,
+            result: result.clone(),
+            pane_id: pane_id.clone(),
+            action_id,
+            direction: Some(crate::undo_stack::AsyncUndoDirection::Undo),
+            description: Some(description),
+            local_before,
+            local_after: pane_id
+                .as_ref()
+                .map(|pane| self.undo_scope.local_undo_count(pane)),
+            cross_before,
+            cross_after: self.undo_scope.cross_pane_undo_count(),
+            pending_before,
+            pending_after: self.undo_scope.pending_cross_pane_observation(),
+        });
         Some(result)
     }
 
@@ -1628,8 +1829,39 @@ impl InteractionBus {
         direction: crate::undo_stack::AsyncUndoDirection,
         success: bool,
     ) -> bool {
-        self.undo_scope
-            .complete_cross_pane_async(action_id, direction, success)
+        let cross_before = self.undo_scope.cross_pane_undo_count();
+        let pending_before = self.undo_scope.pending_cross_pane_observation();
+        let finalized = self
+            .undo_scope
+            .complete_cross_pane_async(action_id, direction, success);
+        if finalized {
+            self.record_undo_transition(UndoTransitionObservation {
+                generation: 0,
+                operation: if success {
+                    UndoTransitionOperation::CompensationSettled
+                } else {
+                    UndoTransitionOperation::CompensationCancelled
+                },
+                result: if success {
+                    UndoResult::ok()
+                } else {
+                    UndoResult::err("compensation cancelled or failed; action restored for retry")
+                },
+                // Settlement is correlated by its immutable action id. Focus may have moved since
+                // dispatch, so do not falsely attribute the completion to the current pane.
+                pane_id: None,
+                action_id: Some(action_id.to_owned()),
+                direction: Some(direction),
+                description: pending_before.as_ref().map(|row| row.description.clone()),
+                local_before: None,
+                local_after: None,
+                cross_before,
+                cross_after: self.undo_scope.cross_pane_undo_count(),
+                pending_before,
+                pending_after: self.undo_scope.pending_cross_pane_observation(),
+            });
+        }
+        finalized
     }
 
     /// Emit exactly ONE `undo_fired` event onto the ONE ledger (MT-036) for an undo/redo that actually
@@ -2370,6 +2602,102 @@ mod tests {
             bus.pending_stage_route().unwrap().receipt.event_id,
             retained.receipt.event_id,
             "retry must reuse the producer-created receipt identity"
+        );
+    }
+
+    #[test]
+    fn preexisting_operator_route_or_error_exclusively_blocks_new_model_admission() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.register_route_to_stage_command();
+
+        let operator_route = PendingStageRoute::new(
+            crate::stage_pane::StageContent::Selection(
+                "operator route".to_owned(),
+                "DOC-OPERATOR".to_owned(),
+            ),
+            "selection",
+            Some("operator-causal-route".to_owned()),
+            "operator-pane",
+            "operator-workspace",
+        );
+        assert!(bus.admit_stage_route(&ctx, operator_route.clone()));
+        assert!(!bus.route_to_stage_correlated(
+            &ctx,
+            crate::stage_pane::StageContent::Selection(
+                "model route".to_owned(),
+                "DOC-MODEL".to_owned(),
+            ),
+            Some("model-causal-route"),
+        ));
+        assert!(!bus.route_to_stage_error_correlated(
+            &ctx,
+            "model typed unavailable",
+            Some("model-causal-error"),
+        ));
+        assert_eq!(bus.pending_stage_route(), Some(&operator_route));
+        assert!(bus.pending_stage_error().is_none());
+
+        let operator_event_id = operator_route.receipt.event_id.clone();
+        assert!(bus.ack_pending_stage_route(&operator_event_id).is_some());
+        assert!(bus.route_to_stage_error_correlated(
+            &ctx,
+            "operator unavailable",
+            Some("operator-causal-error"),
+        ));
+        let operator_error = bus
+            .pending_stage_error()
+            .cloned()
+            .expect("operator error remains exact bus authority");
+        assert!(!bus.route_to_stage_correlated(
+            &ctx,
+            crate::stage_pane::StageContent::Selection(
+                "model after error".to_owned(),
+                "DOC-MODEL-2".to_owned(),
+            ),
+            Some("model-causal-after-error"),
+        ));
+        assert!(!bus.route_to_stage_error_correlated(
+            &ctx,
+            "new model unavailable",
+            Some("new-model-causal-error"),
+        ));
+        assert_eq!(bus.pending_stage_error(), Some(&operator_error));
+        assert!(bus.pending_stage_route().is_none());
+    }
+
+    #[test]
+    fn stage_route_error_ids_are_uuid_v7_and_time_ordered() {
+        fn parse_prefixed(value: &str, prefix: &str) -> uuid::Uuid {
+            uuid::Uuid::parse_str(
+                value
+                    .strip_prefix(prefix)
+                    .unwrap_or_else(|| panic!("{value:?} starts with {prefix:?}")),
+            )
+            .unwrap_or_else(|error| panic!("{value:?} contains a UUID: {error}"))
+        }
+
+        let first = PendingStageRouteError::new("first", None);
+        let second = PendingStageRouteError::new("second", None);
+        let first_request = parse_prefixed(&first.request_id, "stage-route-error-");
+        let second_request = parse_prefixed(&second.request_id, "stage-route-error-");
+        let first_causal = parse_prefixed(&first.causal_action_id, "stage-route-");
+        let second_causal = parse_prefixed(&second.causal_action_id, "stage-route-");
+
+        for id in [first_request, second_request, first_causal, second_causal] {
+            assert_eq!(
+                id.get_version_num(),
+                7,
+                "Stage route identity must be UUIDv7"
+            );
+        }
+        assert!(
+            first_request <= second_request,
+            "sequential Stage error request UUIDv7 values are time ordered"
+        );
+        assert!(
+            first_causal <= second_causal,
+            "sequential fallback causal UUIDv7 values are time ordered"
         );
     }
 

@@ -49,6 +49,807 @@ use crate::top_menu_bar::{
     MenuBarState,
 };
 
+/// MT-033 V4: one persistent, app-owned observer for the five transient CKC/Stage controls whose
+/// completion cannot remain on the clicked popup row after that row closes.
+pub const MT033_ARGUS_ACTION_COMPLETION_AUTHOR_ID: &str = "mt033.argus-action-completion";
+const MT033_ARGUS_COMPLETION_EFFECT: &str = "mt033.ckc-stage-action";
+const MT033_ARGUS_COMPLETION_CONTEXT: &str = "wp-kernel-012-mt-033-v4";
+
+/// MT-034 V4: one app-owned observer for slash-dialog activation and both cross-reference reveal
+/// directions. It binds model attribution to the exact dispatched target/payload and only settles
+/// after the corresponding live editor state is observable.
+pub const MT034_ARGUS_ACTION_COMPLETION_AUTHOR_ID: &str = "mt034.argus-action-completion";
+const MT034_ARGUS_COMPLETION_EFFECT: &str = "mt034.code-note-cross-ref";
+const MT034_ARGUS_COMPLETION_CONTEXT: &str = "wp-kernel-012-mt-034-v4";
+
+/// MT-035 V4: persistent completion and state surfaces for the exact unified-undo transition.
+pub const MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID: &str = "mt035.argus-action-completion";
+pub const MT035_UNDO_STATE_AUTHOR_ID: &str = "mt035.undo-state";
+const MT035_ARGUS_COMPLETION_EFFECT: &str = "mt035.unified-undo";
+const MT035_ARGUS_COMPLETION_CONTEXT: &str = "wp-kernel-012-mt-035-v4";
+
+/// MT-036 V4: app-owned completion for the transient operator/run menu leaves which mount the
+/// production Flight Recorder pane. The popup leaf disappears after dispatch, so the durable observer
+/// is the only action-specific terminal authority.
+pub const MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID: &str =
+    "mt036.flight-recorder-open-completion";
+const MT036_FLIGHT_RECORDER_OPEN_EFFECT: &str = "mt036.open-flight-recorder";
+const MT036_FLIGHT_RECORDER_OPEN_CONTEXT: &str = "wp-kernel-012-mt-036-v4";
+
+/// Stable observer node used to causally terminalize MT-042 graph-node navigation through Argus.
+pub const MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID: &str = "mt042.graph-open-completion";
+const MT042_GRAPH_OPEN_EFFECT: &str = "mt042.graph-open-node";
+const MT042_GRAPH_OPEN_CONTEXT: &str = "wp-kernel-012-mt-042-v4";
+
+#[derive(Debug, Clone)]
+struct Mt036FlightRecorderOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    target: Option<String>,
+    semantic: Option<String>,
+    expected_pane_id: Option<String>,
+    terminal_detail: Option<String>,
+}
+
+impl Default for Mt036FlightRecorderOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            target: None,
+            semantic: None,
+            expected_pane_id: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl Mt036FlightRecorderOpenCompletion {
+    fn semantic(target: &str) -> String {
+        serde_json::json!({
+            "action": "open-flight-recorder",
+            "target": target,
+            "expected_pane": crate::flight_recorder_pane::FLIGHT_RECORDER_PANE_AUTHOR_ID,
+        })
+        .to_string()
+    }
+
+    fn declaration(&self, target: &str) -> Option<String> {
+        (self.state != crate::mcp::action::ClickCompletionState::Pending)
+            .then(|| {
+                crate::mcp::action::serialize_observer_click_target(
+                    MT036_FLIGHT_RECORDER_OPEN_EFFECT,
+                    MT036_FLIGHT_RECORDER_OPEN_CONTEXT,
+                    self.generation,
+                    MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID,
+                    &Self::semantic(target),
+                )
+            })
+            .flatten()
+    }
+
+    fn begin(&mut self, target: &str, expected_pane_id: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.target = Some(target.to_owned());
+        self.semantic = Some(Self::semantic(target));
+        self.expected_pane_id = Some(expected_pane_id);
+        self.terminal_detail = None;
+    }
+
+    fn complete_if_mounted(&mut self, targeted_pane_mounted: bool) {
+        if targeted_pane_mounted && self.state == crate::mcp::action::ClickCompletionState::Pending
+        {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "pane_mounted": true,
+                    "pane_author_id": crate::flight_recorder_pane::FLIGHT_RECORDER_PANE_AUTHOR_ID,
+                    "target_pane_id": self.expected_pane_id,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT036_FLIGHT_RECORDER_OPEN_EFFECT,
+                    MT036_FLIGHT_RECORDER_OPEN_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.target.as_deref(),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT036_FLIGHT_RECORDER_OPEN_EFFECT,
+                    MT036_FLIGHT_RECORDER_OPEN_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt034ArgusActionCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    terminal_detail: Option<String>,
+}
+
+impl Default for Mt034ArgusActionCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl Mt034ArgusActionCompletion {
+    fn declaration(
+        &self,
+        author_id: &str,
+        semantic_value: &str,
+        persistent: bool,
+    ) -> Option<String> {
+        let semantic_value = if persistent && self.pending_target.as_deref() == Some(author_id) {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        (persistent || self.state != crate::mcp::action::ClickCompletionState::Pending)
+            .then(|| {
+                if persistent {
+                    crate::mcp::action::serialize_persistent_observer_click_target(
+                        MT034_ARGUS_COMPLETION_EFFECT,
+                        MT034_ARGUS_COMPLETION_CONTEXT,
+                        self.generation,
+                        MT034_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                } else {
+                    crate::mcp::action::serialize_observer_click_target(
+                        MT034_ARGUS_COMPLETION_EFFECT,
+                        MT034_ARGUS_COMPLETION_CONTEXT,
+                        self.generation,
+                        MT034_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                }
+            })
+            .flatten()
+    }
+
+    fn begin(&mut self, author_id: String, semantic_value: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(author_id);
+        self.semantic_value = Some(semantic_value);
+        self.terminal_detail = None;
+    }
+
+    fn complete(&mut self, detail: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT034_ARGUS_COMPLETION_EFFECT,
+                    MT034_ARGUS_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT034_ARGUS_COMPLETION_EFFECT,
+                    MT034_ARGUS_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt042GraphOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_author_id: Option<String>,
+    raw_block_id: Option<String>,
+    pending_payload: Option<String>,
+    rich_load_generation: Option<u64>,
+    operation_outcome: Option<Result<(), String>>,
+    operation_cell_identity: Option<usize>,
+    backend_operation_generation: Option<u64>,
+    operation_generation: Option<u64>,
+    operation_result_identity: Option<String>,
+    semantic_value: Option<String>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mt042DispatchGate {
+    /// The event originated from the operator rather than an Argus activation.
+    NoModelActivation,
+    /// The exact inspected declaration still describes the event being dispatched.
+    Accepted,
+    /// Argus dispatched this event, but its inspected context is stale. The caller must not mutate.
+    RejectedStale,
+}
+
+impl Default for Mt042GraphOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_author_id: None,
+            raw_block_id: None,
+            pending_payload: None,
+            rich_load_generation: None,
+            operation_outcome: None,
+            operation_cell_identity: None,
+            backend_operation_generation: None,
+            operation_generation: None,
+            operation_result_identity: None,
+            semantic_value: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt042GraphOpenCompletion {
+    fn declaration(&self, author_id: &str, semantic_value: &str) -> Option<String> {
+        let semantic_value = if self.pending_author_id.as_deref() == Some(author_id) {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        if author_id == crate::graph::graph_view::RETRY_AUTHOR_ID {
+            crate::mcp::action::serialize_flexible_observer_click_target(
+                MT042_GRAPH_OPEN_EFFECT,
+                MT042_GRAPH_OPEN_CONTEXT,
+                self.generation,
+                MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID,
+                semantic_value,
+            )
+        } else if author_id.starts_with("graph.node.") {
+            crate::mcp::action::serialize_observer_click_target(
+                MT042_GRAPH_OPEN_EFFECT,
+                MT042_GRAPH_OPEN_CONTEXT,
+                self.generation,
+                MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID,
+                semantic_value,
+            )
+        } else {
+            crate::mcp::action::serialize_persistent_observer_click_target(
+                MT042_GRAPH_OPEN_EFFECT,
+                MT042_GRAPH_OPEN_CONTEXT,
+                self.generation,
+                MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID,
+                semantic_value,
+            )
+        }
+    }
+
+    fn begin(
+        &mut self,
+        author_id: String,
+        raw_block_id: Option<String>,
+        payload: Option<String>,
+        semantic_value: String,
+    ) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_author_id = Some(author_id);
+        self.raw_block_id = raw_block_id;
+        self.pending_payload = payload;
+        self.rich_load_generation = None;
+        self.operation_outcome = None;
+        self.operation_cell_identity = None;
+        self.backend_operation_generation = None;
+        self.operation_generation = None;
+        self.operation_result_identity = None;
+        self.semantic_value = Some(semantic_value);
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn settle_for_next_action(&mut self) {
+        if matches!(
+            self.state,
+            crate::mcp::action::ClickCompletionState::Applied
+                | crate::mcp::action::ClickCompletionState::Failed
+        ) {
+            self.state = crate::mcp::action::ClickCompletionState::Ready;
+            self.pending_author_id = None;
+            self.raw_block_id = None;
+            self.pending_payload = None;
+            self.rich_load_generation = None;
+            self.operation_outcome = None;
+            self.operation_cell_identity = None;
+            self.backend_operation_generation = None;
+            self.operation_generation = None;
+            self.operation_result_identity = None;
+            self.semantic_value = None;
+            self.terminal_detail = None;
+            self.terminal_error = None;
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT042_GRAPH_OPEN_EFFECT,
+                    MT042_GRAPH_OPEN_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_author_id.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT042_GRAPH_OPEN_EFFECT,
+                    MT042_GRAPH_OPEN_CONTEXT,
+                    self.generation,
+                    self.pending_author_id.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT042_GRAPH_OPEN_EFFECT,
+                    MT042_GRAPH_OPEN_CONTEXT,
+                    self.generation,
+                    self.pending_author_id.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt035UndoBaseline {
+    transition_generation: u64,
+    pane_id: Option<PaneId>,
+    local_count: usize,
+    cross_count: usize,
+    pending: Option<crate::undo_stack::PendingCrossPaneObservation>,
+}
+
+#[derive(Debug, Clone)]
+struct Mt035ArgusActionCompletion {
+    menu_generation: u64,
+    menu_state: crate::mcp::action::ClickCompletionState,
+    observer_generation: u64,
+    observer_state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    baseline: Option<Mt035UndoBaseline>,
+    terminal_error: Option<String>,
+    terminal_detail: Option<String>,
+}
+
+impl Default for Mt035ArgusActionCompletion {
+    fn default() -> Self {
+        Self {
+            menu_generation: 0,
+            menu_state: crate::mcp::action::ClickCompletionState::Ready,
+            observer_generation: 0,
+            observer_state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            baseline: None,
+            terminal_error: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl Mt035ArgusActionCompletion {
+    fn menu_token(&self) -> Option<String> {
+        crate::mcp::action::serialize_same_target_click_completion(
+            "mt035.open-edit-menu",
+            MT035_ARGUS_COMPLETION_CONTEXT,
+            self.menu_generation,
+            self.menu_state,
+        )
+    }
+
+    fn complete_menu_open(&mut self) {
+        self.menu_generation = self.menu_generation.wrapping_add(1);
+        self.menu_state = crate::mcp::action::ClickCompletionState::Applied;
+    }
+
+    fn declaration(&self, author_id: &str, semantic_value: &str) -> Option<String> {
+        let semantic_value = if self.observer_state
+            == crate::mcp::action::ClickCompletionState::Pending
+            && self.pending_target.as_deref() == Some(author_id)
+        {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        (self.observer_state != crate::mcp::action::ClickCompletionState::Pending)
+            .then(|| {
+                crate::mcp::action::serialize_observer_click_target(
+                    MT035_ARGUS_COMPLETION_EFFECT,
+                    MT035_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+                    semantic_value,
+                )
+            })
+            .flatten()
+    }
+
+    fn begin(&mut self, author_id: &str, semantic_value: String, baseline: Mt035UndoBaseline) {
+        if self.observer_state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.observer_generation = self.observer_generation.wrapping_add(1);
+        self.observer_state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(author_id.to_owned());
+        self.semantic_value = Some(semantic_value);
+        self.baseline = Some(baseline);
+        self.terminal_error = None;
+        self.terminal_detail = None;
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.observer_state == crate::mcp::action::ClickCompletionState::Pending {
+            self.observer_state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.observer_state == crate::mcp::action::ClickCompletionState::Pending {
+            self.observer_state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.observer_state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT035_ARGUS_COMPLETION_EFFECT,
+                    MT035_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.observer_state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT035_ARGUS_COMPLETION_EFFECT,
+                    MT035_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT035_ARGUS_COMPLETION_EFFECT,
+                    MT035_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt033ArgusActionCompletion {
+    observer_generation: u64,
+    observer_state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    terminal_error: Option<String>,
+    terminal_detail: Option<String>,
+    expected_route_event_id: Option<String>,
+    expected_route_error_request_id: Option<String>,
+    expected_route_causal_action_id: Option<String>,
+    menu_completions: BTreeMap<String, (u64, crate::mcp::action::ClickCompletionState)>,
+}
+
+impl Default for Mt033ArgusActionCompletion {
+    fn default() -> Self {
+        Self {
+            observer_generation: 0,
+            observer_state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            terminal_error: None,
+            terminal_detail: None,
+            expected_route_event_id: None,
+            expected_route_error_request_id: None,
+            expected_route_causal_action_id: None,
+            menu_completions: BTreeMap::new(),
+        }
+    }
+}
+
+impl Mt033ArgusActionCompletion {
+    fn menu_token(&self, author_id: &str) -> Option<String> {
+        let (generation, state) = self
+            .menu_completions
+            .get(author_id)
+            .copied()
+            .unwrap_or((0, crate::mcp::action::ClickCompletionState::Ready));
+        crate::mcp::action::serialize_same_target_click_completion(
+            &format!("mt033.open-{author_id}"),
+            MT033_ARGUS_COMPLETION_CONTEXT,
+            generation,
+            state,
+        )
+    }
+
+    fn complete_menu_open(&mut self, author_id: &str) {
+        let completion = self
+            .menu_completions
+            .entry(author_id.to_owned())
+            .or_insert((0, crate::mcp::action::ClickCompletionState::Ready));
+        completion.0 = completion.0.wrapping_add(1);
+        completion.1 = crate::mcp::action::ClickCompletionState::Applied;
+    }
+
+    fn target_declaration(
+        &self,
+        author_id: &str,
+        semantic_value: &str,
+        persistent_target: bool,
+    ) -> Option<String> {
+        let semantic_value = if persistent_target
+            && self.pending_target.as_deref() == Some(author_id)
+            && matches!(
+                self.observer_state,
+                crate::mcp::action::ClickCompletionState::Pending
+                    | crate::mcp::action::ClickCompletionState::Applied
+                    | crate::mcp::action::ClickCompletionState::Failed
+            ) {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        (persistent_target
+            || self.observer_state != crate::mcp::action::ClickCompletionState::Pending)
+            .then(|| {
+                if persistent_target {
+                    crate::mcp::action::serialize_persistent_observer_click_target(
+                        MT033_ARGUS_COMPLETION_EFFECT,
+                        MT033_ARGUS_COMPLETION_CONTEXT,
+                        self.observer_generation,
+                        MT033_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                } else {
+                    crate::mcp::action::serialize_observer_click_target(
+                        MT033_ARGUS_COMPLETION_EFFECT,
+                        MT033_ARGUS_COMPLETION_CONTEXT,
+                        self.observer_generation,
+                        MT033_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                }
+            })
+            .flatten()
+            .filter(|_| !author_id.is_empty())
+    }
+
+    fn begin(&mut self, author_id: &str, semantic_value: String) -> bool {
+        if self.observer_state == crate::mcp::action::ClickCompletionState::Pending {
+            return false;
+        }
+        self.observer_generation = self.observer_generation.wrapping_add(1);
+        self.observer_state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(author_id.to_owned());
+        self.semantic_value = Some(semantic_value);
+        self.terminal_error = None;
+        self.terminal_detail = None;
+        self.expected_route_event_id = None;
+        self.expected_route_error_request_id = None;
+        self.expected_route_causal_action_id = None;
+        true
+    }
+
+    fn begin_route_success(
+        &mut self,
+        author_id: &str,
+        semantic_value: String,
+        event_id: String,
+        causal_action_id: String,
+    ) -> bool {
+        if !self.begin(author_id, semantic_value) {
+            return false;
+        }
+        self.expected_route_event_id = Some(event_id);
+        self.expected_route_causal_action_id = Some(causal_action_id);
+        true
+    }
+
+    fn begin_route_error(
+        &mut self,
+        author_id: &str,
+        semantic_value: String,
+        request_id: String,
+        causal_action_id: String,
+    ) -> bool {
+        if !self.begin(author_id, semantic_value) {
+            return false;
+        }
+        self.expected_route_error_request_id = Some(request_id);
+        self.expected_route_causal_action_id = Some(causal_action_id);
+        true
+    }
+
+    fn matches_route_success(&self, event_id: &str, causal_action_id: &str) -> bool {
+        self.observer_state == crate::mcp::action::ClickCompletionState::Pending
+            && self.expected_route_event_id.as_deref() == Some(event_id)
+            && self.expected_route_causal_action_id.as_deref() == Some(causal_action_id)
+    }
+
+    fn matches_route_error(&self, request_id: &str, causal_action_id: &str) -> bool {
+        self.observer_state == crate::mcp::action::ClickCompletionState::Pending
+            && self.expected_route_error_request_id.as_deref() == Some(request_id)
+            && self.expected_route_causal_action_id.as_deref() == Some(causal_action_id)
+    }
+
+    fn complete_applied(&mut self, author_id: &str, detail: String) -> bool {
+        if self.observer_state != crate::mcp::action::ClickCompletionState::Pending
+            || self.pending_target.as_deref() != Some(author_id)
+        {
+            return false;
+        }
+        self.observer_state = crate::mcp::action::ClickCompletionState::Applied;
+        self.terminal_detail = Some(detail);
+        true
+    }
+
+    fn complete_failed(&mut self, author_id: &str, error: String, detail: String) -> bool {
+        if self.observer_state != crate::mcp::action::ClickCompletionState::Pending
+            || self.pending_target.as_deref() != Some(author_id)
+        {
+            return false;
+        }
+        self.observer_state = crate::mcp::action::ClickCompletionState::Failed;
+        self.terminal_error = Some(error);
+        self.terminal_detail = Some(detail);
+        true
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.observer_state {
+            crate::mcp::action::ClickCompletionState::Ready => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT033_ARGUS_COMPLETION_EFFECT,
+                    MT033_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.observer_state,
+                    None,
+                    None,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT033_ARGUS_COMPLETION_EFFECT,
+                    MT033_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.observer_state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT033_ARGUS_COMPLETION_EFFECT,
+                    MT033_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT033_ARGUS_COMPLETION_EFFECT,
+                    MT033_ARGUS_COMPLETION_CONTEXT,
+                    self.observer_generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+fn mt033_set_snapshot_node_value(
+    node: &mut crate::accessibility::UiTreeNode,
+    author_id: &str,
+    value: &str,
+) -> bool {
+    if node.author_id.as_deref() == Some(author_id) {
+        node.value = Some(value.to_owned());
+        return true;
+    }
+    node.children
+        .iter_mut()
+        .any(|child| mt033_set_snapshot_node_value(child, author_id, value))
+}
+
 struct PreparedStageEmbed {
     in_flight_lease: crate::stage_pane::StageEmbedInFlightLease,
     launch_runtime: tokio::runtime::Handle,
@@ -984,9 +1785,12 @@ pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_
 // bounded at five seconds, so 25 seconds covers the complete production retry budget with margin.
 const BACKGROUND_WORKER_SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 const BACKGROUND_WORKER_SHUTDOWN_POLL: std::time::Duration = std::time::Duration::from_millis(10);
+const BACKGROUND_RUNTIME_SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 /// Process-wide count used only to prove that app teardown does not leave detached layout workers.
 static ACTIVE_LAYOUT_WORKERS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+static ACTIVE_BLOCKED_RUNTIME_WORKERS_FOR_TEST: std::sync::atomic::AtomicUsize =
     std::sync::atomic::AtomicUsize::new(0);
 
 struct ActiveLayoutWorkerGuard;
@@ -1114,10 +1918,11 @@ struct RichDocumentLoadFailure {
     message: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct RichDocumentLoadState {
     workspace_id: String,
     loading_generation: Option<u64>,
+    completed_generation: Option<u64>,
     loaded_version: Option<u64>,
     failure: Option<RichDocumentLoadFailure>,
 }
@@ -2225,7 +3030,11 @@ pub struct HandshakeApp {
     /// Canonical `/health` endpoint retained across manual refreshes and periodic re-probes. Tests may
     /// inject a localhost endpoint; no later probe is allowed to jump back to the production constant.
     backend_health_url: String,
-    rt: tokio::runtime::Runtime,
+    // `Option` lets Drop consume the runtime with `shutdown_timeout`; a plain Runtime field would run
+    // its unbounded destructor after our bounded JoinHandle drains and could freeze teardown on a
+    // blocked `spawn_blocking` settings/preference transport.
+    rt: Option<tokio::runtime::Runtime>,
+    background_runtime_shutdown_timeout: std::time::Duration,
     health_handle: Option<tokio::task::JoinHandle<Result<HealthInfo, AppError>>>,
     /// WP-KERNEL-012 MT-082 (D2 — internal_diagnostics, Tier 2): the per-session diagnostic identity
     /// (session id + the MT-081 ring backing-file path) MT-094 passes to `palmistry.exe` so the external
@@ -2977,6 +3786,19 @@ pub struct HandshakeApp {
     /// Enable/disable state captured from the live egui context while that dropdown was rendered. The
     /// fresh snapshot context cannot recompute focus-, clipboard-, or undo-dependent predicates.
     mcp_open_top_menu_state: Option<MenuBarState>,
+    /// MT-033 V4: action-specific completion state projected only into the canonical MCP snapshot.
+    /// It observes existing product transitions; it does not own or duplicate CKC/Stage behavior.
+    mt033_argus_action_completion: Mt033ArgusActionCompletion,
+    /// MT-034 V4 action-specific completion plus the last canonical code target resolved for its
+    /// pending code-chip action. The latter is retained until the real panel has loaded and painted it.
+    mt034_argus_action_completion: Mt034ArgusActionCompletion,
+    mt034_last_resolved_code_ref: Option<crate::interop::cross_ref::CodeRef>,
+    /// MT-035 V4 exact unified-undo action completion and before-state correlation.
+    mt035_argus_action_completion: Mt035ArgusActionCompletion,
+    /// MT-036 V4 action completion for the transient menu leaf which mounts Flight Recorder.
+    mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion,
+    /// MT-042 V4 app-owned terminal observer for exact graph-node document navigation.
+    mt042_graph_open_completion: Mt042GraphOpenCompletion,
     /// MT-027: the per-session HMAC token gating every MCP request. Generated at startup; written into
     /// the discovery binding file so an authorized agent can present it.
     mcp_token: crate::mcp::SessionToken,
@@ -3126,6 +3948,7 @@ pub struct HandshakeApp {
     /// edge set replaces the rendered one; `Err` logs the typed failure and ALSO re-fetches (rollback
     /// to server truth).
     graph_op_cells: Vec<crate::backend_client::CanvasBoardOpCell>,
+    graph_edge_create_cells: Vec<crate::backend_client::SemanticEdgeCreateCell>,
     /// WP-KERNEL-012 MT-062 REMEDIATION: the outgoing links extracted from the ACTIVE document's
     /// `content_json` on the document-LOAD path (off the render path — extraction runs once per load,
     /// never per frame). Re-bucketed against the live wikilink resolver index whenever the index grows
@@ -3373,6 +4196,11 @@ struct SecondaryMountHandles {
     tag_hub_cell: crate::backend_client::TagHubDetailCell,
     tag_hub_seq: std::sync::atomic::AtomicU64,
     tag_hub_latest: Mutex<HashMap<(String, String), u64>>,
+    /// Count enrichment is intentionally isolated from mounted hub navigation: a later list-count
+    /// request must never supersede the exact request bound to an ActionChannel receipt.
+    tag_count_cell: crate::backend_client::TagHubDetailCell,
+    tag_count_seq: std::sync::atomic::AtomicU64,
+    tag_count_latest: Mutex<HashMap<(String, String), u64>>,
     tag_candidates_cell: crate::backend_client::AddTagCandidatesCell,
     tag_candidates_seq: std::sync::atomic::AtomicU64,
     tag_candidates_latest: Mutex<HashMap<(String, String), u64>>,
@@ -3983,6 +4811,9 @@ fn install_secondary_mounts(
         tag_hub_cell: Arc::new(Mutex::new(VecDeque::new())),
         tag_hub_seq: std::sync::atomic::AtomicU64::new(0),
         tag_hub_latest: Mutex::new(HashMap::new()),
+        tag_count_cell: Arc::new(Mutex::new(VecDeque::new())),
+        tag_count_seq: std::sync::atomic::AtomicU64::new(0),
+        tag_count_latest: Mutex::new(HashMap::new()),
         tag_candidates_cell: Arc::new(Mutex::new(VecDeque::new())),
         tag_candidates_seq: std::sync::atomic::AtomicU64::new(0),
         tag_candidates_latest: Mutex::new(HashMap::new()),
@@ -4311,6 +5142,12 @@ pub const FALLBACK_FACE_ORDER: [&str; 7] = [
 ];
 
 impl HandshakeApp {
+    fn runtime(&self) -> &tokio::runtime::Runtime {
+        self.rt
+            .as_ref()
+            .expect("HandshakeApp runtime is present until bounded Drop teardown")
+    }
+
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self::install_fonts(&cc.egui_ctx);
 
@@ -4396,7 +5233,8 @@ impl HandshakeApp {
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
             backend_health_url,
-            rt,
+            rt: Some(rt),
+            background_runtime_shutdown_timeout: BACKGROUND_RUNTIME_SHUTDOWN_TIMEOUT,
             health_handle,
             diag_session,
             // WP-KERNEL-012 MT-094: the Palmistry watcher is launched by `main()` BEFORE the event loop
@@ -4638,6 +5476,12 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_open_top_menu: None,
             mcp_open_top_menu_state: None,
+            mt033_argus_action_completion: Mt033ArgusActionCompletion::default(),
+            mt034_argus_action_completion: Mt034ArgusActionCompletion::default(),
+            mt034_last_resolved_code_ref: None,
+            mt035_argus_action_completion: Mt035ArgusActionCompletion::default(),
+            mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
+            mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
@@ -4675,6 +5519,7 @@ impl HandshakeApp {
             canvas_text_card_block_ids: std::collections::HashSet::new(),
             canvas_op_cells: Vec::new(),
             graph_op_cells: Vec::new(),
+            graph_edge_create_cells: Vec::new(),
             outgoing_links_raw: Vec::new(),
             outgoing_links_index_watermark: None,
         };
@@ -4918,7 +5763,7 @@ impl HandshakeApp {
         let snapshot = self.mcp_snapshot.clone();
         let channel = self.mcp_action_channel.clone();
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
-        let result = self.rt.block_on(async move {
+        let result = self.runtime().block_on(async move {
             crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await
         });
         match result {
@@ -4945,6 +5790,1694 @@ impl HandshakeApp {
         }
     }
 
+    fn mt033_content_hash(content: &serde_json::Value) -> String {
+        use sha2::Digest as _;
+        let bytes = serde_json::to_vec(content).unwrap_or_default();
+        format!("{:x}", sha2::Sha256::digest(bytes))
+    }
+
+    fn mt033_dispatched_target(&self) -> Option<String> {
+        self.mcp_action_channel
+            .lock()
+            .map(|channel| channel.unique_dispatched_click_author_id())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_click_author_id())
+    }
+
+    fn mt033_item_semantic(&self, target: &str) -> String {
+        let rich = self.active_rich_state();
+        let (document_id, revision, content_hash) = rich
+            .lock()
+            .map(|state| {
+                let content = state.current_content_json();
+                (
+                    state.active_document_id().unwrap_or("unbound").to_owned(),
+                    state.doc_revision(),
+                    Self::mt033_content_hash(&content),
+                )
+            })
+            .unwrap_or_else(|_| ("contended".to_owned(), 0, "contended".to_owned()));
+        serde_json::json!({
+            "action": "insert-atelier-hslink",
+            "target": target,
+            "document_id": document_id,
+            "before_revision": revision,
+            "before_content_hash": content_hash,
+        })
+        .to_string()
+    }
+
+    fn mt033_route_semantic(&self, target: &str) -> String {
+        let rich = self.active_rich_state();
+        let (document_id, selected_text) = rich
+            .lock()
+            .map(|state| {
+                (
+                    state.active_document_id().unwrap_or("unbound").to_owned(),
+                    state
+                        .selected_text()
+                        .map(|(_, _, _, text)| text)
+                        .unwrap_or_default(),
+                )
+            })
+            .unwrap_or_else(|_| ("contended".to_owned(), String::new()));
+        serde_json::json!({
+            "action": "route-to-stage",
+            "target": target,
+            "document_id": document_id,
+            "selection": selected_text,
+        })
+        .to_string()
+    }
+
+    fn project_mt033_argus_completion(&self, snapshot: &mut crate::accessibility::UiTreeSnapshot) {
+        for author_id in ["menu-view", "menu-editors", "menu-operator"] {
+            if let Some(value) = self.mt033_argus_action_completion.menu_token(author_id) {
+                mt033_set_snapshot_node_value(&mut snapshot.root, author_id, &value);
+            }
+        }
+
+        let mut declarations = Vec::new();
+        for node in snapshot.iter_nodes() {
+            let Some(author_id) = node.author_id.as_deref() else {
+                continue;
+            };
+            let semantic = match author_id {
+                "menu.view.toggle-atelier" => Some(
+                    serde_json::json!({
+                        "action": "toggle-atelier-panel",
+                        "target": author_id,
+                        "expected_panel": crate::atelier_side_panel::PANEL_AUTHOR_ID,
+                    })
+                    .to_string(),
+                ),
+                "menu.editors.route-to-stage" | "command-palette.option.hs-stage-palette-route" => {
+                    Some(self.mt033_route_semantic(author_id))
+                }
+                "menu.operator.command-palette" => Some(
+                    serde_json::json!({
+                        "action": "open-command-palette",
+                        "target": author_id,
+                        "expected_dialog": crate::command_palette::PALETTE_DIALOG_AUTHOR_ID,
+                    })
+                    .to_string(),
+                ),
+                _ if author_id.starts_with("atelier-item-") => {
+                    Some(self.mt033_item_semantic(author_id))
+                }
+                _ => None,
+            };
+            if let Some(semantic) = semantic {
+                if let Some(value) = self.mt033_argus_action_completion.target_declaration(
+                    author_id,
+                    &semantic,
+                    author_id.starts_with("atelier-item-"),
+                ) {
+                    declarations.push((author_id.to_owned(), value));
+                }
+            }
+        }
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        if let Some(value) = self.mt033_argus_action_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT033_ARGUS_ACTION_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT033_ARGUS_ACTION_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT033_ARGUS_ACTION_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-033 CKC and Stage action completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    fn mt034_semantic(author_id: &str, code_symbol_search_generation: u64) -> Option<String> {
+        if author_id == "editor.rich.insert-slash-command" {
+            return Some(
+                serde_json::json!({
+                    "action": "open-code-symbol-search",
+                    "command_id": "code-ref",
+                    "dialog_generation_before": code_symbol_search_generation,
+                    "target": author_id,
+                })
+                .to_string(),
+            );
+        }
+        if let Some(symbol_entity_id) = author_id.strip_prefix("code-ref-chip-") {
+            if !symbol_entity_id.is_empty() {
+                return Some(
+                    serde_json::json!({
+                        "action": "reveal-code-symbol",
+                        "symbol_entity_id": symbol_entity_id,
+                        "target": author_id,
+                    })
+                    .to_string(),
+                );
+            }
+        }
+        if let Some(document_id) = author_id.strip_prefix("note-ref-") {
+            if !document_id.is_empty()
+                && author_id != crate::code_editor::note_refs_panel::OPEN_PENDING_AUTHOR_ID
+            {
+                return Some(
+                    serde_json::json!({
+                        "action": "reveal-rich-document",
+                        "document_id": document_id,
+                        "target": author_id,
+                    })
+                    .to_string(),
+                );
+            }
+        }
+        None
+    }
+
+    fn mt034_payload_matches_target(author_id: &str, payload: Option<&str>) -> bool {
+        if author_id != "editor.rich.insert-slash-command" {
+            return payload.is_none();
+        }
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(payload.unwrap_or_default())
+        else {
+            return false;
+        };
+        value.as_object().is_some_and(|object| {
+            object.len() == 2
+                && object.get("kind").and_then(serde_json::Value::as_str) == Some("slash_command")
+                && object.get("command_id").and_then(serde_json::Value::as_str) == Some("code-ref")
+        })
+    }
+
+    fn reconcile_mt034_argus_completion(
+        &mut self,
+        snapshot: &crate::accessibility::UiTreeSnapshot,
+    ) {
+        if self.mt034_argus_action_completion.state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((author_id, payload, semantic)) = activation {
+                if Self::mt034_semantic(&author_id, 0).is_some()
+                    && Self::mt034_payload_matches_target(&author_id, payload.as_deref())
+                {
+                    if let Some(semantic) = semantic {
+                        self.mt034_argus_action_completion
+                            .begin(author_id, semantic);
+                        self.mt034_last_resolved_code_ref = None;
+                    }
+                }
+            }
+        }
+
+        if self.mt034_argus_action_completion.state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            return;
+        }
+        let Some(target) = self
+            .mt034_argus_action_completion
+            .pending_target
+            .as_deref()
+            .map(ToOwned::to_owned)
+        else {
+            return;
+        };
+        if target == "editor.rich.insert-slash-command" {
+            let baseline_generation = self
+                .mt034_argus_action_completion
+                .semantic_value
+                .as_deref()
+                .and_then(|semantic| serde_json::from_str::<serde_json::Value>(semantic).ok())
+                .and_then(|semantic| semantic["dialog_generation_before"].as_u64());
+            let current_generation = self
+                .active_rich_state()
+                .lock()
+                .map(|state| state.code_symbol_search_generation)
+                .unwrap_or_default();
+            if baseline_generation.is_some_and(|baseline| current_generation > baseline)
+                && snapshot.find_by_author_id("code-symbol-search").is_some()
+            {
+                self.mt034_argus_action_completion.complete(
+                    serde_json::json!({
+                        "command_id": "code-ref",
+                        "visible_dialog": "code-symbol-search",
+                        "dialog_generation_before": baseline_generation,
+                        "dialog_generation_after": current_generation,
+                    })
+                    .to_string(),
+                );
+            }
+            return;
+        }
+        if let Some(document_id) = target.strip_prefix("note-ref-") {
+            if let Some((pane_id, active_document_id)) = self.active_rich_document_binding() {
+                if active_document_id == document_id {
+                    let rich = self.active_rich_state();
+                    let revision = rich
+                        .lock()
+                        .map(|state| state.doc_revision())
+                        .unwrap_or_default();
+                    self.mt034_argus_action_completion.complete(
+                        serde_json::json!({
+                            "active_document_id": active_document_id,
+                            "rich_document_id": active_document_id,
+                            "active_pane_id": pane_id,
+                            "rich_document_revision": revision,
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            return;
+        }
+        if let Some(symbol_entity_id) = target.strip_prefix("code-ref-chip-") {
+            let Some(code_ref) = self.mt034_last_resolved_code_ref.as_ref() else {
+                return;
+            };
+            if code_ref.symbol_entity_id != symbol_entity_id {
+                return;
+            }
+            let panel = self.active_mounted_code_panel();
+            let actual_path = panel.file_path().replace('\\', "/");
+            let expected_path = code_ref.file_path.replace('\\', "/");
+            let path_matches =
+                actual_path == expected_path || actual_path.ends_with(&format!("/{expected_path}"));
+            let visible = panel.last_visible_buffer_range();
+            let expected_line = code_ref.line_start as usize;
+            if path_matches && panel.is_buffer_line_painted(expected_line) {
+                self.mt034_argus_action_completion.complete(
+                    serde_json::json!({
+                        "symbol_entity_id": code_ref.symbol_entity_id,
+                        "source_id": code_ref.source_id,
+                        "file_path": actual_path,
+                        "line_start": expected_line,
+                        "visible_line_start": visible.start,
+                        "visible_line_end_exclusive": visible.end,
+                    })
+                    .to_string(),
+                );
+            }
+        }
+    }
+
+    fn project_mt034_argus_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        self.reconcile_mt034_argus_completion(snapshot);
+        let code_symbol_search_generation = self
+            .active_rich_state()
+            .lock()
+            .map(|state| state.code_symbol_search_generation)
+            .unwrap_or_default();
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                let semantic = Self::mt034_semantic(author_id, code_symbol_search_generation)?;
+                self.mt034_argus_action_completion
+                    // The split editor intentionally keeps both rich and code panes mounted. A
+                    // code chip or NoteRefs row can therefore remain AccessKit-visible after the
+                    // other pane becomes active; bind its exact stable node/declaration across the
+                    // generation transition instead of falsely requiring disappearance.
+                    .declaration(author_id, &semantic, true)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+        if let Some(value) = self.mt034_argus_action_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT034_ARGUS_ACTION_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT034_ARGUS_ACTION_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT034_ARGUS_ACTION_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-034 cross-reference action completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    fn mt042_graph_open_semantic(&self, author_id: &str) -> Option<(String, String)> {
+        let graph = self.editor_mounts.secondary.graph_view.lock().ok()?;
+        let node = graph
+            .nodes
+            .iter()
+            .find(|node| crate::graph::graph_view::node_author_id(&node.block_id) == author_id)?;
+        let raw_block_id = node.block_id.clone();
+        let semantic = serde_json::json!({
+            "action": "graph.open-node",
+            "target_author_id": author_id,
+            "raw_block_id": raw_block_id,
+            "content_type": node.content_type,
+            "workspace_id": graph.workspace_id,
+            "graph_request_generation": self.graph_request_generation,
+            "source_pane_id": self.active_pane.as_ref().map(ToString::to_string),
+        })
+        .to_string();
+        Some((raw_block_id, semantic))
+    }
+
+    fn mt042_action_semantic(&self, author_id: &str) -> Option<(Option<String>, String)> {
+        if let Some((raw_block_id, semantic)) = self.mt042_graph_open_semantic(author_id) {
+            return Some((Some(raw_block_id), semantic));
+        }
+        match author_id {
+            "graph.add-edge" | "graph.remove-edge" => {
+                let graph = self.editor_mounts.secondary.graph_view.lock().ok()?;
+                let edges = graph
+                    .edges
+                    .iter()
+                    .map(|edge| {
+                        serde_json::json!({
+                            "edge_id": edge.edge_id,
+                            "source_id": edge.source,
+                            "target_id": edge.target,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                Some((
+                    None,
+                    serde_json::json!({
+                        "action": author_id,
+                        "workspace_id": graph.workspace_id,
+                        "graph_request_generation": self.graph_request_generation,
+                        "edges_before": edges,
+                    })
+                    .to_string(),
+                ))
+            }
+            "canvas.place-block" | "canvas.remove-placement" => {
+                let board = self.editor_mounts.secondary.canvas_board.lock().ok()?;
+                let placements = board
+                    .placements
+                    .iter()
+                    .map(|placement| {
+                        serde_json::json!({
+                            "placement_id": placement.placement_id,
+                            "block_id": placement.placed_block_id,
+                            "x": placement.x,
+                            "y": placement.y,
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                Some((
+                    None,
+                    serde_json::json!({
+                        "action": author_id,
+                        "workspace_id": board.workspace_id,
+                        "canvas_block_id": board.canvas_block_id,
+                        "canvas_request_generation": self.canvas_request_generation,
+                        "canvas_request_sequence": self.canvas_request_sequence,
+                        "placements_before": placements,
+                    })
+                    .to_string(),
+                ))
+            }
+            "collection.kanban-move" => {
+                let view = self.editor_mounts.secondary.collection_view.lock().ok()?;
+                let lanes = view
+                    .results
+                    .as_ref()
+                    .map(|results| {
+                        results
+                            .groups
+                            .iter()
+                            .map(|lane| {
+                                serde_json::json!({
+                                    "lane": lane.key,
+                                    "members": lane.blocks.iter().map(|block| &block.block_id).collect::<Vec<_>>(),
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                Some((
+                    None,
+                    serde_json::json!({
+                        "action": author_id,
+                        "workspace_id": view.workspace_id,
+                        "view_block_id": view.view_block_id,
+                        "collection_load_generation": self
+                            .editor_mounts
+                            .secondary
+                            .collection_load_generation
+                            .load(std::sync::atomic::Ordering::Acquire),
+                        "lanes_before": lanes,
+                    })
+                    .to_string(),
+                ))
+            }
+            crate::graph::graph_view::RETRY_AUTHOR_ID => {
+                let graph = self.editor_mounts.secondary.graph_view.lock().ok()?;
+                graph.error.as_ref()?;
+                Some((
+                    None,
+                    serde_json::json!({
+                        "action": author_id,
+                        "workspace_id": graph.workspace_id,
+                        "graph_request_generation": self.graph_request_generation,
+                        "error_before": graph.error,
+                    })
+                    .to_string(),
+                ))
+            }
+            _ => None,
+        }
+    }
+
+    fn begin_mt042_dispatched_action(&mut self, expected_author_id: &str) -> Mt042DispatchGate {
+        if self.mt042_graph_open_completion.state
+            == crate::mcp::action::ClickCompletionState::Pending
+        {
+            return Mt042DispatchGate::NoModelActivation;
+        }
+        let activation = self
+            .mcp_action_channel
+            .lock()
+            .map(|channel| channel.unique_dispatched_activation())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+        let Some((author_id, payload, declared_semantic)) = activation else {
+            return Mt042DispatchGate::NoModelActivation;
+        };
+        if author_id != expected_author_id {
+            return Mt042DispatchGate::NoModelActivation;
+        }
+        let expected_semantic_action = if author_id.starts_with("graph.node.") {
+            "graph.open-node"
+        } else {
+            author_id.as_str()
+        };
+        let Some(declared_semantic) = declared_semantic.filter(|semantic| {
+            serde_json::from_str::<serde_json::Value>(semantic)
+                .ok()
+                .is_some_and(|value| {
+                    value["action"].as_str() == Some(expected_semantic_action)
+                        && (!author_id.starts_with("graph.node.")
+                            || value["target_author_id"].as_str() == Some(author_id.as_str()))
+                })
+        }) else {
+            return Mt042DispatchGate::RejectedStale;
+        };
+        let Some((raw_block_id, current_semantic)) = self.mt042_action_semantic(&author_id) else {
+            self.mt042_graph_open_completion.begin(
+                author_id,
+                None,
+                payload,
+                declared_semantic.clone(),
+            );
+            self.mt042_graph_open_completion.complete_failed(
+                "MT-042 action context disappeared between inspect and dispatch".to_owned(),
+                serde_json::json!({
+                    "declared_semantic": declared_semantic,
+                    "current_semantic": null,
+                })
+                .to_string(),
+            );
+            return Mt042DispatchGate::RejectedStale;
+        };
+        if declared_semantic != current_semantic {
+            self.mt042_graph_open_completion.begin(
+                author_id,
+                raw_block_id,
+                payload,
+                declared_semantic.clone(),
+            );
+            self.mt042_graph_open_completion.complete_failed(
+                "stale MT-042 action context changed between inspect and dispatch".to_owned(),
+                serde_json::json!({
+                    "declared_semantic": declared_semantic,
+                    "current_semantic": current_semantic,
+                })
+                .to_string(),
+            );
+            return Mt042DispatchGate::RejectedStale;
+        }
+        self.mt042_graph_open_completion
+            .begin(author_id, raw_block_id, payload, declared_semantic);
+        Mt042DispatchGate::Accepted
+    }
+
+    fn reconcile_mt042_graph_open_completion(&mut self) {
+        if self.mt042_graph_open_completion.state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((author_id, payload, declared_semantic)) = activation {
+                if let Some((raw_block_id, current_semantic)) =
+                    self.mt042_action_semantic(&author_id)
+                {
+                    let Some(declared_semantic) = declared_semantic.filter(|semantic| {
+                        serde_json::from_str::<serde_json::Value>(semantic)
+                            .ok()
+                            .is_some_and(|value| {
+                                value["action"].as_str() == Some(author_id.as_str())
+                            })
+                    }) else {
+                        return;
+                    };
+                    self.mt042_graph_open_completion.begin(
+                        author_id,
+                        raw_block_id,
+                        payload,
+                        declared_semantic.clone(),
+                    );
+                    if declared_semantic != current_semantic {
+                        self.mt042_graph_open_completion.complete_failed(
+                            "stale MT-042 action context changed between inspect and dispatch"
+                                .to_owned(),
+                            serde_json::json!({
+                                "declared_semantic": declared_semantic,
+                                "current_semantic": current_semantic,
+                            })
+                            .to_string(),
+                        );
+                    }
+                }
+            } else {
+                self.mt042_graph_open_completion.settle_for_next_action();
+            }
+        }
+
+        if self.mt042_graph_open_completion.state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            return;
+        }
+        let Some(author_id) = self
+            .mt042_graph_open_completion
+            .pending_author_id
+            .as_deref()
+            .map(ToOwned::to_owned)
+        else {
+            return;
+        };
+        if author_id != crate::graph::graph_view::RETRY_AUTHOR_ID
+            && !author_id.starts_with("graph.node.")
+        {
+            self.reconcile_mt042_mutation_completion(&author_id);
+            return;
+        }
+        if author_id == crate::graph::graph_view::RETRY_AUTHOR_ID {
+            let graph = self.editor_mounts.secondary.graph_view.lock();
+            let Ok(graph) = graph else { return };
+            let baseline = self
+                .mt042_graph_open_completion
+                .semantic_value
+                .as_deref()
+                .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+                .and_then(|value| value["graph_request_generation"].as_u64())
+                .unwrap_or_default();
+            if self.graph_request_generation <= baseline || graph.loading {
+                return;
+            }
+            let detail = serde_json::json!({
+                "workspace_id": graph.workspace_id,
+                "request_generation_before": baseline,
+                "request_generation_after": self.graph_request_generation,
+                "node_count": graph.nodes.len(),
+                "terminal_error": graph.error,
+            })
+            .to_string();
+            if let Some(error) = graph.error.clone() {
+                drop(graph);
+                self.mt042_graph_open_completion
+                    .complete_failed(error, detail);
+            } else {
+                drop(graph);
+                self.mt042_graph_open_completion.complete_applied(detail);
+            }
+            return;
+        }
+        let Some(raw_block_id) = self
+            .mt042_graph_open_completion
+            .raw_block_id
+            .as_deref()
+            .map(ToOwned::to_owned)
+        else {
+            return;
+        };
+        let semantic = self
+            .mt042_graph_open_completion
+            .semantic_value
+            .as_deref()
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+        let expected_workspace = semantic
+            .as_ref()
+            .and_then(|value| value["workspace_id"].as_str())
+            .unwrap_or_default();
+        let expected_graph_generation = semantic
+            .as_ref()
+            .and_then(|value| value["graph_request_generation"].as_u64())
+            .unwrap_or_default();
+        let expected_pane_id = semantic
+            .as_ref()
+            .and_then(|value| value["source_pane_id"].as_str())
+            .unwrap_or_default();
+        if self.active_project_id != expected_workspace
+            || self.graph_request_generation != expected_graph_generation
+        {
+            self.mt042_graph_open_completion.complete_failed(
+                "graph open context changed before the exact document load terminalized".to_owned(),
+                serde_json::json!({
+                    "requested_raw_block_id": raw_block_id,
+                    "expected_workspace_id": expected_workspace,
+                    "current_workspace_id": self.active_project_id,
+                    "expected_graph_request_generation": expected_graph_generation,
+                    "current_graph_request_generation": self.graph_request_generation,
+                })
+                .to_string(),
+            );
+            return;
+        }
+        let content_type = semantic
+            .as_ref()
+            .and_then(|value| value["content_type"].as_str())
+            .unwrap_or_default();
+        if content_type != "note" {
+            let active_pane_id = self.active_pane.as_ref().map(ToString::to_string);
+            let exact_tab_open = self
+                .tab_bar_states
+                .get(&PaneId::from(expected_pane_id))
+                .and_then(|bar| bar.active())
+                .is_some_and(|tab| {
+                    tab.pane_type == PaneType::LoomBlock
+                        && tab.content_id.as_deref() == Some(raw_block_id.as_str())
+                });
+            if active_pane_id.as_deref() == Some(expected_pane_id) && exact_tab_open {
+                self.mt042_graph_open_completion.complete_applied(
+                    serde_json::json!({
+                        "requested_raw_block_id": raw_block_id,
+                        "opened_content_id": raw_block_id,
+                        "active_pane_id": expected_pane_id,
+                        "pane_type": "LoomBlock",
+                        "graph_request_generation": expected_graph_generation,
+                        "action_generation": self.mt042_graph_open_completion.generation,
+                    })
+                    .to_string(),
+                );
+            } else {
+                self.mt042_graph_open_completion.complete_failed(
+                    "graph open did not mount the exact LoomBlock target in the source pane"
+                        .to_owned(),
+                    serde_json::json!({
+                        "requested_raw_block_id": raw_block_id,
+                        "expected_pane_id": expected_pane_id,
+                        "active_pane_id": active_pane_id,
+                        "exact_tab_open": exact_tab_open,
+                    })
+                    .to_string(),
+                );
+            }
+            return;
+        }
+        let Some((pane_id, active_document_id)) = self.active_rich_document_binding() else {
+            self.mt042_graph_open_completion.complete_failed(
+                "graph open did not produce an active rich-document binding".to_owned(),
+                serde_json::json!({
+                    "requested_raw_block_id": raw_block_id,
+                    "expected_pane_id": expected_pane_id,
+                })
+                .to_string(),
+            );
+            return;
+        };
+        if active_document_id != raw_block_id || pane_id != expected_pane_id {
+            self.mt042_graph_open_completion.complete_failed(
+                "graph open navigated to a different pane or document".to_owned(),
+                serde_json::json!({
+                    "requested_raw_block_id": raw_block_id,
+                    "opened_rich_document_id": active_document_id,
+                    "expected_pane_id": expected_pane_id,
+                    "active_pane_id": pane_id,
+                })
+                .to_string(),
+            );
+            return;
+        }
+        let view_key = (pane_id.clone(), raw_block_id.clone());
+        let Some(load) = self.rich_doc_loads.get(&view_key).cloned() else {
+            return;
+        };
+        let observed_generation = load
+            .loading_generation
+            .or(load.completed_generation)
+            .or_else(|| load.failure.as_ref().map(|failure| failure.generation));
+        let Some(expected_load_generation) = self.mt042_graph_open_completion.rich_load_generation
+        else {
+            self.mt042_graph_open_completion.complete_failed(
+                "exact graph-open load generation was never bound".to_owned(),
+                serde_json::json!({
+                    "requested_raw_block_id": raw_block_id,
+                    "observed_rich_load_generation": observed_generation,
+                })
+                .to_string(),
+            );
+            return;
+        };
+        if observed_generation != Some(expected_load_generation) {
+            self.mt042_graph_open_completion.complete_failed(
+                "rich document load generation changed before graph-open completion".to_owned(),
+                serde_json::json!({
+                    "requested_raw_block_id": raw_block_id,
+                    "expected_rich_load_generation": expected_load_generation,
+                    "observed_rich_load_generation": observed_generation,
+                })
+                .to_string(),
+            );
+            return;
+        }
+        if let Some(failure) = load.failure.as_ref() {
+            if failure.document_id == raw_block_id && failure.generation == expected_load_generation
+            {
+                self.mt042_graph_open_completion.complete_failed(
+                    failure.message.clone(),
+                    serde_json::json!({
+                        "requested_raw_block_id": raw_block_id,
+                        "opened_rich_document_id": active_document_id,
+                        "active_pane_id": pane_id,
+                        "rich_document_load_generation": expected_load_generation,
+                        "graph_request_generation": expected_graph_generation,
+                    })
+                    .to_string(),
+                );
+            }
+            return;
+        }
+        let Some(loaded_version) = load.loaded_version else {
+            return;
+        };
+        if load.loading_generation.is_some()
+            || load.completed_generation != Some(expected_load_generation)
+            || !self
+                .editor_mounts
+                .rich_documents
+                .is_view_ready(&raw_block_id, &pane_id)
+        {
+            return;
+        }
+        let rich_state = self
+            .editor_mounts
+            .rich_documents
+            .state_for_view(Some(&raw_block_id), &pane_id);
+        let document_revision = rich_state
+            .lock()
+            .map(|state| state.doc_revision())
+            .unwrap_or_default();
+        self.mt042_graph_open_completion.complete_applied(
+            serde_json::json!({
+                "requested_raw_block_id": raw_block_id,
+                "opened_rich_document_id": active_document_id,
+                "active_pane_id": pane_id,
+                "rich_document_load_revision": loaded_version,
+                "rich_document_load_generation": expected_load_generation,
+                "rich_document_model_revision": document_revision,
+                "graph_request_generation": expected_graph_generation,
+                "action_generation": self.mt042_graph_open_completion.generation,
+            })
+            .to_string(),
+        );
+    }
+
+    fn reconcile_mt042_mutation_completion(&mut self, author_id: &str) {
+        let semantic = self
+            .mt042_graph_open_completion
+            .semantic_value
+            .as_deref()
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+        let payload = self
+            .mt042_graph_open_completion
+            .pending_payload
+            .as_deref()
+            .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok());
+        let (Some(semantic), Some(payload)) = (semantic, payload) else {
+            self.mt042_graph_open_completion.complete_failed(
+                "malformed or missing parameterized knowledge-action payload".to_owned(),
+                serde_json::json!({
+                    "target_author_id": author_id,
+                    "payload": self.mt042_graph_open_completion.pending_payload,
+                })
+                .to_string(),
+            );
+            return;
+        };
+        let expected_workspace = semantic["workspace_id"].as_str().unwrap_or_default();
+        if expected_workspace != self.active_project_id {
+            self.mt042_graph_open_completion.complete_failed(
+                "knowledge-action workspace changed before completion".to_owned(),
+                serde_json::json!({
+                    "target_author_id": author_id,
+                    "expected_workspace_id": expected_workspace,
+                    "current_workspace_id": self.active_project_id,
+                })
+                .to_string(),
+            );
+            return;
+        }
+        let payload_error = match author_id {
+            "graph.add-edge" => (payload["source_id"].as_str().unwrap_or_default().is_empty()
+                || payload["target_id"].as_str().unwrap_or_default().is_empty())
+            .then_some("graph.add-edge requires non-empty source_id and target_id"),
+            "graph.remove-edge" => {
+                let edge_id = payload["edge_id"].as_str().unwrap_or_default();
+                (edge_id.is_empty()
+                    || !semantic["edges_before"]
+                        .as_array()
+                        .is_some_and(|edges| edges.iter().any(|edge| edge["edge_id"] == edge_id)))
+                .then_some("graph.remove-edge requires an edge in the declared baseline")
+            }
+            "canvas.place-block" => (payload["block_id"].as_str().unwrap_or_default().is_empty()
+                || payload["x"].as_f64().is_none()
+                || payload["y"].as_f64().is_none())
+            .then_some("canvas.place-block requires block_id, x, and y"),
+            "canvas.remove-placement" => {
+                let placement_id = payload["placement_id"].as_str().unwrap_or_default();
+                (placement_id.is_empty()
+                    || !semantic["placements_before"]
+                        .as_array()
+                        .is_some_and(|placements| {
+                            placements
+                                .iter()
+                                .any(|placement| placement["placement_id"] == placement_id)
+                        }))
+                .then_some("canvas.remove-placement requires a placement in the declared baseline")
+            }
+            "collection.kanban-move" => {
+                let block_id = payload["block_id"].as_str().unwrap_or_default();
+                let from_lane = payload["from_lane"].as_str().unwrap_or_default();
+                let to_lane = payload["to_lane"].as_str().unwrap_or_default();
+                let baseline_has_source =
+                    semantic["lanes_before"].as_array().is_some_and(|lanes| {
+                        lanes.iter().any(|lane| {
+                            lane["lane"] == from_lane
+                                && lane["members"].as_array().is_some_and(|members| {
+                                    members.iter().any(|member| member == block_id)
+                                })
+                        })
+                    });
+                (block_id.is_empty()
+                    || from_lane.is_empty()
+                    || to_lane.is_empty()
+                    || from_lane == to_lane
+                    || !baseline_has_source)
+                    .then_some(
+                        "collection.kanban-move payload does not match the declared source lane",
+                    )
+            }
+            _ => Some("unsupported MT-042 parameterized action"),
+        };
+        if let Some(error) = payload_error {
+            self.mt042_graph_open_completion.complete_failed(
+                error.to_owned(),
+                serde_json::json!({
+                    "target_author_id": author_id,
+                    "payload": payload,
+                    "declared_semantic": semantic,
+                })
+                .to_string(),
+            );
+            return;
+        }
+        if self.mt042_graph_open_completion.operation_generation
+            != Some(self.mt042_graph_open_completion.generation)
+        {
+            self.mt042_graph_open_completion.complete_failed(
+                "validated model action did not launch an operation".to_owned(),
+                serde_json::json!({
+                    "target_author_id": author_id,
+                    "action_generation": self.mt042_graph_open_completion.generation,
+                    "operation_generation": self.mt042_graph_open_completion.operation_generation,
+                })
+                .to_string(),
+            );
+            return;
+        }
+        match self.mt042_graph_open_completion.operation_outcome.as_ref() {
+            Some(Ok(())) => {}
+            Some(Err(error)) => {
+                self.mt042_graph_open_completion.complete_failed(
+                    error.clone(),
+                    serde_json::json!({
+                        "target_author_id": author_id,
+                        "operation_generation": self.mt042_graph_open_completion.operation_generation,
+                        "operation_cell_identity": self.mt042_graph_open_completion.operation_cell_identity,
+                        "payload": payload,
+                    })
+                    .to_string(),
+                );
+                return;
+            }
+            None => return,
+        }
+        match author_id {
+            "graph.add-edge" => {
+                let source_id = payload["source_id"].as_str().unwrap_or_default();
+                let target_id = payload["target_id"].as_str().unwrap_or_default();
+                if source_id.is_empty() || target_id.is_empty() {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "graph.add-edge requires non-empty source_id and target_id".to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let baseline_generation = semantic["graph_request_generation"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let Some(created_edge_id) = self
+                    .mt042_graph_open_completion
+                    .operation_result_identity
+                    .clone()
+                else {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "graph edge create returned no backend-minted edge identity".to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                };
+                let baseline_edge_ids = semantic["edges_before"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|edge| edge["edge_id"].as_str())
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>();
+                if baseline_edge_ids
+                    .iter()
+                    .any(|edge_id| edge_id == &created_edge_id)
+                {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "backend edge receipt reused an identity already present in the declared baseline"
+                            .to_owned(),
+                        serde_json::json!({
+                            "backend_minted_edge_id": created_edge_id,
+                            "baseline_edge_ids": baseline_edge_ids,
+                        })
+                        .to_string(),
+                    );
+                    return;
+                }
+                let graph = self.editor_mounts.secondary.graph_view.lock();
+                let Ok(graph) = graph else { return };
+                if let Some(error) = graph.error.clone() {
+                    drop(graph);
+                    self.mt042_graph_open_completion
+                        .complete_failed(error, payload.to_string());
+                    return;
+                }
+                if graph.workspace_id != expected_workspace
+                    || graph.loading
+                    || self.graph_request_generation <= baseline_generation
+                {
+                    return;
+                }
+                let created = graph.edges.iter().find(|edge| {
+                    edge.edge_id.as_deref() == Some(created_edge_id.as_str())
+                        && edge.source == source_id
+                        && edge.target == target_id
+                });
+                let Some(created) = created else {
+                    drop(graph);
+                    self.mt042_graph_open_completion.complete_failed(
+                        "authoritative graph refresh omitted the exact created edge".to_owned(),
+                        serde_json::json!({
+                            "backend_minted_edge_id": created_edge_id,
+                            "source_id": source_id,
+                            "target_id": target_id,
+                        })
+                        .to_string(),
+                    );
+                    return;
+                };
+                let detail = serde_json::json!({
+                    "workspace_id": expected_workspace,
+                    "source_id": source_id,
+                    "target_id": target_id,
+                    "backend_minted_edge_id": created.edge_id,
+                    "baseline_edge_ids": baseline_edge_ids,
+                    "backend_minted_edge_absent_from_baseline": true,
+                    "request_generation_before": baseline_generation,
+                    "request_generation_after": self.graph_request_generation,
+                })
+                .to_string();
+                drop(graph);
+                self.mt042_graph_open_completion.complete_applied(detail);
+            }
+            "graph.remove-edge" => {
+                let edge_id = payload["edge_id"].as_str().unwrap_or_default();
+                let baseline_generation = semantic["graph_request_generation"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let existed_before = semantic["edges_before"]
+                    .as_array()
+                    .is_some_and(|edges| edges.iter().any(|edge| edge["edge_id"] == edge_id));
+                if edge_id.is_empty() || !existed_before {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "graph.remove-edge requires an edge present in the declared baseline"
+                            .to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let graph = self.editor_mounts.secondary.graph_view.lock();
+                let Ok(graph) = graph else { return };
+                if let Some(error) = graph.error.clone() {
+                    drop(graph);
+                    self.mt042_graph_open_completion
+                        .complete_failed(error, payload.to_string());
+                    return;
+                }
+                if graph.workspace_id != expected_workspace
+                    || graph.loading
+                    || self.graph_request_generation <= baseline_generation
+                {
+                    return;
+                }
+                if graph
+                    .edges
+                    .iter()
+                    .any(|edge| edge.edge_id.as_deref() == Some(edge_id))
+                {
+                    drop(graph);
+                    self.mt042_graph_open_completion.complete_failed(
+                        "authoritative graph refresh still contains the removed edge".to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let detail = serde_json::json!({
+                    "workspace_id": expected_workspace,
+                    "removed_edge_id": edge_id,
+                    "request_generation_before": baseline_generation,
+                    "request_generation_after": self.graph_request_generation,
+                })
+                .to_string();
+                drop(graph);
+                self.mt042_graph_open_completion.complete_applied(detail);
+            }
+            "canvas.place-block" => {
+                let block_id = payload["block_id"].as_str().unwrap_or_default();
+                let x = payload["x"].as_f64();
+                let y = payload["y"].as_f64();
+                if block_id.is_empty() || x.is_none() || y.is_none() {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "canvas.place-block requires block_id, x, and y".to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let baseline_ids = semantic["placements_before"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|placement| placement["placement_id"].as_str())
+                    .collect::<std::collections::HashSet<_>>();
+                let baseline_generation = semantic["canvas_request_generation"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let baseline_sequence = semantic["canvas_request_sequence"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let board = self.editor_mounts.secondary.canvas_board.lock();
+                let Ok(board) = board else { return };
+                if let Some(error) = board.error.clone() {
+                    drop(board);
+                    self.mt042_graph_open_completion
+                        .complete_failed(error, payload.to_string());
+                    return;
+                }
+                if board.workspace_id != expected_workspace
+                    || board.canvas_block_id
+                        != semantic["canvas_block_id"].as_str().unwrap_or_default()
+                    || self.canvas_request_generation != baseline_generation
+                    || board.loading
+                    || self.canvas_request_sequence <= baseline_sequence
+                {
+                    return;
+                }
+                let Some(exact_placement_id) = self
+                    .mt042_graph_open_completion
+                    .operation_result_identity
+                    .as_deref()
+                else {
+                    return;
+                };
+                let placed = board.placements.iter().find(|placement| {
+                    placement.placement_id == exact_placement_id
+                        && placement.placed_block_id == block_id
+                        && (f64::from(placement.x) - x.unwrap()).abs() < 0.1
+                        && (f64::from(placement.y) - y.unwrap()).abs() < 0.1
+                        && !baseline_ids.contains(placement.placement_id.as_str())
+                });
+                let Some(placed) = placed else { return };
+                let detail = serde_json::json!({
+                    "workspace_id": expected_workspace,
+                    "canvas_block_id": board.canvas_block_id,
+                    "placed_block_id": block_id,
+                    "backend_minted_placement_id": exact_placement_id,
+                    "x": placed.x,
+                    "y": placed.y,
+                    "request_generation": baseline_generation,
+                    "request_sequence_before": baseline_sequence,
+                    "request_sequence_after": self.canvas_request_sequence,
+                })
+                .to_string();
+                drop(board);
+                self.mt042_graph_open_completion.complete_applied(detail);
+            }
+            "canvas.remove-placement" => {
+                let placement_id = payload["placement_id"].as_str().unwrap_or_default();
+                let existed_before =
+                    semantic["placements_before"]
+                        .as_array()
+                        .is_some_and(|placements| {
+                            placements
+                                .iter()
+                                .any(|placement| placement["placement_id"] == placement_id)
+                        });
+                if placement_id.is_empty() || !existed_before {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "canvas.remove-placement requires a placement in the declared baseline"
+                            .to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let baseline_generation = semantic["canvas_request_generation"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let baseline_sequence = semantic["canvas_request_sequence"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let board = self.editor_mounts.secondary.canvas_board.lock();
+                let Ok(board) = board else { return };
+                if let Some(error) = board.error.clone() {
+                    drop(board);
+                    self.mt042_graph_open_completion
+                        .complete_failed(error, payload.to_string());
+                    return;
+                }
+                if board.workspace_id != expected_workspace
+                    || board.canvas_block_id
+                        != semantic["canvas_block_id"].as_str().unwrap_or_default()
+                    || self.canvas_request_generation != baseline_generation
+                    || board.loading
+                    || self.canvas_request_sequence <= baseline_sequence
+                {
+                    return;
+                }
+                if board
+                    .placements
+                    .iter()
+                    .any(|placement| placement.placement_id == placement_id)
+                {
+                    drop(board);
+                    self.mt042_graph_open_completion.complete_failed(
+                        "authoritative canvas refresh still contains the removed placement"
+                            .to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let detail = serde_json::json!({
+                    "workspace_id": expected_workspace,
+                    "canvas_block_id": board.canvas_block_id,
+                    "removed_placement_id": placement_id,
+                    "request_generation": baseline_generation,
+                    "request_sequence_before": baseline_sequence,
+                    "request_sequence_after": self.canvas_request_sequence,
+                })
+                .to_string();
+                drop(board);
+                self.mt042_graph_open_completion.complete_applied(detail);
+            }
+            "collection.kanban-move" => {
+                let block_id = payload["block_id"].as_str().unwrap_or_default();
+                let from_lane = payload["from_lane"].as_str().unwrap_or_default();
+                let to_lane = payload["to_lane"].as_str().unwrap_or_default();
+                let baseline_has_source =
+                    semantic["lanes_before"].as_array().is_some_and(|lanes| {
+                        lanes.iter().any(|lane| {
+                            lane["lane"] == from_lane
+                                && lane["members"].as_array().is_some_and(|members| {
+                                    members.iter().any(|member| member == block_id)
+                                })
+                        })
+                    });
+                if block_id.is_empty()
+                    || from_lane.is_empty()
+                    || to_lane.is_empty()
+                    || from_lane == to_lane
+                    || !baseline_has_source
+                {
+                    self.mt042_graph_open_completion.complete_failed(
+                        "collection.kanban-move payload does not match the declared source lane"
+                            .to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let baseline_generation = semantic["collection_load_generation"]
+                    .as_u64()
+                    .unwrap_or_default();
+                let current_generation = self
+                    .editor_mounts
+                    .secondary
+                    .collection_load_generation
+                    .load(std::sync::atomic::Ordering::Acquire);
+                let view = self.editor_mounts.secondary.collection_view.lock();
+                let Ok(view) = view else { return };
+                if let Some(error) = view.error.clone() {
+                    drop(view);
+                    self.mt042_graph_open_completion
+                        .complete_failed(error, payload.to_string());
+                    return;
+                }
+                if view.workspace_id != expected_workspace
+                    || view.view_block_id != semantic["view_block_id"].as_str().unwrap_or_default()
+                    || view.loading
+                    || view.in_flight
+                    || current_generation <= baseline_generation
+                {
+                    return;
+                }
+                let Some(results) = view.results.as_ref() else {
+                    drop(view);
+                    self.mt042_graph_open_completion.complete_failed(
+                        "authoritative collection refresh returned no grouped results".to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                };
+                let in_target = results.groups.iter().any(|lane| {
+                    lane.key == to_lane
+                        && lane.blocks.iter().any(|block| block.block_id == block_id)
+                });
+                let in_source = results.groups.iter().any(|lane| {
+                    lane.key == from_lane
+                        && lane.blocks.iter().any(|block| block.block_id == block_id)
+                });
+                if !in_target || in_source {
+                    drop(view);
+                    self.mt042_graph_open_completion.complete_failed(
+                        "authoritative collection refresh did not apply the exact lane move"
+                            .to_owned(),
+                        payload.to_string(),
+                    );
+                    return;
+                }
+                let detail = serde_json::json!({
+                    "workspace_id": expected_workspace,
+                    "view_block_id": view.view_block_id,
+                    "block_id": block_id,
+                    "from_lane": from_lane,
+                    "to_lane": to_lane,
+                    "request_generation_before": baseline_generation,
+                    "request_generation_after": current_generation,
+                })
+                .to_string();
+                drop(view);
+                self.mt042_graph_open_completion.complete_applied(detail);
+            }
+            _ => {}
+        }
+    }
+
+    fn project_mt042_graph_open_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        self.reconcile_mt042_graph_open_completion();
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                let (_, semantic) = self.mt042_action_semantic(author_id)?;
+                self.mt042_graph_open_completion
+                    .declaration(author_id, &semantic)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+        if let Some(value) = self.mt042_graph_open_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-042 graph open completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    fn mt035_live_context(&self) -> Option<egui::Context> {
+        self.frame_ctx.clone()
+    }
+
+    fn mt035_undo_baseline(&self, ctx: &egui::Context) -> Mt035UndoBaseline {
+        let pane_id = self.undo_target_pane(ctx);
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| Mt035UndoBaseline {
+            transition_generation: bus
+                .last_undo_transition()
+                .map(|transition| transition.generation)
+                .unwrap_or_default(),
+            pane_id: pane_id.clone(),
+            local_count: pane_id
+                .as_ref()
+                .map(|pane| bus.undo_scope().local_undo_count(pane))
+                .unwrap_or_default(),
+            cross_count: bus.undo_scope().cross_pane_undo_count(),
+            pending: bus.pending_cross_pane_observation(),
+        })
+        .unwrap_or(Mt035UndoBaseline {
+            transition_generation: 0,
+            pane_id,
+            local_count: 0,
+            cross_count: 0,
+            pending: None,
+        })
+    }
+
+    fn mt035_semantic(&self, author_id: &str, ctx: &egui::Context) -> Option<String> {
+        let command_id = match author_id {
+            "menu.edit.undo" => crate::command_registry::CMD_EDITOR_EDIT_UNDO,
+            "menu.edit.undo-cross-pane" => crate::command_registry::CMD_EDITOR_EDIT_UNDO_CROSS_PANE,
+            _ => return None,
+        };
+        let baseline = self.mt035_undo_baseline(ctx);
+        Some(
+            serde_json::json!({
+                "action": if author_id == "menu.edit.undo" { "focused-local-undo" } else { "cross-pane-undo" },
+                "target": author_id,
+                "command_id": command_id,
+                "transition_generation_before": baseline.transition_generation,
+                "focused_pane_id": baseline.pane_id.as_ref().map(ToString::to_string),
+                "focused_local_count_before": baseline.local_count,
+                "cross_count_before": baseline.cross_count,
+                "pending_action_id_before": baseline.pending.as_ref().map(|pending| pending.action_id.as_str()),
+            })
+            .to_string(),
+        )
+    }
+
+    fn mt035_dispatched_semantic(&self, author_id: &str) -> Option<String> {
+        self.mcp_action_channel
+            .lock()
+            .map(|channel| channel.unique_dispatched_activation())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation())
+            .and_then(|(target, _payload, semantic)| (target == author_id).then_some(semantic))
+            .flatten()
+    }
+
+    fn mt035_transition_detail(
+        transition: &crate::interop::interaction_bus::UndoTransitionObservation,
+    ) -> String {
+        let pending_action_id = transition
+            .pending_after
+            .as_ref()
+            .or(transition.pending_before.as_ref())
+            .map(|pending| pending.action_id.as_str());
+        serde_json::json!({
+            "transition_generation": transition.generation,
+            "operation": Self::mt035_operation_name(transition.operation),
+            "ok": transition.result.ok,
+            "error": transition.result.error,
+            "focused_pane_id": transition.pane_id.as_ref().map(ToString::to_string),
+            "action_id": transition.action_id,
+            "direction": transition.direction.map(|direction| format!("{:?}", direction)),
+            "description": transition.description,
+            "local_before": transition.local_before,
+            "local_after": transition.local_after,
+            "cross_before": transition.cross_before,
+            "cross_after": transition.cross_after,
+            "pending": transition.pending_after.is_some(),
+            "pending_action_id": pending_action_id,
+            "pending_before_action_id": transition.pending_before.as_ref().map(|pending| pending.action_id.as_str()),
+            "pending_after_action_id": transition.pending_after.as_ref().map(|pending| pending.action_id.as_str()),
+        })
+        .to_string()
+    }
+
+    fn mt035_operation_name(
+        operation: crate::interop::interaction_bus::UndoTransitionOperation,
+    ) -> &'static str {
+        match operation {
+            crate::interop::interaction_bus::UndoTransitionOperation::LocalUndo => "local_undo",
+            crate::interop::interaction_bus::UndoTransitionOperation::CrossPaneUndo => {
+                "cross_pane_undo"
+            }
+            crate::interop::interaction_bus::UndoTransitionOperation::CompensationSettled => {
+                "compensation_settled"
+            }
+            crate::interop::interaction_bus::UndoTransitionOperation::CompensationCancelled => {
+                "compensation_cancelled"
+            }
+        }
+    }
+
+    fn reconcile_mt035_argus_completion(&mut self, ctx: &egui::Context) {
+        if self.mt035_argus_action_completion.observer_state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            return;
+        }
+        let Some(target) = self
+            .mt035_argus_action_completion
+            .pending_target
+            .as_deref()
+            .map(ToOwned::to_owned)
+        else {
+            return;
+        };
+        let Some(baseline) = self.mt035_argus_action_completion.baseline.clone() else {
+            return;
+        };
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let transition = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.undo_transitions_after(baseline.transition_generation)
+                .find(|transition| match target.as_str() {
+                    "menu.edit.undo" => {
+                        matches!(
+                            transition.operation,
+                            crate::interop::interaction_bus::UndoTransitionOperation::LocalUndo
+                        ) && transition.pane_id == baseline.pane_id
+                    }
+                    "menu.edit.undo-cross-pane" => matches!(
+                        transition.operation,
+                        crate::interop::interaction_bus::UndoTransitionOperation::CrossPaneUndo
+                    ),
+                    _ => false,
+                })
+                .cloned()
+        })
+        .flatten();
+        let Some(transition) = transition else {
+            return;
+        };
+
+        let detail = Self::mt035_transition_detail(&transition);
+        if transition.result.ok {
+            self.mt035_argus_action_completion.complete_applied(detail);
+        } else {
+            self.mt035_argus_action_completion.complete_failed(
+                transition
+                    .result
+                    .error
+                    .clone()
+                    .unwrap_or_else(|| "undo transition failed".to_owned()),
+                detail,
+            );
+        }
+    }
+
+    fn mt035_undo_state_value(&self, ctx: &egui::Context) -> String {
+        let baseline = self.mt035_undo_baseline(ctx);
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let transition = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.last_undo_transition().cloned()
+        })
+        .flatten();
+        let pending_action_id = baseline
+            .pending
+            .as_ref()
+            .map(|pending| pending.action_id.as_str());
+        serde_json::json!({
+            "focused_pane_id": baseline.pane_id.as_ref().map(ToString::to_string),
+            "focused_local_count": baseline.local_count,
+            "cross_undo_count": baseline.cross_count,
+            "pending": baseline.pending.is_some(),
+            "pending_action_id": pending_action_id,
+            "pending_detail": baseline.pending.as_ref().map(|pending| serde_json::json!({
+                "action_id": pending.action_id,
+                "direction": format!("{:?}", pending.direction),
+                "description": pending.description,
+            })),
+            "last_operation": transition.as_ref().map(|transition| Self::mt035_operation_name(transition.operation)),
+            "last_action_id": transition.as_ref().and_then(|transition| transition.action_id.as_deref()),
+            "transition": transition.as_ref().map(|transition| serde_json::json!({
+                "generation": transition.generation,
+                "operation": Self::mt035_operation_name(transition.operation),
+                "ok": transition.result.ok,
+                "error": transition.result.error,
+                "action_id": transition.action_id,
+                "pane_id": transition.pane_id.as_ref().map(ToString::to_string),
+                "local_before": transition.local_before,
+                "local_after": transition.local_after,
+                "cross_before": transition.cross_before,
+                "cross_after": transition.cross_after,
+            })),
+        })
+        .to_string()
+    }
+
+    fn project_mt035_argus_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        let Some(ctx) = self.mt035_live_context() else {
+            return;
+        };
+        self.reconcile_mt035_argus_completion(&ctx);
+
+        if let Some(value) = self.mt035_argus_action_completion.menu_token() {
+            mt033_set_snapshot_node_value(&mut snapshot.root, "menu-edit", &value);
+        }
+
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                let semantic = self.mt035_semantic(author_id, &ctx)?;
+                self.mt035_argus_action_completion
+                    .declaration(author_id, &semantic)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        let baseline = self.mt035_undo_baseline(&ctx);
+        let state_value = self.mt035_undo_state_value(&ctx);
+        mt033_set_snapshot_node_value(&mut snapshot.root, MT035_UNDO_STATE_AUTHOR_ID, &state_value);
+        if let Some(pane_id) = baseline.pane_id.as_ref() {
+            let undo_count_author_id = crate::interop::undo_count_author_id(&pane_id.to_string());
+            mt033_set_snapshot_node_value(
+                &mut snapshot.root,
+                &undo_count_author_id,
+                &format!("Undo ({})", baseline.local_count),
+            );
+        }
+
+        if let Some(value) = self.mt035_argus_action_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-035 unified undo action completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    fn project_mt036_flight_recorder_open_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        let pane_mounted = snapshot.iter_nodes().any(|node| {
+            node.author_id.as_deref()
+                == Some(crate::flight_recorder_pane::FLIGHT_RECORDER_PANE_AUTHOR_ID)
+        });
+        let targeted_active_pane = self
+            .mt036_flight_recorder_open_completion
+            .expected_pane_id
+            .as_deref()
+            .zip(self.active_pane.as_ref())
+            .is_some_and(|(expected, active)| {
+                expected == active.as_ref()
+                    && self
+                        .tab_bar_states
+                        .get(active)
+                        .and_then(|bar| bar.active())
+                        .is_some_and(|tab| tab.pane_type == PaneType::FlightRecorder)
+            });
+        self.mt036_flight_recorder_open_completion
+            .complete_if_mounted(pane_mounted && targeted_active_pane);
+
+        for target in ["menu.operator.flight-recorder", "menu.run.flight-recorder"] {
+            if let Some(value) = self
+                .mt036_flight_recorder_open_completion
+                .declaration(target)
+            {
+                mt033_set_snapshot_node_value(&mut snapshot.root, target, &value);
+            }
+        }
+
+        if let Some(value) = self.mt036_flight_recorder_open_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-036 Flight Recorder open completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
     /// Capture the live UI tree into the shared MCP snapshot slot. Runs `ui()` once on a fresh
     /// AccessKit-enabled context with `capturing_snapshot` set, so the async pollers / event drains /
     /// layout scheduler are skipped (no double side effects); the resulting `accesskit::TreeUpdate` is
@@ -4952,6 +7485,15 @@ impl HandshakeApp {
     fn refresh_mcp_snapshot(&mut self) {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
+        // Snapshot capture renders on an isolated egui context to avoid replaying live-frame side
+        // effects. Carry the live per-document Reading-mode store into that context so Argus observes
+        // the same editor mode the operator sees. Without this projection a live Reading view was
+        // re-rendered as Edit for MCP inspection, including Edit-only authority warnings and controls,
+        // which made the accessibility snapshot contradict the visible application state.
+        if let Some(live_ctx) = self.frame_ctx.as_ref() {
+            let reading_modes = crate::rich_editor::reading_mode::reading_mode_store(live_ctx);
+            crate::rich_editor::reading_mode::write_reading_mode_store(&ctx, &reading_modes);
+        }
         if let Some(menu) = self.mcp_open_top_menu {
             crate::top_menu_bar::set_menu_popup_open(&ctx, menu, true);
         }
@@ -4975,7 +7517,12 @@ impl HandshakeApp {
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(false);
         if let Some(update) = output.platform_output.accesskit_update {
-            let snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
+            let mut snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
+            self.project_mt033_argus_completion(&mut snapshot);
+            self.project_mt034_argus_completion(&mut snapshot);
+            self.project_mt035_argus_completion(&mut snapshot);
+            self.project_mt036_flight_recorder_open_completion(&mut snapshot);
+            self.project_mt042_graph_open_completion(&mut snapshot);
             match self.mcp_action_channel.lock() {
                 Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
                 Err(poisoned) => poisoned.into_inner().acknowledge_after_render(&snapshot),
@@ -4983,6 +7530,12 @@ impl HandshakeApp {
             match self.mcp_snapshot.lock() {
                 Ok(mut slot) => *slot = snapshot,
                 Err(poisoned) => *poisoned.into_inner() = snapshot,
+            }
+            // A failed Retry uses a transient target. Keep it absent until this exact projected tree
+            // has terminalized the receipt and been published, then permit a later fresh snapshot to
+            // discover a new Retry declaration.
+            if let Ok(pane) = self.editor_mounts.secondary.fr_pane.lock() {
+                pane.acknowledge_action_terminal_snapshot();
             }
         }
     }
@@ -5023,7 +7576,8 @@ impl HandshakeApp {
         Self {
             health_status: state,
             backend_health_url: HEALTH_URL.to_owned(),
-            rt,
+            rt: Some(rt),
+            background_runtime_shutdown_timeout: BACKGROUND_RUNTIME_SHUTDOWN_TIMEOUT,
             health_handle: None,
             // Headless/test shell: NO diagnostics ring writer is created (graceful degradation — the
             // process-global recorder buffers in-process only; a test that wants ring read-back installs
@@ -5270,6 +7824,12 @@ impl HandshakeApp {
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
             mcp_open_top_menu: None,
             mcp_open_top_menu_state: None,
+            mt033_argus_action_completion: Mt033ArgusActionCompletion::default(),
+            mt034_argus_action_completion: Mt034ArgusActionCompletion::default(),
+            mt034_last_resolved_code_ref: None,
+            mt035_argus_action_completion: Mt035ArgusActionCompletion::default(),
+            mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
+            mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
@@ -5308,6 +7868,7 @@ impl HandshakeApp {
             canvas_text_card_block_ids: std::collections::HashSet::new(),
             canvas_op_cells: Vec::new(),
             graph_op_cells: Vec::new(),
+            graph_edge_create_cells: Vec::new(),
             outgoing_links_raw: Vec::new(),
             outgoing_links_index_watermark: None,
         }
@@ -5924,7 +8485,7 @@ impl HandshakeApp {
         let handle = self
             .runtime_handle
             .clone()
-            .unwrap_or_else(|| self.rt.handle().clone());
+            .unwrap_or_else(|| self.runtime().handle().clone());
         let factory = crate::find_in_files::FindInFilesPaneFactory::with_state(
             crate::backend_client::WorkspaceSearchClient::new(
                 &self.rich_doc_base_url,
@@ -6045,6 +8606,33 @@ impl HandshakeApp {
     /// deliberately does not change persisted memory state or the active project.
     pub fn clear_fems_overlay_for_integration_test(&mut self) {
         self.invalidate_memory_proposal_state_on_workspace_change();
+    }
+
+    /// Remove only a terminal, incidental pending-review notice from a cross-feature integration
+    /// proof. A managed-workspace bind starts the canonical FEMS review refresh; its terminal
+    /// transport failure must not obscure another feature's screenshot, but this seam must never
+    /// cancel an open proposal, submission, review decision, or in-flight refresh.
+    ///
+    /// Returns `false` until the background refresh has terminalized or whenever operator-owned FEMS
+    /// state exists. The caller can therefore wait without reaching into MT-064 internals.
+    #[doc(hidden)]
+    pub fn clear_incidental_fems_notice_for_integration_test(&mut self) -> bool {
+        if self.pending_memory_proposal.is_some()
+            || self.pending_memory_proposal_emitter.is_some()
+            || self.memory_proposal_operation.is_some()
+            || self.memory_proposal_submit_pending
+            || self.memory_proposal_review_target.is_some()
+            || self.memory_proposal_review_operation.is_some()
+            || self.memory_proposal_review_refresh.is_some()
+            || self.memory_proposal_review_refresh_deferred.is_some()
+        {
+            return false;
+        }
+
+        self.memory_proposal_status = None;
+        self.memory_proposal_status_value = None;
+        self.memory_proposal_review_retry = None;
+        true
     }
 
     /// Read-only view of the top project-tab strip (MT-011): tests assert the project list, active id,
@@ -6267,22 +8855,26 @@ impl HandshakeApp {
                 // context-menu "Route to Stage" path stages content THEN dispatches the same command); the
                 // palette entry dispatches the command so it is discoverable + runnable out-of-process.
                 // Registering the command is idempotent, so a first palette use wires it up.
+                let mt033_target = self.mt033_dispatched_target().filter(|target| {
+                    matches!(
+                        target.as_str(),
+                        "menu.editors.route-to-stage"
+                            | "command-palette.option.hs-stage-palette-route"
+                    )
+                });
                 let bus = crate::interop::InteractionBus::get_or_init(ctx);
                 let rich_state = self.active_rich_state();
                 let route = rich_state
                     .lock()
                     .ok()
                     .and_then(|state| state.stage_route_content());
-                let retained = route.clone();
-                let causal_action_id = route
-                    .as_ref()
-                    .map(|_| format!("stage-route-{}", uuid::Uuid::new_v4().simple()));
-                let retained_route = retained.map(|content| {
+                let causal_action_id = format!("stage-route-{}", uuid::Uuid::now_v7().simple());
+                let retained_route = route.map(|content| {
                     let content_kind = content.content_kind().to_owned();
                     crate::interop::PendingStageRoute::new(
                         content,
                         content_kind,
-                        causal_action_id.clone(),
+                        Some(causal_action_id.clone()),
                         self.active_pane
                             .as_ref()
                             .map(ToString::to_string)
@@ -6290,19 +8882,63 @@ impl HandshakeApp {
                         self.active_project_id.clone(),
                     )
                 });
-                let dispatched = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-                    bus.register_route_to_stage_command();
-                    match route {
-                        Some(content) => {
-                            bus.route_to_stage_correlated(ctx, content, causal_action_id.as_deref())
+                let (dispatched, admitted_route, admitted_error) =
+                    crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                        bus.register_route_to_stage_command();
+                        if let Some(route) = retained_route.as_ref() {
+                            let dispatched = bus.admit_stage_route(ctx, route.clone());
+                            let admitted = dispatched
+                                .then(|| bus.pending_stage_route().cloned())
+                                .flatten();
+                            (dispatched, admitted, None)
+                        } else {
+                            let dispatched = bus.route_to_stage_error_correlated(
+                                ctx,
+                                "Route to Stage unavailable: activate a saved rich document first.",
+                                Some(&causal_action_id),
+                            );
+                            let admitted = dispatched
+                                .then(|| bus.pending_stage_error().cloned())
+                                .flatten();
+                            (dispatched, None, admitted)
                         }
-                        None => bus.route_to_stage_error(
-                            ctx,
-                            "Route to Stage unavailable: activate a saved rich document first.",
-                        ),
+                    })
+                    .unwrap_or((false, None, None));
+                if let Some(target) = mt033_target.as_deref() {
+                    let mt033_semantic = self.mt033_route_semantic(target);
+                    if let Some(route) = admitted_route.as_ref() {
+                        let admitted_causal = route
+                            .causal_action_id
+                            .clone()
+                            .expect("MT-033 model route always carries its generated causal id");
+                        self.mt033_argus_action_completion.begin_route_success(
+                            target,
+                            mt033_semantic,
+                            route.receipt.event_id.clone(),
+                            admitted_causal,
+                        );
+                    } else if let Some(error) = admitted_error.as_ref() {
+                        self.mt033_argus_action_completion.begin_route_error(
+                            target,
+                            mt033_semantic,
+                            error.request_id.clone(),
+                            error.causal_action_id.clone(),
+                        );
+                    } else {
+                        self.mt033_argus_action_completion
+                            .begin(target, mt033_semantic);
+                        self.mt033_argus_action_completion.complete_failed(
+                            target,
+                            "Route to Stage is busy; another exact request is pending.".to_owned(),
+                            serde_json::json!({
+                                "typed_outcome": "route_busy",
+                                "stage_content": "unchanged",
+                            })
+                            .to_string(),
+                        );
                     }
-                });
-                if !matches!(dispatched, Some(true)) {
+                }
+                if !dispatched {
                     if let Some(route) = retained_route {
                         if let Ok(mut stage) = self.stage_pane.lock() {
                             stage.set_route_busy(route);
@@ -6335,7 +8971,7 @@ impl HandshakeApp {
                 // Open while the source editor is still active so `remember_stage_embed_target` retains
                 // the exact note/canvas target for the return leg.
                 self.open_stage_surface(ctx);
-                dispatched.unwrap_or(false)
+                dispatched
             }
             crate::interop::CMD_EMBED_STAGE_CAPTURE => {
                 // WP-KERNEL-012 MT-066 REMEDIATION (operator reopen item 4 — the embed-back leg is now
@@ -6381,7 +9017,28 @@ impl HandshakeApp {
                 true
             }
             crate::command_registry::CMD_VIEW_ATELIER => {
+                let target = "menu.view.toggle-atelier";
+                let attributed = self.mt033_dispatched_target().as_deref() == Some(target);
+                if attributed {
+                    let semantic = serde_json::json!({
+                        "action": "toggle-atelier-panel",
+                        "target": target,
+                        "expected_panel": crate::atelier_side_panel::PANEL_AUTHOR_ID,
+                    })
+                    .to_string();
+                    self.mt033_argus_action_completion.begin(target, semantic);
+                }
                 self.atelier_panel_open = !self.atelier_panel_open;
+                if attributed {
+                    self.mt033_argus_action_completion.complete_applied(
+                        target,
+                        serde_json::json!({
+                            "panel_author_id": crate::atelier_side_panel::PANEL_AUTHOR_ID,
+                            "panel_open": self.atelier_panel_open,
+                        })
+                        .to_string(),
+                    );
+                }
                 ctx.request_repaint();
                 true
             }
@@ -6566,6 +9223,12 @@ impl HandshakeApp {
         match command_id {
             // ── Undo / Redo -> MT-035 unified-undo scope via the shared bus (one stack, menu+keyboard) ──
             cr::CMD_EDITOR_EDIT_UNDO => {
+                let mt035_target = "menu.edit.undo";
+                if let Some(semantic) = self.mt035_dispatched_semantic(mt035_target) {
+                    let baseline = self.mt035_undo_baseline(ctx);
+                    self.mt035_argus_action_completion
+                        .begin(mt035_target, semantic, baseline);
+                }
                 let bus = InteractionBus::get_or_init(ctx);
                 let target = self.undo_target_pane(ctx);
                 let cross_only = target
@@ -6608,6 +9271,12 @@ impl HandshakeApp {
                 dispatched
             }
             cr::CMD_EDITOR_EDIT_UNDO_CROSS_PANE => {
+                let mt035_target = "menu.edit.undo-cross-pane";
+                if let Some(semantic) = self.mt035_dispatched_semantic(mt035_target) {
+                    let baseline = self.mt035_undo_baseline(ctx);
+                    self.mt035_argus_action_completion
+                        .begin(mt035_target, semantic, baseline);
+                }
                 let bus = InteractionBus::get_or_init(ctx);
                 let dispatched = InteractionBus::with_try_lock(&bus, |b| {
                     b.register_undo_commands();
@@ -8004,10 +10673,10 @@ impl HandshakeApp {
                 }
                 match result {
                     Ok(doc) if doc.document_id != document_id => {
-                        self.rich_doc_loads
-                            .entry(view_key.clone())
-                            .or_default()
-                            .failure = Some(RichDocumentLoadFailure {
+                        let load = self.rich_doc_loads.entry(view_key.clone()).or_default();
+                        load.completed_generation = None;
+                        load.loaded_version = None;
+                        load.failure = Some(RichDocumentLoadFailure {
                             generation,
                             document_id: document_id.clone(),
                             message: format!(
@@ -8021,14 +10690,15 @@ impl HandshakeApp {
                         Ok(()) => {
                             if let Some(load) = self.rich_doc_loads.get_mut(&view_key) {
                                 load.failure = None;
+                                load.completed_generation = Some(generation);
                             }
                             did_update = true;
                         }
                         Err(message) => {
-                            self.rich_doc_loads
-                                .entry(view_key.clone())
-                                .or_default()
-                                .failure = Some(RichDocumentLoadFailure {
+                            let load = self.rich_doc_loads.entry(view_key.clone()).or_default();
+                            load.completed_generation = None;
+                            load.loaded_version = None;
+                            load.failure = Some(RichDocumentLoadFailure {
                                 generation,
                                 document_id: document_id.clone(),
                                 message,
@@ -8037,12 +10707,14 @@ impl HandshakeApp {
                         }
                     },
                     Err(message) => {
-                        self.rich_doc_loads.entry(view_key).or_default().failure =
-                            Some(RichDocumentLoadFailure {
-                                generation,
-                                document_id: document_id.clone(),
-                                message,
-                            });
+                        let load = self.rich_doc_loads.entry(view_key).or_default();
+                        load.completed_generation = None;
+                        load.loaded_version = None;
+                        load.failure = Some(RichDocumentLoadFailure {
+                            generation,
+                            document_id: document_id.clone(),
+                            message,
+                        });
                         did_update = true;
                     }
                 }
@@ -8077,14 +10749,29 @@ impl HandshakeApp {
         let view_key = (pane_id.clone(), document_id.clone());
         self.clear_rich_document_context_if_mismatch(&pane_id, &document_id);
         let Some(runtime) = self.runtime_handle.clone() else {
-            self.rich_doc_loads
-                .entry(view_key.clone())
-                .or_default()
-                .failure = Some(RichDocumentLoadFailure {
+            let load = self.rich_doc_loads.entry(view_key.clone()).or_default();
+            load.completed_generation = None;
+            load.loaded_version = None;
+            load.failure = Some(RichDocumentLoadFailure {
                 generation: self.rich_doc_load_generation,
                 document_id: document_id.clone(),
                 message: "Notes document load blocked: no runtime handle is bound.".to_owned(),
             });
+            if self.mt042_graph_open_completion.state
+                == crate::mcp::action::ClickCompletionState::Pending
+                && self.mt042_graph_open_completion.raw_block_id.as_deref()
+                    == Some(document_id.as_str())
+            {
+                self.mt042_graph_open_completion.complete_failed(
+                    "Notes document load blocked: no runtime handle is bound.".to_owned(),
+                    serde_json::json!({
+                        "requested_raw_block_id": document_id,
+                        "active_pane_id": pane_id,
+                        "rich_document_load_generation": self.rich_doc_load_generation,
+                    })
+                    .to_string(),
+                );
+            }
             return;
         };
 
@@ -8093,7 +10780,24 @@ impl HandshakeApp {
         let load = self.rich_doc_loads.entry(view_key).or_default();
         load.workspace_id = self.active_project_id.clone();
         load.loading_generation = Some(load_generation);
+        load.completed_generation = None;
+        load.loaded_version = None;
         load.failure = None;
+        if self.mt042_graph_open_completion.state
+            == crate::mcp::action::ClickCompletionState::Pending
+            && self.mt042_graph_open_completion.raw_block_id.as_deref()
+                == Some(document_id.as_str())
+            && self
+                .mt042_graph_open_completion
+                .semantic_value
+                .as_deref()
+                .and_then(|semantic| serde_json::from_str::<serde_json::Value>(semantic).ok())
+                .and_then(|semantic| semantic["source_pane_id"].as_str().map(ToOwned::to_owned))
+                .as_deref()
+                == Some(pane_id.as_str())
+        {
+            self.mt042_graph_open_completion.rich_load_generation = Some(load_generation);
+        }
         let base_url = self.rich_doc_base_url.clone();
         let workspace_id = self.active_project_id.clone();
         let cell = Arc::clone(&self.rich_doc_load_cell);
@@ -8446,12 +11150,23 @@ impl HandshakeApp {
         let view_key = (pane_id.clone(), document_id.clone());
         self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
         let generation = self.rich_doc_load_generation;
-        self.rich_doc_loads
-            .entry(view_key.clone())
-            .or_default()
-            .loading_generation = Some(generation);
         if let Some(load) = self.rich_doc_loads.get_mut(&view_key) {
             load.workspace_id = self.active_project_id.clone();
+            load.loading_generation = Some(generation);
+            load.completed_generation = None;
+            load.loaded_version = None;
+            load.failure = None;
+        } else {
+            self.rich_doc_loads.insert(
+                view_key.clone(),
+                RichDocumentLoadState {
+                    workspace_id: self.active_project_id.clone(),
+                    loading_generation: Some(generation),
+                    completed_generation: None,
+                    loaded_version: None,
+                    failure: None,
+                },
+            );
         }
         self.rich_doc_load_cell
             .lock()
@@ -8656,7 +11371,7 @@ impl HandshakeApp {
     /// runtime. This proves the real `ChatPaneFactory` path rather than a standalone panel harness.
     pub fn set_runtime_chat_base_url_for_test(&mut self, base_url: impl Into<String>) {
         let client =
-            crate::runtime_chat::RuntimeChatClient::new(base_url, self.rt.handle().clone());
+            crate::runtime_chat::RuntimeChatClient::new(base_url, self.runtime().handle().clone());
         self.runtime_chat_panel
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -9619,10 +12334,15 @@ impl HandshakeApp {
     pub fn deliver_wiki_save_for_test(
         &self,
         identity: crate::backend_client::WikiPaneIdentity,
-        result: Result<(), String>,
+        action_generation: u64,
+        result: Result<crate::backend_client::WikiOverlay, String>,
     ) {
         if let Ok(mut queue) = self.editor_mounts.secondary.wiki_save_cell.lock() {
-            queue.push_back(crate::backend_client::WikiSaveDelivery { identity, result });
+            queue.push_back(crate::backend_client::WikiSaveDelivery {
+                identity,
+                action_generation,
+                result,
+            });
         }
     }
 
@@ -10299,6 +13019,50 @@ impl HandshakeApp {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    /// Prepare the exact model-facing Pending -> bound-request state without spawning HTTP. Mounted
+    /// host regressions use this seam to drive BackToList through the production event drain and then
+    /// inject attributed deliveries deterministically.
+    pub fn prepare_tag_navigation_for_test(
+        &self,
+        workspace_id: impl AsRef<str>,
+        hub_id: impl AsRef<str>,
+    ) -> (u64, u64) {
+        let workspace_id = workspace_id.as_ref();
+        let hub_id = hub_id.as_ref();
+        let epoch = self.tags_workspace_epoch_for_test();
+        let generation = {
+            let mut panel = self
+                .editor_mounts
+                .secondary
+                .tags_panel
+                .lock()
+                .expect("mounted tags panel");
+            panel.bind_navigation_workspace(workspace_id, epoch);
+            panel
+                .begin_navigation(hub_id)
+                .expect("tag navigation observer is settled before test preparation")
+        };
+        let sequence = self.register_tag_hub_request_for_test(workspace_id, hub_id);
+        {
+            let mut panel = self
+                .editor_mounts
+                .secondary
+                .tags_panel
+                .lock()
+                .expect("mounted tags panel");
+            assert!(panel.bind_navigation_request(generation, epoch, hub_id, sequence));
+        }
+        let mut hub = crate::graph::tags_panel::LoomTagHubPanel::new(workspace_id, hub_id);
+        hub.loading = true;
+        *self
+            .editor_mounts
+            .secondary
+            .tags_hub
+            .lock()
+            .expect("mounted tags hub") = Some(hub);
+        (generation, sequence)
+    }
+
     /// WP-KERNEL-012 MT-024: the Arc-shared sidebar panel behind the mounted Sidebar pane. Host proofs
     /// assert that active-block binding and async deliveries mutate this SAME state the pane renders.
     pub fn mounted_sidebar_panel_for_test(
@@ -10439,6 +13203,42 @@ impl HandshakeApp {
             sequence,
         );
         sequence
+    }
+
+    /// Register a count-only detail request. This sequence domain is deliberately disjoint from
+    /// mounted hub navigation and its ActionChannel completion attribution.
+    pub fn register_tag_count_request_for_test(
+        &self,
+        workspace_id: impl AsRef<str>,
+        hub_id: impl AsRef<str>,
+    ) -> u64 {
+        let sequence = next_async_sequence(&self.editor_mounts.secondary.tag_count_seq);
+        register_latest_async_sequence(
+            &self.editor_mounts.secondary.tag_count_latest,
+            workspace_id.as_ref(),
+            hub_id.as_ref(),
+            sequence,
+        );
+        sequence
+    }
+
+    pub fn deliver_tag_count_detail_with_identity_for_test(
+        &self,
+        workspace_id: impl Into<String>,
+        workspace_epoch: u64,
+        hub_id: impl Into<String>,
+        sequence: u64,
+        result: Result<(String, Vec<crate::graph::tags_panel::HubMember>), String>,
+    ) {
+        if let Ok(mut cell) = self.editor_mounts.secondary.tag_count_cell.lock() {
+            cell.push_back((
+                workspace_id.into(),
+                workspace_epoch,
+                hub_id.into(),
+                sequence,
+                result,
+            ));
+        }
     }
 
     /// WP-KERNEL-012 MT-023: inject a sequence-attributed tag-hub async delivery into the mounted host
@@ -12823,7 +15623,10 @@ impl HandshakeApp {
         let cell = self.preference_io_cell.clone();
         let in_flight = self.preference_io_in_flight.clone();
         if let Some(previous) = self.preference_io_handle.take() {
-            Self::drain_runtime_task(&self.rt, previous);
+            // `preference_io_in_flight == false` is published only after the worker writes its delivery
+            // cell, so this predecessor no longer needs a UI-thread join. Dropping a completed-or-
+            // returning JoinHandle is non-blocking; explicit app shutdown retains the bounded drain.
+            drop(previous);
         }
         self.preference_io_handle = Some(handle.spawn_blocking(move || {
             let delivery =
@@ -13020,7 +15823,9 @@ impl HandshakeApp {
             }
             let cell = self.settings_save_cell.clone();
             if let Some(previous) = self.settings_io_handle.take() {
-                Self::drain_runtime_task(&self.rt, previous);
+                // The settings delivery was already consumed before `settings_io_in_flight` cleared.
+                // Never join the worker's final return on the egui frame path.
+                drop(previous);
             }
             self.settings_io_handle = Some(handle.spawn_blocking(move || {
                 let result = transport.save(&workspace, blob).map_err(|e| e.to_string());
@@ -13649,7 +16454,9 @@ impl HandshakeApp {
                         let ws = workspace.clone();
                         let generation = self.settings_workspace_generation;
                         if let Some(previous) = self.settings_io_handle.take() {
-                            Self::drain_runtime_task(&self.rt, previous);
+                            // The prior delivery has already published and been consumed. Releasing its
+                            // handle is non-blocking; teardown owns the only loss-sensitive drain.
+                            drop(previous);
                         }
                         self.settings_io_handle = Some(handle.spawn_blocking(move || {
                             let result = transport.load(&ws).map_err(|e| e.to_string());
@@ -14609,7 +17416,31 @@ impl HandshakeApp {
                 true
             }
             MenuBarAction::OpenCommandPalette => {
+                let mt033_target = "menu.operator.command-palette";
+                let mt033_attributed =
+                    self.mt033_dispatched_target().as_deref() == Some(mt033_target);
+                if mt033_attributed {
+                    let semantic = serde_json::json!({
+                        "action": "open-command-palette",
+                        "target": mt033_target,
+                        "expected_dialog": crate::command_palette::PALETTE_DIALOG_AUTHOR_ID,
+                    })
+                    .to_string();
+                    self.mt033_argus_action_completion
+                        .begin(mt033_target, semantic);
+                }
                 self.open_command_palette();
+                if mt033_attributed {
+                    self.mt033_argus_action_completion.complete_applied(
+                        mt033_target,
+                        serde_json::json!({
+                            "palette_open": self.command_palette_open,
+                            "palette_open_generation": self.command_palette_open_count,
+                            "dialog_author_id": crate::command_palette::PALETTE_DIALOG_AUTHOR_ID,
+                        })
+                        .to_string(),
+                    );
+                }
                 true
             }
             MenuBarAction::OpenSettings => {
@@ -14624,7 +17455,35 @@ impl HandshakeApp {
             MenuBarAction::FocusPrevPane => self.focus_pane(false),
             MenuBarAction::CloseActiveTab => self.close_active_tab(),
             MenuBarAction::OpenSwarmBoard => self.navigate_to_tab("swarm"),
-            MenuBarAction::NavigateToTab(tab_id) => self.navigate_to_tab(&tab_id),
+            MenuBarAction::NavigateToTab(tab_id) => {
+                let attributed_target = (tab_id == "flight-recorder")
+                    .then(|| self.mt033_dispatched_target())
+                    .flatten()
+                    .filter(|target| {
+                        matches!(
+                            target.as_str(),
+                            "menu.operator.flight-recorder" | "menu.run.flight-recorder"
+                        )
+                    });
+                let opened = self.navigate_to_tab(&tab_id);
+                if opened {
+                    if tab_id == "flight-recorder" {
+                        // Operator/RUN menu parity with the palette route: every explicit open asks
+                        // the existing one-active/one-queued driver for one current workspace read.
+                        self.editor_mounts
+                            .secondary
+                            .fr_load_requested
+                            .store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    if let (Some(target), Some(pane_id)) =
+                        (attributed_target, self.active_pane.as_ref())
+                    {
+                        self.mt036_flight_recorder_open_completion
+                            .begin(&target, pane_id.to_string());
+                    }
+                }
+                opened
+            }
             MenuBarAction::OpenModelSessionLaunch => self.open_model_session_launch_dialog(),
             MenuBarAction::OpenTerminal => self.open_workspace_terminal(),
             MenuBarAction::QuitApp => {
@@ -14695,6 +17554,12 @@ impl HandshakeApp {
             .map(|state| (state.active_code_editor, state.active_rich_editor))
     }
 
+    fn close_open_top_menu_after_leaf(&mut self, ctx: &egui::Context) {
+        crate::top_menu_bar::close_all_menu_popups(ctx);
+        self.mcp_open_top_menu = None;
+        self.mcp_open_top_menu_state = None;
+    }
+
     /// Resolve the current MT-035 local undo target from shell pane focus first. `active_pane` covers
     /// every mounted surface (Code, Rich, Graph, Canvas, Atelier, Stage-hosting panes), whereas the
     /// editor widgets' bus focus publication covers only editor-owned/pop-out focus. Preferring the shell
@@ -14755,7 +17620,7 @@ impl HandshakeApp {
     fn editor_can_cross_pane_undo(&self, ctx: &egui::Context) -> bool {
         let bus = crate::interop::InteractionBus::get_or_init(ctx);
         crate::interop::InteractionBus::with_try_lock(&bus, |b| {
-            b.undo_scope().can_undo_cross_pane()
+            b.undo_scope().can_undo_cross_pane() || b.undo_scope().cross_pane_async_pending()
         })
         .unwrap_or(false)
     }
@@ -15115,7 +17980,7 @@ impl HandshakeApp {
                         updated_at: None,
                     });
                 let retained = content.clone();
-                let causal_action_id = format!("stage-route-{}", uuid::Uuid::new_v4().simple());
+                let causal_action_id = format!("stage-route-{}", uuid::Uuid::now_v7().simple());
                 let retained_route = crate::interop::PendingStageRoute::new(
                     retained,
                     content.content_kind(),
@@ -16575,7 +19440,7 @@ impl HandshakeApp {
         let runtime = self
             .runtime_handle
             .clone()
-            .unwrap_or_else(|| self.rt.handle().clone());
+            .unwrap_or_else(|| self.runtime().handle().clone());
         runtime.spawn_blocking(move || {
             let result = std::fs::read_to_string(&path_for_read).map_err(|error| error.to_string());
             let delivery = (
@@ -16895,7 +19760,7 @@ impl HandshakeApp {
         let runtime = self
             .runtime_handle
             .clone()
-            .unwrap_or_else(|| self.rt.handle().clone());
+            .unwrap_or_else(|| self.runtime().handle().clone());
         runtime.spawn_blocking(move || {
             let result = atomic_save_code_document(&path, &text);
             let delivery = (key, path, version, incarnation, result);
@@ -18507,6 +21372,9 @@ impl HandshakeApp {
             if let Ok(mut cell) = sec.tag_hub_cell.lock() {
                 cell.clear();
             }
+            if let Ok(mut cell) = sec.tag_count_cell.lock() {
+                cell.clear();
+            }
             if let Ok(mut cell) = sec.tag_candidates_cell.lock() {
                 cell.clear();
             }
@@ -18522,6 +21390,9 @@ impl HandshakeApp {
             if let Ok(mut latest) = sec.tag_hub_latest.lock() {
                 latest.clear();
             }
+            if let Ok(mut latest) = sec.tag_count_latest.lock() {
+                latest.clear();
+            }
             if let Ok(mut latest) = sec.tag_candidates_latest.lock() {
                 latest.clear();
             }
@@ -18533,6 +21404,9 @@ impl HandshakeApp {
         let workspace_epoch = sec
             .tags_workspace_epoch
             .load(std::sync::atomic::Ordering::Relaxed);
+        if let Ok(mut panel) = sec.tags_panel.lock() {
+            panel.bind_navigation_workspace(workspace, workspace_epoch);
+        }
 
         // Initial fetch (once per visible workspace) when the pane first becomes visible.
         if tags_visible
@@ -18586,9 +21460,9 @@ impl HandshakeApp {
                             if let Some(rt) = self.runtime_handle.clone() {
                                 let client = tag_client(rt);
                                 for tag_id in count_targets {
-                                    let sequence = next_async_sequence(&sec.tag_hub_seq);
+                                    let sequence = next_async_sequence(&sec.tag_count_seq);
                                     register_latest_async_sequence(
-                                        &sec.tag_hub_latest,
+                                        &sec.tag_count_latest,
                                         workspace,
                                         &tag_id,
                                         sequence,
@@ -18598,7 +21472,7 @@ impl HandshakeApp {
                                         workspace_epoch,
                                         &tag_id,
                                         sequence,
-                                        Arc::clone(&sec.tag_hub_cell),
+                                        Arc::clone(&sec.tag_count_cell),
                                     );
                                 }
                             }
@@ -18640,7 +21514,10 @@ impl HandshakeApp {
             if let Some(block_id) = resolved {
                 if let Ok(mut events) = sec.tags_events.lock() {
                     events.push(crate::editor_pane_factories::TagsPaneEvent::Panel(
-                        crate::graph::tags_panel::TagsPanelEvent::OpenTag { block_id },
+                        crate::graph::tags_panel::TagsPanelEvent::OpenTag {
+                            block_id,
+                            action_generation: None,
+                        },
                     ));
                 }
                 if let Ok(mut pending) = sec.pending_inline_tag_open.lock() {
@@ -18665,6 +21542,37 @@ impl HandshakeApp {
                 }
             }
         }
+        // Count-only deliveries update list badges and nothing else. They have separate sequence
+        // authority so they cannot supersede, populate, fail, or acknowledge a mounted hub request.
+        let tag_count_deliveries: Vec<_> = sec
+            .tag_count_cell
+            .lock()
+            .map(|mut c| c.drain(..).collect())
+            .unwrap_or_default();
+        for (delivered_workspace, delivered_epoch, delivered_hub, delivered_sequence, result) in
+            tag_count_deliveries
+        {
+            let delivery_is_latest = async_sequence_is_latest(
+                &sec.tag_count_latest,
+                &delivered_workspace,
+                &delivered_hub,
+                delivered_sequence,
+            );
+            if delivered_workspace == workspace
+                && delivered_epoch == workspace_epoch
+                && delivery_is_latest
+            {
+                if let Ok((_, members)) = result {
+                    if let Ok(count) = u32::try_from(members.len()) {
+                        if let Ok(mut panel) = sec.tags_panel.lock() {
+                            panel.set_member_count(&delivered_hub, count);
+                        }
+                    }
+                }
+            }
+            ctx.request_repaint();
+        }
+
         let tag_hub_deliveries: Vec<_> = sec
             .tag_hub_cell
             .lock()
@@ -18707,10 +21615,24 @@ impl HandshakeApp {
                                 title
                             };
                             h.set_detail(title, members);
+                            if let Ok(mut panel) = sec.tags_panel.lock() {
+                                panel.complete_navigation_request(
+                                    delivered_epoch,
+                                    &delivered_hub,
+                                    delivered_sequence,
+                                );
+                            }
                         }
                         Err(e) => {
                             h.loading = false;
                             h.error = Some(e);
+                            if let Ok(mut panel) = sec.tags_panel.lock() {
+                                panel.fail_navigation_request(
+                                    delivered_epoch,
+                                    &delivered_hub,
+                                    delivered_sequence,
+                                );
+                            }
                         }
                     }
                 }
@@ -18828,11 +21750,84 @@ impl HandshakeApp {
             .unwrap_or_default();
         for event in events {
             match event {
-                TagsPaneEvent::Panel(
-                    TagsPanelEvent::OpenTag { block_id } | TagsPanelEvent::FilterTag { block_id },
-                ) => {
+                TagsPaneEvent::Panel(TagsPanelEvent::OpenTag {
+                    block_id,
+                    action_generation,
+                }) => {
                     // Open the tag-hub page IN the tags pane (the MT-023 hub open) + fetch its detail.
                     let sec = &self.editor_mounts.secondary;
+                    let abandoned_hub = sec
+                        .tags_hub
+                        .lock()
+                        .ok()
+                        .and_then(|hub| hub.as_ref().map(|current| current.block_id.clone()));
+                    if let Some(abandoned_hub) = abandoned_hub {
+                        if let Ok(mut panel) = sec.tags_panel.lock() {
+                            panel.retire_navigation_for_hub(&abandoned_hub);
+                        }
+                    }
+                    if let Ok(mut hub) = sec.tags_hub.lock() {
+                        let mut h = crate::graph::tags_panel::LoomTagHubPanel::new(
+                            workspace.to_owned(),
+                            block_id.clone(),
+                        );
+                        h.loading = true;
+                        *hub = Some(h);
+                    }
+                    if let Some(rt) = self.runtime_handle.clone() {
+                        let sequence = next_async_sequence(&sec.tag_hub_seq);
+                        register_latest_async_sequence(
+                            &sec.tag_hub_latest,
+                            workspace,
+                            &block_id,
+                            sequence,
+                        );
+                        if let Some(action_generation) = action_generation {
+                            if let Ok(mut panel) = sec.tags_panel.lock() {
+                                panel.bind_navigation_request(
+                                    action_generation,
+                                    workspace_epoch,
+                                    &block_id,
+                                    sequence,
+                                );
+                            }
+                        }
+                        tag_client(rt).fetch_hub_detail_with_identity(
+                            workspace,
+                            workspace_epoch,
+                            &block_id,
+                            sequence,
+                            Arc::clone(&sec.tag_hub_cell),
+                        );
+                    } else {
+                        if let Some(action_generation) = action_generation {
+                            if let Ok(mut panel) = sec.tags_panel.lock() {
+                                panel.fail_navigation_before_dispatch(action_generation, &block_id);
+                            }
+                        }
+                        if let Ok(mut hub) = sec.tags_hub.lock() {
+                            if let Some(hub) = hub.as_mut() {
+                                hub.loading = false;
+                                hub.error = Some(
+                                    "Runtime unavailable; cannot load this tag hub.".to_owned(),
+                                );
+                            }
+                        }
+                    }
+                    ctx.request_repaint();
+                }
+                TagsPaneEvent::Panel(TagsPanelEvent::FilterTag { block_id }) => {
+                    let sec = &self.editor_mounts.secondary;
+                    let abandoned_hub = sec
+                        .tags_hub
+                        .lock()
+                        .ok()
+                        .and_then(|hub| hub.as_ref().map(|current| current.block_id.clone()));
+                    if let Some(abandoned_hub) = abandoned_hub {
+                        if let Ok(mut panel) = sec.tags_panel.lock() {
+                            panel.retire_navigation_for_hub(&abandoned_hub);
+                        }
+                    }
                     if let Ok(mut hub) = sec.tags_hub.lock() {
                         let mut h = crate::graph::tags_panel::LoomTagHubPanel::new(
                             workspace.to_owned(),
@@ -18970,8 +21965,16 @@ impl HandshakeApp {
                     }
                 }
                 TagsPaneEvent::BackToList => {
-                    if let Ok(mut hub) = self.editor_mounts.secondary.tags_hub.lock() {
-                        *hub = None;
+                    let sec = &self.editor_mounts.secondary;
+                    let abandoned_hub = sec
+                        .tags_hub
+                        .lock()
+                        .ok()
+                        .and_then(|mut hub| hub.take().map(|hub| hub.block_id));
+                    if let Some(abandoned_hub) = abandoned_hub {
+                        if let Ok(mut panel) = sec.tags_panel.lock() {
+                            panel.retire_navigation_for_hub(&abandoned_hub);
+                        }
                     }
                     ctx.request_repaint();
                 }
@@ -19880,16 +22883,30 @@ impl HandshakeApp {
                 if let Ok(mut t) = sec.folder_tree.lock() {
                     match result {
                         Ok(blocks) => {
-                            if let Some(node) = t.find_folder_mut(&folder_id) {
+                            let accepted = t.find_folder_mut(&folder_id).is_some_and(|node| {
+                                if !node.complete_child_request(delivered_sequence) {
+                                    return false;
+                                }
                                 node.child_blocks = Some(blocks);
-                                node.loading = false;
+                                node.child_error = None;
+                                node.reveal_loaded_children_once();
+                                true
+                            });
+                            if accepted {
+                                t.refresh_child_error_banner();
                             }
                         }
                         Err(e) => {
-                            if let Some(node) = t.find_folder_mut(&folder_id) {
-                                node.loading = false;
+                            let accepted = t.find_folder_mut(&folder_id).is_some_and(|node| {
+                                if !node.complete_child_request(delivered_sequence) {
+                                    return false;
+                                }
+                                node.child_error = Some(e.clone());
+                                true
+                            });
+                            if accepted {
+                                t.refresh_child_error_banner();
                             }
-                            t.error = Some(e);
                         }
                     }
                 }
@@ -19985,6 +23002,10 @@ impl HandshakeApp {
             match event {
                 FolderTreeEvent::ExpandFolder { folder_id } => {
                     let sec = &self.editor_mounts.secondary;
+                    let epoch = sec
+                        .folder_workspace_epoch
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    let sequence = next_async_sequence(&sec.folder_operation_seq);
                     let needs_fetch = sec
                         .folder_tree
                         .lock()
@@ -19993,7 +23014,7 @@ impl HandshakeApp {
                             t.find_folder_mut(&folder_id).map(|node| {
                                 node.expanded = true;
                                 if node.child_blocks.is_none() && !node.loading {
-                                    node.loading = true;
+                                    node.bind_disclosure_request(sequence);
                                     true
                                 } else {
                                     false
@@ -20005,10 +23026,6 @@ impl HandshakeApp {
                         if let Some(rt) = self.runtime_handle.clone() {
                             let cell: crate::backend_client::FolderChildrenCell =
                                 Arc::new(Mutex::new(None));
-                            let epoch = sec
-                                .folder_workspace_epoch
-                                .load(std::sync::atomic::Ordering::Relaxed);
-                            let sequence = next_async_sequence(&sec.folder_operation_seq);
                             if let Ok(mut latest) = sec.folder_child_latest_seq.lock() {
                                 latest.insert(folder_id.clone(), sequence);
                             }
@@ -20025,8 +23042,14 @@ impl HandshakeApp {
                         } else if let Ok(mut t) = sec.folder_tree.lock() {
                             // Headless: never a perpetual spinner.
                             if let Some(node) = t.find_folder_mut(&folder_id) {
-                                node.loading = false;
+                                if node.complete_child_request(sequence) {
+                                    node.child_error = Some(
+                                        "Folder children unavailable: runtime unavailable"
+                                            .to_owned(),
+                                    );
+                                }
                             }
+                            t.refresh_child_error_banner();
                         }
                     }
                     ctx.request_repaint();
@@ -20034,42 +23057,44 @@ impl HandshakeApp {
                 FolderTreeEvent::CollapseFolder { folder_id } => {
                     if let Ok(mut t) = self.editor_mounts.secondary.folder_tree.lock() {
                         if let Some(node) = t.find_folder_mut(&folder_id) {
-                            node.expanded = false;
+                            node.collapse();
                         }
                     }
                 }
-                FolderTreeEvent::OpenFolder { folder_id } => {
+                FolderTreeEvent::OpenFolder {
+                    folder_id,
+                    action_generation,
+                } => {
                     // `loom_folders` are navigation overlays with LFD-* ids, not LoomBlocks. Keep the
                     // selection in the mounted folder surface and reveal its real member blocks; only
-                    // a leaf block may open a LoomBlock pane.
-                    let needs_fetch = sec
+                    // a leaf block may open a LoomBlock pane. Every row Open revalidates even a populated
+                    // cache and binds this UI generation to one exact fresh backend request sequence.
+                    let epoch = sec
+                        .folder_workspace_epoch
+                        .load(std::sync::atomic::Ordering::Relaxed);
+                    let sequence = next_async_sequence(&sec.folder_operation_seq);
+                    let accepted = sec
                         .folder_tree
                         .lock()
                         .ok()
                         .and_then(|mut tree| {
-                            tree.selected_folder_id = Some(folder_id.clone());
-                            tree.find_folder_mut(&folder_id).map(|node| {
-                                node.expanded = true;
-                                if node.child_blocks.is_none() && !node.loading {
-                                    node.loading = true;
-                                    true
-                                } else {
-                                    false
-                                }
-                            })
+                            let accepted = tree.find_folder_mut(&folder_id).is_some_and(|node| {
+                                node.bind_open_request(action_generation, sequence)
+                            });
+                            if accepted {
+                                tree.selected_folder_id = Some(folder_id.clone());
+                                tree.refresh_child_error_banner();
+                            }
+                            Some(accepted)
                         })
                         .unwrap_or(false);
-                    if needs_fetch {
+                    if accepted {
+                        if let Ok(mut latest) = sec.folder_child_latest_seq.lock() {
+                            latest.insert(folder_id.clone(), sequence);
+                        }
                         if let Some(rt) = self.runtime_handle.clone() {
                             let cell: crate::backend_client::FolderChildrenCell =
                                 Arc::new(Mutex::new(None));
-                            let epoch = sec
-                                .folder_workspace_epoch
-                                .load(std::sync::atomic::Ordering::Relaxed);
-                            let sequence = next_async_sequence(&sec.folder_operation_seq);
-                            if let Ok(mut latest) = sec.folder_child_latest_seq.lock() {
-                                latest.insert(folder_id.clone(), sequence);
-                            }
                             folder_client(rt).fetch_folder_blocks(
                                 workspace,
                                 &folder_id,
@@ -20080,6 +23105,16 @@ impl HandshakeApp {
                             if let Ok(mut cells) = sec.folder_children_cells.lock() {
                                 cells.push((folder_id, cell));
                             }
+                        } else if let Ok(mut tree) = sec.folder_tree.lock() {
+                            if let Some(node) = tree.find_folder_mut(&folder_id) {
+                                if node.complete_child_request(sequence) {
+                                    node.child_error = Some(
+                                        "Folder children unavailable: runtime unavailable"
+                                            .to_owned(),
+                                    );
+                                }
+                            }
+                            tree.refresh_child_error_banner();
                         }
                     }
                     ctx.request_repaint();
@@ -20320,7 +23355,7 @@ impl HandshakeApp {
         for request in requests {
             let identity = match &request {
                 WikiPaneRequest::Load { identity }
-                | WikiPaneRequest::ReloadAfterSave { identity }
+                | WikiPaneRequest::ReloadAfterSave { identity, .. }
                 | WikiPaneRequest::Save { identity, .. }
                 | WikiPaneRequest::Regenerate { identity } => identity,
             };
@@ -20343,9 +23378,27 @@ impl HandshakeApp {
                 if let Ok(mut bound) = sec.wiki_bound.lock() {
                     if let Some((current, panel)) = bound.as_mut() {
                         if current == identity {
-                            panel.set_error(
-                                "Wiki runtime unavailable; retry when the runtime is active.",
-                            );
+                            match &request {
+                                WikiPaneRequest::Save {
+                                    action_generation, ..
+                                } => {
+                                    panel.apply_save_transport_error(
+                                        *action_generation,
+                                        "Wiki runtime unavailable; retry when the runtime is active.",
+                                    );
+                                }
+                                WikiPaneRequest::ReloadAfterSave {
+                                    action_generation, ..
+                                } => {
+                                    panel.apply_save_readback_error(
+                                        *action_generation,
+                                        "Wiki runtime unavailable; retry when the runtime is active.",
+                                    );
+                                }
+                                _ => panel.set_error(
+                                    "Wiki runtime unavailable; retry when the runtime is active.",
+                                ),
+                            }
                         }
                     }
                 }
@@ -20368,19 +23421,26 @@ impl HandshakeApp {
                         Arc::clone(&sec.wiki_cell),
                     );
                 }
-                WikiPaneRequest::ReloadAfterSave { identity } => {
+                WikiPaneRequest::ReloadAfterSave {
+                    identity,
+                    action_generation,
+                } => {
                     client.fetch_projection_stamped(
                         identity,
-                        crate::backend_client::WikiProjectionOperation::ReloadAfterSave,
+                        crate::backend_client::WikiProjectionOperation::ReloadAfterSave {
+                            action_generation,
+                        },
                         Arc::clone(&sec.wiki_cell),
                     );
                 }
                 WikiPaneRequest::Save {
                     identity,
+                    action_generation,
                     annotation,
                 } => {
                     client.add_overlay_stamped(
                         identity,
+                        action_generation,
                         &annotation,
                         None,
                         Arc::clone(&sec.wiki_save_cell),
@@ -20421,16 +23481,21 @@ impl HandshakeApp {
                     }
                     match (delivery.operation, delivery.result) {
                         (
-                            crate::backend_client::WikiProjectionOperation::ReloadAfterSave,
+                            crate::backend_client::WikiProjectionOperation::ReloadAfterSave {
+                                action_generation,
+                            },
                             Ok(page),
                         ) => {
-                            panel.set_page(page);
-                            panel.finish_save_success();
+                            panel.complete_save_readback(action_generation, page);
                         }
                         (
-                            crate::backend_client::WikiProjectionOperation::ReloadAfterSave,
+                            crate::backend_client::WikiProjectionOperation::ReloadAfterSave {
+                                action_generation,
+                            },
                             Err(error),
-                        ) => panel.apply_reload_after_save_error(error),
+                        ) => {
+                            panel.apply_save_readback_error(action_generation, error);
+                        }
                         (
                             crate::backend_client::WikiProjectionOperation::Regenerate,
                             Err(error),
@@ -20464,21 +23529,35 @@ impl HandshakeApp {
                         continue;
                     }
                     match delivery.result {
-                        Ok(()) => {
-                            panel.mark_overlay_saved_awaiting_reload();
+                        Ok(overlay) => {
+                            if !panel.mark_persisted_overlay_awaiting_readback(
+                                delivery.action_generation,
+                                overlay,
+                            ) {
+                                tracing::debug!(
+                                    action_generation = delivery.action_generation,
+                                    "ignored stale or mismatched wiki save receipt"
+                                );
+                                continue;
+                            }
                             if let Some(rt) = self.runtime_handle.clone() {
                                 self.wiki_client_for_runtime(rt).fetch_projection_stamped(
                                     delivery.identity,
-                                    crate::backend_client::WikiProjectionOperation::ReloadAfterSave,
+                                    crate::backend_client::WikiProjectionOperation::ReloadAfterSave {
+                                        action_generation: delivery.action_generation,
+                                    },
                                     Arc::clone(&sec.wiki_cell),
                                 );
                             } else {
-                                panel.apply_reload_after_save_error(
+                                panel.apply_save_readback_error(
+                                    delivery.action_generation,
                                     "the runtime needed to reload the projection is unavailable",
                                 );
                             }
                         }
-                        Err(error) => panel.apply_save_error(error),
+                        Err(error) => {
+                            panel.apply_save_transport_error(delivery.action_generation, error);
+                        }
                     }
                 }
             }
@@ -20503,6 +23582,12 @@ impl HandshakeApp {
             .map(|mut q| std::mem::take(&mut *q))
             .unwrap_or_default();
         for event in events {
+            if matches!(&event, BlockViewEvent::CardMove { .. })
+                && self.begin_mt042_dispatched_action("collection.kanban-move")
+                    == Mt042DispatchGate::RejectedStale
+            {
+                continue;
+            }
             match event {
                 BlockViewEvent::Retry => {
                     let (view_block_id, create_retry, busy) = self
@@ -20697,6 +23782,17 @@ impl HandshakeApp {
                                     .collection_load_generation
                                     .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
                                     .wrapping_add(1);
+                                if self
+                                    .mt042_graph_open_completion
+                                    .pending_author_id
+                                    .as_deref()
+                                    == Some("collection.kanban-move")
+                                {
+                                    self.mt042_graph_open_completion.operation_generation =
+                                        Some(self.mt042_graph_open_completion.generation);
+                                    self.mt042_graph_open_completion
+                                        .backend_operation_generation = Some(op_generation);
+                                }
                                 if let Ok(mut cell) = sec.collection_op_cell.lock() {
                                     *cell = None;
                                 }
@@ -20740,9 +23836,27 @@ impl HandshakeApp {
                     .expected_bound_view_id
                     .as_ref()
                     .is_none_or(|expected| expected == &current_view_block_id);
+            let is_mt042_operation = self
+                .mt042_graph_open_completion
+                .pending_author_id
+                .as_deref()
+                == Some("collection.kanban-move")
+                && self
+                    .mt042_graph_open_completion
+                    .backend_operation_generation
+                    == Some(delivery.generation);
+            if is_mt042_operation && !identity_is_current {
+                self.mt042_graph_open_completion.operation_outcome = Some(Err(format!(
+                    "collection mutation delivery was stale: workspace={} generation={} bound_view={}",
+                    delivery.workspace_id, delivery.generation, current_view_block_id
+                )));
+            }
             if identity_is_current {
                 match delivery.result {
                     Ok(resolved_view_block_id) => {
+                        if is_mt042_operation {
+                            self.mt042_graph_open_completion.operation_outcome = Some(Ok(()));
+                        }
                         let view_block_id = if resolved_view_block_id.is_empty() {
                             current_view_block_id
                         } else {
@@ -20792,6 +23906,10 @@ impl HandshakeApp {
                         }
                     }
                     Err(e) => {
+                        if is_mt042_operation {
+                            self.mt042_graph_open_completion.operation_outcome =
+                                Some(Err(e.clone()));
+                        }
                         if let Ok(mut v) = sec.collection_view.lock() {
                             v.set_error(e);
                         }
@@ -20887,7 +24005,7 @@ impl HandshakeApp {
             let workspace = self.active_project_id.clone();
             let generation = sec.fr_fetch.begin(workspace.clone());
             if let Ok(mut pane) = sec.fr_pane.lock() {
-                pane.begin_loading();
+                pane.begin_loading(generation);
             }
             match self.runtime_handle.clone() {
                 Some(rt) => {
@@ -21599,8 +24717,34 @@ impl HandshakeApp {
         if backend_events.is_empty() {
             return;
         }
+        let place_gate = backend_events
+            .iter()
+            .any(|event| matches!(event, CanvasEvent::PlaceBlock { .. }))
+            .then(|| self.begin_mt042_dispatched_action("canvas.place-block"));
+        let remove_gate = backend_events
+            .iter()
+            .any(|event| matches!(event, CanvasEvent::RemovePlacement { .. }))
+            .then(|| self.begin_mt042_dispatched_action("canvas.remove-placement"));
+        backend_events.retain(|event| match event {
+            CanvasEvent::PlaceBlock { .. } => place_gate != Some(Mt042DispatchGate::RejectedStale),
+            CanvasEvent::RemovePlacement { .. } => {
+                remove_gate != Some(Mt042DispatchGate::RejectedStale)
+            }
+            _ => true,
+        });
+        if backend_events.is_empty() {
+            return;
+        }
         let Some(rt) = self.runtime_handle.clone() else {
-            return; // No runtime: a headless shell cannot dispatch off-thread mutations (graceful no-op).
+            if matches!(place_gate, Some(Mt042DispatchGate::Accepted))
+                || matches!(remove_gate, Some(Mt042DispatchGate::Accepted))
+            {
+                self.mt042_graph_open_completion.operation_generation =
+                    Some(self.mt042_graph_open_completion.generation);
+                self.mt042_graph_open_completion.operation_outcome =
+                    Some(Err("canvas mutation runtime is unavailable".to_owned()));
+            }
+            return;
         };
         enum CanvasDispatch {
             Mutation(crate::backend_client::RequestSpec),
@@ -21681,19 +24825,21 @@ impl HandshakeApp {
                     placed_block_id,
                     x,
                     y,
-                } => vec![CanvasDispatch::CreatedPlacement {
-                    spec: client.place_block_request(
-                        &workspace_id,
-                        &canvas_block_id,
-                        &placed_block_id,
-                        x as f64,
-                        y as f64,
-                        DEFAULT_CARD_W as f64,
-                        DEFAULT_CARD_H as f64,
-                    ),
-                    description: "canvas: place block",
-                    is_text_card: false,
-                }],
+                } => {
+                    vec![CanvasDispatch::CreatedPlacement {
+                        spec: client.place_block_request(
+                            &workspace_id,
+                            &canvas_block_id,
+                            &placed_block_id,
+                            x as f64,
+                            y as f64,
+                            DEFAULT_CARD_W as f64,
+                            DEFAULT_CARD_H as f64,
+                        ),
+                        description: "canvas: place block",
+                        is_text_card: false,
+                    }]
+                }
                 CanvasEvent::ResolveAtelierAndPlace { atelier_ref, x, y } => {
                     vec![CanvasDispatch::ResolveAtelier { atelier_ref, x, y }]
                 }
@@ -21798,6 +24944,17 @@ impl HandshakeApp {
                         let cell: crate::backend_client::CanvasBoardOpCell =
                             Arc::new(Mutex::new(None));
                         client.dispatch(spec, Arc::clone(&cell));
+                        if self
+                            .mt042_graph_open_completion
+                            .pending_author_id
+                            .as_deref()
+                            == Some("canvas.remove-placement")
+                        {
+                            self.mt042_graph_open_completion.operation_cell_identity =
+                                Some(Arc::as_ptr(&cell) as usize);
+                            self.mt042_graph_open_completion.operation_generation =
+                                Some(self.mt042_graph_open_completion.generation);
+                        }
                         self.canvas_op_cells.push(cell);
                     }
                     CanvasDispatch::CreatedPlacement {
@@ -21808,6 +24965,17 @@ impl HandshakeApp {
                         let cell: crate::backend_client::CanvasBoardCreateCell =
                             Arc::new(Mutex::new(None));
                         client.dispatch_created_placement(spec, Arc::clone(&cell));
+                        if self
+                            .mt042_graph_open_completion
+                            .pending_author_id
+                            .as_deref()
+                            == Some("canvas.place-block")
+                        {
+                            self.mt042_graph_open_completion.operation_cell_identity =
+                                Some(Arc::as_ptr(&cell) as usize);
+                            self.mt042_graph_open_completion.operation_generation =
+                                Some(self.mt042_graph_open_completion.generation);
+                        }
                         let operation_sequence =
                             self.next_canvas_create_sequence(&workspace_id, &canvas_block_id);
                         self.canvas_create_cells
@@ -22003,6 +25171,11 @@ impl HandshakeApp {
                     }
                 }
                 GraphEvent::Retry => {
+                    let gate = self
+                        .begin_mt042_dispatched_action(crate::graph::graph_view::RETRY_AUTHOR_ID);
+                    if gate == Mt042DispatchGate::RejectedStale {
+                        continue;
+                    }
                     let retry = self
                         .editor_mounts
                         .secondary
@@ -22016,27 +25189,55 @@ impl HandshakeApp {
                                 view.controls.link_depth,
                             )
                         });
-                    if let Some((ws, mode, depth)) = retry {
-                        self.dispatch_graph_fetch(ws, mode, depth, ctx);
+                    let dispatched = retry.is_some_and(|(ws, mode, depth)| {
+                        self.dispatch_graph_fetch(ws, mode, depth, ctx)
+                    });
+                    if gate == Mt042DispatchGate::Accepted && !dispatched {
+                        self.mt042_graph_open_completion.complete_failed(
+                            "graph Retry could not launch the exact recovery request".to_owned(),
+                            serde_json::json!({
+                                "runtime_available": self.runtime_handle.is_some(),
+                                "action_generation": self.mt042_graph_open_completion.generation,
+                            })
+                            .to_string(),
+                        );
                     }
                 }
                 GraphEvent::AddEdge {
                     source_block_id,
                     target_block_id,
                 } => {
+                    if self.begin_mt042_dispatched_action("graph.add-edge")
+                        == Mt042DispatchGate::RejectedStale
+                    {
+                        continue;
+                    }
                     // MT-042/021 REMEDIATION: a swarm `graph.add-edge` runs the REAL semantic-edge
                     // create (`POST /loom/edges`); the result cell is read by the feed drain, which
                     // re-fetches the graph on resolve (reconcile on Ok, rollback-to-server-truth on Err).
-                    self.dispatch_graph_edge_mutation(ctx, |client, ws| {
-                        client.semantic_edge_request(ws, &source_block_id, &target_block_id)
-                    });
+                    self.dispatch_graph_edge_create(ctx, &source_block_id, &target_block_id);
                 }
                 GraphEvent::RemoveEdge { edge_id } => {
+                    if self.begin_mt042_dispatched_action("graph.remove-edge")
+                        == Mt042DispatchGate::RejectedStale
+                    {
+                        continue;
+                    }
                     self.dispatch_graph_edge_mutation(ctx, |client, ws| {
                         client.remove_semantic_edge_request(ws, &edge_id)
                     });
                 }
                 GraphEvent::OpenNode { block_id } => {
+                    // MT-042 V4: bind the canonical graph-node activation before navigation replaces
+                    // the graph surface and before the exact Notes GET generation is scheduled. This
+                    // makes the later observer completion causal to this click rather than to a
+                    // previously loaded or later retried document.
+                    let expected_author = crate::graph::graph_view::node_author_id(&block_id);
+                    if self.begin_mt042_dispatched_action(&expected_author)
+                        == Mt042DispatchGate::RejectedStale
+                    {
+                        continue;
+                    }
                     let opens_document = self
                         .editor_mounts
                         .secondary
@@ -22370,6 +25571,53 @@ impl HandshakeApp {
         }
     }
 
+    fn dispatch_graph_edge_create(
+        &mut self,
+        ctx: &egui::Context,
+        source_block_id: &str,
+        target_block_id: &str,
+    ) {
+        let Some(rt) = self.runtime_handle.clone() else {
+            self.mt042_graph_open_completion.operation_generation =
+                Some(self.mt042_graph_open_completion.generation);
+            self.mt042_graph_open_completion.operation_outcome =
+                Some(Err("graph edge create runtime is unavailable".to_owned()));
+            return;
+        };
+        let workspace_id = self
+            .editor_mounts
+            .secondary
+            .graph_view
+            .lock()
+            .map(|view| view.workspace_id.clone())
+            .unwrap_or_default();
+        if workspace_id.is_empty() {
+            self.mt042_graph_open_completion.operation_generation =
+                Some(self.mt042_graph_open_completion.generation);
+            self.mt042_graph_open_completion.operation_outcome =
+                Some(Err("graph edge create has no bound workspace".to_owned()));
+            return;
+        }
+        let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt);
+        let spec = client.semantic_edge_request(&workspace_id, source_block_id, target_block_id);
+        let cell: crate::backend_client::SemanticEdgeCreateCell =
+            Arc::new(std::sync::Mutex::new(None));
+        client.dispatch_created_semantic_edge(spec, Arc::clone(&cell));
+        if self
+            .mt042_graph_open_completion
+            .pending_author_id
+            .as_deref()
+            == Some("graph.add-edge")
+        {
+            self.mt042_graph_open_completion.operation_cell_identity =
+                Some(Arc::as_ptr(&cell) as usize);
+            self.mt042_graph_open_completion.operation_generation =
+                Some(self.mt042_graph_open_completion.generation);
+        }
+        self.graph_edge_create_cells.push(cell);
+        ctx.request_repaint();
+    }
+
     /// WP-KERNEL-012 MT-021/042 REMEDIATION: dispatch one semantic-edge mutation built by `build`
     /// against the graph's workspace, tracking the result cell in `graph_op_cells` so the feed drain
     /// reads the outcome (never a throwaway cell).
@@ -22382,7 +25630,11 @@ impl HandshakeApp {
         ) -> crate::backend_client::RequestSpec,
     ) {
         let Some(rt) = self.runtime_handle.clone() else {
-            return; // headless: no off-thread mutation to dispatch (graceful no-op).
+            self.mt042_graph_open_completion.operation_generation =
+                Some(self.mt042_graph_open_completion.generation);
+            self.mt042_graph_open_completion.operation_outcome =
+                Some(Err("graph edge mutation runtime is unavailable".to_owned()));
+            return;
         };
         let ws = self
             .editor_mounts
@@ -22392,13 +25644,28 @@ impl HandshakeApp {
             .map(|v| v.workspace_id.clone())
             .unwrap_or_default();
         if ws.is_empty() {
-            return; // not yet bound to a workspace: nothing addressable to mutate.
+            self.mt042_graph_open_completion.operation_generation =
+                Some(self.mt042_graph_open_completion.generation);
+            self.mt042_graph_open_completion.operation_outcome =
+                Some(Err("graph edge mutation has no bound workspace".to_owned()));
+            return;
         }
         let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt);
         let spec = build(&client, &ws);
         let cell: crate::backend_client::CanvasBoardOpCell =
             std::sync::Arc::new(std::sync::Mutex::new(None));
         client.dispatch(spec, std::sync::Arc::clone(&cell));
+        if self
+            .mt042_graph_open_completion
+            .pending_author_id
+            .as_deref()
+            .is_some_and(|author| matches!(author, "graph.add-edge" | "graph.remove-edge"))
+        {
+            self.mt042_graph_open_completion.operation_cell_identity =
+                Some(std::sync::Arc::as_ptr(&cell) as usize);
+            self.mt042_graph_open_completion.operation_generation =
+                Some(self.mt042_graph_open_completion.generation);
+        }
         self.graph_op_cells.push(cell);
         ctx.request_repaint();
     }
@@ -22732,14 +25999,79 @@ impl HandshakeApp {
             ctx.request_repaint();
         }
 
+        // Graph edge creation retains the backend-minted edge id and reconciles only that identity.
+        if !self.graph_edge_create_cells.is_empty() {
+            let mut unresolved = Vec::new();
+            let mut resolved_any = false;
+            for cell in std::mem::take(&mut self.graph_edge_create_cells) {
+                let is_mt042_cell = self.mt042_graph_open_completion.operation_cell_identity
+                    == Some(Arc::as_ptr(&cell) as usize)
+                    && self.mt042_graph_open_completion.operation_generation
+                        == Some(self.mt042_graph_open_completion.generation);
+                match cell.lock().ok().and_then(|mut value| value.take()) {
+                    Some(Ok(created)) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_result_identity =
+                                Some(created.edge_id);
+                            self.mt042_graph_open_completion.operation_outcome = Some(Ok(()));
+                        }
+                        resolved_any = true;
+                    }
+                    Some(Err(error)) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome =
+                                Some(Err(error.clone()));
+                        }
+                        tracing::warn!("graph edge create failed: {error}");
+                        resolved_any = true;
+                    }
+                    None => unresolved.push(cell),
+                }
+            }
+            self.graph_edge_create_cells = unresolved;
+            if resolved_any && self.runtime_handle.is_some() {
+                let refetch = self
+                    .editor_mounts
+                    .secondary
+                    .graph_view
+                    .lock()
+                    .ok()
+                    .map(|view| {
+                        (
+                            view.workspace_id.clone(),
+                            view.mode.clone(),
+                            view.controls.link_depth,
+                        )
+                    });
+                if let Some((workspace_id, mode, depth)) = refetch {
+                    if !workspace_id.is_empty() {
+                        self.dispatch_graph_fetch(workspace_id, mode, depth, ctx);
+                    }
+                }
+            }
+        }
+
         // ── Graph: read resolved edge-mutation results -> re-fetch (reconcile / rollback) ────────────
         if !self.graph_op_cells.is_empty() {
             let mut unresolved = Vec::new();
             let mut resolved_any = false;
             for cell in std::mem::take(&mut self.graph_op_cells) {
+                let is_mt042_cell = self.mt042_graph_open_completion.operation_cell_identity
+                    == Some(std::sync::Arc::as_ptr(&cell) as usize)
+                    && self.mt042_graph_open_completion.operation_generation
+                        == Some(self.mt042_graph_open_completion.generation);
                 match cell.lock().ok().and_then(|mut c| c.take()) {
-                    Some(Ok(())) => resolved_any = true,
+                    Some(Ok(())) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome = Some(Ok(()));
+                        }
+                        resolved_any = true;
+                    }
                     Some(Err(msg)) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome =
+                                Some(Err(msg.clone()));
+                        }
                         tracing::warn!(
                             "graph edge mutation failed (re-fetching = rollback to server truth): {msg}"
                         );
@@ -22893,6 +26225,10 @@ impl HandshakeApp {
 
             let mut create_unresolved = Vec::new();
             for pending in std::mem::take(&mut self.canvas_create_cells) {
+                let is_mt042_cell = self.mt042_graph_open_completion.operation_cell_identity
+                    == Some(Arc::as_ptr(&pending.cell) as usize)
+                    && self.mt042_graph_open_completion.operation_generation
+                        == Some(self.mt042_graph_open_completion.generation);
                 let pending_key = (
                     pending.workspace_id.clone(),
                     pending.canvas_block_id.clone(),
@@ -22909,6 +26245,21 @@ impl HandshakeApp {
                     == Some(pending.operation_sequence);
                 match pending.cell.lock().ok().and_then(|mut c| c.take()) {
                     Some(Ok(created)) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome =
+                                if pending_is_current && pending_is_latest {
+                                    self.mt042_graph_open_completion.operation_result_identity =
+                                        Some(created.placement_id.clone());
+                                    Some(Ok(()))
+                                } else {
+                                    Some(Err(format!(
+                                        "canvas placement completion was stale or superseded: workspace={} canvas={} operation_sequence={}",
+                                        pending.workspace_id,
+                                        pending.canvas_block_id,
+                                        pending.operation_sequence
+                                    )))
+                                };
+                        }
                         if pending_is_latest {
                             self.canvas_board_errors.remove(&pending_key);
                             if pending_is_current {
@@ -22985,6 +26336,10 @@ impl HandshakeApp {
                         }
                     }
                     Some(Err(msg)) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome =
+                                Some(Err(msg.clone()));
+                        }
                         tracing::warn!(
                             "canvas creation failed (re-fetching board = rollback of the optimistic value): {msg}"
                         );
@@ -23009,9 +26364,22 @@ impl HandshakeApp {
 
             let mut unresolved = Vec::new();
             for cell in std::mem::take(&mut self.canvas_op_cells) {
+                let is_mt042_cell = self.mt042_graph_open_completion.operation_cell_identity
+                    == Some(Arc::as_ptr(&cell) as usize)
+                    && self.mt042_graph_open_completion.operation_generation
+                        == Some(self.mt042_graph_open_completion.generation);
                 match cell.lock().ok().and_then(|mut c| c.take()) {
-                    Some(Ok(())) => resolved_any = true,
+                    Some(Ok(())) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome = Some(Ok(()));
+                        }
+                        resolved_any = true;
+                    }
                     Some(Err(msg)) => {
+                        if is_mt042_cell {
+                            self.mt042_graph_open_completion.operation_outcome =
+                                Some(Err(msg.clone()));
+                        }
                         tracing::warn!(
                             "canvas mutation failed (re-fetching board = rollback of the optimistic value): {msg}"
                         );
@@ -23264,6 +26632,15 @@ impl HandshakeApp {
         self.code_ref_nav_pending.remove(&navigation_scope);
         match resolved {
             Ok(code_ref) => {
+                if self
+                    .mt034_argus_action_completion
+                    .pending_target
+                    .as_deref()
+                    .and_then(|target| target.strip_prefix("code-ref-chip-"))
+                    == Some(symbol_entity_id.as_str())
+                {
+                    self.mt034_last_resolved_code_ref = Some(code_ref.clone());
+                }
                 if let Some((pane_id, document_id)) = operation.origin_rich_view.as_ref() {
                     let rich_state = self
                         .editor_mounts
@@ -23508,6 +26885,34 @@ impl HandshakeApp {
                         None
                     };
                     if let Some(receipt) = committed_receipt {
+                        let causal_action_id = receipt
+                            .payload
+                            .get("causal_action_id")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or("uncorrelated")
+                            .to_owned();
+                        if self
+                            .mt033_argus_action_completion
+                            .matches_route_success(&receipt.event_id, &causal_action_id)
+                        {
+                            let target = self
+                                .mt033_argus_action_completion
+                                .pending_target
+                                .clone()
+                                .expect("exact route completion retains its target");
+                            let detail = serde_json::json!({
+                                "route_receipt_event_id": receipt.event_id,
+                                "flight_recorder_action": receipt.action.as_str(),
+                                "causal_action_id": causal_action_id,
+                                "actor_id": receipt.actor_id,
+                                "workspace_id": receipt.workspace_id,
+                                "content_kind": route.content_kind,
+                                "content_summary": route.content.summary(),
+                            })
+                            .to_string();
+                            self.mt033_argus_action_completion
+                                .complete_applied(&target, detail);
+                        }
                         dispatch_or_retain_stage_route_receipt(
                             ctx,
                             &stage,
@@ -23520,9 +26925,30 @@ impl HandshakeApp {
                     }
                     self.open_stage_surface(ctx);
                 }
-                if let Some(message) = route_error {
+                if let Some(error) = route_error {
+                    if self.mt033_argus_action_completion.pending_target.as_deref()
+                        == Some("command-palette.option.hs-stage-palette-route")
+                        && self
+                            .mt033_argus_action_completion
+                            .matches_route_error(&error.request_id, &error.causal_action_id)
+                    {
+                        let target = "command-palette.option.hs-stage-palette-route";
+                        self.mt033_argus_action_completion.complete_failed(
+                            target,
+                            error.message.clone(),
+                            serde_json::json!({
+                                "typed_outcome": "route_unavailable",
+                                "route_error_request_id": error.request_id,
+                                "causal_action_id": error.causal_action_id,
+                                "correlation_generation": self.mt033_argus_action_completion.observer_generation,
+                                "stage_content": "empty",
+                                "stage_visible_value": "(nothing routed to Stage)",
+                            })
+                            .to_string(),
+                        );
+                    }
                     if let Ok(mut stage) = self.stage_pane.lock() {
-                        stage.set_route_error(message);
+                        stage.set_route_error(error.message);
                     }
                     self.open_stage_surface(ctx);
                 }
@@ -23625,16 +27051,52 @@ impl HandshakeApp {
                     crate::atelier_side_panel::AtelierPanelAction::InsertIntoActiveEditor(
                         atelier_ref,
                     ) => {
+                        let target =
+                            crate::atelier_side_panel::item_author_id(&atelier_ref.item_id);
+                        let attributed =
+                            self.mt033_dispatched_target().as_deref() == Some(target.as_str());
+                        if attributed {
+                            let semantic = self.mt033_item_semantic(&target);
+                            self.mt033_argus_action_completion.begin(&target, semantic);
+                        }
                         let link = crate::interop::DragPayload::AtelierRef(atelier_ref)
                             .to_hs_link()
                             .expect("Atelier panel insert action always carries an AtelierRef");
                         let rich_state = self.active_rich_state();
                         if let Ok(mut state) = rich_state.lock() {
-                            if !crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::insert_atelier_embed_at_caret(&mut state, link) {
+                            let ref_kind = link.ref_kind.clone();
+                            let ref_value = link.ref_value.clone();
+                            if crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::insert_atelier_embed_at_caret(&mut state, link) {
+                                let content = state.current_content_json();
+                                let detail = serde_json::json!({
+                                    "document_id": state.active_document_id().unwrap_or("unbound"),
+                                    "after_revision": state.doc_revision(),
+                                    "after_content_hash": Self::mt033_content_hash(&content),
+                                    "ref_kind": ref_kind,
+                                    "ref_value": ref_value,
+                                })
+                                .to_string();
+                                if attributed {
+                                    self.mt033_argus_action_completion
+                                        .complete_applied(&target, detail);
+                                }
+                            } else {
                                 state.interop_error = Some(
                                     "Could not insert Atelier item at the active rich-editor caret."
                                         .to_owned(),
                                 );
+                                if attributed {
+                                    self.mt033_argus_action_completion.complete_failed(
+                                        &target,
+                                        "atelier insert failed".to_owned(),
+                                        serde_json::json!({
+                                            "document_id": state.active_document_id().unwrap_or("unbound"),
+                                            "ref_kind": ref_kind,
+                                            "ref_value": ref_value,
+                                        })
+                                        .to_string(),
+                                    );
+                                }
                             }
                         };
                     }
@@ -23908,7 +27370,7 @@ impl HandshakeApp {
             return;
         }
         if let Some(handle) = self.workspaces_handle.take() {
-            match self.rt.block_on(handle) {
+            match self.runtime().block_on(handle) {
                 Ok(Ok(projects)) => {
                     self.project_tabs.apply_fetched(projects);
                     // Keep the active highlight + active_project_id consistent if the fetch changed the
@@ -23969,7 +27431,7 @@ impl HandshakeApp {
         let handle = self
             .runtime_handle
             .clone()
-            .unwrap_or_else(|| self.rt.handle().clone());
+            .unwrap_or_else(|| self.runtime().handle().clone());
 
         self.set_backend_base_url_for_test(base_url, handle.clone());
         self.settings_transport = Some(Arc::new(crate::workspace_settings::SettingsClient::new(
@@ -23986,7 +27448,8 @@ impl HandshakeApp {
         self.settings_load_pending = false;
 
         if let Some(old) = self.workspaces_handle.take() {
-            Self::abort_and_drain_runtime_task(&self.rt, old);
+            old.abort();
+            drop(old);
         }
         self.project_tabs.set_loading();
         let workspaces_base_url = base_url.to_owned();
@@ -24005,7 +27468,7 @@ impl HandshakeApp {
         let handle = self
             .runtime_handle
             .clone()
-            .unwrap_or_else(|| self.rt.handle().clone());
+            .unwrap_or_else(|| self.runtime().handle().clone());
         let transport = crate::backend_client::WorkbenchLayoutClient::new(
             layout_base_url.to_owned(),
             handle.clone(),
@@ -24053,15 +27516,21 @@ impl HandshakeApp {
     fn abort_and_drain_runtime_task<T>(
         rt: &tokio::runtime::Runtime,
         handle: tokio::task::JoinHandle<T>,
+        timeout: std::time::Duration,
     ) {
         handle.abort();
-        let _ = rt.block_on(handle);
+        let _ = rt.block_on(async move { tokio::time::timeout(timeout, handle).await });
     }
 
-    fn drain_runtime_task<T>(rt: &tokio::runtime::Runtime, handle: tokio::task::JoinHandle<T>) {
+    fn drain_runtime_task<T>(
+        rt: &tokio::runtime::Runtime,
+        handle: tokio::task::JoinHandle<T>,
+        timeout: std::time::Duration,
+    ) {
         // Persistence work is loss-sensitive. In particular, aborting a queued `spawn_blocking` task
-        // before it starts would discard the operator's settings/preference write.
-        let _ = rt.block_on(handle);
+        // before it starts would discard the operator's settings/preference write. Give it the shared
+        // teardown deadline, but never let a wedged transport freeze app destruction indefinitely.
+        let _ = rt.block_on(async move { tokio::time::timeout(timeout, handle).await });
     }
 
     fn replace_health_handle(
@@ -24069,33 +27538,56 @@ impl HandshakeApp {
         handle: tokio::task::JoinHandle<Result<HealthInfo, AppError>>,
     ) {
         if let Some(old) = self.health_handle.take() {
-            Self::abort_and_drain_runtime_task(&self.rt, old);
+            // Replacement is frame-reachable. Cancellation is cooperative, but joining even an
+            // aborted task here could stall the egui thread; explicit shutdown owns bounded draining.
+            old.abort();
+            drop(old);
         }
         self.health_handle = Some(handle);
     }
 
-    fn shutdown_background_runtime_tasks(&mut self) {
+    fn shutdown_background_runtime_tasks(&mut self, deadline: std::time::Instant) {
         self.begin_layout_shutdown();
         // Stop runtime-owned network activity before waiting on the bounded OS-thread layout workers.
         // Otherwise a health/workspace probe can remain live for the entire layout settlement window,
         // outliving the UI owner and bleeding socket activity into the next mounted app/test.
         if let Some(handle) = self.health_handle.take() {
-            Self::abort_and_drain_runtime_task(&self.rt, handle);
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            Self::abort_and_drain_runtime_task(self.runtime(), handle, remaining);
         }
         if let Some(handle) = self.workspaces_handle.take() {
-            Self::abort_and_drain_runtime_task(&self.rt, handle);
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            Self::abort_and_drain_runtime_task(self.runtime(), handle, remaining);
         }
         if let Some(handle) = self.settings_io_handle.take() {
-            Self::drain_runtime_task(&self.rt, handle);
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            Self::drain_runtime_task(self.runtime(), handle, remaining);
         }
         if let Some(handle) = self.preference_io_handle.take() {
-            Self::drain_runtime_task(&self.rt, handle);
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            Self::drain_runtime_task(self.runtime(), handle, remaining);
         }
-        self.wait_for_layout_workers_to_settle();
+        self.wait_for_layout_workers_to_settle(deadline);
     }
 
-    fn wait_for_layout_workers_to_settle(&mut self) {
-        let detached = self.settle_layout_workers_with_timeout(BACKGROUND_WORKER_SHUTDOWN_TIMEOUT);
+    fn shutdown_runtime_once(&mut self) {
+        if self.rt.is_none() {
+            return;
+        }
+        let runtime_deadline = std::time::Instant::now() + self.background_runtime_shutdown_timeout;
+        self.shutdown_background_runtime_tasks(runtime_deadline);
+        if let Some(rt) = self.rt.take() {
+            // Consuming the runtime is essential: Runtime's ordinary Drop waits indefinitely for
+            // `spawn_blocking` tasks. Use the SAME aggregate deadline as every preceding drain.
+            let remaining = runtime_deadline.saturating_duration_since(std::time::Instant::now());
+            rt.shutdown_timeout(remaining);
+        }
+    }
+
+    fn wait_for_layout_workers_to_settle(&mut self, deadline: std::time::Instant) {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let detached = self
+            .settle_layout_workers_with_timeout(remaining.min(BACKGROUND_WORKER_SHUTDOWN_TIMEOUT));
         if detached > 0 {
             tracing::warn!(
                 detached,
@@ -24221,6 +27713,45 @@ impl HandshakeApp {
     ) -> usize {
         self.begin_layout_shutdown();
         self.settle_layout_workers_with_timeout(timeout)
+    }
+
+    /// MT-088 V4 regression seam: install a loss-sensitive `spawn_blocking` task which cannot finish
+    /// until the caller releases it. This deliberately exceeds all transport-timeout assumptions so a
+    /// test can prove app teardown is structurally bounded by `Runtime::shutdown_timeout`.
+    #[doc(hidden)]
+    pub fn spawn_blocked_loss_sensitive_runtime_task_for_test(
+        &mut self,
+        entered: Arc<std::sync::atomic::AtomicBool>,
+        release: Arc<std::sync::atomic::AtomicBool>,
+        exited: Arc<std::sync::atomic::AtomicBool>,
+    ) {
+        assert!(
+            self.preference_io_handle.is_none(),
+            "blocked loss-sensitive regression seam requires an idle preference task slot"
+        );
+        ACTIVE_BLOCKED_RUNTIME_WORKERS_FOR_TEST.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.preference_io_handle = Some(self.runtime().handle().spawn_blocking(move || {
+            entered.store(true, std::sync::atomic::Ordering::SeqCst);
+            while !release.load(std::sync::atomic::Ordering::SeqCst) {
+                std::thread::sleep(BACKGROUND_WORKER_SHUTDOWN_POLL);
+            }
+            exited.store(true, std::sync::atomic::Ordering::SeqCst);
+            ACTIVE_BLOCKED_RUNTIME_WORKERS_FOR_TEST
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        }));
+    }
+
+    #[doc(hidden)]
+    pub fn set_background_runtime_shutdown_timeout_for_test(
+        &mut self,
+        timeout: std::time::Duration,
+    ) {
+        self.background_runtime_shutdown_timeout = timeout;
+    }
+
+    #[doc(hidden)]
+    pub fn active_blocked_runtime_workers_for_test() -> usize {
+        ACTIVE_BLOCKED_RUNTIME_WORKERS_FOR_TEST.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     /// MT-088 adversarial seam: pause a worker after it owns the publication gate but before it performs
@@ -25387,6 +28918,57 @@ impl HandshakeApp {
         });
     }
 
+    /// MT-035 V4: persistent mounted status for the unified undo scope. The compact label keeps the
+    /// operator informed while the full identity/count/transition object is projected into this same
+    /// stable AccessKit node for Argus.
+    fn mt035_undo_status_segment(&self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let baseline = self.mt035_undo_baseline(ctx);
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        let transition = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.last_undo_transition().cloned()
+        })
+        .flatten();
+        let text = if let Some(pending) = baseline.pending.as_ref() {
+            format!("Undo pending: {}", pending.description)
+        } else if let Some(transition) = transition.as_ref() {
+            let state = if transition.result.ok {
+                match transition.operation {
+                    crate::interop::interaction_bus::UndoTransitionOperation::CompensationSettled => {
+                        "settled"
+                    }
+                    crate::interop::interaction_bus::UndoTransitionOperation::CompensationCancelled => {
+                        "cancelled"
+                    }
+                    crate::interop::interaction_bus::UndoTransitionOperation::LocalUndo => "local",
+                    crate::interop::interaction_bus::UndoTransitionOperation::CrossPaneUndo => "cross",
+                }
+            } else {
+                "blocked"
+            };
+            format!(
+                "Undo {state}: local {} · cross {}",
+                baseline.local_count, baseline.cross_count
+            )
+        } else {
+            format!(
+                "Undo: local {} · cross {}",
+                baseline.local_count, baseline.cross_count
+            )
+        };
+        let state_value = self.mt035_undo_state_value(ctx);
+        let response = ui
+            .add(egui::Label::new(
+                egui::RichText::new(&text).color(self.current_theme.palette().text_subtle),
+            ))
+            .on_hover_text(&state_value);
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(MT035_UNDO_STATE_AUTHOR_ID.to_owned());
+            node.set_label(text);
+            node.set_value(state_value);
+        });
+    }
+
     /// Render the mounted code editor's language-server lifecycle as a compact status-bar segment.
     /// `NotProbed` stays absent in runtime-less shells so existing default snapshots do not gain a fake
     /// status; every configured/attached/restarting/absent state is visible to both the operator and an
@@ -25565,7 +29147,7 @@ impl HandshakeApp {
         if finished {
             if let Some(handle) = self.health_handle.take() {
                 // block_on a finished handle returns immediately (no real blocking).
-                self.health_status = match self.rt.block_on(handle) {
+                self.health_status = match self.runtime().block_on(handle) {
                     Ok(Ok(info)) => {
                         tracing::debug!(status = %info.status, db = %info.db_status, migration = ?info.migration_version, "health received");
                         HealthDisplayState::Ok(info)
@@ -25956,11 +29538,37 @@ impl HandshakeApp {
             .show(ctx, |ui| MenuBar::new(menu_state).show(ui))
             .inner;
         if !self.capturing_snapshot {
+            let previous_open_menu = self.mcp_open_top_menu;
             self.mcp_open_top_menu = crate::top_menu_bar::open_menu(ctx);
             self.mcp_open_top_menu_state = self.mcp_open_top_menu.map(|_| menu_state);
+            if self.mcp_open_top_menu != previous_open_menu {
+                let target = match self.mcp_open_top_menu {
+                    Some(crate::top_menu_bar::MenuId::Edit) => Some("menu-edit"),
+                    Some(crate::top_menu_bar::MenuId::View) => Some("menu-view"),
+                    Some(crate::top_menu_bar::MenuId::Editors) => Some("menu-editors"),
+                    Some(crate::top_menu_bar::MenuId::Operator) => Some("menu-operator"),
+                    _ => None,
+                };
+                if let Some(target) = target {
+                    if self.mt033_dispatched_target().as_deref() == Some(target) {
+                        self.mt033_argus_action_completion
+                            .complete_menu_open(target);
+                    }
+                    if target == "menu-edit"
+                        && self.mt033_dispatched_target().as_deref() == Some(target)
+                    {
+                        self.mt035_argus_action_completion.complete_menu_open();
+                    }
+                }
+            }
         }
         if let Some(action) = menu_action {
-            if self.dispatch_menu_action(ctx, action) {
+            let changed = self.dispatch_menu_action(ctx, action);
+            // A leaf activation completes the owning dropdown interaction. Close the actual egui popup
+            // and its persisted MCP bridge state in this same frame so the resulting surface is visible
+            // and the next inspection cannot resurrect an obscuring stale menu.
+            self.close_open_top_menu_after_leaf(ctx);
+            if changed {
                 ctx.request_repaint();
             }
         }
@@ -26049,6 +29657,8 @@ impl HandshakeApp {
                         // renders here when present so the seam outcome is PERCEIVABLE (rendered label +
                         // live AccessKit node) after the overlay closes; a no-op when no nav status is set.
                         self.quick_switcher_nav_status_segment(ui);
+                        let undo_ctx = self.frame_ctx.as_ref().unwrap_or(ctx);
+                        self.mt035_undo_status_segment(ui, undo_ctx);
                         self.lsp_status_segment(ui);
                         self.terminal_launch_status_segment(ui);
                         self.model_session_launch_status_segment(ui);
@@ -26846,6 +30456,122 @@ impl HandshakeApp {
             }
         }
         dispatched
+    }
+}
+
+#[cfg(test)]
+mod mt033_argus_causality_and_menu_tests {
+    use super::*;
+
+    #[test]
+    fn old_operator_success_or_error_cannot_settle_model_route_observer() {
+        let mut completion = Mt033ArgusActionCompletion::default();
+        assert!(completion.begin_route_success(
+            "menu.editors.route-to-stage",
+            "model-success-semantic".to_owned(),
+            "model-event".to_owned(),
+            "model-causal".to_owned(),
+        ));
+        assert!(!completion.matches_route_success("operator-event", "operator-causal"));
+        assert_eq!(
+            completion.observer_state,
+            crate::mcp::action::ClickCompletionState::Pending,
+            "an older operator receipt leaves the exact model observer pending"
+        );
+        assert!(completion.matches_route_success("model-event", "model-causal"));
+
+        completion.observer_state = crate::mcp::action::ClickCompletionState::Applied;
+        assert!(completion.begin_route_error(
+            "command-palette.option.hs-stage-palette-route",
+            "model-error-semantic".to_owned(),
+            "model-error-request".to_owned(),
+            "model-error-causal".to_owned(),
+        ));
+        assert!(!completion.matches_route_error("operator-error-request", "operator-error-causal"));
+        assert_eq!(
+            completion.observer_state,
+            crate::mcp::action::ClickCompletionState::Pending,
+            "an older operator typed failure leaves the exact model observer pending"
+        );
+        assert!(completion.matches_route_error("model-error-request", "model-error-causal"));
+    }
+
+    #[test]
+    fn preexisting_operator_route_keeps_model_success_and_unavailable_receipts_typed_not_applied() {
+        let ctx = egui::Context::default();
+        let mut bus = crate::interop::InteractionBus::new();
+        bus.register_route_to_stage_command();
+        let operator_route = crate::interop::PendingStageRoute::new(
+            StageContent::Selection("operator".to_owned(), "DOC-OPERATOR".to_owned()),
+            "selection",
+            Some("operator-causal".to_owned()),
+            "operator-pane",
+            "operator-workspace",
+        );
+        assert!(bus.admit_stage_route(&ctx, operator_route.clone()));
+
+        let mut success_receipt = Mt033ArgusActionCompletion::default();
+        assert!(success_receipt.begin(
+            "menu.editors.route-to-stage",
+            "model-success-request".to_owned(),
+        ));
+        assert!(success_receipt.complete_failed(
+            "menu.editors.route-to-stage",
+            "Route to Stage is busy; another exact request is pending.".to_owned(),
+            serde_json::json!({"typed_outcome": "route_busy"}).to_string(),
+        ));
+        assert!(!success_receipt.matches_route_success(
+            &operator_route.receipt.event_id,
+            operator_route
+                .causal_action_id
+                .as_deref()
+                .expect("operator route causal id"),
+        ));
+        assert_eq!(
+            success_receipt.observer_state,
+            crate::mcp::action::ClickCompletionState::Failed,
+            "the later operator commit cannot turn the contended model success request Applied"
+        );
+
+        assert!(!bus.route_to_stage_error_correlated(
+            &ctx,
+            "Route to Stage unavailable: activate a saved rich document first.",
+            Some("model-unavailable-causal"),
+        ));
+        let mut unavailable_receipt = Mt033ArgusActionCompletion::default();
+        assert!(unavailable_receipt.begin(
+            "command-palette.option.hs-stage-palette-route",
+            "model-unavailable-request".to_owned(),
+        ));
+        assert!(unavailable_receipt.complete_failed(
+            "command-palette.option.hs-stage-palette-route",
+            "Route to Stage is busy; another exact request is pending.".to_owned(),
+            serde_json::json!({"typed_outcome": "route_busy"}).to_string(),
+        ));
+        assert_eq!(bus.pending_stage_route(), Some(&operator_route));
+        assert!(bus.pending_stage_error().is_none());
+        assert_eq!(
+            unavailable_receipt.observer_state,
+            crate::mcp::action::ClickCompletionState::Failed,
+            "the pre-existing operator route cannot fabricate the model typed-unavailable outcome"
+        );
+    }
+
+    #[test]
+    fn dispatched_leaf_closes_actual_popup_and_persisted_mcp_menu_state() {
+        let ctx = egui::Context::default();
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let menu = crate::top_menu_bar::MenuId::Editors;
+        app.mcp_open_top_menu = Some(menu);
+        app.mcp_open_top_menu_state = Some(app.menu_bar_state(&ctx));
+        crate::top_menu_bar::set_menu_popup_open(&ctx, menu, true);
+        assert_eq!(crate::top_menu_bar::open_menu(&ctx), Some(menu));
+
+        app.close_open_top_menu_after_leaf(&ctx);
+
+        assert!(crate::top_menu_bar::open_menu(&ctx).is_none());
+        assert!(app.mcp_open_top_menu.is_none());
+        assert!(app.mcp_open_top_menu_state.is_none());
     }
 }
 
@@ -28961,7 +32687,7 @@ impl eframe::App for HandshakeApp {
     /// teardown paths.
     fn on_exit(&mut self) {
         self.shutdown_mcp_server();
-        self.shutdown_background_runtime_tasks();
+        self.shutdown_runtime_once();
         if let Some(handle) = self.palmistry.take() {
             tracing::info!(
                 "clean Handshake exit — sending Shutdown to the Palmistry watcher (§6.13.3)"
@@ -29059,7 +32785,7 @@ impl Drop for HandshakeApp {
         // is idempotent, and later Arc drops see no child.
         self.editor_mounts.code_documents.shutdown_all_lsp_clients();
         self.shutdown_mcp_server();
-        self.shutdown_background_runtime_tasks();
+        self.shutdown_runtime_once();
     }
 }
 

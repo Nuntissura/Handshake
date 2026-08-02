@@ -1239,13 +1239,19 @@ impl LoomCanvasBoard {
             let block_id = self.place_block_input.trim().to_owned();
             let can_place = !block_id.is_empty();
             // MT-042: the MC-2 fallback button stays `add_enabled(can_place, ..)` for the MOUSE path
-            // (disabled while the text field is empty — unchanged MT-026 behavior). The AccessKit node is
-            // emitted via `emit_button_node`, which does NOT propagate the widget's disabled state, so the
-            // node stays discoverable + dispatchable for the registry's parameterized
-            // `place-block {block_id,x,y}` swarm path (IN-042-08: the toolbar owns the id; the registry
-            // does not re-mint it, it consumes the dispatch at the recorded button NodeId).
+            // (disabled while the text field is empty — unchanged MT-026 behavior). egui marks that
+            // shared NodeId accessibly disabled; after attaching the stable author/action below we
+            // explicitly clear only its AccessKit disabled flag so the registry's parameterized
+            // `place-block {block_id,x,y}` swarm path remains dispatchable (IN-042-08: the toolbar owns
+            // the id; the registry does not re-mint it, it consumes dispatch at the recorded NodeId).
             let place_btn = ui.add_enabled(can_place, egui::Button::new("Place"));
             emit_button_node(ui, place_btn.id, PLACE_BLOCK_AUTHOR_ID, "Place block by id");
+            // `add_enabled(false, ..)` marks this shared NodeId disabled before the author/action
+            // overlay above runs. The mouse fallback still requires text input (`clicked && can_place`),
+            // while the parameterized AccessKit route supplies its own typed block_id/x/y payload and
+            // must remain steerable without mutating the text field first.
+            ui.ctx()
+                .accesskit_node_builder(place_btn.id, |node| node.clear_disabled());
             self.record_toolbar_id(PLACE_BLOCK_AUTHOR_ID, place_btn.id);
             if place_btn.clicked() && can_place {
                 // Default canvas position: the centre of the currently-visible canvas, in canvas space,

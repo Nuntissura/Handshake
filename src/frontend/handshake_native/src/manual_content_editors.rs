@@ -671,7 +671,9 @@ the running native app's owner-restricted MCP session token; the backend derives
 identity from that binding and never trusts caller-supplied privilege headers. The capture is idempotent, bounded to 16 KiB, and returns stable artifact, Job History, \
 EventLedger, manifest, correlation, and digest ids; stage-embed-back-status exposes the exact success or \
 typed failure, including busy and runtime-unavailable outcomes that dispatch no request. No Stage-specific \
-setting exists or is required: Stage follows the live active note/Canvas target and authenticated native \
+persisted setting exists or is required: Settings exposes the read-only \
+settings-editor-atelier-ckc-stage-posture row, while Atelier/CKC visibility and Stage routing remain live \
+VIEW/EDITORS commands that follow the active workspace, note/Canvas target, and authenticated native \
 session. With no active document, stage-route-status visibly reports the typed failure; a \
 failed CKC insertion similarly appears at rich-editor-interop-status. \
 Verification and diagnostics: discover atelier-side-panel / atelier-batch-* / atelier-item-* / \
@@ -690,8 +692,14 @@ menu.operator.command-palette -> command-palette.option.hs-stage-palette-route: 
 canonical route command must expose the typed `activate a saved rich document first` stage-route-status \
 failure and no routed-content success. An immediate action receipt or stale tree is not terminal proof. \
 Store every action's attributed receipt plus observation.before, observation.after, verified terminal tree, \
-and the post-terminal PNG outside the worktree at \
-HANDSHAKE_ARTIFACTS_ROOT/handshake-test/wp-kernel-012-mt-033/canonical-argus/. When \
+and the post-terminal PNG outside the worktree in a fresh unique \
+HANDSHAKE_ARTIFACTS_ROOT/handshake-test/wp-kernel-012-mt-033/canonical-argus-v4/run-<uuid>/ directory. \
+The success branch must contain exactly five Applied receipts. The typed-unavailable branch must contain \
+exactly two Applied receipts followed by one typed Rejected receipt carrying `activate a saved rich document \
+first`; all eight receipts must be terminal with zero Indeterminate outcomes. The run manifest binds the \
+before/after whole-worktree candidate identity (HEAD plus binary tracked diff and sorted untracked file \
+content hashes), asserts that identity did not change during the run, and records the canonical path and \
+SHA-256 of the exact running test executable. When \
 HANDSHAKE_ARTIFACTS_ROOT is unset, the proof derives the one sibling Handshake_Artifacts root from \
 CARGO_MANIFEST_DIR; when set, it must equal that derived root. It never accepts process-CWD or an alternate \
 absolute artifact root, so crate-root and repo-root invocations converge on the same location. From \
@@ -874,10 +882,12 @@ the editors. The manual and diagnostics are not docked into this default worksur
 the current panes with list_widgets and addresses the seeded panes by pane-a / pane-b / pane-c, then uses \
 the stable widget ids inside them: editor.code.* for code actions, editor.rich.* for Notes actions, \
 runtime-chat-panel for the chat pane container, runtime-chat-status for the current chat route state, \
-runtime-chat-input for the draft, and runtime-chat-send for the send button. Runtime Chat is honest in \
-this build: no native HTTP assistant-chat endpoint exists, so a send probes the planned route and returns \
-EndpointMissing instead of fabricating an assistant reply. Keep the main screen quiet and work-focused; \
-advanced diagnostics stay behind Settings -> Diagnostics."
+runtime-chat-input for the draft, runtime-chat-send for the send button, and runtime-chat-cancel for the \
+Cancel control shown while a request is active. Cancelling aborts the exact active request generation, \
+changes runtime-chat-status to Cancelled, ignores any late completion from that generation, and leaves the \
+input ready for a new send. Runtime Chat is honest in this build: no native HTTP assistant-chat endpoint \
+exists, so a send probes the planned route and returns EndpointMissing instead of fabricating an assistant \
+reply. Keep the main screen quiet and work-focused; advanced diagnostics stay behind Settings -> Diagnostics."
         .to_owned()
 }
 
@@ -1000,16 +1010,22 @@ governed application events. Open the actual operator surface with OPERATOR -> O
 (menu.operator.flight-recorder), RUN -> Open Flight Recorder (menu.run.flight-recorder), or the \
 command-palette alternative \
 command-palette.option.hs-flight-palette-open. The mounted pane is flight-recorder-pane; each accepted row is \
-fr-event-{event_id} and shows action, actor_id, and RFC3339 timestamp. On open, and whenever Refresh is \
+fr-event-{event_id} and shows action, actor_id, and RFC3339 timestamp. A canonical menu activation settles at \
+mt036.flight-recorder-open-completion only after a fresh projected tree contains flight-recorder-pane. On open, and whenever Refresh is \
 pressed through flight-recorder.refresh, the shell issues GET /api/flight_recorder with only \
-wsid=<active workspace>. A Refresh pressed while a GET is active remains queued and runs after that \
+wsid=<active workspace>. While that one bounded request is active, flight-recorder.loading-status is the \
+readable JSON loading authority with its exact active_request_generation. A Refresh pressed while a GET is active remains queued and runs after that \
 delivery; it does not start an unbounded parallel fetch or leave a perpetual spinner. The workspace filter \
 is the runtime-derived ownership boundary; the closed reader then accepts native-editor rows and exact canonical \
 FEMS lifecycle rows: FR-EVT-MEM-001 memory_write_proposed, FR-EVT-MEM-002 memory_write_reviewed, \
 FR-EVT-MEM-003 memory_write_committed, FR-EVT-MEM-004 memory_pack_built, and FR-EVT-MEM-005 \
 memory_item_status_changed. The pane shows each FEMS event code in its row and quarantines a mismatched \
 event_type/event_code or malformed payload at flight-recorder.quarantine-status. Load failures remain at \
-flight-recorder.load-failure; recent native emit failures are listed under flight-recorder.error-ring as \
+flight-recorder.load-failure and expose flight-recorder.retry. Restore or rebind the backend, then activate \
+Retry to issue one new bounded GET; do not infer recovery from an old row. Refresh and Retry declare their \
+exact action through flight-recorder.action-completion, which reaches Applied only after the matching fetch \
+generation renders its current event ids and reaches typed Failed with the matching fetch generation/error \
+when loading fails. Recent native emit failures are listed under flight-recorder.error-ring as \
 flight-recorder.emit-error-{index}. Editor Settings therefore exposes \
 settings-editor-flight-recorder-posture: Flight Recorder has no dedicated preference or disable toggle. \
 The native POST envelope is closed: schema_version=hsk.native_editor@0.1; event_id=non-nil UUID; \
@@ -1047,7 +1063,15 @@ Recovery: restore handshake_core/PostgreSQL reachability, inspect the error ring
 press Refresh. The backend's durable pending-mirror receipt and reconciler repair interrupted EventLedger -> \
 Flight Recorder mirror windows; never fabricate a row or treat an empty pane as proof that no action occurred. \
 Use internal_diagnostics for in-process health/backend-down evidence and Palmistry for freeze/crash survival; \
-they supplement, never replace, this Tier-1 business ledger."
+they supplement, never replace, this Tier-1 business ledger. HBR-INT-009 posture for this pane is exact: \
+Tier 1 Flight Recorder/EventLedger is WIRED through the durable workspace-scoped rows; Tier 2 \
+internal_diagnostics is WIRED through request-generation-correlated Start, Recovered, and Degraded load events; \
+Tier 3 Palmistry is WIRED through that same shared diagnostic ring without copying event payloads. The \
+canonical recovery sequence is argus.inspect -> click menu-operator -> fresh inspect -> click \
+menu.operator.flight-recorder -> fresh inspect exact fr-event-{event_id} rows -> click Refresh and inspect \
+the bounded failure -> fresh inspect flight-recorder.retry -> click Retry -> fresh inspect the recovered exact \
+rows. Require terminal receipts from mt036.flight-recorder-open-completion and \
+flight-recorder.action-completion and finish with zero Indeterminate actions."
         .to_owned()
 }
 
@@ -1079,8 +1103,8 @@ bounded health probes; after the backend responds again the surface reconnects, 
 and exactly one BackendRecovered edge is recorded. Operators reach this surface through Operator -> Open \
 Settings… (or Help -> Open Settings…), then search for diagnostics. A model diagnosing backend loss should \
 read the status bar plus diagnostics_events, keep editing local buffers, avoid repeated commands while a write outcome is \
-unknown, and verify BackendRecovered before retrying a mutation.\n\nThe exact V3 integrated recovery \
-proof uses committed current source and one mounted run: it starts a fixture-owned handshake_core against \
+unknown, and verify BackendRecovered before retrying a mutation.\n\nThe exact V4 integrated recovery \
+proof binds the current worktree candidate and one mounted run: it starts a fixture-owned handshake_core against \
 real PostgreSQL, launches the real out-of-process Palmistry binary on the app's exact shared diagnostics \
 ring, observes the connected status through canonical localhost Argus, OS-suspends only that owned backend \
 process so its real listener becomes half-open/silent, starts a fresh production layout load against that \
@@ -1102,9 +1126,16 @@ HANDSHAKE_TEST_STAGE_BINDING_ROOT to a fresh external binding root; then run `ca
 test_backend_down_responsive backend_down_responsive_real_pg_palmistry_argus -- --ignored --exact \
 --nocapture --test-threads=1`. Evidence is written under \
 Handshake_Artifacts/handshake-test/wp-kernel-012-mt-088/integrated/run-*/ and includes status and Settings \
-Diagnostics Argus trees, connected/disconnected/reconnected render hashes, HEAD-matched source blobs, binary \
-SHA-256/freshness records, backend process identities, heartbeat counters, endpoint-attributed typed event \
-deltas, ownership/orphan-reclamation metadata, cleanup, and the Palmistry survivor receipt. HBR-INT-009 posture for backend \
+Diagnostics Argus trees, four unique action receipts with fresh terminal snapshots and passing predicates, \
+connected/disconnected/reconnected render hashes paired to the degraded/recovered receipts, a deterministic \
+HEAD-worktree candidate identity plus a separate deterministic SHA-256 candidate digest, with canonical path plus SHA-256 for every proof-driving input, full \
+binary input manifests and executable hashes, per-frame elapsed-microsecond plus strictly advancing heartbeat \
+samples, exact backend process/listener/workspace identities, endpoint-attributed typed event records, and the \
+Palmistry control-socket/ring/session binding. Palmistry must report the test process as parent, write \
+parent_exit_code null with CleanShutdown, and produce zero Freeze/Crash/ChildStall incident survivors while \
+the heartbeat advances. The canonical Argus trace contains exactly four terminal-refreshed rows. Evidence is \
+published only after Argus finish, app/layout-worker teardown, Palmistry clean shutdown/reaping, backend/PG \
+fixture cleanup, and deletion of every fixture runtime root. HBR-INT-009 posture for backend \
 reachability is explicit: Tier 1 Flight Recorder/EventLedger is NOT_APPLICABLE-with-reason for local \
 reachability edges because it remains the PostgreSQL-backed business-event ledger and is not repurposed as \
 a health log; Tier 2 internal_diagnostics is WIRED through the shared heartbeat plus BackendUnreachable and \
@@ -1252,7 +1283,12 @@ code refs insert inline atoms through Step::InsertInlineChild with a pushed hist
     and videos render a poster with an in-app play state instead of launching a foreground player. All metadata, \
     body fetch, and decode work shares a six-operation limit; oversized bodies, dimensions, and pixel counts fail \
     with a typed visible error. Click a single image to open embed-image-modal-{asset_id}, close it with \
-    embed-image-modal-close-{asset_id}, or retry a transient asset failure with embed-retry-{asset_id}. Changing \
+    embed-image-modal-close-{asset_id}, or retry a transient asset failure with embed-retry-{asset_id}. Argus raw \
+    click receipts are `Applied` only for controls that explicitly opt into the strict \
+    handshake.click-completion/v1 token: the same effect/context must advance by exactly one generation from a \
+    settled Ready or Applied state through optional Pending to Applied, or a durable observer must acknowledge the \
+    exact transient target and semantic value. Generic clicks, payload clicks, malformed tokens, identity/context \
+    drift, and generation jumps remain `Indeterminate`; a visible UI change alone is not causal proof. Changing \
     workspace cancels owned work and clears metadata, decoded-image, texture, sequence, modal, and failure caches so \
     an asset id cannot leak content from the prior workspace. A still-resolving embed is the addressable loading \
     state embed-loading-{asset_id}; a missing or undecodable asset renders the typed chip embed-error-{asset_id} \
@@ -1282,9 +1318,16 @@ GET /workspaces/{id}/loom/views/all is the independent block-count oracle used t
 Local mode uses graph.mode.local and GET /workspaces/{id}/loom/graph/local?start_block_id={block_id}&max_depth=N&node_limit=200. \
 The Link-depth/max_depth control re-queries Local mode for the chosen depth. Zoom with graph.zoom.in / graph.zoom.out; pan by dragging \
 the empty canvas or by the catalog actions graph.pan-left / graph.pan-right; click graph.relayout to restart \
-layout; open a rendered TreeItem node by clicking its dynamic AccessKit id graph.node.{block_id}. Already-safe \
+layout. For canonical model control, use argus.inspect before argus.click on graph.relayout. The click target \
+carries handshake.click-completion/v1 and advances the same effect/context by exactly one layout generation \
+through Pending to Applied; graph.relayout.status is a separate stable Status node whose JSON reports \
+layout_generation, running/stable status, layout_state_sha256, iterations, node_count, and edge_count. Treat \
+the action as complete only when the raw receipt is Applied and a fresh status has the exact prior generation + 1, \
+stable state, expected counts, and the matching SHA-256. If the receipt expires or is Indeterminate, re-run \
+argus.inspect, confirm workspace/mode identity and backend health, and issue a new click; never infer success from \
+unchanged visible nodes. Open a rendered TreeItem node by clicking its dynamic AccessKit id graph.node.{block_id}. Already-safe \
 block ids remain literal; every other raw UTF-8 id is encoded injectively as a u8- hexadecimal suffix so two blocks cannot alias, \
-so use list_widgets to discover the emitted id instead of guessing it. The legacy catalog \
+so use argus.inspect to discover the emitted id instead of guessing it. The legacy catalog \
 action graph.open-node is the registry action shape for node-open automation. ModeChanged re-fetches Local or \
 Global data through the LoomGraphClient. AddEdge and RemoveEdge dispatch the existing /loom/edges backend \
 mutation requests and then re-fetch the graph; no graph read or write bypasses handshake_core. The backend's \
@@ -1296,11 +1339,23 @@ A -> B -> A. The integration-gated graph_view_live_pg_self_seeds_local_global pr
 Handshake-managed PostgreSQL workspace, verifies the real pre-seed 0-node Global projection, seeds linked \
 Loom blocks, verifies populated Global and Local projections, forces a bounded typed transport failure, and \
 retries the exact same workspace/mode/depth before its cleanup guard removes the seeded workspace. A missing \
-backend fails that proof instead of skipping it. Recovery: use list_widgets to verify the \
+backend fails that proof instead of skipping it. Recovery: prefer argus.inspect (list_widgets remains a compatibility inventory) to verify the \
 toolbar and graph.node.* ids, switch graph.mode.local / graph.mode.global to re-query, click graph.relayout \
 after layout confusion, seed or restart the backend when the live graph is empty, click graph.retry, and inspect \
-internal_diagnostics if Graph error: remains. Edge mutations retain their handshake_core EventLedger evidence; \
-internal_diagnostics observes in-process health and Palmistry supplies the external freeze/crash watcher."
+internal_diagnostics if Graph error: remains. Relayout, pan, zoom, and graph reads are ephemeral UI/read \
+state, so Tier 1 Flight Recorder/EventLedger is NOT_APPLICABLE-with-reason for those non-durable actions; \
+AddEdge and RemoveEdge are separate durable mutations and retain their handshake_core EventLedger evidence. \
+Canonical model actions use the stable parameterized targets graph.add-edge, graph.remove-edge, \
+canvas.place-block, canvas.remove-placement, and collection.kanban-move discovered by argus.inspect. \
+Supply their exact JSON payload and accept only an Applied receipt: edge creation binds the backend-minted \
+edge_id and a newer authoritative graph refresh, Canvas placement binds the backend-minted placement_id and \
+the refreshed board, removal proves exact absence, and a Kanban move proves target-lane membership plus \
+source-lane absence. Clicking graph.node.{block_id} completes only after that exact rich document and load \
+generation are active. Malformed or stale payload/context is Rejected without a write. On Graph error, inspect \
+graph.retry; a successful Retry removes that control and records a newer request generation, while another \
+typed failure leaves the exact Retry control mounted for a fresh attempt. \
+Tier 2 internal_diagnostics observes in-process health, and Tier 3 Palmistry supplies the external \
+freeze/crash watcher."
         .to_owned()
 }
 
@@ -1342,10 +1397,14 @@ allocated external Handshake_Artifacts MT-027 root."
 }
 
 fn wiki_projection_body() -> String {
-    "Wiki Projection is the dedicated generated Loom wiki-page surface. It is distinct from Rich Note: Rich Note opens PaneType::LoomWikiPage for an editable document, while Wiki Projection opens the mounted PaneType::Placeholder(\"Wiki Page\") host for a backend LoomWikiProjection. VIEW > Open Wiki Projection (menu.view.open-wiki-projection), the Command Palette row command-palette.option.hs-view-palette-wiki-projection, and command id view.wiki-projection reopen the concrete mounted projection when one exists; otherwise they open Quick Switcher with wiki discovery and the truthful status No active wiki projection instead of creating an empty pane. Selecting a wiki_page result opens its concrete projection id. The host strictly validates every GET /workspaces/{workspace_id}/loom/wiki/{projection_id} response: required fields must exist and returned workspace/projection ids must match the request. The title, page type, rebuild time, source-block count, and rendered_content are derived and read-only. Persisted overlay annotations are loaded through GET /overlays and rendered below the projection as wiki.overlays.{sanitized_projection_id} with each annotation at wiki.overlay.{sanitized_overlay_id}. Edit opens an additive annotation buffer. Save POSTs to /overlays and only exits after the identity-matched projection-plus-overlay reload succeeds. While Save and reload are in flight, Cancel and editing are locked so an old completion cannot clear a newer same-pane buffer. Cancel otherwise discards the unsaved buffer and performs no write. Rebuild calls /regenerate only for untyped Loom projections; typed project-wiki pages display that rebuild belongs to the project wiki engine. A rebuild failure retains the last-good page and appears at wiki.error.{sanitized_projection_id}; Retry repeats an initial failed load. Every asynchronous load, save, rebuild, and post-save reload carries workspace id, projection id, and pane generation. A late delivery for A is rejected after A -> B or A -> B -> A and cannot replace B or clear B's edit buffer. Stable AccessKit targets are wiki.title.{sanitized_projection_id}, wiki.content.{sanitized_projection_id}, wiki.metadata.{sanitized_projection_id}, wiki.edit.{sanitized_projection_id}, wiki.edit-area.{sanitized_projection_id}, wiki.save.{sanitized_projection_id}, wiki.cancel.{sanitized_projection_id}, wiki.rebuild.{sanitized_projection_id}, wiki.stale.{sanitized_projection_id}, wiki.error.{sanitized_projection_id}, wiki.retry.{sanitized_projection_id}, wiki.overlays.{sanitized_projection_id}, and wiki.overlay.{sanitized_overlay_id}. The Editor Settings section exposes settings-editor-wiki-projection-posture to state the contract truth: Wiki Projection has no dedicated preference; it uses the active workspace/theme and does not invent a second setting. Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}. The managed-PostgreSQL proof retires the previous canonical receipt before starting, self-seeds generated live ids, drives the mounted HandshakeApp host, verifies overlays through the visible mounted panel after reload, covers strict malformed/cross-identity rejection and last-good rebuild preservation, cleans up, confirms fresh absence, and only then writes the canonical current receipt. The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence."
+    "Wiki Projection is the dedicated generated Loom wiki-page surface. It is distinct from Rich Note: Rich Note opens PaneType::LoomWikiPage for an editable document, while Wiki Projection opens the mounted PaneType::Placeholder(\"Wiki Page\") host for a backend LoomWikiProjection. VIEW > Open Wiki Projection (menu.view.open-wiki-projection), the Command Palette row command-palette.option.hs-view-palette-wiki-projection, and command id view.wiki-projection reopen the concrete mounted projection when one exists; otherwise they open Quick Switcher with wiki discovery and the truthful status No active wiki projection instead of creating an empty pane. Selecting a wiki_page result opens its concrete projection id. The host strictly validates every GET /workspaces/{workspace_id}/loom/wiki/{projection_id} response: required fields must exist and returned workspace/projection ids must match the request. The title, page type, rebuild time, source-block count, and rendered_content are derived and read-only. Persisted overlay annotations are loaded through GET /overlays and rendered below the projection as wiki.overlays.{sanitized_projection_id} with each annotation at wiki.overlay.{sanitized_overlay_id}. Edit opens an additive annotation buffer. Save POSTs to /overlays and only exits after the identity-matched projection-plus-overlay reload succeeds. While Save and reload are in flight, Cancel and editing are locked so an old completion cannot clear a newer same-pane buffer. Cancel otherwise discards the unsaved buffer and performs no write. Rebuild calls /regenerate only for untyped Loom projections; typed project-wiki pages display that rebuild belongs to the project wiki engine. A rebuild failure retains the last-good page and appears at wiki.error.{sanitized_projection_id}; Retry repeats an initial failed load. Every asynchronous load, save, rebuild, and post-save reload carries workspace id, projection id, pane generation, and Save action generation. A late delivery for A is rejected after A -> B or A -> B -> A and cannot replace B or clear B's edit buffer. Edit, Cancel, and Save expose target declarations plus the durable observer wiki.action-status.{sanitized_projection_id}. Terminal receipts bind workspace, projection, pane generation, action generation, edit-mode generation, draft identity and SHA-256, source projection updated_at revision, source staleness hash, and source content SHA-256. Edit and Cancel finish Applied with write_count=0; Cancel additionally proves draft_discarded, edit_closed, and original_source_authoritative. Save remains Pending through POST and GET and finishes Applied only when the exact overlay_id, annotation, created_at, and updated_at returned by POST are present unchanged in GET /overlays and the source revision/hash/content are unchanged. The Applied receipt records write_count=1 plus overlay_persisted_revision and overlay_readback_revision. A POST failure finishes Rejected with typed wiki_save_transport, exact draft retained, edit still open, and write_count=0. A POST success followed by GET failure or source/readback conflict finishes Rejected as committed-overlay reconciliation failure with write_count=1; Save and Cancel stay locked and Retry Reload is GET-only. Stable AccessKit targets are wiki.title.{sanitized_projection_id}, wiki.content.{sanitized_projection_id}, wiki.metadata.{sanitized_projection_id}, wiki.edit.{sanitized_projection_id}, wiki.edit-area.{sanitized_projection_id}, wiki.save.{sanitized_projection_id}, wiki.cancel.{sanitized_projection_id}, wiki.rebuild.{sanitized_projection_id}, wiki.stale.{sanitized_projection_id}, wiki.error.{sanitized_projection_id}, wiki.retry.{sanitized_projection_id}, wiki.overlays.{sanitized_projection_id}, wiki.overlay.{sanitized_overlay_id}, and wiki.action-status.{sanitized_projection_id}. The Editor Settings section exposes settings-editor-wiki-projection-posture to state the contract truth: Wiki Projection has no dedicated preference; it uses the active workspace/theme and does not invent a second setting. Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}. The managed-PostgreSQL proof retires the previous canonical receipt before starting, self-seeds generated live ids, drives the mounted HandshakeApp host through canonical localhost Argus, proves Cancel no-write and Save persisted/readback terminal receipts, verifies overlays through the visible mounted panel after reload, captures the GPU frame when enabled, cleans up, and writes current evidence only under Handshake_Artifacts. The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence."
         .replace(
             "Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}.",
             "Recovery: a POST failure preserves the annotation and allows Save retry or Cancel because no overlay was committed. If the overlay was saved but its follow-up reload fails, Save and Cancel remain locked, the panel says the overlay is already saved, and wiki.retry.{sanitized_projection_id} performs only Retry Reload; restore the backend and activate that control so no duplicate overlay is posted. Initial load failures use the same stable retry id for a normal load.",
+        )
+        .replace(
+            "The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence.",
+            "The overlay insert and KNOWLEDGE_LOOM_WIKI_MUTATED EventLedger business event are committed atomically in PostgreSQL; the event is projected into Flight Recorder for replay and audit. If EventLedger append fails, the overlay insert rolls back. internal_diagnostics and Palmistry remain general runtime recovery surfaces for transport, freeze, and crash investigation.",
         )
 }
 
@@ -1355,8 +1414,8 @@ Folders (menu.view.open-folders), the Command Palette option \
 command-palette.option.hs-view-palette-folders, or command id view.folders. The mounted pane is the real \
 PaneType::Placeholder(\"Folders\") host, backed by LoomFolderTree, not a placeholder. When the Folders pane \
 is visible the host performs GET /workspaces/{id}/loom/folders, builds the folder forest, and renders each \
-folder row as folder-tree.node.{folder_id}; each folder color swatch is \
-folder-tree.color.{folder_id}. Use New folder to create a root. For row-scoped operations, open the stable \
+folder row as folder-tree.node.{folder_id}; each folder color swatch exposes current color as the stable, \
+actionable AccessKit Button folder-tree.color.{folder_id}; its Click opens the controlled picker. Use New folder to create a root. For row-scoped operations, open the stable \
 folder-tree.node.{folder_id} context menu: New subfolder opens a create dialog with that row as parent; \
 Rename opens the rename dialog; Move to root clears parent and order; Move under opens a target-folder \
 submenu whose choices are addressable as folder-tree.move-target.{source_folder_id}.{target_folder_id}, so \
@@ -1375,9 +1434,23 @@ closed as a visible error instead of hanging or showing a partial folder. Click 
 organizational overlay inside the Folder Tree and reveal its member-block rows; an LFD-* folder id is never \
 opened as a LoomBlock, and folder selection does not globally filter another pane. Click a child block to \
 emit FolderTreeEvent::OpenBlock, which opens that real block through the shell LoomBlock navigation path. \
+Each leaf is visibly indented at least one step right of its parent folder label and its stable TreeItem \
+advertises Click only, never folder Expand or Collapse actions. \
 The folder row's stable TreeItem accepts real AccessKit Expand and Collapse actions; models should target \
-folder-tree.node.{folder_id}, not the visual disclosure glyph. Right-click a folder row and choose Change color, \
-or click its swatch shortcut, to open the picker; choosing a color emits FolderTreeEvent::ChangeColor and \
+folder-tree.node.{folder_id}, not the visual disclosure glyph. For canonical causal expansion, use argus.inspect \
+then argus.click on that row. Every row click revalidates membership with a fresh backend child-list request, \
+including when cached children are already visible. Its handshake.click-completion/v1 token advances the exact \
+workspace/folder generation through Pending while that request runs and reaches Applied only after a selected, \
+expanded, non-loading terminal result from the request sequence bound to that generation. An older in-flight \
+response is discarded and cannot satisfy a repeated click. Reinspect folder-tree.status.{folder_id}: its \
+handshake.folder-expansion-status/v1 JSON exposes workspace_id, folder_id, generation, selected, expanded, loading, \
+request_sequence, terminal_request_sequence, child_state, child_count, and a typed error. Require exact prior \
+generation + 1, equal non-null request/terminal sequences, raw Applied, child_state loaded, and \
+the expected folder-tree.node.{block_id}; a failed request terminates as child_state failed with the prior visible \
+membership preserved. Concurrent folder loads retain each node-owned failure in the global Retry banner; success \
+for one folder cannot hide another folder's still-live error. An expired or Indeterminate receipt requires a fresh inspect and retry, never inference from \
+continued row presence. Right-click a folder row and choose Change color to open the explicitly controlled picker; \
+normal primary folder-row clicks never open it, while an explicit color-swatch Button click does. Choosing a color emits FolderTreeEvent::ChangeColor and \
 the host sends PATCH /workspaces/{id}/loom/folders/{folder_id} with only {\"color\":\"#rrggbb\"}, so name, \
 sort, and parent fields are not clobbered. The prior swatch remains when PATCH or its authoritative refetch \
 fails. Empty workspaces show No folders. Missing-parent, \
@@ -1397,15 +1470,15 @@ subtree and reassigning surviving Loom blocks from authoritative block data. Pop
 CRUD, conflict, move-to-root, delete, and recolor persistence \
 is covered by the self-seeding folder_tree_live_pg_self_seeded_round_trip proof against a \
 Handshake-managed PostgreSQL backend. It records exact seed ids and cleanup_verified=true in the external \
-MT-022-live-pg-seed.json receipt; a missing backend fails the proof rather than skipping it. HBR-INT-009 \
-diagnostic posture: Flight Recorder/EventLedger = \
-NOT_APPLICABLE-with-reason because the current folder-overlay routes do not define a typed business-event \
-append; internal_diagnostics = DEFERRED-with-reason because this host has no folder-operation-specific event \
+MT-022-live-pg-seed.json receipt; a missing backend fails the proof rather than skipping it. Folder and membership \
+mutations commit their matching EventLedger receipt atomically with the PostgreSQL change; a ledger failure rolls \
+the mutation back rather than leaving unaudited state. HBR-INT-009 diagnostic posture: Flight Recorder/EventLedger \
+= SHIPPED for those durable mutations; internal_diagnostics = DEFERRED-with-reason because this host has no folder-operation-specific event \
 code yet; Palmistry = DEFERRED-with-reason because no folder-tree-specific external tracker is registered. \
 Folder errors remain visible in-pane while those feature-specific diagnostic links are deferred. A model \
 should use list_widgets to enumerate folder-tree.node.*, folder-tree.move-target.*, and \
-folder-tree.color.* ids, click_widget on folder-tree.retry after an error, click_widget on a swatch or row \
-context path for Change color/New subfolder/Rename/Move/Delete, and screenshot the tree when verifying \
+folder-tree.color.* ids, click_widget on folder-tree.retry after an error, use the row context path for Change \
+color/New subfolder/Rename/Move/Delete, and screenshot the tree when verifying \
 swatch color or hierarchy."
         .to_owned()
 }
@@ -1419,7 +1492,16 @@ When visible, the host performs GET /workspaces/{id}/loom/tags and renders the f
 one row per tag hub as tags.row.{block_id}. Each row shows the hub title and an exact member count when the \
 list response or GET /workspaces/{id}/loom/tags/{tag_block_id} detail provides member evidence; the exact \
 member list is loaded when a tag hub opens. Type into tags.search to prefix-filter tag titles. \
-Click a tag row to emit TagsPanelEvent::OpenTag and open that tag hub page in the same pane. The hub page \
+Click a tag row to emit TagsPanelEvent::OpenTag and open that tag hub page in the same pane. Every \
+model-facing row click declares the durable observer tags.navigation-status. Its terminal receipt contains \
+source_tag_id, destination_tag_hub_id, workspace_id, workspace_generation, completion_generation, and \
+completion_kind=authoritative-hub-membership-query-complete. Applied is published only after the exact \
+current workspace/tag/request sequence returns the authoritative hub-membership result; stale workspace, \
+stale tag, failed, or superseded deliveries never acknowledge the click. List member-count enrichment uses \
+separate request authority: it may update a tags.row.* badge but can never populate the mounted hub, \
+supersede the exact navigation request, or acknowledge its receipt. Choosing < All tags gives Back priority \
+for that frame, retires any pending hub navigation without Applied, and ignores simultaneous input from the \
+abandoned hub. The hub page \
 loads GET /workspaces/{id}/loom/tags/{tag_block_id}, renders tag-hub.title.{block_id}, lists member blocks \
 as tag-hub.member.{block_id}, and opens a member through the same shell LoomBlock navigation path. The Add \
 tag to block button tag-hub.add-tag.{block_id} opens an in-process popup, searches with \
@@ -1432,11 +1514,21 @@ workspace in the visible pane rather than cached row text. Empty workspaces show
 integration-gated tags_tag_hub_live_pg_self_seeds_mounted_round_trip proof creates an isolated workspace \
 against Handshake-managed PostgreSQL/EventLedger, drives the mounted pane through empty/list/filter/open/add, verifies \
 rename and tag removal with a fresh client, checks bounded backend loss, writes an external receipt, and \
-deletes the workspace before reporting success. Until that command runs, its status is \
-NEEDS_MANAGED_RESOURCE_PROOF; it needs a running managed backend but no preseeded ids. A \
-model should use list_widgets for tags.search / tags.row.* / tag-hub.member.*, set_value on tags.search to \
-filter, click_widget on a tag row or member row to navigate, and screenshot the pane when verifying counts \
-or hub membership."
+deletes the workspace before reporting success. The exact canonical visual proof is \
+mt023_mounted_tags_panel_canonical_argus_inspect_steer_reobserve with feature integration, the current \
+backend, real PostgreSQL, one test thread, and GPU capture. Use argus.inspect to copy the emitted \
+tags.row.* id, argus.click that exact id, require receipt status applied, then use a fresh argus.inspect \
+to bind the same receipt and tags.navigation-status semantic value to the fresh tag-hub.title.* plus \
+tag-hub.member.* state; disappearing list rows or a loading skeleton alone are not proof. Use \
+argus.set_value on tags.search for filtering and argus.screenshot only after that terminal predicate. \
+Failure recovery is in-pane: Retry repeats reads, while a failed add-tag write preserves the prior visible \
+membership and exposes the typed backend error. HBR-INT-009 posture: Tier 1 Flight Recorder/EventLedger = \
+NOT_APPLICABLE-with-reason for read-only tag navigation, and WIRED atomically for the durable tag-edge \
+mutation (a ledger failure rolls the PostgreSQL write back); Tier 2 internal_diagnostics = \
+DEFERRED-with-reason because there is no tag-navigation-specific diagnostic event; Tier 3 Palmistry = \
+DEFERRED-with-reason because no tag-pane-specific external tracker is registered. Legacy list_widgets, \
+set_value, and click_widget names remain compatibility inventory only; canonical operation uses the \
+argus.* methods above."
         .to_owned()
 }
 
@@ -2125,6 +2217,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             description: "click_widget{target:'menu.operator.flight-recorder'} opens flight-recorder-pane.",
         },
         AgentToolRow {
+            author_id: crate::app::MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read Flight Recorder open completion",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads mt036.flight-recorder-open-completion after the canonical menu action mounts flight-recorder-pane.",
+        },
+        AgentToolRow {
             author_id: "menu.operator.model-session-launch",
             surface: ManualSurface::Model,
             action_label: "Launch Model Session from OPERATOR",
@@ -2151,6 +2250,27 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Refresh Flight Recorder",
             mcp_tool: "click_widget",
             description: "click_widget{target:'flight-recorder.refresh'} retries the workspace-scoped ledger read.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read Flight Recorder loading state",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads flight-recorder.loading-status only while one bounded workspace-scoped GET is in flight.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Retry a failed Flight Recorder load",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'flight-recorder.retry'} issues one new bounded workspace-scoped read after a visible failure.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read Flight Recorder load action completion",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads flight-recorder.action-completion for the exact Refresh/Retry action generation, fetch generation, and terminal load result.",
         },
         AgentToolRow {
             author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
@@ -2438,6 +2558,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Send Runtime Chat message",
             mcp_tool: "click_widget",
             description: "click_widget{target:'runtime-chat-send'} is enabled after text is entered and returns EndpointMissing until the backend route exists.",
+        },
+        AgentToolRow {
+            author_id: crate::runtime_chat::RUNTIME_CHAT_CANCEL_AUTHOR_ID,
+            surface: ManualSurface::Chat,
+            action_label: "Cancel active Runtime Chat request",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'runtime-chat-cancel'} aborts the exact active request generation; read runtime-chat-status for Cancelled, then enter a new draft to recover.",
         },
         AgentToolRow {
             author_id: TERMINAL_MENU_AUTHOR_ID,

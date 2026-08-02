@@ -30,6 +30,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
+use tracing::Instrument;
 use uuid::Uuid;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
@@ -1536,14 +1537,74 @@ async fn list_loom_tag_hubs(
 async fn get_loom_tag_hub(
     State(state): State<AppState>,
     Path((workspace_id, tag_block_id)): Path<(String, String)>,
-) -> ApiResult<Json<crate::storage::LoomTagHub>> {
+) -> ApiResult<Response> {
+    let request_id = Uuid::now_v7().to_string();
+    let run_id = std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "product-runtime".to_owned());
+    get_loom_tag_hub_instrumented(state, workspace_id, tag_block_id)
+        .instrument(tracing::info_span!(
+            "loom_tag_hub_request",
+            run_id,
+            request_id
+        ))
+        .await
+}
+
+async fn get_loom_tag_hub_instrumented(
+    state: AppState,
+    workspace_id: String,
+    tag_block_id: String,
+) -> ApiResult<Response> {
+    let workspace_lookup_started = Instant::now();
     ensure_workspace_exists(&state, &workspace_id).await?;
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "workspace_lookup",
+        elapsed_us = workspace_lookup_started.elapsed().as_micros(),
+        "loom_tag_hub_stage_timing"
+    );
+    let storage_started = Instant::now();
     let hub = state
         .storage
         .get_tag_hub(&workspace_id, &tag_block_id)
         .await
         .map_err(map_storage_error)?;
-    Ok(Json(hub))
+    let storage_elapsed_us = storage_started.elapsed().as_micros();
+    let serialize_started = Instant::now();
+    let bytes = serde_json::to_vec(&hub).map_err(internal_error)?;
+    let serialize_elapsed_us = serialize_started.elapsed().as_micros();
+    let response_bytes = bytes.len();
+    let handoff_started = Instant::now();
+    let mut response = Response::new(axum::body::Body::from(bytes));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    let handoff_elapsed_us = handoff_started.elapsed().as_micros();
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "tag_hub_storage_total_after_workspace_lookup",
+        elapsed_us = storage_elapsed_us,
+        "loom_tag_hub_stage_timing"
+    );
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "json_serialization",
+        response_bytes,
+        elapsed_us = serialize_elapsed_us,
+        "loom_tag_hub_stage_timing"
+    );
+    tracing::info!(
+        target: "handshake_core",
+        event = "loom_tag_hub_stage_timing",
+        stage = "response_construction",
+        response_bytes,
+        elapsed_us = handoff_elapsed_us,
+        "loom_tag_hub_stage_timing"
+    );
+    Ok(response)
 }
 
 #[derive(Debug, Deserialize, Default)]

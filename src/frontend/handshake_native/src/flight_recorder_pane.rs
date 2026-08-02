@@ -27,7 +27,10 @@ pub const FLIGHT_RECORDER_PANE_AUTHOR_ID: &str = "flight-recorder-pane";
 
 /// Stable operator/model controls and status surfaces beneath the pane root.
 pub const FLIGHT_RECORDER_REFRESH_AUTHOR_ID: &str = "flight-recorder.refresh";
+pub const FLIGHT_RECORDER_RETRY_AUTHOR_ID: &str = "flight-recorder.retry";
+pub const FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID: &str = "flight-recorder.action-completion";
 pub const FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID: &str = "flight-recorder.load-failure";
+pub const FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID: &str = "flight-recorder.loading-status";
 pub const FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID: &str = "flight-recorder.quarantine-status";
 pub const FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID: &str = "flight-recorder.error-ring";
 pub const FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX: &str = "flight-recorder.emit-error-";
@@ -45,6 +48,202 @@ pub const MT036_FLIGHT_RECORDER_LOAD_START_SEQ: u64 = 1;
 pub const MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ: u64 = 2;
 /// `DiagEvent.sequence_id` for a Flight Recorder load resolving to a visible failed state.
 pub const MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ: u64 = 3;
+
+const FLIGHT_RECORDER_ACTION_EFFECT: &str = "mt036.flight-recorder-load";
+const FLIGHT_RECORDER_ACTION_CONTEXT: &str = "wp-kernel-012-mt-036-v4";
+
+#[derive(Debug, Clone)]
+struct LoadActionCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    target: Option<String>,
+    semantic: Option<String>,
+    request_generation: Option<u64>,
+    terminal_error: Option<String>,
+    terminal_detail: Option<String>,
+    retry_suppressed_snapshots_remaining: u8,
+    refresh_terminal_ack_latched: bool,
+}
+
+impl Default for LoadActionCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            target: None,
+            semantic: None,
+            request_generation: None,
+            terminal_error: None,
+            terminal_detail: None,
+            retry_suppressed_snapshots_remaining: 0,
+            refresh_terminal_ack_latched: false,
+        }
+    }
+}
+
+impl LoadActionCompletion {
+    fn target_declaration(&self, target: &str) -> Option<String> {
+        let persistent = target == FLIGHT_RECORDER_REFRESH_AUTHOR_ID;
+        if self.state == crate::mcp::action::ClickCompletionState::Pending
+            || (persistent && self.refresh_terminal_ack_latched)
+        {
+            if !persistent || self.target.as_deref() != Some(target) {
+                return None;
+            }
+            return crate::mcp::action::serialize_persistent_observer_click_target(
+                FLIGHT_RECORDER_ACTION_EFFECT,
+                FLIGHT_RECORDER_ACTION_CONTEXT,
+                self.generation,
+                FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
+                self.semantic.as_deref()?,
+            );
+        }
+        let semantic = Self::semantic(target, self.generation.wrapping_add(1));
+        if persistent {
+            crate::mcp::action::serialize_persistent_observer_click_target(
+                FLIGHT_RECORDER_ACTION_EFFECT,
+                FLIGHT_RECORDER_ACTION_CONTEXT,
+                self.generation,
+                FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
+                &semantic,
+            )
+        } else {
+            crate::mcp::action::serialize_observer_click_target(
+                FLIGHT_RECORDER_ACTION_EFFECT,
+                FLIGHT_RECORDER_ACTION_CONTEXT,
+                self.generation,
+                FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
+                &semantic,
+            )
+        }
+    }
+
+    fn semantic(target: &str, action_generation: u64) -> String {
+        serde_json::json!({
+            "action": if target == FLIGHT_RECORDER_RETRY_AUTHOR_ID { "retry" } else { "refresh" },
+            "target": target,
+            "next_action_generation": action_generation,
+        })
+        .to_string()
+    }
+
+    fn begin(&mut self, target: &str) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.target = Some(target.to_owned());
+        self.semantic = Some(Self::semantic(target, self.generation));
+        self.request_generation = None;
+        self.terminal_error = None;
+        self.terminal_detail = None;
+        self.retry_suppressed_snapshots_remaining = 0;
+        self.refresh_terminal_ack_latched = false;
+    }
+
+    fn bind_request_generation(&mut self, request_generation: u64) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            self.request_generation = Some(request_generation);
+        }
+    }
+
+    fn complete_loaded(&mut self, result: &FlightRecorderQueryRows) {
+        let Some(request_generation) = self.request_generation else {
+            // A refresh clicked while an older request is in flight is queued. The older delivery
+            // must not settle the newer click; only begin_loading of its own fetch binds a generation.
+            return;
+        };
+        if self.state != crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        use sha2::Digest as _;
+        let row_identity = result
+            .rows
+            .iter()
+            .map(|row| row.event_id.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let row_ids_sha256 = format!("{:x}", sha2::Sha256::digest(row_identity.as_bytes()));
+        self.state = crate::mcp::action::ClickCompletionState::Applied;
+        self.refresh_terminal_ack_latched =
+            self.target.as_deref() == Some(FLIGHT_RECORDER_REFRESH_AUTHOR_ID);
+        self.terminal_detail = Some(
+            serde_json::json!({
+                "request_generation": request_generation,
+                "row_count": result.rows.len(),
+                "row_ids_sha256": row_ids_sha256,
+                "quarantined_count": result.quarantined.len(),
+                "load_state": "loaded",
+            })
+            .to_string(),
+        );
+    }
+
+    fn complete_failed(&mut self, error: &str) {
+        let Some(request_generation) = self.request_generation else {
+            return;
+        };
+        if self.state != crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.state = crate::mcp::action::ClickCompletionState::Failed;
+        self.retry_suppressed_snapshots_remaining =
+            u8::from(self.target.as_deref() == Some(FLIGHT_RECORDER_RETRY_AUTHOR_ID));
+        self.refresh_terminal_ack_latched =
+            self.target.as_deref() == Some(FLIGHT_RECORDER_REFRESH_AUTHOR_ID);
+        self.terminal_error = Some(error.to_owned());
+        self.terminal_detail = Some(
+            serde_json::json!({
+                "request_generation": request_generation,
+                "load_state": "failed",
+                "error": error,
+            })
+            .to_string(),
+        );
+    }
+
+    fn retry_terminal_ack_suppressed(&self) -> bool {
+        self.retry_suppressed_snapshots_remaining > 0
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    FLIGHT_RECORDER_ACTION_EFFECT,
+                    FLIGHT_RECORDER_ACTION_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.target.as_deref(),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    FLIGHT_RECORDER_ACTION_EFFECT,
+                    FLIGHT_RECORDER_ACTION_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    FLIGHT_RECORDER_ACTION_EFFECT,
+                    FLIGHT_RECORDER_ACTION_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
 
 /// The stable AccessKit author_id for one event row (`fr-event-{event_id}`). The event id is sanitized
 /// to `[A-Za-z0-9-]` so an arbitrary id yields a safe address.
@@ -119,6 +318,8 @@ pub struct FlightRecorderPane {
     state: LoadState,
     error_ring: ErrorRing,
     refresh_requested: std::sync::atomic::AtomicBool,
+    action_completion: std::sync::Mutex<LoadActionCompletion>,
+    active_request_generation: Option<u64>,
 }
 
 impl FlightRecorderPane {
@@ -129,6 +330,8 @@ impl FlightRecorderPane {
             state: LoadState::Idle,
             error_ring,
             refresh_requested: std::sync::atomic::AtomicBool::new(false),
+            action_completion: std::sync::Mutex::new(LoadActionCompletion::default()),
+            active_request_generation: None,
         }
     }
 
@@ -140,13 +343,17 @@ impl FlightRecorderPane {
     /// Mark a real query as in flight. The shell calls this only after it has atomically claimed the
     /// single fetch slot, so `Loading` always corresponds to an owned request and can never become a
     /// decorative or perpetual spinner.
-    pub fn begin_loading(&mut self) {
+    pub fn begin_loading(&mut self, request_generation: u64) {
         self.state = LoadState::Loading;
+        self.active_request_generation = Some(request_generation);
+        if let Ok(mut completion) = self.action_completion.lock() {
+            completion.bind_request_generation(request_generation);
+        }
         record_flight_recorder_pane_diagnostic(
             MT036_FLIGHT_RECORDER_LOAD_START_SEQ,
             handshake_diag_ring::DiagPhase::Start,
             handshake_diag_ring::DiagSeverity::Info,
-            0,
+            request_generation,
             0,
         );
     }
@@ -157,25 +364,32 @@ impl FlightRecorderPane {
     pub fn load_now(&mut self) {
         match self.query.rows() {
             Ok(rows) => {
+                let request_generation = self.active_request_generation.take().unwrap_or(0);
                 let row_count = rows.rows.len() as u64;
-                let quarantined_count = rows.quarantined.len() as u64;
+                if let Ok(mut completion) = self.action_completion.lock() {
+                    completion.complete_loaded(&rows);
+                }
                 self.state = LoadState::Loaded(rows);
                 record_flight_recorder_pane_diagnostic(
                     MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ,
                     handshake_diag_ring::DiagPhase::Recovered,
                     handshake_diag_ring::DiagSeverity::Info,
+                    request_generation,
                     row_count,
-                    quarantined_count,
                 );
             }
             Err(e) => {
+                let request_generation = self.active_request_generation.take().unwrap_or(0);
                 let reason_len = e.len() as u64;
+                if let Ok(mut completion) = self.action_completion.lock() {
+                    completion.complete_failed(&e);
+                }
                 self.state = LoadState::Failed(e);
                 record_flight_recorder_pane_diagnostic(
                     MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ,
                     handshake_diag_ring::DiagPhase::Degraded,
                     handshake_diag_ring::DiagSeverity::Warn,
-                    0,
+                    request_generation,
                     reason_len,
                 );
             }
@@ -200,8 +414,20 @@ impl FlightRecorderPane {
                         FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
                     );
                     if refresh.clicked() {
+                        if let Ok(mut completion) = self.action_completion.lock() {
+                            completion.begin(FLIGHT_RECORDER_REFRESH_AUTHOR_ID);
+                        }
                         self.refresh_requested
                             .store(true, std::sync::atomic::Ordering::Release);
+                    }
+                    if let Ok(completion) = self.action_completion.lock() {
+                        if let Some(value) =
+                            completion.target_declaration(FLIGHT_RECORDER_REFRESH_AUTHOR_ID)
+                        {
+                            ui.ctx().accesskit_node_builder(refresh.id, |node| {
+                                node.set_value(value.clone());
+                            });
+                        }
                     }
                 });
                 match &self.state {
@@ -211,7 +437,21 @@ impl FlightRecorderPane {
                         );
                     }
                     LoadState::Loading => {
-                        ui.label(egui::RichText::new("Loading…").color(palette.text_subtle));
+                        let loading =
+                            ui.label(egui::RichText::new("Loading…").color(palette.text_subtle));
+                        ui.ctx().accesskit_node_builder(loading.id, |node| {
+                            node.set_role(egui::accesskit::Role::Status);
+                            node.set_author_id(FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID.to_owned());
+                            node.set_label("Flight Recorder loading".to_owned());
+                            node.set_value(
+                                serde_json::json!({
+                                    "state": "loading",
+                                    "active_request_generation": self.active_request_generation,
+                                    "request": "one bounded workspace-scoped GET in flight",
+                                })
+                                .to_string(),
+                            );
+                        });
                     }
                     LoadState::Loaded(result) if result.rows.is_empty() => {
                         ui.label(
@@ -248,6 +488,62 @@ impl FlightRecorderPane {
                             node.set_label("Flight Recorder load failure".to_owned());
                             node.set_value(reason.clone());
                         });
+                        // A failed Retry must first publish its durable Failed observer while the
+                        // transient Retry target is absent. Otherwise ActionChannel sees a post-click
+                        // node with the same author_id and can only classify the action Indeterminate.
+                        // The following frame remounts a fresh Retry declaration for a new action.
+                        let suppress_retry = self
+                            .action_completion
+                            .lock()
+                            .map(|completion| completion.retry_terminal_ack_suppressed())
+                            .unwrap_or(false);
+                        if !suppress_retry {
+                            let retry = ui.button("Retry");
+                            crate::accessibility::emit_interactive_node(
+                                ui.ctx(),
+                                retry.id,
+                                FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+                            );
+                            if retry.clicked() {
+                                if let Ok(mut completion) = self.action_completion.lock() {
+                                    completion.begin(FLIGHT_RECORDER_RETRY_AUTHOR_ID);
+                                }
+                                self.refresh_requested
+                                    .store(true, std::sync::atomic::Ordering::Release);
+                            }
+                            if let Ok(completion) = self.action_completion.lock() {
+                                if let Some(value) =
+                                    completion.target_declaration(FLIGHT_RECORDER_RETRY_AUTHOR_ID)
+                                {
+                                    ui.ctx().accesskit_node_builder(retry.id, |node| {
+                                        node.set_value(value.clone());
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Ok(completion) = self.action_completion.lock() {
+                    if let Some(value) = completion.observer_value() {
+                        // This durable observer follows state-dependent row/failure widgets. It cannot
+                        // use any response/auto ID: those are layout-derived and drift when Loading
+                        // becomes Loaded/Failed. The explicit ID is its stable AccessKit identity.
+                        let observer_id = egui::Id::new(FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID);
+                        let observer_rect = egui::Rect::from_min_size(
+                            ui.next_widget_position(),
+                            egui::Vec2::ZERO,
+                        );
+                        // Register the fixed id in egui's interaction/parent map before building its
+                        // AccessKit node; an unattached builder is not a valid live-tree observer.
+                        ui.interact(observer_rect, observer_id, egui::Sense::hover());
+                        ui.ctx().accesskit_node_builder(observer_id, |node| {
+                            node.set_role(egui::accesskit::Role::Status);
+                            node.set_author_id(
+                                FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID.to_owned(),
+                            );
+                            node.set_label("Flight Recorder action completion".to_owned());
+                            node.set_value(value.clone());
+                        });
                     }
                 }
                 self.show_error_ring(ui, palette);
@@ -269,6 +565,18 @@ impl FlightRecorderPane {
     pub fn take_refresh_requested(&self) -> bool {
         self.refresh_requested
             .swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+
+    /// Release action terminal latches only after the app has projected, ActionChannel-acknowledged,
+    /// and published that authoritative snapshot. This preserves the clicked Refresh semantic through
+    /// Applied/Failed acknowledgement and keeps a failed Retry absent for its terminal snapshot.
+    pub fn acknowledge_action_terminal_snapshot(&self) {
+        if let Ok(mut completion) = self.action_completion.lock() {
+            completion.retry_suppressed_snapshots_remaining = completion
+                .retry_suppressed_snapshots_remaining
+                .saturating_sub(1);
+            completion.refresh_terminal_ack_latched = false;
+        }
     }
 
     /// Render one event row + emit its `fr-event-{id}` ListItem AccessKit node.

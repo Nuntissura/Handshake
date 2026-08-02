@@ -10,6 +10,7 @@ mod panel;
 
 pub use panel::{
     runtime_chat_turn_body_author_id, runtime_chat_turn_role_author_id, ChatPaneFactory, ChatRole,
-    ChatSendError, ChatTurn, RuntimeChatClient, RuntimeChatPanel, RUNTIME_CHAT_INPUT_AUTHOR_ID,
-    RUNTIME_CHAT_PANEL_AUTHOR_ID, RUNTIME_CHAT_SEND_AUTHOR_ID, RUNTIME_CHAT_STATUS_AUTHOR_ID,
+    ChatSendError, ChatTurn, RuntimeChatClient, RuntimeChatPanel, RUNTIME_CHAT_CANCEL_AUTHOR_ID,
+    RUNTIME_CHAT_INPUT_AUTHOR_ID, RUNTIME_CHAT_PANEL_AUTHOR_ID, RUNTIME_CHAT_SEND_AUTHOR_ID,
+    RUNTIME_CHAT_STATUS_AUTHOR_ID,
 };

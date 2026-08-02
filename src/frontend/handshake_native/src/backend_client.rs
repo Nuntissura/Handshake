@@ -2717,6 +2717,19 @@ pub type CanvasBoardCell = Arc<Mutex<VecDeque<CanvasBoardDelivery>>>;
 /// placement id. Non-create mutations still use [`CanvasBoardOpCell`] because their body is not needed.
 pub type CanvasBoardCreateCell = Arc<Mutex<Option<Result<CreatedCanvasPlacement, String>>>>;
 
+/// Exact authoritative receipt returned by `POST /loom/edges`. The backend mints `edge_id`; callers
+/// must retain this identity and prove that the subsequent graph projection contains this exact edge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatedSemanticEdge {
+    pub edge_id: String,
+    pub workspace_id: String,
+    pub source_block_id: String,
+    pub target_block_id: String,
+    pub edge_type: String,
+}
+
+pub type SemanticEdgeCreateCell = Arc<Mutex<Option<Result<CreatedSemanticEdge, String>>>>;
+
 /// Typed outcome for a placement-creation receipt whose ownership matters to compensating redo.
 /// Only `MalformedSuccess` proves the server accepted this exact POST; transport ambiguity and a known
 /// non-success status are never safe grounds for claiming a placement discovered by reconciliation.
@@ -3497,6 +3510,17 @@ impl CanvasBoardClient {
         });
     }
 
+    /// Send a semantic-edge POST and retain the backend-minted edge identity from its response body.
+    pub fn dispatch_created_semantic_edge(&self, spec: RequestSpec, cell: SemanticEdgeCreateCell) {
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = send_created_semantic_edge(&client, &spec).await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|error| error.to_string()));
+            }
+        });
+    }
+
     /// Await a placement creation while preserving whether failure happened before a response, at a
     /// known non-2xx response, or while decoding a successful receipt. Compensating redo uses this
     /// distinction to avoid claiming another actor's same-block placement after a conflict.
@@ -3864,6 +3888,96 @@ async fn send_canvas_created_placement(
     let created = created_canvas_placement_from_response(&value)?;
     validate_created_placement_receipt(&spec.url, body, &value, &created)
         .map_err(AppError::Parse)?;
+    Ok(created)
+}
+
+async fn send_created_semantic_edge(
+    client: &reqwest::Client,
+    spec: &RequestSpec,
+) -> Result<CreatedSemanticEdge, AppError> {
+    if spec.method != HttpMethod::Post {
+        return Err(AppError::Http(
+            "created-semantic-edge dispatch only supports POST".to_owned(),
+        ));
+    }
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("semantic-edge POST body is missing".to_owned()))?;
+    let value = post_json_expect_value(client, &spec.url, body, Duration::from_secs(5)).await?;
+    created_semantic_edge_from_response(spec, &value)
+}
+
+fn created_semantic_edge_from_response(
+    spec: &RequestSpec,
+    value: &serde_json::Value,
+) -> Result<CreatedSemanticEdge, AppError> {
+    if spec.method != HttpMethod::Post {
+        return Err(AppError::Http(
+            "created-semantic-edge dispatch only supports POST".to_owned(),
+        ));
+    }
+    let body = spec
+        .body
+        .as_ref()
+        .ok_or_else(|| AppError::Parse("semantic-edge POST body is missing".to_owned()))?;
+    let required = |source: &serde_json::Value, field: &str| {
+        source
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| !value.trim().is_empty())
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| AppError::Parse(format!("semantic-edge receipt missing {field}")))
+    };
+    let created = CreatedSemanticEdge {
+        edge_id: required(&value, "edge_id")?,
+        workspace_id: required(&value, "workspace_id")?,
+        source_block_id: required(&value, "source_block_id")?,
+        target_block_id: required(&value, "target_block_id")?,
+        edge_type: required(&value, "edge_type")?,
+    };
+    let workspace = spec
+        .url
+        .split("/workspaces/")
+        .nth(1)
+        .map(|tail| tail.split('/').collect::<Vec<_>>())
+        .filter(|parts| {
+            parts.len() == 3 && !parts[0].is_empty() && parts[1] == "loom" && parts[2] == "edges"
+        })
+        .map(|parts| parts[0])
+        .ok_or_else(|| {
+            AppError::Parse(
+                "semantic-edge URL is not the canonical /workspaces/:id/loom/edges route"
+                    .to_owned(),
+            )
+        })?;
+    let expected_source = required(body, "source_block_id")?;
+    let expected_target = required(body, "target_block_id")?;
+    let expected_edge_type = required(body, "edge_type")?;
+    for (field, expected, actual) in [
+        ("workspace_id", workspace, created.workspace_id.as_str()),
+        (
+            "source_block_id",
+            expected_source.as_str(),
+            created.source_block_id.as_str(),
+        ),
+        (
+            "target_block_id",
+            expected_target.as_str(),
+            created.target_block_id.as_str(),
+        ),
+        (
+            "edge_type",
+            expected_edge_type.as_str(),
+            created.edge_type.as_str(),
+        ),
+    ] {
+        if actual != expected {
+            return Err(AppError::Parse(format!(
+                "semantic-edge receipt {field} mismatch: expected {expected}, got {actual}"
+            )));
+        }
+    }
     Ok(created)
 }
 
@@ -6240,6 +6354,10 @@ pub struct WikiProjection {
     pub rendered_content: String,
     pub staleness_hash: String,
     pub rebuild_status: String,
+    /// Canonical projection-row timestamps. `updated_at` is the source-projection revision bound into
+    /// wiki action receipts; it is not inferred from a render or local clock.
+    pub created_at: String,
+    pub updated_at: String,
     pub page_type: Option<String>,
     /// Persisted operator annotations loaded from the canonical overlay-list route after every
     /// projection GET/regenerate. Keeping them on the delivered snapshot makes the mounted panel—not a
@@ -6310,6 +6428,8 @@ impl WikiProjection {
             rendered_content: required_string("rendered_content")?,
             staleness_hash: required_string("staleness_hash")?,
             rebuild_status: required_string("rebuild_status")?,
+            created_at: required_string("created_at")?,
+            updated_at: required_string("updated_at")?,
             page_type,
             overlays: Vec::new(),
             staleness_verdict,
@@ -6325,6 +6445,49 @@ pub struct WikiOverlay {
     pub workspace_id: String,
     pub annotation: String,
     pub anchor: Option<String>,
+    /// Canonical persisted overlay-row revision returned by POST and confirmed by GET readback.
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+fn parse_wiki_overlay(
+    row: &Value,
+    requested_workspace_id: &str,
+    requested_projection_id: &str,
+    location: &str,
+) -> Result<WikiOverlay, AppError> {
+    let required = |key: &str| -> Result<String, AppError> {
+        row.get(key)
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .ok_or_else(|| AppError::Parse(format!("{location}.{key} must be a string")))
+    };
+    let overlay_id = required("overlay_id")?;
+    let projection_id = required("projection_id")?;
+    let workspace_id = required("workspace_id")?;
+    if projection_id != requested_projection_id || workspace_id != requested_workspace_id {
+        return Err(AppError::Parse(format!(
+            "wiki overlay identity mismatch at {location}: requested {requested_workspace_id}/{requested_projection_id}, received {workspace_id}/{projection_id}"
+        )));
+    }
+    let anchor = match row.get("anchor") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(value)) => Some(value.clone()),
+        _ => {
+            return Err(AppError::Parse(format!(
+                "{location}.anchor must be null or a string"
+            )))
+        }
+    };
+    Ok(WikiOverlay {
+        overlay_id,
+        projection_id,
+        workspace_id,
+        annotation: required("annotation")?,
+        anchor,
+        created_at: required("created_at")?,
+        updated_at: required("updated_at")?,
+    })
 }
 
 fn parse_wiki_overlays(
@@ -6338,38 +6501,12 @@ fn parse_wiki_overlays(
     rows.iter()
         .enumerate()
         .map(|(index, row)| {
-            let required = |key: &str| -> Result<String, AppError> {
-                row.get(key)
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-                    .ok_or_else(|| {
-                        AppError::Parse(format!("WikiOverlay[{index}].{key} must be a string"))
-                    })
-            };
-            let overlay_id = required("overlay_id")?;
-            let projection_id = required("projection_id")?;
-            let workspace_id = required("workspace_id")?;
-            if projection_id != requested_projection_id || workspace_id != requested_workspace_id {
-                return Err(AppError::Parse(format!(
-                    "wiki overlay identity mismatch at row {index}: requested {requested_workspace_id}/{requested_projection_id}, received {workspace_id}/{projection_id}"
-                )));
-            }
-            let anchor = match row.get("anchor") {
-                None | Some(Value::Null) => None,
-                Some(Value::String(value)) => Some(value.clone()),
-                _ => {
-                    return Err(AppError::Parse(format!(
-                        "WikiOverlay[{index}].anchor must be null or a string"
-                    )))
-                }
-            };
-            Ok(WikiOverlay {
-                overlay_id,
-                projection_id,
-                workspace_id,
-                annotation: required("annotation")?,
-                anchor,
-            })
+            parse_wiki_overlay(
+                row,
+                requested_workspace_id,
+                requested_projection_id,
+                &format!("WikiOverlay[{index}]"),
+            )
         })
         .collect()
 }
@@ -6394,7 +6531,7 @@ pub struct WikiPaneIdentity {
 pub enum WikiProjectionOperation {
     Load,
     Regenerate,
-    ReloadAfterSave,
+    ReloadAfterSave { action_generation: u64 },
 }
 
 #[derive(Debug)]
@@ -6409,7 +6546,8 @@ pub type WikiProjectionDeliveryCell = Arc<Mutex<VecDeque<WikiProjectionDelivery>
 #[derive(Debug)]
 pub struct WikiSaveDelivery {
     pub identity: WikiPaneIdentity,
-    pub result: Result<(), String>,
+    pub action_generation: u64,
+    pub result: Result<WikiOverlay, String>,
 }
 
 pub type WikiSaveDeliveryCell = Arc<Mutex<VecDeque<WikiSaveDelivery>>>;
@@ -6636,6 +6774,7 @@ impl LoomWikiClient {
     pub fn add_overlay_stamped(
         &self,
         identity: WikiPaneIdentity,
+        action_generation: u64,
         annotation: &str,
         anchor: Option<&str>,
         cell: WikiSaveDeliveryCell,
@@ -6649,11 +6788,23 @@ impl LoomWikiClient {
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
         self.runtime.spawn(async move {
-            let result = post_expect_success(&client, &spec.url, &body)
+            let result = post_json_expect_value(&client, &spec.url, &body, Duration::from_secs(5))
                 .await
+                .and_then(|value| {
+                    parse_wiki_overlay(
+                        &value,
+                        &identity.workspace_id,
+                        &identity.projection_id,
+                        "WikiOverlay.POST",
+                    )
+                })
                 .map_err(|e| e.to_string());
             if let Ok(mut queue) = cell.lock() {
-                queue.push_back(WikiSaveDelivery { identity, result });
+                queue.push_back(WikiSaveDelivery {
+                    identity,
+                    action_generation,
+                    result,
+                });
             }
         });
     }
@@ -6803,6 +6954,8 @@ mod wiki_client_tests {
         assert_eq!(p.source_block_ids.len(), 3);
         assert_eq!(p.rendered_content, "# Ownership\nBorrow checker notes.");
         assert_eq!(p.rebuild_status, "fresh");
+        assert_eq!(p.created_at, "2026-06-19T00:00:00Z");
+        assert_eq!(p.updated_at, "2026-06-19T00:00:00Z");
         assert_eq!(p.page_type.as_deref(), Some("concept"));
         assert_eq!(p.staleness_verdict["state"], "fresh");
     }
@@ -6867,6 +7020,23 @@ mod wiki_client_tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("overlay identity mismatch"));
+    }
+
+    #[test]
+    fn overlay_parse_retains_canonical_persisted_revision() {
+        let value = serde_json::json!([{
+            "overlay_id": "ov-1",
+            "projection_id": "proj-001",
+            "workspace_id": "ws1",
+            "annotation": "persisted note",
+            "anchor": null,
+            "created_at": "2026-06-19T01:00:00Z",
+            "updated_at": "2026-06-19T01:00:01Z"
+        }]);
+        let parsed = parse_wiki_overlays(&value, "ws1", "proj-001").unwrap();
+        assert_eq!(parsed[0].overlay_id, "ov-1");
+        assert_eq!(parsed[0].created_at, "2026-06-19T01:00:00Z");
+        assert_eq!(parsed[0].updated_at, "2026-06-19T01:00:01Z");
     }
 
     #[test]
@@ -12074,6 +12244,164 @@ mod tests {
             error.to_string().contains("authority_label"),
             "parse error names the missing field: {error}"
         );
+    }
+
+    #[test]
+    fn created_semantic_edge_receipt_is_exact_and_fails_closed() {
+        let spec = RequestSpec {
+            method: HttpMethod::Post,
+            url: "http://test.local/workspaces/ws-a/loom/edges".to_owned(),
+            body: Some(serde_json::json!({
+                "source_block_id": "source-a",
+                "target_block_id": "target-a",
+                "edge_type": "mention",
+                "created_by": "user",
+            })),
+        };
+        let receipt = serde_json::json!({
+            "edge_id": "edge-minted-a",
+            "workspace_id": "ws-a",
+            "source_block_id": "source-a",
+            "target_block_id": "target-a",
+            "edge_type": "mention",
+        });
+        assert_eq!(
+            created_semantic_edge_from_response(&spec, &receipt).unwrap(),
+            CreatedSemanticEdge {
+                edge_id: "edge-minted-a".to_owned(),
+                workspace_id: "ws-a".to_owned(),
+                source_block_id: "source-a".to_owned(),
+                target_block_id: "target-a".to_owned(),
+                edge_type: "mention".to_owned(),
+            }
+        );
+
+        for field in [
+            "edge_id",
+            "workspace_id",
+            "source_block_id",
+            "target_block_id",
+            "edge_type",
+        ] {
+            let mut malformed = receipt.clone();
+            malformed.as_object_mut().unwrap().remove(field);
+            assert!(
+                created_semantic_edge_from_response(&spec, &malformed).is_err(),
+                "missing receipt field {field} must fail closed"
+            );
+            malformed[field] = serde_json::json!("   ");
+            assert!(
+                created_semantic_edge_from_response(&spec, &malformed).is_err(),
+                "blank receipt field {field} must fail closed"
+            );
+            malformed[field] = serde_json::json!(42);
+            assert!(
+                created_semantic_edge_from_response(&spec, &malformed).is_err(),
+                "non-string receipt field {field} must fail closed"
+            );
+        }
+        for (field, wrong) in [
+            ("workspace_id", "ws-b"),
+            ("source_block_id", "source-b"),
+            ("target_block_id", "target-b"),
+            ("edge_type", "tag"),
+        ] {
+            let mut mismatched = receipt.clone();
+            mismatched[field] = serde_json::json!(wrong);
+            assert!(
+                created_semantic_edge_from_response(&spec, &mismatched).is_err(),
+                "receipt {field} mismatch must fail closed"
+            );
+        }
+
+        let mut invalid_url = spec.clone();
+        invalid_url.url = "http://test.local/loom/edges".to_owned();
+        assert!(created_semantic_edge_from_response(&invalid_url, &receipt).is_err());
+        let mut unrelated_url = spec.clone();
+        unrelated_url.url = "http://test.local/workspaces/ws-a/unrelated".to_owned();
+        assert!(created_semantic_edge_from_response(&unrelated_url, &receipt).is_err());
+        let mut no_body = spec.clone();
+        no_body.body = None;
+        assert!(created_semantic_edge_from_response(&no_body, &receipt).is_err());
+        let mut wrong_method = spec.clone();
+        wrong_method.method = HttpMethod::Patch;
+        assert!(created_semantic_edge_from_response(&wrong_method, &receipt).is_err());
+        for field in ["source_block_id", "target_block_id", "edge_type"] {
+            let mut missing_request_field = spec.clone();
+            missing_request_field
+                .body
+                .as_mut()
+                .unwrap()
+                .as_object_mut()
+                .unwrap()
+                .remove(field);
+            assert!(
+                created_semantic_edge_from_response(&missing_request_field, &receipt).is_err(),
+                "missing request field {field} must fail closed"
+            );
+            for invalid in [serde_json::json!("   "), serde_json::json!(42)] {
+                let mut invalid_request_field = spec.clone();
+                invalid_request_field.body.as_mut().unwrap()[field] = invalid;
+                assert!(
+                    created_semantic_edge_from_response(&invalid_request_field, &receipt).is_err(),
+                    "blank/non-string request field {field} must fail closed"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn created_semantic_edge_transport_never_mints_identity_on_error_or_malformed_json() {
+        fn serve_once(status: &str, body: &str) -> (String, std::thread::JoinHandle<()>) {
+            use std::io::{Read, Write};
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let status = status.to_owned();
+            let body = body.to_owned();
+            let join = std::thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 4096];
+                let _ = stream.read(&mut request);
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(response.as_bytes()).unwrap();
+            });
+            (format!("http://{address}"), join)
+        }
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let client = shared_http_client();
+        for (status, body) in [
+            (
+                "500 Internal Server Error",
+                r#"{"error":"database unavailable"}"#,
+            ),
+            ("200 OK", "not-json"),
+        ] {
+            let (base_url, join) = serve_once(status, body);
+            let spec = RequestSpec {
+                method: HttpMethod::Post,
+                url: format!("{base_url}/workspaces/ws-a/loom/edges"),
+                body: Some(serde_json::json!({
+                    "source_block_id": "source-a",
+                    "target_block_id": "target-a",
+                    "edge_type": "mention",
+                    "created_by": "user",
+                })),
+            };
+            assert!(
+                runtime
+                    .block_on(send_created_semantic_edge(&client, &spec))
+                    .is_err(),
+                "{status} must never yield a created edge identity"
+            );
+            join.join().unwrap();
+        }
     }
 
     #[test]

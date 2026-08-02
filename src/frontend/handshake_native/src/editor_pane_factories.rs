@@ -2334,13 +2334,18 @@ impl PaneFactory for TagsPaneMount {
             ui.ctx().accesskit_node_builder(back.id, |node| {
                 node.set_author_id("tags.back-to-list".to_owned());
             });
-            if back.clicked() {
+            let back_clicked = back.clicked();
+            if back_clicked {
                 out = Some(TagsPaneEvent::BackToList);
             }
-            if let Ok(mut hub) = self.hub.lock() {
-                if let Some(hub) = hub.as_mut() {
-                    if let Some(ev) = hub.show(ui, &palette) {
-                        out = Some(TagsPaneEvent::Hub(ev));
+            // Cancellation owns the frame. Do not let a simultaneous member/add-search event from the
+            // abandoned hub overwrite BackToList before the host can retire its navigation receipt.
+            if !back_clicked {
+                if let Ok(mut hub) = self.hub.lock() {
+                    if let Some(hub) = hub.as_mut() {
+                        if let Some(ev) = hub.show(ui, &palette) {
+                            out = Some(TagsPaneEvent::Hub(ev));
+                        }
                     }
                 }
             }
@@ -2348,6 +2353,11 @@ impl PaneFactory for TagsPaneMount {
             if let Some(ev) = tags.show(ui, &palette) {
                 out = Some(TagsPaneEvent::Panel(ev));
             }
+        }
+        // The observer is deliberately durable across the list -> hub replacement. The action channel
+        // can therefore keep the clicked row transient while waiting for the exact hub-members query.
+        if let Ok(tags) = self.tags.lock() {
+            tags.emit_navigation_observer(ui.ctx());
         }
         if let Some(ev) = out {
             if let Ok(mut q) = self.events.lock() {
@@ -2518,10 +2528,12 @@ pub enum WikiPaneRequest {
     /// The overlay is already committed; retry only the failed follow-up projection/overlay GET.
     ReloadAfterSave {
         identity: crate::backend_client::WikiPaneIdentity,
+        action_generation: u64,
     },
     /// The Save button was pressed with `annotation` (the verified overlay-annotation write).
     Save {
         identity: crate::backend_client::WikiPaneIdentity,
+        action_generation: u64,
         annotation: String,
     },
     /// The Rebuild button was pressed (`POST /loom/wiki/{id}/regenerate`).
@@ -2628,13 +2640,12 @@ impl PaneFactory for WikiPagePaneMount {
                     projection_id: projection_id.clone(),
                     pane_generation,
                 };
-                *bound = Some((
-                    identity.clone(),
-                    crate::graph::wiki_page_panel::LoomWikiPagePanel::new(
-                        workspace_id,
-                        projection_id.clone(),
-                    ),
-                ));
+                let mut panel = crate::graph::wiki_page_panel::LoomWikiPagePanel::new(
+                    workspace_id,
+                    projection_id.clone(),
+                );
+                panel.bind_pane_generation(pane_generation);
+                *bound = Some((identity.clone(), panel));
                 // First bind: request the real GET load (the shell fires the LoomWikiClient fetch).
                 self.push_request(WikiPaneRequest::Load { identity });
             }
@@ -2642,9 +2653,13 @@ impl PaneFactory for WikiPagePaneMount {
                 use crate::graph::wiki_page_panel::WikiPageEvent;
                 if let Some(event) = panel.show(ui, &palette) {
                     match event {
-                        WikiPageEvent::Save { annotation } => {
+                        WikiPageEvent::Save {
+                            action_generation,
+                            annotation,
+                        } => {
                             self.push_request(WikiPaneRequest::Save {
                                 identity: identity.clone(),
+                                action_generation,
                                 annotation,
                             });
                         }
@@ -2659,9 +2674,13 @@ impl PaneFactory for WikiPagePaneMount {
                             });
                         }
                         WikiPageEvent::RetryReloadAfterSave => {
-                            self.push_request(WikiPaneRequest::ReloadAfterSave {
-                                identity: identity.clone(),
-                            });
+                            if let Some(action_generation) = panel.pending_save_action_generation()
+                            {
+                                self.push_request(WikiPaneRequest::ReloadAfterSave {
+                                    identity: identity.clone(),
+                                    action_generation,
+                                });
+                            }
                         }
                         // Edit/Cancel are local panel state (observability-only events).
                         WikiPageEvent::EditBegan | WikiPageEvent::Cancel => {}
@@ -2706,7 +2725,13 @@ impl PaneFactory for FolderTreePaneMount {
     fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
         let palette = palette_of(&self.palette);
         let event = match self.tree.lock() {
-            Ok(mut t) => t.show(ui, &palette),
+            Ok(mut t) => {
+                egui::ScrollArea::vertical()
+                    .id_salt("mounted-folder-tree-scroll")
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| t.show(ui, &palette))
+                    .inner
+            }
             Err(_) => None,
         };
         if let Some(ev) = event {

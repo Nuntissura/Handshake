@@ -41,6 +41,7 @@ use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 use egui::{Color32, Pos2, Rect, Sense, Stroke, Vec2};
+use sha2::{Digest, Sha256};
 
 use crate::accessibility::knowledge_action_registry::{
     self, AddEdgePayload, AxRole as KAxRole, BlockIdPayload, EdgeIdPayload,
@@ -52,6 +53,7 @@ use crate::graph::graph_controls::{
     assign_group_color, compute_visibility, node_radius, GraphControls, GraphControlsEvent,
     NodeVisibility, DIM_ALPHA,
 };
+use crate::mcp::action::{serialize_same_target_click_completion, ClickCompletionState};
 use crate::theme::HsPalette;
 
 /// Default node circle radius in WORLD space (px before zoom). Click detection uses this same radius
@@ -85,6 +87,7 @@ pub const MODE_GLOBAL_AUTHOR_ID: &str = "graph.mode.global";
 pub const ZOOM_IN_AUTHOR_ID: &str = "graph.zoom.in";
 pub const ZOOM_OUT_AUTHOR_ID: &str = "graph.zoom.out";
 pub const RELAYOUT_AUTHOR_ID: &str = "graph.relayout";
+pub const RELAYOUT_STATUS_AUTHOR_ID: &str = "graph.relayout.status";
 pub const RETRY_AUTHOR_ID: &str = "graph.retry";
 
 /// Author_id prefix for a graph node. The full id is `graph.node.{sanitized_block_id}`.
@@ -94,6 +97,44 @@ pub const NODE_AUTHOR_ID_PREFIX: &str = knowledge_action_registry::GRAPH_NODE_AU
 /// including collision-safe sanitization for ids containing punctuation or other unsafe characters.
 pub fn node_author_id(block_id: &str) -> String {
     knowledge_action_registry::graph_node_author_id(block_id)
+}
+
+fn shared_title_token_prefix<'a>(titles: impl Iterator<Item = &'a str>) -> Option<String> {
+    let token_sets: Vec<Vec<&str>> = titles
+        .map(|title| title.split_whitespace().collect())
+        .collect();
+    let first = token_sets.first()?;
+    let mut shared = first.len();
+    for tokens in &token_sets[1..] {
+        shared = shared.min(tokens.len());
+        while shared > 0 && first[..shared] != tokens[..shared] {
+            shared -= 1;
+        }
+    }
+    // Keep at least one distinguishing token on every node.
+    if shared == 0 || token_sets.iter().any(|tokens| tokens.len() == shared) {
+        return None;
+    }
+    Some(format!("{} ", first[..shared].join(" ")))
+}
+
+fn compact_graph_label(title: &str, shared_prefix: Option<&str>, narrow: bool) -> String {
+    if !narrow {
+        return title.to_owned();
+    }
+    let distinguishing = shared_prefix
+        .and_then(|prefix| title.strip_prefix(prefix))
+        .unwrap_or(title)
+        .trim();
+    let chars: Vec<char> = distinguishing.chars().collect();
+    if chars.len() <= 8 {
+        return distinguishing.to_owned();
+    }
+    format!(
+        "{}…{}",
+        chars[..3].iter().collect::<String>(),
+        chars[chars.len() - 4..].iter().collect::<String>()
+    )
 }
 
 /// Which graph the view is showing. `Local` is the canonical neighbourhood of a focused block;
@@ -353,6 +394,17 @@ pub struct LoomGraphView {
     pub last_max_step: f32,
     /// True once the layout positions have been seeded (a circle) for the current node set.
     seeded: bool,
+    /// Monotonic epoch for force-layout resets. A user `graph.relayout` action advances this exactly
+    /// once; a concurrent/background graph refresh also advances it, so Argus can fail closed rather
+    /// than attributing an unrelated refresh to the requested action.
+    layout_generation: u64,
+    /// Set by every layout reset and cleared after the converged node bounds have been fitted into the
+    /// actual mounted canvas. Viewport state remains outside the authoritative layout digest.
+    fit_to_view_pending: bool,
+    /// True only while/after a user-attributed `graph.relayout` action owns the current layout
+    /// generation. Backend/workspace refreshes clear it so their generation changes cannot acknowledge
+    /// a pending Argus click.
+    relayout_action_generation: Option<u64>,
     /// WP-KERNEL-012 MT-060 (E3): the Obsidian-class control panel state (search / groups / link-depth /
     /// orphans / size-by-degree / collapsed). Rendered each frame by [`Self::show`]; its pure results are
     /// applied in the painter pass via the overlays below.
@@ -421,6 +473,9 @@ impl Default for LoomGraphView {
             iters_done: 0,
             last_max_step: f32::INFINITY,
             seeded: false,
+            layout_generation: 0,
+            fit_to_view_pending: true,
+            relayout_action_generation: None,
             controls: GraphControls::default(),
             visibility: HashMap::new(),
             group_colors: HashMap::new(),
@@ -524,6 +579,7 @@ impl LoomGraphView {
         self.ctx_menu_node = None;
         self.ctx_menu_owner_pane_id = None;
         self.reset_layout();
+        self.relayout_action_generation = None;
     }
 
     /// Replace the graph while preserving the backend's bounded-projection metadata. A capped response
@@ -539,16 +595,38 @@ impl LoomGraphView {
         self.total_available = nodes.len();
         self.backend_truncated = backend_truncated;
         self.suppressed_hub_count = suppressed_hub_count;
+        // Force integration is order-sensitive at the raw f32 level: repulsion and spring vectors
+        // accumulate sequentially, so merely canonicalizing the final digest cannot make equivalent
+        // backend permutations converge to identical bits. Canonicalize the authoritative stored
+        // simulation order before clamping, seeding, or stepping. This also makes the NODE_CAP subset
+        // independent of backend row order.
+        nodes.sort_by(|left, right| {
+            left.block_id
+                .cmp(&right.block_id)
+                .then_with(|| left.title.cmp(&right.title))
+                .then_with(|| left.content_type.cmp(&right.content_type))
+                .then_with(|| left.tags.cmp(&right.tags))
+                .then_with(|| left.folder_path.cmp(&right.folder_path))
+                .then_with(|| left.x.total_cmp(&right.x))
+                .then_with(|| left.y.total_cmp(&right.y))
+        });
         if nodes.len() > NODE_CAP {
             nodes.truncate(NODE_CAP);
         }
         // Drop edges that reference a clamped-away node so rendering never dereferences a missing node.
         let present: std::collections::HashSet<&str> =
             nodes.iter().map(|n| n.block_id.as_str()).collect();
-        let edges = edges
+        let mut edges: Vec<GraphEdge> = edges
             .into_iter()
             .filter(|e| present.contains(e.source.as_str()) && present.contains(e.target.as_str()))
             .collect();
+        edges.sort_by(|left, right| {
+            left.edge_id
+                .cmp(&right.edge_id)
+                .then_with(|| left.source.cmp(&right.source))
+                .then_with(|| left.target.cmp(&right.target))
+                .then_with(|| left.edge_type.cmp(&right.edge_type))
+        });
         self.nodes = nodes;
         self.edges = edges;
         if self
@@ -560,6 +638,7 @@ impl LoomGraphView {
             self.ctx_menu_owner_pane_id = None;
         }
         self.reset_layout();
+        self.relayout_action_generation = None;
         self.loading = false;
         self.error = None;
         // MT-060: discover groups from the freshly-loaded nodes (idempotent — user state survives a
@@ -713,15 +792,153 @@ impl LoomGraphView {
     /// Reset the force layout so it re-seeds positions and re-converges from scratch (Re-layout button,
     /// or after a new graph is loaded).
     pub fn reset_layout(&mut self) {
+        self.layout_generation = self
+            .layout_generation
+            .checked_add(1)
+            .expect("layout generation exhausted");
+        self.fit_to_view_pending = true;
         self.seeded = false;
         self.iters_done = 0;
         self.last_max_step = f32::INFINITY;
+    }
+
+    /// Current force-layout epoch. This is the action-specific completion anchor exposed on
+    /// [`RELAYOUT_AUTHOR_ID`] for canonical Argus re-observation.
+    pub fn layout_generation(&self) -> u64 {
+        self.layout_generation
     }
 
     /// True when the layout has reached a stop condition (converged OR budget exhausted) and so must
     /// NOT request another repaint (the idle-repaint discipline).
     pub fn layout_stable(&self) -> bool {
         self.iters_done >= MAX_LAYOUT_ITERS || self.last_max_step < CONVERGENCE_EPS
+    }
+
+    /// Deterministic digest of the authoritative graph/layout state. Collection ordering is
+    /// canonicalized and every string is length-prefixed, so equivalent states hash identically even
+    /// if backend rows arrive in a different order.
+    pub fn layout_state_sha256(&self) -> String {
+        fn put_bytes(hasher: &mut Sha256, bytes: &[u8]) {
+            hasher.update((bytes.len() as u64).to_be_bytes());
+            hasher.update(bytes);
+        }
+
+        fn put_str(hasher: &mut Sha256, value: &str) {
+            put_bytes(hasher, value.as_bytes());
+        }
+
+        let mut hasher = Sha256::new();
+        hasher.update(b"handshake.graph.layout-state.v1");
+        put_str(&mut hasher, &self.workspace_id);
+        match &self.mode {
+            GraphMode::Global => hasher.update(b"global"),
+            GraphMode::Local { block_id, title } => {
+                hasher.update(b"local");
+                put_str(&mut hasher, block_id);
+                put_str(&mut hasher, title);
+            }
+        }
+
+        let mut nodes: Vec<&GraphNode> = self.nodes.iter().collect();
+        nodes.sort_by(|left, right| {
+            left.block_id
+                .cmp(&right.block_id)
+                .then_with(|| left.title.cmp(&right.title))
+                .then_with(|| left.content_type.cmp(&right.content_type))
+                .then_with(|| left.x.total_cmp(&right.x))
+                .then_with(|| left.y.total_cmp(&right.y))
+                .then_with(|| left.tags.cmp(&right.tags))
+                .then_with(|| left.folder_path.cmp(&right.folder_path))
+        });
+        hasher.update((nodes.len() as u64).to_be_bytes());
+        for node in nodes {
+            put_str(&mut hasher, &node.block_id);
+            put_str(&mut hasher, &node.title);
+            put_str(&mut hasher, &node.content_type);
+            hasher.update(node.x.to_bits().to_be_bytes());
+            hasher.update(node.y.to_bits().to_be_bytes());
+            let mut tags = node.tags.iter().map(String::as_str).collect::<Vec<_>>();
+            tags.sort_unstable();
+            hasher.update((tags.len() as u64).to_be_bytes());
+            for tag in tags {
+                put_str(&mut hasher, tag);
+            }
+            match &node.folder_path {
+                Some(path) => {
+                    hasher.update([1]);
+                    put_str(&mut hasher, path);
+                }
+                None => hasher.update([0]),
+            }
+        }
+
+        let mut edges: Vec<&GraphEdge> = self.edges.iter().collect();
+        edges.sort_by(|left, right| {
+            left.edge_id
+                .cmp(&right.edge_id)
+                .then_with(|| left.source.cmp(&right.source))
+                .then_with(|| left.target.cmp(&right.target))
+                .then_with(|| left.edge_type.cmp(&right.edge_type))
+        });
+        hasher.update((edges.len() as u64).to_be_bytes());
+        for edge in edges {
+            match &edge.edge_id {
+                Some(edge_id) => {
+                    hasher.update([1]);
+                    put_str(&mut hasher, edge_id);
+                }
+                None => hasher.update([0]),
+            }
+            put_str(&mut hasher, &edge.source);
+            put_str(&mut hasher, &edge.target);
+            put_str(&mut hasher, &edge.edge_type);
+        }
+        format!("{:x}", hasher.finalize())
+    }
+
+    /// Compact machine-readable value attached to `graph.relayout`. It deliberately exposes both the
+    /// epoch and terminal state digest: generation proves which reset completed, while the digest binds
+    /// that completion to the exact stable node/edge/position state Argus observed.
+    pub fn layout_observation_value(&self) -> String {
+        serde_json::json!({
+            "layout_generation": self.layout_generation,
+            "layout_status": if self.layout_stable() { "stable" } else { "running" },
+            "layout_state_sha256": self.layout_state_sha256(),
+            "iterations": self.iters_done,
+            "node_count": self.nodes.len(),
+            "edge_count": self.edges.len(),
+        })
+        .to_string()
+    }
+
+    fn relayout_completion_state(&self) -> ClickCompletionState {
+        match self.relayout_action_generation {
+            Some(generation) if generation == self.layout_generation && self.layout_stable() => {
+                ClickCompletionState::Applied
+            }
+            Some(generation) if generation == self.layout_generation => {
+                ClickCompletionState::Pending
+            }
+            _ => ClickCompletionState::Ready,
+        }
+    }
+
+    fn relayout_completion_context(&self) -> String {
+        match &self.mode {
+            GraphMode::Global => format!("{}:global", self.workspace_id),
+            GraphMode::Local { block_id, .. } => {
+                format!("{}:local:{}", self.workspace_id, block_id)
+            }
+        }
+    }
+
+    fn relayout_completion_value(&self) -> Option<String> {
+        serialize_same_target_click_completion(
+            "graph-relayout",
+            &self.relayout_completion_context(),
+            self.layout_generation,
+            self.relayout_completion_state(),
+        )
     }
 
     /// Seed initial positions on a circle around the origin (deterministic; not random, so tests are
@@ -733,8 +950,21 @@ impl LoomGraphView {
             return;
         }
         let radius = 60.0 + (n as f32) * 6.0;
-        for (i, node) in self.nodes.iter_mut().enumerate() {
-            let theta = (i as f32) / (n as f32) * std::f32::consts::TAU;
+        let mut stable_order = (0..n).collect::<Vec<_>>();
+        stable_order.sort_by(|left, right| {
+            self.nodes[*left]
+                .block_id
+                .cmp(&self.nodes[*right].block_id)
+                .then_with(|| self.nodes[*left].title.cmp(&self.nodes[*right].title))
+                .then_with(|| {
+                    self.nodes[*left]
+                        .content_type
+                        .cmp(&self.nodes[*right].content_type)
+                })
+        });
+        for (rank, index) in stable_order.into_iter().enumerate() {
+            let theta = (rank as f32) / (n as f32) * std::f32::consts::TAU;
+            let node = &mut self.nodes[index];
             node.x = radius * theta.cos();
             node.y = radius * theta.sin();
         }
@@ -749,6 +979,9 @@ impl LoomGraphView {
     ///   - repulsion: every node pair pushes apart with Coulomb k=1000/d^2 (capped at small d).
     ///   - attraction: connected pairs pull toward a 150px rest length with spring k=0.05.
     pub fn step_layout(&mut self) -> f32 {
+        if self.layout_stable() {
+            return self.last_max_step;
+        }
         if !self.seeded {
             self.seed_positions();
         }
@@ -850,6 +1083,81 @@ impl LoomGraphView {
         )
     }
 
+    /// Fit a newly-converged layout into the real canvas, reserving room for circles and labels.
+    /// Auto-fit only zooms out; it never magnifies a small graph. Pan/zoom are ephemeral viewport
+    /// state and deliberately remain outside the authoritative layout digest.
+    fn fit_converged_layout_to_canvas(&mut self, rect: Rect) {
+        let visible: Vec<&GraphNode> = self
+            .nodes
+            .iter()
+            .filter(|node| !self.is_hidden(&node.block_id))
+            .collect();
+        if visible.is_empty() {
+            self.fit_to_view_pending = false;
+            return;
+        }
+
+        let min_x = visible
+            .iter()
+            .map(|node| node.x)
+            .fold(f32::INFINITY, f32::min);
+        let max_x = visible
+            .iter()
+            .map(|node| node.x)
+            .fold(f32::NEG_INFINITY, f32::max);
+        let min_y = visible
+            .iter()
+            .map(|node| node.y)
+            .fold(f32::INFINITY, f32::min);
+        let max_y = visible
+            .iter()
+            .map(|node| node.y)
+            .fold(f32::NEG_INFINITY, f32::max);
+        let max_radius = visible
+            .iter()
+            .map(|node| {
+                let degree = self.node_degrees.get(&node.block_id).copied().unwrap_or(0);
+                node_radius(NODE_RADIUS, degree, self.controls.size_by_degree)
+            })
+            .fold(NODE_RADIUS, f32::max);
+        // The graph labels use an 11px proportional font. Six pixels per character is a conservative
+        // renderer-independent width estimate; we reserve half on each horizontal edge.
+        let max_label_half_width = visible
+            .iter()
+            .map(|node| node.title.chars().count() as f32 * 3.0)
+            .fold(0.0, f32::max);
+        let horizontal_margin = (max_radius + 6.0).max(max_label_half_width + 8.0);
+        let vertical_margin = max_radius + 24.0;
+        let available_width = (rect.width() - horizontal_margin * 2.0).max(1.0);
+        let available_height = (rect.height() - vertical_margin * 2.0).max(1.0);
+        let span_x = max_x - min_x;
+        let span_y = max_y - min_y;
+        let scale_x = if span_x > f32::EPSILON {
+            available_width / span_x
+        } else {
+            1.0
+        };
+        let scale_y = if span_y > f32::EPSILON {
+            available_height / span_y
+        } else {
+            1.0
+        };
+        // A tiny graph must remain readable. The global MIN_ZOOM exists for very large projections,
+        // but applying it to four nodes produces pin-sized circles and overlapping labels. Preserve a
+        // stronger floor for small/medium graphs; large projections retain the full zoom-out range.
+        let readable_min_zoom = match visible.len() {
+            0..=12 => 0.7,
+            13..=50 => 0.5,
+            _ => MIN_ZOOM,
+        };
+        self.zoom = scale_x
+            .min(scale_y)
+            .min(1.0)
+            .clamp(readable_min_zoom, MAX_ZOOM);
+        self.pan = -Vec2::new((min_x + max_x) * 0.5, (min_y + max_y) * 0.5) * self.zoom;
+        self.fit_to_view_pending = false;
+    }
+
     /// Find the node whose circle contains `screen_pos` (topmost / last drawn wins). Used by click
     /// detection and pan-vs-node hit testing. MT-060: a HIDDEN node (orphan filter) is NOT drawn and so is
     /// NOT hit-testable — click detection skips it so a hidden node can never be selected (RISK-6 / MC-6).
@@ -891,7 +1199,7 @@ impl LoomGraphView {
         let mut event = None;
 
         // ── Toolbar strip ────────────────────────────────────────────────────────────────────────
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             let is_local = self.mode.is_local();
             // Mode toggle (two SelectableLabel widgets with stable author_ids).
             let local = ui.selectable_label(is_local, "Local");
@@ -912,19 +1220,35 @@ impl LoomGraphView {
             let zin = ui.button("+");
             emit_toolbar_node(ui, zin.id, ZOOM_IN_AUTHOR_ID, "Zoom in");
             if zin.clicked() {
+                self.fit_to_view_pending = false;
                 self.zoom = (self.zoom * 1.15).clamp(MIN_ZOOM, MAX_ZOOM);
             }
             let zout = ui.button("-");
             emit_toolbar_node(ui, zout.id, ZOOM_OUT_AUTHOR_ID, "Zoom out");
             if zout.clicked() {
+                self.fit_to_view_pending = false;
                 self.zoom = (self.zoom / 1.15).clamp(MIN_ZOOM, MAX_ZOOM);
             }
             let relayout = ui.button("Re-layout");
-            emit_toolbar_node(ui, relayout.id, RELAYOUT_AUTHOR_ID, "Re-run graph layout");
             if relayout.clicked() {
                 self.reset_layout();
+                self.relayout_action_generation = Some(self.layout_generation);
                 event = Some(GraphEvent::Relayout);
             }
+            emit_toolbar_node_with_value(
+                ui,
+                relayout.id,
+                RELAYOUT_AUTHOR_ID,
+                "Re-run graph layout",
+                self.relayout_completion_value(),
+            );
+            emit_status_node_with_value(
+                ui,
+                relayout.id.with("status"),
+                RELAYOUT_STATUS_AUTHOR_ID,
+                "Graph layout status",
+                self.layout_observation_value(),
+            );
 
             if self.error.is_some() {
                 let retry = ui.button("Retry");
@@ -974,6 +1298,17 @@ impl LoomGraphView {
             self.recompute_overlays();
         }
         let is_local_mode = self.mode.is_local();
+        // The graph is commonly mounted in one lane of the multi-pane editor. Keeping the full
+        // 160px controls strip open in a narrow lane can leave too little canvas to display even a
+        // four-node graph. Collapse it once on the first narrow render; this preserves the user's
+        // explicit choice after that frame (the always-visible toggle can reopen it) and leaves the
+        // default `GraphControls` state unchanged for normal-width surfaces.
+        if self.last_canvas_rect.is_none()
+            && ui.available_width() < 600.0
+            && self.controls.panel_open
+        {
+            self.controls.panel_open = false;
+        }
         // Render the control panel as a left SidePanel scoped to THIS ui, so it sits beside the canvas and
         // the canvas takes the remaining width. When collapsed (panel_open=false) the panel renders only
         // its expand toggle, so it does not steal canvas space.
@@ -1023,8 +1358,18 @@ impl LoomGraphView {
         draw_grid(&painter, rect, palette);
 
         // Drive one layout step; request repaint ONLY while still animating (idle-repaint discipline).
+        let was_stable = self.layout_stable();
         let max_step = self.step_layout();
-        if !self.layout_stable() {
+        let is_stable = self.layout_stable();
+        if is_stable && self.fit_to_view_pending {
+            self.fit_converged_layout_to_canvas(rect);
+        }
+        if !is_stable {
+            ui.ctx().request_repaint();
+        } else if !was_stable && self.relayout_action_generation == Some(self.layout_generation) {
+            // The toolbar completion/status nodes were emitted before this final convergence step.
+            // Request exactly one final frame so they expose Applied + the terminal digest instead of
+            // leaving ActionChannel parked on the preceding Pending observation forever.
             ui.ctx().request_repaint();
         }
         let _ = max_step;
@@ -1033,6 +1378,7 @@ impl LoomGraphView {
         if let Some(pointer) = canvas_resp.hover_pos() {
             let scroll_y = ui.input(|i| i.raw_scroll_delta.y);
             if scroll_y != 0.0 {
+                self.fit_to_view_pending = false;
                 self.apply_zoom(scroll_y.signum(), pointer, center);
             }
         }
@@ -1044,6 +1390,7 @@ impl LoomGraphView {
                 .and_then(|p| self.node_at_screen(p, center))
                 .is_some();
             if !over_node {
+                self.fit_to_view_pending = false;
                 self.pan += canvas_resp.drag_delta();
             }
         }
@@ -1197,6 +1544,17 @@ impl LoomGraphView {
             .iter()
             .map(|index| self.nodes[*index].block_id.as_str())
             .collect();
+        let narrow_labels = rect.width() < 260.0;
+        let shared_label_prefix = if narrow_labels {
+            shared_title_token_prefix(
+                self.nodes
+                    .iter()
+                    .filter(|node| !self.is_hidden(&node.block_id))
+                    .map(|node| node.title.as_str()),
+            )
+        } else {
+            None
+        };
         for (node_index, node) in self.nodes.iter().enumerate() {
             // Skip hidden nodes entirely — not drawn, not labelled, not AccessKit-addressable, not
             // selectable (the hit test already skips them). RISK-6 / MC-6.
@@ -1234,22 +1592,27 @@ impl LoomGraphView {
             } else {
                 palette.text
             };
+            let display_title =
+                compact_graph_label(&node.title, shared_label_prefix.as_deref(), narrow_labels);
             painter.text(
                 Pos2::new(screen.x, screen.y + r + 2.0),
                 egui::Align2::CENTER_TOP,
-                &node.title,
-                egui::FontId::proportional(11.0),
+                display_title,
+                egui::FontId::proportional(if narrow_labels { 9.0 } else { 11.0 }),
                 label_color,
             );
             // The product registry consumes actions only for the visible + bounded-lookahead set.
             // Emitting every off-screen node here would advertise targets the registry cannot consume.
             if accesskit_indices.contains(&node_index) {
+                let accessibility_bounds =
+                    Rect::from_center_size(screen, Vec2::splat(r * 2.0)).intersect(rect);
                 emit_node_accesskit(
                     ui,
                     node,
                     &self.edges,
                     &accesskit_block_ids,
                     self.selected.as_deref() == Some(node.block_id.as_str()),
+                    accessibility_bounds,
                 );
             }
         }
@@ -1289,6 +1652,10 @@ impl LoomGraphView {
         if self.knowledge_registry.is_some() {
             self.sync_knowledge_registry(self.last_canvas_rect);
             self.emit_knowledge_accesskit(ui);
+            // The registry emits the canonical role/value/action payload after the painter pass. Reapply
+            // the painter's exact screen geometry last so registry identities cannot overwrite dynamic
+            // graph-node bounds with the synthetic UI cursor's zero-size rect.
+            self.emit_knowledge_node_bounds(ui, rect, center);
             let dispatched = self.take_knowledge_dispatched(ui);
             self.pending_knowledge_events.extend(dispatched);
         }
@@ -1431,6 +1798,28 @@ impl LoomGraphView {
                 ui.ctx().request_repaint();
             }
             registry.emit_into_tree(ui);
+        }
+    }
+
+    fn emit_knowledge_node_bounds(&self, ui: &egui::Ui, rect: Rect, center: Vec2) {
+        for index in self.visible_node_indices(Some(rect), center) {
+            let node = &self.nodes[index];
+            let degree = self.node_degrees.get(&node.block_id).copied().unwrap_or(0);
+            let radius = node_radius(NODE_RADIUS, degree, self.controls.size_by_degree) * self.zoom;
+            let screen = self.to_screen(node.pos(), center);
+            let bounds = Rect::from_center_size(screen, Vec2::splat(radius * 2.0));
+            let id = egui::Id::new(knowledge_action_registry::graph_node_author_id(
+                &node.block_id,
+            ));
+            ui.ctx()
+                .accesskit_node_builder(id, move |accessibility_node| {
+                    accessibility_node.set_bounds(accesskit::Rect {
+                        x0: f64::from(bounds.min.x),
+                        y0: f64::from(bounds.min.y),
+                        x1: f64::from(bounds.max.x),
+                        y1: f64::from(bounds.max.y),
+                    });
+                });
         }
     }
 
@@ -1601,13 +1990,43 @@ fn draw_overlay_label(
 /// Emit a toolbar control's live AccessKit node (Role::Button + Action::Click + author_id) so a swarm
 /// agent can address it by stable id (AC6 / HBR-SWARM).
 fn emit_toolbar_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
+    emit_toolbar_node_with_value(ui, id, author_id, label, None);
+}
+
+fn emit_toolbar_node_with_value(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: Option<String>,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::Button);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
+        if let Some(value) = &value {
+            node.set_value(value.clone());
+        }
         node.add_action(accesskit::Action::Click);
+    });
+}
+
+fn emit_status_node_with_value(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: String,
+) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Status);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
     });
 }
 
@@ -1621,6 +2040,7 @@ fn emit_node_accesskit(
     edges: &[GraphEdge],
     emitted_block_ids: &std::collections::HashSet<&str>,
     selected: bool,
+    bounds: Rect,
 ) {
     let author = node_author_id(&node.block_id);
     let id = egui::Id::new(&author);
@@ -1644,6 +2064,12 @@ fn emit_node_accesskit(
         n.set_label(label.clone());
         n.add_action(accesskit::Action::Click);
         n.add_action(accesskit::Action::Focus);
+        n.set_bounds(accesskit::Rect {
+            x0: f64::from(bounds.min.x),
+            y0: f64::from(bounds.min.y),
+            x1: f64::from(bounds.max.x),
+            y1: f64::from(bounds.max.y),
+        });
         if !flow_to.is_empty() {
             n.set_flow_to(flow_to.clone());
         }
@@ -1656,6 +2082,31 @@ fn emit_node_accesskit(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn narrow_labels_keep_distinguishing_suffix_and_bound_long_titles() {
+        let titles = [
+            "MT-021 Argus Alpha",
+            "MT-021 Argus Beta",
+            "MT-021 Argus Gamma",
+            "MT-021 Argus Isolated",
+        ];
+        let prefix = shared_title_token_prefix(titles.iter().copied());
+        assert_eq!(prefix.as_deref(), Some("MT-021 Argus "));
+        assert_eq!(
+            compact_graph_label(titles[0], prefix.as_deref(), true),
+            "Alpha"
+        );
+        assert_eq!(
+            compact_graph_label(titles[3], prefix.as_deref(), true),
+            "Isolated"
+        );
+        assert_eq!(compact_graph_label("abcdefghijk", None, true), "abc…hijk");
+        assert_eq!(
+            compact_graph_label(titles[0], prefix.as_deref(), false),
+            titles[0]
+        );
+    }
 
     fn ring_graph(n: usize) -> LoomGraphView {
         let mut v = LoomGraphView::global("ws-1");
@@ -1713,14 +2164,16 @@ mod tests {
             v.step_layout();
         }
         let iters = v.iters_done;
+        let digest = v.layout_state_sha256();
         // Calling step again past stability does not blow the budget or destabilize.
         v.step_layout();
         assert!(v.layout_stable(), "must remain stable");
-        assert!(
-            v.iters_done >= iters,
-            "iters only ever grow, capped at the budget"
+        assert_eq!(v.iters_done, iters, "stable layout consumes no more budget");
+        assert_eq!(
+            v.layout_state_sha256(),
+            digest,
+            "stable layout has an immutable terminal digest"
         );
-        assert!(v.iters_done <= MAX_LAYOUT_ITERS + ITERS_PER_FRAME);
     }
 
     /// MC-3 / RISK-3: block ids with slashes/colons sanitize to `[a-z0-9-]` author_id suffixes.
@@ -1840,5 +2293,158 @@ mod tests {
             "content-type colours must be distinguishable (got {})",
             set.len()
         );
+    }
+
+    #[test]
+    fn relayout_generation_advances_exactly_once_and_reports_terminal_digest() {
+        let mut view = ring_graph(5);
+        while !view.layout_stable() {
+            view.step_layout();
+        }
+        let generation_before = view.layout_generation();
+        let digest_before = view.layout_state_sha256();
+        assert_eq!(digest_before.len(), 64);
+        let ready: serde_json::Value = serde_json::from_str(
+            view.relayout_completion_value()
+                .as_deref()
+                .expect("bounded ready click completion"),
+        )
+        .expect("ready click completion JSON");
+        assert_eq!(ready["generation"], generation_before);
+        assert_eq!(ready["state"], "ready");
+
+        view.reset_layout();
+        view.relayout_action_generation = Some(view.layout_generation());
+        assert_eq!(view.layout_generation(), generation_before + 1);
+        let pending: serde_json::Value = serde_json::from_str(
+            view.relayout_completion_value()
+                .as_deref()
+                .expect("bounded pending click completion"),
+        )
+        .expect("pending click completion JSON");
+        assert_eq!(pending["generation"], generation_before + 1);
+        assert_eq!(pending["state"], "pending");
+        let running: serde_json::Value = serde_json::from_str(&view.layout_observation_value())
+            .expect("running observation JSON");
+        assert_eq!(running["layout_generation"], generation_before + 1);
+        assert_eq!(running["layout_status"], "running");
+
+        while !view.layout_stable() {
+            view.step_layout();
+        }
+        let terminal: serde_json::Value = serde_json::from_str(&view.layout_observation_value())
+            .expect("terminal observation JSON");
+        assert_eq!(terminal["layout_generation"], generation_before + 1);
+        assert_eq!(terminal["layout_status"], "stable");
+        assert_eq!(terminal["layout_state_sha256"], digest_before);
+        assert_eq!(terminal["node_count"], 5);
+        assert_eq!(terminal["edge_count"], 5);
+        let applied: serde_json::Value = serde_json::from_str(
+            view.relayout_completion_value()
+                .as_deref()
+                .expect("bounded applied click completion"),
+        )
+        .expect("applied click completion JSON");
+        assert_eq!(applied["generation"], generation_before + 1);
+        assert_eq!(applied["state"], "applied");
+    }
+
+    #[test]
+    fn layout_digest_is_order_independent_but_changes_with_authoritative_state() {
+        let nodes = (0..10)
+            .map(|index| {
+                GraphNode::new(
+                    format!("asymmetric-{index:02}"),
+                    format!("Asymmetric {index}"),
+                    if index % 3 == 0 { "note" } else { "file" },
+                )
+            })
+            .collect::<Vec<_>>();
+        let edges = [
+            (0, 1),
+            (0, 2),
+            (0, 4),
+            (1, 3),
+            (1, 6),
+            (2, 3),
+            (2, 5),
+            (3, 4),
+            (3, 7),
+            (4, 8),
+            (5, 6),
+            (5, 9),
+            (6, 7),
+            (7, 8),
+            (8, 9),
+        ]
+        .into_iter()
+        .map(|(source, target)| {
+            GraphEdge::new(
+                format!("asymmetric-{source:02}"),
+                format!("asymmetric-{target:02}"),
+                "mention",
+            )
+        })
+        .collect::<Vec<_>>();
+
+        let mut permuted_nodes = nodes.clone();
+        permuted_nodes.rotate_left(3);
+        permuted_nodes.reverse();
+        let mut permuted_edges = edges.clone();
+        permuted_edges.rotate_right(4);
+        permuted_edges.reverse();
+
+        let mut left = LoomGraphView::global("ws-asymmetric");
+        left.set_graph(nodes, edges);
+        let mut reordered = LoomGraphView::global("ws-asymmetric");
+        reordered.set_graph(permuted_nodes, permuted_edges);
+        while !left.layout_stable() {
+            left.step_layout();
+        }
+        while !reordered.layout_stable() {
+            reordered.step_layout();
+        }
+        assert_eq!(left.iters_done, reordered.iters_done);
+        for (left_node, right_node) in left.nodes.iter().zip(&reordered.nodes) {
+            assert_eq!(left_node.block_id, right_node.block_id);
+            assert_eq!(left_node.x.to_bits(), right_node.x.to_bits());
+            assert_eq!(left_node.y.to_bits(), right_node.y.to_bits());
+        }
+        assert_eq!(left.layout_state_sha256(), reordered.layout_state_sha256());
+
+        reordered.nodes[0].x += 0.25;
+        assert_ne!(left.layout_state_sha256(), reordered.layout_state_sha256());
+    }
+
+    #[test]
+    fn background_graph_refresh_clears_pending_relayout_ownership() {
+        let mut view = ring_graph(5);
+        while !view.layout_stable() {
+            view.step_layout();
+        }
+        view.reset_layout();
+        view.relayout_action_generation = Some(view.layout_generation());
+        let pending_generation = view.layout_generation();
+        let pending: serde_json::Value = serde_json::from_str(
+            view.relayout_completion_value()
+                .as_deref()
+                .expect("pending completion token"),
+        )
+        .expect("pending completion JSON");
+        assert_eq!(pending["state"], "pending");
+
+        let refreshed_nodes = view.nodes.clone();
+        let refreshed_edges = view.edges.clone();
+        view.set_graph_projection(refreshed_nodes, refreshed_edges, false, 0);
+        assert_eq!(view.layout_generation(), pending_generation + 1);
+        assert_eq!(view.relayout_action_generation, None);
+        let refreshed: serde_json::Value = serde_json::from_str(
+            view.relayout_completion_value()
+                .as_deref()
+                .expect("refreshed completion token"),
+        )
+        .expect("refreshed completion JSON");
+        assert_eq!(refreshed["generation"], pending_generation + 1);
+        assert_eq!(refreshed["state"], "ready");
     }
 }

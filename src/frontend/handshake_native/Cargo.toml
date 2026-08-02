@@ -224,9 +224,9 @@ iana-time-zone = "0.1"
 # WP-KERNEL-012 MT-036 (E5 — one event ledger): `uuid` (v4) generates the per-event `event_id` and the
 # per-session `session_id` (a non-nil UUID the verified Flight Recorder `runtime_chat_event` endpoint
 # REQUIRES). uuid 1.23.x is ALREADY in the locked graph transitively (Cargo.lock pins 1.23.3 via the egui/
-# wasm + flight-recorder stack), so declaring it adds NO new dependency family — it only enables the `v4`
-# feature so the native crate can mint ids directly. Pure-Rust, no native build; Cargo.lock pins the version.
-uuid = { version = "1", features = ["v4"] }
+# wasm + flight-recorder stack), so declaring it adds NO new dependency family — it enables legacy `v4`
+# fixtures plus required time-ordered product `v7` ids. Pure-Rust, no native build; Cargo.lock pins the version.
+uuid = { version = "1", features = ["v4", "v7"] }
 # WP-KERNEL-012 MT-059 wiki-page markdown rendering: `pulldown-cmark` (0.11) is the de-facto Rust
 # CommonMark parser (pure-Rust, MIT/Apache-2.0; used by mdBook and docs.rs). The shared
 # `rich_editor::markdown_render` adapter runs it over the read-only wiki projection `rendered_content`

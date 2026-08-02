@@ -75,6 +75,7 @@ use crate::interop::cross_ref::{
     find_code_ref_notes_with, FindNotesHttp, FindNotesSearch, SymbolDwellTracker,
 };
 use crate::interop::InteractionBus;
+use crate::mcp::action::{serialize_observer_click_state, ClickCompletionState};
 use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
 
@@ -91,8 +92,9 @@ use super::cursor::{
     MAX_ACCESSKIT_CURSORS,
 };
 use super::editor_view::{
-    CodeNavigationLocation, CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome,
-    HoverState, HoverTooltip,
+    completion_item_author_id, CodeNavigationLocation, CompletionOutcome, CompletionPopup,
+    CompletionState, HoverOutcome, HoverState, HoverTooltip, CODE_EDITOR_COMPLETION_ACCEPT_EFFECT,
+    CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID,
 };
 use super::formatting::{self, FormatOutcome};
 
@@ -1079,6 +1081,10 @@ pub struct CodeEditorPanel {
     /// (Arrow/Enter/Escape) and the result-delivery drain mutate it. Behind a `Mutex` for the same
     /// `Sync` reason as the buffer.
     completion_state: Mutex<Option<CompletionState>>,
+    /// Durable acknowledgement state for transient completion rows. Every newly opened popup resets
+    /// this observer to a fresh Ready generation. Only a successful click outcome advances it to the
+    /// matching Applied generation; keyboard acceptance deliberately does not claim a Click receipt.
+    completion_observer: Mutex<CompletionObserverState>,
     completion_visible_identity: Mutex<Option<CodeIntelligenceRequestIdentity>>,
     /// MT-008 hover tooltip state. `None` when no hover is showing; `Some` while the tooltip is open.
     hover_state: Mutex<Option<HoverState>>,
@@ -2006,6 +2012,42 @@ struct RowGeometry {
     line_height: f32,
 }
 
+#[derive(Debug, Clone)]
+struct CompletionObserverState {
+    context: String,
+    generation: u64,
+    state: ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+}
+
+impl CompletionObserverState {
+    fn ready(context: String, generation: u64) -> Self {
+        Self {
+            context,
+            generation,
+            state: ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+        }
+    }
+}
+
+fn completion_observer_context(instance: &str, workspace_id: &str, file_path: &str) -> String {
+    use sha2::{Digest, Sha256};
+
+    let document = if file_path.trim().is_empty() {
+        "<in-memory>"
+    } else {
+        file_path
+    };
+    let identity = format!("{instance}\0{workspace_id}\0{document}");
+    format!(
+        "code-editor-document:{:x}",
+        Sha256::digest(identity.as_bytes())
+    )
+}
+
 impl Drop for CodeEditorPanel {
     fn drop(&mut self) {
         if let Ok(cancel_slot) = self.initial_highlight_cancel.get_mut() {
@@ -2124,6 +2166,7 @@ impl CodeEditorPanel {
         // when ambiguous — MC-007). Pure string analysis, no backend.
         let detected_eol = super::file_meta::Eol::detect(text);
         let detected_indent = super::file_meta::detect_indent(text);
+        let initial_completion_observer_context = completion_observer_context(&instance, "", "");
         Self {
             buffer: Mutex::new(buffer),
             highlighter: Mutex::new(highlighter),
@@ -2212,6 +2255,10 @@ impl CodeEditorPanel {
             // empty results until a server is configured — AC-004). No workspace bound yet (code-nav
             // requests are skipped until `set_workspace_id`).
             completion_state: Mutex::new(None),
+            completion_observer: Mutex::new(CompletionObserverState::ready(
+                initial_completion_observer_context,
+                0,
+            )),
             completion_visible_identity: Mutex::new(None),
             hover_state: Mutex::new(None),
             hover_visible_identity: Mutex::new(None),
@@ -4793,6 +4840,93 @@ impl CodeEditorPanel {
             .is_some()
     }
 
+    fn completion_observer_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID)
+    }
+
+    fn reset_completion_observer_for_popup(&self) {
+        let context =
+            completion_observer_context(&self.instance, &self.workspace_id(), &self.file_path());
+        let mut observer = self
+            .completion_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let generation = observer
+            .generation
+            .checked_add(1)
+            .expect("code completion observer generation exhausted");
+        *observer = CompletionObserverState::ready(context, generation);
+    }
+
+    fn completion_observer_snapshot(&self) -> CompletionObserverState {
+        self.completion_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    fn mark_completion_click_applied(
+        &self,
+        expected_context: &str,
+        expected_generation: u64,
+        completion_index: usize,
+        semantic_value: &str,
+    ) -> bool {
+        let pending_target = completion_item_author_id(completion_index, &self.instance);
+        let mut observer = self
+            .completion_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if observer.state != ClickCompletionState::Ready
+            || observer.context != expected_context
+            || observer.generation != expected_generation
+        {
+            return false;
+        }
+        let applied_generation = observer
+            .generation
+            .checked_add(1)
+            .expect("code completion observer generation exhausted");
+        if serialize_observer_click_state(
+            CODE_EDITOR_COMPLETION_ACCEPT_EFFECT,
+            &observer.context,
+            applied_generation,
+            ClickCompletionState::Applied,
+            Some(&pending_target),
+            Some(semantic_value),
+        )
+        .is_none()
+        {
+            return false;
+        }
+        observer.generation = applied_generation;
+        observer.state = ClickCompletionState::Applied;
+        observer.pending_target = Some(pending_target);
+        observer.semantic_value = Some(semantic_value.to_owned());
+        true
+    }
+
+    fn emit_completion_observer(&self, ctx: &egui::Context) {
+        let observer = self.completion_observer_snapshot();
+        let value = serialize_observer_click_state(
+            CODE_EDITOR_COMPLETION_ACCEPT_EFFECT,
+            &observer.context,
+            observer.generation,
+            observer.state,
+            observer.pending_target.as_deref(),
+            observer.semantic_value.as_deref(),
+        )
+        .expect("code completion observer fields are bounded and valid");
+        let author_id = self.completion_observer_author_id();
+        let node_id = egui::Id::new(("code-editor-completion-observer", &self.instance));
+        ctx.accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::Status);
+            node.set_author_id(author_id.clone());
+            node.set_label("Code completion acceptance status".to_owned());
+            node.set_value(value.clone());
+        });
+    }
+
     /// Open the completion popup with `items` anchored at the primary cursor's pixel (the deterministic
     /// path the trigger + tests use). A no-op when `items` is empty (nothing to show).
     pub fn open_completion(&self, items: Vec<CompletionItem>) {
@@ -4803,6 +4937,7 @@ impl CodeEditorPanel {
         let anchor = self
             .cursor_screen_pos()
             .unwrap_or_else(|| egui::pos2(40.0, 40.0));
+        self.reset_completion_observer_for_popup();
         *self
             .completion_state
             .lock()
@@ -7616,6 +7751,23 @@ impl CodeEditorPanel {
             .clone()
     }
 
+    /// Current painted viewport in canonical buffer-line coordinates. Cross-surface navigation
+    /// completion uses this instead of the fold-compressed visible-row range so a hidden definition
+    /// cannot be reported as visibly revealed.
+    pub fn last_visible_buffer_range(&self) -> std::ops::Range<usize> {
+        self.last_painted_buffer_range(self.buffer().len_lines())
+    }
+
+    /// Whether this exact canonical buffer line was painted in the most recent frame. Unlike a
+    /// bounding range check, this remains false for lines hidden inside a fold and works under wrap.
+    pub fn is_buffer_line_painted(&self, line: usize) -> bool {
+        self.last_gutter_paint_rows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .any(|row| row.line == line)
+    }
+
     /// The live vertical scroll offset in pixels from egui's own `ScrollArea` state, including
     /// fractional partial-row offsets. `0.0` before the first render.
     pub fn last_scroll_offset_px(&self) -> f32 {
@@ -8484,6 +8636,7 @@ impl CodeEditorPanel {
                 if delivery.items.is_empty() {
                     self.close_completion();
                 } else {
+                    self.reset_completion_observer_for_popup();
                     let visible_identity = delivery.request.clone();
                     *self
                         .completion_state
@@ -8616,14 +8769,38 @@ impl CodeEditorPanel {
         // Render the completion popup (a no-op when closed). The panel owns the state; the popup is a
         // stateless renderer that returns the click outcome.
         if let Some(state) = self.completion_state() {
-            match CompletionPopup::show(ui.ctx(), &state, &self.instance) {
+            let observer = self.completion_observer_snapshot();
+            let observer_author_id = self.completion_observer_author_id();
+            match CompletionPopup::show(
+                ui.ctx(),
+                &state,
+                &self.instance,
+                &observer.context,
+                observer.generation,
+                &observer_author_id,
+            ) {
                 CompletionOutcome::Accept(index) => {
-                    self.accept_completion_index(index);
+                    let semantic_value =
+                        state.items.get(index).map(|item| item.insert_text.clone());
+                    let version_before = self.buffer_version.load(Ordering::Relaxed);
+                    if self.accept_completion_index(index)
+                        && self.buffer_version.load(Ordering::Relaxed) > version_before
+                    {
+                        if let Some(semantic_value) = semantic_value {
+                            self.mark_completion_click_applied(
+                                &observer.context,
+                                observer.generation,
+                                index,
+                                &semantic_value,
+                            );
+                        }
+                    }
                 }
                 CompletionOutcome::Dismiss => self.close_completion(),
                 CompletionOutcome::None => {}
             }
         }
+        self.emit_completion_observer(ui.ctx());
 
         // Render the hover tooltip (a no-op when closed).
         if let Some(state) = self.hover_state() {

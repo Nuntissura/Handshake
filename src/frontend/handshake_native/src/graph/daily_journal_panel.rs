@@ -605,6 +605,24 @@ impl DailyJournalPanel {
                         chip_resp.id,
                         DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
                     );
+                    // The event chip is also the durable identity projection for a canonical
+                    // inspect -> click -> terminal-reinspect proof.  A later CalendarEvent pane is
+                    // not enough to attribute the transition to this exact chip when several dates
+                    // can project the same multi-day event.  Keep the human label unchanged, while
+                    // exposing the exact event + daily-note binding as structured AccessKit value.
+                    let chip_value = serde_json::json!({
+                        "calendar_event_id": ev.id,
+                        "daily_note_doc_id": ev.daily_note_doc_id.as_ref().map(DocId::as_str),
+                    })
+                    .to_string();
+                    let chip_label_for_accessibility = chip_label.clone();
+                    ui.ctx().accesskit_node_builder(chip_resp.id, move |node| {
+                        node.set_role(accesskit::Role::Button);
+                        node.set_author_id(DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID.to_owned());
+                        node.set_label(chip_label_for_accessibility.clone());
+                        node.set_value(chip_value.clone());
+                        node.add_action(accesskit::Action::Click);
+                    });
                     if chip_resp.clicked() {
                         event = DailyJournalEvent::FocusCalendarEvent(ev.id.clone());
                     }

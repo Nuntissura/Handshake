@@ -912,6 +912,34 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  evidence only under the allocated external Handshake_Artifacts MT-027 root.",
             ),
             section(
+                "workflows",
+                "Load and diagnose a large tag hub",
+                "Open the Tags panel and select a tag, or call `GET \
+                 /workspaces/:workspace_id/loom/tags/:tag_block_id`. The target must be a \
+                 `tag_hub` block. One response returns the complete tag block, direct \
+                 `sub_tags`, direct `tagged_blocks`, and `backlink_count` across every incoming \
+                 edge type. Duplicate semantic tag edges remain legal: member rows are \
+                 de-duplicated while `backlink_count` counts physical incoming edges. The \
+                 release proof `perf_proof_perf_lk03_tag_hub` independently verifies an exact \
+                 5,001-block/5,000-tag-edge PostgreSQL fixture, retains `EXPLAIN (ANALYZE, \
+                 BUFFERS)` plans, and enforces the unchanged 2,000 ms end-to-end budget with \
+                 no override.\n\
+                 Recovery: a non-tag target fails closed as `HSK-400-LOOM-VALIDATION`; an \
+                 unavailable backend, request timeout, or partial response remains a typed \
+                 request failure and must be retried after `/health` reports both service and \
+                 database healthy. MT-045 proof failures retain the owned backend listen \
+                 report, stdout/stderr, process exit state, health snapshot, and reqwest error \
+                 chain under the external `Handshake_Artifacts/wp-kernel-012/mt-045` root.\n\
+                 Diagnostic posture (HBR-INT-009): the backend emits structured \
+                 `loom_tag_hub_stage_timing` tracing events for tag-block lookup, incoming-edge \
+                 SQL, workspace lookup, LoomBlock mapping, sub-tag/tag assembly, backlink count, JSON \
+                 serialization, and response construction; events contain only mechanical durations, \
+                 row counts, edge type, and response bytes. Tier 1 Flight Recorder remains WIRED \
+                 for Loom mutations but these read-stage timings use structured backend logs. \
+                 Tier 2 internal_diagnostics and Tier 3 Palmistry remain WIRED at the shared \
+                 host/process boundary; neither changes tag-hub response authority.",
+            ),
+            section(
                 "failure_modes",
                 "Failure modes",
                 "- 404 `workspace_not_found` — the :workspace_id does not exist.\n\

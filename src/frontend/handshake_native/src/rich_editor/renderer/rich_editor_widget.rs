@@ -54,6 +54,11 @@ pub const RICH_EDITOR_TEXT_AUTHOR_ID: &str = "editor.rich.text";
 #[derive(serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum SlashActionPayload {
+    /// Execute one exact durable slash-command id through the real registry/executor. The closed
+    /// payload currently admits only `code-ref`, whose terminal effect is a visible symbol dialog.
+    SlashCommand {
+        command_id: String,
+    },
     Note {
         title: String,
     },
@@ -196,6 +201,9 @@ pub struct RichEditorState {
     /// installed by [`Self::set_code_ref_context`] (reusing the wikilink workspace context by default).
     pub code_symbol_search:
         Option<crate::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState>,
+    /// Monotonic proof seam for fresh `/code-ref` activation. Incremented only when the production
+    /// slash-command executor opens a new code-symbol-search generation.
+    pub code_symbol_search_generation: u64,
     /// WP-KERNEL-012 MT-034: the workspace id the `/code-ref` dialog scopes its symbol lookup to (set
     /// alongside the wikilink context by [`Self::set_code_ref_context`] / [`Self::set_workspace_context`]).
     pub code_ref_workspace_id: String,
@@ -432,6 +440,7 @@ impl RichEditorState {
             tag_autocomplete: None,
             tag_list: Vec::new(),
             code_symbol_search: None,
+            code_symbol_search_generation: 0,
             code_ref_workspace_id: String::new(),
             code_ref_runtime: None,
             properties: None,
@@ -2857,6 +2866,78 @@ impl RichEditorWidget {
             RichDispatch::InsertSlashCommand => {
                 if let Some(payload) = payload {
                     match serde_json::from_str::<SlashActionPayload>(payload) {
+                        Ok(SlashActionPayload::SlashCommand { command_id })
+                            if command_id == "code-ref" =>
+                        {
+                            use crate::rich_editor::slash_commands::executor::{
+                                execute_slash_command_without_trigger, SlashExecContext,
+                                SlashExecOutcome,
+                            };
+                            use crate::rich_editor::slash_commands::registry::SLASH_COMMANDS;
+
+                            let Some(command) = SLASH_COMMANDS
+                                .iter()
+                                .find(|command| command.id == command_id)
+                            else {
+                                state.interop_error = Some(format!(
+                                    "insert-slash-command registry has no command '{command_id}'"
+                                ));
+                                ctx.request_repaint();
+                                return;
+                            };
+                            let Selection::Text { head, .. } = &state.selection else {
+                                state.interop_error =
+                                    Some("insert-slash-command requires a text caret".to_owned());
+                                ctx.request_repaint();
+                                return;
+                            };
+                            let menu = crate::rich_editor::slash_commands::SlashMenuState::open(
+                                head.path.clone(),
+                                head.char_offset,
+                            );
+                            let outcome = {
+                                let RichEditorState {
+                                    doc,
+                                    selection,
+                                    undo,
+                                    actor_id,
+                                    ..
+                                } = state;
+                                let mut slash_ctx = SlashExecContext {
+                                    doc,
+                                    history: undo,
+                                    selection,
+                                    actor_id: actor_id.as_str(),
+                                };
+                                execute_slash_command_without_trigger(
+                                    &mut slash_ctx,
+                                    &menu,
+                                    command,
+                                )
+                            };
+                            match outcome {
+                                SlashExecOutcome::OpenCodeSymbolSearch => {
+                                    state.slash_menu = None;
+                                    state.slash_menu_opened_explicitly = false;
+                                    state.code_symbol_search_generation =
+                                        state.code_symbol_search_generation.wrapping_add(1).max(1);
+                                    state.code_symbol_search = Some(
+                                        crate::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState::open(
+                                            state.code_ref_workspace_id.clone(),
+                                            state.code_ref_runtime.clone(),
+                                        ),
+                                    );
+                                    state.interop_error = None;
+                                }
+                                _ => {
+                                    state.interop_error = Some(format!(
+                                        "insert-slash-command '{command_id}' produced an unexpected outcome"
+                                    ));
+                                }
+                            }
+                            ctx.request_repaint();
+                            return;
+                        }
                         Ok(SlashActionPayload::Note { title }) if !title.trim().is_empty() => {
                             if state.wikilinks.dispatch_create_note(title.trim()) {
                                 state.interop_error = None;
@@ -2936,7 +3017,7 @@ impl RichEditorWidget {
                         }
                         _ => {
                             state.interop_error = Some(
-                                "insert-slash-command payload must be one of {\"kind\":\"note\",\"title\":\"...\"}, {\"kind\":\"wikilink\",\"ref_kind\":\"note\",\"ref_value\":\"...\",\"label\":\"...\"}, or {\"kind\":\"code_block\",\"language\":\"rust\",\"code\":\"...\"}"
+                                "insert-slash-command payload must be one of {\"kind\":\"slash_command\",\"command_id\":\"code-ref\"}, {\"kind\":\"note\",\"title\":\"...\"}, {\"kind\":\"wikilink\",\"ref_kind\":\"note\",\"ref_value\":\"...\",\"label\":\"...\"}, or {\"kind\":\"code_block\",\"language\":\"rust\",\"code\":\"...\"}"
                                     .to_owned(),
                             );
                             ctx.request_repaint();
@@ -4382,6 +4463,8 @@ impl RichEditorWidget {
                 // select it inserts a `code` hsLink atom at the caret (where the `/code-ref` was).
                 state.slash_menu = None;
                 state.slash_menu_opened_explicitly = false;
+                state.code_symbol_search_generation =
+                    state.code_symbol_search_generation.wrapping_add(1).max(1);
                 state.code_symbol_search = Some(
                     crate::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState::open(
                         state.code_ref_workspace_id.clone(),
@@ -6307,6 +6390,72 @@ mod tests {
             st.selection,
             Selection::Text { ref head, .. } if head.path == vec![0, 0] && head.char_offset == 0
         ));
+    }
+
+    #[test]
+    fn canonical_slash_command_payload_opens_code_symbol_search_through_registry_executor() {
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
+        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+
+        RichEditorWidget::run_rich_dispatch(
+            &mut state,
+            &RichDispatch::InsertSlashCommand,
+            "insert-slash-command",
+            Some(r#"{"kind":"slash_command","command_id":"code-ref"}"#),
+            &egui::Context::default(),
+        );
+
+        assert!(state.code_symbol_search.is_some());
+        assert_eq!(state.code_symbol_search_generation, 1);
+        assert!(state.slash_menu.is_none());
+        assert_eq!(
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            before,
+            "opening the real code-ref dialog must not bypass selection by inserting an hsLink"
+        );
+        assert!(state.pending_bus_undo.is_empty());
+        assert!(state.interop_error.is_none());
+
+        RichEditorWidget::run_rich_dispatch(
+            &mut state,
+            &RichDispatch::InsertSlashCommand,
+            "insert-slash-command",
+            Some(r#"{"kind":"slash_command","command_id":"code-ref"}"#),
+            &egui::Context::default(),
+        );
+        assert_eq!(
+            state.code_symbol_search_generation, 2,
+            "a real activation replaces an already-open dialog with a fresh generation"
+        );
+    }
+
+    #[test]
+    fn canonical_slash_command_payload_rejects_non_closed_command_without_mutation() {
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
+        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+
+        RichEditorWidget::run_rich_dispatch(
+            &mut state,
+            &RichDispatch::InsertSlashCommand,
+            "insert-slash-command",
+            Some(r#"{"kind":"slash_command","command_id":"divider"}"#),
+            &egui::Context::default(),
+        );
+
+        assert!(state.code_symbol_search.is_none());
+        assert_eq!(
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            before
+        );
+        assert!(state.pending_bus_undo.is_empty());
+        assert!(state
+            .interop_error
+            .as_deref()
+            .is_some_and(|error| error.contains("payload must be one of")));
     }
 
     #[test]

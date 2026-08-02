@@ -21,6 +21,14 @@ use crate::rich_editor::embeds::asset_resolver::{
     EmbedError, ResolvedAsset, MAX_FULL_IMAGE_BYTES, MAX_IMAGE_DIMENSION, MAX_IMAGE_PIXELS,
 };
 
+/// Authoritative interaction contract for an image instance. Thumbnail/cell images are controls;
+/// full-size, slideshow, album-modal, and video-poster images are static content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageInteraction {
+    Clickable,
+    Static,
+}
+
 /// Decode `bytes` into a [`ColorImage`] (RGBA8) using the `image` crate. Returns a typed
 /// [`EmbedError::MediaLoadFailed`] (NOT a panic) when the bytes are not a decodable image
 /// (MC-005). This is the CPU-heavy step the caller runs on `tokio::spawn_blocking`; it returns
@@ -143,21 +151,26 @@ pub fn aspect_fit_size(tex_w: f32, tex_h: f32, max_width: f32) -> egui::Vec2 {
 }
 
 /// Render a single resolved image into `ui` at aspect-correct width, returning the
-/// [`egui::Response`] of the clickable image (so the caller can open the full-size overlay).
-/// The texture must already be uploaded (the caller uploads via [`EmbedTextureCache::upload`]
-/// after the off-thread decode). The image is wrapped in a `Sense::click` so a click toggles
-/// the enlarge overlay; the AccessKit author_id for the image control is set by the caller.
+/// [`egui::Response`] of the image. The texture must already be uploaded (the caller uploads via
+/// [`EmbedTextureCache::upload`] after the off-thread decode). Only `Clickable` instances receive
+/// `Sense::click`; static full-size/slideshow/poster instances use hover-only sense. The caller sets
+/// the AccessKit author-id and clears/adds actions from this same authoritative interaction mode.
 pub fn render_image(
     ui: &mut egui::Ui,
     texture: &TextureHandle,
     resolved: &ResolvedAsset,
     max_width: f32,
+    interaction: ImageInteraction,
 ) -> egui::Response {
     let [w, h] = texture.size();
     let size = aspect_fit_size(w as f32, h as f32, max_width);
+    let sense = match interaction {
+        ImageInteraction::Clickable => egui::Sense::click(),
+        ImageInteraction::Static => egui::Sense::hover(),
+    };
     let image_widget = egui::Image::new(texture)
         .fit_to_exact_size(size)
-        .sense(egui::Sense::click());
+        .sense(sense);
     let alt = resolved
         .asset
         .original_filename

@@ -51,8 +51,9 @@
 //! ## AccessKit (HBR-SWARM)
 //!
 //! Every folder row emits a live AccessKit node (`folder-tree.node.{sanitized_folder_id}`,
-//! Role::TreeItem, with Expand/Collapse + the Click default-open action) and every color swatch a button
-//! (`folder-tree.color.{sanitized_folder_id}`, Role::Button); every leaf block row a TreeItem
+//! Role::TreeItem, with Expand/Collapse + the Click default-open action) and every color swatch an
+//! actionable button (`folder-tree.color.{sanitized_folder_id}`, Role::Button); every leaf block row a
+//! TreeItem
 //! (`folder-tree.node.{sanitized_block_id}`). The error banner's Retry button is `folder-tree.retry`. Ids
 //! are sanitized to `[a-z0-9-]` via [`crate::project_tree::stable_part`] (RISK-4 / MC-4) so a raw id with
 //! slashes or colons can never break the AccessKit tree. Manual indented rows (NOT
@@ -62,13 +63,16 @@
 use egui::accesskit;
 use egui::{Color32, Sense, Stroke, Vec2};
 
+use crate::mcp::action::{serialize_same_target_click_completion, ClickCompletionState};
 use crate::theme::HsPalette;
 
 /// AccessKit author_id prefix for a tree row (folder OR leaf block). The full id is
 /// `folder-tree.node.{sanitized_id}`.
 pub const NODE_AUTHOR_ID_PREFIX: &str = "folder-tree.node.";
+pub const STATUS_AUTHOR_ID_PREFIX: &str = "folder-tree.status.";
 
-/// AccessKit author_id prefix for a folder's color-swatch button: `folder-tree.color.{sanitized_id}`.
+/// AccessKit author_id prefix for a folder's actionable color-swatch button:
+/// `folder-tree.color.{sanitized_id}`.
 pub const COLOR_AUTHOR_ID_PREFIX: &str = "folder-tree.color.";
 
 /// AccessKit author_id for the error-banner Retry button.
@@ -95,6 +99,11 @@ pub const INDENT_PER_LEVEL: f32 = 16.0;
 
 /// Color swatch size (the contract's "12x12 filled rectangle").
 pub const SWATCH_SIZE: f32 = 12.0;
+
+/// Horizontal chrome occupied by a folder's disclosure glyph, swatch, and row gaps. Leaf content
+/// reserves this width in addition to its structural depth so it begins at least one indent step to
+/// the right of its parent folder label.
+const LEAF_PARENT_CHROME_RESERVE: f32 = INDENT_PER_LEVEL * 3.0;
 
 /// Deterministic color-picker swatches used by the right-click "Change color" flow and the swatch
 /// shortcut. The built-in egui color editor still appears below these buttons for arbitrary colors, but
@@ -142,7 +151,14 @@ pub fn node_author_id(id: &str) -> String {
     format!("{NODE_AUTHOR_ID_PREFIX}{}", collision_safe_folder_part(id))
 }
 
-/// The stable AccessKit author_id for a folder's color swatch button:
+pub fn status_author_id(folder_id: &str) -> String {
+    format!(
+        "{STATUS_AUTHOR_ID_PREFIX}{}",
+        collision_safe_folder_part(folder_id)
+    )
+}
+
+/// The stable AccessKit author_id for a folder's actionable color-swatch button:
 /// `folder-tree.color.{sanitized_folder_id}`.
 pub fn color_author_id(folder_id: &str) -> String {
     format!(
@@ -311,12 +327,31 @@ pub struct FolderNode {
     /// Child *folders* (known from the flat-row tree build).
     pub child_folders: Vec<FolderNode>,
     /// Child *blocks*, loaded lazily on first expand. `None` = not yet loaded; `Some(vec)` = loaded
-    /// (possibly empty). Cached so re-expanding does NOT re-fetch (the contract's lazy-load caching rule).
+    /// (possibly empty). Disclosure-only collapse/re-expand may reuse this cache; a folder-row Open action
+    /// always revalidates it through a fresh backend request so ActionChannel causality is authoritative.
     pub child_blocks: Option<Vec<LeafBlock>>,
     pub expanded: bool,
     /// True ONLY while a genuine in-flight child-block fetch is dispatched (set by the host when it
     /// spawns the request; cleared when the result is delivered). Drives the bounded spinner.
     pub loading: bool,
+    /// Typed terminal failure for the latest child-list request owned by this folder/action.
+    pub child_error: Option<String>,
+    /// Monotonic generation for causally binding a folder-row click to selection, expansion, and the
+    /// authoritative child-list terminal state.
+    expansion_generation: u64,
+    expansion_action_generation: Option<u64>,
+    /// Exact latest child-list request bound to this concrete node instance. A list/tree rebuild creates
+    /// a new node with no binding, so even an app-level latest sequence cannot mutate rebuilt state.
+    child_request_sequence: Option<u64>,
+    /// Exact backend child-list sequence bound to the current folder-row Open action.
+    expansion_request_sequence: Option<u64>,
+    /// Terminal child-list sequence applied to this node. Completion is legal only when this equals the
+    /// current action's `expansion_request_sequence`.
+    expansion_terminal_sequence: Option<u64>,
+    /// One-shot viewport reveal armed by an exact child-list completion. The mounted pane consumes it
+    /// after painting the first returned child so an expansion at the bottom of the compact Folders
+    /// pane cannot leave the newly loaded row clipped below the viewport.
+    reveal_children_once: bool,
 }
 
 impl FolderNode {
@@ -333,6 +368,100 @@ impl FolderNode {
             child_blocks: None,
             expanded: false,
             loading: false,
+            child_error: None,
+            expansion_generation: 0,
+            expansion_action_generation: None,
+            child_request_sequence: None,
+            expansion_request_sequence: None,
+            expansion_terminal_sequence: None,
+            reveal_children_once: false,
+        }
+    }
+
+    /// Start one folder-row Open action and return its exact UI generation for the host event.
+    pub fn begin_open_action(&mut self) -> u64 {
+        self.expansion_generation = self
+            .expansion_generation
+            .checked_add(1)
+            .expect("folder expansion generation exhausted");
+        self.expansion_action_generation = Some(self.expansion_generation);
+        self.child_request_sequence = None;
+        self.expansion_request_sequence = None;
+        self.expansion_terminal_sequence = None;
+        self.reveal_children_once = false;
+        self.expanded = true;
+        self.child_error = None;
+        self.expansion_generation
+    }
+
+    /// Bind the current Open action to the exact fresh child-list request allocated by the host.
+    /// Returns false for a stale queued event so it cannot start or claim a newer action's request.
+    pub fn bind_open_request(&mut self, action_generation: u64, request_sequence: u64) -> bool {
+        if self.expansion_action_generation != Some(action_generation)
+            || self.expansion_generation != action_generation
+        {
+            return false;
+        }
+        self.child_request_sequence = Some(request_sequence);
+        self.expansion_request_sequence = Some(request_sequence);
+        self.expansion_terminal_sequence = None;
+        self.reveal_children_once = false;
+        self.expanded = true;
+        self.loading = true;
+        self.child_error = None;
+        true
+    }
+
+    /// Bind a disclosure-only lazy fetch to this concrete node instance. Unlike a row Open, this does
+    /// not claim an ActionChannel generation, but its delivery is still rejected after a node rebuild.
+    pub fn bind_disclosure_request(&mut self, request_sequence: u64) {
+        self.child_request_sequence = Some(request_sequence);
+        self.reveal_children_once = false;
+        self.loading = true;
+        self.child_error = None;
+    }
+
+    /// Mark the exact node-bound child request terminal. Stale or unbound responses return false and
+    /// callers must not mutate child/error/loading state when false.
+    pub fn complete_child_request(&mut self, request_sequence: u64) -> bool {
+        if self.child_request_sequence != Some(request_sequence) {
+            return false;
+        }
+        self.child_request_sequence = None;
+        if self.expansion_request_sequence == Some(request_sequence) {
+            self.expansion_terminal_sequence = Some(request_sequence);
+        }
+        self.loading = false;
+        true
+    }
+
+    /// Reveal a newly installed successful child-list result once in the mounted scrolling viewport.
+    /// Failure deliveries do not call this, so an old cached child can never steal focus from an error.
+    pub fn reveal_loaded_children_once(&mut self) {
+        self.reveal_children_once = self.expanded && self.child_blocks.is_some();
+    }
+
+    /// Collapse the node and retire any reveal that was armed for content no longer being painted.
+    pub fn collapse(&mut self) {
+        self.expanded = false;
+        self.reveal_children_once = false;
+    }
+
+    fn expansion_completion_state(&self, selected: bool) -> ClickCompletionState {
+        if self.expansion_action_generation != Some(self.expansion_generation) {
+            return ClickCompletionState::Ready;
+        }
+        let exact_request_terminal = self.expansion_request_sequence.is_some()
+            && self.expansion_terminal_sequence == self.expansion_request_sequence;
+        if selected
+            && self.expanded
+            && !self.loading
+            && exact_request_terminal
+            && (self.child_blocks.is_some() || self.child_error.is_some())
+        {
+            ClickCompletionState::Applied
+        } else {
+            ClickCompletionState::Pending
         }
     }
 
@@ -357,6 +486,14 @@ impl FolderNode {
             }
         }
         None
+    }
+
+    fn first_child_error(&self) -> Option<&str> {
+        self.child_error.as_deref().or_else(|| {
+            self.child_folders
+                .iter()
+                .find_map(FolderNode::first_child_error)
+        })
     }
 }
 
@@ -439,6 +576,9 @@ pub enum FolderTreeEvent {
     /// through generic LoomBlock open/navigation.
     OpenFolder {
         folder_id: String,
+        /// UI generation created by the exact row click. The host binds this to a fresh backend
+        /// child-list request sequence and ignores stale queued generations.
+        action_generation: u64,
     },
     /// A leaf block row was clicked: fire `on_open(block_id)` (AC5). Carries the block id.
     OpenBlock {
@@ -483,6 +623,10 @@ pub struct LoomFolderTree {
     pub loading: bool,
     /// Set on a backend failure; renders the error banner + Retry (AC8). `None` => no error.
     pub error: Option<String>,
+    /// Projection of the first live node-owned child-list failure in the current forest. Recomputed
+    /// recursively after every exact child terminal so success for one folder cannot hide another
+    /// folder's still-live failure.
+    pub child_error_banner: Option<String>,
     /// The last failed mutation. Authoritative list reconciliation must not erase this message before
     /// an operator/model can perceive it; a new mutation or explicit Retry clears it.
     pub operation_error: Option<String>,
@@ -515,6 +659,7 @@ impl LoomFolderTree {
         }
         self.loading = false;
         self.error = None;
+        self.refresh_child_error_banner();
     }
 
     /// Find a folder node by id anywhere in the forest (mutable). The host uses this to flip `expanded`,
@@ -528,6 +673,15 @@ impl LoomFolderTree {
         None
     }
 
+    /// Recompute the visible global child-error banner from current node-owned truth.
+    pub fn refresh_child_error_banner(&mut self) {
+        self.child_error_banner = self
+            .root_nodes
+            .iter()
+            .find_map(FolderNode::first_child_error)
+            .map(str::to_owned);
+    }
+
     /// Total folder nodes across the whole forest (for tests + the empty-state check).
     pub fn folder_count(&self) -> usize {
         self.root_nodes.iter().map(FolderNode::folder_count).sum()
@@ -538,6 +692,7 @@ impl LoomFolderTree {
     /// child-load spinner is active (idle-repaint discipline).
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<FolderTreeEvent> {
         let mut event: Option<FolderTreeEvent> = None;
+        self.refresh_child_error_banner();
 
         let new_folder = ui.button("New folder");
         emit_button_accesskit(ui, new_folder.id, NEW_FOLDER_AUTHOR_ID, "New folder");
@@ -546,13 +701,19 @@ impl LoomFolderTree {
         }
 
         // ── Error banner (AC8) ─────────────────────────────────────────────────────────────────────
-        if self.error.is_some() || self.operation_error.is_some() {
+        if self.error.is_some()
+            || self.child_error_banner.is_some()
+            || self.operation_error.is_some()
+        {
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     if let Some(err) = self.operation_error.as_deref() {
                         ui.colored_label(palette.error_text, format!("⚠ {err}"));
                     }
                     if let Some(err) = self.error.as_deref() {
+                        ui.colored_label(palette.error_text, format!("⚠ {err}"));
+                    }
+                    if let Some(err) = self.child_error_banner.as_deref() {
                         ui.colored_label(palette.error_text, format!("⚠ {err}"));
                     }
                 });
@@ -579,6 +740,7 @@ impl LoomFolderTree {
         // ── Empty state (AC7) ───────────────────────────────────────────────────────────────────────
         if !self.loading
             && self.error.is_none()
+            && self.child_error_banner.is_none()
             && self.operation_error.is_none()
             && self.root_nodes.is_empty()
         {
@@ -605,6 +767,7 @@ impl LoomFolderTree {
                 ui,
                 palette,
                 0,
+                &self.workspace_id,
                 self.selected_folder_id.as_deref(),
                 &mut self.create_draft,
                 &mut self.rename_draft,
@@ -761,7 +924,7 @@ impl LoomFolderTree {
                 self.delete_draft = None;
             }
         }
-        if let Some(FolderTreeEvent::OpenFolder { folder_id }) = &event {
+        if let Some(FolderTreeEvent::OpenFolder { folder_id, .. }) = &event {
             self.selected_folder_id = Some(folder_id.clone());
         }
 
@@ -787,6 +950,7 @@ fn render_folder(
     ui: &mut egui::Ui,
     palette: &HsPalette,
     depth: usize,
+    workspace_id: &str,
     selected_folder_id: Option<&str>,
     create_draft: &mut Option<(Option<String>, String)>,
     rename_draft: &mut Option<(String, String)>,
@@ -813,7 +977,7 @@ fn render_folder(
         let tri_resp = ui.add(egui::Label::new(tri).sense(Sense::click()));
 
         // Color swatch (12x12 rect) painted with the folder color or the neutral theme token. The swatch
-        // is itself an addressable button (Change-color affordance + AccessKit color id).
+        // is an addressable Button and opens the same explicitly controlled picker as the context menu.
         let swatch_color = node.color.unwrap_or(palette.border_strong);
         let (sw_rect, sw_resp) = ui.allocate_exact_size(Vec2::splat(SWATCH_SIZE), Sense::click());
         if ui.is_rect_visible(sw_rect) {
@@ -825,11 +989,16 @@ fn render_folder(
                 egui::StrokeKind::Inside,
             );
         }
-        emit_button_accesskit(
+        emit_color_swatch_accesskit(
             ui,
             sw_resp.id,
             &color_author_id(&node.folder_id),
-            &format!("Change color for folder {}", node.title),
+            &format!(
+                "Folder color for {}: {}",
+                node.title,
+                color_to_hex(swatch_color)
+            ),
+            swatch_color,
         );
 
         // The folder label (clicking it opens/navigates; the row id is the addressable TreeItem).
@@ -848,6 +1017,25 @@ fn render_folder(
     });
     let (tri_resp, sw_resp, label_resp) = row.inner;
 
+    let label_clicked = label_resp.clicked();
+    let open_action_generation = if label_clicked {
+        // Apply the causal generation in the same frame that consumes the AccessKit Click. The host
+        // owns the real child fetch and binds this exact generation to its request sequence.
+        Some(node.begin_open_action())
+    } else {
+        None
+    };
+
+    let selected = selected_folder_id == Some(node.folder_id.as_str());
+    let completion_state = node.expansion_completion_state(selected);
+    let completion_context = format!("{workspace_id}:{}", node.folder_id);
+    let completion_value = serialize_same_target_click_completion(
+        "folder-open-expand",
+        &completion_context,
+        node.expansion_generation,
+        completion_state,
+    );
+
     // Emit the folder row's AccessKit TreeItem (Expand/Collapse + Click default-open). The row id is the
     // label's id (the primary clickable), carrying the stable `folder-tree.node.{id}` author_id.
     emit_tree_item_accesskit(
@@ -856,6 +1044,15 @@ fn render_folder(
         &node.folder_id,
         &node.title,
         node.expanded,
+        true,
+        completion_value,
+    );
+    emit_folder_status_accesskit(
+        ui,
+        label_resp.id.with("status"),
+        workspace_id,
+        node,
+        selected,
     );
 
     let current_color = node.color.unwrap_or(palette.border_strong);
@@ -863,8 +1060,8 @@ fn render_folder(
 
     // ── Row right-click => context-menu "Change color" => color picker (AC4) ────────────────────────
     // This is the contract-required row secondary-click path. It opens an in-process egui picker; the
-    // picker returns a real picked color, which emits the same ChangeColor event the host persists via
-    // `PATCH /loom/folders/{id}`. The swatch popup below is retained as a shortcut, not the only path.
+    // picker returns a real picked color, which emits the ChangeColor event the host persists via
+    // `PATCH /loom/folders/{id}`. The actionable swatch below opens this same controlled popup id.
     let mut open_row_picker = false;
     egui::Popup::context_menu(&label_resp).show(|ui| {
         if ui.button("Change color").clicked() {
@@ -923,21 +1120,11 @@ fn render_folder(
             ui.close();
         }
     });
-    if open_row_picker {
+    if open_row_picker || sw_resp.clicked() {
         egui::Popup::open_id(ui.ctx(), row_picker_id);
         ui.ctx().request_repaint();
     }
     if let Some(picked) = color_picker_popup_for_id(row_picker_id, &label_resp, current_color) {
-        event = Some(FolderTreeEvent::ChangeColor {
-            folder_id: node.folder_id.clone(),
-            color: picked,
-        });
-    }
-
-    // ── Swatch click => open the same color picker popup (shortcut) ─────────────────────────────────
-    // The shortcut is anchored to the swatch button. It is not a replacement for the right-click row
-    // flow above; both paths emit the same event and therefore exercise the same host persistence route.
-    if let Some(picked) = color_picker_popup(&sw_resp, current_color) {
         event = Some(FolderTreeEvent::ChangeColor {
             folder_id: node.folder_id.clone(),
             color: picked,
@@ -971,14 +1158,16 @@ fn render_folder(
                 });
             }
         } else {
+            node.collapse();
             event = Some(FolderTreeEvent::CollapseFolder {
                 folder_id: node.folder_id.clone(),
             });
         }
     }
-    if label_resp.clicked() {
+    if let Some(action_generation) = open_action_generation {
         event = Some(FolderTreeEvent::OpenFolder {
             folder_id: node.folder_id.clone(),
+            action_generation,
         });
     }
 
@@ -991,6 +1180,7 @@ fn render_folder(
                 ui,
                 palette,
                 depth + 1,
+                workspace_id,
                 selected_folder_id,
                 create_draft,
                 rename_draft,
@@ -1003,14 +1193,26 @@ fn render_folder(
             spinner_active |= spin;
         }
         if let Some(blocks) = &node.child_blocks {
+            let mut reveal_children = std::mem::take(&mut node.reveal_children_once);
             if blocks.is_empty() {
-                ui.horizontal(|ui| {
-                    ui.add_space(INDENT_PER_LEVEL * (depth + 1) as f32);
+                let empty = ui.horizontal(|ui| {
+                    ui.add_space(
+                        INDENT_PER_LEVEL * (depth + 1) as f32 + LEAF_PARENT_CHROME_RESERVE,
+                    );
                     ui.weak("(empty)");
                 });
+                if reveal_children {
+                    empty.response.scroll_to_me(None);
+                    reveal_children = false;
+                }
             }
             for leaf in blocks {
-                if let Some(ev) = render_leaf(leaf, ui, palette, depth + 1) {
+                let (leaf_event, leaf_response) = render_leaf(leaf, ui, palette, depth + 1);
+                if reveal_children {
+                    leaf_response.scroll_to_me(None);
+                    reveal_children = false;
+                }
+                if let Some(ev) = leaf_event {
                     event = Some(ev);
                 }
             }
@@ -1027,11 +1229,11 @@ fn render_leaf(
     ui: &mut egui::Ui,
     palette: &HsPalette,
     depth: usize,
-) -> Option<FolderTreeEvent> {
+) -> (Option<FolderTreeEvent>, egui::Response) {
     let mut event = None;
     let resp = ui
         .horizontal(|ui| {
-            ui.add_space(INDENT_PER_LEVEL * depth as f32);
+            ui.add_space(INDENT_PER_LEVEL * depth as f32 + LEAF_PARENT_CHROME_RESERVE);
             // Content-type icon char + title (the contract's "block title + content_type icon
             // character").
             let label = format!("{} {}", leaf.icon(), leaf.title);
@@ -1042,40 +1244,29 @@ fn render_leaf(
         })
         .inner;
     // Leaf TreeItem (no Expand/Collapse — leaves do not expand). Click is the default open action.
-    emit_tree_item_accesskit(ui, resp.id, &leaf.block_id, &leaf.title, false);
+    emit_tree_item_accesskit(ui, resp.id, &leaf.block_id, &leaf.title, false, false, None);
     if resp.clicked() {
         event = Some(FolderTreeEvent::OpenBlock {
             block_id: leaf.block_id.clone(),
         });
     }
-    event
+    (event, resp)
 }
 
-/// A small color-picker popup anchored to the swatch button. Returns `Some(color)` ONLY when the popup
-/// is open and the operator changed the color this frame (the persist-on-change signal). Uses stable
-/// swatch buttons plus egui's own [`egui::color_picker::color_edit_button_srgba`] inside an
-/// [`egui::Popup`] so it never steals OS focus (HBR-QUIET — it is an in-process egui popup, no foreground
-/// window). The popup toggles open on the swatch click via `Popup::from_toggle_button_response`.
-fn color_picker_popup(anchor: &egui::Response, current: Color32) -> Option<Color32> {
-    let mut picked = None;
-    egui::Popup::from_toggle_button_response(anchor)
-        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-        .show(|ui| {
-            picked = color_picker_contents(ui, current);
-        });
-    picked
-}
-
-/// The context-menu driven color picker opened by the "Change color" row action. It uses a stable popup
-/// id so the menu action can open it and model/kittest drivers can then pick a deterministic swatch.
+/// The controlled color picker opened by the row's "Change color" context action or its color-swatch
+/// button. It uses a stable popup id so model/kittest drivers can then pick a deterministic color.
 fn color_picker_popup_for_id(
     popup_id: egui::Id,
     anchor: &egui::Response,
     current: Color32,
 ) -> Option<Color32> {
     let mut picked = None;
-    egui::Popup::menu(anchor)
+    // `Popup::menu(anchor)` toggles on `anchor.clicked()`, so it would incorrectly open this picker on a
+    // normal primary folder-row Open. Memory state changes only through explicit `Popup::open_id` from
+    // the context-menu command or swatch button above (or close behavior below).
+    egui::Popup::from_response(anchor)
         .id(popup_id)
+        .open_memory(None)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .show(|ui| {
             picked = color_picker_contents(ui, current);
@@ -1086,7 +1277,7 @@ fn color_picker_popup_for_id(
     picked
 }
 
-/// Shared color-picking contents for the row context-menu path and the swatch shortcut.
+/// Color-picking contents for the row context-menu path.
 fn color_picker_contents(ui: &mut egui::Ui, current: Color32) -> Option<Color32> {
     let mut picked = None;
     ui.label("Pick a folder color");
@@ -1125,6 +1316,27 @@ fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &s
     });
 }
 
+/// Emit the contract-required actionable color-swatch button. It reports its current RGBA value and
+/// advertises Click truthfully because the primary action opens the explicitly controlled picker.
+fn emit_color_swatch_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    color: Color32,
+) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let rgba = u32::from_be_bytes(color.to_array());
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Button);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_color_value(rgba);
+        node.add_action(accesskit::Action::Click);
+    });
+}
+
 /// Emit a tree row's live AccessKit node: Role::TreeItem, label = title, author_id =
 /// `folder-tree.node.{sanitized_id}` (AC6 / HBR-SWARM). Folder rows carry Expand/Collapse actions plus
 /// the default Click (open); leaf rows carry only Click. `id` is the row's primary clickable egui id.
@@ -1134,6 +1346,8 @@ fn emit_tree_item_accesskit(
     raw_id: &str,
     title: &str,
     expanded: bool,
+    expandable: bool,
+    value: Option<String>,
 ) {
     let author = node_author_id(raw_id);
     let label = title.to_owned();
@@ -1141,14 +1355,60 @@ fn emit_tree_item_accesskit(
         node.set_role(accesskit::Role::TreeItem);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
+        if let Some(value) = &value {
+            node.set_value(value.clone());
+        }
         node.add_action(accesskit::Action::Click);
         // Expand/Collapse so a swarm agent can drive the tree open/closed by id (the RISK-4 control:
         // manual rows expose these; CollapsingHeader would not).
-        if expanded {
-            node.add_action(accesskit::Action::Collapse);
-        } else {
-            node.add_action(accesskit::Action::Expand);
+        if expandable {
+            if expanded {
+                node.add_action(accesskit::Action::Collapse);
+            } else {
+                node.add_action(accesskit::Action::Expand);
+            }
         }
+    });
+}
+
+fn emit_folder_status_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    workspace_id: &str,
+    folder: &FolderNode,
+    selected: bool,
+) {
+    let author = status_author_id(&folder.folder_id);
+    let label = format!("Folder state for {}", folder.title);
+    let child_state = if folder.loading {
+        "loading"
+    } else if folder.child_error.is_some() {
+        "failed"
+    } else if folder.child_blocks.is_some() {
+        "loaded"
+    } else {
+        "not_requested"
+    };
+    let value = serde_json::json!({
+        "schema": "handshake.folder-expansion-status/v1",
+        "workspace_id": workspace_id,
+        "folder_id": &folder.folder_id,
+        "generation": folder.expansion_generation,
+        "request_sequence": folder.expansion_request_sequence,
+        "terminal_request_sequence": folder.expansion_terminal_sequence,
+        "selected": selected,
+        "expanded": folder.expanded,
+        "loading": folder.loading,
+        "child_state": child_state,
+        "child_count": folder.child_blocks.as_ref().map(Vec::len),
+        "error": folder.child_error.as_deref(),
+    })
+    .to_string();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Status);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
     });
 }
 
@@ -1386,10 +1646,11 @@ mod tests {
         );
     }
 
-    /// Lazy-load caching: a node whose `child_blocks` is already `Some` is considered loaded, so the
-    /// host must NOT re-fetch on re-expand. We assert the state model that drives that decision.
+    /// Disclosure-only lazy-load caching: a node whose `child_blocks` is already `Some` is considered
+    /// loaded, so collapse/re-expand need not re-fetch. Row Open actions separately revalidate on every
+    /// click through an exact action-generation/request-sequence binding.
     #[test]
-    fn loaded_node_is_not_refetched() {
+    fn disclosure_reexpand_reuses_loaded_node_cache() {
         let mut node = FolderNode::new(&FolderRow::new("f", None, "F", None));
         // Not yet loaded => an expand should trigger a fetch.
         assert!(
@@ -1401,6 +1662,100 @@ mod tests {
         assert!(
             node.child_blocks.is_some(),
             "loaded (even empty) node is cached"
+        );
+    }
+
+    #[test]
+    fn successful_child_install_arms_one_shot_reveal_but_failure_does_not() {
+        let mut node = FolderNode::new(&FolderRow::new("f", None, "F", None));
+        let generation = node.begin_open_action();
+        assert!(node.bind_open_request(generation, 7));
+        assert!(node.complete_child_request(7));
+        assert!(
+            !node.reveal_children_once,
+            "a terminal delivery alone may still be a failure and must not reveal stale cache"
+        );
+
+        node.child_blocks = Some(vec![LeafBlock::new("b", "Child", "note")]);
+        node.reveal_loaded_children_once();
+        assert!(node.reveal_children_once);
+
+        node.collapse();
+        assert!(
+            !node.reveal_children_once,
+            "collapse retires a reveal for children that are no longer painted"
+        );
+
+        node.expanded = true;
+        node.reveal_loaded_children_once();
+        assert!(node.reveal_children_once);
+        node.bind_disclosure_request(8);
+        assert!(
+            !node.reveal_children_once,
+            "a fresh disclosure request resets an unconsumed reveal"
+        );
+
+        node.reveal_loaded_children_once();
+        node.begin_open_action();
+        assert!(
+            !node.reveal_children_once,
+            "a fresh open action resets an unconsumed reveal from the prior generation"
+        );
+    }
+
+    #[test]
+    fn folder_open_generation_stays_pending_until_selected_child_terminal_state() {
+        let row = FolderRow::new("folder-001", None, "Projects", None);
+        let mut node = FolderNode::new(&row);
+        assert_eq!(
+            node.expansion_completion_state(false),
+            ClickCompletionState::Ready
+        );
+
+        let generation_one = node.begin_open_action();
+        assert_eq!(generation_one, 1);
+        assert_eq!(node.expansion_generation, 1);
+        assert!(node.expanded);
+        assert_eq!(
+            node.expansion_completion_state(false),
+            ClickCompletionState::Pending,
+            "selection must be observed on a fresh frame"
+        );
+        assert!(node.bind_open_request(generation_one, 41));
+        assert_eq!(
+            node.expansion_completion_state(true),
+            ClickCompletionState::Pending
+        );
+        assert!(
+            !node.complete_child_request(40),
+            "a stale backend sequence cannot terminate the current action"
+        );
+        assert_eq!(
+            node.expansion_completion_state(true),
+            ClickCompletionState::Pending
+        );
+        assert!(node.complete_child_request(41));
+        node.child_blocks = Some(vec![LeafBlock::new("block-001", "Child", "note")]);
+        assert_eq!(
+            node.expansion_completion_state(true),
+            ClickCompletionState::Applied
+        );
+
+        let generation_two = node.begin_open_action();
+        assert_eq!(node.expansion_generation, 2);
+        assert_eq!(generation_two, 2);
+        assert_eq!(
+            node.expansion_completion_state(true),
+            ClickCompletionState::Pending,
+            "a repeated click cannot reuse the generation-one cached children"
+        );
+        assert!(node.bind_open_request(generation_two, 42));
+        assert!(node.complete_child_request(42));
+        node.child_error = Some("typed backend failure".to_owned());
+        assert_eq!(
+            node.expansion_completion_state(true),
+            ClickCompletionState::Applied,
+            "typed failure acknowledges the click without claiming child-load success"
         );
     }
 

@@ -88,11 +88,20 @@ pub const EDITOR_READING_MODE_DEFAULT_AUTHOR_ID: &str = "settings-editor-reading
 pub const WIKI_PROJECTION_SETTINGS_POSTURE_AUTHOR_ID: &str =
     "settings-editor-wiki-projection-posture";
 pub const WIKI_PROJECTION_SETTINGS_POSTURE_NOTE: &str = "Wiki Projection has no dedicated preference. It uses the active workspace and theme; generated content is read-only and edits are additive overlays.";
+/// Read-only settings posture for Runtime Chat. The MT-098 contract defines no configurable backend
+/// preference while the native HTTP route is absent, so Settings exposes the real transport posture.
+pub const RUNTIME_CHAT_SETTINGS_POSTURE_AUTHOR_ID: &str = "settings-editor-runtime-chat-posture";
+pub const RUNTIME_CHAT_SETTINGS_POSTURE_NOTE: &str = "Runtime Chat has no dedicated preference. It uses the app transport; POST /chat is currently absent and returns EndpointMissing without fabricating an assistant reply.";
 /// Read-only settings posture for the Tier-1 native-editor Flight Recorder. Workspace and actor
 /// filters are shell/session authority and must not become a preference that can hide audit evidence.
 pub const FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID: &str =
     "settings-editor-flight-recorder-posture";
 pub const FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE: &str = "Flight Recorder has no dedicated preference. Its workspace and actor filters are derived from the active shell binding; the Tier-1 audit surface cannot be disabled here.";
+/// Read-only posture for MT-033's Atelier/CKC/Stage workflow. Visibility and routing are live shell
+/// commands, not durable preferences, so Settings exposes the operator path without inventing a toggle.
+pub const ATELIER_CKC_STAGE_SETTINGS_POSTURE_AUTHOR_ID: &str =
+    "settings-editor-atelier-ckc-stage-posture";
+pub const ATELIER_CKC_STAGE_SETTINGS_POSTURE_NOTE: &str = "Atelier / CKC / Stage has no dedicated preference. Use VIEW > Atelier / CKC to show intake items and EDITORS > View: Stage or Route selection to Stage; these commands use the active workspace and session.";
 /// AccessKit author_id for the bounded-wrap-column `DragValue` (shown only when word_wrap = Bounded).
 pub const EDITOR_WRAP_COLUMN_AUTHOR_ID: &str = "settings-editor-wrap-column";
 /// AccessKit author_id for the syntax-palette mode `ComboBox`.
@@ -151,7 +160,9 @@ pub const EDITOR_SETTINGS_CONTROL_AUTHOR_IDS: &[&str] = &[
     EDITOR_INDENT_GUIDES_AUTHOR_ID,
     EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
     WIKI_PROJECTION_SETTINGS_POSTURE_AUTHOR_ID,
+    RUNTIME_CHAT_SETTINGS_POSTURE_AUTHOR_ID,
     FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID,
+    ATELIER_CKC_STAGE_SETTINGS_POSTURE_AUTHOR_ID,
     SYNTAX_PALETTE_MODE_AUTHOR_ID,
 ];
 
@@ -790,6 +801,18 @@ impl EditorSettingsSection {
             WIKI_PROJECTION_SETTINGS_POSTURE_NOTE,
         );
 
+        let runtime_chat_posture = ui.label(
+            egui::RichText::new(RUNTIME_CHAT_SETTINGS_POSTURE_NOTE)
+                .small()
+                .weak(),
+        );
+        set_author_id_and_label(
+            ui,
+            runtime_chat_posture.id,
+            RUNTIME_CHAT_SETTINGS_POSTURE_AUTHOR_ID,
+            RUNTIME_CHAT_SETTINGS_POSTURE_NOTE,
+        );
+
         let flight_recorder_posture = ui.label(
             egui::RichText::new(FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE)
                 .small()
@@ -800,6 +823,18 @@ impl EditorSettingsSection {
             flight_recorder_posture.id,
             FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID,
             FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE,
+        );
+
+        let atelier_ckc_stage_posture = ui.label(
+            egui::RichText::new(ATELIER_CKC_STAGE_SETTINGS_POSTURE_NOTE)
+                .small()
+                .weak(),
+        );
+        set_author_id_and_label(
+            ui,
+            atelier_ckc_stage_posture.id,
+            ATELIER_CKC_STAGE_SETTINGS_POSTURE_AUTHOR_ID,
+            ATELIER_CKC_STAGE_SETTINGS_POSTURE_NOTE,
         );
 
         // SET-UI-002: per-section reset-to-default. A click takes priority over a same-frame value edit

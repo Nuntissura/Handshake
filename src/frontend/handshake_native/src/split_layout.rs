@@ -7,10 +7,11 @@
 //! - one **vertical** divider that splits left/right at `weights.vertical * available_width`.
 //!
 //! Four-pane/restored layouts use the original 2x2 shape: `pane-a` (top-left), `pane-b` (top-right),
-//! `pane-c` (bottom-left), `pane-d` (bottom-right) from the MT-005 [`PaneRegistry`]. MT-097's fresh
-//! notes-only default contains only `pane-a` and `pane-b`, so that case uses a full-height two-column
-//! layout. MT-098's default contains `pane-a`, `pane-b`, and `pane-c`, so that case uses full-height
-//! code/notes/chat columns instead of falling back to a half-empty 2x2 grid. Each live divider is:
+//! `pane-c` (bottom-left), `pane-d` (bottom-right) from the MT-005 [`PaneRegistry`]. A workspace with
+//! only `pane-a` expands it to the full work surface. MT-097's fresh notes-only default contains only
+//! `pane-a` and `pane-b`, so that case uses a full-height two-column layout. MT-098's default contains
+//! `pane-a`, `pane-b`, and `pane-c`, so that case uses full-height code/notes/chat columns instead of
+//! falling back to a half-empty 2x2 grid. Each live divider is:
 //! - draggable by pointer (drag delta -> weight delta, clamped),
 //! - resizable by keyboard (Arrow keys, ±[`SPLIT_STEP`]) **only when the divider is focused**,
 //! - addressable out-of-process as an AccessKit [`accesskit::Role::Splitter`] node with a stable
@@ -83,6 +84,45 @@ const PANE_A: &str = "pane-a"; // top-left
 const PANE_B: &str = "pane-b"; // top-right
 const PANE_C: &str = "pane-c"; // bottom-left
 const PANE_D: &str = "pane-d"; // bottom-right
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PaneLayoutKind {
+    Single,
+    TwoColumn,
+    ThreeColumn,
+    LegacyGrid,
+}
+
+fn pane_layout_kind(registry: &PaneRegistry) -> PaneLayoutKind {
+    let pane_a: PaneId = Arc::from(PANE_A);
+    let pane_b: PaneId = Arc::from(PANE_B);
+    let pane_c: PaneId = Arc::from(PANE_C);
+    let pane_d: PaneId = Arc::from(PANE_D);
+    if registry.len() == 1
+        && registry.get(&pane_a).is_some()
+        && registry.get(&pane_b).is_none()
+        && registry.get(&pane_c).is_none()
+        && registry.get(&pane_d).is_none()
+    {
+        PaneLayoutKind::Single
+    } else if registry.len() == 2
+        && registry.get(&pane_a).is_some()
+        && registry.get(&pane_b).is_some()
+        && registry.get(&pane_c).is_none()
+        && registry.get(&pane_d).is_none()
+    {
+        PaneLayoutKind::TwoColumn
+    } else if registry.len() == 3
+        && registry.get(&pane_a).is_some()
+        && registry.get(&pane_b).is_some()
+        && registry.get(&pane_c).is_some()
+        && registry.get(&pane_d).is_none()
+    {
+        PaneLayoutKind::ThreeColumn
+    } else {
+        PaneLayoutKind::LegacyGrid
+    }
+}
 
 /// Which divider line this is. The variant names the LINE's orientation (matching React's
 /// `aria-orientation` and `DragAxis` union in `app/src/App.tsx`), and each line controls the weight
@@ -398,21 +438,10 @@ impl SplitLayoutWidget {
         // reconciled into `tab_bars` AFTER the loop (a drop needs two distinct &mut bars, which is not
         // possible while iterating).
         let registry_guard = registry.lock().expect("pane registry mutex poisoned");
-        let pane_a: PaneId = Arc::from(PANE_A);
-        let pane_b: PaneId = Arc::from(PANE_B);
-        let pane_c: PaneId = Arc::from(PANE_C);
-        let pane_d: PaneId = Arc::from(PANE_D);
-        let two_column_default = registry_guard.len() == 2
-            && registry_guard.get(&pane_a).is_some()
-            && registry_guard.get(&pane_b).is_some()
-            && registry_guard.get(&pane_c).is_none()
-            && registry_guard.get(&pane_d).is_none();
-        let three_column_default = registry_guard.len() == 3
-            && registry_guard.get(&pane_a).is_some()
-            && registry_guard.get(&pane_b).is_some()
-            && registry_guard.get(&pane_c).is_some()
-            && registry_guard.get(&pane_d).is_none();
-        let pane_slots: Vec<(&str, egui::Rect)> = if two_column_default {
+        let layout_kind = pane_layout_kind(&registry_guard);
+        let pane_slots: Vec<(&str, egui::Rect)> = if layout_kind == PaneLayoutKind::Single {
+            vec![(PANE_A, area)]
+        } else if layout_kind == PaneLayoutKind::TwoColumn {
             let split_x = area.left() + area.width() * weights.vertical;
             vec![
                 (
@@ -424,7 +453,7 @@ impl SplitLayoutWidget {
                     egui::Rect::from_min_max(egui::pos2(split_x, area.top()), area.max),
                 ),
             ]
-        } else if three_column_default {
+        } else if layout_kind == PaneLayoutKind::ThreeColumn {
             let three = compute_three_column_rects(area, *weights);
             vec![
                 (PANE_A, three.left),
@@ -670,7 +699,7 @@ impl SplitLayoutWidget {
         // CANONICAL (React): the horizontal LINE controls `weights.horizontal` (top/bottom row split,
         // Y); the vertical LINE controls `weights.vertical` (left/right column split, X). Line-name
         // and weight-name match — see `SplitAxis` doc and `app/src/App.tsx`.
-        if !two_column_default && !three_column_default {
+        if layout_kind == PaneLayoutKind::LegacyGrid {
             Self::divider(
                 ui,
                 SplitAxis::Horizontal,
@@ -681,19 +710,21 @@ impl SplitLayoutWidget {
                 divider_colors,
             );
         }
-        Self::divider(
-            ui,
-            SplitAxis::Vertical,
-            area,
-            if three_column_default {
-                compute_three_column_rects(area, *weights).divider_v
-            } else {
-                rects.divider_v
-            },
-            &mut weights.vertical,
-            &mut drag_state.dragging_vertical,
-            divider_colors,
-        );
+        if layout_kind != PaneLayoutKind::Single {
+            Self::divider(
+                ui,
+                SplitAxis::Vertical,
+                area,
+                if layout_kind == PaneLayoutKind::ThreeColumn {
+                    compute_three_column_rects(area, *weights).divider_v
+                } else {
+                    rects.divider_v
+                },
+                &mut weights.vertical,
+                &mut drag_state.dragging_vertical,
+                divider_colors,
+            );
+        }
     }
 
     /// Render one divider: pointer drag, keyboard resize, AccessKit `Splitter` node, and the painted
@@ -904,12 +935,54 @@ fn hash_pane_id(pane_id: &PaneId) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pane_registry::{DirtyState, PaneAuthority, PaneRecord};
 
     const EPS: f32 = 1e-4;
 
     fn area_600() -> egui::Rect {
         // 800 wide x 600 tall, origin at (0,0) for easy arithmetic.
         egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(800.0, 600.0))
+    }
+
+    fn registry_with_panes(ids: &[&str]) -> PaneRegistry {
+        let mut registry = PaneRegistry::new();
+        for id in ids {
+            registry.insert(PaneRecord::new(
+                PaneId::from(*id),
+                PaneType::CodeSymbol,
+                "split-layout-test",
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        }
+        registry
+    }
+
+    #[test]
+    fn one_pane_uses_single_layout_while_existing_shapes_are_preserved() {
+        assert_eq!(
+            pane_layout_kind(&registry_with_panes(&[PANE_A])),
+            PaneLayoutKind::Single
+        );
+        assert_eq!(
+            pane_layout_kind(&registry_with_panes(&[PANE_A, PANE_B])),
+            PaneLayoutKind::TwoColumn
+        );
+        assert_eq!(
+            pane_layout_kind(&registry_with_panes(&[PANE_A, PANE_B, PANE_C])),
+            PaneLayoutKind::ThreeColumn
+        );
+        assert_eq!(
+            pane_layout_kind(&registry_with_panes(&[PANE_A, PANE_B, PANE_C, PANE_D])),
+            PaneLayoutKind::LegacyGrid
+        );
+        assert_eq!(
+            pane_layout_kind(&registry_with_panes(&[PANE_B])),
+            PaneLayoutKind::LegacyGrid,
+            "only the canonical pane-a singleton collapses; restored sparse layouts stay legacy"
+        );
     }
 
     /// AC: the four pane rects tile the full area with no gap and no overlap, for several weight

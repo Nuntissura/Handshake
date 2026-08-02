@@ -27,7 +27,7 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use egui::accesskit;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::accessibility::UiTreeSnapshot;
 
@@ -44,6 +44,393 @@ pub const MAX_ACTIONS_PER_BURST: usize = 16;
 /// Maximum ownership interval for a queued/dispatched target mutation. A lost frame acknowledgement
 /// must not leave that target permanently busy.
 const ACTION_LEASE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Reserved, opt-in action-specific acknowledgement carried in an AccessKit node's raw `value`.
+/// Generic controls never receive this schema and therefore retain conservative `Indeterminate`
+/// click receipts.
+const CLICK_COMPLETION_SCHEMA: &str = "handshake.click-completion/v1";
+const MAX_CLICK_COMPLETION_TOKEN_BYTES: usize = 4096;
+const MAX_CLICK_COMPLETION_EFFECT_BYTES: usize = 128;
+const MAX_CLICK_COMPLETION_CONTEXT_BYTES: usize = 512;
+const MAX_CLICK_COMPLETION_AUTHOR_BYTES: usize = 256;
+const MAX_CLICK_COMPLETION_SEMANTIC_BYTES: usize = 2048;
+const MAX_CLICK_COMPLETION_ERROR_BYTES: usize = 1024;
+const MAX_CLICK_COMPLETION_DETAIL_BYTES: usize = 2048;
+
+/// State transition exposed by an opt-in click-completion token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ClickCompletionState {
+    Ready,
+    Pending,
+    Applied,
+    /// The exact observer-backed action reached a typed terminal failure. This is deliberately
+    /// distinct from `Indeterminate`: the observer causally owns the failure and binds it to the
+    /// same target/context/generation/semantic tuple declared before dispatch.
+    Failed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ClickCompletionMode {
+    SameTarget,
+    Observer,
+}
+
+/// One deliberately closed token shape for both supported acknowledgement modes. Optional fields
+/// are validated as an exact mode/state-specific combination after serde rejects unknown fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ClickCompletionToken {
+    schema: String,
+    mode: ClickCompletionMode,
+    effect: String,
+    context: String,
+    generation: u64,
+    state: ClickCompletionState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    observer_author_id: Option<String>,
+    /// Observer declarations default to transient-target semantics. A deliberately persistent row
+    /// opts in explicitly and is then required to retain its exact dispatch-bound identity and raw
+    /// declaration token through acknowledgement.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    persistent_target: bool,
+    /// Retry-style controls may disappear on recovery or remain on a typed terminal failure. When
+    /// they remain, they are held to the same exact identity/declaration-advance checks as persistent
+    /// targets; absence is also permitted. This is opt-in and mutually exclusive with persistence.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    flexible_target: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pending_target: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    semantic_value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    terminal_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    terminal_detail: Option<String>,
+}
+
+impl ClickCompletionToken {
+    fn valid_common(&self) -> bool {
+        self.schema == CLICK_COMPLETION_SCHEMA
+            && valid_click_token_field(&self.effect, MAX_CLICK_COMPLETION_EFFECT_BYTES)
+            && valid_click_token_field(&self.context, MAX_CLICK_COMPLETION_CONTEXT_BYTES)
+            && self.observer_author_id.as_deref().map_or(true, |value| {
+                valid_click_token_field(value, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
+            })
+            && self.pending_target.as_deref().map_or(true, |value| {
+                valid_click_token_field(value, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
+            })
+            && self.semantic_value.as_deref().map_or(true, |value| {
+                valid_click_token_field(value, MAX_CLICK_COMPLETION_SEMANTIC_BYTES)
+            })
+            && self.terminal_error.as_deref().map_or(true, |value| {
+                valid_click_token_field(value, MAX_CLICK_COMPLETION_ERROR_BYTES)
+            })
+            && self.terminal_detail.as_deref().map_or(true, |value| {
+                valid_click_token_field(value, MAX_CLICK_COMPLETION_DETAIL_BYTES)
+            })
+    }
+
+    fn valid_same_target(&self) -> bool {
+        self.valid_common()
+            && self.mode == ClickCompletionMode::SameTarget
+            && self.observer_author_id.is_none()
+            && !self.persistent_target
+            && !self.flexible_target
+            && self.pending_target.is_none()
+            && self.semantic_value.is_none()
+            && self.terminal_error.is_none()
+            && self.terminal_detail.is_none()
+            && self.state != ClickCompletionState::Failed
+    }
+
+    fn valid_observer_target_declaration(&self) -> bool {
+        self.valid_common()
+            && self.mode == ClickCompletionMode::Observer
+            && self.state == ClickCompletionState::Ready
+            && self.observer_author_id.is_some()
+            && !(self.persistent_target && self.flexible_target)
+            && self.pending_target.is_none()
+            && self.semantic_value.is_some()
+            && self.terminal_error.is_none()
+            && self.terminal_detail.is_none()
+    }
+
+    fn valid_observer_state(&self) -> bool {
+        self.valid_common()
+            && self.mode == ClickCompletionMode::Observer
+            && self.observer_author_id.is_none()
+            && !self.persistent_target
+            && !self.flexible_target
+            && match self.state {
+                ClickCompletionState::Ready => {
+                    self.pending_target.is_none()
+                        && self.semantic_value.is_none()
+                        && self.terminal_error.is_none()
+                        && self.terminal_detail.is_none()
+                }
+                ClickCompletionState::Pending => {
+                    self.pending_target.is_some()
+                        && self.semantic_value.is_some()
+                        && self.terminal_error.is_none()
+                        && self.terminal_detail.is_none()
+                }
+                ClickCompletionState::Applied => {
+                    self.pending_target.is_some()
+                        && self.semantic_value.is_some()
+                        && self.terminal_error.is_none()
+                }
+                ClickCompletionState::Failed => {
+                    self.pending_target.is_some()
+                        && self.semantic_value.is_some()
+                        && self.terminal_error.is_some()
+                }
+            }
+    }
+}
+
+fn valid_click_token_field(value: &str, max_bytes: usize) -> bool {
+    !value.is_empty() && value.len() <= max_bytes && !value.chars().any(char::is_control)
+}
+
+fn serialize_click_completion_token(token: &ClickCompletionToken) -> Option<String> {
+    if !token.valid_common() {
+        return None;
+    }
+    let encoded = serde_json::to_string(token).ok()?;
+    (encoded.len() <= MAX_CLICK_COMPLETION_TOKEN_BYTES).then_some(encoded)
+}
+
+fn parse_click_completion_token(raw: &str) -> Option<ClickCompletionToken> {
+    if raw.len() > MAX_CLICK_COMPLETION_TOKEN_BYTES {
+        return None;
+    }
+    let token: ClickCompletionToken = serde_json::from_str(raw).ok()?;
+    token.valid_common().then_some(token)
+}
+
+/// Serialize the value for a same-target acknowledgement. The same author-id/node/context/effect
+/// must transition a settled Ready/Applied generation to Pending/Applied at exactly generation + 1
+/// after a plain Click.
+pub(crate) fn serialize_same_target_click_completion(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    state: ClickCompletionState,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::SameTarget,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state,
+        observer_author_id: None,
+        persistent_target: false,
+        flexible_target: false,
+        pending_target: None,
+        semantic_value: None,
+        terminal_error: None,
+        terminal_detail: None,
+    };
+    token
+        .valid_same_target()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
+
+/// Serialize an observer-mode target declaration. `generation` is the exact stable non-Pending
+/// generation of the durable observer named by `observer_author_id`; `semantic_value` identifies
+/// this target's effect so a shared observer cannot acknowledge the wrong completion row. A durable
+/// terminal baseline can therefore stay observable while the next action declares its successor.
+pub(crate) fn serialize_observer_click_target(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    observer_author_id: &str,
+    semantic_value: &str,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::Observer,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state: ClickCompletionState::Ready,
+        observer_author_id: Some(observer_author_id.to_owned()),
+        persistent_target: false,
+        flexible_target: false,
+        pending_target: None,
+        semantic_value: Some(semantic_value.to_owned()),
+        terminal_error: None,
+        terminal_detail: None,
+    };
+    token
+        .valid_observer_target_declaration()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
+
+/// Serialize an observer-mode declaration for a control that intentionally remains mounted after
+/// activation. A persistent acknowledgement is stricter than the transient form: the target must
+/// retain its exact node id, role, action capability, and raw declaration value while the observer
+/// makes the action-specific generation transition.
+pub(crate) fn serialize_persistent_observer_click_target(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    observer_author_id: &str,
+    semantic_value: &str,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::Observer,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state: ClickCompletionState::Ready,
+        observer_author_id: Some(observer_author_id.to_owned()),
+        persistent_target: true,
+        flexible_target: false,
+        pending_target: None,
+        semantic_value: Some(semantic_value.to_owned()),
+        terminal_error: None,
+        terminal_detail: None,
+    };
+    token
+        .valid_observer_target_declaration()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
+
+/// Serialize an observer-mode declaration for a Retry-style control whose success removes the
+/// target while a terminal failure leaves the exact control mounted. A present post-target is held
+/// to the full persistent identity/declaration transition; an absent target is allowed.
+pub(crate) fn serialize_flexible_observer_click_target(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    observer_author_id: &str,
+    semantic_value: &str,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::Observer,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state: ClickCompletionState::Ready,
+        observer_author_id: Some(observer_author_id.to_owned()),
+        persistent_target: false,
+        flexible_target: true,
+        pending_target: None,
+        semantic_value: Some(semantic_value.to_owned()),
+        terminal_error: None,
+        terminal_detail: None,
+    };
+    token
+        .valid_observer_target_declaration()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
+
+/// Serialize a durable observer's state. Ready observers carry no pending target/value; Pending and
+/// Applied observers carry the exact clicked author-id and semantic value at `generation + 1`.
+pub(crate) fn serialize_observer_click_state(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    state: ClickCompletionState,
+    pending_target: Option<&str>,
+    semantic_value: Option<&str>,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::Observer,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state,
+        observer_author_id: None,
+        persistent_target: false,
+        flexible_target: false,
+        pending_target: pending_target.map(str::to_owned),
+        semantic_value: semantic_value.map(str::to_owned),
+        terminal_error: None,
+        terminal_detail: None,
+    };
+    token
+        .valid_observer_state()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
+
+/// Serialize a successful observer terminal state with bounded action-specific proof detail. The
+/// pre-click `semantic_value` remains unchanged and is still the causal binding; `terminal_detail`
+/// can add persisted/readback identity that was unknowable before dispatch.
+pub(crate) fn serialize_observer_click_applied(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    pending_target: &str,
+    semantic_value: &str,
+    terminal_detail: &str,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::Observer,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state: ClickCompletionState::Applied,
+        observer_author_id: None,
+        persistent_target: false,
+        flexible_target: false,
+        pending_target: Some(pending_target.to_owned()),
+        semantic_value: Some(semantic_value.to_owned()),
+        terminal_error: None,
+        terminal_detail: Some(terminal_detail.to_owned()),
+    };
+    token
+        .valid_observer_state()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
+
+/// Serialize a terminal failure for an exact observer-backed click. The target declaration and the
+/// pending observer state already fixed the target/context/generation/semantic tuple; this function
+/// adds only a bounded typed error to that same tuple. ActionChannel publishes it as terminal
+/// [`ActionReceiptStatus::Rejected`], never as a transport-wide/global failure.
+pub(crate) fn serialize_observer_click_failure(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    pending_target: &str,
+    semantic_value: &str,
+    terminal_error: &str,
+    terminal_detail: Option<&str>,
+) -> Option<String> {
+    let token = ClickCompletionToken {
+        schema: CLICK_COMPLETION_SCHEMA.to_owned(),
+        mode: ClickCompletionMode::Observer,
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        state: ClickCompletionState::Failed,
+        observer_author_id: None,
+        persistent_target: false,
+        flexible_target: false,
+        pending_target: Some(pending_target.to_owned()),
+        semantic_value: Some(semantic_value.to_owned()),
+        terminal_error: Some(terminal_error.to_owned()),
+        terminal_detail: terminal_detail.map(str::to_owned),
+    };
+    token
+        .valid_observer_state()
+        .then(|| serialize_click_completion_token(&token))
+        .flatten()
+}
 
 /// A model-facing UI action, addressed by a widget's stable `author_id`. This is the typed core the
 /// JSON-RPC tool layer parses request params into; keeping it a closed enum (rather than a stringly
@@ -321,6 +708,35 @@ struct PendingAction {
     enqueued_value: Option<String>,
     enqueued_at: Instant,
     action: UiAction,
+    click_completion: Option<PendingClickCompletion>,
+}
+
+#[derive(Debug, Clone)]
+enum PendingClickCompletion {
+    SameTarget {
+        baseline: ClickCompletionToken,
+    },
+    Observer {
+        declaration: ClickCompletionToken,
+        observer_author_id: String,
+        observer_node_id: u64,
+        observer_role: String,
+        observer_raw_baseline: String,
+        dispatch_validated: bool,
+    },
+}
+
+impl PendingAction {
+    fn leases_author_id(&self, author_id: &str) -> bool {
+        self.author_id == author_id
+            || matches!(
+                &self.click_completion,
+                Some(PendingClickCompletion::Observer {
+                    observer_author_id,
+                    ..
+                }) if observer_author_id == author_id
+            )
+    }
 }
 
 impl Default for ActionChannel {
@@ -349,6 +765,53 @@ impl ActionChannel {
     /// Number of pending (not-yet-drained) actions.
     pub fn pending(&self) -> usize {
         self.queue.len() + self.in_flight.len()
+    }
+
+    /// Read-only attribution seam for app-owned completion observers. Returns an author id only when
+    /// exactly one currently in-flight plain Click has reached Dispatched. Operator input has no
+    /// channel row and concurrent model clicks are deliberately ambiguous, so both return `None`.
+    pub(crate) fn unique_dispatched_click_author_id(&self) -> Option<String> {
+        let mut matches = self.in_flight.iter().filter(|pending| {
+            matches!(pending.action, UiAction::Click)
+                && self.receipts.iter().any(|receipt| {
+                    receipt.receipt_id == pending.outcome.receipt_id
+                        && receipt.status == ActionReceiptStatus::Dispatched
+                })
+        });
+        let author_id = matches.next()?.author_id.clone();
+        matches.next().is_none().then_some(author_id)
+    }
+
+    /// Payload-aware counterpart used by app-owned action-specific completion observers. The
+    /// returned payload is `None` for a plain click and preserves the exact closed payload string for
+    /// `ClickWithPayload`. As with the legacy click-only seam, concurrent activations are deliberately
+    /// ambiguous and therefore return `None`.
+    pub(crate) fn unique_dispatched_activation(
+        &self,
+    ) -> Option<(String, Option<String>, Option<String>)> {
+        let mut matches = self.in_flight.iter().filter(|pending| {
+            is_click_activation(&pending.action)
+                && self.receipts.iter().any(|receipt| {
+                    receipt.receipt_id == pending.outcome.receipt_id
+                        && receipt.status == ActionReceiptStatus::Dispatched
+                })
+        });
+        let pending = matches.next()?;
+        let activation = (
+            pending.author_id.clone(),
+            match &pending.action {
+                UiAction::Click => None,
+                UiAction::ClickWithPayload { payload } => Some(payload.clone()),
+                _ => return None,
+            },
+            match &pending.click_completion {
+                Some(PendingClickCompletion::Observer { declaration, .. }) => {
+                    declaration.semantic_value.clone()
+                }
+                _ => None,
+            },
+        );
+        matches.next().is_none().then_some(activation)
     }
 
     /// True when the queue is at capacity (the next [`Self::enqueue`] would be rejected).
@@ -386,14 +849,27 @@ impl ActionChannel {
         self.expire_stale_actions();
         let node = resolve_node(snapshot, author_id, &action)?;
         validate_target_value(author_id, node, &action)?;
-        if self
-            .queue
-            .iter()
-            .chain(self.in_flight.iter())
-            .any(|pending| pending.author_id == author_id)
-        {
+        let click_completion = pending_click_completion(snapshot, node, &action);
+        let observer_author_id = match &click_completion {
+            Some(PendingClickCompletion::Observer {
+                observer_author_id, ..
+            }) => Some(observer_author_id.as_str()),
+            _ => None,
+        };
+        let conflicting_lease =
+            self.queue
+                .iter()
+                .chain(self.in_flight.iter())
+                .find_map(|pending| {
+                    if pending.leases_author_id(author_id) {
+                        Some(author_id)
+                    } else {
+                        observer_author_id.filter(|observer| pending.leases_author_id(observer))
+                    }
+                });
+        if let Some(conflicting_author_id) = conflicting_lease {
             return Err(ActionError::TargetBusy {
-                author_id: author_id.to_owned(),
+                author_id: conflicting_author_id.to_owned(),
             });
         }
         if self.is_full() {
@@ -425,6 +901,7 @@ impl ActionChannel {
             enqueued_value: node.value.clone(),
             enqueued_at: Instant::now(),
             action,
+            click_completion,
         });
         Ok(outcome)
     }
@@ -448,7 +925,7 @@ impl ActionChannel {
             let Some(mut pending) = self.queue.pop_front() else {
                 break;
             };
-            if let Err(reason) = revalidate_pending(&pending, fresh_snapshot) {
+            if let Err(reason) = revalidate_pending(&mut pending, fresh_snapshot) {
                 self.update_receipt(
                     pending.outcome.receipt_id,
                     ActionReceiptStatus::Rejected,
@@ -513,6 +990,30 @@ impl ActionChannel {
         self.expire_stale_actions();
         let in_flight = std::mem::take(&mut self.in_flight);
         for pending in in_flight {
+            if is_click_activation(&pending.action) && pending.click_completion.is_some() {
+                match acknowledge_click_completion(&pending, fresh_snapshot) {
+                    ClickCompletionAcknowledgement::Terminal {
+                        status,
+                        observed_value,
+                        rejection,
+                    } => self.update_receipt(
+                        pending.outcome.receipt_id,
+                        status,
+                        observed_value,
+                        rejection,
+                    ),
+                    ClickCompletionAcknowledgement::StillPending { observed_value } => {
+                        self.update_receipt(
+                            pending.outcome.receipt_id,
+                            ActionReceiptStatus::Dispatched,
+                            observed_value,
+                            None,
+                        );
+                        self.in_flight.push(pending);
+                    }
+                }
+                continue;
+            }
             let node = fresh_snapshot.find_by_author_id(&pending.author_id);
             match (&pending.action, node) {
                 (UiAction::SetValue { text }, Some(node))
@@ -748,7 +1249,279 @@ fn post_render_target_identity_matches(
             .any(|action| action == &pending.expected_action)
 }
 
-fn revalidate_pending(pending: &PendingAction, snapshot: &UiTreeSnapshot) -> Result<(), String> {
+enum ClickCompletionAcknowledgement {
+    StillPending {
+        observed_value: Option<String>,
+    },
+    Terminal {
+        status: ActionReceiptStatus,
+        observed_value: Option<String>,
+        rejection: Option<String>,
+    },
+}
+
+fn acknowledge_click_completion(
+    pending: &PendingAction,
+    snapshot: &UiTreeSnapshot,
+) -> ClickCompletionAcknowledgement {
+    let indeterminate =
+        |observed_value: Option<String>, reason: &str| ClickCompletionAcknowledgement::Terminal {
+            status: ActionReceiptStatus::Indeterminate,
+            observed_value,
+            rejection: Some(reason.to_owned()),
+        };
+    match pending
+        .click_completion
+        .as_ref()
+        .expect("caller checks click-completion presence")
+    {
+        PendingClickCompletion::SameTarget { baseline } => {
+            let Some(node) = snapshot.find_by_author_id(&pending.author_id) else {
+                return indeterminate(
+                    None,
+                    "same-target completion target disappeared before acknowledgement",
+                );
+            };
+            let observed = node.value.clone();
+            if !post_render_target_identity_matches(pending, node) {
+                return indeterminate(
+                    observed,
+                    "same-target completion identity or action capability drifted",
+                );
+            }
+            let Some(applied) = node.value.as_deref().and_then(parse_click_completion_token) else {
+                return indeterminate(observed, "same-target completion token is malformed");
+            };
+            let generation_matches = baseline
+                .generation
+                .checked_add(1)
+                .is_some_and(|expected| applied.generation == expected);
+            if baseline.state != ClickCompletionState::Pending
+                && applied.valid_same_target()
+                && applied.effect == baseline.effect
+                && applied.context == baseline.context
+                && generation_matches
+            {
+                match applied.state {
+                    ClickCompletionState::Pending => ClickCompletionAcknowledgement::StillPending {
+                        observed_value: observed,
+                    },
+                    ClickCompletionState::Applied => ClickCompletionAcknowledgement::Terminal {
+                        status: ActionReceiptStatus::Applied,
+                        observed_value: observed,
+                        rejection: None,
+                    },
+                    ClickCompletionState::Failed => indeterminate(
+                        observed,
+                        "same-target completion cannot publish an observer failure",
+                    ),
+                    ClickCompletionState::Ready => indeterminate(
+                        observed,
+                        "same-target completion remained ready after dispatch",
+                    ),
+                }
+            } else {
+                indeterminate(
+                    observed,
+                    "same-target completion did not make the exact ready-to-applied generation transition",
+                )
+            }
+        }
+        PendingClickCompletion::Observer {
+            declaration,
+            observer_author_id,
+            observer_node_id,
+            observer_role,
+            dispatch_validated,
+            ..
+        } => {
+            if !dispatch_validated {
+                return indeterminate(None, "observer identity/context was not valid at dispatch");
+            }
+            let post_target = snapshot.find_by_author_id(&pending.author_id);
+            if declaration.persistent_target
+                || (declaration.flexible_target && post_target.is_some())
+            {
+                let Some(post_target) = post_target else {
+                    return indeterminate(
+                        None,
+                        "observer target disappeared before acknowledgement",
+                    );
+                };
+                if !post_render_target_identity_matches(pending, post_target) {
+                    return indeterminate(
+                        post_target.value.clone(),
+                        "persistent observer target identity or action capability drifted",
+                    );
+                }
+                let post_declaration = post_target
+                    .value
+                    .as_deref()
+                    .and_then(parse_click_completion_token);
+                let declaration_advanced = post_declaration.as_ref().is_some_and(|post| {
+                    post.valid_observer_target_declaration()
+                        && post.persistent_target == declaration.persistent_target
+                        && post.flexible_target == declaration.flexible_target
+                        && post.effect == declaration.effect
+                        && post.context == declaration.context
+                        && post.observer_author_id == declaration.observer_author_id
+                        && post.semantic_value == declaration.semantic_value
+                        && declaration
+                            .generation
+                            .checked_add(1)
+                            .is_some_and(|generation| post.generation == generation)
+                });
+                if !declaration_advanced {
+                    return indeterminate(
+                        post_target.value.clone(),
+                        "persistent observer target declaration did not make the exact generation transition",
+                    );
+                }
+            } else if !declaration.flexible_target && post_target.is_some() {
+                return indeterminate(
+                    None,
+                    "observer completion requires the transient click target to disappear",
+                );
+            }
+            let Some(observer) = snapshot.find_by_author_id(observer_author_id) else {
+                return indeterminate(None, "observer disappeared before acknowledgement");
+            };
+            let observed = observer.value.clone();
+            if observer.node_id != *observer_node_id || observer.role != *observer_role {
+                return indeterminate(observed, "observer identity drifted before acknowledgement");
+            }
+            let Some(applied) = observer
+                .value
+                .as_deref()
+                .and_then(parse_click_completion_token)
+            else {
+                return indeterminate(observed, "observer completion token is malformed");
+            };
+            let generation_matches = declaration
+                .generation
+                .checked_add(1)
+                .is_some_and(|expected| applied.generation == expected);
+            if applied.valid_observer_state()
+                && applied.effect == declaration.effect
+                && applied.context == declaration.context
+                && generation_matches
+                && applied.pending_target.as_deref() == Some(pending.author_id.as_str())
+                && applied.semantic_value == declaration.semantic_value
+            {
+                if declaration.flexible_target
+                    && ((applied.state == ClickCompletionState::Applied && post_target.is_some())
+                        || (applied.state == ClickCompletionState::Failed && post_target.is_none()))
+                {
+                    return indeterminate(
+                        observed,
+                        "flexible observer terminal state does not match Retry target presence",
+                    );
+                }
+                match applied.state {
+                    ClickCompletionState::Pending => ClickCompletionAcknowledgement::StillPending {
+                        observed_value: observed,
+                    },
+                    ClickCompletionState::Applied => ClickCompletionAcknowledgement::Terminal {
+                        status: ActionReceiptStatus::Applied,
+                        observed_value: observed,
+                        rejection: None,
+                    },
+                    ClickCompletionState::Failed => ClickCompletionAcknowledgement::Terminal {
+                        status: ActionReceiptStatus::Rejected,
+                        observed_value: observed,
+                        rejection: applied.terminal_error.clone(),
+                    },
+                    ClickCompletionState::Ready => indeterminate(
+                        observed,
+                        "observer completion remained ready after dispatch",
+                    ),
+                }
+            } else {
+                indeterminate(
+                    observed,
+                    "observer completion did not match the exact effect/context/target/value generation transition",
+                )
+            }
+        }
+    }
+}
+
+fn pending_click_completion(
+    snapshot: &UiTreeSnapshot,
+    target: &crate::accessibility::UiTreeNode,
+    action: &UiAction,
+) -> Option<PendingClickCompletion> {
+    if !is_click_activation(action) {
+        return None;
+    }
+    let token = parse_click_completion_token(target.value.as_deref()?)?;
+    if token.valid_same_target() && token.state != ClickCompletionState::Pending {
+        return Some(PendingClickCompletion::SameTarget { baseline: token });
+    }
+    if !token.valid_observer_target_declaration() {
+        return None;
+    }
+    let observer_author_id = token.observer_author_id.clone()?;
+    let observer = snapshot.find_by_author_id(&observer_author_id)?;
+    let observer_raw_baseline = observer.value.clone()?;
+    let observer_token = parse_click_completion_token(&observer_raw_baseline)?;
+    if !observer_token.valid_observer_state()
+        || observer_token.state == ClickCompletionState::Pending
+        || observer_token.effect != token.effect
+        || observer_token.context != token.context
+        || observer_token.generation != token.generation
+    {
+        return None;
+    }
+    Some(PendingClickCompletion::Observer {
+        declaration: token,
+        observer_author_id,
+        observer_node_id: observer.node_id,
+        observer_role: observer.role.clone(),
+        observer_raw_baseline,
+        dispatch_validated: false,
+    })
+}
+
+fn is_click_activation(action: &UiAction) -> bool {
+    matches!(action, UiAction::Click | UiAction::ClickWithPayload { .. })
+}
+
+fn observer_dispatch_identity_matches(
+    snapshot: &UiTreeSnapshot,
+    declaration: &ClickCompletionToken,
+    observer_author_id: &str,
+    observer_node_id: u64,
+    observer_role: &str,
+    observer_raw_baseline: &str,
+) -> bool {
+    let Some(observer) = snapshot.find_by_author_id(observer_author_id) else {
+        return false;
+    };
+    if observer.node_id != observer_node_id
+        || observer.role != observer_role
+        || observer.value.as_deref() != Some(observer_raw_baseline)
+    {
+        return false;
+    }
+    let Some(token) = observer
+        .value
+        .as_deref()
+        .and_then(parse_click_completion_token)
+    else {
+        return false;
+    };
+    token.valid_observer_state()
+        && token.state != ClickCompletionState::Pending
+        && token.effect == declaration.effect
+        && token.context == declaration.context
+        && token.generation == declaration.generation
+}
+
+fn revalidate_pending(
+    pending: &mut PendingAction,
+    snapshot: &UiTreeSnapshot,
+) -> Result<(), String> {
     let node = snapshot
         .find_by_author_id(&pending.author_id)
         .ok_or_else(|| "target disappeared before dispatch".to_owned())?;
@@ -770,6 +1543,24 @@ fn revalidate_pending(pending: &PendingAction, snapshot: &UiTreeSnapshot) -> Res
     }
     if node.value != pending.enqueued_value {
         return Err("target value changed before dispatch".to_owned());
+    }
+    if let Some(PendingClickCompletion::Observer {
+        declaration,
+        observer_author_id,
+        observer_node_id,
+        observer_role,
+        observer_raw_baseline,
+        dispatch_validated,
+    }) = &mut pending.click_completion
+    {
+        *dispatch_validated = observer_dispatch_identity_matches(
+            snapshot,
+            declaration,
+            observer_author_id,
+            *observer_node_id,
+            observer_role,
+            observer_raw_baseline,
+        );
     }
     Ok(())
 }
@@ -982,6 +1773,56 @@ mod tests {
             captured_at_utc: "0.000000000Z".to_owned(),
             widget_count: 4,
         }
+    }
+
+    fn clickable_node(author_id: &str, node_id: u64, value: Option<String>) -> UiTreeNode {
+        UiTreeNode {
+            id: author_id.to_owned(),
+            author_id: Some(author_id.to_owned()),
+            node_id,
+            role: "Button".to_owned(),
+            label: Some(author_id.to_owned()),
+            value,
+            disabled: false,
+            actions: vec!["Click".to_owned(), "Focus".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn observer_node(author_id: &str, node_id: u64, value: String) -> UiTreeNode {
+        UiTreeNode {
+            id: author_id.to_owned(),
+            author_id: Some(author_id.to_owned()),
+            node_id,
+            role: "Document".to_owned(),
+            label: Some("completion observer".to_owned()),
+            value: Some(value),
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn top_level_node_mut<'a>(
+        snapshot: &'a mut UiTreeSnapshot,
+        author_id: &str,
+    ) -> &'a mut UiTreeNode {
+        snapshot
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(author_id))
+            .expect("top-level fixture node exists")
+    }
+
+    fn terminal_receipt(channel: &mut ActionChannel, receipt_id: u64) -> ActionReceipt {
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("receipt exists")
     }
 
     #[test]
@@ -1323,6 +2164,1513 @@ mod tests {
         assert!(chan
             .enqueue(&snap, "field", UiAction::SetValue { text: "two".into() })
             .is_ok());
+    }
+
+    #[test]
+    fn same_target_click_completion_requires_exact_ready_to_applied_transition() {
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children[0].value = serialize_same_target_click_completion(
+            "image-modal-open",
+            "workspace-a/image-1",
+            7,
+            ClickCompletionState::Ready,
+        );
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, "btn", UiAction::Click)
+            .expect("queue tokenized click");
+        assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
+
+        let mut applied = snapshot.clone();
+        applied.root.children[0].value = serialize_same_target_click_completion(
+            "image-modal-open",
+            "workspace-a/image-1",
+            8,
+            ClickCompletionState::Applied,
+        );
+        channel.acknowledge_after_render(&applied);
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Applied);
+        assert!(receipt.rejection.is_none());
+
+        let repeated = channel
+            .enqueue(&applied, "btn", UiAction::Click)
+            .expect("a settled Applied token is a valid repeated-click baseline");
+        channel.drain_revalidated_into_events(&applied);
+        let mut applied_again = applied;
+        applied_again.root.children[0].value = serialize_same_target_click_completion(
+            "image-modal-open",
+            "workspace-a/image-1",
+            9,
+            ClickCompletionState::Applied,
+        );
+        channel.acknowledge_after_render(&applied_again);
+        assert_eq!(
+            terminal_receipt(&mut channel, repeated.receipt_id).status,
+            ActionReceiptStatus::Applied,
+            "Applied(N) -> Applied(N+1) supports persistent controls"
+        );
+    }
+
+    #[test]
+    fn same_target_pending_remains_dispatched_until_applied_or_timeout() {
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children[0].value = serialize_same_target_click_completion(
+            "graph.relayout",
+            "workspace-a/graph-main",
+            11,
+            ClickCompletionState::Ready,
+        );
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, "btn", UiAction::Click)
+            .expect("queue multi-frame click");
+        channel.drain_revalidated_into_events(&snapshot);
+
+        let mut pending = snapshot.clone();
+        pending.root.children[0].value = serialize_same_target_click_completion(
+            "graph.relayout",
+            "workspace-a/graph-main",
+            12,
+            ClickCompletionState::Pending,
+        );
+        channel.acknowledge_after_render(&pending);
+        channel.acknowledge_after_render(&pending);
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Dispatched);
+        assert_eq!(channel.in_flight.len(), 1);
+
+        let pending_for_timeout = pending.clone();
+        let mut applied = pending;
+        applied.root.children[0].value = serialize_same_target_click_completion(
+            "graph.relayout",
+            "workspace-a/graph-main",
+            12,
+            ClickCompletionState::Applied,
+        );
+        channel.acknowledge_after_render(&applied);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied
+        );
+        assert!(channel.in_flight.is_empty());
+
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, "btn", UiAction::Click)
+            .expect("queue expiring multi-frame click");
+        channel.drain_revalidated_into_events(&snapshot);
+        channel.acknowledge_after_render(&pending_for_timeout);
+        channel.in_flight[0].enqueued_at =
+            Instant::now() - ACTION_LEASE_TIMEOUT - Duration::from_millis(1);
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Indeterminate);
+        assert!(receipt
+            .rejection
+            .as_deref()
+            .is_some_and(|reason| reason.contains("deadline elapsed")));
+    }
+
+    #[test]
+    fn same_target_token_drift_fails_closed_and_payload_click_can_apply() {
+        let mut baseline = fixture_snapshot();
+        baseline.root.children[0].value = serialize_same_target_click_completion(
+            "image-modal-open",
+            "workspace-a/image-1",
+            3,
+            ClickCompletionState::Ready,
+        );
+        for (label, post_value) in [
+            (
+                "generation jump",
+                serialize_same_target_click_completion(
+                    "image-modal-open",
+                    "workspace-a/image-1",
+                    5,
+                    ClickCompletionState::Applied,
+                ),
+            ),
+            (
+                "context drift",
+                serialize_same_target_click_completion(
+                    "image-modal-open",
+                    "workspace-b/image-1",
+                    4,
+                    ClickCompletionState::Applied,
+                ),
+            ),
+            (
+                "effect drift",
+                serialize_same_target_click_completion(
+                    "different-effect",
+                    "workspace-a/image-1",
+                    4,
+                    ClickCompletionState::Applied,
+                ),
+            ),
+            ("malformed", Some("{not-json".to_owned())),
+        ] {
+            let mut channel = ActionChannel::new();
+            let outcome = channel
+                .enqueue(&baseline, "btn", UiAction::Click)
+                .expect("queue tokenized click");
+            channel.drain_revalidated_into_events(&baseline);
+            let mut post = baseline.clone();
+            post.root.children[0].value = post_value;
+            channel.acknowledge_after_render(&post);
+            assert_eq!(
+                terminal_receipt(&mut channel, outcome.receipt_id).status,
+                ActionReceiptStatus::Indeterminate,
+                "{label}"
+            );
+        }
+
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &baseline,
+                "btn",
+                UiAction::ClickWithPayload {
+                    payload: "ignored".to_owned(),
+                },
+            )
+            .expect("payload click remains dispatchable");
+        channel.drain_revalidated_into_events(&baseline);
+        let mut post = baseline;
+        post.root.children[0].value = serialize_same_target_click_completion(
+            "image-modal-open",
+            "workspace-a/image-1",
+            4,
+            ClickCompletionState::Applied,
+        );
+        channel.acknowledge_after_render(&post);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied,
+            "ClickWithPayload uses the same exact ready-to-applied completion transition"
+        );
+    }
+
+    #[test]
+    fn observer_click_completion_binds_target_observer_value_and_shared_lease() {
+        let context = "file:///workspace/main.cpp@2";
+        let effect = "code-completion-accept";
+        let observer_author = "code-editor.completion-observer";
+        let semantic = "add_numbers|add_numbers(int,int)";
+        let observer_ready = serialize_observer_click_state(
+            effect,
+            context,
+            20,
+            ClickCompletionState::Ready,
+            None,
+            None,
+        )
+        .unwrap();
+        let target_value =
+            serialize_observer_click_target(effect, context, 20, observer_author, semantic)
+                .unwrap();
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            "completion-item-a",
+            30,
+            Some(target_value.clone()),
+        ));
+        snapshot.root.children.push(clickable_node(
+            "completion-item-b",
+            31,
+            Some(
+                serialize_observer_click_target(
+                    effect,
+                    context,
+                    20,
+                    observer_author,
+                    "subtract_numbers|subtract_numbers(int,int)",
+                )
+                .unwrap(),
+            ),
+        ));
+        snapshot
+            .root
+            .children
+            .push(observer_node(observer_author, 40, observer_ready));
+
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, "completion-item-a", UiAction::Click)
+            .expect("queue observer-backed target");
+        assert_eq!(
+            channel
+                .enqueue(&snapshot, "completion-item-b", UiAction::Click)
+                .unwrap_err(),
+            ActionError::TargetBusy {
+                author_id: observer_author.to_owned()
+            }
+        );
+        channel.drain_revalidated_into_events(&snapshot);
+
+        let mut pending = snapshot.clone();
+        pending
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some("completion-item-a"));
+        let observer = pending
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap();
+        observer.value = serialize_observer_click_state(
+            effect,
+            context,
+            21,
+            ClickCompletionState::Pending,
+            Some("completion-item-a"),
+            Some(semantic),
+        );
+        channel.acknowledge_after_render(&pending);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Dispatched
+        );
+
+        let observer = pending
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap();
+        observer.value = serialize_observer_click_applied(
+            effect,
+            context,
+            21,
+            "completion-item-a",
+            semantic,
+            "{\"result\":\"accepted\"}",
+        );
+        channel.acknowledge_after_render(&pending);
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Applied);
+        assert!(receipt
+            .observed_value
+            .as_deref()
+            .is_some_and(|value| value.contains("terminal_detail")));
+    }
+
+    #[test]
+    fn unique_dispatched_click_attribution_excludes_operator_and_concurrent_actions() {
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node("other-button", 99, None));
+
+        let operator_only = ActionChannel::new();
+        assert_eq!(
+            operator_only.unique_dispatched_click_author_id(),
+            None,
+            "operator UI activity has no model action-channel attribution"
+        );
+
+        let mut one = ActionChannel::new();
+        one.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+        one.drain_revalidated_into_events(&snapshot);
+        assert_eq!(
+            one.unique_dispatched_click_author_id().as_deref(),
+            Some("btn")
+        );
+
+        let mut concurrent = ActionChannel::new();
+        concurrent
+            .enqueue(&snapshot, "btn", UiAction::Click)
+            .unwrap();
+        concurrent
+            .enqueue(&snapshot, "other-button", UiAction::Click)
+            .unwrap();
+        concurrent.drain_revalidated_into_events(&snapshot);
+        assert_eq!(
+            concurrent.unique_dispatched_click_author_id(),
+            None,
+            "two concurrent dispatched clicks are ambiguous and cannot advance an app observer"
+        );
+    }
+
+    #[test]
+    fn unique_dispatched_activation_preserves_exact_payload_and_plain_click_behavior() {
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node("other-button", 99, None));
+
+        let mut payload = ActionChannel::new();
+        payload
+            .enqueue(
+                &snapshot,
+                "btn",
+                UiAction::ClickWithPayload {
+                    payload: r#"{"kind":"slash_command","command_id":"code-ref"}"#.to_owned(),
+                },
+            )
+            .unwrap();
+        payload.drain_revalidated_into_events(&snapshot);
+        assert_eq!(
+            payload.unique_dispatched_activation(),
+            Some((
+                "btn".to_owned(),
+                Some(r#"{"kind":"slash_command","command_id":"code-ref"}"#.to_owned()),
+                None,
+            ))
+        );
+        assert_eq!(
+            payload.unique_dispatched_click_author_id(),
+            None,
+            "the MT-033 plain-click attribution seam remains payload-blind"
+        );
+
+        let mut plain = ActionChannel::new();
+        plain.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+        plain.drain_revalidated_into_events(&snapshot);
+        assert_eq!(
+            plain.unique_dispatched_activation(),
+            Some(("btn".to_owned(), None, None))
+        );
+        assert_eq!(
+            plain.unique_dispatched_click_author_id().as_deref(),
+            Some("btn")
+        );
+
+        let mut concurrent = ActionChannel::new();
+        concurrent
+            .enqueue(&snapshot, "btn", UiAction::Click)
+            .unwrap();
+        concurrent
+            .enqueue(
+                &snapshot,
+                "other-button",
+                UiAction::ClickWithPayload {
+                    payload: "{}".to_owned(),
+                },
+            )
+            .unwrap();
+        concurrent.drain_revalidated_into_events(&snapshot);
+        assert_eq!(concurrent.unique_dispatched_activation(), None);
+    }
+
+    #[test]
+    fn persistent_observer_requires_exact_stable_target_and_exact_observer_transition() {
+        #[derive(Clone, Copy)]
+        enum Drift {
+            None,
+            TargetDisappears,
+            Node,
+            Role,
+            Action,
+            RawDeclaration,
+            Semantic,
+            Generation,
+        }
+
+        let effect = "atelier-hslink-insert";
+        let context = "workspace-a/doc-a";
+        let observer_author = "mt033.argus-action-completion";
+        let target_author = "atelier-item-item-a";
+        let semantic = "item-a|media|doc-a|revision-4|hash-before";
+
+        for drift in [
+            Drift::None,
+            Drift::TargetDisappears,
+            Drift::Node,
+            Drift::Role,
+            Drift::Action,
+            Drift::RawDeclaration,
+            Drift::Semantic,
+            Drift::Generation,
+        ] {
+            let declaration = serialize_persistent_observer_click_target(
+                effect,
+                context,
+                4,
+                observer_author,
+                semantic,
+            )
+            .unwrap();
+            let ready = serialize_observer_click_state(
+                effect,
+                context,
+                4,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap();
+            let mut snapshot = fixture_snapshot();
+            snapshot.root.children.push(clickable_node(
+                target_author,
+                300,
+                Some(declaration.clone()),
+            ));
+            snapshot
+                .root
+                .children
+                .push(observer_node(observer_author, 301, ready));
+
+            let mut channel = ActionChannel::new();
+            let outcome = channel
+                .enqueue(&snapshot, target_author, UiAction::Click)
+                .expect("queue persistent observer target");
+            channel.drain_revalidated_into_events(&snapshot);
+            let mut post = snapshot;
+            if matches!(drift, Drift::TargetDisappears) {
+                post.root
+                    .children
+                    .retain(|node| node.author_id.as_deref() != Some(target_author));
+            } else {
+                let target = post
+                    .root
+                    .children
+                    .iter_mut()
+                    .find(|node| node.author_id.as_deref() == Some(target_author))
+                    .unwrap();
+                target.value = serialize_persistent_observer_click_target(
+                    effect,
+                    context,
+                    5,
+                    observer_author,
+                    semantic,
+                );
+                match drift {
+                    Drift::Node => target.node_id += 1,
+                    Drift::Role => target.role = "ListItem".to_owned(),
+                    Drift::Action => target.actions.clear(),
+                    Drift::RawDeclaration => {
+                        target.value = serialize_persistent_observer_click_target(
+                            effect,
+                            context,
+                            5,
+                            observer_author,
+                            "item-b|media|doc-a|revision-4|hash-before",
+                        )
+                    }
+                    _ => {}
+                }
+            }
+            let post_semantic = if matches!(drift, Drift::Semantic) {
+                "item-b|media|doc-a|revision-4|hash-before"
+            } else {
+                semantic
+            };
+            let post_generation = if matches!(drift, Drift::Generation) {
+                6
+            } else {
+                5
+            };
+            post.root
+                .children
+                .iter_mut()
+                .find(|node| node.author_id.as_deref() == Some(observer_author))
+                .unwrap()
+                .value = serialize_observer_click_applied(
+                effect,
+                context,
+                post_generation,
+                target_author,
+                post_semantic,
+                "{\"ref_kind\":\"media\",\"ref_value\":\"item-a\",\"revision\":5}",
+            );
+            channel.acknowledge_after_render(&post);
+            let status = terminal_receipt(&mut channel, outcome.receipt_id).status;
+            assert_eq!(
+                status,
+                if matches!(drift, Drift::None) {
+                    ActionReceiptStatus::Applied
+                } else {
+                    ActionReceiptStatus::Indeterminate
+                }
+            );
+        }
+
+        // The pre-existing transient declaration keeps the disappearance rule; a mounted target does
+        // not silently inherit persistent semantics from the new opt-in mode.
+        let declaration =
+            serialize_observer_click_target(effect, context, 4, observer_author, semantic).unwrap();
+        let ready = serialize_observer_click_state(
+            effect,
+            context,
+            4,
+            ClickCompletionState::Ready,
+            None,
+            None,
+        )
+        .unwrap();
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node(target_author, 310, Some(declaration)));
+        snapshot
+            .root
+            .children
+            .push(observer_node(observer_author, 311, ready));
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, target_author, UiAction::Click)
+            .unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        snapshot
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap()
+            .value = serialize_observer_click_applied(
+            effect,
+            context,
+            5,
+            target_author,
+            semantic,
+            "{\"result\":\"applied\"}",
+        );
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate
+        );
+    }
+
+    #[test]
+    fn flexible_observer_accepts_absent_target_with_exact_applied_observer() {
+        let (effect, context, observer, target, semantic) = (
+            "graph-open-node",
+            "workspace-a/graph-global",
+            "mt042.graph-open-completion",
+            "graph.retry",
+            "retry|workspace-a|generation-8",
+        );
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            target,
+            400,
+            serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+        ));
+        snapshot.root.children.push(observer_node(
+            observer,
+            401,
+            serialize_observer_click_state(
+                effect,
+                context,
+                8,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        let mut channel = ActionChannel::new();
+        let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        snapshot
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some(target));
+        snapshot
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer))
+            .unwrap()
+            .value = serialize_observer_click_applied(
+            effect,
+            context,
+            9,
+            target,
+            semantic,
+            "{\"graph_recovered\":true}",
+        );
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied
+        );
+    }
+
+    #[test]
+    fn flexible_observer_accepts_exact_advanced_target_with_typed_failure() {
+        let (effect, context, observer, target, semantic) = (
+            "graph-open-node",
+            "workspace-a/graph-global",
+            "mt042.graph-open-completion",
+            "graph.retry",
+            "retry|workspace-a|generation-8",
+        );
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            target,
+            410,
+            serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+        ));
+        snapshot.root.children.push(observer_node(
+            observer,
+            411,
+            serialize_observer_click_state(
+                effect,
+                context,
+                8,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        let mut channel = ActionChannel::new();
+        let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        top_level_node_mut(&mut snapshot, target).value =
+            serialize_flexible_observer_click_target(effect, context, 9, observer, semantic);
+        top_level_node_mut(&mut snapshot, observer).value = serialize_observer_click_failure(
+            effect,
+            context,
+            9,
+            target,
+            semantic,
+            "graph_retry_transport: database unavailable",
+            Some("{\"recovery_request_generation\":9}"),
+        );
+        channel.acknowledge_after_render(&snapshot);
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Rejected);
+        assert_eq!(
+            receipt.rejection.as_deref(),
+            Some("graph_retry_transport: database unavailable")
+        );
+    }
+
+    #[test]
+    fn flexible_observer_rejects_terminal_state_target_presence_counterfactuals() {
+        let (effect, context, observer, target, semantic) = (
+            "graph-open-node",
+            "workspace-a/graph-global",
+            "mt042.graph-open-completion",
+            "graph.retry",
+            "retry|workspace-a|generation-8",
+        );
+        for (target_present, terminal_state) in [
+            (true, ClickCompletionState::Applied),
+            (false, ClickCompletionState::Failed),
+        ] {
+            let mut snapshot = fixture_snapshot();
+            snapshot.root.children.push(clickable_node(
+                target,
+                415,
+                serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+            ));
+            snapshot.root.children.push(observer_node(
+                observer,
+                416,
+                serialize_observer_click_state(
+                    effect,
+                    context,
+                    8,
+                    ClickCompletionState::Ready,
+                    None,
+                    None,
+                )
+                .unwrap(),
+            ));
+            let mut channel = ActionChannel::new();
+            let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+            channel.drain_revalidated_into_events(&snapshot);
+            if target_present {
+                top_level_node_mut(&mut snapshot, target).value =
+                    serialize_flexible_observer_click_target(
+                        effect, context, 9, observer, semantic,
+                    );
+            } else {
+                snapshot
+                    .root
+                    .children
+                    .retain(|node| node.author_id.as_deref() != Some(target));
+            }
+            top_level_node_mut(&mut snapshot, observer).value = match terminal_state {
+                ClickCompletionState::Applied => serialize_observer_click_applied(
+                    effect,
+                    context,
+                    9,
+                    target,
+                    semantic,
+                    "{\"graph_recovered\":true}",
+                ),
+                ClickCompletionState::Failed => serialize_observer_click_failure(
+                    effect,
+                    context,
+                    9,
+                    target,
+                    semantic,
+                    "graph_retry_transport: database unavailable",
+                    Some("{\"recovery_request_generation\":9}"),
+                ),
+                _ => unreachable!(),
+            };
+            channel.acknowledge_after_render(&snapshot);
+            assert_eq!(
+                terminal_receipt(&mut channel, outcome.receipt_id).status,
+                ActionReceiptStatus::Indeterminate,
+                "target_present={target_present} terminal_state={terminal_state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn flexible_observer_present_target_drift_matrix_fails_closed() {
+        #[derive(Clone, Copy)]
+        enum Drift {
+            Node,
+            Role,
+            Action,
+            Declaration,
+        }
+        let (effect, context, observer, target, semantic) = (
+            "graph-open-node",
+            "workspace-a/graph-global",
+            "mt042.graph-open-completion",
+            "graph.retry",
+            "retry|workspace-a|generation-8",
+        );
+        for drift in [Drift::Node, Drift::Role, Drift::Action, Drift::Declaration] {
+            let mut snapshot = fixture_snapshot();
+            snapshot.root.children.push(clickable_node(
+                target,
+                420,
+                serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+            ));
+            snapshot.root.children.push(observer_node(
+                observer,
+                421,
+                serialize_observer_click_state(
+                    effect,
+                    context,
+                    8,
+                    ClickCompletionState::Ready,
+                    None,
+                    None,
+                )
+                .unwrap(),
+            ));
+            let mut channel = ActionChannel::new();
+            let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+            channel.drain_revalidated_into_events(&snapshot);
+            let post_target = top_level_node_mut(&mut snapshot, target);
+            post_target.value =
+                serialize_flexible_observer_click_target(effect, context, 9, observer, semantic);
+            match drift {
+                Drift::Node => post_target.node_id += 1,
+                Drift::Role => post_target.role = "ListItem".to_owned(),
+                Drift::Action => post_target.actions.clear(),
+                Drift::Declaration => {
+                    post_target.value = serialize_flexible_observer_click_target(
+                        effect,
+                        context,
+                        9,
+                        observer,
+                        "retry|workspace-b|generation-8",
+                    )
+                }
+            }
+            top_level_node_mut(&mut snapshot, observer).value = serialize_observer_click_applied(
+                effect,
+                context,
+                9,
+                target,
+                semantic,
+                "{\"graph_recovered\":true}",
+            );
+            channel.acknowledge_after_render(&snapshot);
+            assert_eq!(
+                terminal_receipt(&mut channel, outcome.receipt_id).status,
+                ActionReceiptStatus::Indeterminate
+            );
+        }
+    }
+
+    #[test]
+    fn flexible_observer_present_target_requires_declaration_generation_advance() {
+        let (effect, context, observer, target, semantic) = (
+            "graph-open-node",
+            "workspace-a/graph-global",
+            "mt042.graph-open-completion",
+            "graph.retry",
+            "retry|workspace-a|generation-8",
+        );
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            target,
+            430,
+            serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+        ));
+        snapshot.root.children.push(observer_node(
+            observer,
+            431,
+            serialize_observer_click_state(
+                effect,
+                context,
+                8,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        let mut channel = ActionChannel::new();
+        let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        top_level_node_mut(&mut snapshot, observer).value = serialize_observer_click_applied(
+            effect,
+            context,
+            9,
+            target,
+            semantic,
+            "{\"graph_recovered\":true}",
+        );
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate
+        );
+    }
+
+    #[test]
+    fn flexible_observer_identity_mismatch_is_indeterminate() {
+        let (effect, context, observer, target, semantic) = (
+            "graph-open-node",
+            "workspace-a/graph-global",
+            "mt042.graph-open-completion",
+            "graph.retry",
+            "retry|workspace-a|generation-8",
+        );
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            target,
+            440,
+            serialize_flexible_observer_click_target(effect, context, 8, observer, semantic),
+        ));
+        snapshot.root.children.push(observer_node(
+            observer,
+            441,
+            serialize_observer_click_state(
+                effect,
+                context,
+                8,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        let mut channel = ActionChannel::new();
+        let outcome = channel.enqueue(&snapshot, target, UiAction::Click).unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        top_level_node_mut(&mut snapshot, target).value =
+            serialize_flexible_observer_click_target(effect, context, 9, observer, semantic);
+        let post_observer = top_level_node_mut(&mut snapshot, observer);
+        post_observer.node_id += 1;
+        post_observer.value = serialize_observer_click_applied(
+            effect,
+            context,
+            9,
+            target,
+            semantic,
+            "{\"graph_recovered\":true}",
+        );
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate
+        );
+    }
+
+    #[test]
+    fn observer_target_modes_remain_mutually_exclusive_regressions() {
+        let (effect, context, observer, semantic) = ("effect", "context", "observer", "semantic");
+        let transient = serialize_observer_click_target(effect, context, 1, observer, semantic)
+            .and_then(|value| parse_click_completion_token(&value))
+            .unwrap();
+        let persistent =
+            serialize_persistent_observer_click_target(effect, context, 1, observer, semantic)
+                .and_then(|value| parse_click_completion_token(&value))
+                .unwrap();
+        let flexible =
+            serialize_flexible_observer_click_target(effect, context, 1, observer, semantic)
+                .and_then(|value| parse_click_completion_token(&value))
+                .unwrap();
+        assert!(!transient.persistent_target && !transient.flexible_target);
+        assert!(persistent.persistent_target && !persistent.flexible_target);
+        assert!(!flexible.persistent_target && flexible.flexible_target);
+        let mut illegal = flexible;
+        illegal.persistent_target = true;
+        assert!(!illegal.valid_observer_target_declaration());
+    }
+
+    fn assert_terminal_observer_baseline_advances(baseline: String) {
+        let effect = "wiki-overlay-action";
+        let context = "workspace-a/projection-a/pane-4/source-revision-a";
+        let observer_author = "wiki.action-status.projection-a";
+        let target_author = "wiki.cancel.projection-a";
+        let semantic = "cancel|draft-8|source-revision-a";
+        let declaration =
+            serialize_observer_click_target(effect, context, 20, observer_author, semantic)
+                .unwrap();
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node(target_author, 70, Some(declaration)));
+        snapshot
+            .root
+            .children
+            .push(observer_node(observer_author, 71, baseline));
+
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, target_author, UiAction::Click)
+            .expect("queue next action from durable terminal baseline");
+        channel.drain_revalidated_into_events(&snapshot);
+
+        let mut applied = snapshot;
+        applied
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some(target_author));
+        applied
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap()
+            .value = serialize_observer_click_applied(
+            effect,
+            context,
+            21,
+            target_author,
+            semantic,
+            "{\"action\":\"cancel\",\"action_generation\":21}",
+        );
+        channel.acknowledge_after_render(&applied);
+
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied
+        );
+    }
+
+    #[test]
+    fn observer_applied_baseline_can_advance_to_next_exact_applied_generation() {
+        let baseline = serialize_observer_click_applied(
+            "wiki-overlay-action",
+            "workspace-a/projection-a/pane-4/source-revision-a",
+            20,
+            "wiki.edit.projection-a",
+            "edit|draft-8|source-revision-a",
+            "{\"action\":\"edit\",\"action_generation\":20}",
+        )
+        .unwrap();
+        assert_terminal_observer_baseline_advances(baseline);
+    }
+
+    #[test]
+    fn observer_failed_baseline_can_advance_to_next_exact_applied_generation() {
+        let baseline = serialize_observer_click_failure(
+            "wiki-overlay-action",
+            "workspace-a/projection-a/pane-4/source-revision-a",
+            20,
+            "wiki.save.projection-a",
+            "save|draft-8|source-revision-a",
+            "wiki_save_transport: unavailable",
+            Some("{\"action\":\"save\",\"action_generation\":20}"),
+        )
+        .unwrap();
+        assert_terminal_observer_baseline_advances(baseline);
+    }
+
+    #[test]
+    fn unchanged_durable_terminal_cannot_acknowledge_the_next_action() {
+        let effect = "wiki-overlay-action";
+        let context = "workspace-a/projection-a/pane-4/source-revision-a";
+        let observer_author = "wiki.action-status.projection-a";
+        let target_author = "wiki.cancel.projection-a";
+        let semantic = "cancel|draft-8|source-revision-a";
+        let baseline = serialize_observer_click_applied(
+            effect,
+            context,
+            20,
+            "wiki.edit.projection-a",
+            "edit|draft-8|source-revision-a",
+            "{\"action\":\"edit\",\"action_generation\":20}",
+        )
+        .unwrap();
+        let declaration =
+            serialize_observer_click_target(effect, context, 20, observer_author, semantic)
+                .unwrap();
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node(target_author, 70, Some(declaration)));
+        snapshot
+            .root
+            .children
+            .push(observer_node(observer_author, 71, baseline));
+
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, target_author, UiAction::Click)
+            .unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        snapshot
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some(target_author));
+        channel.acknowledge_after_render(&snapshot);
+
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate
+        );
+    }
+
+    #[test]
+    fn pending_observer_baseline_is_rejected_for_a_new_action_registration() {
+        let effect = "wiki-overlay-action";
+        let context = "workspace-a/projection-a/pane-4/source-revision-a";
+        let observer_author = "wiki.action-status.projection-a";
+        let target_author = "wiki.cancel.projection-a";
+        let semantic = "cancel|draft-8|source-revision-a";
+        let declaration =
+            serialize_observer_click_target(effect, context, 20, observer_author, semantic)
+                .unwrap();
+        let pending = serialize_observer_click_state(
+            effect,
+            context,
+            20,
+            ClickCompletionState::Pending,
+            Some("wiki.save.projection-a"),
+            Some("save|draft-8|source-revision-a"),
+        )
+        .unwrap();
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node(target_author, 70, Some(declaration)));
+        snapshot
+            .root
+            .children
+            .push(observer_node(observer_author, 71, pending));
+        let target = snapshot.find_by_author_id(target_author).unwrap();
+
+        assert!(pending_click_completion(&snapshot, target, &UiAction::Click).is_none());
+    }
+
+    #[test]
+    fn observer_failed_completion_is_a_causally_bound_rejected_receipt() {
+        let effect = "wiki-overlay-action";
+        let context = "workspace-a/projection-a/pane-4/source-revision-a";
+        let observer_author = "wiki.action-status.projection-a";
+        let target_author = "wiki.save.projection-a";
+        let semantic = "save|draft-7|source-revision-a";
+        let ready = serialize_observer_click_state(
+            effect,
+            context,
+            12,
+            ClickCompletionState::Ready,
+            None,
+            None,
+        )
+        .unwrap();
+        let declaration =
+            serialize_observer_click_target(effect, context, 12, observer_author, semantic)
+                .unwrap();
+        let mut snapshot = fixture_snapshot();
+        snapshot
+            .root
+            .children
+            .push(clickable_node(target_author, 70, Some(declaration)));
+        snapshot
+            .root
+            .children
+            .push(observer_node(observer_author, 71, ready));
+
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, target_author, UiAction::Click)
+            .expect("queue observer-backed wiki save");
+        channel.drain_revalidated_into_events(&snapshot);
+
+        let mut failed = snapshot;
+        failed
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some(target_author));
+        failed
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap()
+            .value = serialize_observer_click_failure(
+            effect,
+            context,
+            13,
+            target_author,
+            semantic,
+            "wiki_save_transport: database unavailable",
+            Some("{\"action\":\"save\",\"action_generation\":13}"),
+        );
+        channel.acknowledge_after_render(&failed);
+
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Rejected);
+        assert_eq!(
+            receipt.rejection.as_deref(),
+            Some("wiki_save_transport: database unavailable")
+        );
+        assert_eq!(
+            receipt.observed_value,
+            failed
+                .root
+                .children
+                .iter()
+                .find(|node| node.author_id.as_deref() == Some(observer_author))
+                .unwrap()
+                .value
+        );
+    }
+
+    #[test]
+    fn observer_failure_cannot_reject_a_different_or_stale_request() {
+        let effect = "wiki-overlay-action";
+        let context = "workspace-a/projection-a/pane-4/source-revision-a";
+        let observer_author = "wiki.action-status.projection-a";
+        let target_author = "wiki.save.projection-a";
+        let semantic = "save|draft-7|source-revision-a";
+        let ready = serialize_observer_click_state(
+            effect,
+            context,
+            20,
+            ClickCompletionState::Ready,
+            None,
+            None,
+        )
+        .unwrap();
+        let declaration =
+            serialize_observer_click_target(effect, context, 20, observer_author, semantic)
+                .unwrap();
+        let base_snapshot = || {
+            let mut snapshot = fixture_snapshot();
+            snapshot.root.children.push(clickable_node(
+                target_author,
+                80,
+                Some(declaration.clone()),
+            ));
+            snapshot
+                .root
+                .children
+                .push(observer_node(observer_author, 81, ready.clone()));
+            snapshot
+        };
+
+        for (label, failed_context, generation, failed_target, failed_semantic) in [
+            (
+                "workspace/context",
+                "workspace-b/projection-a/pane-4/source-revision-a",
+                21,
+                target_author,
+                semantic,
+            ),
+            ("generation", context, 20, target_author, semantic),
+            ("target", context, 21, "wiki.cancel.projection-a", semantic),
+            (
+                "semantic",
+                context,
+                21,
+                target_author,
+                "save|different-draft|source-revision-a",
+            ),
+        ] {
+            let snapshot = base_snapshot();
+            let mut channel = ActionChannel::new();
+            let outcome = channel
+                .enqueue(&snapshot, target_author, UiAction::Click)
+                .unwrap();
+            channel.drain_revalidated_into_events(&snapshot);
+            let mut failed = snapshot;
+            failed
+                .root
+                .children
+                .retain(|node| node.author_id.as_deref() != Some(target_author));
+            failed
+                .root
+                .children
+                .iter_mut()
+                .find(|node| node.author_id.as_deref() == Some(observer_author))
+                .unwrap()
+                .value = serialize_observer_click_failure(
+                effect,
+                failed_context,
+                generation,
+                failed_target,
+                failed_semantic,
+                "wiki_save_conflict: stale source",
+                Some("{\"action\":\"save\",\"action_generation\":21}"),
+            );
+            channel.acknowledge_after_render(&failed);
+            assert_eq!(
+                terminal_receipt(&mut channel, outcome.receipt_id).status,
+                ActionReceiptStatus::Indeterminate,
+                "{label} drift cannot reject the pending request"
+            );
+        }
+    }
+
+    #[test]
+    fn observer_completion_identity_context_generation_and_semantic_drift_are_indeterminate() {
+        let effect = "code-completion-accept";
+        let context = "file:///workspace/main.cpp@2";
+        let observer_author = "code-editor.completion-observer";
+        let semantic = "add_numbers|add_numbers(int,int)";
+        let ready = serialize_observer_click_state(
+            effect,
+            context,
+            9,
+            ClickCompletionState::Ready,
+            None,
+            None,
+        )
+        .unwrap();
+        let declaration =
+            serialize_observer_click_target(effect, context, 9, observer_author, semantic).unwrap();
+        let base_snapshot = || {
+            let mut snapshot = fixture_snapshot();
+            snapshot.root.children.push(clickable_node(
+                "completion-item",
+                50,
+                Some(declaration.clone()),
+            ));
+            snapshot
+                .root
+                .children
+                .push(observer_node(observer_author, 60, ready.clone()));
+            snapshot
+        };
+
+        for (label, post_effect, post_context, post_generation, post_target, post_semantic) in [
+            ("effect", "wrong", context, 10, "completion-item", semantic),
+            (
+                "context",
+                effect,
+                "file:///other.cpp@2",
+                10,
+                "completion-item",
+                semantic,
+            ),
+            (
+                "generation",
+                effect,
+                context,
+                11,
+                "completion-item",
+                semantic,
+            ),
+            ("target", effect, context, 10, "other-item", semantic),
+            (
+                "semantic",
+                effect,
+                context,
+                10,
+                "completion-item",
+                "different",
+            ),
+        ] {
+            let snapshot = base_snapshot();
+            let mut channel = ActionChannel::new();
+            let outcome = channel
+                .enqueue(&snapshot, "completion-item", UiAction::Click)
+                .unwrap();
+            channel.drain_revalidated_into_events(&snapshot);
+            let mut post = snapshot;
+            post.root
+                .children
+                .retain(|node| node.author_id.as_deref() != Some("completion-item"));
+            let observer = post
+                .root
+                .children
+                .iter_mut()
+                .find(|node| node.author_id.as_deref() == Some(observer_author))
+                .unwrap();
+            observer.value = serialize_observer_click_state(
+                post_effect,
+                post_context,
+                post_generation,
+                ClickCompletionState::Applied,
+                Some(post_target),
+                Some(post_semantic),
+            );
+            channel.acknowledge_after_render(&post);
+            assert_eq!(
+                terminal_receipt(&mut channel, outcome.receipt_id).status,
+                ActionReceiptStatus::Indeterminate,
+                "{label} drift"
+            );
+        }
+
+        let snapshot = base_snapshot();
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, "completion-item", UiAction::Click)
+            .unwrap();
+        let mut dispatch = snapshot.clone();
+        dispatch
+            .root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap()
+            .role = "Group".to_owned();
+        channel.drain_revalidated_into_events(&dispatch);
+        let mut post = dispatch;
+        post.root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some("completion-item"));
+        post.root
+            .children
+            .iter_mut()
+            .find(|node| node.author_id.as_deref() == Some(observer_author))
+            .unwrap()
+            .value = serialize_observer_click_state(
+            effect,
+            context,
+            10,
+            ClickCompletionState::Applied,
+            Some("completion-item"),
+            Some(semantic),
+        );
+        channel.acknowledge_after_render(&post);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate,
+            "observer dispatch identity drift must fail closed"
+        );
+    }
+
+    #[test]
+    fn reserved_token_parser_is_bounded_and_rejects_unknown_fields_without_claiming_applied() {
+        let valid = serialize_same_target_click_completion(
+            "image-modal-open",
+            "workspace-a/image-1",
+            1,
+            ClickCompletionState::Ready,
+        )
+        .unwrap();
+        let mut unknown: serde_json::Value = serde_json::from_str(&valid).unwrap();
+        unknown["surprise"] = serde_json::json!(true);
+        let unknown = unknown.to_string();
+        assert!(parse_click_completion_token(&unknown).is_none());
+        assert!(
+            parse_click_completion_token(&"x".repeat(MAX_CLICK_COMPLETION_TOKEN_BYTES + 1))
+                .is_none()
+        );
+        assert!(serialize_same_target_click_completion(
+            "",
+            "workspace-a/image-1",
+            1,
+            ClickCompletionState::Ready
+        )
+        .is_none());
+        assert!(serialize_observer_click_state(
+            "code-completion-accept",
+            "context",
+            1,
+            ClickCompletionState::Pending,
+            None,
+            None,
+        )
+        .is_none());
+        assert!(serialize_observer_click_failure(
+            "wiki-overlay-action",
+            "context",
+            2,
+            "wiki.save.projection-a",
+            "save|draft-1",
+            &"x".repeat(MAX_CLICK_COMPLETION_ERROR_BYTES + 1),
+            None,
+        )
+        .is_none());
+        assert!(serialize_observer_click_failure(
+            "wiki-overlay-action",
+            "context",
+            2,
+            "wiki.save.projection-a",
+            "save|draft-1",
+            "typed\ncontrol",
+            None,
+        )
+        .is_none());
+        assert!(serialize_observer_click_applied(
+            "wiki-overlay-action",
+            "context",
+            2,
+            "wiki.save.projection-a",
+            "save|draft-1",
+            &"x".repeat(MAX_CLICK_COMPLETION_DETAIL_BYTES + 1),
+        )
+        .is_none());
+        let normal_observer = serialize_observer_click_state(
+            "code-completion-accept",
+            "context",
+            2,
+            ClickCompletionState::Applied,
+            Some("completion-item"),
+            Some("semantic"),
+        )
+        .unwrap();
+        assert!(
+            !normal_observer.contains("terminal_error"),
+            "Ready/Pending/Applied serialization remains backward-compatible"
+        );
+        assert!(
+            !normal_observer.contains("terminal_detail"),
+            "legacy observer state cannot leak a prior terminal detail"
+        );
+        let mut ready_with_stale_detail: serde_json::Value = serde_json::from_str(
+            &serialize_observer_click_state(
+                "code-completion-accept",
+                "context",
+                3,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        ready_with_stale_detail["terminal_detail"] = serde_json::json!("stale-secret");
+        let parsed = parse_click_completion_token(&ready_with_stale_detail.to_string()).unwrap();
+        assert!(
+            !parsed.valid_observer_state(),
+            "Ready cannot carry stale terminal detail into a new request"
+        );
+
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children[0].value = Some(unknown);
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, "btn", UiAction::Click)
+            .expect("a malformed opt-in token does not block the underlying generic click");
+        channel.drain_revalidated_into_events(&snapshot);
+        channel.acknowledge_after_render(&snapshot);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate,
+            "malformed token never upgrades a generic click"
+        );
     }
 
     #[test]

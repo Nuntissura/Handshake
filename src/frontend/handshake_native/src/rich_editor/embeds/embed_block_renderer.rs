@@ -29,6 +29,7 @@ use std::time::Duration;
 
 use egui::accesskit;
 
+use crate::mcp::action::{serialize_same_target_click_completion, ClickCompletionState};
 use crate::rich_editor::document_model::node::HsLinkNode;
 use crate::rich_editor::embeds::album_view::{self, AlbumViewState};
 use crate::rich_editor::embeds::asset_resolver::{
@@ -43,6 +44,27 @@ use crate::rich_editor::embeds::video_view::{
 use crate::theme::HsPalette;
 
 type Generation = u64;
+
+const IMAGE_MODAL_OPEN_EFFECT: &str = "image-modal-open";
+const MAX_LIVE_MODAL_CLIP_DIMENSION: f32 = 8192.0;
+
+fn valid_live_modal_clip(rect: egui::Rect) -> bool {
+    rect.is_finite()
+        && rect.width() > 0.0
+        && rect.height() > 0.0
+        && rect.width() <= MAX_LIVE_MODAL_CLIP_DIMENSION
+        && rect.height() <= MAX_LIVE_MODAL_CLIP_DIMENSION
+}
+
+/// Keep the modal aligned with ordinary live resize frames while rejecting Argus' intentionally
+/// oversized isolated snapshot context. Invalid candidates never erase the last proven live clip.
+fn reconcile_image_modal_clip(previous: egui::Rect, candidate: egui::Rect) -> egui::Rect {
+    if valid_live_modal_clip(candidate) {
+        candidate
+    } else {
+        previous
+    }
+}
 
 /// Generation-stamped multi-result queue for off-thread single-asset resolutions. A queue is
 /// required because several embeds may finish between two frames; a one-slot cell silently lost
@@ -130,6 +152,12 @@ pub struct EmbedRuntime {
     pub album_states: std::collections::HashMap<String, AlbumViewState>,
     /// Single-image assets whose full-size modal is open.
     pub image_modals: std::collections::HashSet<String>,
+    /// Visible editor/pane clip captured by the exact image-open action. A top-level modal must
+    /// stay anchored to this live viewport rather than the shell's much larger content rectangle.
+    image_modal_clip_rects: std::collections::HashMap<String, egui::Rect>,
+    /// Per-asset settled modal-open generation. Closed thumbnails emit Ready(N); a real click on a
+    /// closed thumbnail opens the modal and emits Applied(N+1). Closing does not increment it.
+    image_modal_generations: std::collections::HashMap<String, u64>,
     /// Per-asset video reveal state.
     pub video_states: std::collections::HashMap<String, VideoViewState>,
     /// Delivery cell for off-thread single resolutions (drained at frame top).
@@ -218,6 +246,8 @@ impl EmbedRuntime {
             slideshow_states: std::collections::HashMap::new(),
             album_states: std::collections::HashMap::new(),
             image_modals: std::collections::HashSet::new(),
+            image_modal_clip_rects: std::collections::HashMap::new(),
+            image_modal_generations: std::collections::HashMap::new(),
             video_states: std::collections::HashMap::new(),
             single_cell: Arc::new(Mutex::new(Vec::new())),
             sequence_cell: Arc::new(Mutex::new(Vec::new())),
@@ -252,6 +282,8 @@ impl EmbedRuntime {
         self.slideshow_states.clear();
         self.album_states.clear();
         self.image_modals.clear();
+        self.image_modal_clip_rects.clear();
+        self.image_modal_generations.clear();
         self.video_states.clear();
     }
 
@@ -563,6 +595,22 @@ fn render_single_image(
             render_retryable_error(ui, kind, &asset_id, &e, runtime, palette)
         }
         Some(EmbedResolutionState::Ok(resolved)) => {
+            let modal_was_open = runtime.image_modals.contains(&asset_id);
+            let modal_generation = *runtime
+                .image_modal_generations
+                .entry(asset_id.clone())
+                .or_insert(0);
+            let modal_context = format!("{}/{}", runtime.workspace_id, asset_id);
+            let thumbnail_token = serialize_same_target_click_completion(
+                IMAGE_MODAL_OPEN_EFFECT,
+                &modal_context,
+                modal_generation,
+                if modal_was_open {
+                    ClickCompletionState::Applied
+                } else {
+                    ClickCompletionState::Ready
+                },
+            );
             let response = render_resolved_image(
                 ui,
                 kind,
@@ -572,49 +620,128 @@ fn render_single_image(
                 runtime,
                 palette,
                 max_width,
+                image_view::ImageInteraction::Clickable,
+                thumbnail_token.as_deref(),
             );
-            if response.clicked() {
-                runtime.image_modals.insert(asset_id.clone());
+            let candidate_clip = ui.clip_rect();
+            if let Some(previous) = runtime.image_modal_clip_rects.get_mut(&asset_id) {
+                *previous = reconcile_image_modal_clip(*previous, candidate_clip);
+            } else if valid_live_modal_clip(candidate_clip) {
+                runtime
+                    .image_modal_clip_rects
+                    .insert(asset_id.clone(), candidate_clip);
+            }
+            if !modal_was_open
+                && response.clicked()
+                && runtime.image_modal_clip_rects.contains_key(&asset_id)
+            {
+                if let Some(next_generation) = modal_generation.checked_add(1) {
+                    runtime
+                        .image_modal_generations
+                        .insert(asset_id.clone(), next_generation);
+                    runtime.image_modals.insert(asset_id.clone());
+                    // `render_resolved_image` emitted Ready(N) before egui reported this click.
+                    // Overwrite that same AccessKit node in the click frame so ActionChannel's
+                    // first post-dispatch snapshot observes the causal Applied(N+1) transition
+                    // instead of prematurely terminating on the stale ready token.
+                    if let Some(applied_token) = serialize_same_target_click_completion(
+                        IMAGE_MODAL_OPEN_EFFECT,
+                        &modal_context,
+                        next_generation,
+                        ClickCompletionState::Applied,
+                    ) {
+                        emit_image_node(
+                            ui.ctx(),
+                            response.id,
+                            &format!("embed-image-{asset_id}"),
+                            image_view::ImageInteraction::Clickable,
+                            Some(&applied_token),
+                        );
+                    }
+                }
             }
 
             if runtime.image_modals.contains(&asset_id) {
-                let mut keep_open = true;
-                let mut close_clicked = false;
-                let modal = egui::Window::new(format!("Image: {asset_id}"))
-                    .id(egui::Id::new(("image-modal", &asset_id)))
-                    .collapsible(false)
-                    .open(&mut keep_open)
-                    .show(ui.ctx(), |ui| {
-                        let close = ui.button("Close");
-                        emit_node_author(
-                            ui.ctx(),
-                            close.id,
-                            accesskit::Role::Button,
-                            &format!("embed-image-modal-close-{asset_id}"),
-                        );
-                        close_clicked = close.clicked();
-                        let available = ui.available_width().max(1.0);
-                        let _ = render_resolved_image(
-                            ui,
-                            kind,
-                            MediaTier::Full,
-                            &asset_id,
-                            &resolved,
-                            runtime,
-                            palette,
-                            available,
-                        );
-                    });
-                if let Some(modal) = modal {
-                    emit_node_author(
-                        ui.ctx(),
-                        modal.response.id,
-                        accesskit::Role::Dialog,
-                        &format!("embed-image-modal-{asset_id}"),
-                    );
+                let modal_id = egui::Id::new(("image-modal", &asset_id));
+                let live_candidate = ui.clip_rect();
+                if let Some(previous) = runtime.image_modal_clip_rects.get_mut(&asset_id) {
+                    *previous = reconcile_image_modal_clip(*previous, live_candidate);
                 }
-                if close_clicked || !keep_open {
+                let modal_clip_rect = runtime
+                    .image_modal_clip_rects
+                    .get(&asset_id)
+                    .copied()
+                    .expect("an open image modal retains its validated live clip");
+                // `Modal::default_area` carries a global-content anchor that overrides fixed_pos.
+                // Build its foreground/modal equivalent directly so this overlay is centered and
+                // constrained to the visible editor/pane captured by the opening action.
+                let modal_area = egui::Area::new(modal_id)
+                    .kind(egui::UiKind::Modal)
+                    .sense(egui::Sense::hover())
+                    .order(egui::Order::Foreground)
+                    .interactable(true)
+                    .pivot(egui::Align2::CENTER_CENTER)
+                    .fixed_pos(modal_clip_rect.center())
+                    .constrain_to(modal_clip_rect);
+                let modal = egui::Modal::new(modal_id)
+                    .area(modal_area)
+                    .show(ui.ctx(), |ui| {
+                        ui.vertical(|ui| {
+                            ui.heading(format!("Image: {asset_id}"));
+                            let close = ui.button("Close");
+                            emit_node_author(
+                                ui.ctx(),
+                                close.id,
+                                accesskit::Role::Button,
+                                &format!("embed-image-modal-close-{asset_id}"),
+                            );
+                            // egui 0.33.3 sets Disabled during an Area's first sizing pass but does
+                            // not clear that persisted AccessKit property on later enabled passes.
+                            // This Close control has no product-level disabled state while its modal
+                            // is open, so clear only this exact stale bit (repository precedent:
+                            // command palette, context menu, and code-editor completion rows).
+                            ui.ctx().accesskit_node_builder(close.id, |node| {
+                                node.clear_disabled();
+                            });
+                            let close_clicked = close.clicked();
+                            let available = ui.available_width().max(1.0);
+                            let _ = render_resolved_image(
+                                ui,
+                                kind,
+                                MediaTier::Full,
+                                &asset_id,
+                                &resolved,
+                                runtime,
+                                palette,
+                                available,
+                                image_view::ImageInteraction::Static,
+                                None,
+                            );
+                            close_clicked
+                        })
+                    });
+                let should_close = modal.should_close();
+                let modal_content = modal.inner;
+                emit_node_author(
+                    ui.ctx(),
+                    modal_content.response.id,
+                    accesskit::Role::Dialog,
+                    &format!("embed-image-modal-{asset_id}"),
+                );
+                let modal_rect = modal_content.response.rect;
+                ui.ctx()
+                    .accesskit_node_builder(modal_content.response.id, move |node| {
+                        node.set_bounds(accesskit::Rect {
+                            x0: f64::from(modal_rect.min.x),
+                            y0: f64::from(modal_rect.min.y),
+                            x1: f64::from(modal_rect.max.x),
+                            y1: f64::from(modal_rect.max.y),
+                        });
+                        node.set_modal();
+                    });
+                if modal_content.inner || should_close {
                     runtime.image_modals.remove(&asset_id);
+                    runtime.image_modal_clip_rects.remove(&asset_id);
                 }
             }
         }
@@ -642,6 +769,8 @@ fn render_resolved_image(
     runtime: &mut EmbedRuntime,
     palette: &HsPalette,
     max_width: f32,
+    interaction: image_view::ImageInteraction,
+    click_completion_value: Option<&str>,
 ) -> egui::Response {
     let media_key = EmbedRuntime::media_key(kind, tier, asset_id);
     let author = if tier == MediaTier::Full {
@@ -683,9 +812,15 @@ fn render_resolved_image(
     // (1) Texture ready -> render the decoded image at aspect-correct width (AC-1).
     if let Some(texture) = runtime.textures.get(&media_key).cloned() {
         let resp = ui
-            .scope(|ui| image_view::render_image(ui, &texture, resolved, max_width))
+            .scope(|ui| image_view::render_image(ui, &texture, resolved, max_width, interaction))
             .inner;
-        emit_node_author(ui.ctx(), resp.id, accesskit::Role::Image, &author);
+        emit_image_node(
+            ui.ctx(),
+            resp.id,
+            &author,
+            interaction,
+            click_completion_value,
+        );
         return resp;
     }
 
@@ -718,7 +853,13 @@ fn render_resolved_image(
             ui.colored_label(palette.text_subtle, url);
         })
         .response;
-    emit_node_author(ui.ctx(), resp.id, accesskit::Role::Image, &author);
+    emit_image_node(
+        ui.ctx(),
+        resp.id,
+        &author,
+        image_view::ImageInteraction::Static,
+        None,
+    );
     resp
 }
 
@@ -784,6 +925,8 @@ fn render_video(
             runtime,
             palette,
             poster_width,
+            image_view::ImageInteraction::Static,
+            None,
         );
         // The play button: clicking dispatches through the focus-safe handler (no OS launch).
         let play = ui.button("\u{25B6} Play");
@@ -896,6 +1039,8 @@ fn render_slideshow(
                         runtime,
                         palette,
                         max_width,
+                        image_view::ImageInteraction::Static,
+                        None,
                     );
                 }
                 Err(e) => render_retryable_sequence_error(
@@ -1009,6 +1154,8 @@ fn render_album(
                                 runtime,
                                 palette,
                                 cell_width,
+                                image_view::ImageInteraction::Clickable,
+                                None,
                             );
                             let cell_author = album_view::cell_author_id(&item.ref_value);
                             emit_node_author(
@@ -1080,6 +1227,8 @@ fn render_album(
                                 runtime,
                                 palette,
                                 available,
+                                image_view::ImageInteraction::Static,
+                                None,
                             );
                         }
                         Err(e) => render_retryable_sequence_error(
@@ -1235,6 +1384,38 @@ fn emit_node_author(ctx: &egui::Context, id: egui::Id, role: accesskit::Role, au
     ctx.accesskit_node_builder(id, move |node| {
         node.set_role(role_for_closure);
         node.set_author_id(crate::rich_editor::scoped_author_id(author));
+    });
+}
+
+fn emit_image_node(
+    ctx: &egui::Context,
+    id: egui::Id,
+    author_id: &str,
+    interaction: image_view::ImageInteraction,
+    click_completion_value: Option<&str>,
+) {
+    let author = author_id.to_owned();
+    let completion_value = click_completion_value.map(str::to_owned);
+    ctx.accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Image);
+        node.set_author_id(crate::rich_editor::scoped_author_id(author));
+        node.clear_disabled();
+        match interaction {
+            image_view::ImageInteraction::Clickable => {
+                node.add_action(accesskit::Action::Click);
+                node.add_action(accesskit::Action::Focus);
+                if let Some(value) = &completion_value {
+                    node.set_value(value.clone());
+                } else {
+                    node.clear_value();
+                }
+            }
+            image_view::ImageInteraction::Static => {
+                node.remove_action(accesskit::Action::Click);
+                node.remove_action(accesskit::Action::Focus);
+                node.clear_value();
+            }
+        }
     });
 }
 
@@ -1729,6 +1910,29 @@ mod tests {
             future_dropped.load(Ordering::SeqCst),
             "removing the owning embed runtime must cancel and drop its pending transport future"
         );
+    }
+
+    #[test]
+    fn modal_clip_reconciliation_accepts_live_resize_and_rejects_snapshot_extremes() {
+        let original = egui::Rect::from_min_size(egui::pos2(20.0, 30.0), egui::vec2(500.0, 300.0));
+        let resized = egui::Rect::from_min_size(egui::pos2(10.0, 15.0), egui::vec2(760.0, 460.0));
+        assert_eq!(reconcile_image_modal_clip(original, resized), resized);
+
+        for invalid in [
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::ZERO),
+            egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(MAX_LIVE_MODAL_CLIP_DIMENSION + 1.0, 600.0),
+            ),
+            egui::Rect::from_min_max(egui::pos2(f32::NEG_INFINITY, 0.0), egui::pos2(100.0, 100.0)),
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(10_000.0, 10_000.0)),
+        ] {
+            assert_eq!(
+                reconcile_image_modal_clip(original, invalid),
+                original,
+                "invalid/isolated snapshot clip must not overwrite the live viewport: {invalid:?}"
+            );
+        }
     }
 
     #[test]

@@ -448,6 +448,15 @@ pub enum AsyncUndoDirection {
     Redo,
 }
 
+/// Read-only identity for the one backend-touching cross-pane transition awaiting reconciliation.
+/// This is session observation only; it deliberately carries no closures and is never persisted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingCrossPaneObservation {
+    pub action_id: String,
+    pub direction: AsyncUndoDirection,
+    pub description: String,
+}
+
 #[derive(Debug, Clone)]
 struct PendingCrossPaneAction {
     direction: AsyncUndoDirection,
@@ -544,6 +553,22 @@ impl UnifiedUndoScope {
     /// The bus serializes these transitions so out-of-order network completions cannot reorder history.
     pub fn cross_pane_async_pending(&self) -> bool {
         !self.pending_cross_pane.is_empty()
+    }
+
+    /// Exact pending compensation identity for Argus/diagnostics. The bus serializes backend-touching
+    /// transitions, so a valid runtime has at most one row; fail closed if internal misuse creates more.
+    pub fn pending_cross_pane_observation(&self) -> Option<PendingCrossPaneObservation> {
+        if self.pending_cross_pane.len() != 1 {
+            return None;
+        }
+        self.pending_cross_pane
+            .iter()
+            .next()
+            .map(|(action_id, pending)| PendingCrossPaneObservation {
+                action_id: action_id.clone(),
+                direction: pending.direction,
+                description: pending.action.description.clone(),
+            })
     }
 
     /// Pop the most recently undone cross-pane action for redo.

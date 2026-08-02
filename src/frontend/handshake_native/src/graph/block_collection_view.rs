@@ -1603,13 +1603,20 @@ impl KanbanSubView<'_> {
                 let (rect, r) =
                     ui.allocate_exact_size(egui::vec2(168.0, 28.0), egui::Sense::click_and_drag());
                 if ui.is_rect_visible(rect) {
-                    ui.painter().rect_filled(rect, 4.0, palette.surface_strong);
+                    let (card_fill, card_text, card_border) = kanban_card_colors(palette);
+                    ui.painter().rect_filled(rect, 4.0, card_fill);
+                    ui.painter().rect_stroke(
+                        rect,
+                        4.0,
+                        egui::Stroke::new(1.0, card_border),
+                        egui::StrokeKind::Inside,
+                    );
                     ui.painter().text(
                         egui::pos2(rect.left() + 6.0, rect.center().y),
                         egui::Align2::LEFT_CENTER,
                         &label,
                         egui::FontId::proportional(13.0),
-                        palette.text,
+                        card_text,
                     );
                 }
                 r
@@ -1629,6 +1636,14 @@ impl KanbanSubView<'_> {
             node.set_value(lane_for_node.clone());
         });
     }
+}
+
+fn kanban_card_colors(palette: &HsPalette) -> (egui::Color32, egui::Color32, egui::Color32) {
+    // `surface_strong` and `text` are intentionally the same high-contrast token in both palettes;
+    // pairing them made Kanban titles white-on-white in dark mode and dark-on-dark in light mode.
+    // The normal surface/text pair is the sanctioned readable pairing; border_strong keeps each card
+    // visibly distinct from its lane without introducing a hard-coded color.
+    (palette.surface, palette.text, palette.border_strong)
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1979,6 +1994,15 @@ mod tests {
             blocks: vec![],
         };
         assert_eq!(tag.label(), "tag-a");
+    }
+
+    #[test]
+    fn kanban_card_palette_pair_has_contrast_in_both_themes() {
+        for palette in [HsPalette::dark(), HsPalette::light()] {
+            let (fill, text, border) = kanban_card_colors(&palette);
+            assert_ne!(fill, text, "card text must contrast with its fill");
+            assert_ne!(fill, border, "card border must distinguish the card from its lane");
+        }
     }
 
     #[test]

@@ -26,6 +26,8 @@
 
 use egui::accesskit;
 
+use crate::mcp::action::serialize_observer_click_target;
+
 use super::code_nav::CompletionItem;
 
 /// Stable AccessKit author_id for the completion popup list container (AC-005: a `Role::ListBox`).
@@ -33,6 +35,19 @@ pub const CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID: &str = "code_editor_completion
 /// Stable AccessKit author_id PREFIX for each completion item (`code_editor_completion_item_{n}`,
 /// AC-005: a `Role::Option` — the field-correct accesskit 0.21 variant; see [`completion_item_role`]).
 pub const CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX: &str = "code_editor_completion_item_";
+/// Durable observer for completion-row Click acknowledgement. The popup and its rows are transient,
+/// but this node remains mounted after acceptance so the action channel can prove the exact row/value
+/// effect instead of conservatively returning an indeterminate receipt.
+pub const CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID: &str = "code-editor.completion-observer";
+pub(crate) const CODE_EDITOR_COMPLETION_ACCEPT_EFFECT: &str = "code-completion-accept";
+
+pub(crate) fn completion_item_author_id(index: usize, instance: &str) -> String {
+    if instance.is_empty() {
+        format!("{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{index}")
+    } else {
+        format!("{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{index}#{instance}")
+    }
+}
 /// Stable AccessKit author_id for the hover tooltip (AC-006: a `Role::Tooltip`).
 pub const CODE_EDITOR_HOVER_AUTHOR_ID: &str = "code_editor_hover";
 /// Stable AccessKit author_id for the hover's "Go to definition" link.
@@ -130,7 +145,14 @@ impl CompletionPopup {
     /// `instance` is the panel's AccessKit instance suffix (empty for the default panel) so a diff
     /// view's two editors do not collide on the popup author_ids (RISK-004, the same scheme the panel
     /// nodes use).
-    pub fn show(ctx: &egui::Context, state: &CompletionState, instance: &str) -> CompletionOutcome {
+    pub fn show(
+        ctx: &egui::Context,
+        state: &CompletionState,
+        instance: &str,
+        observer_context: &str,
+        observer_generation: u64,
+        observer_author_id: &str,
+    ) -> CompletionOutcome {
         if state.items.is_empty() {
             return CompletionOutcome::None;
         }
@@ -171,25 +193,32 @@ impl CompletionPopup {
                                 if resp.clicked() {
                                     outcome = CompletionOutcome::Accept(n);
                                 }
-                                // Emit the per-item Option node (capped — RISK-004). Its value carries
-                                // the label + detail so an agent reads the suggestion by id.
-                                if n < MAX_ACCESSKIT_COMPLETION_ITEMS {
-                                    let author = if instance.is_empty() {
-                                        format!("{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{n}")
-                                    } else {
-                                        format!(
-                                            "{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{n}#{instance}"
-                                        )
-                                    };
+                                // Emit the per-item Option node (capped — RISK-004). Its description
+                                // carries the readable label/detail; its value carries the strict
+                                // observer-backed Click declaration consumed by the action channel.
+                                // Once this exact row accepted the click, retire its stable author id
+                                // in the SAME render that publishes the Applied observer. The action
+                                // channel requires the transient target to disappear before the
+                                // durable observer can causally acknowledge its effect.
+                                if !resp.clicked() && n < MAX_ACCESSKIT_COMPLETION_ITEMS {
+                                    let author = completion_item_author_id(n, instance);
                                     // Name the SAME live node egui created for the clickable label.
                                     // A separate synthetic node is inspectable but its AccessKit Click
                                     // cannot reach `resp.clicked()`; `resp.id` makes Argus steering real.
                                     let node_id = resp.id;
-                                    let value = if item.detail.is_empty() {
+                                    let semantic_description = if item.detail.is_empty() {
                                         item.label.clone()
                                     } else {
                                         format!("{} ({})", item.label, item.detail)
                                     };
+                                    let value = serialize_observer_click_target(
+                                        CODE_EDITOR_COMPLETION_ACCEPT_EFFECT,
+                                        observer_context,
+                                        observer_generation,
+                                        observer_author_id,
+                                        &item.insert_text,
+                                    )
+                                    .unwrap_or_else(|| semantic_description.clone());
                                     ctx.accesskit_node_builder(node_id, move |node| {
                                         node.set_role(Self::item_role());
                                         // The row is a live selectable control. Clear the inherited
@@ -199,6 +228,7 @@ impl CompletionPopup {
                                         node.clear_disabled();
                                         node.set_author_id(author.clone());
                                         node.set_label("Completion item".to_owned());
+                                        node.set_description(semantic_description.clone());
                                         node.set_value(value.clone());
                                         if is_selected {
                                             node.set_selected(true);

@@ -74,8 +74,13 @@
 
 use egui::accesskit;
 use egui::{Sense, Vec2};
+use sha2::{Digest, Sha256};
 
-use crate::backend_client::WikiProjection;
+use crate::backend_client::{WikiOverlay, WikiProjection};
+use crate::mcp::action::{
+    accesskit_string_set_value, serialize_observer_click_applied, serialize_observer_click_failure,
+    serialize_observer_click_state, serialize_observer_click_target, ClickCompletionState,
+};
 use crate::theme::HsPalette;
 
 /// Max bytes of `rendered_content` shown in the read-only scroll area before truncation (RISK-2 / MC-2).
@@ -102,6 +107,10 @@ pub const STALE_AUTHOR_ID_PREFIX: &str = "wiki.stale.";
 pub const ERROR_AUTHOR_ID_PREFIX: &str = "wiki.error.";
 pub const OVERLAYS_AUTHOR_ID_PREFIX: &str = "wiki.overlays.";
 pub const OVERLAY_AUTHOR_ID_PREFIX: &str = "wiki.overlay.";
+pub const ACTION_STATUS_AUTHOR_ID_PREFIX: &str = "wiki.action-status.";
+const ACTION_DISPATCHED_AUTHOR_ID_PREFIX: &str = "wiki.action-dispatched.";
+const WIKI_ACTION_EFFECT: &str = "wiki-overlay-action";
+const WIKI_ACTION_DETAIL_SCHEMA: &str = "handshake.wiki-action-terminal/v1";
 
 /// The stable AccessKit author_id for the title label: `wiki.title.{sanitized_projection_id}`.
 pub fn title_author_id(projection_id: &str) -> String {
@@ -198,6 +207,20 @@ pub fn overlay_author_id(overlay_id: &str) -> String {
     )
 }
 
+pub fn action_status_author_id(projection_id: &str) -> String {
+    format!(
+        "{ACTION_STATUS_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
+}
+
+fn action_dispatched_author_id(projection_id: &str) -> String {
+    format!(
+        "{ACTION_DISPATCHED_AUTHOR_ID_PREFIX}{}",
+        crate::project_tree::stable_part(projection_id)
+    )
+}
+
 /// Decide whether a page's `staleness_verdict` indicates STALE (RISK-5 / MC-5). The React type is
 /// `unknown`; here it is a `serde_json::Value`. The rule: a page is FRESH only when the verdict is a
 /// non-null object whose `state` field is exactly `"fresh"`. ANY other value — `{"state": "stale"}`,
@@ -227,7 +250,10 @@ pub enum WikiPageEvent {
     /// The Save button was clicked with a non-empty buffer (AC3): the host runs the verified
     /// `POST /loom/wiki/{id}/overlays { annotation }`, and on success re-fetches the projection and calls
     /// [`LoomWikiPagePanel::finish_save_success`]. `annotation` is the current edit buffer.
-    Save { annotation: String },
+    Save {
+        action_generation: u64,
+        annotation: String,
+    },
     /// The Cancel button was clicked (AC4): the buffer was already discarded by [`LoomWikiPagePanel::cancel_edit`];
     /// emitted for observability. The host makes NO backend call.
     Cancel,
@@ -239,6 +265,177 @@ pub enum WikiPageEvent {
     /// The overlay POST already succeeded but its follow-up GET failed. Retry only that GET; emitting
     /// another Save here would create a duplicate authority overlay.
     RetryReloadAfterSave,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WikiObserverPhase {
+    Ready,
+    Pending,
+    Applied,
+    Failed,
+}
+
+#[derive(Debug, Clone)]
+struct WikiActionObserver {
+    generation: u64,
+    phase: WikiObserverPhase,
+    context: String,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    terminal_error: Option<String>,
+    terminal_detail: Option<String>,
+}
+
+impl Default for WikiActionObserver {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            phase: WikiObserverPhase::Ready,
+            context: "wiki-unbound".to_owned(),
+            pending_target: None,
+            semantic_value: None,
+            terminal_error: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl WikiActionObserver {
+    fn prepare_frame(&mut self, context: String) {
+        // Terminal results are durable observation records, not transient render state. Capture and
+        // navigation passes may render the pane arbitrarily many times before ActionChannel reads
+        // the observer. Only an authoritative context change invalidates that record; `begin` below
+        // supersedes it when the operator starts the next action generation.
+        if matches!(
+            self.phase,
+            WikiObserverPhase::Applied | WikiObserverPhase::Failed
+        ) && self.context != context
+        {
+            self.phase = WikiObserverPhase::Ready;
+            self.pending_target = None;
+            self.semantic_value = None;
+            self.terminal_error = None;
+            self.terminal_detail = None;
+        }
+        if self.phase == WikiObserverPhase::Ready {
+            self.context = context;
+        }
+    }
+
+    fn next_generation(&self) -> u64 {
+        self.generation.wrapping_add(1)
+    }
+
+    fn target_value(&self, observer_author_id: &str, semantic: &str) -> Option<String> {
+        (self.phase != WikiObserverPhase::Pending).then(|| {
+            serialize_observer_click_target(
+                WIKI_ACTION_EFFECT,
+                &self.context,
+                self.generation,
+                observer_author_id,
+                semantic,
+            )
+        })?
+    }
+
+    fn begin(&mut self, target: String, semantic_value: String) -> Option<u64> {
+        if self.phase == WikiObserverPhase::Pending {
+            return None;
+        }
+        self.generation = self.next_generation();
+        self.phase = WikiObserverPhase::Pending;
+        self.pending_target = Some(target);
+        self.semantic_value = Some(semantic_value);
+        self.terminal_error = None;
+        self.terminal_detail = None;
+        Some(self.generation)
+    }
+
+    fn applied(&mut self, generation: u64, detail: String) -> bool {
+        if self.phase != WikiObserverPhase::Pending || self.generation != generation {
+            return false;
+        }
+        self.phase = WikiObserverPhase::Applied;
+        self.terminal_error = None;
+        self.terminal_detail = Some(detail);
+        true
+    }
+
+    fn failed(&mut self, generation: u64, error: String, detail: String) -> bool {
+        if self.phase != WikiObserverPhase::Pending || self.generation != generation {
+            return false;
+        }
+        self.phase = WikiObserverPhase::Failed;
+        self.terminal_error = Some(error);
+        self.terminal_detail = Some(detail);
+        true
+    }
+
+    fn serialized(&self) -> Option<String> {
+        match self.phase {
+            WikiObserverPhase::Ready => serialize_observer_click_state(
+                WIKI_ACTION_EFFECT,
+                &self.context,
+                self.generation,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            ),
+            WikiObserverPhase::Pending => serialize_observer_click_state(
+                WIKI_ACTION_EFFECT,
+                &self.context,
+                self.generation,
+                ClickCompletionState::Pending,
+                self.pending_target.as_deref(),
+                self.semantic_value.as_deref(),
+            ),
+            WikiObserverPhase::Applied => serialize_observer_click_applied(
+                WIKI_ACTION_EFFECT,
+                &self.context,
+                self.generation,
+                self.pending_target.as_deref()?,
+                self.semantic_value.as_deref()?,
+                self.terminal_detail.as_deref()?,
+            ),
+            WikiObserverPhase::Failed => serialize_observer_click_failure(
+                WIKI_ACTION_EFFECT,
+                &self.context,
+                self.generation,
+                self.pending_target.as_deref()?,
+                self.semantic_value.as_deref()?,
+                self.terminal_error.as_deref()?,
+                self.terminal_detail.as_deref(),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WikiSourceSnapshot {
+    projection_revision: String,
+    staleness_hash: String,
+    content_sha256: String,
+}
+
+impl WikiSourceSnapshot {
+    fn from_page(page: &WikiProjection) -> Self {
+        Self {
+            projection_revision: page.updated_at.clone(),
+            staleness_hash: page.staleness_hash.clone(),
+            content_sha256: sha256_hex(page.rendered_content.as_bytes()),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PendingWikiSave {
+    action_generation: u64,
+    edit_mode_generation: u64,
+    draft_identity: String,
+    draft_sha256: String,
+    annotation: String,
+    source: WikiSourceSnapshot,
+    persisted_overlay: Option<WikiOverlay>,
 }
 
 /// The wiki-page panel state. Held by the host (the pane), mutated in place by [`LoomWikiPagePanel::show`].
@@ -267,6 +464,12 @@ pub struct LoomWikiPagePanel {
     pub saved_awaiting_reload: bool,
     /// A rebuild/action error that must not evict the last-good projection.
     pub action_error: Option<String>,
+    /// Pane-instance generation assigned by the authoritative mount. It prevents a late result from
+    /// an earlier A -> B -> A binding from sharing an observer context with the current pane.
+    pane_generation: u64,
+    edit_mode_generation: u64,
+    action_observer: WikiActionObserver,
+    pending_save: Option<PendingWikiSave>,
 }
 
 impl LoomWikiPagePanel {
@@ -285,7 +488,18 @@ impl LoomWikiPagePanel {
             save_error: None,
             saved_awaiting_reload: false,
             action_error: None,
+            pane_generation: 0,
+            edit_mode_generation: 0,
+            action_observer: WikiActionObserver::default(),
+            pending_save: None,
         }
+    }
+
+    /// Bind the panel to the mount's exact pane instance before its first render.
+    pub fn bind_pane_generation(&mut self, pane_generation: u64) {
+        self.pane_generation = pane_generation;
+        self.action_observer = WikiActionObserver::default();
+        self.pending_save = None;
     }
 
     /// Install a loaded projection (AC1), clearing loading/error. If a Save round-trip just completed,
@@ -318,6 +532,7 @@ impl LoomWikiPagePanel {
             return false;
         }
         self.edit_mode = true;
+        self.edit_mode_generation = self.edit_mode_generation.wrapping_add(1);
         self.edit_buffer.clear();
         self.save_error = None;
         true
@@ -358,6 +573,252 @@ impl LoomWikiPagePanel {
         Some(self.edit_buffer.clone())
     }
 
+    #[cfg(any(test, feature = "integration"))]
+    fn source_snapshot(&self) -> Option<WikiSourceSnapshot> {
+        self.page.as_ref().map(WikiSourceSnapshot::from_page)
+    }
+
+    fn draft_identity_for(&self, edit_mode_generation: u64) -> String {
+        format!(
+            "wiki-draft:{}:{}:{}:{}",
+            crate::project_tree::stable_part(&self.workspace_id),
+            crate::project_tree::stable_part(&self.projection_id),
+            self.pane_generation,
+            edit_mode_generation
+        )
+    }
+
+    fn action_context(&self) -> String {
+        let source_revision = self
+            .page
+            .as_ref()
+            .map(|page| page.updated_at.as_str())
+            .unwrap_or("unloaded");
+        format!(
+            "wiki/{}/{}/pane-{}/source-{}",
+            crate::project_tree::stable_part(&self.workspace_id),
+            crate::project_tree::stable_part(&self.projection_id),
+            self.pane_generation,
+            crate::project_tree::stable_part(source_revision)
+        )
+    }
+
+    fn action_semantic(
+        &self,
+        action: &str,
+        action_generation: u64,
+        edit_mode_generation: u64,
+        draft_identity: &str,
+        draft_sha256: &str,
+        source: &WikiSourceSnapshot,
+    ) -> String {
+        serde_json::json!({
+            "action": action,
+            "action_generation": action_generation,
+            "draft_identity": draft_identity,
+            "draft_sha256": draft_sha256,
+            "edit_mode_generation": edit_mode_generation,
+            "pane_generation": self.pane_generation,
+            "projection_id": self.projection_id,
+            "source_content_sha256": source.content_sha256,
+            "source_projection_revision": source.projection_revision,
+            "source_staleness_hash": source.staleness_hash,
+            "workspace_id": self.workspace_id,
+        })
+        .to_string()
+    }
+
+    fn terminal_detail(
+        &self,
+        action: &str,
+        action_generation: u64,
+        edit_mode_generation: u64,
+        draft_identity: &str,
+        draft_sha256: &str,
+        source: &WikiSourceSnapshot,
+        outcome: &str,
+        write_count: u64,
+        overlay: Option<&WikiOverlay>,
+        extra: serde_json::Value,
+    ) -> String {
+        serde_json::json!({
+            "action": action,
+            "action_generation": action_generation,
+            "draft_identity": draft_identity,
+            "draft_sha256": draft_sha256,
+            "edit_mode_generation": edit_mode_generation,
+            "extra": extra,
+            "no_write": write_count == 0,
+            "outcome": outcome,
+            "overlay_created_at": overlay.map(|value| value.created_at.as_str()),
+            "overlay_id": overlay.map(|value| value.overlay_id.as_str()),
+            "overlay_persisted_revision": overlay.map(|value| value.updated_at.as_str()),
+            "overlay_readback_revision": overlay.map(|value| value.updated_at.as_str()),
+            "pane_generation": self.pane_generation,
+            "projection_id": self.projection_id,
+            "schema": WIKI_ACTION_DETAIL_SCHEMA,
+            "source_content_sha256": source.content_sha256,
+            "source_projection_revision": source.projection_revision,
+            "source_staleness_hash": source.staleness_hash,
+            "workspace_id": self.workspace_id,
+            "write_count": write_count,
+        })
+        .to_string()
+    }
+
+    fn edit_target_value(&self, source: &WikiSourceSnapshot) -> Option<String> {
+        let action_generation = self.action_observer.next_generation();
+        let edit_generation = self.edit_mode_generation.wrapping_add(1);
+        let draft_identity = self.draft_identity_for(edit_generation);
+        let semantic = self.action_semantic(
+            "edit",
+            action_generation,
+            edit_generation,
+            &draft_identity,
+            &sha256_hex(b""),
+            source,
+        );
+        self.action_observer
+            .target_value(&action_status_author_id(&self.projection_id), &semantic)
+    }
+
+    fn begin_edit_observed(&mut self, source: &WikiSourceSnapshot) -> bool {
+        let action_generation = self.action_observer.next_generation();
+        let edit_generation = self.edit_mode_generation.wrapping_add(1);
+        let draft_identity = self.draft_identity_for(edit_generation);
+        let draft_sha256 = sha256_hex(b"");
+        let semantic = self.action_semantic(
+            "edit",
+            action_generation,
+            edit_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+        );
+        let target = edit_author_id(&self.projection_id);
+        if self.action_observer.begin(target, semantic).is_none() || !self.begin_edit() {
+            return false;
+        }
+        let detail = self.terminal_detail(
+            "edit",
+            action_generation,
+            self.edit_mode_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+            "applied",
+            0,
+            None,
+            serde_json::json!({"draft_initialized": true, "edit_open": true}),
+        );
+        self.action_observer.applied(action_generation, detail)
+    }
+
+    fn cancel_target_value(&self, source: &WikiSourceSnapshot) -> Option<String> {
+        let action_generation = self.action_observer.next_generation();
+        let draft_identity = self.draft_identity_for(self.edit_mode_generation);
+        let draft_sha256 = sha256_hex(self.edit_buffer.as_bytes());
+        let semantic = self.action_semantic(
+            "cancel",
+            action_generation,
+            self.edit_mode_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+        );
+        self.action_observer
+            .target_value(&action_status_author_id(&self.projection_id), &semantic)
+    }
+
+    fn cancel_edit_observed(&mut self, source: &WikiSourceSnapshot) -> bool {
+        let action_generation = self.action_observer.next_generation();
+        let edit_generation = self.edit_mode_generation;
+        let draft_identity = self.draft_identity_for(edit_generation);
+        let draft_sha256 = sha256_hex(self.edit_buffer.as_bytes());
+        let semantic = self.action_semantic(
+            "cancel",
+            action_generation,
+            edit_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+        );
+        let target = cancel_author_id(&self.projection_id);
+        if self.action_observer.begin(target, semantic).is_none() || !self.cancel_edit() {
+            return false;
+        }
+        let detail = self.terminal_detail(
+            "cancel",
+            action_generation,
+            edit_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+            "applied",
+            0,
+            None,
+            serde_json::json!({
+                "draft_discarded": true,
+                "edit_closed": true,
+                "original_source_authoritative": true,
+            }),
+        );
+        self.action_observer.applied(action_generation, detail)
+    }
+
+    fn save_target_value(&self, source: &WikiSourceSnapshot) -> Option<String> {
+        let action_generation = self.action_observer.next_generation();
+        let draft_identity = self.draft_identity_for(self.edit_mode_generation);
+        let draft_sha256 = sha256_hex(self.edit_buffer.as_bytes());
+        let semantic = self.action_semantic(
+            "save",
+            action_generation,
+            self.edit_mode_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+        );
+        self.action_observer
+            .target_value(&action_status_author_id(&self.projection_id), &semantic)
+    }
+
+    fn begin_save_observed(&mut self, source: &WikiSourceSnapshot) -> Option<(u64, String)> {
+        let action_generation = self.action_observer.next_generation();
+        let edit_generation = self.edit_mode_generation;
+        let draft_identity = self.draft_identity_for(edit_generation);
+        let draft_sha256 = sha256_hex(self.edit_buffer.as_bytes());
+        let semantic = self.action_semantic(
+            "save",
+            action_generation,
+            edit_generation,
+            &draft_identity,
+            &draft_sha256,
+            source,
+        );
+        let target = save_author_id(&self.projection_id);
+        self.action_observer.begin(target, semantic)?;
+        let annotation = self.begin_save()?;
+        self.pending_save = Some(PendingWikiSave {
+            action_generation,
+            edit_mode_generation: edit_generation,
+            draft_identity,
+            draft_sha256,
+            annotation: annotation.clone(),
+            source: source.clone(),
+            persisted_overlay: None,
+        });
+        Some((action_generation, annotation))
+    }
+
+    /// Integration-proof seam: starts the same observed Save transition the rendered Save button
+    /// uses, without fabricating a backend result.
+    #[cfg(any(test, feature = "integration"))]
+    pub fn begin_observed_save_for_test(&mut self) -> Option<(u64, String)> {
+        let source = self.source_snapshot()?;
+        self.action_observer.prepare_frame(self.action_context());
+        self.begin_save_observed(&source)
+    }
+
     /// Apply a successful Save (AC3): clear saving, exit edit mode, discard the buffer. The host then
     /// re-fetches the projection (a fresh GET shows the page; overlays are a separate read surface). This
     /// is the success counterpart the host calls after the `add_overlay` 2xx + the re-fetch is dispatched.
@@ -378,12 +839,77 @@ impl LoomWikiPagePanel {
         // edit_mode stays true; edit_buffer is preserved.
     }
 
+    /// Complete the exact in-flight Save with a transport/backend failure. A stale generation is
+    /// ignored and can never reject the current pane's action.
+    pub fn apply_save_transport_error(
+        &mut self,
+        action_generation: u64,
+        message: impl Into<String>,
+    ) -> bool {
+        let Some(pending) = self
+            .pending_save
+            .as_ref()
+            .filter(|pending| pending.action_generation == action_generation)
+            .cloned()
+        else {
+            return false;
+        };
+        let message = bounded_terminal_error(&message.into());
+        self.apply_save_error(message.clone());
+        let detail = self.terminal_detail(
+            "save",
+            action_generation,
+            pending.edit_mode_generation,
+            &pending.draft_identity,
+            &pending.draft_sha256,
+            &pending.source,
+            "failed",
+            0,
+            None,
+            serde_json::json!({
+                "draft_retained": true,
+                "edit_open": true,
+                "error_kind": "wiki_save_transport",
+            }),
+        );
+        self.pending_save = None;
+        self.action_observer.failed(
+            action_generation,
+            format!("wiki_save_transport: {message}"),
+            detail,
+        )
+    }
+
     /// The POST has committed one canonical overlay. Lock the editor while the host performs the
     /// follow-up GET; this state is intentionally distinct from a write failure.
     pub fn mark_overlay_saved_awaiting_reload(&mut self) {
         self.saving = true;
         self.saved_awaiting_reload = true;
         self.save_error = None;
+    }
+
+    /// Bind the canonical POST receipt to the exact pending Save before issuing the follow-up GET.
+    pub fn mark_persisted_overlay_awaiting_readback(
+        &mut self,
+        action_generation: u64,
+        overlay: WikiOverlay,
+    ) -> bool {
+        let Some(pending) = self
+            .pending_save
+            .as_mut()
+            .filter(|pending| pending.action_generation == action_generation)
+        else {
+            return false;
+        };
+        if overlay.workspace_id != self.workspace_id
+            || overlay.projection_id != self.projection_id
+            || overlay.annotation != pending.annotation
+        {
+            return false;
+        }
+        pending.persisted_overlay = Some(overlay);
+        self.mark_overlay_saved_awaiting_reload();
+        true
     }
 
     /// The POST succeeded but the follow-up GET failed. Preserve the buffer for context, but expose only
@@ -393,6 +919,127 @@ impl LoomWikiPagePanel {
         self.saving = false;
         self.saved_awaiting_reload = true;
         self.save_error = Some(message.into());
+    }
+
+    /// Complete a failed persisted-overlay readback while preserving the exact draft and edit mode.
+    pub fn apply_save_readback_error(
+        &mut self,
+        action_generation: u64,
+        message: impl Into<String>,
+    ) -> bool {
+        let Some(pending) = self
+            .pending_save
+            .as_ref()
+            .filter(|pending| pending.action_generation == action_generation)
+            .cloned()
+        else {
+            return false;
+        };
+        let message = bounded_terminal_error(&message.into());
+        self.apply_reload_after_save_error(message.clone());
+        let detail = self.terminal_detail(
+            "save",
+            action_generation,
+            pending.edit_mode_generation,
+            &pending.draft_identity,
+            &pending.draft_sha256,
+            &pending.source,
+            "failed",
+            u64::from(pending.persisted_overlay.is_some()),
+            pending.persisted_overlay.as_ref(),
+            serde_json::json!({
+                "draft_retained": true,
+                "edit_open": true,
+                "error_kind": "wiki_save_readback",
+            }),
+        );
+        self.action_observer.failed(
+            action_generation,
+            format!("wiki_save_readback: {message}"),
+            detail,
+        )
+    }
+
+    /// Accept Save only after the identity-current GET contains the exact overlay returned by POST and
+    /// the source projection revision/hash/content remain unchanged. Any mismatch is a typed conflict;
+    /// the original loaded source and exact draft remain visible and authoritative.
+    pub fn complete_save_readback(&mut self, action_generation: u64, page: WikiProjection) -> bool {
+        let Some(pending) = self
+            .pending_save
+            .as_ref()
+            .filter(|pending| pending.action_generation == action_generation)
+            .cloned()
+        else {
+            return false;
+        };
+        let Some(persisted) = pending.persisted_overlay.as_ref() else {
+            return self.apply_save_readback_error(
+                action_generation,
+                "readback arrived before a canonical POST receipt",
+            );
+        };
+        let readback_source = WikiSourceSnapshot::from_page(&page);
+        let source_unchanged = readback_source == pending.source;
+        let overlay_read_back = page.overlays.iter().any(|overlay| overlay == persisted);
+        if !source_unchanged || !overlay_read_back {
+            let conflict = if !source_unchanged {
+                "source projection revision/hash/content changed during overlay save"
+            } else {
+                "persisted overlay receipt was absent or changed in canonical readback"
+            };
+            self.apply_reload_after_save_error(conflict);
+            let detail = self.terminal_detail(
+                "save",
+                action_generation,
+                pending.edit_mode_generation,
+                &pending.draft_identity,
+                &pending.draft_sha256,
+                &pending.source,
+                "conflict",
+                1,
+                Some(persisted),
+                serde_json::json!({
+                    "draft_retained": true,
+                    "edit_open": true,
+                    "error_kind": "wiki_save_conflict",
+                    "readback_source_content_sha256": readback_source.content_sha256,
+                    "readback_source_projection_revision": readback_source.projection_revision,
+                    "readback_source_staleness_hash": readback_source.staleness_hash,
+                }),
+            );
+            return self.action_observer.failed(
+                action_generation,
+                format!("wiki_save_conflict: {conflict}"),
+                detail,
+            );
+        }
+
+        let detail = self.terminal_detail(
+            "save",
+            action_generation,
+            pending.edit_mode_generation,
+            &pending.draft_identity,
+            &pending.draft_sha256,
+            &pending.source,
+            "applied",
+            1,
+            Some(persisted),
+            serde_json::json!({
+                "draft_discarded": true,
+                "edit_closed": true,
+                "persisted_and_read_back": true,
+            }),
+        );
+        self.set_page(page);
+        self.finish_save_success();
+        self.pending_save = None;
+        self.action_observer.applied(action_generation, detail)
+    }
+
+    pub fn pending_save_action_generation(&self) -> Option<u64> {
+        self.pending_save
+            .as_ref()
+            .map(|pending| pending.action_generation)
     }
 
     fn begin_retry_reload_after_save(&mut self) -> bool {
@@ -416,6 +1063,28 @@ impl LoomWikiPagePanel {
     /// supplies every colour (no hardcoded hex — the architecture-guard invariant). The widget never
     /// blocks on the network.
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<WikiPageEvent> {
+        self.action_observer.prepare_frame(self.action_context());
+        let event = self.show_body(ui, palette);
+        self.emit_action_observer(ui);
+        event
+    }
+
+    fn emit_action_observer(&mut self, ui: &mut egui::Ui) {
+        let Some(value) = self.action_observer.serialized() else {
+            return;
+        };
+        let observer_author = action_status_author_id(&self.projection_id);
+        let observer_id = egui::Id::new(("wiki-action-status", observer_author.as_str()));
+        emit_status_accesskit(
+            ui,
+            observer_id,
+            &observer_author,
+            "Wiki action status",
+            &value,
+        );
+    }
+
+    fn show_body(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<WikiPageEvent> {
         // Loading state (AC8): spinner + label. The spinner animates ONLY during a genuine in-flight
         // fetch; request a repaint just for this frame so it advances without a perpetual idle repaint.
         if self.loading {
@@ -603,31 +1272,44 @@ impl LoomWikiPagePanel {
 
         // Action row: Edit overlay + optional Rebuild. The typed read-only limitation is stated inline so
         // a no-context operator/agent understands `rendered_content` is not directly editable (MC-1).
-        ui.horizontal(|ui| {
-            let edit = ui.button("Edit overlay");
-            emit_button_accesskit(
-                ui,
-                edit.id,
-                &edit_author_id(&self.projection_id),
-                "Edit overlay",
-            );
-            if (edit.clicked() || accesskit_clicked(ui, edit.id)) && self.begin_edit() {
-                event = Some(WikiPageEvent::EditBegan);
-            }
-
-            if page.page_type.is_none() {
-                let rebuild = ui.button("Rebuild");
-                emit_button_accesskit(
+        if self.action_observer.phase != WikiObserverPhase::Pending {
+            let source = WikiSourceSnapshot::from_page(page);
+            let edit_value = self.edit_target_value(&source);
+            ui.horizontal(|ui| {
+                let edit = ui.button("Edit overlay");
+                emit_button_accesskit_value(
                     ui,
-                    rebuild.id,
-                    &rebuild_author_id(&self.projection_id),
-                    "Rebuild projection",
+                    edit.id,
+                    &edit_author_id(&self.projection_id),
+                    "Edit overlay",
+                    edit_value.as_deref(),
                 );
-                if rebuild.clicked() || accesskit_clicked(ui, rebuild.id) {
-                    event = Some(WikiPageEvent::Rebuild);
+                if (edit.clicked() || accesskit_clicked(ui, edit.id))
+                    && self.begin_edit_observed(&source)
+                {
+                    emit_button_accesskit(
+                        ui,
+                        edit.id,
+                        &action_dispatched_author_id(&self.projection_id),
+                        "Edit dispatched",
+                    );
+                    event = Some(WikiPageEvent::EditBegan);
                 }
-            }
-        });
+
+                if page.page_type.is_none() {
+                    let rebuild = ui.button("Rebuild");
+                    emit_button_accesskit(
+                        ui,
+                        rebuild.id,
+                        &rebuild_author_id(&self.projection_id),
+                        "Rebuild projection",
+                    );
+                    if rebuild.clicked() || accesskit_clicked(ui, rebuild.id) {
+                        event = Some(WikiPageEvent::Rebuild);
+                    }
+                }
+            });
+        }
         if page.page_type.is_some() {
             ui.colored_label(
                 palette.text_subtle,
@@ -662,6 +1344,7 @@ impl LoomWikiPagePanel {
         page: &WikiProjection,
     ) -> Option<WikiPageEvent> {
         let mut event = None;
+        let source = WikiSourceSnapshot::from_page(page);
 
         // Keep the title visible while editing so the operator knows which page they are annotating.
         let title_resp = ui.add(
@@ -683,45 +1366,73 @@ impl LoomWikiPagePanel {
             "New overlay annotation (saved alongside the page):",
         );
 
-        // Toolbar: Save + Cancel.
-        ui.horizontal(|ui| {
-            let save_label = if self.saved_awaiting_reload {
-                "Saved"
-            } else if self.saving {
-                "Saving…"
-            } else {
-                "Save"
-            };
-            let save = ui.add_enabled(
-                !self.saving && !self.saved_awaiting_reload,
-                egui::Button::new(save_label),
-            );
-            emit_button_accesskit(
-                ui,
-                save.id,
-                &save_author_id(&self.projection_id),
-                "Save overlay",
-            );
-            if save.clicked() || accesskit_clicked(ui, save.id) {
-                if let Some(annotation) = self.begin_save() {
-                    event = Some(WikiPageEvent::Save { annotation });
+        // Pending omits new action targets while the current generation is in flight. Applied and
+        // Failed remain durable for observation, but the controls return immediately; starting one
+        // advances the generation and supersedes the prior terminal record.
+        if self.action_observer.phase != WikiObserverPhase::Pending {
+            let save_value = self.save_target_value(&source);
+            let cancel_value = self.cancel_target_value(&source);
+            ui.horizontal(|ui| {
+                let save_label = if self.saved_awaiting_reload {
+                    "Saved"
+                } else if self.saving {
+                    "Saving…"
+                } else {
+                    "Save"
+                };
+                let save = ui.add_enabled(
+                    !self.saving
+                        && !self.saved_awaiting_reload
+                        && !self.edit_buffer.trim().is_empty(),
+                    egui::Button::new(save_label),
+                );
+                emit_button_accesskit_value(
+                    ui,
+                    save.id,
+                    &save_author_id(&self.projection_id),
+                    "Save overlay",
+                    save_value.as_deref(),
+                );
+                if save.clicked() || accesskit_clicked(ui, save.id) {
+                    if let Some((action_generation, annotation)) = self.begin_save_observed(&source)
+                    {
+                        emit_button_accesskit(
+                            ui,
+                            save.id,
+                            &action_dispatched_author_id(&self.projection_id),
+                            "Save dispatched",
+                        );
+                        event = Some(WikiPageEvent::Save {
+                            action_generation,
+                            annotation,
+                        });
+                    }
                 }
-            }
 
-            let cancel = ui.add_enabled(
-                !self.saving && !self.saved_awaiting_reload,
-                egui::Button::new("Cancel"),
-            );
-            emit_button_accesskit(
-                ui,
-                cancel.id,
-                &cancel_author_id(&self.projection_id),
-                "Cancel edit",
-            );
-            if (cancel.clicked() || accesskit_clicked(ui, cancel.id)) && self.cancel_edit() {
-                event = Some(WikiPageEvent::Cancel);
-            }
-        });
+                let cancel = ui.add_enabled(
+                    !self.saving && !self.saved_awaiting_reload,
+                    egui::Button::new("Cancel"),
+                );
+                emit_button_accesskit_value(
+                    ui,
+                    cancel.id,
+                    &cancel_author_id(&self.projection_id),
+                    "Cancel edit",
+                    cancel_value.as_deref(),
+                );
+                if (cancel.clicked() || accesskit_clicked(ui, cancel.id))
+                    && self.cancel_edit_observed(&source)
+                {
+                    emit_button_accesskit(
+                        ui,
+                        cancel.id,
+                        &action_dispatched_author_id(&self.projection_id),
+                        "Cancel dispatched",
+                    );
+                    event = Some(WikiPageEvent::Cancel);
+                }
+            });
+        }
 
         if self.saved_awaiting_reload {
             let status = if self.saving {
@@ -764,12 +1475,13 @@ impl LoomWikiPagePanel {
         }
 
         // The multiline annotation editor — AccessKit Role::MultilineTextInput `wiki.edit-area.{id}`.
+        let edit_enabled = !self.saving && !self.saved_awaiting_reload;
         let mut buffer = self.edit_buffer.clone();
         let area = egui::ScrollArea::vertical()
             .id_salt(edit_area_author_id(&self.projection_id))
             .max_height(ui.available_height() - 10.0)
             .show(ui, |ui| {
-                ui.add_enabled_ui(!self.saving && !self.saved_awaiting_reload, |ui| {
+                ui.add_enabled_ui(edit_enabled, |ui| {
                     ui.add_sized(
                         Vec2::new(ui.available_width(), ui.available_height().max(120.0)),
                         egui::TextEdit::multiline(&mut buffer).hint_text("Write an overlay note…"),
@@ -782,11 +1494,20 @@ impl LoomWikiPagePanel {
             // Route through set_edit_buffer so the cap is enforced even on direct typing.
             self.set_edit_buffer(buffer);
         }
+        if edit_enabled {
+            if let Some(replacement) = accesskit_string_set_value(ui, area.id) {
+                // Model-facing SetValue is the same real editor mutation as keyboard input and keeps
+                // the same bounded-buffer invariant.
+                self.set_edit_buffer(replacement);
+            }
+        }
         emit_multiline_input_accesskit(
             ui,
             area.id,
             &edit_area_author_id(&self.projection_id),
             "Overlay annotation",
+            &self.edit_buffer,
+            edit_enabled,
         );
 
         event
@@ -817,6 +1538,30 @@ fn cap_on_char_boundary(s: &str, max: usize) -> String {
         end -= 1;
     }
     s[..end].to_owned()
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn bounded_terminal_error(message: &str) -> String {
+    let sanitized: String = message
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect();
+    let trimmed = sanitized.split_whitespace().collect::<Vec<_>>().join(" ");
+    let bounded = cap_on_char_boundary(&trimmed, 768);
+    if bounded.is_empty() {
+        "unspecified wiki action failure".to_owned()
+    } else {
+        bounded
+    }
 }
 
 /// A metadata badge's colour class. `for_rebuild_status` maps the backend `rebuild_status` string to a
@@ -886,13 +1631,39 @@ fn emit_label_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &st
 
 /// Emit a button's live AccessKit node (Role::Button + Action::Click + author_id).
 fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
+    emit_button_accesskit_value(ui, id, author_id, label, None);
+}
+
+fn emit_button_accesskit_value(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: Option<&str>,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
+    let value = value.map(str::to_owned);
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::Button);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
+        if let Some(value) = &value {
+            node.set_value(value.clone());
+        }
         node.add_action(accesskit::Action::Click);
+    });
+}
+
+fn emit_status_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str, value: &str) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let value = value.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Status);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
     });
 }
 
@@ -925,13 +1696,29 @@ fn emit_document_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, content
 /// Emit the overlay editor's live AccessKit node (Role::MultilineTextInput + author_id). The MT AC7 names
 /// the edit area role=MultiLineTextInput; `accesskit::Role::MultilineTextInput` is the field-correct
 /// 0.21.1 variant (verified present in the pinned accesskit version).
-fn emit_multiline_input_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
+fn emit_multiline_input_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: &str,
+    enabled: bool,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
+    let value = value.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::MultilineTextInput);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
+        node.set_value(value.clone());
+        if enabled {
+            node.clear_disabled();
+            node.add_action(accesskit::Action::SetValue);
+        } else {
+            node.set_disabled();
+            node.remove_action(accesskit::Action::SetValue);
+        }
     });
 }
 
@@ -949,6 +1736,8 @@ mod tests {
             rendered_content: "# Ownership\nThe borrow checker enforces aliasing rules.".to_owned(),
             staleness_hash: "h1".to_owned(),
             rebuild_status: "fresh".to_owned(),
+            created_at: "2026-06-19T00:00:00Z".to_owned(),
+            updated_at: "2026-06-19T00:00:00Z".to_owned(),
             page_type: Some("concept".to_owned()),
             overlays: Vec::new(),
             staleness_verdict: serde_json::json!({ "state": "fresh" }),
@@ -959,6 +1748,24 @@ mod tests {
         let mut p = LoomWikiPagePanel::new("ws-test", "projection-fixture");
         p.set_page(seeded_page());
         p
+    }
+
+    fn persisted_overlay(annotation: &str) -> WikiOverlay {
+        WikiOverlay {
+            overlay_id: "overlay-7".to_owned(),
+            projection_id: "projection-fixture".to_owned(),
+            workspace_id: "ws-test".to_owned(),
+            annotation: annotation.to_owned(),
+            anchor: None,
+            created_at: "2026-06-19T00:01:00Z".to_owned(),
+            updated_at: "2026-06-19T00:01:01Z".to_owned(),
+        }
+    }
+
+    fn observer_terminal_detail(panel: &LoomWikiPagePanel) -> serde_json::Value {
+        let outer: serde_json::Value =
+            serde_json::from_str(&panel.action_observer.serialized().unwrap()).unwrap();
+        serde_json::from_str(outer["terminal_detail"].as_str().unwrap()).unwrap()
     }
 
     /// PROOF1: begin_edit initializes the buffer EMPTY (an overlay is additive, not a copy of
@@ -1002,6 +1809,207 @@ mod tests {
             p.page, page_before,
             "the page is UNCHANGED by cancel (cancel-no-mutation)"
         );
+    }
+
+    #[test]
+    fn observed_cancel_proves_exact_draft_discarded_without_a_write() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(9);
+        let context = p.action_context();
+        p.action_observer.prepare_frame(context);
+        let source = p.source_snapshot().unwrap();
+        assert!(p.begin_edit_observed(&source));
+        let context = p.action_context();
+        p.action_observer.prepare_frame(context);
+        p.set_edit_buffer("discard this exact draft");
+        let original_page = p.page.clone();
+        let source = p.source_snapshot().unwrap();
+        assert!(p.cancel_edit_observed(&source));
+
+        assert!(!p.edit_mode);
+        assert!(p.edit_buffer.is_empty());
+        assert_eq!(p.page, original_page);
+        let detail = observer_terminal_detail(&p);
+        assert_eq!(detail["action"], "cancel");
+        assert_eq!(detail["pane_generation"], 9);
+        assert_eq!(
+            detail["source_projection_revision"],
+            source.projection_revision
+        );
+        assert_eq!(detail["write_count"], 0);
+        assert_eq!(detail["no_write"], true);
+        assert_eq!(detail["extra"]["draft_discarded"], true);
+        assert_eq!(detail["extra"]["edit_closed"], true);
+        assert_eq!(detail["extra"]["original_source_authoritative"], true);
+    }
+
+    #[test]
+    fn applied_terminal_survives_repeated_capture_frames_and_next_action_supersedes_it() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(9);
+        let context = p.action_context();
+        p.action_observer.prepare_frame(context.clone());
+        let source = p.source_snapshot().unwrap();
+        assert!(p.begin_edit_observed(&source));
+        let edit_generation = p.action_observer.generation;
+        let edit_terminal = p.action_observer.serialized().unwrap();
+
+        for _ in 0..32 {
+            p.action_observer.prepare_frame(context.clone());
+            assert_eq!(p.action_observer.serialized(), Some(edit_terminal.clone()));
+        }
+
+        p.set_edit_buffer("discard after captures");
+        let source = p.source_snapshot().unwrap();
+        assert!(
+            p.cancel_target_value(&source).is_some(),
+            "terminal observation must not hide the next legal control target"
+        );
+        assert!(p.cancel_edit_observed(&source));
+        assert_eq!(p.action_observer.generation, edit_generation + 1);
+        let detail = observer_terminal_detail(&p);
+        assert_eq!(detail["action"], "cancel");
+        assert_eq!(detail["action_generation"], edit_generation + 1);
+    }
+
+    #[test]
+    fn failed_terminal_survives_repeated_capture_frames() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(5);
+        let context = p.action_context();
+        p.action_observer.prepare_frame(context.clone());
+        assert!(p.begin_edit());
+        p.set_edit_buffer("retain me exactly");
+        let (generation, _) = p.begin_observed_save_for_test().unwrap();
+        assert!(p.apply_save_transport_error(generation, "database unavailable"));
+        let failed_terminal = p.action_observer.serialized().unwrap();
+
+        for _ in 0..32 {
+            p.action_observer.prepare_frame(context.clone());
+            assert_eq!(
+                p.action_observer.serialized(),
+                Some(failed_terminal.clone())
+            );
+        }
+
+        assert_eq!(p.edit_buffer, "retain me exactly");
+        assert!(p.save_target_value(&p.source_snapshot().unwrap()).is_some());
+    }
+
+    #[test]
+    fn terminal_observer_resets_only_when_authoritative_context_changes() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(7);
+        let context = p.action_context();
+        p.action_observer.prepare_frame(context.clone());
+        let source = p.source_snapshot().unwrap();
+        assert!(p.begin_edit_observed(&source));
+        let generation = p.action_observer.generation;
+        let terminal = p.action_observer.serialized().unwrap();
+
+        p.action_observer.prepare_frame(context.clone());
+        assert_eq!(p.action_observer.serialized(), Some(terminal));
+
+        let changed_context = format!("{context}/replacement-source");
+        p.action_observer.prepare_frame(changed_context.clone());
+        assert_eq!(p.action_observer.phase, WikiObserverPhase::Ready);
+        assert_eq!(p.action_observer.context, changed_context);
+        assert_eq!(p.action_observer.generation, generation);
+        assert!(p.action_observer.pending_target.is_none());
+        assert!(p.action_observer.semantic_value.is_none());
+        assert!(p.action_observer.terminal_error.is_none());
+        assert!(p.action_observer.terminal_detail.is_none());
+        let ready: serde_json::Value =
+            serde_json::from_str(&p.action_observer.serialized().unwrap()).unwrap();
+        assert_eq!(ready["state"], "ready");
+    }
+
+    #[test]
+    fn observed_save_applies_only_after_exact_persisted_overlay_readback() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(4);
+        assert!(p.begin_edit());
+        p.set_edit_buffer("persist and read back");
+        let (generation, annotation) = p.begin_observed_save_for_test().unwrap();
+        let overlay = persisted_overlay(&annotation);
+        assert!(p.mark_persisted_overlay_awaiting_readback(generation, overlay.clone()));
+        assert!(p.saved_awaiting_reload && p.edit_mode);
+        let mut readback = p.page.clone().unwrap();
+        readback.overlays.push(overlay.clone());
+        assert!(p.complete_save_readback(generation, readback));
+
+        assert!(!p.edit_mode);
+        assert!(p.edit_buffer.is_empty());
+        let detail = observer_terminal_detail(&p);
+        assert_eq!(detail["action"], "save");
+        assert_eq!(detail["write_count"], 1);
+        assert_eq!(detail["overlay_id"], overlay.overlay_id);
+        assert_eq!(detail["overlay_persisted_revision"], overlay.updated_at);
+        assert_eq!(detail["overlay_readback_revision"], overlay.updated_at);
+        assert_eq!(detail["extra"]["persisted_and_read_back"], true);
+    }
+
+    #[test]
+    fn save_transport_failure_is_typed_and_retains_exact_draft() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(5);
+        assert!(p.begin_edit());
+        p.set_edit_buffer("retain me exactly");
+        let (generation, _) = p.begin_observed_save_for_test().unwrap();
+        assert!(!p.apply_save_transport_error(generation + 1, "wrong generation"));
+        assert!(p.saving, "stale failure cannot mutate the current Save");
+        assert!(p.apply_save_transport_error(generation, "database\n unavailable"));
+
+        assert!(p.edit_mode);
+        assert_eq!(p.edit_buffer, "retain me exactly");
+        assert!(!p.saving);
+        let outer: serde_json::Value =
+            serde_json::from_str(&p.action_observer.serialized().unwrap()).unwrap();
+        assert_eq!(outer["state"], "failed");
+        assert_eq!(
+            outer["terminal_error"],
+            "wiki_save_transport: database unavailable"
+        );
+        let detail = observer_terminal_detail(&p);
+        assert_eq!(detail["write_count"], 0);
+        assert_eq!(detail["extra"]["draft_retained"], true);
+        assert_eq!(detail["extra"]["edit_open"], true);
+    }
+
+    #[test]
+    fn post_success_source_conflict_keeps_original_source_and_locks_duplicate_write() {
+        let mut p = loaded_panel();
+        p.bind_pane_generation(6);
+        assert!(p.begin_edit());
+        p.set_edit_buffer("committed once, pending reconciliation");
+        let original_page = p.page.clone();
+        let (generation, annotation) = p.begin_observed_save_for_test().unwrap();
+        let overlay = persisted_overlay(&annotation);
+        assert!(p.mark_persisted_overlay_awaiting_readback(generation, overlay));
+        let mut conflicting = p.page.clone().unwrap();
+        conflicting.updated_at = "2026-06-19T00:02:00Z".to_owned();
+        conflicting.rendered_content = "new canonical source".to_owned();
+        assert!(p.complete_save_readback(generation, conflicting));
+
+        assert_eq!(
+            p.page, original_page,
+            "conflicting readback is not installed"
+        );
+        assert!(p.edit_mode && p.saved_awaiting_reload);
+        assert_eq!(p.edit_buffer, "committed once, pending reconciliation");
+        assert!(p.begin_save().is_none(), "duplicate POST remains locked");
+        assert!(!p.cancel_edit(), "Cancel cannot undo the committed overlay");
+        let outer: serde_json::Value =
+            serde_json::from_str(&p.action_observer.serialized().unwrap()).unwrap();
+        assert_eq!(outer["state"], "failed");
+        assert!(outer["terminal_error"]
+            .as_str()
+            .unwrap()
+            .starts_with("wiki_save_conflict:"));
+        let detail = observer_terminal_detail(&p);
+        assert_eq!(detail["write_count"], 1);
+        assert_eq!(detail["outcome"], "conflict");
+        assert_eq!(detail["extra"]["draft_retained"], true);
     }
 
     #[test]
@@ -1231,6 +2239,10 @@ mod tests {
         assert_eq!(
             error_author_id("projection-fixture"),
             "wiki.error.projection-fixture"
+        );
+        assert_eq!(
+            action_status_author_id("projection-fixture"),
+            "wiki.action-status.projection-fixture"
         );
     }
 }

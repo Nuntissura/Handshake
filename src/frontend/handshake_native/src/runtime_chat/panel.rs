@@ -15,6 +15,8 @@ pub const RUNTIME_CHAT_INPUT_AUTHOR_ID: &str = "runtime-chat-input";
 pub const RUNTIME_CHAT_STATUS_AUTHOR_ID: &str = "runtime-chat-status";
 /// Stable AccessKit author_id for the Runtime Chat send button.
 pub const RUNTIME_CHAT_SEND_AUTHOR_ID: &str = "runtime-chat-send";
+/// Stable AccessKit author_id for cancelling the exact active Runtime Chat request generation.
+pub const RUNTIME_CHAT_CANCEL_AUTHOR_ID: &str = "runtime-chat-cancel";
 /// Stable author_id for one transcript role label.
 pub fn runtime_chat_turn_role_author_id(index: usize) -> String {
     format!("runtime-chat-turn-{index}-role")
@@ -264,9 +266,13 @@ pub struct RuntimeChatPanel {
     draft: String,
     turns: Vec<ChatTurn>,
     last_error: Option<ChatSendError>,
+    last_cancelled_generation: Option<u64>,
     deliveries: RuntimeChatDeliveryCell,
     next_send_generation: u64,
     active_send: Option<ActiveRuntimeChatSend>,
+    terminal_send_generation: Option<u64>,
+    terminal_send_outcome: Option<String>,
+    focus_owner_author_id: Option<String>,
 }
 
 impl RuntimeChatPanel {
@@ -280,9 +286,13 @@ impl RuntimeChatPanel {
                 body: "Chat backend route is not available in this build.".to_owned(),
             }],
             last_error: None,
+            last_cancelled_generation: None,
             deliveries: Arc::new(Mutex::new(VecDeque::new())),
             next_send_generation: 0,
             active_send: None,
+            terminal_send_generation: None,
+            terminal_send_outcome: None,
+            focus_owner_author_id: None,
         }
     }
 
@@ -300,6 +310,9 @@ impl RuntimeChatPanel {
         self.cancel_active_send();
         self.client = client;
         self.last_error = None;
+        self.last_cancelled_generation = None;
+        self.terminal_send_generation = None;
+        self.terminal_send_outcome = None;
     }
 
     pub fn set_draft_for_test(&mut self, draft: impl Into<String>) {
@@ -330,6 +343,12 @@ impl RuntimeChatPanel {
         self.active_send.as_ref().map(|active| active.generation)
     }
 
+    /// Most recently allocated request generation, retained after terminal delivery/cancellation so
+    /// canonical interaction proofs can bind a submitted user turn to the exact request that owned it.
+    pub fn last_started_generation_for_test(&self) -> u64 {
+        self.next_send_generation
+    }
+
     pub fn inject_delivery_for_test(&mut self, generation: u64, result: Result<(), ChatSendError>) {
         self.deliveries
             .lock()
@@ -337,14 +356,16 @@ impl RuntimeChatPanel {
             .push_back(RuntimeChatDelivery { generation, result });
     }
 
-    fn cancel_active_send(&mut self) {
-        if let Some(active) = self.active_send.take() {
+    fn cancel_active_send(&mut self) -> Option<u64> {
+        let cancelled_generation = self.active_send.take().map(|active| {
             active.task.abort();
-        }
+            active.generation
+        });
         self.deliveries
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clear();
+        cancelled_generation
     }
 
     fn drain_deliveries(&mut self) {
@@ -365,9 +386,26 @@ impl RuntimeChatPanel {
                 continue;
             }
             self.active_send.take();
+            self.terminal_send_generation = Some(active_generation);
             match delivered.result {
-                Ok(()) => self.last_error = None,
-                Err(error) => self.last_error = Some(error),
+                Ok(()) => {
+                    self.last_error = None;
+                    self.terminal_send_outcome = Some("completed".to_owned());
+                }
+                Err(error) => {
+                    self.terminal_send_outcome = Some(
+                        match &error {
+                            ChatSendError::EndpointMissing { .. } => "endpoint_missing",
+                            ChatSendError::EmptyMessage => "input_required",
+                            ChatSendError::AlreadyInFlight { .. } => "already_in_flight",
+                            ChatSendError::Transport { .. } => "transport_error",
+                            ChatSendError::HttpStatus { .. } => "backend_rejected",
+                            ChatSendError::ResponseContractMissing { .. } => "contract_missing",
+                        }
+                        .to_owned(),
+                    );
+                    self.last_error = Some(error);
+                }
             }
         }
     }
@@ -389,6 +427,9 @@ impl RuntimeChatPanel {
         }
         self.next_send_generation = self.next_send_generation.wrapping_add(1).max(1);
         let generation = self.next_send_generation;
+        self.last_cancelled_generation = None;
+        self.terminal_send_generation = None;
+        self.terminal_send_outcome = None;
         match self
             .client
             .send(message, generation, Arc::clone(&self.deliveries), repaint)
@@ -417,6 +458,11 @@ impl RuntimeChatPanel {
                 self.client.probed_path()
             );
         }
+        if let Some(generation) = self.last_cancelled_generation {
+            return format!(
+                "Cancelled: Runtime Chat send generation {generation} was cancelled. No assistant turn was appended."
+            );
+        }
         match &self.last_error {
             Some(ChatSendError::EndpointMissing { .. }) | None => format!(
                 "EndpointMissing: {}; {ENDPOINT_MISSING_SUMMARY}",
@@ -430,6 +476,9 @@ impl RuntimeChatPanel {
         if self.active_send.is_some() {
             return "Probing";
         }
+        if self.last_cancelled_generation.is_some() {
+            return "Cancelled";
+        }
         match self.last_error.as_ref() {
             None | Some(ChatSendError::EndpointMissing { .. }) => "EndpointMissing",
             Some(ChatSendError::EmptyMessage) => "InputRequired",
@@ -438,6 +487,26 @@ impl RuntimeChatPanel {
             Some(ChatSendError::HttpStatus { .. }) => "BackendRejected",
             Some(ChatSendError::ResponseContractMissing { .. }) => "ContractMissing",
         }
+    }
+
+    fn action_state_value(&self) -> String {
+        let assistant_turn_count = self
+            .turns
+            .iter()
+            .filter(|turn| turn.role == ChatRole::Assistant)
+            .count();
+        serde_json::json!({
+            "schema": "handshake.runtime-chat-action-state/v1",
+            "pane_author_id": RUNTIME_CHAT_PANEL_AUTHOR_ID,
+            "focus_owner_author_id": self.focus_owner_author_id,
+            "active_request_generation": self.active_send.as_ref().map(|active| active.generation),
+            "last_started_generation": self.next_send_generation,
+            "terminal_request_generation": self.terminal_send_generation,
+            "terminal_outcome": self.terminal_send_outcome,
+            "turn_count": self.turns.len(),
+            "assistant_turn_count": assistant_turn_count,
+        })
+        .to_string()
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui) {
@@ -463,15 +532,15 @@ impl RuntimeChatPanel {
                     });
                     let status =
                         ui.label(egui::RichText::new(&endpoint_status).color(palette.text_subtle));
-                    ui.ctx().accesskit_node_builder(status.id, |node| {
-                        node.set_role(accesskit::Role::Status);
-                        node.set_author_id(RUNTIME_CHAT_STATUS_AUTHOR_ID.to_owned());
-                        node.set_label(endpoint_status.clone());
-                    });
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
-                        let send_width = 64.0;
-                        let input_width = (ui.available_width() - send_width - 8.0).max(120.0);
+                        let action_width = 64.0;
+                        let action_area = if self.active_send.is_some() {
+                            action_width * 2.0 + 16.0
+                        } else {
+                            action_width + 8.0
+                        };
+                        let input_width = (ui.available_width() - action_area).max(120.0);
                         let draft_ready = !self.draft.trim().is_empty();
                         let input = egui::Frame::new()
                             .fill(palette.bg)
@@ -497,7 +566,16 @@ impl RuntimeChatPanel {
                             node.add_action(accesskit::Action::SetValue);
                         });
                         let mut native_value = None;
+                        let mut native_focus = false;
                         ui.input(|state| {
+                            native_focus = state
+                                .accesskit_action_requests(input.id, accesskit::Action::Click)
+                                .next()
+                                .is_some()
+                                || state
+                                    .accesskit_action_requests(input.id, accesskit::Action::Focus)
+                                    .next()
+                                    .is_some();
                             for request in state
                                 .accesskit_action_requests(input.id, accesskit::Action::SetValue)
                             {
@@ -506,6 +584,16 @@ impl RuntimeChatPanel {
                                 }
                             }
                         });
+                        if native_focus {
+                            input.request_focus();
+                            self.focus_owner_author_id =
+                                Some(RUNTIME_CHAT_INPUT_AUTHOR_ID.to_owned());
+                            ui.ctx().request_repaint();
+                        }
+                        if input.has_focus() {
+                            self.focus_owner_author_id =
+                                Some(RUNTIME_CHAT_INPUT_AUTHOR_ID.to_owned());
+                        }
                         if let Some(value) = native_value {
                             self.draft = value;
                             ui.ctx().request_repaint();
@@ -518,15 +606,48 @@ impl RuntimeChatPanel {
                                 } else {
                                     palette.surface
                                 })
-                                .min_size(egui::vec2(send_width, 28.0)),
+                                .min_size(egui::vec2(action_width, 28.0)),
                         );
                         ui.ctx().accesskit_node_builder(send.id, |node| {
                             node.set_author_id(RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
                             node.set_label("Send Runtime Chat message".to_owned());
                         });
                         if send.clicked() && draft_ready && self.active_send.is_none() {
+                            self.focus_owner_author_id =
+                                Some(RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
                             let _ = self.send_current_message(Some(ui.ctx().clone()));
                         }
+                        if self.active_send.is_some() {
+                            let cancel = ui.add(
+                                egui::Button::new(
+                                    egui::RichText::new("Cancel").color(palette.text),
+                                )
+                                .fill(palette.surface)
+                                .min_size(egui::vec2(action_width, 28.0)),
+                            );
+                            ui.ctx().accesskit_node_builder(cancel.id, |node| {
+                                node.set_author_id(RUNTIME_CHAT_CANCEL_AUTHOR_ID.to_owned());
+                                node.set_label("Cancel active Runtime Chat request".to_owned());
+                            });
+                            if cancel.clicked() {
+                                self.focus_owner_author_id =
+                                    Some(RUNTIME_CHAT_CANCEL_AUTHOR_ID.to_owned());
+                                self.last_cancelled_generation = self.cancel_active_send();
+                                self.terminal_send_generation = self.last_cancelled_generation;
+                                self.terminal_send_outcome = self
+                                    .last_cancelled_generation
+                                    .map(|_| "cancelled".to_owned());
+                                self.last_error = None;
+                                ui.ctx().request_repaint();
+                            }
+                        }
+                    });
+                    let action_state = self.action_state_value();
+                    ui.ctx().accesskit_node_builder(status.id, |node| {
+                        node.set_role(accesskit::Role::Status);
+                        node.set_author_id(RUNTIME_CHAT_STATUS_AUTHOR_ID.to_owned());
+                        node.set_label(endpoint_status.clone());
+                        node.set_value(action_state);
                     });
                     ui.add_space(8.0);
 

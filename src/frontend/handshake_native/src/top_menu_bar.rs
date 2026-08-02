@@ -312,6 +312,15 @@ pub fn set_menu_popup_open(ctx: &egui::Context, menu: MenuId, open: bool) {
     }
 }
 
+/// Close every top-level menu popup in the live egui context. A model-dispatched leaf can complete
+/// after the shell's persisted open-menu projection has already cleared, so closing only the tracked
+/// menu is insufficient and can leave an obscuring live popup behind.
+pub fn close_all_menu_popups(ctx: &egui::Context) {
+    for index in 0..MENU_DEFINITIONS.len() {
+        egui::Popup::close_id(ctx, menu_popup_id(index));
+    }
+}
+
 /// Return the menu whose popup is actually open in this context. This post-render truth source makes
 /// Escape, click-away, pointer toggles, mnemonics, and same-frame model-click bursts converge on egui's
 /// final popup state instead of a guessed click transition.

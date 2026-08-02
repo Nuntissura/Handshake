@@ -61,6 +61,7 @@ use sqlx::{
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Instant;
 use uuid::Uuid;
 
 use crate::workflows::locus::types::{
@@ -101,6 +102,7 @@ impl PostgresDatabase {
         target_block_id: &str,
         edge_type: &str,
     ) -> StorageResult<Vec<LoomBlock>> {
+        let query_started = Instant::now();
         let rows = sqlx::query(
             r#"
             SELECT DISTINCT
@@ -125,7 +127,30 @@ impl PostgresDatabase {
         .bind(edge_type)
         .fetch_all(&self.pool)
         .await?;
-        rows.into_iter().map(map_loom_block).collect()
+        let query_elapsed_us = query_started.elapsed().as_micros();
+        let row_count = rows.len();
+        let mapping_started = Instant::now();
+        let blocks = rows.into_iter().map(map_loom_block).collect();
+        let mapping_elapsed_us = mapping_started.elapsed().as_micros();
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "incoming_edge_query",
+            edge_type,
+            row_count,
+            elapsed_us = query_elapsed_us,
+            "loom_tag_hub_stage_timing"
+        );
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "loom_block_mapping",
+            edge_type,
+            row_count,
+            elapsed_us = mapping_elapsed_us,
+            "loom_tag_hub_stage_timing"
+        );
+        blocks
     }
 
     /// MT-179/180: assemble a `LoomGraph` from a fixed node id set. Fetches the
@@ -11712,20 +11737,47 @@ impl super::Database for PostgresDatabase {
         tag_block_id: &str,
     ) -> StorageResult<super::LoomTagHub> {
         // Must exist AND be a tag_hub (fail-closed).
+        let get_block_started = Instant::now();
         let block = self.get_loom_block(workspace_id, tag_block_id).await?;
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "get_tag_block",
+            elapsed_us = get_block_started.elapsed().as_micros(),
+            "loom_tag_hub_stage_timing"
+        );
         if !matches!(block.content_type, LoomBlockContentType::TagHub) {
             return Err(StorageError::Validation("loom block is not a tag_hub"));
         }
 
         // Direct sub-tags: SOURCES of SUB_TAG edges whose TARGET is this tag.
+        let sub_tags_started = Instant::now();
         let sub_tags = self
             .loom_blocks_by_incoming_edge(workspace_id, tag_block_id, "sub_tag")
             .await?;
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "sub_tag_query_and_mapping_total",
+            row_count = sub_tags.len(),
+            elapsed_us = sub_tags_started.elapsed().as_micros(),
+            "loom_tag_hub_stage_timing"
+        );
         // Tagged blocks: SOURCES of TAG edges whose TARGET is this tag.
+        let tagged_blocks_started = Instant::now();
         let tagged_blocks = self
             .loom_blocks_by_incoming_edge(workspace_id, tag_block_id, "tag")
             .await?;
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "tagged_block_query_and_mapping_total",
+            row_count = tagged_blocks.len(),
+            elapsed_us = tagged_blocks_started.elapsed().as_micros(),
+            "loom_tag_hub_stage_timing"
+        );
 
+        let backlink_count_started = Instant::now();
         let backlink_count: i64 = sqlx::query_scalar(
             r#"SELECT COUNT(*)::BIGINT FROM loom_edges
                WHERE workspace_id = $1 AND target_block_id = $2"#,
@@ -11734,6 +11786,14 @@ impl super::Database for PostgresDatabase {
         .bind(tag_block_id)
         .fetch_one(&self.pool)
         .await?;
+        tracing::info!(
+            target: "handshake_core",
+            event = "loom_tag_hub_stage_timing",
+            stage = "backlink_count_query",
+            row_count = backlink_count,
+            elapsed_us = backlink_count_started.elapsed().as_micros(),
+            "loom_tag_hub_stage_timing"
+        );
 
         Ok(super::LoomTagHub {
             block,

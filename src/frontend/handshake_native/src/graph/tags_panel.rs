@@ -71,6 +71,9 @@
 use egui::accesskit;
 use egui::{Color32, Sense, Vec2};
 
+use crate::mcp::action::{
+    serialize_observer_click_state, serialize_observer_click_target, ClickCompletionState,
+};
 use crate::theme::HsPalette;
 
 /// AccessKit author_id for the tags-panel search box (Role::TextInput).
@@ -99,6 +102,13 @@ pub const RETRY_AUTHOR_ID: &str = "tags.retry";
 
 /// AccessKit author_id for the hub-page error-banner Retry button.
 pub const HUB_RETRY_AUTHOR_ID: &str = "tag-hub.retry";
+
+/// Durable observer used by the canonical action channel to acknowledge a tag-row click only after
+/// the exact workspace/tag hub's authoritative membership query has completed.
+pub const TAG_NAVIGATION_OBSERVER_AUTHOR_ID: &str = "tags.navigation-status";
+
+const TAG_NAVIGATION_EFFECT: &str = "tags.open-authoritative-hub";
+const TAG_NAVIGATION_COMPLETION_KIND: &str = "authoritative-hub-membership-query-complete";
 
 /// Size of the colored tag chip's leading swatch (px). Cosmetic.
 pub const CHIP_SWATCH_SIZE: f32 = 12.0;
@@ -258,13 +268,47 @@ impl TagEntry {
 pub enum TagsPanelEvent {
     /// A tag chip was clicked (the default open action): navigate to the hub page. Carries the hub's
     /// block id (AC3 — `on_open_tag(block_id)`).
-    OpenTag { block_id: String },
+    OpenTag {
+        block_id: String,
+        /// Present only when this event came from an observer-declared model-facing Click. The host
+        /// binds this generation to the exact hub-detail request sequence before dispatch.
+        action_generation: Option<u64>,
+    },
     /// A tag's "filter" affordance was used: open the tag as a filter over the knowledge surface (the
     /// contract's `on_filter_tag` callback slot). Carries the hub's block id.
     FilterTag { block_id: String },
     /// The error-banner Retry button was pressed: the host should re-fire the initial `GET /loom/tags`
     /// load (AC8 robustness).
     Retry,
+}
+
+#[derive(Debug, Clone)]
+struct TagNavigationObserver {
+    context: String,
+    workspace_epoch: u64,
+    generation: u64,
+    state: ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    pending_hub_id: Option<String>,
+    pending_workspace_epoch: Option<u64>,
+    pending_request_sequence: Option<u64>,
+}
+
+impl Default for TagNavigationObserver {
+    fn default() -> Self {
+        Self {
+            context: "tags-navigation:unbound".to_owned(),
+            workspace_epoch: 0,
+            generation: 0,
+            state: ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            pending_hub_id: None,
+            pending_workspace_epoch: None,
+            pending_request_sequence: None,
+        }
+    }
 }
 
 /// The tags-panel widget state. Held by the host (the pane), mutated in place by [`LoomTagsPanel::show`].
@@ -282,15 +326,197 @@ pub struct LoomTagsPanel {
     pub loading: bool,
     /// Set on a backend failure; renders the error banner + Retry. `None` => no error.
     pub error: Option<String>,
+    navigation_observer: TagNavigationObserver,
 }
 
 impl LoomTagsPanel {
     /// A fresh panel for `workspace_id` with no tags loaded yet.
     pub fn new(workspace_id: impl Into<String>) -> Self {
-        Self {
-            workspace_id: workspace_id.into(),
+        let workspace_id = workspace_id.into();
+        let mut panel = Self {
+            workspace_id: workspace_id.clone(),
             ..Self::default()
+        };
+        panel.bind_navigation_workspace(&workspace_id, 0);
+        panel
+    }
+
+    /// Bind the durable navigation observer to the shell's current workspace generation. Any pending
+    /// completion from a prior generation is retired rather than being allowed to acknowledge an A ->
+    /// B -> A delivery.
+    pub(crate) fn bind_navigation_workspace(&mut self, workspace_id: &str, workspace_epoch: u64) {
+        let context = format!("tags-navigation:{workspace_id}:epoch:{workspace_epoch}");
+        if self.navigation_observer.context != context {
+            self.navigation_observer = TagNavigationObserver {
+                context,
+                workspace_epoch,
+                ..TagNavigationObserver::default()
+            };
         }
+    }
+
+    fn navigation_semantic(&self, block_id: &str, completion_generation: u64) -> String {
+        serde_json::json!({
+            "source_tag_id": block_id,
+            "destination_tag_hub_id": block_id,
+            "workspace_id": self.workspace_id,
+            "workspace_generation": self.navigation_observer.workspace_epoch,
+            "completion_generation": completion_generation,
+            "completion_kind": TAG_NAVIGATION_COMPLETION_KIND,
+        })
+        .to_string()
+    }
+
+    fn navigation_declaration(&self, block_id: &str) -> Option<(String, String, u64)> {
+        if self.navigation_observer.state == ClickCompletionState::Pending {
+            return None;
+        }
+        let completion_generation = self.navigation_observer.generation.checked_add(1)?;
+        let semantic = self.navigation_semantic(block_id, completion_generation);
+        let token = serialize_observer_click_target(
+            TAG_NAVIGATION_EFFECT,
+            &self.navigation_observer.context,
+            self.navigation_observer.generation,
+            TAG_NAVIGATION_OBSERVER_AUTHOR_ID,
+            &semantic,
+        )?;
+        Some((token, semantic, completion_generation))
+    }
+
+    pub(crate) fn begin_navigation(&mut self, block_id: &str) -> Option<u64> {
+        let (_, semantic, completion_generation) = self.navigation_declaration(block_id)?;
+        self.navigation_observer.generation = completion_generation;
+        self.navigation_observer.state = ClickCompletionState::Pending;
+        self.navigation_observer.pending_target = Some(tag_row_author_id(block_id));
+        self.navigation_observer.semantic_value = Some(semantic);
+        self.navigation_observer.pending_hub_id = Some(block_id.to_owned());
+        self.navigation_observer.pending_request_sequence = None;
+        Some(completion_generation)
+    }
+
+    /// Bind a model-facing tag-row activation to the exact authoritative detail request the host has
+    /// dispatched. Programmatic/operator navigation has no action generation and is intentionally not
+    /// allowed to complete a model action receipt.
+    pub(crate) fn bind_navigation_request(
+        &mut self,
+        action_generation: u64,
+        workspace_epoch: u64,
+        block_id: &str,
+        request_sequence: u64,
+    ) -> bool {
+        if self.navigation_observer.state != ClickCompletionState::Pending
+            || self.navigation_observer.generation != action_generation
+            || self.navigation_observer.workspace_epoch != workspace_epoch
+            || self.navigation_observer.pending_hub_id.as_deref() != Some(block_id)
+        {
+            return false;
+        }
+        self.navigation_observer.pending_workspace_epoch = Some(workspace_epoch);
+        self.navigation_observer.pending_request_sequence = Some(request_sequence);
+        true
+    }
+
+    pub(crate) fn fail_navigation_before_dispatch(
+        &mut self,
+        action_generation: u64,
+        block_id: &str,
+    ) -> bool {
+        if self.navigation_observer.state != ClickCompletionState::Pending
+            || self.navigation_observer.generation != action_generation
+            || self.navigation_observer.pending_hub_id.as_deref() != Some(block_id)
+        {
+            return false;
+        }
+        self.navigation_observer.state = ClickCompletionState::Ready;
+        self.navigation_observer.pending_target = None;
+        self.navigation_observer.semantic_value = None;
+        self.navigation_observer.pending_hub_id = None;
+        self.navigation_observer.pending_workspace_epoch = None;
+        self.navigation_observer.pending_request_sequence = None;
+        true
+    }
+
+    /// Retire a Pending or already-Applied navigation when its mounted hub is explicitly abandoned
+    /// (Back or a different programmatic tag open). The current generation becomes settled Ready: a
+    /// Pending action is never Applied, while a terminal Applied action stays terminal in its receipt
+    /// history and the newly visible rows can declare the next generation.
+    pub(crate) fn retire_navigation_for_hub(&mut self, block_id: &str) -> bool {
+        if self.navigation_observer.state == ClickCompletionState::Ready
+            || self.navigation_observer.pending_hub_id.as_deref() != Some(block_id)
+        {
+            return false;
+        }
+        self.navigation_observer.state = ClickCompletionState::Ready;
+        self.navigation_observer.pending_target = None;
+        self.navigation_observer.semantic_value = None;
+        self.navigation_observer.pending_hub_id = None;
+        self.navigation_observer.pending_workspace_epoch = None;
+        self.navigation_observer.pending_request_sequence = None;
+        true
+    }
+
+    /// Publish Applied only for the successful, still-current workspace/hub/request tuple.
+    pub(crate) fn complete_navigation_request(
+        &mut self,
+        workspace_epoch: u64,
+        block_id: &str,
+        request_sequence: u64,
+    ) -> bool {
+        if self.navigation_observer.state != ClickCompletionState::Pending
+            || self.navigation_observer.pending_workspace_epoch != Some(workspace_epoch)
+            || self.navigation_observer.pending_hub_id.as_deref() != Some(block_id)
+            || self.navigation_observer.pending_request_sequence != Some(request_sequence)
+        {
+            return false;
+        }
+        self.navigation_observer.state = ClickCompletionState::Applied;
+        true
+    }
+
+    /// Retire a failed exact navigation as Ready at its advanced generation. The action channel sees
+    /// this as indeterminate (never Applied), while a future retry can declare a fresh generation.
+    pub(crate) fn fail_navigation_request(
+        &mut self,
+        workspace_epoch: u64,
+        block_id: &str,
+        request_sequence: u64,
+    ) -> bool {
+        if self.navigation_observer.state != ClickCompletionState::Pending
+            || self.navigation_observer.pending_workspace_epoch != Some(workspace_epoch)
+            || self.navigation_observer.pending_hub_id.as_deref() != Some(block_id)
+            || self.navigation_observer.pending_request_sequence != Some(request_sequence)
+        {
+            return false;
+        }
+        self.navigation_observer.state = ClickCompletionState::Ready;
+        self.navigation_observer.pending_target = None;
+        self.navigation_observer.semantic_value = None;
+        self.navigation_observer.pending_hub_id = None;
+        self.navigation_observer.pending_workspace_epoch = None;
+        self.navigation_observer.pending_request_sequence = None;
+        true
+    }
+
+    /// Emit the durable status node every mounted frame, including while the hub page replaces the tag
+    /// list. Its identity is stable; only its strict completion token advances.
+    pub(crate) fn emit_navigation_observer(&self, ctx: &egui::Context) {
+        let observer = &self.navigation_observer;
+        let value = serialize_observer_click_state(
+            TAG_NAVIGATION_EFFECT,
+            &observer.context,
+            observer.generation,
+            observer.state,
+            observer.pending_target.as_deref(),
+            observer.semantic_value.as_deref(),
+        )
+        .expect("tag navigation observer fields are bounded and valid");
+        let node_id = egui::Id::new("tags-navigation-observer");
+        ctx.accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::Status);
+            node.set_author_id(TAG_NAVIGATION_OBSERVER_AUTHOR_ID.to_owned());
+            node.set_label("Tag hub navigation status".to_owned());
+            node.set_value(value.clone());
+        });
     }
 
     /// Install the enumerated tag list from a `GET /loom/tags` result in deterministic title order,
@@ -394,7 +620,20 @@ impl LoomTagsPanel {
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 for entry in &visible {
-                    if let Some(ev) = render_tag_row(entry, ui, palette) {
+                    let declaration = self.navigation_declaration(&entry.block_id);
+                    if let Some(mut ev) = render_tag_row(
+                        entry,
+                        ui,
+                        palette,
+                        declaration.as_ref().map(|(token, _, _)| token.as_str()),
+                    ) {
+                        if let TagsPanelEvent::OpenTag {
+                            block_id,
+                            action_generation,
+                        } = &mut ev
+                        {
+                            *action_generation = self.begin_navigation(block_id);
+                        }
                         event = Some(ev);
                     }
                 }
@@ -411,6 +650,7 @@ fn render_tag_row(
     entry: &TagEntry,
     ui: &mut egui::Ui,
     palette: &HsPalette,
+    click_completion_value: Option<&str>,
 ) -> Option<TagsPanelEvent> {
     let mut event = None;
     let chip_color = tag_chip_color(&entry.title);
@@ -445,18 +685,22 @@ fn render_tag_row(
         Some(n) => format!("{n} blocks tagged"),
         None => "member count not yet loaded".to_owned(),
     };
-    emit_list_item_accesskit(
-        ui,
-        resp.id,
-        &tag_row_author_id(&entry.block_id),
-        &entry.title,
-        &desc,
-        true,
-    );
+    if !resp.clicked() {
+        emit_list_item_accesskit(
+            ui,
+            resp.id,
+            &tag_row_author_id(&entry.block_id),
+            &entry.title,
+            &desc,
+            click_completion_value.is_some(),
+            click_completion_value,
+        );
+    }
 
     if resp.clicked() {
         event = Some(TagsPanelEvent::OpenTag {
             block_id: entry.block_id.clone(),
+            action_generation: None,
         });
     }
     // Secondary-click (context) opens the tag as a filter (the on_filter_tag slot). A plain
@@ -757,6 +1001,7 @@ impl LoomTagHubPanel {
                                 &cand.title,
                                 "Tag this block with the hub",
                                 !self.add_tag_in_flight,
+                                None,
                             );
                             if resp.clicked() {
                                 event = Some(TagHubEvent::AddTagSelected {
@@ -800,6 +1045,7 @@ fn render_member_row(
         &member.title,
         &member.content_type,
         true,
+        None,
     );
     if resp.clicked() {
         event = Some(TagHubEvent::OpenMember {
@@ -898,15 +1144,20 @@ fn emit_list_item_accesskit(
     title: &str,
     desc: &str,
     enabled: bool,
+    value: Option<&str>,
 ) {
     let author = author_id.to_owned();
     let label = title.to_owned();
     let description = desc.to_owned();
+    let value = value.map(str::to_owned);
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::ListItem);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
         node.set_description(description.clone());
+        if let Some(value) = value.clone() {
+            node.set_value(value);
+        }
         if enabled {
             node.add_action(accesskit::Action::Click);
         } else {
@@ -1115,6 +1366,94 @@ mod tests {
         let panel = LoomTagsPanel::new("ws-empty");
         assert!(panel.tags.is_empty());
         assert!(panel.filtered_tags().is_empty());
+    }
+
+    #[test]
+    fn navigation_observer_applies_only_for_exact_bound_membership_request() {
+        let mut panel = LoomTagsPanel::new("ws-nav");
+        panel.bind_navigation_workspace("ws-nav", 7);
+        let (target_token, semantic, completion_generation) = panel
+            .navigation_declaration("tag-rust")
+            .expect("bounded tag navigation declaration");
+        let target: serde_json::Value = serde_json::from_str(&target_token).unwrap();
+        let semantic_json: serde_json::Value = serde_json::from_str(&semantic).unwrap();
+        assert_eq!(
+            target["observer_author_id"],
+            TAG_NAVIGATION_OBSERVER_AUTHOR_ID
+        );
+        assert_eq!(semantic_json["source_tag_id"], "tag-rust");
+        assert_eq!(semantic_json["destination_tag_hub_id"], "tag-rust");
+        assert_eq!(semantic_json["workspace_id"], "ws-nav");
+        assert_eq!(semantic_json["workspace_generation"], 7);
+        assert_eq!(
+            semantic_json["completion_generation"],
+            completion_generation
+        );
+        assert_eq!(
+            semantic_json["completion_kind"],
+            TAG_NAVIGATION_COMPLETION_KIND
+        );
+
+        assert_eq!(
+            panel.begin_navigation("tag-rust"),
+            Some(completion_generation)
+        );
+        assert!(
+            !panel.bind_navigation_request(completion_generation, 8, "tag-rust", 40),
+            "a different workspace epoch cannot bind to the observer's semantic generation"
+        );
+        assert!(panel.bind_navigation_request(completion_generation, 7, "tag-rust", 41));
+        assert!(!panel.complete_navigation_request(7, "tag-python", 41));
+        assert!(!panel.complete_navigation_request(7, "tag-rust", 40));
+        assert!(panel.complete_navigation_request(7, "tag-rust", 41));
+        assert_eq!(
+            panel.navigation_observer.state,
+            ClickCompletionState::Applied
+        );
+        assert!(panel.retire_navigation_for_hub("tag-rust"));
+        assert_eq!(panel.navigation_observer.state, ClickCompletionState::Ready);
+        assert_eq!(
+            panel.navigation_declaration("tag-python").unwrap().2,
+            completion_generation + 1,
+            "Back from a completed hub settles the observer before the next row click"
+        );
+    }
+
+    #[test]
+    fn navigation_observer_failure_never_publishes_applied_and_can_retry() {
+        let mut panel = LoomTagsPanel::new("ws-nav");
+        panel.bind_navigation_workspace("ws-nav", 3);
+        let first_generation = panel.begin_navigation("tag-rust").unwrap();
+        assert!(panel.bind_navigation_request(first_generation, 3, "tag-rust", 9));
+        assert!(panel.fail_navigation_request(3, "tag-rust", 9));
+        assert_eq!(panel.navigation_observer.state, ClickCompletionState::Ready);
+        assert!(panel.navigation_observer.pending_target.is_none());
+        let (_, _, retry_generation) = panel.navigation_declaration("tag-rust").unwrap();
+        assert_eq!(retry_generation, first_generation + 1);
+    }
+
+    #[test]
+    fn abandoned_navigation_retires_pending_generation_and_late_delivery_cannot_apply() {
+        let mut panel = LoomTagsPanel::new("ws-nav");
+        panel.bind_navigation_workspace("ws-nav", 5);
+        let a_generation = panel.begin_navigation("tag-a").unwrap();
+        assert!(panel.bind_navigation_request(a_generation, 5, "tag-a", 10));
+
+        // This is the state transition BackToList invokes before removing the mounted hub.
+        assert!(panel.retire_navigation_for_hub("tag-a"));
+        assert_eq!(panel.navigation_observer.state, ClickCompletionState::Ready);
+        assert!(!panel.complete_navigation_request(5, "tag-a", 10));
+
+        let b_generation = panel.begin_navigation("tag-b").unwrap();
+        assert_eq!(b_generation, a_generation + 1);
+        assert!(panel.bind_navigation_request(b_generation, 5, "tag-b", 11));
+        assert!(!panel.complete_navigation_request(5, "tag-a", 10));
+        assert!(!panel.complete_navigation_request(5, "tag-b", 12));
+        assert!(panel.complete_navigation_request(5, "tag-b", 11));
+        assert_eq!(
+            panel.navigation_observer.state,
+            ClickCompletionState::Applied
+        );
     }
 
     /// set_detail installs the hub title + members and clears loading/error.

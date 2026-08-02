@@ -31,6 +31,10 @@ mod pg_proof_support;
 use perf_proof_support::{measurement, time_ms, Budget, ScenarioAttempt};
 use pg_proof_support::LiveBackend;
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
+use std::process::{Command, ExitStatus, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use handshake_native::graph::graph_view::{GraphEdge, GraphNode, LoomGraphView, NODE_CAP};
 
@@ -360,6 +364,12 @@ fn perf_proof_perf_lk03_tag_hub() {
     be.post_json_batch_bounded(edge_requests, fixture_concurrency(), &setup_deadline);
     setup_deadline.check();
 
+    // V4 remediation: independently prove authoritative fixture cardinality before starting the
+    // endpoint clock. This one mandatory count query has an unavoidable, explicitly-receipted cache
+    // effect; EXPLAIN ANALYZE is deferred until AFTER the measured GET so it cannot pre-warm the exact
+    // workload whose latency is under proof.
+    let mut database_evidence = capture_lk03_fixture_counts(&be, &tag_id, &setup_deadline);
+
     // MEASURED: one canonical tag-hub query. The tag-hub surface returns its complete direct
     // `tagged_blocks` set; timing ten independent 500-row pagination requests measured client
     // round-trip multiplication instead of the contract's singular "query the tag hub" operation.
@@ -378,6 +388,20 @@ fn perf_proof_perf_lk03_tag_hub() {
         serde_json::json!({
             "result_count": hit_count,
             "backlink_count": hub.get("backlink_count").and_then(serde_json::Value::as_i64),
+            "database_evidence": database_evidence.receipt(),
+            "backend_runtime_evidence": "pending_owned_backend_reap",
+        }),
+    );
+    // Preserve the client end-to-end timing first, then measure every production SQL stage. These
+    // ANALYZE executions cannot influence the elapsed_ms value above.
+    database_evidence.capture_post_measurement_plans(&setup_deadline);
+    attempt.stage(
+        serde_json::json!([measurement("tag_hub", elapsed_ms as f64, "ms")]),
+        serde_json::json!({
+            "result_count": hit_count,
+            "backlink_count": hub.get("backlink_count").and_then(serde_json::Value::as_i64),
+            "database_evidence": database_evidence.receipt(),
+            "backend_runtime_evidence": "pending_owned_backend_reap",
         }),
     );
     assert_eq!(
@@ -395,16 +419,55 @@ fn perf_proof_perf_lk03_tag_hub() {
         "LK-03: tag query {elapsed_ms} ms must be <= {} ms",
         budget.ceiling
     );
+    let (non_tag_status, non_tag_body) = be.get_json_response(&format!(
+        "/workspaces/{}/loom/tags/{}",
+        be.workspace_id, block_ids[0]
+    ));
+    assert_eq!(
+        non_tag_status, 400,
+        "LK-03: the real HTTP route must fail closed when the target is not a tag_hub"
+    );
+    assert_eq!(
+        non_tag_body["error"].as_str(),
+        Some("HSK-400-LOOM-VALIDATION"),
+        "LK-03: non-tag target must return the typed Loom validation code"
+    );
 
-    // proof_target #5 greps for 'hit_count=5000'.
+    // The shared fixture primitive deletes the workspace while HTTP is live, reaps only its owned
+    // backend, then atomically copies/hashes closed logs. Partial publication preserves the source roots.
+    let backend_runtime_evidence = be
+        .assert_cleanup_and_publish_runtime_diagnostics("LK-03")
+        .unwrap_or_else(|error| {
+            panic!("LK-03: publish stable backend runtime diagnostics: {error}")
+        });
+    assert_eq!(
+        backend_runtime_evidence["status"].as_str(),
+        Some("complete"),
+        "LK-03: success runtime diagnostics must retain and hash every expected file"
+    );
+    let stage_diagnostics = assert_lk03_stage_diagnostics(
+        &backend_runtime_evidence,
+        &std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "standalone-run".to_owned()),
+    );
+    attempt.pass(
+        serde_json::json!([measurement("tag_hub", elapsed_ms as f64, "ms")]),
+        serde_json::json!({
+            "result_count": hit_count,
+            "backlink_count": hub.get("backlink_count").and_then(serde_json::Value::as_i64),
+            "database_evidence": database_evidence.receipt(),
+            "backend_runtime_evidence": backend_runtime_evidence,
+            "stage_diagnostics": stage_diagnostics,
+            "negative_http_non_tag": {
+                "status": non_tag_status,
+                "error": non_tag_body["error"],
+            },
+        }),
+    );
+    // proof_target #5 greps for 'hit_count=5000'. Emit PASS only after cleanup, diagnostics
+    // publication/validation, and the terminal attempt receipt have all succeeded.
     println!(
         "LK-03 measured={elapsed_ms}ms (<= {}ms) PASS — tag hub hit_count={hit_count} (live PG)",
         budget.ceiling
-    );
-    be.assert_cleanup();
-    attempt.pass(
-        serde_json::json!([measurement("tag_hub", elapsed_ms as f64, "ms")]),
-        serde_json::json!({"result_count": hit_count}),
     );
 }
 
@@ -714,6 +777,435 @@ fn perf_proof_perf_lk05_folder_tree() {
 
 fn require_be() -> LiveBackend {
     pg_proof_support::require_live_backend()
+}
+
+struct Lk03DatabaseEvidence {
+    workspace: String,
+    target: String,
+    evidence_component: String,
+    counts: [i64; 3],
+    counts_receipt: serde_json::Value,
+    plan_receipts: Option<Vec<serde_json::Value>>,
+}
+
+impl Lk03DatabaseEvidence {
+    fn receipt(&self) -> serde_json::Value {
+        serde_json::json!({
+            "workspace_block_count": self.counts[0],
+            "target_tag_edge_count": self.counts[1],
+            "distinct_tag_source_count": self.counts[2],
+            "exact_fixture_counts": self.counts_receipt,
+            "plans": self.plan_receipts.as_ref().map_or_else(
+                || serde_json::json!("pending_post_measurement"),
+                |plans| serde_json::json!(plans),
+            ),
+            "measurement_order": "cardinality_precheck_then_timed_get_then_explain_analyze",
+            "pre_measurement_cache_effect": "one mandatory exact-cardinality SELECT ran before the timed GET; no production route query or EXPLAIN ANALYZE ran before measurement",
+        })
+    }
+
+    fn capture_post_measurement_plans(&mut self, setup_deadline: &pg_proof_support::SetupDeadline) {
+        assert!(
+            self.plan_receipts.is_none(),
+            "LK-03 query plans may only be captured once, after the measured GET"
+        );
+        let workspace = &self.workspace;
+        let target = &self.target;
+        let member_query = |edge_type: &str| {
+            format!(
+                "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
+                 SELECT DISTINCT b.block_id, b.workspace_id, b.content_type, b.document_id, \
+                 b.asset_id, b.title, b.original_filename, b.content_hash, b.pinned, b.favorite, \
+                 b.journal_date, b.created_at, b.updated_at, b.imported_at, b.backlink_count, \
+                 b.mention_count, b.tag_count, b.derived_json, b.preview_status, b.thumbnail_asset_id, \
+                 b.proxy_asset_id FROM loom_edges e JOIN loom_blocks b \
+                 ON b.workspace_id = e.workspace_id AND b.block_id = e.source_block_id \
+                 WHERE e.workspace_id = {workspace} AND e.target_block_id = {target} \
+                 AND e.edge_type = '{edge_type}' ORDER BY b.updated_at DESC, b.block_id ASC;"
+            )
+        };
+        let plans = [
+            (
+                "workspace-lookup",
+                format!(
+                    "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
+                     SELECT id, name, created_at, updated_at FROM workspaces WHERE id = {workspace};"
+                ),
+            ),
+            (
+                "tag-block-lookup",
+                format!(
+                    "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
+                     SELECT block_id, workspace_id, content_type, document_id, asset_id, title, \
+                     original_filename, content_hash, pinned, favorite, pin_order, journal_date, \
+                     created_at, updated_at, imported_at, backlink_count, mention_count, tag_count, \
+                     derived_json, preview_status, thumbnail_asset_id, proxy_asset_id FROM loom_blocks \
+                     WHERE workspace_id = {workspace} AND block_id = {target};"
+                ),
+            ),
+            ("tag-members", member_query("tag")),
+            ("sub-tag-members", member_query("sub_tag")),
+            (
+                "backlink-count",
+                format!(
+                    "EXPLAIN (ANALYZE, BUFFERS, VERBOSE, SETTINGS, SUMMARY, FORMAT JSON) \
+                     SELECT COUNT(*)::BIGINT FROM loom_edges WHERE workspace_id = {workspace} \
+                     AND target_block_id = {target};"
+                ),
+            ),
+        ];
+        let mut receipts = Vec::new();
+        for (name, sql) in plans {
+            let capture = run_bounded_psql_capture(name, &sql, setup_deadline);
+            let parsed: serde_json::Value = serde_json::from_slice(&capture.stdout)
+                .unwrap_or_else(|error| panic!("LK-03: parse {name} EXPLAIN JSON: {error}"));
+            assert!(parsed.is_array(), "LK-03: {name} EXPLAIN must be JSON");
+            receipts.push(publish_lk03_capture(
+                &self.evidence_component,
+                name,
+                "json",
+                capture,
+            ));
+        }
+        self.plan_receipts = Some(receipts);
+    }
+}
+
+fn capture_lk03_fixture_counts(
+    be: &LiveBackend,
+    tag_id: &str,
+    setup_deadline: &pg_proof_support::SetupDeadline,
+) -> Lk03DatabaseEvidence {
+    let run_id = safe_artifact_component(
+        &std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "standalone-run".to_owned()),
+    );
+    let evidence_component = format!(
+        "lk03-query-plans-{run_id}-{}",
+        uuid::Uuid::new_v4().simple()
+    );
+
+    let workspace = sql_literal(&be.workspace_id);
+    let target = sql_literal(tag_id);
+    let counts_sql = format!(
+        "SELECT (SELECT COUNT(*) FROM loom_blocks WHERE workspace_id = {workspace}), \
+         (SELECT COUNT(*) FROM loom_edges WHERE workspace_id = {workspace} AND target_block_id = {target} AND edge_type = 'tag'), \
+         (SELECT COUNT(DISTINCT source_block_id) FROM loom_edges WHERE workspace_id = {workspace} AND target_block_id = {target} AND edge_type = 'tag');"
+    );
+    let counts_capture =
+        run_bounded_psql_capture("lk03-exact-fixture-counts", &counts_sql, setup_deadline);
+    let counts_receipt = publish_lk03_capture(
+        &evidence_component,
+        "exact-fixture-counts",
+        "txt",
+        counts_capture.clone(),
+    );
+    let counts_line = String::from_utf8(counts_capture.stdout)
+        .expect("LK-03: psql exact count output must be UTF-8")
+        .trim()
+        .to_owned();
+    let counts: Vec<i64> = counts_line
+        .split('|')
+        .map(|field| {
+            field
+                .trim()
+                .parse::<i64>()
+                .unwrap_or_else(|error| panic!("LK-03: parse exact count {field:?}: {error}"))
+        })
+        .collect();
+    assert_eq!(
+        counts,
+        vec![5_001, 5_000, 5_000],
+        "LK-03: authoritative fixture must contain exactly 5001 workspace blocks, 5000 tag edges to the target, and 5000 distinct sources"
+    );
+
+    Lk03DatabaseEvidence {
+        workspace,
+        target,
+        evidence_component,
+        counts: [counts[0], counts[1], counts[2]],
+        counts_receipt,
+        plan_receipts: None,
+    }
+}
+
+#[derive(Clone)]
+struct PsqlCapture {
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+}
+
+fn run_bounded_psql_capture(
+    label: &str,
+    sql: &str,
+    setup_deadline: &pg_proof_support::SetupDeadline,
+) -> PsqlCapture {
+    setup_deadline.check();
+    let database_url = [
+        "HANDSHAKE_TEST_PG_DSN",
+        "HSK_PROOF_DATABASE_URL",
+        "POSTGRES_TEST_URL",
+        "DATABASE_URL",
+    ]
+    .into_iter()
+    .find_map(|name| {
+        std::env::var(name)
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+    })
+    .unwrap_or_else(|| panic!("{label}: PostgreSQL DSN is required"));
+    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
+    let mut command = Command::new(psql);
+    command
+        .current_dir(pg_proof_support::external_artifact_root())
+        .arg("--no-psqlrc")
+        .arg("--set")
+        .arg("ON_ERROR_STOP=1")
+        .arg("--dbname")
+        .arg(database_url)
+        .arg("--tuples-only")
+        .arg("--no-align")
+        .arg("--quiet")
+        .arg("--command")
+        .arg(sql)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .env("PGCONNECT_TIMEOUT", "5");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let mut child = command
+        .spawn()
+        .unwrap_or_else(|error| panic!("{label}: start bounded psql: {error}"));
+    let mut stdout = child.stdout.take().expect("LK-03 psql stdout pipe");
+    let mut stderr = child.stderr.take().expect("LK-03 psql stderr pipe");
+    let stdout_reader = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout
+            .read_to_end(&mut bytes)
+            .map(|_| bytes)
+            .map_err(|error| format!("read psql stdout: {error}"))
+    });
+    let stderr_reader = thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stderr
+            .read_to_end(&mut bytes)
+            .map(|_| bytes)
+            .map_err(|error| format!("read psql stderr: {error}"))
+    });
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let terminal: Result<ExitStatus, String> = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Ok(status),
+            Ok(None) if Instant::now() < deadline => {
+                thread::sleep(Duration::from_millis(25));
+            }
+            Ok(None) => {
+                let kill = child.kill();
+                let wait = child.wait();
+                break Err(format!(
+                    "psql exceeded its 120s hard timeout; kill={kill:?}; wait={wait:?}"
+                ));
+            }
+            Err(error) => {
+                let kill = child.kill();
+                let wait = child.wait();
+                break Err(format!("poll psql: {error}; kill={kill:?}; wait={wait:?}"));
+            }
+        }
+    };
+    let stdout = stdout_reader
+        .join()
+        .expect("LK-03 psql stdout reader thread")
+        .unwrap_or_else(|error| panic!("{label}: {error}"));
+    let stderr = stderr_reader
+        .join()
+        .expect("LK-03 psql stderr reader thread")
+        .unwrap_or_else(|error| panic!("{label}: {error}"));
+    let status = terminal.unwrap_or_else(|error| panic!("{label}: {error}"));
+    assert!(
+        status.success(),
+        "{label}: psql failed with {status}; stderr={}",
+        String::from_utf8_lossy(&stderr)
+            .chars()
+            .take(4096)
+            .collect::<String>()
+    );
+    // Check the aggregate setup deadline only after psql has reached a terminal state. Panicking while
+    // its child is live would bypass the owned-child kill/reap branches above and leak a proof process.
+    setup_deadline.check();
+    PsqlCapture { stdout, stderr }
+}
+
+fn publish_lk03_capture(
+    evidence_component: &str,
+    name: &str,
+    stdout_extension: &str,
+    capture: PsqlCapture,
+) -> serde_json::Value {
+    let stdout_name = format!("{name}.{stdout_extension}");
+    let stderr_name = format!("{name}.stderr.log");
+    let stdout = pg_proof_support::publish_mt045_evidence_bytes(
+        "measurements",
+        evidence_component,
+        &stdout_name,
+        &capture.stdout,
+    )
+    .unwrap_or_else(|error| panic!("LK-03: publish {stdout_name}: {error}"));
+    let stderr = pg_proof_support::publish_mt045_evidence_bytes(
+        "measurements",
+        evidence_component,
+        &stderr_name,
+        &capture.stderr,
+    )
+    .unwrap_or_else(|error| panic!("LK-03: publish {stderr_name}: {error}"));
+    serde_json::json!({
+        "name": name,
+        "stdout": stdout,
+        "stderr": stderr,
+    })
+}
+
+fn assert_lk03_stage_diagnostics(
+    runtime_receipt: &serde_json::Value,
+    run_id: &str,
+) -> serde_json::Value {
+    let stdout_path = runtime_receipt["files"]
+        .as_array()
+        .and_then(|files| {
+            files.iter().find_map(|file| {
+                (file["name"].as_str() == Some("backend.stdout.log"))
+                    .then(|| file["path"].as_str())
+                    .flatten()
+            })
+        })
+        .unwrap_or_else(|| panic!("LK-03: success runtime receipt lacks backend.stdout.log"));
+    let stdout = std::fs::read_to_string(stdout_path).unwrap_or_else(|error| {
+        panic!("LK-03: read retained backend stage log {stdout_path}: {error}")
+    });
+    let stage_lines: Vec<&str> = stdout
+        .lines()
+        .filter(|line| line.contains("loom_tag_hub_stage_timing"))
+        .collect();
+    assert!(
+        !stage_lines.is_empty(),
+        "LK-03: retained backend log has no tag-hub stage diagnostics"
+    );
+    let mut by_request: HashMap<String, Vec<&str>> = HashMap::new();
+    for line in &stage_lines {
+        assert!(
+            line.contains(run_id),
+            "LK-03: every stage diagnostic must carry active run identity {run_id}: {line}"
+        );
+        let request_id = diagnostic_field(line, "request_id").unwrap_or_else(|| {
+            panic!("LK-03: every stage diagnostic must carry request identity: {line}")
+        });
+        by_request.entry(request_id).or_default().push(line);
+    }
+    let complete_request_ids: Vec<String> = by_request
+        .iter()
+        .filter_map(|(request_id, lines)| {
+            lines
+                .iter()
+                .any(|line| line.contains("response_construction"))
+                .then(|| request_id.clone())
+        })
+        .collect();
+    assert_eq!(
+        complete_request_ids.len(),
+        1,
+        "LK-03: exactly one tag-hub request must reach response construction"
+    );
+    let measured_request_id = &complete_request_ids[0];
+    let measured_lines = &by_request[measured_request_id];
+
+    let expected = [
+        ("workspace_lookup", 1_usize),
+        ("get_tag_block", 1),
+        ("incoming_edge_query", 2),
+        ("loom_block_mapping", 2),
+        ("sub_tag_query_and_mapping_total", 1),
+        ("tagged_block_query_and_mapping_total", 1),
+        ("backlink_count_query", 1),
+        ("tag_hub_storage_total_after_workspace_lookup", 1),
+        ("json_serialization", 1),
+        ("response_construction", 1),
+    ];
+    let mut counts = serde_json::Map::new();
+    for (stage, expected_count) in expected {
+        let actual = measured_lines
+            .iter()
+            .filter(|line| line.contains(stage))
+            .count();
+        assert_eq!(
+            actual, expected_count,
+            "LK-03: retained diagnostics must contain exactly {expected_count} {stage} event(s)"
+        );
+        counts.insert(stage.to_owned(), serde_json::json!(actual));
+    }
+    for edge_type in ["tag", "sub_tag"] {
+        for stage in ["incoming_edge_query", "loom_block_mapping"] {
+            assert!(
+                measured_lines.iter().any(|line| {
+                    line.contains(stage) && line.contains("edge_type") && line.contains(edge_type)
+                }),
+                "LK-03: {stage} diagnostic must identify edge_type={edge_type}"
+            );
+        }
+    }
+    serde_json::json!({
+        "stdout_path": stdout_path,
+        "run_id": run_id,
+        "measured_request_id": measured_request_id,
+        "request_count_with_stage_diagnostics": by_request.len(),
+        "stage_event_count": measured_lines.len(),
+        "stage_counts": counts,
+        "wire_evidence": "client elapsed_ms spans request send, HTTP response body receipt, and JSON decode",
+    })
+}
+
+fn diagnostic_field(line: &str, field: &str) -> Option<String> {
+    for marker in [format!("{field}="), format!("\"{field}\":")] {
+        let Some((_, rest)) = line.split_once(&marker) else {
+            continue;
+        };
+        let rest = rest.trim_start();
+        let rest = rest.trim_start_matches(['\"', '\'']);
+        let value: String = rest
+            .chars()
+            .take_while(|character| !matches!(character, '\"' | '\'' | ',' | '}' | ' '))
+            .collect();
+        if !value.is_empty() {
+            return Some(value);
+        }
+    }
+    None
+}
+
+fn sql_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+fn safe_artifact_component(value: &str) -> String {
+    let safe: String = value
+        .chars()
+        .take(96)
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.') {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let safe = safe.trim_matches(['-', '.']);
+    if safe.is_empty() {
+        "standalone-run".to_owned()
+    } else {
+        safe.to_owned()
+    }
 }
 
 // Seed concurrency for the bounded product-import batches. The default 4 stays below the live backend's
