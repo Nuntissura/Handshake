@@ -1167,8 +1167,9 @@ fn assert_lk03_stage_diagnostics(
 }
 
 fn diagnostic_field(line: &str, field: &str) -> Option<String> {
+    let normalized = strip_ansi_csi(line);
     for marker in [format!("{field}="), format!("\"{field}\":")] {
-        let Some((_, rest)) = line.split_once(&marker) else {
+        let Some((_, rest)) = normalized.split_once(&marker) else {
             continue;
         };
         let rest = rest.trim_start();
@@ -1182,6 +1183,33 @@ fn diagnostic_field(line: &str, field: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn strip_ansi_csi(value: &str) -> String {
+    let mut normalized = String::with_capacity(value.len());
+    let mut characters = value.chars().peekable();
+    while let Some(character) = characters.next() {
+        if character == '\u{1b}' && characters.peek() == Some(&'[') {
+            characters.next();
+            for sequence_character in characters.by_ref() {
+                if ('@'..='~').contains(&sequence_character) {
+                    break;
+                }
+            }
+            continue;
+        }
+        normalized.push(character);
+    }
+    normalized
+}
+
+#[test]
+fn diagnostic_field_ignores_ansi_sgr_boundaries() {
+    let line = "\u{1b}[1mloom_tag_hub_request\u{1b}[0m{\u{1b}[3mrequest_id\u{1b}[0m\u{1b}[2m=\u{1b}[0m\"019fc27f-d8ac-7ed3-b0ad-30084b61f543\"}";
+    assert_eq!(
+        diagnostic_field(line, "request_id").as_deref(),
+        Some("019fc27f-d8ac-7ed3-b0ad-30084b61f543")
+    );
 }
 
 fn sql_literal(value: &str) -> String {

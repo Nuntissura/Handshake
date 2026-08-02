@@ -10,7 +10,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260802-v6"
+$mt045JobRunnerExpectedSourceId = "mt045-job-runner-20260802-v7"
 $mt045JobRunnerSource = @'
 using System;
 using System.Collections.Generic;
@@ -27,11 +27,13 @@ public sealed class Mt045JobRunResult
     public bool TimedOut { get; set; }
     public uint LeakedProcessCount { get; set; }
     public ulong[] LeakedProcessIds { get; set; }
+    public ulong[] PreCleanupDescendantProcessIds { get; set; }
+    public ulong[] PostDrainDescendantProcessIds { get; set; }
 }
 
 public static class Mt045JobRunner
 {
-    public const string SourceId = "mt045-job-runner-20260802-v6";
+    public const string SourceId = "mt045-job-runner-20260802-v7";
     private const uint CREATE_SUSPENDED = 0x00000004;
     private const uint CREATE_NO_WINDOW = 0x08000000;
     private const uint STARTF_USESTDHANDLES = 0x00000100;
@@ -306,9 +308,10 @@ public static class Mt045JobRunner
             var processIds = new ulong[returned];
             for (var index = 0; index < returned; index++)
             {
-                processIds[index] = unchecked((ulong)Marshal.ReadIntPtr(
-                    buffer,
-                    headerSize + (index * IntPtr.Size)).ToInt64());
+                var offset = headerSize + (index * IntPtr.Size);
+                processIds[index] = IntPtr.Size == sizeof(uint)
+                    ? unchecked((uint)Marshal.ReadInt32(buffer, offset))
+                    : unchecked((ulong)Marshal.ReadInt64(buffer, offset));
             }
             return processIds;
         }
@@ -488,10 +491,18 @@ public static class Mt045JobRunner
 
             var wait = WaitForSingleObject(processInformation.hProcess, (uint)timeoutMilliseconds);
             var timedOut = wait == WAIT_TIMEOUT;
+            var preCleanupDescendantProcessIds = new ulong[0];
+            var postDrainDescendantProcessIds = new ulong[0];
             if (timedOut)
             {
+                preCleanupDescendantProcessIds = QueryDescendantProcessIds(
+                    job,
+                    unchecked((uint)processInformation.dwProcessId));
                 TerminateJobAndDrain(job, "Timeout cleanup");
                 WaitForSingleObject(processInformation.hProcess, INFINITE);
+                postDrainDescendantProcessIds = QueryDescendantProcessIds(
+                    job,
+                    unchecked((uint)processInformation.dwProcessId));
             }
             else if (wait != WAIT_OBJECT_0)
             {
@@ -525,7 +536,11 @@ public static class Mt045JobRunner
                 }
                 if (leakedProcessIds.Length != 0)
                 {
+                    preCleanupDescendantProcessIds = leakedProcessIds;
                     TerminateJobAndDrain(job, "Descendant-leak cleanup");
+                    postDrainDescendantProcessIds = QueryDescendantProcessIds(
+                        job,
+                        unchecked((uint)processInformation.dwProcessId));
                 }
             }
 
@@ -535,7 +550,9 @@ public static class Mt045JobRunner
                 ExitCode = unchecked((int)exitCode),
                 TimedOut = timedOut,
                 LeakedProcessCount = unchecked((uint)leakedProcessIds.Length),
-                LeakedProcessIds = leakedProcessIds
+                LeakedProcessIds = leakedProcessIds,
+                PreCleanupDescendantProcessIds = preCleanupDescendantProcessIds,
+                PostDrainDescendantProcessIds = postDrainDescendantProcessIds
             };
             runCompleted = true;
             return result;
@@ -815,6 +832,9 @@ function Invoke-BoundedCargo {
             runner_error = $runnerFailure
             timed_out = $null
             leaked_process_count = $null
+            leaked_process_ids = $null
+            pre_cleanup_descendant_process_ids = $null
+            post_drain_descendant_process_ids = $null
             exit_code = $null
             root_process_id = $null
             process_containment = "unknown_runner_failed_before_confirmation"
@@ -843,6 +863,8 @@ function Invoke-BoundedCargo {
         timed_out = $nativeResult.TimedOut
         leaked_process_count = $nativeResult.LeakedProcessCount
         leaked_process_ids = @($nativeResult.LeakedProcessIds)
+        pre_cleanup_descendant_process_ids = @($nativeResult.PreCleanupDescendantProcessIds)
+        post_drain_descendant_process_ids = @($nativeResult.PostDrainDescendantProcessIds)
         exit_code = $nativeResult.ExitCode
         root_process_id = $nativeResult.RootProcessId
         process_containment = "windows_job_object_kill_on_close"
@@ -1195,17 +1217,67 @@ function Invoke-Mt045PostReapWorkspaceCleanup {
     }
 }
 
+function Get-ValidatedProcessIdArray {
+    param(
+        [Parameter(Mandatory)]$Owner,
+        [Parameter(Mandatory)][string]$PropertyName
+    )
+    $propertyExists = $false
+    $propertyValue = $null
+    if ($Owner -is [Collections.IDictionary]) {
+        $propertyExists = $Owner.Contains($PropertyName)
+        if ($propertyExists) {
+            $propertyValue = $Owner[$PropertyName]
+        }
+    }
+    else {
+        $property = $Owner.PSObject.Properties[$PropertyName]
+        $propertyExists = $null -ne $property
+        if ($propertyExists) {
+            $propertyValue = $property.Value
+        }
+    }
+    if (-not $propertyExists -or $null -eq $propertyValue) {
+        throw "process-containment receipt lacks $PropertyName"
+    }
+    if ($propertyValue -is [string]) {
+        throw "process-containment receipt $PropertyName must be an array"
+    }
+    $validated = @()
+    foreach ($value in @($propertyValue)) {
+        if (-not (Test-IsJsonInteger $value) -or [uint64]$value -eq 0) {
+            throw "process-containment receipt $PropertyName contains an invalid PID"
+        }
+        $processId = [uint64]$value
+        if ($validated -contains $processId) {
+            throw "process-containment receipt $PropertyName contains duplicate PID $processId"
+        }
+        $validated += $processId
+    }
+    return @($validated)
+}
+
 function Get-PostReapRuntimeBinding {
     param([AllowNull()]$ExpectedCommand)
     try {
         if ($null -eq $ExpectedCommand -or [string]::IsNullOrWhiteSpace([string]$ExpectedCommand.test_name)) {
             throw "failed command does not identify an exact test scenario"
         }
+        $leakedProcessIds = @(Get-ValidatedProcessIdArray -Owner $ExpectedCommand -PropertyName "leaked_process_ids")
+        $preCleanupDescendantProcessIds = @(
+            Get-ValidatedProcessIdArray -Owner $ExpectedCommand -PropertyName "pre_cleanup_descendant_process_ids"
+        )
+        $postDrainDescendantProcessIds = @(
+            Get-ValidatedProcessIdArray -Owner $ExpectedCommand -PropertyName "post_drain_descendant_process_ids"
+        )
         if (
             $null -ne $ExpectedCommand.runner_error -or
             $ExpectedCommand.process_containment -cne "windows_job_object_kill_on_close" -or
             $ExpectedCommand.job_drain_confirmed -ne $true -or
+            -not (Test-IsJsonInteger $ExpectedCommand.leaked_process_count) -or
             $ExpectedCommand.leaked_process_count -ne 0 -or
+            [uint64]$ExpectedCommand.leaked_process_count -ne [uint64]$leakedProcessIds.Count -or
+            $postDrainDescendantProcessIds.Count -ne 0 -or
             $null -eq $ExpectedCommand.root_process_id -or
             $null -eq $ExpectedCommand.exit_code
         ) {
@@ -1313,6 +1385,9 @@ function Get-PostReapRuntimeBinding {
                 process_containment = $ExpectedCommand.process_containment
                 job_drain_confirmed = $ExpectedCommand.job_drain_confirmed
                 leaked_process_count = $ExpectedCommand.leaked_process_count
+                leaked_process_ids = $leakedProcessIds
+                pre_cleanup_descendant_process_ids = $preCleanupDescendantProcessIds
+                post_drain_descendant_process_ids = $postDrainDescendantProcessIds
                 runner_error = $ExpectedCommand.runner_error
             }
             immediate_health = $null
@@ -1736,6 +1811,103 @@ if ($DiagnosticsSelfTest) {
         if (-not ("Mt045JobRunner" -as [type])) {
             Add-Type -Language CSharp -TypeDefinition $mt045JobRunnerSource
         }
+        $powerShellExe = (Get-Command powershell.exe -CommandType Application -ErrorAction Stop).Source
+        $normalJobResult = [Mt045JobRunner]::Run(
+            $powerShellExe,
+            [string[]]@("-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "exit 0"),
+            $selfTestRoot,
+            (Join-Path $selfTestRoot "normal-job.stdout.log"),
+            (Join-Path $selfTestRoot "normal-job.stderr.log"),
+            10000,
+            3000
+        )
+        if (
+            $normalJobResult.TimedOut -or
+            $normalJobResult.ExitCode -ne 0 -or
+            $normalJobResult.LeakedProcessCount -ne 0 -or
+            @($normalJobResult.LeakedProcessIds).Count -ne 0 -or
+            @($normalJobResult.PreCleanupDescendantProcessIds).Count -ne 0 -or
+            @($normalJobResult.PostDrainDescendantProcessIds).Count -ne 0
+        ) {
+            throw "diagnostics self-test rejected a normal root-only Job completion"
+        }
+
+        $newEncodedParent = {
+            param(
+                [Parameter(Mandatory)][int]$ChildSleepMilliseconds,
+                [Parameter(Mandatory)][int]$ParentSleepMilliseconds
+            )
+            $childScript = "Start-Sleep -Milliseconds $ChildSleepMilliseconds"
+            $encodedChildScript = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($childScript))
+            $quotedPowerShell = $powerShellExe.Replace("'", "''")
+            $parentScript = @"
+Start-Process -FilePath '$quotedPowerShell' -ArgumentList @('-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand','$encodedChildScript') -WindowStyle Hidden
+Start-Sleep -Milliseconds $ParentSleepMilliseconds
+"@
+            return [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($parentScript))
+        }
+
+        $graceEncodedParent = & $newEncodedParent -ChildSleepMilliseconds 500 -ParentSleepMilliseconds 0
+        $graceJobResult = [Mt045JobRunner]::Run(
+            $powerShellExe,
+            [string[]]@("-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", $graceEncodedParent),
+            $selfTestRoot,
+            (Join-Path $selfTestRoot "grace-job.stdout.log"),
+            (Join-Path $selfTestRoot "grace-job.stderr.log"),
+            10000,
+            5000
+        )
+        if (
+            $graceJobResult.TimedOut -or
+            $graceJobResult.ExitCode -ne 0 -or
+            $graceJobResult.LeakedProcessCount -ne 0 -or
+            @($graceJobResult.LeakedProcessIds).Count -ne 0 -or
+            @($graceJobResult.PostDrainDescendantProcessIds).Count -ne 0
+        ) {
+            throw "diagnostics self-test did not allow an owned child to exit inside grace"
+        }
+
+        $leakEncodedParent = & $newEncodedParent -ChildSleepMilliseconds 30000 -ParentSleepMilliseconds 0
+        $leakJobResult = [Mt045JobRunner]::Run(
+            $powerShellExe,
+            [string[]]@("-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", $leakEncodedParent),
+            $selfTestRoot,
+            (Join-Path $selfTestRoot "leak-job.stdout.log"),
+            (Join-Path $selfTestRoot "leak-job.stderr.log"),
+            10000,
+            500
+        )
+        if (
+            $leakJobResult.TimedOut -or
+            $leakJobResult.ExitCode -ne 0 -or
+            $leakJobResult.LeakedProcessCount -lt 1 -or
+            [uint64]$leakJobResult.LeakedProcessCount -ne [uint64]@($leakJobResult.LeakedProcessIds).Count -or
+            @($leakJobResult.PreCleanupDescendantProcessIds).Count -ne @($leakJobResult.LeakedProcessIds).Count -or
+            @($leakJobResult.PostDrainDescendantProcessIds).Count -ne 0
+        ) {
+            throw "diagnostics self-test did not capture and drain an owned descendant leak"
+        }
+
+        $timeoutEncodedParent = & $newEncodedParent -ChildSleepMilliseconds 30000 -ParentSleepMilliseconds 30000
+        $timeoutChildJobResult = [Mt045JobRunner]::Run(
+            $powerShellExe,
+            [string[]]@("-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", $timeoutEncodedParent),
+            $selfTestRoot,
+            (Join-Path $selfTestRoot "timeout-child-job.stdout.log"),
+            (Join-Path $selfTestRoot "timeout-child-job.stderr.log"),
+            1500,
+            1000
+        )
+        if (
+            -not $timeoutChildJobResult.TimedOut -or
+            $timeoutChildJobResult.LeakedProcessCount -ne 0 -or
+            @($timeoutChildJobResult.LeakedProcessIds).Count -ne 0 -or
+            @($timeoutChildJobResult.PreCleanupDescendantProcessIds).Count -lt 1 -or
+            @($timeoutChildJobResult.PostDrainDescendantProcessIds).Count -ne 0
+        ) {
+            throw "diagnostics self-test did not retain pre-cleanup timeout descendants and prove post-drain zero"
+        }
+
         $forcedTestName = "forced-termination-self-test"
         $selfTestWorkspaceId = "wp012-job-cleanup-$([guid]::NewGuid().ToString('N'))"
         $insertResult = [Mt045JobRunner]::Run(
@@ -1787,8 +1959,19 @@ Start-Sleep -Seconds 30
             process_containment = "windows_job_object_kill_on_close"
             job_drain_confirmed = $true
             leaked_process_count = 0
+            leaked_process_ids = @($jobResult.LeakedProcessIds)
+            pre_cleanup_descendant_process_ids = @($jobResult.PreCleanupDescendantProcessIds)
+            post_drain_descendant_process_ids = @($jobResult.PostDrainDescendantProcessIds)
             root_process_id = $jobResult.RootProcessId
             exit_code = $jobResult.ExitCode
+        }
+        $countMismatchExpected = [ordered]@{}
+        foreach ($entry in $expectedForced.GetEnumerator()) {
+            $countMismatchExpected[$entry.Key] = $entry.Value
+        }
+        $countMismatchExpected.leaked_process_ids = @([uint64]1234)
+        if ((Get-PostReapRuntimeBinding -ExpectedCommand $countMismatchExpected).binding_status -cne "INVALID") {
+            throw "process-containment receipt accepted a leaked-process count/array mismatch"
         }
         $recovered = Get-PostReapRuntimeBinding -ExpectedCommand $expectedForced
         if ($recovered.binding_status -cne "BOUND") {
@@ -1896,6 +2079,12 @@ Start-Sleep -Seconds 30
             mixed_cleanup_stdout = "INVALID"
             forced_job_timed_out = $jobResult.TimedOut
             forced_job_leaked_process_count = $jobResult.LeakedProcessCount
+            normal_root_only_descendants = @($normalJobResult.LeakedProcessIds).Count
+            grace_exit_descendants = @($graceJobResult.LeakedProcessIds).Count
+            captured_leak_descendants = @($leakJobResult.LeakedProcessIds).Count
+            timeout_pre_cleanup_descendants = @($timeoutChildJobResult.PreCleanupDescendantProcessIds).Count
+            timeout_post_drain_descendants = @($timeoutChildJobResult.PostDrainDescendantProcessIds).Count
+            process_id_count_mismatch = "INVALID"
             post_reap_binding = $recovered.binding_status
             post_reap_workspace_cleanup = $recovered.workspace_cleanup.status
             missing_workspace_marker = "INVALID"
