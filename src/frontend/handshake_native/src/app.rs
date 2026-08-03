@@ -8063,15 +8063,34 @@ impl HandshakeApp {
             mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
         }
 
-        let baseline = self.mt035_undo_baseline(&ctx);
         let state_value = self.mt035_undo_state_value(&ctx);
         mt033_set_snapshot_node_value(&mut snapshot.root, MT035_UNDO_STATE_AUTHOR_ID, &state_value);
-        if let Some(pane_id) = baseline.pane_id.as_ref() {
-            let undo_count_author_id = crate::interop::undo_count_author_id(&pane_id.to_string());
+        // Snapshot capture renders pane headers on an isolated egui context, whose InteractionBus has
+        // no live undo rings. Project EVERY visible registered pane's count from the live frame bus.
+        // Repairing only the focused pane leaves sibling pane headers at the isolated `Undo (0)` value
+        // and makes a two-surface scoped-undo snapshot contradict the actual shared scope.
+        let pane_ids = self
+            .pane_registry
+            .lock()
+            .map(|registry| registry.pane_ids())
+            .unwrap_or_default();
+        let live_bus = crate::interop::InteractionBus::get_or_init(&ctx);
+        let live_undo_counts = crate::interop::InteractionBus::with_try_lock(&live_bus, |bus| {
+            pane_ids
+                .into_iter()
+                .filter_map(|pane_id| {
+                    let author_id = crate::interop::undo_count_author_id(&pane_id);
+                    (snapshot.author_id_match_count(&author_id) == 1)
+                        .then(|| (author_id, bus.local_undo_count(&pane_id)))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+        for (undo_count_author_id, local_count) in live_undo_counts {
             mt033_set_snapshot_node_value(
                 &mut snapshot.root,
                 &undo_count_author_id,
-                &format!("Undo ({})", baseline.local_count),
+                &format!("Undo ({local_count})"),
             );
         }
 
@@ -32720,6 +32739,84 @@ mod mt033_argus_causality_and_menu_tests {
             assert!(
                 state.live_editor_has_focus(),
                 "isolated snapshot must not overwrite either rich view's real focus observation"
+            );
+        }
+    }
+
+    #[test]
+    fn mt035_snapshot_projects_live_undo_counts_for_focused_and_unfocused_panes() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let code_pane = PaneId::from("mt035-projection-code");
+        let rich_pane = PaneId::from("mt035-projection-rich");
+        {
+            let mut registry = app.pane_registry.lock().expect("pane registry");
+            registry.insert(PaneRecord::new(
+                code_pane.clone(),
+                PaneType::CodeSymbol,
+                DEFAULT_PROJECT_ID,
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+            registry.insert(PaneRecord::new(
+                rich_pane.clone(),
+                PaneType::LoomWikiPage,
+                DEFAULT_PROJECT_ID,
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        }
+        app.set_active_pane_for_test(Some(code_pane.clone()));
+        let live_ctx = egui::Context::default();
+        app.frame_ctx = Some(live_ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            for pane_id in [&rich_pane, &code_pane] {
+                bus.push_undo_local(
+                    pane_id.clone(),
+                    crate::undo_stack::UndoAction::sync(
+                        format!("{} edit", pane_id),
+                        Arc::new(crate::undo_stack::UndoResult::ok),
+                        Arc::new(crate::undo_stack::UndoResult::ok),
+                    ),
+                );
+            }
+        })
+        .expect("live interaction bus available");
+
+        let mut snapshot = mt046_search_snapshot(None);
+        for (index, pane_id) in [&rich_pane, &code_pane].into_iter().enumerate() {
+            let author_id = crate::interop::undo_count_author_id(pane_id);
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: author_id.clone(),
+                    author_id: Some(author_id),
+                    node_id: 50_000 + index as u64,
+                    role: "Label".to_owned(),
+                    label: Some("Undo count".to_owned()),
+                    value: Some("Undo (0)".to_owned()),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count += 1;
+        }
+
+        app.project_mt035_argus_completion(&mut snapshot);
+        for pane_id in [&rich_pane, &code_pane] {
+            let author_id = crate::interop::undo_count_author_id(pane_id);
+            assert_eq!(
+                snapshot
+                    .find_unique_by_author_id(&author_id)
+                    .and_then(|node| node.value.as_deref()),
+                Some("Undo (1)"),
+                "isolated snapshot count must be replaced from the live bus for pane {pane_id}"
             );
         }
     }
