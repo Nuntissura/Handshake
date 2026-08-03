@@ -907,7 +907,7 @@ try {
             scenario_id = 'IC-07'; surface = 'Code to Note Reference'; edge_state = 'disabled-rejected-recovered-applied';
             test_binary = 'test_interconnect_note_code_crossref';
             test_name = 'supplemental_mt046_argus_ic07_copy_note_reference'; invocation = 'ignored-exact';
-            targets = @('code_editor_ctx_rename_symbol', 'ctx-menu.code_editor_ctx_copy_note_ref', 'code_editor_ctx_rename_symbol', 'code_editor_ctx_rename_symbol', 'ctx-menu.code_editor_ctx_copy_note_ref'); statuses = @('applied', 'rejected', 'applied', 'applied', 'applied'); target_count = 5; frame_count = 1
+            targets = @('code_editor_ctx_rename_symbol', 'code_editor_ctx_rename_symbol', 'code_editor_ctx_rename_symbol', 'ctx-menu.code_editor_ctx_copy_note_ref'); statuses = @('applied', 'applied', 'applied', 'applied'); target_count = 4; frame_count = 1
         },
         [ordered]@{
             scenario_id = 'IC-08'; surface = 'Shared Find'; edge_state = 'query-search-terminal';
@@ -1508,6 +1508,34 @@ try {
     [void](Write-ImmutableJson -Path (Join-Path $runRoot 'sealed-artifacts\ic07-never-started.json') `
         -Value ([ordered]@{ run_id = $RunId; source_sha = $sourceSha; scenario_id = 'IC-07';
             source_path = $neverStartedPath; source_sha256 = $neverStartedDigest; status = 'BOUND' }))
+    $disabledNeverStartedPath = Join-Path $argusRunRoot 'trees\IC-07\disabled-never-started.json'
+    if (-not (Test-Path -LiteralPath $disabledNeverStartedPath -PathType Leaf)) {
+        throw 'MT-046 IC-07 disabled never-started proof is missing'
+    }
+    $disabledNeverStarted = Get-Content -LiteralPath $disabledNeverStartedPath -Raw | ConvertFrom-Json
+    $disabledNeverStartedDigest = Get-FileSha256 $disabledNeverStartedPath
+    $disabledNeverStartedRecordedDigest = ((Get-Content -LiteralPath "$disabledNeverStartedPath.sha256" -Raw).Trim() -split '\s+')[0]
+    if ($disabledNeverStartedDigest -cne $disabledNeverStartedRecordedDigest -or
+        $disabledNeverStarted.schema_id -cne 'hsk.mt046.argus-disabled-never-started@1' -or
+        $disabledNeverStarted.run_id -cne $RunId -or
+        $disabledNeverStarted.source_sha -cne $sourceSha -or
+        $disabledNeverStarted.scenario_id -cne 'IC-07' -or $null -eq $ic07Command -or
+        [int]$disabledNeverStarted.process_id -ne [int]$ic07Command.containment.root_process_id -or
+        $disabledNeverStarted.process_correlation_id -cne $ic07Command.process_correlation_id -or
+        -not ([string]$disabledNeverStarted.correlation_id).StartsWith(
+            "$($ic07Command.process_correlation_id):disabled-never-started:", [StringComparison]::Ordinal) -or
+        $disabledNeverStarted.target -cne 'ctx-menu.code_editor_ctx_copy_note_ref' -or
+        $disabledNeverStarted.error.code -ne -32000 -or
+        $disabledNeverStarted.state_unchanged.equal -ne $true -or
+        $disabledNeverStarted.state_unchanged.receipts_equal -ne $true -or
+        $disabledNeverStarted.state_unchanged.clipboard_equal -ne $true -or
+        $disabledNeverStarted.state_unchanged.receipt_count_before -ne
+            $disabledNeverStarted.state_unchanged.receipt_count_after) {
+        throw 'MT-046 disabled action did not prove pre-enqueue rejection with zero receipt creation'
+    }
+    [void](Write-ImmutableJson -Path (Join-Path $runRoot 'sealed-artifacts\ic07-disabled-never-started.json') `
+        -Value ([ordered]@{ run_id = $RunId; source_sha = $sourceSha; scenario_id = 'IC-07';
+            source_path = $disabledNeverStartedPath; source_sha256 = $disabledNeverStartedDigest; status = 'BOUND' }))
     $frames = @($markers | ForEach-Object { Assert-Png -Path ([string]$_.frame_path) })
     $errorTerms = @('panic', 'fatal', 'unhandled', 'stack trace')
     $treeText = ($traceRows | ConvertTo-Json -Depth 64)
