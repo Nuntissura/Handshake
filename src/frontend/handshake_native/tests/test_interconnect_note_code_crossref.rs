@@ -1359,14 +1359,64 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
     let initial = argus.inspect(&mut harness);
     argus.click_expect_applied_and_reinspect(&mut harness, "code_editor_ctx_rename_symbol");
     let copy_id = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
-    argus.assert_latest_terminal_predicate(&mut harness, "disabled-copy-visible", |tree| {
-        json_has_author_id(tree, &copy_id)
-    });
-    argus.click_expect_typed_rejected_and_reinspect(&mut harness, &copy_id, "disabled");
-    argus.assert_latest_terminal_predicate(&mut harness, "unsaved-copy-rejected", |tree| {
-        tree["action_receipts"]
-            .as_array()
-            .is_some_and(|rows| rows.iter().any(|row| row["status"] == "rejected"))
+    let disabled_copy_snapshot =
+        argus.assert_latest_terminal_predicate(&mut harness, "disabled-copy-visible", |tree| {
+            json_node_by_author_id(tree, &copy_id)
+                .is_some_and(|node| node["disabled"].as_bool() == Some(true))
+        });
+    let disabled_receipts_before = disabled_copy_snapshot["action_receipts"]
+        .as_array()
+        .expect("canonical disabled snapshot carries action receipts")
+        .clone();
+    let disabled_receipt_count_before = disabled_receipts_before.len();
+    let clipboard_before_disabled = InteractionBus::get_or_init(&harness.ctx)
+        .lock()
+        .unwrap()
+        .clipboard_read_text();
+    let disabled_response = argus.click_expect_rejected(&mut harness, &copy_id, "disabled");
+    let disabled_after = argus.inspect(&mut harness);
+    let disabled_receipts_after = disabled_after["action_receipts"]
+        .as_array()
+        .expect("canonical post-rejection snapshot carries action receipts")
+        .clone();
+    let disabled_receipt_count_after = disabled_receipts_after.len();
+    let clipboard_after_disabled = InteractionBus::get_or_init(&harness.ctx)
+        .lock()
+        .unwrap()
+        .clipboard_read_text();
+    let receipts_equal = disabled_receipts_after == disabled_receipts_before;
+    let clipboard_equal = clipboard_after_disabled == clipboard_before_disabled;
+    assert!(
+        receipts_equal,
+        "disabled pre-enqueue rejection must not add, replace, or evict action receipts"
+    );
+    assert!(
+        clipboard_equal,
+        "disabled pre-enqueue rejection must not mutate the shared clipboard"
+    );
+    let process_correlation_id = required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
+    let disabled_never_started = serde_json::json!({
+        "schema_id": "hsk.mt046.argus-disabled-never-started@1",
+        "run_id": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"),
+        "scenario_id": "IC-07",
+        "source_sha": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA"),
+        "process_id": std::process::id(),
+        "process_correlation_id": process_correlation_id.clone(),
+        "correlation_id": format!("{process_correlation_id}:disabled-never-started:{copy_id}"),
+        "target": copy_id.clone(),
+        "error": disabled_response["error"].clone(),
+        "response": disabled_response,
+        "before": disabled_copy_snapshot,
+        "after": disabled_after,
+        "state_unchanged": {
+            "receipt_count_before": disabled_receipt_count_before,
+            "receipt_count_after": disabled_receipt_count_after,
+            "clipboard_before": clipboard_before_disabled,
+            "clipboard_after": clipboard_after_disabled,
+            "receipts_equal": receipts_equal,
+            "clipboard_equal": clipboard_equal,
+            "equal": receipts_equal && clipboard_equal,
+        },
     });
     harness.key_press(egui::Key::Escape);
     harness.run_steps(2);
@@ -1376,8 +1426,15 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
     let stale_copy_snapshot = argus.assert_latest_terminal_predicate(
         &mut harness,
         "copy-item-enabled-before-stale-hide",
-        |tree| json_has_author_id(tree, &copy_id),
+        |tree| {
+            json_node_by_author_id(tree, &copy_id)
+                .is_some_and(|node| node["disabled"].as_bool() == Some(false))
+        },
     );
+    let stale_receipts_before = stale_copy_snapshot["action_receipts"]
+        .as_array()
+        .expect("canonical stale snapshot carries action receipts")
+        .clone();
     let clipboard_before_stale = InteractionBus::get_or_init(&harness.ctx)
         .lock()
         .unwrap()
@@ -1390,15 +1447,24 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
         &stale_copy_snapshot,
         "no live widget",
     );
+    let stale_receipts_after = never_started_raw["after"]["action_receipts"]
+        .as_array()
+        .expect("canonical stale rejection snapshot carries action receipts")
+        .clone();
     let clipboard_after_stale = InteractionBus::get_or_init(&harness.ctx)
         .lock()
         .unwrap()
         .clipboard_read_text();
-    assert_eq!(
-        clipboard_after_stale, clipboard_before_stale,
+    let stale_receipts_equal = stale_receipts_after == stale_receipts_before;
+    let stale_clipboard_equal = clipboard_after_stale == clipboard_before_stale;
+    assert!(
+        stale_receipts_equal,
+        "stale-hidden pre-enqueue rejection must not add, replace, or evict action receipts"
+    );
+    assert!(
+        stale_clipboard_equal,
         "stale-hidden copy action must be rejected before clipboard mutation"
     );
-    let process_correlation_id = required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
     let never_started = serde_json::json!({
         "schema_id": "hsk.mt046.argus-never-started@1",
         "run_id": required_mt046_env("HANDSHAKE_ARGUS_MATRIX_RUN_ID"),
@@ -1413,9 +1479,13 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
         "before": never_started_raw["before"].clone(),
         "after": never_started_raw["after"].clone(),
         "state_unchanged": {
+            "receipt_count_before": stale_receipts_before.len(),
+            "receipt_count_after": stale_receipts_after.len(),
             "clipboard_before": clipboard_before_stale.clone(),
             "clipboard_after": clipboard_after_stale.clone(),
-            "equal": true,
+            "receipts_equal": stale_receipts_equal,
+            "clipboard_equal": stale_clipboard_equal,
+            "equal": stale_receipts_equal && stale_clipboard_equal,
             "file_path": panel.file_path(),
             "selection": "my_function",
         },
@@ -1423,7 +1493,8 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
     });
     argus.click_expect_applied_and_reinspect(&mut harness, "code_editor_ctx_rename_symbol");
     argus.assert_latest_terminal_predicate(&mut harness, "copy-item-enabled", |tree| {
-        json_has_author_id(tree, &copy_id)
+        json_node_by_author_id(tree, &copy_id)
+            .is_some_and(|node| node["disabled"].as_bool() == Some(false))
     });
     let copy_observation = argus.click_expect_applied_and_reinspect(&mut harness, &copy_id);
     harness.run_steps(1);
@@ -1464,8 +1535,13 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
             "successful_target": copy_id,
             "successful_receipt_id": copy_receipt_id,
             "clipboard": expected_clipboard,
+            "disabled_never_started_artifact": "disabled-never-started.json",
             "never_started_artifact": "never-started.json",
         }),
+    );
+    write_immutable_json(
+        &supplemental_mt046_tree_dir("IC-07").join("disabled-never-started.json"),
+        &disabled_never_started,
     );
     write_immutable_json(
         &supplemental_mt046_tree_dir("IC-07").join("never-started.json"),

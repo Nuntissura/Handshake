@@ -106,6 +106,10 @@ pub struct ContextMenuItem {
     pub enabled: bool,
     /// Disclosed reason shown on disabled-hover (no silent dead controls). Ignored when `enabled`.
     pub disabled_reason: Option<&'static str>,
+    /// Optional machine-readable AccessKit value for an enabled leaf. This is used by transient
+    /// actions that declare an action-specific completion observer; disabled leaves always expose
+    /// their disabled reason instead.
+    pub accessibility_value: Option<String>,
     /// Action / one-level submenu / separator.
     pub kind: MenuItemKind,
 }
@@ -119,6 +123,7 @@ impl ContextMenuItem {
             shortcut_hint: None,
             enabled: true,
             disabled_reason: None,
+            accessibility_value: None,
             kind: MenuItemKind::Action,
         }
     }
@@ -131,6 +136,7 @@ impl ContextMenuItem {
             shortcut_hint: None,
             enabled: false,
             disabled_reason: None,
+            accessibility_value: None,
             kind: MenuItemKind::Separator,
         }
     }
@@ -143,6 +149,7 @@ impl ContextMenuItem {
             shortcut_hint: None,
             enabled: true,
             disabled_reason: None,
+            accessibility_value: None,
             kind: MenuItemKind::Submenu(items),
         }
     }
@@ -158,6 +165,13 @@ impl ContextMenuItem {
     pub fn disabled(mut self, reason: &'static str) -> Self {
         self.enabled = false;
         self.disabled_reason = Some(reason);
+        self
+    }
+
+    /// Builder: attach a machine-readable value to an enabled AccessKit node. Disabled items ignore
+    /// this field and retain their disclosed disabled reason as the authoritative value.
+    pub fn with_accessibility_value(mut self, value: String) -> Self {
+        self.accessibility_value = Some(value);
         self
     }
 
@@ -409,6 +423,7 @@ fn render_items(
                     item.label,
                     item.enabled,
                     item.disabled_reason,
+                    item.accessibility_value.as_deref(),
                 );
                 if let Some(Some(child_id)) = inner.inner {
                     activated = Some(child_id);
@@ -436,7 +451,15 @@ fn render_leaf(ui: &mut egui::Ui, item: &ContextMenuItem, is_highlighted: bool) 
             // additionally forces the active/selection fill even on the frame focus is requested.
             response.clone().highlight().request_focus();
         }
-        name_menu_node(ui, response.id, &item.author_id(), item.label, true, None);
+        name_menu_node(
+            ui,
+            response.id,
+            &item.author_id(),
+            item.label,
+            true,
+            None,
+            item.accessibility_value.as_deref(),
+        );
         response.clicked()
     } else {
         let response = ui.add_enabled(false, button);
@@ -451,6 +474,7 @@ fn render_leaf(ui: &mut egui::Ui, item: &ContextMenuItem, is_highlighted: bool) 
             item.label,
             false,
             item.disabled_reason,
+            item.accessibility_value.as_deref(),
         );
         false
     }
@@ -467,6 +491,7 @@ fn name_menu_node(
     label: &str,
     enabled: bool,
     disabled_reason: Option<&'static str>,
+    accessibility_value: Option<&str>,
 ) {
     let author_id = author_id.to_owned();
     let label = label.to_owned();
@@ -480,6 +505,9 @@ fn name_menu_node(
             // model is the authority for leaf availability, so preserve that truth in AccessKit.
             node.clear_disabled();
             node.add_action(accesskit::Action::Click);
+            if let Some(value) = accessibility_value.as_ref() {
+                node.set_value((*value).to_owned());
+            }
         } else {
             node.set_disabled();
             if let Some(reason) = disabled_reason {

@@ -76,7 +76,8 @@ use crate::interop::cross_ref::{
 };
 use crate::interop::InteractionBus;
 use crate::mcp::action::{
-    serialize_observer_click_state, serialize_same_target_click_completion, ClickCompletionState,
+    serialize_observer_click_state, serialize_observer_click_target,
+    serialize_same_target_click_completion, ClickCompletionState,
 };
 use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
@@ -373,6 +374,9 @@ pub const CODE_EDITOR_WRAP_TOGGLE_AUTHOR_ID: &str = "editor-wrap-toggle";
 /// clipboard). Follows the `code_editor_ctx_{action}` scheme its sibling entries (rename / quick-fix /
 /// format-selection) use.
 pub const CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID: &str = "code_editor_ctx_copy_note_ref";
+const CODE_EDITOR_COPY_NOTE_REF_EFFECT: &str = "code-editor.copy-note-reference";
+const CODE_EDITOR_COPY_NOTE_REF_OBSERVER_AUTHOR_ID: &str =
+    "code_editor.copy_note_reference.observer";
 
 /// Per-frame virtualization diagnostics for the swarm/debug surface (MT-002 step 4). Reports how many
 /// lines were actually painted this frame versus the document size, so a no-context model (or a perf
@@ -1296,6 +1300,11 @@ pub struct CodeEditorPanel {
     /// no bus handle of its own, so the staged string is the typed hand-off (the same pattern the
     /// pending format/line-op undo snapshots use).
     pending_copy_note_reference: Mutex<Option<String>>,
+    /// Durable action observer for the transient context-menu leaf. The leaf disappears when
+    /// confirmed, so its Argus receipt is acknowledged through this always-mounted Status node.
+    /// Pending means the reference is staged but has not yet crossed the shared clipboard bus;
+    /// Applied is published only after that real bus write succeeds.
+    copy_note_reference_observer: Mutex<CompletionObserverState>,
     /// MT-070/MT-057 the queued create-note-from-link intent: the `[[title]]` under the cursor when the
     /// editor-body context menu's 'Create note from link' entry was confirmed. The host/shell drains it
     /// via [`take_pending_create_note_link`](Self::take_pending_create_note_link) and routes it to the
@@ -2053,6 +2062,15 @@ fn completion_observer_context(instance: &str, workspace_id: &str, file_path: &s
     )
 }
 
+fn copy_note_reference_semantic(reference: &str) -> String {
+    use sha2::{Digest, Sha256};
+
+    format!(
+        "code-note-reference:{:x}",
+        Sha256::digest(reference.as_bytes())
+    )
+}
+
 impl Drop for CodeEditorPanel {
     fn drop(&mut self) {
         if let Ok(cancel_slot) = self.initial_highlight_cancel.get_mut() {
@@ -2172,6 +2190,8 @@ impl CodeEditorPanel {
         let detected_eol = super::file_meta::Eol::detect(text);
         let detected_indent = super::file_meta::detect_indent(text);
         let initial_completion_observer_context = completion_observer_context(&instance, "", "");
+        let initial_copy_note_reference_observer_context =
+            initial_completion_observer_context.clone();
         Self {
             buffer: Mutex::new(buffer),
             highlighter: Mutex::new(highlighter),
@@ -2334,6 +2354,10 @@ impl CodeEditorPanel {
             // MT-046 copy-as-note-reference + MT-070 create-note-from-link: nothing staged until the
             // context-menu entry / command dispatch fires.
             pending_copy_note_reference: Mutex::new(None),
+            copy_note_reference_observer: Mutex::new(CompletionObserverState::ready(
+                initial_copy_note_reference_observer_context,
+                0,
+            )),
             pending_create_note_link: Mutex::new(None),
             wikilink_resolver_index: Mutex::new(None),
             context_menu_open_for_snapshot: std::sync::atomic::AtomicBool::new(false),
@@ -9146,14 +9170,39 @@ impl CodeEditorPanel {
         // Live availability + the typed MT-070 item list (the ids ARE the stable author_ids the owning
         // MTs emit — no parallel id scheme), extended by the MT-046 copy-as-note-reference entry.
         let availability = self.editor_body_availability();
-        let can_copy_ref = self.note_reference_for_cursor().is_some();
+        let copy_reference = self.note_reference_for_cursor();
+        let copy_observer_context =
+            completion_observer_context(&self.instance, &self.workspace_id(), &self.file_path());
+        if !self.snapshot_capture_mode.load(Ordering::Relaxed) {
+            self.sync_copy_note_reference_observer_context(&copy_observer_context);
+        }
+        let copy_observer = self.copy_note_reference_observer_snapshot();
+        let copy_observer_author_id = self.copy_note_reference_observer_author_id();
+        let copy_target_author_id = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
+        let mut copy_declaration_identity = None;
         let copy_ref_item = {
             let item = crate::context_menu::ContextMenuItem::action(
                 CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID,
                 "Copy as note reference",
             );
-            if can_copy_ref {
-                item
+            if copy_observer.state == ClickCompletionState::Pending {
+                item.disabled("A copy-note-reference request is still pending")
+            } else if let Some(reference) = copy_reference.as_deref() {
+                let semantic = copy_note_reference_semantic(reference);
+                let declaration = serialize_observer_click_target(
+                    CODE_EDITOR_COPY_NOTE_REF_EFFECT,
+                    &copy_observer.context,
+                    copy_observer.generation,
+                    &copy_observer_author_id,
+                    &semantic,
+                )
+                .expect("copy-note-reference observer declaration fields are bounded and valid");
+                copy_declaration_identity = Some((
+                    copy_observer.context.clone(),
+                    copy_observer.generation,
+                    semantic,
+                ));
+                item.with_accessibility_value(declaration)
             } else {
                 item.disabled("No selection or identifier under the cursor to reference")
             }
@@ -9171,7 +9220,21 @@ impl CodeEditorPanel {
                 // MT-046: build the `[[code:…]]` ref from the live selection/identifier and stage it
                 // for the factory render's bus clipboard write (the REAL command, not a fabricated
                 // payload). The same one-path rule as the keymap dispatch (`CopyAsNoteReference`).
-                self.copy_as_note_reference();
+                if let Some(reference) = self.stage_copy_as_note_reference() {
+                    let actual_semantic = copy_note_reference_semantic(&reference);
+                    if let Some((expected_context, expected_generation, declared_semantic)) =
+                        copy_declaration_identity.as_ref()
+                    {
+                        if declared_semantic == &actual_semantic {
+                            self.begin_copy_note_reference_observer(
+                                expected_context,
+                                *expected_generation,
+                                &copy_target_author_id,
+                                &actual_semantic,
+                            );
+                        }
+                    }
+                }
             } else if let Some(action) =
                 crate::context_menu_surfaces::editor_body_action_for_id(confirmed, availability)
             {
@@ -9440,16 +9503,164 @@ impl CodeEditorPanel {
     /// (`interop_adapter::copy_note_reference_to_bus`). One path for the context-menu entry AND the
     /// `CodeEditorAction::CopyAsNoteReference` command dispatch. Returns `true` when a ref was staged.
     pub fn copy_as_note_reference(&self) -> bool {
+        self.stage_copy_as_note_reference().is_some()
+    }
+
+    fn stage_copy_as_note_reference(&self) -> Option<String> {
+        if self
+            .copy_note_reference_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .state
+            == ClickCompletionState::Pending
+        {
+            return None;
+        }
         match self.note_reference_for_cursor() {
             Some(reference) => {
-                *self
+                let mut pending = self
                     .pending_copy_note_reference
                     .lock()
-                    .unwrap_or_else(|e| e.into_inner()) = Some(reference);
-                true
+                    .unwrap_or_else(|e| e.into_inner());
+                if pending.is_some() {
+                    return None;
+                }
+                *pending = Some(reference.clone());
+                Some(reference)
             }
-            None => false,
+            None => None,
         }
+    }
+
+    fn copy_note_reference_observer_author_id(&self) -> String {
+        self.suffixed(CODE_EDITOR_COPY_NOTE_REF_OBSERVER_AUTHOR_ID)
+    }
+
+    fn sync_copy_note_reference_observer_context(&self, context: &str) {
+        let mut observer = self
+            .copy_note_reference_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if observer.context == context || observer.state == ClickCompletionState::Pending {
+            return;
+        }
+        let generation = observer
+            .generation
+            .checked_add(1)
+            .expect("copy-note-reference observer generation exhausted");
+        *observer = CompletionObserverState::ready(context.to_owned(), generation);
+    }
+
+    fn copy_note_reference_observer_snapshot(&self) -> CompletionObserverState {
+        self.copy_note_reference_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    fn begin_copy_note_reference_observer(
+        &self,
+        expected_context: &str,
+        expected_generation: u64,
+        target_author_id: &str,
+        semantic_value: &str,
+    ) -> bool {
+        let exact_target_author_id = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
+        if target_author_id != exact_target_author_id {
+            return false;
+        }
+        let staged_semantic = self
+            .pending_copy_note_reference
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_deref()
+            .map(copy_note_reference_semantic);
+        if staged_semantic.as_deref() != Some(semantic_value) {
+            return false;
+        }
+        let mut observer = self
+            .copy_note_reference_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if !matches!(
+            observer.state,
+            ClickCompletionState::Ready | ClickCompletionState::Applied
+        ) || observer.context != expected_context
+            || observer.generation != expected_generation
+        {
+            return false;
+        }
+        let generation = observer
+            .generation
+            .checked_add(1)
+            .expect("copy-note-reference observer generation exhausted");
+        if serialize_observer_click_state(
+            CODE_EDITOR_COPY_NOTE_REF_EFFECT,
+            &observer.context,
+            generation,
+            ClickCompletionState::Pending,
+            Some(target_author_id),
+            Some(semantic_value),
+        )
+        .is_none()
+        {
+            return false;
+        }
+        observer.generation = generation;
+        observer.state = ClickCompletionState::Pending;
+        observer.pending_target = Some(target_author_id.to_owned());
+        observer.semantic_value = Some(semantic_value.to_owned());
+        true
+    }
+
+    fn mark_copy_note_reference_applied(&self, reference: &str) -> bool {
+        let target_author_id = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
+        let semantic_value = copy_note_reference_semantic(reference);
+        let mut observer = self
+            .copy_note_reference_observer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if observer.state != ClickCompletionState::Pending
+            || observer.pending_target.as_deref() != Some(target_author_id.as_str())
+            || observer.semantic_value.as_deref() != Some(semantic_value.as_str())
+        {
+            return false;
+        }
+        if serialize_observer_click_state(
+            CODE_EDITOR_COPY_NOTE_REF_EFFECT,
+            &observer.context,
+            observer.generation,
+            ClickCompletionState::Applied,
+            Some(&target_author_id),
+            Some(&semantic_value),
+        )
+        .is_none()
+        {
+            return false;
+        }
+        observer.state = ClickCompletionState::Applied;
+        true
+    }
+
+    fn emit_copy_note_reference_observer(&self, ctx: &egui::Context) {
+        let observer = self.copy_note_reference_observer_snapshot();
+        let value = serialize_observer_click_state(
+            CODE_EDITOR_COPY_NOTE_REF_EFFECT,
+            &observer.context,
+            observer.generation,
+            observer.state,
+            observer.pending_target.as_deref(),
+            observer.semantic_value.as_deref(),
+        )
+        .expect("copy-note-reference observer fields are bounded and valid");
+        let author_id = self.copy_note_reference_observer_author_id();
+        let node_id = egui::Id::new(("code-editor-copy-note-reference-observer", &self.instance));
+        ctx.accesskit_node_builder(node_id, move |node| {
+            node.set_role(accesskit::Role::Status);
+            node.set_author_id(author_id.clone());
+            node.set_label("Copy note reference status".to_owned());
+            node.set_value(value.clone());
+        });
     }
 
     /// MT-046: drain the staged `[[code:…]]` note reference (the factory render writes it to the shared
@@ -15317,12 +15528,18 @@ impl PaneFactory for CodeEditorPaneFactory {
         // to the SHARED bus clipboard through the SAME mockable-sink path Ctrl+C uses (the production
         // sink is the egui `copy_text` surface; headless kittest runs never touch the OS clipboard).
         // Guarded by a cheap peek-free take inside the try-lock so an idle frame costs one lock try.
-        crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
-            let sink = crate::rich_editor::properties::metadata_client::EguiClipboard::new(
-                ui.ctx().clone(),
-            );
-            let _ = super::interop_adapter::copy_note_reference_to_bus(b, &self.panel, &sink);
-        });
+        let copied_reference =
+            crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
+                let sink = crate::rich_editor::properties::metadata_client::EguiClipboard::new(
+                    ui.ctx().clone(),
+                );
+                super::interop_adapter::copy_note_reference_to_bus(b, &self.panel, &sink)
+            })
+            .flatten();
+        if let Some(reference) = copied_reference.as_deref() {
+            self.panel.mark_copy_note_reference_applied(reference);
+        }
+        self.panel.emit_copy_note_reference_observer(ui.ctx());
     }
 
     fn accesskit_role(&self) -> accesskit::Role {
