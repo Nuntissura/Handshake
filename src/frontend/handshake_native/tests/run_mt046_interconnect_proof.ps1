@@ -1413,9 +1413,9 @@ try {
     }
     foreach ($matrixRow in $argusMatrix) {
         $scenarioRows = @($traceRows | Where-Object { $_.scenario_id -ceq $matrixRow.scenario_id })
-        $targetPatterns = if ($matrixRow.Contains('target_patterns')) {
-            @($matrixRow['target_patterns'])
-        } else { @() }
+        $targetPatterns = @(if ($matrixRow.Contains('target_patterns')) {
+            $matrixRow['target_patterns']
+        })
         if ($scenarioRows.Count -ne [int]$matrixRow.target_count -or
             (@($matrixRow.targets).Count -ne 0 -and
                 ($scenarioRows.target -join "`n") -cne (@($matrixRow.targets) -join "`n")) -or
@@ -1719,6 +1719,8 @@ catch {
         source_sha = $sourceSha
         status = 'FAIL'
         terminal_reason = $failure.Exception.Message
+        terminal_position = $failure.InvocationInfo.PositionMessage
+        terminal_script_stack_trace = $failure.ScriptStackTrace
         completed_commands = $commands
         completed_at = [DateTimeOffset]::UtcNow.ToString('O')
     }
