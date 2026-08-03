@@ -155,7 +155,10 @@ function Assert-Png {
 }
 
 function Get-JsonPropertyValues {
-    param([Parameter(Mandatory)]$Value, [Parameter(Mandatory)][string]$PropertyName)
+    param(
+        [Parameter(Mandatory)][AllowNull()]$Value,
+        [Parameter(Mandatory)][string]$PropertyName
+    )
     if ($null -eq $Value) { return }
     if ($Value -is [Collections.IDictionary]) {
         foreach ($key in $Value.Keys) {
@@ -168,6 +171,7 @@ function Get-JsonPropertyValues {
         foreach ($item in $Value) { Get-JsonPropertyValues -Value $item -PropertyName $PropertyName }
         return
     }
+    if ($Value -isnot [pscustomobject]) { return }
     foreach ($property in @($Value.PSObject.Properties)) {
         if ($property.Name -ceq $PropertyName) { Write-Output $property.Value }
         Get-JsonPropertyValues -Value $property.Value -PropertyName $PropertyName
@@ -380,6 +384,28 @@ if ($DiagnosticsSelfTest) {
     Assert-DiagnosticBinding $valid
     $positiveResults = [Collections.Generic.List[string]]::new()
     $negativeResults = [Collections.Generic.List[string]]::new()
+    $nullBearingEvidence = [pscustomobject]@{
+        workspace_id = 'workspace-diagnostic'
+        terminal_reason = $null
+        nested = [pscustomobject]@{ optional = $null }
+    }
+    $workspaceValues = @(Get-JsonPropertyValues -Value $nullBearingEvidence -PropertyName 'workspace_id')
+    if ($workspaceValues.Count -ne 1 -or $workspaceValues[0] -cne 'workspace-diagnostic') {
+        throw 'Recursive JSON property traversal did not tolerate null sibling values'
+    }
+    $positiveResults.Add('null_json_property_traversal_accepted')
+    $datedCommandReceipt = [pscustomobject][ordered]@{
+        process_start_time_utc = [DateTime]::Parse('2026-08-03T04:04:09.5009839Z')
+        stdout_path = 'D:\proof\command.stdout.log'
+        stderr_path = 'D:\proof\command.stderr.log'
+    }
+    $stdoutValues = @(Get-JsonPropertyValues -Value $datedCommandReceipt -PropertyName 'stdout_path')
+    $stderrValues = @(Get-JsonPropertyValues -Value $datedCommandReceipt -PropertyName 'stderr_path')
+    if ($stdoutValues.Count -ne 1 -or $stdoutValues[0] -cne 'D:\proof\command.stdout.log' -or
+        $stderrValues.Count -ne 1 -or $stderrValues[0] -cne 'D:\proof\command.stderr.log') {
+        throw 'Recursive JSON property traversal did not stop at DateTime scalar values'
+    }
+    $positiveResults.Add('datetime_json_scalar_traversal_bounded')
     $diagnosticBackendPath = 'D:\Handshake_Artifacts\handshake-cargo-target\debug\handshake_core.exe'
     if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right "\\?\$diagnosticBackendPath")) {
         throw 'Windows extended-length backend path alias was not recognized as the same native path'
