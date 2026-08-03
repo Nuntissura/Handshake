@@ -866,6 +866,15 @@ impl ActionChannel {
     pub(crate) fn unique_dispatched_activation(
         &self,
     ) -> Option<(String, Option<String>, Option<String>)> {
+        self.unique_dispatched_activation_with_receipt()
+            .map(|(_, target, payload, semantic)| (target, payload, semantic))
+    }
+
+    /// Receipt-bearing activation seam for app observers that must reconcile a later channel-side
+    /// terminal state after the in-flight row has been released.
+    pub(crate) fn unique_dispatched_activation_with_receipt(
+        &self,
+    ) -> Option<(u64, String, Option<String>, Option<String>)> {
         let mut matches = self.in_flight.iter().filter(|pending| {
             is_click_activation(&pending.action)
                 && self.receipts.iter().any(|receipt| {
@@ -875,6 +884,7 @@ impl ActionChannel {
         });
         let pending = matches.next()?;
         let activation = (
+            pending.outcome.receipt_id,
             pending.author_id.clone(),
             match &pending.action {
                 UiAction::Click => None,
@@ -889,6 +899,17 @@ impl ActionChannel {
             },
         );
         matches.next().is_none().then_some(activation)
+    }
+
+    pub(crate) fn receipt_status(
+        &mut self,
+        receipt_id: u64,
+    ) -> Option<(ActionReceiptStatus, Option<String>)> {
+        self.expire_stale_actions();
+        self.receipts
+            .iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .map(|receipt| (receipt.status, receipt.rejection.clone()))
     }
 
     /// True when the queue is at capacity (the next [`Self::enqueue`] would be rejected).

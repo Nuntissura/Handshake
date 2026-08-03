@@ -11904,11 +11904,11 @@ impl CodeEditorPanel {
             });
             if response.clicked() {
                 let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
-                let dispatched = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                let admitted = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
                     bus.register_open_document_command();
-                    bus.open_document(ui.ctx(), document_id.clone())
+                    bus.open_diagnostic_note(ui.ctx(), author.clone(), document_id.clone())
                 });
-                if dispatched != Some(true) {
+                if !matches!(admitted, Some(Ok(_))) {
                     ui.ctx().request_repaint();
                 }
             }

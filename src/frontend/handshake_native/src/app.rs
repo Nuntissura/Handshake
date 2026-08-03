@@ -87,6 +87,10 @@ pub const MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID: &str =
     "mt046.quick-switcher-search-completion";
 const MT046_QUICK_SWITCHER_SEARCH_EFFECT: &str = "mt046.search-quick-switcher";
 const MT046_QUICK_SWITCHER_SEARCH_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
+pub const MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID: &str =
+    "mt046.diagnostic-note-open-completion";
+const MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT: &str = "mt046.open-diagnostic-note";
+const MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
 
 /// Stable observer node used to causally terminalize MT-042 graph-node navigation through Argus.
 pub const MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID: &str = "mt042.graph-open-completion";
@@ -319,6 +323,285 @@ struct Mt046QuickSwitcherSearchCompletion {
     semantic: Option<String>,
     terminal_detail: Option<String>,
     terminal_error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+enum Mt046DiagnosticNoteDispatchOutcome {
+    Navigation(crate::quick_switcher::NavDispatchOutcome),
+    DestinationAlreadySatisfied,
+}
+
+#[derive(Debug, Clone)]
+struct Mt046DiagnosticNoteNavigationOutcome {
+    request: crate::interop::DiagnosticNoteNavigationRequest,
+    outcome: Mt046DiagnosticNoteDispatchOutcome,
+    rich_load_generation_before: u64,
+}
+
+#[derive(Debug, Clone)]
+struct Mt046DiagnosticNoteOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    document_id: Option<String>,
+    workspace_id: Option<String>,
+    workspace_generation: Option<u64>,
+    request_id: Option<u64>,
+    action_receipt_id: Option<u64>,
+    last_accepted_request_id: u64,
+    dispatch_outcome: Option<Mt046DiagnosticNoteDispatchOutcome>,
+    rich_load_generation_before: Option<u64>,
+    semantic: Option<String>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl Default for Mt046DiagnosticNoteOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            document_id: None,
+            workspace_id: None,
+            workspace_generation: None,
+            request_id: None,
+            action_receipt_id: None,
+            last_accepted_request_id: 0,
+            dispatch_outcome: None,
+            rich_load_generation_before: None,
+            semantic: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt046DiagnosticNoteOpenCompletion {
+    fn semantic(
+        target: &str,
+        document_id: &str,
+        workspace_id: &str,
+        request_id: u64,
+        workspace_generation: u64,
+    ) -> String {
+        serde_json::json!({
+            "action": "open-diagnostic-note",
+            "target": target,
+            "document_id": document_id,
+            "workspace_id": workspace_id,
+            "request_id": request_id,
+            "workspace_generation": workspace_generation,
+            "expected_document_author_id": format!("rich-editor.document.{document_id}"),
+            "expected_focus_author_id": crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID,
+        })
+        .to_string()
+    }
+
+    fn declaration(
+        &self,
+        target: &str,
+        document_id: &str,
+        workspace_id: &str,
+        reserved_request: Option<&crate::interop::DiagnosticNoteNavigationRequest>,
+    ) -> Option<String> {
+        if target.is_empty() || document_id.trim().is_empty() || workspace_id.trim().is_empty() {
+            return None;
+        }
+        let semantic = if self.state != crate::mcp::action::ClickCompletionState::Ready {
+            if self.pending_target.as_deref() != Some(target)
+                || self.document_id.as_deref() != Some(document_id)
+                || self.workspace_id.as_deref() != Some(workspace_id)
+            {
+                return None;
+            }
+            self.semantic.clone()?
+        } else {
+            let request = reserved_request?;
+            if request.source_author_id != target
+                || request.document_id != document_id
+                || request.workspace_id != workspace_id
+            {
+                return None;
+            }
+            Self::semantic(
+                target,
+                document_id,
+                workspace_id,
+                request.request_id,
+                request.workspace_generation,
+            )
+        };
+        crate::mcp::action::serialize_persistent_observer_click_target(
+            MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
+            MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
+            self.generation,
+            MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID,
+            &semantic,
+        )
+    }
+
+    fn begin(
+        &mut self,
+        target: String,
+        request: &crate::interop::DiagnosticNoteNavigationRequest,
+        semantic: String,
+        action_receipt_id: Option<u64>,
+    ) -> bool {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return false;
+        }
+        if request.request_id <= self.last_accepted_request_id || request.source_author_id != target
+        {
+            return false;
+        }
+        let Some(generation) = self.generation.checked_add(1) else {
+            return false;
+        };
+        self.generation = generation;
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(target);
+        self.document_id = Some(request.document_id.clone());
+        self.workspace_id = Some(request.workspace_id.clone());
+        self.workspace_generation = Some(request.workspace_generation);
+        self.request_id = Some(request.request_id);
+        self.action_receipt_id = action_receipt_id;
+        self.last_accepted_request_id = request.request_id;
+        self.dispatch_outcome = None;
+        self.rich_load_generation_before = None;
+        self.semantic = Some(semantic);
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        true
+    }
+
+    fn begin_rejected_without_request(
+        &mut self,
+        target: String,
+        document_id: String,
+        workspace_id: String,
+        semantic: String,
+        error: String,
+    ) -> bool {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return false;
+        }
+        let Some(generation) = self.generation.checked_add(1) else {
+            return false;
+        };
+        self.generation = generation;
+        self.state = crate::mcp::action::ClickCompletionState::Failed;
+        self.pending_target = Some(target);
+        self.document_id = Some(document_id);
+        self.workspace_id = Some(workspace_id);
+        self.workspace_generation = None;
+        self.request_id = None;
+        self.action_receipt_id = None;
+        self.dispatch_outcome = None;
+        self.rich_load_generation_before = None;
+        self.semantic = Some(semantic);
+        self.terminal_error = Some(error);
+        self.terminal_detail =
+            Some(serde_json::json!({"typed_outcome": "request_not_admitted"}).to_string());
+        true
+    }
+
+    fn matches_request(&self, request: &crate::interop::DiagnosticNoteNavigationRequest) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+            && self.request_id == Some(request.request_id)
+            && self.workspace_generation == Some(request.workspace_generation)
+            && self.workspace_id.as_deref() == Some(request.workspace_id.as_str())
+            && self.pending_target.as_deref() == Some(request.source_author_id.as_str())
+            && self.document_id.as_deref() == Some(request.document_id.as_str())
+    }
+
+    fn observe_dispatch_outcome(
+        &mut self,
+        request: &crate::interop::DiagnosticNoteNavigationRequest,
+        outcome: &Mt046DiagnosticNoteDispatchOutcome,
+        rich_load_generation_before: u64,
+    ) -> bool {
+        if !self.matches_request(request) || self.dispatch_outcome.is_some() {
+            return false;
+        }
+        self.dispatch_outcome = Some(outcome.clone());
+        self.rich_load_generation_before = Some(rich_load_generation_before);
+        true
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
+                    MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
+                    MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
+                    MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+
+    fn acknowledge_terminal_snapshot(&mut self) {
+        if !matches!(
+            self.state,
+            crate::mcp::action::ClickCompletionState::Applied
+                | crate::mcp::action::ClickCompletionState::Failed
+        ) {
+            return;
+        }
+        self.state = crate::mcp::action::ClickCompletionState::Ready;
+        self.pending_target = None;
+        self.document_id = None;
+        self.workspace_id = None;
+        self.workspace_generation = None;
+        self.request_id = None;
+        self.action_receipt_id = None;
+        self.dispatch_outcome = None;
+        self.rich_load_generation_before = None;
+        self.semantic = None;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
 }
 
 impl Default for Mt046QuickSwitcherSearchCompletion {
@@ -4156,6 +4439,11 @@ pub struct HandshakeApp {
     mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion,
     /// MT-046 V4 payload-bound completion for a Quick Switcher query and exact mounted result.
     mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion,
+    /// MT-046 V4 completion for a transient diagnostic gutter chip opening an exact rich note.
+    mt046_diagnostic_note_open_completion: Mt046DiagnosticNoteOpenCompletion,
+    /// Exact shell outcomes retained across the live-frame drain / isolated-snapshot boundary. The
+    /// observer removes a correlated terminal record only after its receipt-bearing snapshot publishes.
+    mt046_diagnostic_note_navigation_outcomes: VecDeque<Mt046DiagnosticNoteNavigationOutcome>,
     /// MT-042 V4 app-owned terminal observer for exact graph-node document navigation.
     mt042_graph_open_completion: Mt042GraphOpenCompletion,
     /// MT-027: the per-session HMAC token gating every MCP request. Generated at startup; written into
@@ -5843,6 +6131,8 @@ impl HandshakeApp {
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
             mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
             mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
+            mt046_diagnostic_note_open_completion: Mt046DiagnosticNoteOpenCompletion::default(),
+            mt046_diagnostic_note_navigation_outcomes: VecDeque::new(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
@@ -7972,6 +8262,418 @@ impl HandshakeApp {
         }
     }
 
+    fn project_mt046_diagnostic_note_open_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        let target_prefix =
+            crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX;
+        if self.mt046_diagnostic_note_open_completion.state
+            == crate::mcp::action::ClickCompletionState::Ready
+        {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation_with_receipt())
+                .unwrap_or_else(|poisoned| {
+                    poisoned
+                        .into_inner()
+                        .unique_dispatched_activation_with_receipt()
+                });
+            if let Some((action_receipt_id, target, payload, semantic)) = activation {
+                if target.starts_with(target_prefix) && payload.is_none() {
+                    if let Some(semantic) = semantic {
+                        let parsed = serde_json::from_str::<serde_json::Value>(&semantic).ok();
+                        let document_id = parsed
+                            .as_ref()
+                            .and_then(|value| value.get("document_id"))
+                            .and_then(serde_json::Value::as_str)
+                            .filter(|document_id| !document_id.trim().is_empty());
+                        let workspace_id = parsed
+                            .as_ref()
+                            .and_then(|value| value.get("workspace_id"))
+                            .and_then(serde_json::Value::as_str)
+                            .filter(|workspace_id| !workspace_id.trim().is_empty());
+                        let declared_request_id = parsed
+                            .as_ref()
+                            .and_then(|value| value.get("request_id"))
+                            .and_then(serde_json::Value::as_u64);
+                        let declared_workspace_generation = parsed
+                            .as_ref()
+                            .and_then(|value| value.get("workspace_generation"))
+                            .and_then(serde_json::Value::as_u64);
+                        if let (
+                            Some(document_id),
+                            Some(workspace_id),
+                            Some(declared_request_id),
+                            Some(declared_workspace_generation),
+                        ) = (
+                            document_id,
+                            workspace_id,
+                            declared_request_id,
+                            declared_workspace_generation,
+                        ) {
+                            let expected = Mt046DiagnosticNoteOpenCompletion::semantic(
+                                &target,
+                                document_id,
+                                workspace_id,
+                                declared_request_id,
+                                declared_workspace_generation,
+                            );
+                            if semantic == expected && workspace_id == self.active_project_id {
+                                let pending_request =
+                                    self.frame_ctx.as_ref().and_then(|live_ctx| {
+                                        let bus =
+                                            crate::interop::InteractionBus::get_or_init(live_ctx);
+                                        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                                            bus.pending_diagnostic_note_navigations()
+                                                .iter()
+                                                .rev()
+                                                .find(|request| {
+                                                    request.request_id == declared_request_id
+                                                        && request.workspace_generation
+                                                            == declared_workspace_generation
+                                                        && request.source_author_id == target
+                                                        && request.document_id == document_id
+                                                        && request.workspace_id == workspace_id
+                                                })
+                                                .cloned()
+                                        })
+                                        .flatten()
+                                    });
+                                let retained_request = self
+                                    .mt046_diagnostic_note_navigation_outcomes
+                                    .iter()
+                                    .rev()
+                                    .find(|entry| {
+                                        entry.request.request_id == declared_request_id
+                                            && entry.request.workspace_generation
+                                                == declared_workspace_generation
+                                            && entry.request.source_author_id == target
+                                            && entry.request.document_id == document_id
+                                            && entry.request.workspace_id == workspace_id
+                                    })
+                                    .map(|entry| entry.request.clone());
+                                if let Some(request) = pending_request.or(retained_request) {
+                                    self.mt046_diagnostic_note_open_completion.begin(
+                                        target,
+                                        &request,
+                                        semantic,
+                                        Some(action_receipt_id),
+                                    );
+                                } else {
+                                    self.mt046_diagnostic_note_open_completion
+                                        .begin_rejected_without_request(
+                                            target,
+                                            document_id.to_owned(),
+                                            workspace_id.to_owned(),
+                                            semantic,
+                                            "diagnostic navigation request was not admitted to the typed interaction queue"
+                                                .to_owned(),
+                                        );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if self.mt046_diagnostic_note_open_completion.state
+            == crate::mcp::action::ClickCompletionState::Pending
+        {
+            let action_receipt_terminal = self
+                .mt046_diagnostic_note_open_completion
+                .action_receipt_id
+                .and_then(|receipt_id| {
+                    self.mcp_action_channel
+                        .lock()
+                        .map(|mut channel| {
+                            channel
+                                .receipt_status(receipt_id)
+                                .map(|(status, rejection)| (receipt_id, status, rejection))
+                        })
+                        .unwrap_or_else(|poisoned| {
+                            poisoned
+                                .into_inner()
+                                .receipt_status(receipt_id)
+                                .map(|(status, rejection)| (receipt_id, status, rejection))
+                        })
+                });
+            if let Some((receipt_id, status, rejection)) = action_receipt_terminal {
+                if matches!(
+                    status,
+                    crate::mcp::action::ActionReceiptStatus::Indeterminate
+                        | crate::mcp::action::ActionReceiptStatus::Rejected
+                ) {
+                    self.mt046_diagnostic_note_open_completion.complete_failed(
+                        rejection.unwrap_or_else(|| {
+                            "action channel terminalized before diagnostic navigation completion"
+                                .to_owned()
+                        }),
+                        serde_json::json!({
+                            "typed_outcome": "action_channel_terminal",
+                            "action_receipt_id": receipt_id,
+                            "action_receipt_status": format!("{status:?}"),
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+        }
+
+        if self.mt046_diagnostic_note_open_completion.state
+            == crate::mcp::action::ClickCompletionState::Pending
+        {
+            let request_id = self
+                .mt046_diagnostic_note_open_completion
+                .request_id
+                .unwrap_or_default();
+            if let Some(entry) = self
+                .mt046_diagnostic_note_navigation_outcomes
+                .iter()
+                .find(|entry| entry.request.request_id == request_id)
+                .cloned()
+            {
+                self.mt046_diagnostic_note_open_completion
+                    .observe_dispatch_outcome(
+                        &entry.request,
+                        &entry.outcome,
+                        entry.rich_load_generation_before,
+                    );
+            }
+            let expected_workspace = self
+                .mt046_diagnostic_note_open_completion
+                .workspace_id
+                .clone()
+                .unwrap_or_default();
+            let expected_workspace_generation = self
+                .mt046_diagnostic_note_open_completion
+                .workspace_generation
+                .unwrap_or_default();
+            let current_bus_binding = self.frame_ctx.as_ref().and_then(|live_ctx| {
+                let bus = crate::interop::InteractionBus::get_or_init(live_ctx);
+                crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    (bus.workspace_id().to_owned(), bus.workspace_generation())
+                })
+            });
+            if self.active_project_id != expected_workspace
+                || current_bus_binding
+                    .as_ref()
+                    .is_some_and(|(workspace_id, generation)| {
+                        workspace_id != &expected_workspace
+                            || *generation != expected_workspace_generation
+                    })
+            {
+                self.mt046_diagnostic_note_open_completion.complete_failed(
+                    "workspace changed before diagnostic note navigation completed".to_owned(),
+                    serde_json::json!({
+                        "expected_workspace_id": expected_workspace,
+                        "expected_workspace_generation": expected_workspace_generation,
+                        "current_workspace_id": self.active_project_id,
+                        "current_bus_binding": current_bus_binding,
+                        "request_id": request_id,
+                    })
+                    .to_string(),
+                );
+            } else {
+                let expected_document = self
+                    .mt046_diagnostic_note_open_completion
+                    .document_id
+                    .clone()
+                    .unwrap_or_default();
+                match self
+                    .mt046_diagnostic_note_open_completion
+                    .dispatch_outcome
+                    .clone()
+                {
+                    Some(Mt046DiagnosticNoteDispatchOutcome::DestinationAlreadySatisfied) => {
+                        self.mt046_diagnostic_note_open_completion.complete_failed(
+                            "diagnostic destination was already active and focused before the exact request"
+                                .to_owned(),
+                            serde_json::json!({
+                                "typed_outcome": "destination_pre_satisfied",
+                                "request_id": request_id,
+                                "document_id": expected_document,
+                            })
+                            .to_string(),
+                        );
+                    }
+                    Some(Mt046DiagnosticNoteDispatchOutcome::Navigation(outcome @ (
+                        crate::quick_switcher::NavDispatchOutcome::EditorPaneNotMounted { .. }
+                        | crate::quick_switcher::NavDispatchOutcome::NoTargetPane
+                        | crate::quick_switcher::NavDispatchOutcome::Unsupported
+                    ))) => {
+                        self.mt046_diagnostic_note_open_completion.complete_failed(
+                            outcome.status_text(),
+                            serde_json::json!({
+                                "typed_outcome": format!("{outcome:?}"),
+                                "request_id": request_id,
+                                "document_id": expected_document,
+                            })
+                            .to_string(),
+                        );
+                    }
+                    Some(Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                        crate::quick_switcher::NavDispatchOutcome::Opened { surface },
+                    )) => {
+                        let active_binding = self.active_rich_document_binding();
+                        let load_generation_before = self
+                            .mt046_diagnostic_note_open_completion
+                            .rich_load_generation_before
+                            .unwrap_or_default();
+                        let exact_load_failure = active_binding
+                            .as_ref()
+                            .filter(|(_, document_id)| document_id == &expected_document)
+                            .and_then(|(pane_id, document_id)| {
+                                self.rich_doc_loads
+                                    .get(&(pane_id.clone(), document_id.clone()))
+                            })
+                            .filter(|load| {
+                                load.workspace_id == expected_workspace
+                                    && load.loading_generation.is_none()
+                                    && load.completed_generation.is_none()
+                            })
+                            .and_then(|load| load.failure.as_ref())
+                            .filter(|failure| failure.document_id == expected_document);
+                        if let Some(load_failure) = exact_load_failure {
+                            self.mt046_diagnostic_note_open_completion.complete_failed(
+                                load_failure.message.clone(),
+                                serde_json::json!({
+                                    "typed_outcome": "document_load_failed",
+                                    "request_id": request_id,
+                                    "load_generation": load_failure.generation,
+                                    "load_generation_before": load_generation_before,
+                                    "document_id": load_failure.document_id,
+                                })
+                                .to_string(),
+                            );
+                        } else {
+                            let document_author_id =
+                                format!("rich-editor.document.{expected_document}");
+                            let document_node =
+                                snapshot.find_unique_by_author_id(&document_author_id);
+                            let rich_text_node = snapshot.find_unique_by_author_id(
+                                crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID,
+                            );
+                            let live_rich_has_focus = self
+                                .active_rich_state()
+                                .lock()
+                                .map(|state| state.live_editor_has_focus())
+                                .unwrap_or(false);
+                            if active_binding.as_ref().is_some_and(|(_, document_id)| {
+                                document_id == &expected_document
+                            }) && document_node.and_then(|node| node.value.as_deref())
+                                == Some(expected_document.as_str())
+                                && rich_text_node.is_some()
+                                && live_rich_has_focus
+                            {
+                                let (active_pane_id, active_document_id) = active_binding
+                                    .expect("exact active rich binding checked above");
+                                self.mt046_diagnostic_note_open_completion.complete_applied(
+                                    serde_json::json!({
+                                        "request_id": request_id,
+                                        "workspace_id": expected_workspace,
+                                        "workspace_generation": expected_workspace_generation,
+                                        "navigation_surface": surface,
+                                        "active_pane_id": active_pane_id,
+                                        "active_tab_content_id": active_document_id,
+                                        "document_author_id": document_author_id,
+                                        "document_node_id": document_node.map(|node| node.node_id),
+                                        "rich_text_author_id": crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID,
+                                        "rich_text_node_id": rich_text_node.map(|node| node.node_id),
+                                        "rich_text_focused": true,
+                                    })
+                                    .to_string(),
+                                );
+                            }
+                        }
+                    }
+                    None => {}
+                }
+            }
+        }
+
+        let diagnostic_bus = self
+            .frame_ctx
+            .as_ref()
+            .map(crate::interop::InteractionBus::get_or_init);
+        let diagnostic_candidates = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let target = node.author_id.as_deref()?;
+                if !target.starts_with(target_prefix)
+                    || snapshot.author_id_match_count(target) != 1
+                    || !node.actions.iter().any(|action| action == "Click")
+                {
+                    return None;
+                }
+                let document_id = node
+                    .value
+                    .as_deref()
+                    .filter(|document_id| !document_id.trim().is_empty())?;
+                Some((target.to_owned(), document_id.to_owned()))
+            })
+            .collect::<Vec<_>>();
+        let visible_keys = diagnostic_candidates.iter().cloned().collect();
+        let reservations = diagnostic_bus
+            .as_ref()
+            .and_then(|bus| {
+                crate::interop::InteractionBus::with_try_lock(bus, |bus| {
+                    bus.sweep_diagnostic_note_navigation_reservations(&visible_keys);
+                    if self.mt046_diagnostic_note_open_completion.state
+                        != crate::mcp::action::ClickCompletionState::Ready
+                    {
+                        return std::collections::BTreeMap::new();
+                    }
+                    diagnostic_candidates
+                        .iter()
+                        .filter_map(|(target, document_id)| {
+                            bus.reserve_diagnostic_note_navigation(target, document_id)
+                                .ok()
+                                .map(|request| ((target.clone(), document_id.clone()), request))
+                        })
+                        .collect()
+                })
+            })
+            .unwrap_or_default();
+        let declarations = diagnostic_candidates
+            .iter()
+            .filter_map(|(target, document_id)| {
+                self.mt046_diagnostic_note_open_completion
+                    .declaration(
+                        target,
+                        document_id,
+                        &self.active_project_id,
+                        reservations.get(&(target.clone(), document_id.clone())),
+                    )
+                    .map(|value| (target.clone(), value))
+            })
+            .collect::<Vec<_>>();
+        for (target, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &target, &value);
+        }
+
+        if let Some(value) = self.mt046_diagnostic_note_open_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-046 diagnostic note open completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
     /// Capture the live UI tree into the shared MCP snapshot slot. Runs `ui()` once on a fresh
     /// AccessKit-enabled context with `capturing_snapshot` set, so the async pollers / event drains /
     /// layout scheduler are skipped (no double side effects); the resulting `accesskit::TreeUpdate` is
@@ -7999,6 +8701,12 @@ impl HandshakeApp {
         }
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(true);
+        let snapshot_rich_states = self.editor_mounts.rich_documents.states();
+        for rich_state in &snapshot_rich_states {
+            if let Ok(mut state) = rich_state.lock() {
+                state.set_snapshot_capture_mode(true);
+            }
+        }
         if let Ok(mut states) = self.find_in_files_state.lock() {
             for state in states.values_mut() {
                 state.set_snapshot_capture_mode(true);
@@ -8015,6 +8723,11 @@ impl HandshakeApp {
         }
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(false);
+        for rich_state in &snapshot_rich_states {
+            if let Ok(mut state) = rich_state.lock() {
+                state.set_snapshot_capture_mode(false);
+            }
+        }
         if let Ok(mut states) = self.find_in_files_state.lock() {
             for state in states.values_mut() {
                 state.set_snapshot_capture_mode(false);
@@ -8028,6 +8741,7 @@ impl HandshakeApp {
             self.project_mt036_flight_recorder_open_completion(&mut snapshot);
             self.project_mt046_quick_switcher_open_completion(&mut snapshot);
             self.project_mt046_quick_switcher_search_completion(&mut snapshot);
+            self.project_mt046_diagnostic_note_open_completion(&mut snapshot);
             self.project_mt042_graph_open_completion(&mut snapshot);
             match self.mcp_action_channel.lock() {
                 Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
@@ -8036,6 +8750,19 @@ impl HandshakeApp {
             match self.mcp_snapshot.lock() {
                 Ok(mut slot) => *slot = snapshot,
                 Err(poisoned) => *poisoned.into_inner() = snapshot,
+            }
+            let terminal_diagnostic_request_id = matches!(
+                self.mt046_diagnostic_note_open_completion.state,
+                crate::mcp::action::ClickCompletionState::Applied
+                    | crate::mcp::action::ClickCompletionState::Failed
+            )
+            .then_some(self.mt046_diagnostic_note_open_completion.request_id)
+            .flatten();
+            self.mt046_diagnostic_note_open_completion
+                .acknowledge_terminal_snapshot();
+            if let Some(request_id) = terminal_diagnostic_request_id {
+                self.mt046_diagnostic_note_navigation_outcomes
+                    .retain(|entry| entry.request.request_id != request_id);
             }
             if let Ok(mut states) = self.find_in_files_state.lock() {
                 for state in states.values_mut() {
@@ -8343,6 +9070,8 @@ impl HandshakeApp {
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
             mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
             mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
+            mt046_diagnostic_note_open_completion: Mt046DiagnosticNoteOpenCompletion::default(),
+            mt046_diagnostic_note_navigation_outcomes: VecDeque::new(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
@@ -27393,12 +28122,21 @@ impl HandshakeApp {
                 (
                     bus.pending_stage_route().cloned(),
                     bus.take_pending_stage_error(),
+                    bus.drain_pending_diagnostic_note_navigations(),
                     bus.take_pending_navigation(),
                     bus.take_pending_code_symbol(),
                     bus.take_pending_locus_ref(),
                 )
             });
-            if let Some((stage_route, route_error, nav_doc, code_symbol, locus_ref)) = drained {
+            if let Some((
+                stage_route,
+                route_error,
+                diagnostic_note_requests,
+                nav_doc,
+                code_symbol,
+                locus_ref,
+            )) = drained
+            {
                 let stage_route_attempted = stage_route.is_some() || route_error.is_some();
                 if let Some(route) = stage_route {
                     let stage = Arc::clone(&self.stage_pane);
@@ -27525,6 +28263,51 @@ impl HandshakeApp {
                             stage.last_embed_back = Some(outcome);
                         }
                     }
+                }
+                // MT-046 IC-09: every diagnostic chip has an immutable request id and receives an
+                // exact typed shell outcome. Retain that pair across the live/snapshot boundary so a
+                // coincidentally open note can never satisfy an unrelated or replayed click.
+                for request in diagnostic_note_requests {
+                    let rich_load_generation_before = self.rich_doc_load_generation;
+                    let destination_already_satisfied = self
+                        .active_rich_document_binding()
+                        .is_some_and(|(_, document_id)| document_id == request.document_id)
+                        && self
+                            .active_rich_state()
+                            .lock()
+                            .map(|state| state.live_editor_has_focus())
+                            .unwrap_or(false);
+                    let outcome = if destination_already_satisfied {
+                        Mt046DiagnosticNoteDispatchOutcome::DestinationAlreadySatisfied
+                    } else if request.workspace_id != self.active_project_id {
+                        Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                            crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+                        )
+                    } else {
+                        self.nav_pending_label = Some(request.document_id.clone());
+                        let outcome = crate::quick_switcher::ShellNavigator::open_document(
+                            self,
+                            &request.document_id,
+                        );
+                        self.nav_pending_label = None;
+                        Mt046DiagnosticNoteDispatchOutcome::Navigation(outcome)
+                    };
+                    if let Mt046DiagnosticNoteDispatchOutcome::Navigation(nav_outcome) = &outcome {
+                        self.surface_nav_outcome(nav_outcome);
+                    }
+                    self.mt046_diagnostic_note_open_completion
+                        .observe_dispatch_outcome(&request, &outcome, rich_load_generation_before);
+                    self.mt046_diagnostic_note_navigation_outcomes.push_back(
+                        Mt046DiagnosticNoteNavigationOutcome {
+                            request,
+                            outcome,
+                            rich_load_generation_before,
+                        },
+                    );
+                    while self.mt046_diagnostic_note_navigation_outcomes.len() > 64 {
+                        self.mt046_diagnostic_note_navigation_outcomes.pop_front();
+                    }
+                    ctx.request_repaint();
                 }
                 // MT-032: a staged CMD_OPEN_DOCUMENT target (NoteRefs click / backlink row) opens the
                 // document through the SAME ShellNavigator seam the quick switcher uses.
@@ -31170,6 +31953,991 @@ mod mt033_argus_causality_and_menu_tests {
         assert!(crate::top_menu_bar::open_menu(&snapshot_ctx).is_none());
         assert!(app.mcp_open_top_menu.is_none());
         assert!(app.mcp_open_top_menu_state.is_none());
+    }
+
+    #[test]
+    fn diagnostic_note_completion_is_exact_transient_and_checked_generation() {
+        let target = "code_editor_diagnostic_note_ref_7#pane-a";
+        let document_id = "doc-mt046-ic09";
+        let workspace_id = "workspace-mt046-ic09";
+        let request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 1,
+            workspace_generation: 1,
+            workspace_id: workspace_id.to_owned(),
+            source_author_id: target.to_owned(),
+            document_id: document_id.to_owned(),
+        };
+        let semantic = Mt046DiagnosticNoteOpenCompletion::semantic(
+            target,
+            document_id,
+            workspace_id,
+            request.request_id,
+            request.workspace_generation,
+        );
+        let mut completion = Mt046DiagnosticNoteOpenCompletion::default();
+        let declaration = completion
+            .declaration(target, document_id, workspace_id, Some(&request))
+            .expect("valid diagnostic chip has an observer declaration");
+        assert!(declaration.contains(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID));
+        assert!(declaration.contains("open-diagnostic-note"));
+
+        assert!(completion.begin(target.to_owned(), &request, semantic, None));
+        assert_eq!(completion.generation, 1);
+        let pending_declaration = completion
+            .declaration(target, document_id, workspace_id, None)
+            .expect("the still-mounted chip advances its exact declaration while pending");
+        assert!(pending_declaration.contains("\"generation\":1"));
+        assert!(pending_declaration.contains("\"persistent_target\":true"));
+        completion.generation = u64::MAX;
+        completion.state = crate::mcp::action::ClickCompletionState::Applied;
+        assert!(
+            !completion.begin(
+                target.to_owned(),
+                &crate::interop::DiagnosticNoteNavigationRequest {
+                    request_id: 2,
+                    ..request
+                },
+                Mt046DiagnosticNoteOpenCompletion::semantic(
+                    target,
+                    document_id,
+                    workspace_id,
+                    2,
+                    1,
+                ),
+                None,
+            ),
+            "generation overflow fails closed"
+        );
+        assert_eq!(completion.generation, u64::MAX);
+    }
+
+    #[test]
+    fn diagnostic_note_completion_requires_focus_and_fails_on_workspace_drift() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let workspace_id = "workspace-mt046-ic09";
+        let document_id = "doc-mt046-ic09";
+        let target = "code_editor_diagnostic_note_ref_0";
+        app.bind_active_project_for_integration_test(workspace_id);
+        assert!(
+            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id.to_owned()),)
+        );
+        let request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 1,
+            workspace_generation: 1,
+            workspace_id: workspace_id.to_owned(),
+            source_author_id: target.to_owned(),
+            document_id: document_id.to_owned(),
+        };
+        let semantic = Mt046DiagnosticNoteOpenCompletion::semantic(
+            target,
+            document_id,
+            workspace_id,
+            request.request_id,
+            request.workspace_generation,
+        );
+        assert!(app.mt046_diagnostic_note_open_completion.begin(
+            target.to_owned(),
+            &request,
+            semantic,
+            None,
+        ));
+        let mut snapshot = mt046_search_snapshot(None);
+        snapshot.root.children.extend([
+            crate::accessibility::UiTreeNode {
+                id: format!("rich-editor.document.{document_id}"),
+                author_id: Some(format!("rich-editor.document.{document_id}")),
+                node_id: 4609,
+                role: "Document".to_owned(),
+                label: Some("Exact diagnostic destination".to_owned()),
+                value: Some(document_id.to_owned()),
+                disabled: false,
+                actions: Vec::new(),
+                bounds: None,
+                children: Vec::new(),
+            },
+            crate::accessibility::UiTreeNode {
+                id: crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID
+                    .to_owned(),
+                author_id: Some(
+                    crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID
+                        .to_owned(),
+                ),
+                node_id: 4610,
+                role: "TextInput".to_owned(),
+                label: None,
+                value: None,
+                disabled: false,
+                actions: vec!["Focus".to_owned()],
+                bounds: None,
+                children: Vec::new(),
+            },
+        ]);
+        snapshot.widget_count += 2;
+
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Pending,
+            "an exact tab and mounted nodes cannot apply before the real rich editor has focus"
+        );
+
+        app.set_active_project_id_for_test("workspace-mt046-ic09-drift");
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed,
+            "workspace drift must terminalize the exact pending action as failed"
+        );
+        assert!(app
+            .mt046_diagnostic_note_open_completion
+            .observer_value()
+            .is_some_and(|value| value.contains("workspace changed")));
+    }
+
+    #[test]
+    fn diagnostic_note_completion_advances_persistent_split_pane_chip_declaration() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let workspace_id = "workspace-mt046-ic09-transient";
+        let document_id = "doc-mt046-ic09-transient";
+        let target = "code_editor_diagnostic_note_ref_0";
+        app.bind_active_project_for_integration_test(workspace_id);
+        let live_ctx = egui::Context::default();
+        app.frame_ctx = Some(live_ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.bind_workspace(workspace_id);
+            bus.register_open_document_command();
+        })
+        .expect("live bus available");
+
+        let mut inspected = mt046_search_snapshot(None);
+        inspected
+            .root
+            .children
+            .push(crate::accessibility::UiTreeNode {
+                id: target.to_owned(),
+                author_id: Some(target.to_owned()),
+                node_id: 4690,
+                role: "Button".to_owned(),
+                label: Some("Open diagnostic related note".to_owned()),
+                value: Some(document_id.to_owned()),
+                disabled: false,
+                actions: vec!["Click".to_owned()],
+                bounds: None,
+                children: Vec::new(),
+            });
+        inspected.widget_count += 1;
+        app.project_mt046_diagnostic_note_open_completion(&mut inspected);
+        let declared = inspected
+            .find_unique_by_author_id(target)
+            .and_then(|node| node.value.as_deref())
+            .expect("inspected transient chip carries exact observer declaration");
+        assert!(declared.contains(document_id));
+
+        let receipt_id = {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            let outcome = channel
+                .enqueue(&inspected, target, crate::mcp::action::UiAction::Click)
+                .expect("declared transient chip click enqueues");
+            assert_eq!(channel.drain_revalidated_into_events(&inspected).len(), 1);
+            outcome.receipt_id
+        };
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.open_diagnostic_note(&live_ctx, target, document_id)
+                .expect("exact declared diagnostic reservation consumed")
+        })
+        .expect("live bus available");
+
+        let mut still_mounted = inspected.clone();
+        still_mounted.root.children.retain(|node| {
+            node.author_id.as_deref() != Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID)
+        });
+        still_mounted.widget_count = still_mounted.widget_count.saturating_sub(1);
+        assert!(mt033_set_snapshot_node_value(
+            &mut still_mounted.root,
+            target,
+            document_id,
+        ));
+        app.project_mt046_diagnostic_note_open_completion(&mut still_mounted);
+        {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            channel.acknowledge_after_render(&still_mounted);
+            let receipt = channel
+                .receipts()
+                .into_iter()
+                .find(|receipt| receipt.receipt_id == receipt_id)
+                .expect("exact pending receipt");
+            assert_eq!(
+                receipt.status,
+                crate::mcp::action::ActionReceiptStatus::Dispatched,
+                "the advanced persistent declaration keeps the exact action pending through the bus drain"
+            );
+        }
+
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Pending
+        );
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion
+                .document_id
+                .as_deref(),
+            Some(document_id)
+        );
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion
+                .workspace_id
+                .as_deref(),
+            Some(workspace_id)
+        );
+        app.mt046_diagnostic_note_open_completion
+            .complete_applied(serde_json::json!({"test": "exact terminal"}).to_string());
+        let mut terminal = still_mounted.clone();
+        terminal.root.children.retain(|node| {
+            node.author_id.as_deref() != Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID)
+        });
+        terminal.widget_count = terminal.widget_count.saturating_sub(1);
+        terminal
+            .root
+            .children
+            .push(crate::accessibility::UiTreeNode {
+                id: MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                author_id: Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
+                node_id: egui::Id::new(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID).value(),
+                role: "Status".to_owned(),
+                label: Some("MT-046 diagnostic note open completion".to_owned()),
+                value: app.mt046_diagnostic_note_open_completion.observer_value(),
+                disabled: false,
+                actions: Vec::new(),
+                bounds: None,
+                children: Vec::new(),
+            });
+        terminal.widget_count += 1;
+        let mut channel = app.mcp_action_channel.lock().expect("action channel");
+        channel.acknowledge_after_render(&terminal);
+        let receipt = channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("exact terminal receipt");
+        assert_eq!(
+            receipt.status,
+            crate::mcp::action::ActionReceiptStatus::Applied
+        );
+    }
+
+    #[test]
+    fn diagnostic_note_snapshot_reservations_are_bounded_and_visibility_swept() {
+        fn push_diagnostic_chip(
+            snapshot: &mut crate::accessibility::UiTreeSnapshot,
+            target: String,
+            document_id: String,
+            node_id: u64,
+        ) {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: target.clone(),
+                    author_id: Some(target),
+                    node_id,
+                    role: "Button".to_owned(),
+                    label: Some("Open diagnostic related note".to_owned()),
+                    value: Some(document_id),
+                    disabled: false,
+                    actions: vec!["Click".to_owned()],
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count += 1;
+        }
+
+        fn declared_request_id(
+            snapshot: &crate::accessibility::UiTreeSnapshot,
+            target: &str,
+        ) -> Option<u64> {
+            let declaration = snapshot
+                .find_unique_by_author_id(target)?
+                .value
+                .as_deref()?;
+            let token = serde_json::from_str::<serde_json::Value>(declaration).ok()?;
+            let semantic = token.get("semantic_value")?.as_str()?;
+            serde_json::from_str::<serde_json::Value>(semantic)
+                .ok()?
+                .get("request_id")?
+                .as_u64()
+        }
+
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let workspace_id = "workspace-mt046-reservation-sweep";
+        app.bind_active_project_for_integration_test(workspace_id);
+        let live_ctx = egui::Context::default();
+        app.frame_ctx = Some(live_ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
+        let admitted = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.bind_workspace(workspace_id);
+            bus.request_diagnostic_note_navigation("already-clicked", "already-clicked-doc")
+                .expect("admitted FIFO request")
+        })
+        .expect("live bus available");
+
+        let capacity = crate::interop::MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS;
+        let stable_target = format!(
+            "{}stable",
+            crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
+        );
+        let mut initial = mt046_search_snapshot(None);
+        let mut initial_targets = Vec::new();
+        for index in 0..=capacity {
+            let target = if index == 0 {
+                stable_target.clone()
+            } else {
+                format!(
+                    "{}initial_{index:02}",
+                    crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
+                )
+            };
+            let document_id = format!("initial-doc-{index:02}");
+            push_diagnostic_chip(
+                &mut initial,
+                target.clone(),
+                document_id,
+                47_000 + index as u64,
+            );
+            initial_targets.push(target);
+        }
+        app.project_mt046_diagnostic_note_open_completion(&mut initial);
+        let initial_ids = initial_targets[..capacity]
+            .iter()
+            .map(|target| {
+                declared_request_id(&initial, target)
+                    .expect("every current candidate through capacity receives a declaration")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            initial
+                .find_unique_by_author_id(&initial_targets[capacity])
+                .and_then(|node| node.value.as_deref()),
+            Some(format!("initial-doc-{capacity:02}").as_str()),
+            "the distinct candidate beyond capacity remains declaration-absent"
+        );
+        let stable_request_id = initial_ids[0];
+        let max_initial_request_id = *initial_ids.iter().max().expect("initial declarations");
+
+        let mut churn = mt046_search_snapshot(None);
+        push_diagnostic_chip(
+            &mut churn,
+            stable_target.clone(),
+            "initial-doc-00".to_owned(),
+            48_000,
+        );
+        let mut churn_targets = Vec::new();
+        for index in 0..capacity - 1 {
+            let target = format!(
+                "{}churn_{index:02}",
+                crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
+            );
+            push_diagnostic_chip(
+                &mut churn,
+                target.clone(),
+                format!("churn-doc-{index:02}"),
+                48_001 + index as u64,
+            );
+            churn_targets.push(target);
+        }
+        app.project_mt046_diagnostic_note_open_completion(&mut churn);
+        assert_eq!(
+            declared_request_id(&churn, &stable_target),
+            Some(stable_request_id),
+            "a key visible in both authoritative snapshots retains its exact request id"
+        );
+        let churn_ids = churn_targets
+            .iter()
+            .map(|target| {
+                declared_request_id(&churn, target)
+                    .expect("new keys admit after vanished initial keys are swept")
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            churn_ids
+                .iter()
+                .all(|request_id| *request_id > max_initial_request_id),
+            "evicted request ids are not reused during visibility churn"
+        );
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            assert_eq!(
+                bus.pending_diagnostic_note_navigations(),
+                &std::collections::VecDeque::from([admitted.clone()]),
+                "snapshot visibility sweeps never mutate the admitted FIFO"
+            );
+        })
+        .expect("live bus available");
+
+        let mut empty = mt046_search_snapshot(None);
+        app.project_mt046_diagnostic_note_open_completion(&mut empty);
+        let mut recovered = mt046_search_snapshot(None);
+        let recovered_target = format!(
+            "{}post_churn",
+            crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
+        );
+        push_diagnostic_chip(
+            &mut recovered,
+            recovered_target.clone(),
+            "post-churn-doc".to_owned(),
+            49_000,
+        );
+        app.project_mt046_diagnostic_note_open_completion(&mut recovered);
+        assert!(
+            declared_request_id(&recovered, &recovered_target)
+                .is_some_and(|request_id| request_id > *churn_ids.iter().max().expect("churn ids")),
+            "a new key continues to admit after a later empty visibility sweep"
+        );
+    }
+
+    #[test]
+    fn diagnostic_note_completion_rejects_missing_typed_request_after_dispatched_click() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let workspace_id = "workspace-mt046-missing-request";
+        let document_id = "doc-mt046-missing-request";
+        let target = "code_editor_diagnostic_note_ref_0";
+        app.bind_active_project_for_integration_test(workspace_id);
+        let live_ctx = egui::Context::default();
+        app.frame_ctx = Some(live_ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.bind_workspace(workspace_id);
+            bus.register_open_document_command();
+        })
+        .expect("live bus available");
+
+        let mut snapshot = mt046_search_snapshot(None);
+        snapshot
+            .root
+            .children
+            .push(crate::accessibility::UiTreeNode {
+                id: target.to_owned(),
+                author_id: Some(target.to_owned()),
+                node_id: 4691,
+                role: "Button".to_owned(),
+                label: Some("Open diagnostic related note".to_owned()),
+                value: Some(document_id.to_owned()),
+                disabled: false,
+                actions: vec!["Click".to_owned()],
+                bounds: None,
+                children: Vec::new(),
+            });
+        snapshot.widget_count += 1;
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            channel
+                .enqueue(&snapshot, target, crate::mcp::action::UiAction::Click)
+                .expect("declared click enqueues");
+            assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
+        }
+
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed
+        );
+        assert!(app
+            .mt046_diagnostic_note_open_completion
+            .observer_value()
+            .is_some_and(|value| value.contains("request was not admitted")));
+    }
+
+    #[test]
+    fn diagnostic_note_completion_cannot_reuse_prior_operator_outcome_after_model_contention() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let workspace_id = "workspace-mt046-operator-race";
+        let document_id = "doc-mt046-operator-race";
+        let target = "code_editor_diagnostic_note_ref_0";
+        app.bind_active_project_for_integration_test(workspace_id);
+        let live_ctx = egui::Context::default();
+        app.frame_ctx = Some(live_ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.bind_workspace(workspace_id);
+            bus.register_open_document_command();
+        })
+        .expect("live bus available");
+        let mut snapshot = mt046_search_snapshot(None);
+        snapshot
+            .root
+            .children
+            .push(crate::accessibility::UiTreeNode {
+                id: target.to_owned(),
+                author_id: Some(target.to_owned()),
+                node_id: 4692,
+                role: "Button".to_owned(),
+                label: Some("Open diagnostic related note".to_owned()),
+                value: Some(document_id.to_owned()),
+                disabled: false,
+                actions: vec!["Click".to_owned()],
+                bounds: None,
+                children: Vec::new(),
+            });
+        snapshot.widget_count += 1;
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        let operator_request = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.open_diagnostic_note(&live_ctx, target, document_id)
+                .expect("operator consumes the first inspected reservation");
+            bus.take_pending_diagnostic_note_navigation()
+                .expect("operator request queued")
+        })
+        .expect("live bus available");
+        app.mt046_diagnostic_note_navigation_outcomes.push_back(
+            Mt046DiagnosticNoteNavigationOutcome {
+                request: operator_request.clone(),
+                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                    crate::quick_switcher::NavDispatchOutcome::Opened {
+                        surface: "prior operator destination".to_owned(),
+                    },
+                ),
+                rich_load_generation_before: 0,
+            },
+        );
+
+        snapshot.root.children.retain(|node| {
+            node.author_id.as_deref() != Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID)
+        });
+        snapshot.widget_count = snapshot.widget_count.saturating_sub(1);
+        assert!(mt033_set_snapshot_node_value(
+            &mut snapshot.root,
+            target,
+            document_id,
+        ));
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        let fresh_semantic = snapshot
+            .find_unique_by_author_id(target)
+            .and_then(|node| node.value.as_deref())
+            .expect("fresh model declaration");
+        assert!(fresh_semantic.contains(&format!(
+            "\\\"request_id\\\":{}",
+            operator_request.request_id + 1
+        )));
+        {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            channel
+                .enqueue(&snapshot, target, crate::mcp::action::UiAction::Click)
+                .expect("fresh model click enqueues");
+            assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
+        }
+        // Simulate panel try-lock contention: the fresh reservation is not consumed into the FIFO.
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed
+        );
+        assert_ne!(
+            app.mt046_diagnostic_note_open_completion.request_id,
+            Some(operator_request.request_id),
+            "the prior operator outcome is never paired to the later model declaration"
+        );
+    }
+
+    #[test]
+    fn diagnostic_note_completion_releases_after_channel_indeterminate_target_disappearance() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        let workspace_id = "workspace-mt046-indeterminate";
+        let document_id = "doc-mt046-indeterminate";
+        let target = "code_editor_diagnostic_note_ref_0";
+        app.bind_active_project_for_integration_test(workspace_id);
+        let live_ctx = egui::Context::default();
+        app.frame_ctx = Some(live_ctx.clone());
+        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.bind_workspace(workspace_id);
+            bus.register_open_document_command();
+        })
+        .expect("live bus available");
+        let mut snapshot = mt046_search_snapshot(None);
+        snapshot
+            .root
+            .children
+            .push(crate::accessibility::UiTreeNode {
+                id: target.to_owned(),
+                author_id: Some(target.to_owned()),
+                node_id: 4693,
+                role: "Button".to_owned(),
+                label: Some("Open diagnostic related note".to_owned()),
+                value: Some(document_id.to_owned()),
+                disabled: false,
+                actions: vec!["Click".to_owned()],
+                bounds: None,
+                children: Vec::new(),
+            });
+        snapshot.widget_count += 1;
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        let receipt_id = {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            let receipt_id = channel
+                .enqueue(&snapshot, target, crate::mcp::action::UiAction::Click)
+                .expect("declared click enqueues")
+                .receipt_id;
+            assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
+            receipt_id
+        };
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.open_diagnostic_note(&live_ctx, target, document_id)
+                .expect("exact reservation consumed")
+        })
+        .expect("live bus available");
+        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Pending
+        );
+
+        let mut disappeared = mt046_search_snapshot(None);
+        {
+            let mut channel = app.mcp_action_channel.lock().expect("action channel");
+            channel.acknowledge_after_render(&disappeared);
+            assert_eq!(
+                channel
+                    .receipt_status(receipt_id)
+                    .expect("terminal receipt")
+                    .0,
+                crate::mcp::action::ActionReceiptStatus::Indeterminate
+            );
+        }
+        app.project_mt046_diagnostic_note_open_completion(&mut disappeared);
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed
+        );
+        app.mt046_diagnostic_note_open_completion
+            .acknowledge_terminal_snapshot();
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Ready,
+            "channel-terminal action releases its observer lease for recovery"
+        );
+    }
+
+    #[test]
+    fn diagnostic_note_completion_ignores_failed_sibling_rich_view() {
+        let workspace_id = "workspace-mt046-sibling-load";
+        let document_id = "doc-mt046-sibling-load";
+        let target = "code_editor_diagnostic_note_ref_0";
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.bind_active_project_for_integration_test(workspace_id);
+        assert!(
+            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id.to_owned()),)
+        );
+        let active_pane = app
+            .active_rich_document_binding()
+            .expect("active rich binding")
+            .0;
+        assert_ne!(active_pane, "sibling-pane");
+        app.rich_doc_loads.insert(
+            ("sibling-pane".to_owned(), document_id.to_owned()),
+            RichDocumentLoadState {
+                workspace_id: workspace_id.to_owned(),
+                failure: Some(RichDocumentLoadFailure {
+                    generation: 5,
+                    document_id: document_id.to_owned(),
+                    message: "sibling-only failure".to_owned(),
+                }),
+                ..RichDocumentLoadState::default()
+            },
+        );
+        let request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 1,
+            workspace_generation: 1,
+            workspace_id: workspace_id.to_owned(),
+            source_author_id: target.to_owned(),
+            document_id: document_id.to_owned(),
+        };
+        assert!(app.mt046_diagnostic_note_open_completion.begin(
+            target.to_owned(),
+            &request,
+            Mt046DiagnosticNoteOpenCompletion::semantic(
+                target,
+                document_id,
+                workspace_id,
+                request.request_id,
+                request.workspace_generation,
+            ),
+            None,
+        ));
+        app.mt046_diagnostic_note_navigation_outcomes.push_back(
+            Mt046DiagnosticNoteNavigationOutcome {
+                request,
+                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                    crate::quick_switcher::NavDispatchOutcome::Opened {
+                        surface: "Notes".to_owned(),
+                    },
+                ),
+                rich_load_generation_before: 0,
+            },
+        );
+        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Pending,
+            "a failed sibling view cannot reject the active successful destination"
+        );
+    }
+
+    #[test]
+    fn mcp_snapshot_preserves_focus_state_for_two_rich_views() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.bind_active_project_for_integration_test("workspace-mt046-two-rich-views");
+        let pane_a = PaneId::from("pane-a");
+        let pane_b = PaneId::from("pane-b");
+        app.set_active_pane_for_test(Some(pane_a.clone()));
+        assert!(
+            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some("doc-rich-a".to_owned()),)
+        );
+        app.set_active_pane_for_test(Some(pane_b.clone()));
+        assert!(
+            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some("doc-rich-b".to_owned()),)
+        );
+        let state_a = app
+            .editor_mounts
+            .rich_documents
+            .state_for_view(Some("doc-rich-a"), pane_a.as_ref());
+        let state_b = app
+            .editor_mounts
+            .rich_documents
+            .state_for_view(Some("doc-rich-b"), pane_b.as_ref());
+        for state in [&state_a, &state_b] {
+            let mut state = state.lock().expect("rich state");
+            state.request_editor_focus();
+            state.set_live_editor_has_focus_for_test(true);
+        }
+
+        app.refresh_mcp_snapshot();
+
+        for state in [&state_a, &state_b] {
+            let state = state.lock().expect("rich state");
+            assert!(
+                state.editor_focus_pending,
+                "isolated snapshot must not consume either rich view's pending real focus"
+            );
+            assert!(
+                state.live_editor_has_focus(),
+                "isolated snapshot must not overwrite either rich view's real focus observation"
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostic_note_completion_rejects_pre_satisfied_no_target_and_load_failure() {
+        let workspace_id = "workspace-mt046-terminal-outcomes";
+        let document_id = "doc-mt046-terminal-outcomes";
+        let target = "code_editor_diagnostic_note_ref_0";
+        let request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 1,
+            workspace_generation: 1,
+            workspace_id: workspace_id.to_owned(),
+            source_author_id: target.to_owned(),
+            document_id: document_id.to_owned(),
+        };
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.bind_active_project_for_integration_test(workspace_id);
+        assert!(app.mt046_diagnostic_note_open_completion.begin(
+            target.to_owned(),
+            &request,
+            Mt046DiagnosticNoteOpenCompletion::semantic(
+                target,
+                document_id,
+                workspace_id,
+                request.request_id,
+                request.workspace_generation,
+            ),
+            None,
+        ));
+        app.mt046_diagnostic_note_navigation_outcomes.push_back(
+            Mt046DiagnosticNoteNavigationOutcome {
+                request: request.clone(),
+                outcome: Mt046DiagnosticNoteDispatchOutcome::DestinationAlreadySatisfied,
+                rich_load_generation_before: 0,
+            },
+        );
+        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed,
+            "a pre-opened focused destination is not causal proof"
+        );
+
+        app.mt046_diagnostic_note_open_completion
+            .acknowledge_terminal_snapshot();
+        let no_target_request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 2,
+            ..request.clone()
+        };
+        assert!(app.mt046_diagnostic_note_open_completion.begin(
+            target.to_owned(),
+            &no_target_request,
+            Mt046DiagnosticNoteOpenCompletion::semantic(
+                target,
+                document_id,
+                workspace_id,
+                no_target_request.request_id,
+                no_target_request.workspace_generation,
+            ),
+            None,
+        ));
+        app.mt046_diagnostic_note_navigation_outcomes.push_back(
+            Mt046DiagnosticNoteNavigationOutcome {
+                request: no_target_request,
+                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                    crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
+                ),
+                rich_load_generation_before: 0,
+            },
+        );
+        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed,
+            "NoTargetPane is terminal rejection, never indefinite Pending"
+        );
+
+        app.mt046_diagnostic_note_open_completion
+            .acknowledge_terminal_snapshot();
+        assert!(
+            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id.to_owned()),)
+        );
+        let active_rich_pane = app
+            .active_rich_document_binding()
+            .expect("exact rich destination active")
+            .0;
+        let load_request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 3,
+            ..request
+        };
+        assert!(app.mt046_diagnostic_note_open_completion.begin(
+            target.to_owned(),
+            &load_request,
+            Mt046DiagnosticNoteOpenCompletion::semantic(
+                target,
+                document_id,
+                workspace_id,
+                load_request.request_id,
+                load_request.workspace_generation,
+            ),
+            None,
+        ));
+        app.rich_doc_loads.insert(
+            (active_rich_pane, document_id.to_owned()),
+            RichDocumentLoadState {
+                workspace_id: workspace_id.to_owned(),
+                failure: Some(RichDocumentLoadFailure {
+                    generation: 0,
+                    document_id: document_id.to_owned(),
+                    message: "Notes document load blocked: no runtime handle is bound.".to_owned(),
+                }),
+                ..RichDocumentLoadState::default()
+            },
+        );
+        app.mt046_diagnostic_note_navigation_outcomes.push_back(
+            Mt046DiagnosticNoteNavigationOutcome {
+                request: load_request,
+                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                    crate::quick_switcher::NavDispatchOutcome::Opened {
+                        surface: "Notes".to_owned(),
+                    },
+                ),
+                rich_load_generation_before: 0,
+            },
+        );
+        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
+        assert_eq!(
+            app.mt046_diagnostic_note_open_completion.state,
+            crate::mcp::action::ClickCompletionState::Failed
+        );
+        assert!(app
+            .mt046_diagnostic_note_open_completion
+            .observer_value()
+            .is_some_and(|value| value.contains("no runtime handle")));
+    }
+
+    #[test]
+    fn diagnostic_note_completion_ignores_wrong_replay_and_recovers_plus_one() {
+        let target = "code_editor_diagnostic_note_ref_0";
+        let workspace_id = "workspace-mt046-recovery";
+        let document_id = "doc-mt046-recovery";
+        let request = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 10,
+            workspace_generation: 4,
+            workspace_id: workspace_id.to_owned(),
+            source_author_id: target.to_owned(),
+            document_id: document_id.to_owned(),
+        };
+        let mut completion = Mt046DiagnosticNoteOpenCompletion::default();
+        assert!(completion.begin(
+            target.to_owned(),
+            &request,
+            Mt046DiagnosticNoteOpenCompletion::semantic(
+                target,
+                document_id,
+                workspace_id,
+                request.request_id,
+                request.workspace_generation,
+            ),
+            None,
+        ));
+        let wrong = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 11,
+            document_id: "wrong-document".to_owned(),
+            ..request.clone()
+        };
+        assert!(!completion.observe_dispatch_outcome(
+            &wrong,
+            &Mt046DiagnosticNoteDispatchOutcome::Navigation(
+                crate::quick_switcher::NavDispatchOutcome::Opened {
+                    surface: "wrong".to_owned(),
+                },
+            ),
+            0,
+        ));
+        assert!(completion.dispatch_outcome.is_none());
+        completion.complete_failed("expected terminal".to_owned(), "{}".to_owned());
+        completion.acknowledge_terminal_snapshot();
+        assert_eq!(
+            completion.state,
+            crate::mcp::action::ClickCompletionState::Ready
+        );
+        assert!(
+            !completion.begin(
+                target.to_owned(),
+                &request,
+                Mt046DiagnosticNoteOpenCompletion::semantic(
+                    target,
+                    document_id,
+                    workspace_id,
+                    request.request_id,
+                    request.workspace_generation,
+                ),
+                None,
+            ),
+            "the same immutable request id cannot replay after terminal acknowledgement"
+        );
+        let next = crate::interop::DiagnosticNoteNavigationRequest {
+            request_id: 12,
+            ..request
+        };
+        assert!(completion.begin(
+            target.to_owned(),
+            &next,
+            Mt046DiagnosticNoteOpenCompletion::semantic(
+                target,
+                document_id,
+                workspace_id,
+                next.request_id,
+                next.workspace_generation,
+            ),
+            None,
+        ));
+        assert_eq!(
+            completion.generation, 2,
+            "repeat action advances exactly +1"
+        );
     }
 
     #[test]

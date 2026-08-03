@@ -41,7 +41,7 @@
 //! and a command handler must NEVER re-enter the lock (it receives `&mut InteractionBus` already
 //! locked). Contention is logged once and skipped, never deadlocked.
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use crate::event_bus::ShellEventSender;
@@ -82,6 +82,39 @@ pub const CMD_COMMAND_PALETTE: &str = "interop.command-palette";
 /// shell drains [`InteractionBus::take_pending_navigation`] and routes the open. This is the
 /// melt-together navigation primitive the "everything is a Loom block" backlinks/refs ride on.
 pub const CMD_OPEN_DOCUMENT: &str = "interop.open-document";
+
+/// Bounded FIFO capacity for causally correlated diagnostic-note navigation. Diagnostic chips use a
+/// dedicated queue rather than the legacy single `pending_navigation` slot so rapid independent clicks
+/// cannot overwrite one another before the shell records each exact dispatch outcome.
+pub const MAX_PENDING_DIAGNOSTIC_NOTE_NAVIGATIONS: usize = 32;
+
+/// Maximum number of unconsumed request identities advertised by one authoritative MCP snapshot.
+/// Reservations are separate from the admitted FIFO: a visibility sweep releases identities for
+/// vanished chips, while every clicked request remains queued until the live shell drains it.
+pub const MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS: usize = 32;
+
+/// Immutable identity and workspace fence for one real diagnostic-chip navigation request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiagnosticNoteNavigationRequest {
+    pub request_id: u64,
+    pub workspace_generation: u64,
+    pub workspace_id: String,
+    pub source_author_id: String,
+    pub document_id: String,
+}
+
+/// Typed admission failure for the diagnostic-chip queue. Callers must surface this as a rejected
+/// action; silently falling back to the uncorrelated legacy slot would make completion non-causal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiagnosticNoteNavigationRequestError {
+    EmptySourceAuthorId,
+    EmptyDocumentId,
+    WorkspaceUnbound,
+    RequestIdExhausted,
+    ReservationFull,
+    QueueFull,
+    CommandUnavailable,
+}
 /// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): cross-pane Route-to-Stage command id. A rich-text
 /// selection / canvas node / CKC item dispatches this with the [`crate::stage_pane::StageContent`] staged
 /// via [`InteractionBus::route_to_stage`]; the shell peeks the complete pending route, applies it to
@@ -562,6 +595,13 @@ pub struct InteractionBus {
     /// backlink row click / loom:// reference). The shell drains it via [`Self::take_pending_navigation`]
     /// each frame and routes the open. `None` when no navigation is pending.
     pending_navigation: Option<String>,
+    /// MT-046 IC-09 remediation: immutable diagnostic-chip requests awaiting the shell navigation
+    /// seam. This is intentionally separate from `pending_navigation`, which remains the legacy
+    /// backlink/loom-ref path and retains its existing last-write semantics.
+    pending_diagnostic_note_navigations: VecDeque<DiagnosticNoteNavigationRequest>,
+    diagnostic_note_navigation_reservations:
+        BTreeMap<(String, String), DiagnosticNoteNavigationRequest>,
+    next_diagnostic_note_navigation_request_id: u64,
     /// MT-067: exact CalendarEvent id staged by the daily-journal chip and consumed once by the shell.
     pending_calendar_event_focus: Option<String>,
     /// WP-KERNEL-012 MT-033 (E5): the content a Route-to-Stage request staged (from a selection / canvas
@@ -644,6 +684,9 @@ impl InteractionBus {
             command_palette_open: false,
             event_sender: None,
             pending_navigation: None,
+            pending_diagnostic_note_navigations: VecDeque::new(),
+            diagnostic_note_navigation_reservations: BTreeMap::new(),
+            next_diagnostic_note_navigation_request_id: 0,
             pending_calendar_event_focus: None,
             pending_stage_route: None,
             pending_stage_error: None,
@@ -805,6 +848,8 @@ impl InteractionBus {
         self.clipboard_cache = None;
         self.pending_clipboard_command = None;
         self.pending_navigation = None;
+        self.pending_diagnostic_note_navigations.clear();
+        self.diagnostic_note_navigation_reservations.clear();
         self.pending_calendar_event_focus = None;
         self.pending_stage_route = None;
         self.pending_stage_error = None;
@@ -1151,6 +1196,158 @@ impl InteractionBus {
     pub fn open_document(&mut self, ctx: &egui::Context, document_id: impl Into<String>) -> bool {
         self.request_open_document(document_id);
         self.dispatch_command(ctx, CMD_OPEN_DOCUMENT)
+    }
+
+    /// Admit one diagnostic-chip navigation into a bounded immutable FIFO. The request captures the
+    /// bus's current workspace id/generation and receives a monotonic session request id.
+    pub fn request_diagnostic_note_navigation(
+        &mut self,
+        source_author_id: impl Into<String>,
+        document_id: impl Into<String>,
+    ) -> Result<DiagnosticNoteNavigationRequest, DiagnosticNoteNavigationRequestError> {
+        let source_author_id = source_author_id.into();
+        let document_id = document_id.into();
+        let request = self.allocate_diagnostic_note_navigation(source_author_id, document_id)?;
+        if self.pending_diagnostic_note_navigations.len() >= MAX_PENDING_DIAGNOSTIC_NOTE_NAVIGATIONS
+        {
+            return Err(DiagnosticNoteNavigationRequestError::QueueFull);
+        }
+        self.pending_diagnostic_note_navigations
+            .push_back(request.clone());
+        Ok(request)
+    }
+
+    fn allocate_diagnostic_note_navigation(
+        &mut self,
+        source_author_id: String,
+        document_id: String,
+    ) -> Result<DiagnosticNoteNavigationRequest, DiagnosticNoteNavigationRequestError> {
+        if source_author_id.trim().is_empty() {
+            return Err(DiagnosticNoteNavigationRequestError::EmptySourceAuthorId);
+        }
+        if document_id.trim().is_empty() {
+            return Err(DiagnosticNoteNavigationRequestError::EmptyDocumentId);
+        }
+        if self.workspace_id.trim().is_empty() {
+            return Err(DiagnosticNoteNavigationRequestError::WorkspaceUnbound);
+        }
+        let request_id = self
+            .next_diagnostic_note_navigation_request_id
+            .checked_add(1)
+            .ok_or(DiagnosticNoteNavigationRequestError::RequestIdExhausted)?;
+        self.next_diagnostic_note_navigation_request_id = request_id;
+        let request = DiagnosticNoteNavigationRequest {
+            request_id,
+            workspace_generation: self.workspace_generation,
+            workspace_id: self.workspace_id.clone(),
+            source_author_id,
+            document_id,
+        };
+        Ok(request)
+    }
+
+    /// Reserve the exact request identity advertised by an MCP diagnostic-chip declaration. Repeated
+    /// inspections return the same reservation until a real click consumes it.
+    pub fn reserve_diagnostic_note_navigation(
+        &mut self,
+        source_author_id: impl Into<String>,
+        document_id: impl Into<String>,
+    ) -> Result<DiagnosticNoteNavigationRequest, DiagnosticNoteNavigationRequestError> {
+        let source_author_id = source_author_id.into();
+        let document_id = document_id.into();
+        let key = (source_author_id.clone(), document_id.clone());
+        if let Some(reserved) = self.diagnostic_note_navigation_reservations.get(&key) {
+            return Ok(reserved.clone());
+        }
+        if self.diagnostic_note_navigation_reservations.len()
+            >= MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS
+        {
+            return Err(DiagnosticNoteNavigationRequestError::ReservationFull);
+        }
+        let request = self.allocate_diagnostic_note_navigation(source_author_id, document_id)?;
+        self.diagnostic_note_navigation_reservations
+            .insert(key, request.clone());
+        Ok(request)
+    }
+
+    /// Retain only reservations for diagnostic chips declared by the exact current snapshot.
+    ///
+    /// The snapshot caller performs this sweep before reserving its current candidates while holding
+    /// one bus lock. This bounds inspect-only identities without evicting any still-visible lease. The
+    /// admitted FIFO is deliberately untouched: once a click consumes a reservation, its immutable
+    /// request remains shell-owned even if the source chip vanishes in a later snapshot.
+    pub fn sweep_diagnostic_note_navigation_reservations(
+        &mut self,
+        visible_keys: &BTreeSet<(String, String)>,
+    ) {
+        self.diagnostic_note_navigation_reservations
+            .retain(|key, _| visible_keys.contains(key));
+    }
+
+    /// Peek at all admitted diagnostic requests without consuming them. Snapshot completion uses this
+    /// only to correlate the exact ActionChannel activation; the live shell remains the sole consumer.
+    pub fn pending_diagnostic_note_navigations(
+        &self,
+    ) -> &VecDeque<DiagnosticNoteNavigationRequest> {
+        &self.pending_diagnostic_note_navigations
+    }
+
+    /// Drain the oldest diagnostic-chip request exactly once.
+    pub fn take_pending_diagnostic_note_navigation(
+        &mut self,
+    ) -> Option<DiagnosticNoteNavigationRequest> {
+        self.pending_diagnostic_note_navigations.pop_front()
+    }
+
+    /// Drain the bounded FIFO in admission order for the live shell. Each request receives its own
+    /// typed outcome, even when several clicks arrived before the next frame.
+    pub fn drain_pending_diagnostic_note_navigations(
+        &mut self,
+    ) -> Vec<DiagnosticNoteNavigationRequest> {
+        self.pending_diagnostic_note_navigations.drain(..).collect()
+    }
+
+    /// Admit and dispatch a diagnostic-chip request atomically while the caller owns the bus lock. If
+    /// command dispatch fails, remove that exact request again so an unavailable command cannot later
+    /// masquerade as a successful navigation.
+    pub fn open_diagnostic_note(
+        &mut self,
+        ctx: &egui::Context,
+        source_author_id: impl Into<String>,
+        document_id: impl Into<String>,
+    ) -> Result<DiagnosticNoteNavigationRequest, DiagnosticNoteNavigationRequestError> {
+        let source_author_id = source_author_id.into();
+        let document_id = document_id.into();
+        let key = (source_author_id.clone(), document_id.clone());
+        let (request, consumed_reservation) =
+            if let Some(request) = self.diagnostic_note_navigation_reservations.remove(&key) {
+                (request, true)
+            } else {
+                (
+                    self.allocate_diagnostic_note_navigation(source_author_id, document_id)?,
+                    false,
+                )
+            };
+        if self.pending_diagnostic_note_navigations.len() >= MAX_PENDING_DIAGNOSTIC_NOTE_NAVIGATIONS
+        {
+            if consumed_reservation {
+                self.diagnostic_note_navigation_reservations
+                    .insert(key, request);
+            }
+            return Err(DiagnosticNoteNavigationRequestError::QueueFull);
+        }
+        self.pending_diagnostic_note_navigations
+            .push_back(request.clone());
+        if self.dispatch_command(ctx, CMD_OPEN_DOCUMENT) {
+            return Ok(request);
+        }
+        self.pending_diagnostic_note_navigations
+            .retain(|pending| pending.request_id != request.request_id);
+        if consumed_reservation {
+            self.diagnostic_note_navigation_reservations
+                .insert(key, request);
+        }
+        Err(DiagnosticNoteNavigationRequestError::CommandUnavailable)
     }
 
     // ── CalendarEvent destination navigation (MT-067) ──────────────────────────────────────────────
@@ -2449,6 +2646,222 @@ mod tests {
             bus.take_pending_navigation().is_none(),
             "drained once, then empty"
         );
+    }
+
+    #[test]
+    fn diagnostic_note_navigation_is_immutable_fifo_without_legacy_overwrite() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        assert!(bus.bind_workspace("workspace-a"));
+        bus.register_open_document_command();
+
+        let first_reservation = bus
+            .reserve_diagnostic_note_navigation("code_editor_diagnostic_note_ref_1", "DOC-A")
+            .expect("first declaration reserves an identity");
+        let repeated_inspection = bus
+            .reserve_diagnostic_note_navigation("code_editor_diagnostic_note_ref_1", "DOC-A")
+            .expect("repeat inspection reuses its reservation");
+        assert_eq!(
+            repeated_inspection, first_reservation,
+            "repeat inspection is stable and does not allocate or enqueue another request"
+        );
+        assert!(bus.pending_diagnostic_note_navigations().is_empty());
+        let first = bus
+            .open_diagnostic_note(&ctx, "code_editor_diagnostic_note_ref_1", "DOC-A")
+            .expect("first diagnostic request admitted and dispatched");
+        bus.reserve_diagnostic_note_navigation("code_editor_diagnostic_note_ref_2", "DOC-B")
+            .expect("second declaration reserves an identity");
+        let second = bus
+            .open_diagnostic_note(&ctx, "code_editor_diagnostic_note_ref_2", "DOC-B")
+            .expect("second diagnostic request admitted and dispatched");
+        assert_eq!((first.request_id, second.request_id), (1, 2));
+        assert_eq!(first.workspace_generation, bus.workspace_generation());
+        assert_eq!(second.workspace_id, "workspace-a");
+        assert!(
+            bus.pending_navigation().is_none(),
+            "typed diagnostic requests do not write the uncorrelated legacy slot"
+        );
+
+        let drained = bus.drain_pending_diagnostic_note_navigations();
+        assert_eq!(drained, vec![first, second], "FIFO preserves both clicks");
+        assert!(bus.take_pending_diagnostic_note_navigation().is_none());
+    }
+
+    #[test]
+    fn diagnostic_note_reservation_visibility_sweep_bounds_churn_without_touching_fifo() {
+        let mut bus = InteractionBus::new();
+        assert!(bus.bind_workspace("workspace-reservation-churn"));
+        let admitted = bus
+            .request_diagnostic_note_navigation("clicked-source", "clicked-document")
+            .expect("one already-clicked request is admitted before snapshot churn");
+
+        let initial_keys = (0..MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS)
+            .map(|index| {
+                (
+                    format!("visible-source-{index:02}"),
+                    format!("visible-doc-{index:02}"),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        bus.sweep_diagnostic_note_navigation_reservations(&initial_keys);
+        let initial_reservations = initial_keys
+            .iter()
+            .map(|(source, document)| {
+                let request = bus
+                    .reserve_diagnostic_note_navigation(source, document)
+                    .expect("every declaration through the explicit reservation capacity admits");
+                ((source.clone(), document.clone()), request)
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            bus.diagnostic_note_navigation_reservations.len(),
+            MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS
+        );
+
+        let stable_key = initial_keys.first().expect("capacity is non-zero").clone();
+        let stable_request = initial_reservations
+            .get(&stable_key)
+            .expect("stable visible key was reserved")
+            .clone();
+        assert_eq!(
+            bus.reserve_diagnostic_note_navigation(&stable_key.0, &stable_key.1),
+            Ok(stable_request.clone()),
+            "repeat inspection of a visible key keeps the exact request identity"
+        );
+
+        let overflow_key = (
+            "visible-source-overflow".to_owned(),
+            "visible-doc-overflow".to_owned(),
+        );
+        let mut over_capacity_visibility = initial_keys.clone();
+        over_capacity_visibility.insert(overflow_key.clone());
+        bus.sweep_diagnostic_note_navigation_reservations(&over_capacity_visibility);
+        let request_id_before_overflow = bus.next_diagnostic_note_navigation_request_id;
+        assert_eq!(
+            bus.reserve_diagnostic_note_navigation(&overflow_key.0, &overflow_key.1),
+            Err(DiagnosticNoteNavigationRequestError::ReservationFull),
+            "a distinct visible key beyond capacity fails typed instead of evicting a visible lease"
+        );
+        assert_eq!(
+            bus.next_diagnostic_note_navigation_request_id, request_id_before_overflow,
+            "capacity rejection must not consume a request identity"
+        );
+
+        let new_keys = (0..MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS - 1)
+            .map(|index| {
+                (
+                    format!("churn-source-{index:02}"),
+                    format!("churn-doc-{index:02}"),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+        let churn_visibility = std::iter::once(stable_key.clone())
+            .chain(new_keys.iter().cloned())
+            .collect::<BTreeSet<_>>();
+        bus.sweep_diagnostic_note_navigation_reservations(&churn_visibility);
+        assert_eq!(
+            bus.diagnostic_note_navigation_reservations.len(),
+            1,
+            "all vanished distinct keys are evicted while the still-visible key remains"
+        );
+        assert_eq!(
+            bus.reserve_diagnostic_note_navigation(&stable_key.0, &stable_key.1),
+            Ok(stable_request),
+            "the retained visible key remains stable across the visibility sweep"
+        );
+        for (source, document) in &new_keys {
+            let request = bus
+                .reserve_diagnostic_note_navigation(source, document)
+                .expect("replacement visible keys admit after vanished keys are evicted");
+            assert!(
+                request.request_id > request_id_before_overflow,
+                "evicted request identities are never reused"
+            );
+        }
+        assert_eq!(
+            bus.pending_diagnostic_note_navigations(),
+            &VecDeque::from([admitted.clone()]),
+            "visibility churn must not mutate the admitted click FIFO"
+        );
+
+        let last_churn_request_id = bus.next_diagnostic_note_navigation_request_id;
+        bus.sweep_diagnostic_note_navigation_reservations(&BTreeSet::new());
+        assert!(bus.diagnostic_note_navigation_reservations.is_empty());
+        let recovered = bus
+            .reserve_diagnostic_note_navigation("post-churn-source", "post-churn-document")
+            .expect("a new key continues to admit after a later empty visibility sweep");
+        assert_eq!(recovered.request_id, last_churn_request_id + 1);
+        assert_eq!(
+            bus.take_pending_diagnostic_note_navigation(),
+            Some(admitted),
+            "the shell still drains the original admitted request exactly once"
+        );
+    }
+
+    #[test]
+    fn diagnostic_note_operator_click_without_prior_inspection_allocates_and_navigates() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.bind_workspace("workspace-operator");
+        bus.register_open_document_command();
+        let request = bus
+            .open_diagnostic_note(&ctx, "code_editor_diagnostic_note_ref_0", "DOC-operator")
+            .expect("ordinary operator click allocates a typed request without Argus inspection");
+        assert_eq!(request.request_id, 1);
+        assert_eq!(
+            bus.take_pending_diagnostic_note_navigation(),
+            Some(request),
+            "ordinary click reaches the same typed shell FIFO"
+        );
+    }
+
+    #[test]
+    fn diagnostic_note_navigation_rejects_unavailable_full_and_rebinds_without_replay() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        assert_eq!(
+            bus.open_diagnostic_note(&ctx, "source", "DOC"),
+            Err(DiagnosticNoteNavigationRequestError::WorkspaceUnbound)
+        );
+        bus.bind_workspace("workspace-a");
+        bus.reserve_diagnostic_note_navigation("source", "DOC")
+            .expect("declaration reserves before dispatch");
+        assert_eq!(
+            bus.open_diagnostic_note(&ctx, "source", "DOC"),
+            Err(DiagnosticNoteNavigationRequestError::CommandUnavailable)
+        );
+        assert!(
+            bus.pending_diagnostic_note_navigations().is_empty(),
+            "failed dispatch rolls back its exact admitted request"
+        );
+
+        bus.register_open_document_command();
+        for index in 0..MAX_PENDING_DIAGNOSTIC_NOTE_NAVIGATIONS {
+            bus.request_diagnostic_note_navigation(
+                format!("code_editor_diagnostic_note_ref_{index}"),
+                format!("DOC-{index}"),
+            )
+            .expect("bounded entries admit through capacity");
+        }
+        assert_eq!(
+            bus.request_diagnostic_note_navigation("overflow", "DOC-overflow"),
+            Err(DiagnosticNoteNavigationRequestError::QueueFull)
+        );
+        let last_id = bus
+            .pending_diagnostic_note_navigations()
+            .back()
+            .expect("queue populated")
+            .request_id;
+        assert!(bus.bind_workspace("workspace-b"));
+        assert!(bus.pending_diagnostic_note_navigations().is_empty());
+        let recovered = bus
+            .request_diagnostic_note_navigation("source-b", "DOC-B")
+            .expect("new workspace admits after stale queue is discarded");
+        assert!(
+            recovered.request_id > last_id,
+            "request ids remain monotonic so stale outcomes cannot replay after rebind"
+        );
+        assert_eq!(recovered.workspace_id, "workspace-b");
     }
 
     /// MT-034 AC-2: staging a symbol entity id + dispatching the Open-Code-Symbol command stages the
