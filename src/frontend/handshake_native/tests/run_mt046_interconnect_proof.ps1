@@ -39,6 +39,39 @@ function Get-TextSha256 {
     finally { $hasher.Dispose() }
 }
 
+function ConvertTo-WindowsNativePathIdentity {
+    param([Parameter(Mandatory)][string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw 'Windows native path identity requires a non-empty path'
+    }
+
+    $identity = $Path
+    if ($identity.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        $identity = '\\' + $identity.Substring(8)
+    }
+    elseif ($identity -match '^\\\\\?\\[A-Za-z]:\\') {
+        $identity = $identity.Substring(4)
+    }
+    elseif ($identity.StartsWith('\\?\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Unsupported Windows native path namespace '$Path'"
+    }
+    if ($identity -notmatch '^[A-Za-z]:\\' -and
+        -not $identity.StartsWith('\\', [StringComparison]::Ordinal)) {
+        throw "Windows native path identity requires an absolute drive or UNC path: '$Path'"
+    }
+    return [IO.Path]::GetFullPath($identity)
+}
+
+function Test-SameWindowsNativePath {
+    param(
+        [Parameter(Mandatory)][string]$Left,
+        [Parameter(Mandatory)][string]$Right
+    )
+    $leftIdentity = ConvertTo-WindowsNativePathIdentity -Path $Left
+    $rightIdentity = ConvertTo-WindowsNativePathIdentity -Path $Right
+    return [StringComparer]::OrdinalIgnoreCase.Equals($leftIdentity, $rightIdentity)
+}
+
 function Write-JsonAtomic {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)]$Value)
     [void][IO.Directory]::CreateDirectory((Split-Path $Path -Parent))
@@ -345,7 +378,34 @@ if ($DiagnosticsSelfTest) {
         attempt_id = 'ATTEMPT-1'; test_thread = 'interconnect_ic01_ckc_image_into_note'
     }
     Assert-DiagnosticBinding $valid
+    $positiveResults = [Collections.Generic.List[string]]::new()
     $negativeResults = [Collections.Generic.List[string]]::new()
+    $diagnosticBackendPath = 'D:\Handshake_Artifacts\handshake-cargo-target\debug\handshake_core.exe'
+    if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right "\\?\$diagnosticBackendPath")) {
+        throw 'Windows extended-length backend path alias was not recognized as the same native path'
+    }
+    $positiveResults.Add('windows_extended_backend_path_alias_accepted')
+    $diagnosticUncPath = '\\server\share\handshake_core.exe'
+    if (-not (Test-SameWindowsNativePath -Left $diagnosticUncPath -Right '\\?\UNC\server\share\handshake_core.exe')) {
+        throw 'Windows extended-length UNC path alias was not recognized as the same native path'
+    }
+    $positiveResults.Add('windows_extended_unc_path_alias_accepted')
+    $negativeResults.Add((Expect-DiagnosticRejection -Label 'wrong_backend_binary_path' -Action {
+        if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right 'D:\wrong\handshake_core.exe')) {
+            throw 'backend path mismatch'
+        }
+    }))
+    $negativeResults.Add((Expect-DiagnosticRejection -Label 'whitespace_decorated_backend_path' -Action {
+        if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right " $diagnosticBackendPath")) {
+            throw 'backend path mismatch'
+        }
+    }))
+    $negativeResults.Add((Expect-DiagnosticRejection -Label 'relative_backend_binary_path' -Action {
+        [void](ConvertTo-WindowsNativePathIdentity -Path '..\debug\handshake_core.exe')
+    }))
+    $negativeResults.Add((Expect-DiagnosticRejection -Label 'unsupported_windows_native_namespace' -Action {
+        [void](ConvertTo-WindowsNativePathIdentity -Path '\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1\handshake_core.exe')
+    }))
     foreach ($case in @(
         @{ label = 'stale_current_running'; mutate = { param($r) $r.run_id = 'RUN-OLD' } },
         @{ label = 'cross_run_receipt'; mutate = { param($r) $r.run_id = 'RUN-OTHER' } },
@@ -402,13 +462,14 @@ if ($DiagnosticsSelfTest) {
 
     $diagnosticPath = Join-Path $diagnosticsRoot 'diagnostics-summary.json'
     $diagnosticSha = Write-ImmutableJson -Path $diagnosticPath -Value ([ordered]@{
-        run_id = $RunId; status = 'PASS'; negative_cases = $negativeResults;
+        run_id = $RunId; status = 'PASS'; positive_cases = $positiveResults;
+        negative_cases = $negativeResults;
         failed_command = $failed; timeout_reap = $timedOut;
         completed_at = [DateTimeOffset]::UtcNow.ToString('O')
     })
     Write-Output ([ordered]@{
         status = 'PASS'; diagnostics = $diagnosticPath; diagnostics_sha256 = $diagnosticSha;
-        negative_cases = $negativeResults
+        positive_cases = $positiveResults; negative_cases = $negativeResults
     } | ConvertTo-Json -Depth 8)
     $supervisorLockStream.Dispose()
     exit 0
@@ -1122,7 +1183,7 @@ try {
             $binding = $attempt.evidence.backend_binding
             $runtimeReceipt = $attempt.evidence.backend_runtime_receipt
             if ($null -eq $binding -or $binding.owned -ne $true -or
-                [string]$binding.backend_binary -cne $backendPath -or
+                -not (Test-SameWindowsNativePath -Left ([string]$binding.backend_binary) -Right $backendPath) -or
                 [string]$binding.backend_binary_sha256 -cne $backendSha256 -or
                 [uint64]$binding.backend_pid -le 0 -or
                 [string]$binding.database_host -cne $pgUri.Host -or
@@ -1202,7 +1263,7 @@ try {
             [string]$bindingReceipt.test_executable_path -cne [string]$bindingCommand.test_executable_path -or
             [string]$bindingReceipt.test_executable_sha256 -cne [string]$bindingCommand.test_executable_sha256 -or
             $bindingReceipt.backend.owned -ne $true -or [uint64]$bindingReceipt.backend.backend_pid -le 0 -or
-            [string]$bindingReceipt.backend.backend_binary -cne $backendPath -or
+            -not (Test-SameWindowsNativePath -Left ([string]$bindingReceipt.backend.backend_binary) -Right $backendPath) -or
             [string]$bindingReceipt.backend.backend_binary_sha256 -cne $backendSha256 -or
             [string]$bindingReceipt.backend.database_host -cne $pgUri.Host -or
             [int]$bindingReceipt.backend.database_port -ne $pgUri.Port -or
