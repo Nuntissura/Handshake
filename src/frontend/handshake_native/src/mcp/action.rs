@@ -57,6 +57,68 @@ const MAX_CLICK_COMPLETION_SEMANTIC_BYTES: usize = 2048;
 const MAX_CLICK_COMPLETION_ERROR_BYTES: usize = 1024;
 const MAX_CLICK_COMPLETION_DETAIL_BYTES: usize = 2048;
 
+/// Opt-in causal acknowledgement for a SetValue target. A sibling Status node carries this token
+/// because the target's own value must remain the operator-visible text. Generic SetValue controls
+/// without this observer retain the conservative Indeterminate behavior below.
+const SET_VALUE_COMPLETION_SCHEMA: &str = "handshake.set-value-completion/v1";
+const SET_VALUE_COMPLETION_SUFFIX: &str = ".set-value-completion";
+const MAX_SET_VALUE_COMPLETION_TOKEN_BYTES: usize = 8192;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SetValueCompletionToken {
+    schema: String,
+    target: String,
+    context: String,
+    generation: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    applied_value: Option<String>,
+}
+
+impl SetValueCompletionToken {
+    fn valid(&self) -> bool {
+        self.schema == SET_VALUE_COMPLETION_SCHEMA
+            && valid_click_token_field(&self.target, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
+            && valid_click_token_field(&self.context, MAX_CLICK_COMPLETION_CONTEXT_BYTES)
+            && self.applied_value.as_deref().map_or(true, |value| {
+                value.len() <= MAX_SET_VALUE_COMPLETION_TOKEN_BYTES
+                    && !value.chars().any(char::is_control)
+            })
+    }
+}
+
+pub(crate) fn set_value_completion_author_id(target: &str) -> String {
+    format!("{target}{SET_VALUE_COMPLETION_SUFFIX}")
+}
+
+pub(crate) fn serialize_set_value_completion(
+    target: &str,
+    context: &str,
+    generation: u64,
+    applied_value: Option<&str>,
+) -> Option<String> {
+    let token = SetValueCompletionToken {
+        schema: SET_VALUE_COMPLETION_SCHEMA.to_owned(),
+        target: target.to_owned(),
+        context: context.to_owned(),
+        generation,
+        applied_value: applied_value.map(str::to_owned),
+    };
+    if !token.valid() {
+        return None;
+    }
+    let encoded = serde_json::to_string(&token).ok()?;
+    (encoded.len() <= MAX_SET_VALUE_COMPLETION_TOKEN_BYTES).then_some(encoded)
+}
+
+fn parse_set_value_completion(raw: &str) -> Option<SetValueCompletionToken> {
+    if raw.len() > MAX_SET_VALUE_COMPLETION_TOKEN_BYTES {
+        return None;
+    }
+    let token: SetValueCompletionToken = serde_json::from_str(raw).ok()?;
+    token.valid().then_some(token)
+}
+
 /// State transition exposed by an opt-in click-completion token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -709,6 +771,17 @@ struct PendingAction {
     enqueued_at: Instant,
     action: UiAction,
     click_completion: Option<PendingClickCompletion>,
+    set_value_completion: Option<PendingSetValueCompletion>,
+}
+
+#[derive(Debug, Clone)]
+struct PendingSetValueCompletion {
+    baseline: SetValueCompletionToken,
+    observer_author_id: String,
+    observer_node_id: u64,
+    observer_role: String,
+    observer_raw_baseline: String,
+    dispatch_validated: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -729,6 +802,10 @@ enum PendingClickCompletion {
 impl PendingAction {
     fn leases_author_id(&self, author_id: &str) -> bool {
         self.author_id == author_id
+            || self
+                .set_value_completion
+                .as_ref()
+                .is_some_and(|completion| completion.observer_author_id == author_id)
             || matches!(
                 &self.click_completion,
                 Some(PendingClickCompletion::Observer {
@@ -850,12 +927,16 @@ impl ActionChannel {
         let node = resolve_node(snapshot, author_id, &action)?;
         validate_target_value(author_id, node, &action)?;
         let click_completion = pending_click_completion(snapshot, node, &action);
+        let set_value_completion = pending_set_value_completion(snapshot, author_id, node, &action);
         let observer_author_id = match &click_completion {
             Some(PendingClickCompletion::Observer {
                 observer_author_id, ..
             }) => Some(observer_author_id.as_str()),
             _ => None,
         };
+        let set_value_observer_author_id = set_value_completion
+            .as_ref()
+            .map(|completion| completion.observer_author_id.as_str());
         let conflicting_lease =
             self.queue
                 .iter()
@@ -864,7 +945,9 @@ impl ActionChannel {
                     if pending.leases_author_id(author_id) {
                         Some(author_id)
                     } else {
-                        observer_author_id.filter(|observer| pending.leases_author_id(observer))
+                        observer_author_id
+                            .or(set_value_observer_author_id)
+                            .filter(|observer| pending.leases_author_id(observer))
                     }
                 });
         if let Some(conflicting_author_id) = conflicting_lease {
@@ -902,6 +985,7 @@ impl ActionChannel {
             enqueued_at: Instant::now(),
             action,
             click_completion,
+            set_value_completion,
         });
         Ok(outcome)
     }
@@ -990,6 +1074,32 @@ impl ActionChannel {
         self.expire_stale_actions();
         let in_flight = std::mem::take(&mut self.in_flight);
         for pending in in_flight {
+            if matches!(pending.action, UiAction::SetValue { .. })
+                && pending.set_value_completion.is_some()
+            {
+                match acknowledge_set_value_completion(&pending, fresh_snapshot) {
+                    SetValueCompletionAcknowledgement::StillPending { observed_value } => {
+                        self.update_receipt(
+                            pending.outcome.receipt_id,
+                            ActionReceiptStatus::Dispatched,
+                            observed_value,
+                            None,
+                        );
+                        self.in_flight.push(pending);
+                    }
+                    SetValueCompletionAcknowledgement::Terminal {
+                        status,
+                        observed_value,
+                        rejection,
+                    } => self.update_receipt(
+                        pending.outcome.receipt_id,
+                        status,
+                        observed_value,
+                        rejection,
+                    ),
+                }
+                continue;
+            }
             if is_click_activation(&pending.action) && pending.click_completion.is_some() {
                 match acknowledge_click_completion(&pending, fresh_snapshot) {
                     ClickCompletionAcknowledgement::Terminal {
@@ -1338,7 +1448,21 @@ fn acknowledge_click_completion(
             if !dispatch_validated {
                 return indeterminate(None, "observer identity/context was not valid at dispatch");
             }
-            let post_target = snapshot.find_by_author_id(&pending.author_id);
+            let Some(observer) = snapshot.find_unique_by_author_id(observer_author_id) else {
+                return indeterminate(None, "observer disappeared before acknowledgement");
+            };
+            let observed = observer.value.clone();
+            if observer.node_id != *observer_node_id || observer.role != *observer_role {
+                return indeterminate(observed, "observer identity drifted before acknowledgement");
+            }
+            let Some(applied) = observer
+                .value
+                .as_deref()
+                .and_then(parse_click_completion_token)
+            else {
+                return indeterminate(observed, "observer completion token is malformed");
+            };
+            let post_target = snapshot.find_unique_by_author_id(&pending.author_id);
             if declaration.persistent_target
                 || (declaration.flexible_target && post_target.is_some())
             {
@@ -1348,7 +1472,14 @@ fn acknowledge_click_completion(
                         "observer target disappeared before acknowledgement",
                     );
                 };
-                if !post_render_target_identity_matches(pending, post_target) {
+                let pending_disabled_identity = declaration.persistent_target
+                    && applied.state == ClickCompletionState::Pending
+                    && post_target.node_id == pending.outcome.request.target.0
+                    && post_target.role == pending.expected_role
+                    && post_target.disabled;
+                if !pending_disabled_identity
+                    && !post_render_target_identity_matches(pending, post_target)
+                {
                     return indeterminate(
                         post_target.value.clone(),
                         "persistent observer target identity or action capability drifted",
@@ -1383,20 +1514,6 @@ fn acknowledge_click_completion(
                     "observer completion requires the transient click target to disappear",
                 );
             }
-            let Some(observer) = snapshot.find_by_author_id(observer_author_id) else {
-                return indeterminate(None, "observer disappeared before acknowledgement");
-            };
-            let observed = observer.value.clone();
-            if observer.node_id != *observer_node_id || observer.role != *observer_role {
-                return indeterminate(observed, "observer identity drifted before acknowledgement");
-            }
-            let Some(applied) = observer
-                .value
-                .as_deref()
-                .and_then(parse_click_completion_token)
-            else {
-                return indeterminate(observed, "observer completion token is malformed");
-            };
             let generation_matches = declaration
                 .generation
                 .checked_add(1)
@@ -1483,6 +1600,139 @@ fn pending_click_completion(
     })
 }
 
+fn pending_set_value_completion(
+    snapshot: &UiTreeSnapshot,
+    target_author_id: &str,
+    target: &crate::accessibility::UiTreeNode,
+    action: &UiAction,
+) -> Option<PendingSetValueCompletion> {
+    let UiAction::SetValue { text } = action else {
+        return None;
+    };
+    if observed_value_matches(target_author_id, &target.value, text) {
+        return None;
+    }
+    let observer_author_id = set_value_completion_author_id(target_author_id);
+    let observer = snapshot.find_unique_by_author_id(&observer_author_id)?;
+    let observer_raw_baseline = observer.value.clone()?;
+    let baseline = parse_set_value_completion(&observer_raw_baseline)?;
+    if baseline.target != target_author_id {
+        return None;
+    }
+    Some(PendingSetValueCompletion {
+        baseline,
+        observer_author_id,
+        observer_node_id: observer.node_id,
+        observer_role: observer.role.clone(),
+        observer_raw_baseline,
+        dispatch_validated: false,
+    })
+}
+
+enum SetValueCompletionAcknowledgement {
+    StillPending {
+        observed_value: Option<String>,
+    },
+    Terminal {
+        status: ActionReceiptStatus,
+        observed_value: Option<String>,
+        rejection: Option<String>,
+    },
+}
+
+fn acknowledge_set_value_completion(
+    pending: &PendingAction,
+    snapshot: &UiTreeSnapshot,
+) -> SetValueCompletionAcknowledgement {
+    let completion = pending
+        .set_value_completion
+        .as_ref()
+        .expect("caller checks SetValue completion presence");
+    let UiAction::SetValue { text } = &pending.action else {
+        unreachable!("SetValue completion is registered only for SetValue")
+    };
+    let terminal =
+        |status, observed_value, rejection: &str| SetValueCompletionAcknowledgement::Terminal {
+            status,
+            observed_value,
+            rejection: Some(rejection.to_owned()),
+        };
+    if !completion.dispatch_validated {
+        return terminal(
+            ActionReceiptStatus::Indeterminate,
+            None,
+            "SetValue completion observer changed before dispatch",
+        );
+    }
+    let Some(target) = snapshot.find_unique_by_author_id(&pending.author_id) else {
+        return terminal(
+            ActionReceiptStatus::Rejected,
+            None,
+            "SetValue target disappeared or became ambiguous before acknowledgement",
+        );
+    };
+    if !post_render_target_identity_matches(pending, target) {
+        return terminal(
+            ActionReceiptStatus::Rejected,
+            target.value.clone(),
+            "SetValue target identity or action capability drifted",
+        );
+    }
+    let Some(observer) = snapshot.find_unique_by_author_id(&completion.observer_author_id) else {
+        return terminal(
+            ActionReceiptStatus::Indeterminate,
+            target.value.clone(),
+            "SetValue completion observer disappeared or became ambiguous",
+        );
+    };
+    if observer.node_id != completion.observer_node_id || observer.role != completion.observer_role
+    {
+        return terminal(
+            ActionReceiptStatus::Indeterminate,
+            target.value.clone(),
+            "SetValue completion observer identity drifted",
+        );
+    }
+    let Some(observed_completion) = observer
+        .value
+        .as_deref()
+        .and_then(parse_set_value_completion)
+    else {
+        return terminal(
+            ActionReceiptStatus::Indeterminate,
+            target.value.clone(),
+            "SetValue completion observer token is malformed",
+        );
+    };
+    if observed_completion == completion.baseline {
+        return SetValueCompletionAcknowledgement::StillPending {
+            observed_value: target.value.clone(),
+        };
+    }
+    let generation_matches = completion
+        .baseline
+        .generation
+        .checked_add(1)
+        .is_some_and(|generation| observed_completion.generation == generation);
+    if observed_completion.target == pending.author_id
+        && observed_completion.context == completion.baseline.context
+        && generation_matches
+        && observed_completion.applied_value.as_deref() == Some(text.as_str())
+        && observed_value_matches(&pending.author_id, &target.value, text)
+    {
+        return SetValueCompletionAcknowledgement::Terminal {
+            status: ActionReceiptStatus::Applied,
+            observed_value: target.value.clone(),
+            rejection: None,
+        };
+    }
+    terminal(
+        ActionReceiptStatus::Indeterminate,
+        target.value.clone(),
+        "SetValue completion did not make the exact target/context/generation/value transition",
+    )
+}
+
 fn is_click_activation(action: &UiAction) -> bool {
     matches!(action, UiAction::Click | UiAction::ClickWithPayload { .. })
 }
@@ -1561,6 +1811,20 @@ fn revalidate_pending(
             observer_role,
             observer_raw_baseline,
         );
+    }
+    if let Some(completion) = &mut pending.set_value_completion {
+        let observer = snapshot.find_unique_by_author_id(&completion.observer_author_id);
+        completion.dispatch_validated = observer.is_some_and(|observer| {
+            observer.node_id == completion.observer_node_id
+                && observer.role == completion.observer_role
+                && observer.value.as_deref() == Some(completion.observer_raw_baseline.as_str())
+                && observer
+                    .value
+                    .as_deref()
+                    .and_then(parse_set_value_completion)
+                    .as_ref()
+                    == Some(&completion.baseline)
+        });
     }
     Ok(())
 }
@@ -3756,6 +4020,136 @@ mod tests {
             .unwrap();
         assert_eq!(receipt.status, ActionReceiptStatus::Indeterminate);
         assert_ne!(receipt.status, ActionReceiptStatus::Applied);
+    }
+
+    #[test]
+    fn set_value_completion_requires_exact_context_generation_and_value_transition() {
+        let observer_author = set_value_completion_author_id("field");
+        let baseline_value =
+            serialize_set_value_completion("field", "workspace-a/find", 7, None).unwrap();
+        let mut baseline = fixture_snapshot();
+        baseline
+            .root
+            .children
+            .push(observer_node(&observer_author, 90, baseline_value.clone()));
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &baseline,
+                "field",
+                UiAction::SetValue {
+                    text: "needle".to_owned(),
+                },
+            )
+            .unwrap();
+        assert_eq!(channel.drain_revalidated_into_events(&baseline).len(), 1);
+
+        let mut applied = baseline;
+        top_level_node_mut(&mut applied, "field").value = Some("needle".to_owned());
+        top_level_node_mut(&mut applied, &observer_author).value =
+            serialize_set_value_completion("field", "workspace-a/find", 8, Some("needle"));
+        channel.acknowledge_after_render(&applied);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Applied
+        );
+    }
+
+    #[test]
+    fn set_value_completion_fails_closed_for_same_value_and_token_drift() {
+        let observer_author = set_value_completion_author_id("field");
+        let baseline_token =
+            serialize_set_value_completion("field", "workspace-a/find", 3, None).unwrap();
+
+        let mut same = fixture_snapshot();
+        top_level_node_mut(&mut same, "field").value = Some("already".to_owned());
+        same.root
+            .children
+            .push(observer_node(&observer_author, 91, baseline_token.clone()));
+        let mut same_channel = ActionChannel::new();
+        let same_outcome = same_channel
+            .enqueue(
+                &same,
+                "field",
+                UiAction::SetValue {
+                    text: "already".to_owned(),
+                },
+            )
+            .unwrap();
+        same_channel.drain_revalidated_into_events(&same);
+        let mut same_post = same;
+        top_level_node_mut(&mut same_post, &observer_author).value =
+            serialize_set_value_completion("field", "workspace-a/find", 4, Some("already"));
+        same_channel.acknowledge_after_render(&same_post);
+        assert_eq!(
+            terminal_receipt(&mut same_channel, same_outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate,
+            "already-present values never opt into causal completion"
+        );
+
+        for (label, context, generation, value) in [
+            ("wrong context", "workspace-b/find", 4, "needle"),
+            ("generation jump", "workspace-a/find", 5, "needle"),
+            ("wrong value", "workspace-a/find", 4, "replacement"),
+        ] {
+            let mut baseline = fixture_snapshot();
+            baseline.root.children.push(observer_node(
+                &observer_author,
+                92,
+                baseline_token.clone(),
+            ));
+            let mut channel = ActionChannel::new();
+            let outcome = channel
+                .enqueue(
+                    &baseline,
+                    "field",
+                    UiAction::SetValue {
+                        text: "needle".to_owned(),
+                    },
+                )
+                .unwrap();
+            channel.drain_revalidated_into_events(&baseline);
+            let mut post = baseline;
+            top_level_node_mut(&mut post, "field").value = Some("needle".to_owned());
+            top_level_node_mut(&mut post, &observer_author).value =
+                serialize_set_value_completion("field", context, generation, Some(value));
+            channel.acknowledge_after_render(&post);
+            assert_eq!(
+                terminal_receipt(&mut channel, outcome.receipt_id).status,
+                ActionReceiptStatus::Indeterminate,
+                "{label}"
+            );
+        }
+
+        let mut baseline = fixture_snapshot();
+        baseline
+            .root
+            .children
+            .push(observer_node(&observer_author, 93, baseline_token));
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(
+                &baseline,
+                "field",
+                UiAction::SetValue {
+                    text: "needle".to_owned(),
+                },
+            )
+            .unwrap();
+        channel.drain_revalidated_into_events(&baseline);
+        let mut post = baseline;
+        top_level_node_mut(&mut post, "field").value = Some("needle".to_owned());
+        post.root.children.push(observer_node(
+            &observer_author,
+            94,
+            serialize_set_value_completion("field", "workspace-a/find", 4, Some("needle")).unwrap(),
+        ));
+        channel.acknowledge_after_render(&post);
+        assert_eq!(
+            terminal_receipt(&mut channel, outcome.receipt_id).status,
+            ActionReceiptStatus::Indeterminate,
+            "an ambiguous completion observer cannot acknowledge SetValue"
+        );
     }
 
     #[test]

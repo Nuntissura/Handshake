@@ -7999,6 +7999,11 @@ impl HandshakeApp {
         }
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(true);
+        if let Ok(mut states) = self.find_in_files_state.lock() {
+            for state in states.values_mut() {
+                state.set_snapshot_capture_mode(true);
+            }
+        }
         self.capturing_snapshot = true;
         let output = ctx.run(egui::RawInput::default(), |ctx| self.ui(ctx));
         self.capturing_snapshot = false;
@@ -8010,6 +8015,11 @@ impl HandshakeApp {
         }
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(false);
+        if let Ok(mut states) = self.find_in_files_state.lock() {
+            for state in states.values_mut() {
+                state.set_snapshot_capture_mode(false);
+            }
+        }
         if let Some(update) = output.platform_output.accesskit_update {
             let mut snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
             self.project_mt033_argus_completion(&mut snapshot);
@@ -8026,6 +8036,11 @@ impl HandshakeApp {
             match self.mcp_snapshot.lock() {
                 Ok(mut slot) => *slot = snapshot,
                 Err(poisoned) => *poisoned.into_inner() = snapshot,
+            }
+            if let Ok(mut states) = self.find_in_files_state.lock() {
+                for state in states.values_mut() {
+                    state.acknowledge_action_terminal_snapshot();
+                }
             }
             // A failed Retry uses a transient target. Keep it absent until this exact projected tree
             // has terminalized the receipt and been published, then permit a later fresh snapshot to

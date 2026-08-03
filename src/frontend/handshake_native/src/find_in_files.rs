@@ -91,6 +91,9 @@ pub const TAG_FILTER_AUTHOR_ID: &str = "find-in-files.tag-filter";
 pub const PATH_FILTER_AUTHOR_ID: &str = "find-in-files.path-filter";
 /// The `Search` button.
 pub const SEARCH_AUTHOR_ID: &str = "find-in-files.search";
+/// Durable action-completion observer for the asynchronous Search button.
+pub const SEARCH_COMPLETION_AUTHOR_ID: &str = "find-in-files.search-completion";
+const SEARCH_COMPLETION_EFFECT: &str = "find-in-files.search";
 /// The `Preview Replace` button.
 pub const PREVIEW_REPLACE_AUTHOR_ID: &str = "find-in-files.preview-replace";
 /// The `Apply` button.
@@ -1187,6 +1190,21 @@ pub struct FindInFilesPanelState {
     pub bookmark_load_failed: bool,
     /// Monotonic diagnostic count of real bookmark GET attempts issued by this mounted panel state.
     pub bookmark_load_attempt_count: u64,
+    /// Causal acknowledgement state for the query field's exact AccessKit SetValue request.
+    query_set_value_generation: u64,
+    query_set_value_applied: Option<String>,
+    /// Causal acknowledgement state for the asynchronous Search action.
+    search_action_generation: u64,
+    search_action_state: crate::mcp::action::ClickCompletionState,
+    search_action_target: Option<String>,
+    search_action_context: Option<String>,
+    search_action_semantic: Option<String>,
+    search_action_error: Option<String>,
+    search_action_detail: Option<String>,
+    search_action_reset_after_publish: bool,
+    /// True only while the app renders an isolated MCP snapshot. Async deliveries remain queued so
+    /// inspection cannot mutate the live Find state or advance an action observer.
+    snapshot_capture_mode: bool,
 
     /// Bumps every time `results` is replaced (in [`poll`](Self::poll)); part of the visible-cache key so
     /// a new result set invalidates the memoized filter even when query+options are unchanged.
@@ -1250,6 +1268,17 @@ impl FindInFilesPanelState {
             bookmark_status: None,
             bookmark_load_failed: false,
             bookmark_load_attempt_count: 0,
+            query_set_value_generation: 0,
+            query_set_value_applied: None,
+            search_action_generation: 0,
+            search_action_state: crate::mcp::action::ClickCompletionState::Ready,
+            search_action_target: None,
+            search_action_context: None,
+            search_action_semantic: None,
+            search_action_error: None,
+            search_action_detail: None,
+            search_action_reset_after_publish: false,
+            snapshot_capture_mode: false,
             results_generation: 0,
             visible_cache: std::cell::RefCell::new(None),
             search_cell: Arc::new(Mutex::new(VecDeque::new())),
@@ -1295,6 +1324,167 @@ impl FindInFilesPanelState {
             || self.active_bookmark_save.is_some();
     }
 
+    pub fn set_snapshot_capture_mode(&mut self, enabled: bool) {
+        self.snapshot_capture_mode = enabled;
+    }
+
+    /// Release a terminal failure baseline only after the exact projected MCP snapshot has been used
+    /// to acknowledge its receipt. This keeps workspace/input invalidation causally observable while
+    /// allowing the next workspace/query to publish a fresh Ready declaration.
+    pub fn acknowledge_action_terminal_snapshot(&mut self) {
+        if self.search_action_reset_after_publish
+            && self.search_action_state == crate::mcp::action::ClickCompletionState::Failed
+        {
+            self.reset_search_action_ready();
+        }
+    }
+
+    fn search_completion_context(&self, target_author_id: &str) -> String {
+        use sha2::{Digest, Sha256};
+
+        let workspace = self.bound_workspace_id.as_deref().unwrap_or("<none>");
+        let raw = format!(
+            "{target_author_id}\0{workspace}\0{}\0{}",
+            self.bound_workspace_generation, self.workspace_epoch
+        );
+        format!("find-in-files:{:x}", Sha256::digest(raw.as_bytes()))
+    }
+
+    fn search_action_semantic_for_stamp(&self, stamp: &FindInFilesStamp) -> String {
+        use sha2::{Digest, Sha256};
+
+        let raw = serde_json::json!({
+            "workspace_id": stamp.workspace_id,
+            "epoch": stamp.epoch,
+            "operation": "search",
+            "search_key": self.current_search_key(),
+        })
+        .to_string();
+        format!("find-in-files-search:{:x}", Sha256::digest(raw.as_bytes()))
+    }
+
+    fn planned_search_action_semantic(&self) -> String {
+        let stamp = FindInFilesStamp {
+            workspace_id: self.bound_workspace_id.clone().unwrap_or_default(),
+            operation: FindInFilesOperation::Search,
+            epoch: self.workspace_epoch,
+            sequence: self.next_sequence.saturating_add(1),
+        };
+        self.search_action_semantic_for_stamp(&stamp)
+    }
+
+    fn begin_search_action(&mut self, target: String, context: String, semantic: String) -> bool {
+        if self.search_action_state == crate::mcp::action::ClickCompletionState::Pending {
+            return false;
+        }
+        let Some(generation) = self.search_action_generation.checked_add(1) else {
+            return false;
+        };
+        self.search_action_generation = generation;
+        self.search_action_state = crate::mcp::action::ClickCompletionState::Pending;
+        self.search_action_target = Some(target);
+        self.search_action_context = Some(context);
+        self.search_action_semantic = Some(semantic);
+        self.search_action_error = None;
+        self.search_action_detail = None;
+        self.search_action_reset_after_publish = false;
+        true
+    }
+
+    fn reset_search_action_ready(&mut self) {
+        if self.search_action_state != crate::mcp::action::ClickCompletionState::Pending {
+            self.search_action_state = crate::mcp::action::ClickCompletionState::Ready;
+            self.search_action_target = None;
+            self.search_action_context = None;
+            self.search_action_semantic = None;
+            self.search_action_error = None;
+            self.search_action_detail = None;
+            self.search_action_reset_after_publish = false;
+        }
+    }
+
+    fn complete_search_action(&mut self, detail: String) {
+        if self.search_action_state == crate::mcp::action::ClickCompletionState::Pending {
+            self.search_action_state = crate::mcp::action::ClickCompletionState::Applied;
+            self.search_action_detail = Some(detail);
+        }
+    }
+
+    fn fail_search_action(&mut self, error: String) {
+        if self.search_action_state == crate::mcp::action::ClickCompletionState::Pending {
+            self.search_action_state = crate::mcp::action::ClickCompletionState::Failed;
+            self.search_action_error = Some(error);
+        }
+    }
+
+    fn search_target_completion_value(
+        &self,
+        observer_author_id: &str,
+        context: &str,
+    ) -> Option<String> {
+        let declaration_context = self.search_action_context.as_deref().unwrap_or(context);
+        let semantic = self
+            .search_action_semantic
+            .clone()
+            .unwrap_or_else(|| self.planned_search_action_semantic());
+        crate::mcp::action::serialize_persistent_observer_click_target(
+            SEARCH_COMPLETION_EFFECT,
+            declaration_context,
+            self.search_action_generation,
+            observer_author_id,
+            &semantic,
+        )
+    }
+
+    fn search_observer_completion_value(&self, context: &str) -> Option<String> {
+        let observer_context = self.search_action_context.as_deref().unwrap_or(context);
+        match self.search_action_state {
+            crate::mcp::action::ClickCompletionState::Ready => {
+                crate::mcp::action::serialize_observer_click_state(
+                    SEARCH_COMPLETION_EFFECT,
+                    observer_context,
+                    self.search_action_generation,
+                    self.search_action_state,
+                    None,
+                    None,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    SEARCH_COMPLETION_EFFECT,
+                    observer_context,
+                    self.search_action_generation,
+                    self.search_action_state,
+                    self.search_action_target.as_deref(),
+                    self.search_action_semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    SEARCH_COMPLETION_EFFECT,
+                    observer_context,
+                    self.search_action_generation,
+                    self.search_action_target.as_deref()?,
+                    self.search_action_semantic.as_deref()?,
+                    self.search_action_detail.as_deref().unwrap_or("{}"),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    SEARCH_COMPLETION_EFFECT,
+                    observer_context,
+                    self.search_action_generation,
+                    self.search_action_target.as_deref()?,
+                    self.search_action_semantic.as_deref()?,
+                    self.search_action_error
+                        .as_deref()
+                        .unwrap_or("search failed"),
+                    self.search_action_detail.as_deref(),
+                )
+            }
+        }
+    }
+
     /// Rebind the state machine to the active workspace. Read-only work is detached, but an old
     /// destructive Apply is cooperatively cancelled and retained until its stamped terminal delivery
     /// reports every commit/receipt.
@@ -1311,6 +1501,10 @@ impl FindInFilesPanelState {
         if let Some(cancel) = &self.active_apply_cancel {
             cancel.store(true, Ordering::Release);
         }
+        let search_was_pending =
+            self.search_action_state == crate::mcp::action::ClickCompletionState::Pending;
+        self.fail_search_action("workspace changed before search completion".to_owned());
+        self.search_action_reset_after_publish |= search_was_pending;
         let retained_apply_workspace = self
             .active_apply
             .as_ref()
@@ -1474,6 +1668,13 @@ impl FindInFilesPanelState {
     }
 
     fn invalidate_search_inputs(&mut self) {
+        let search_was_pending =
+            self.search_action_state == crate::mcp::action::ClickCompletionState::Pending;
+        self.fail_search_action("search inputs changed before search completion".to_owned());
+        self.search_action_reset_after_publish |= search_was_pending;
+        if !search_was_pending {
+            self.reset_search_action_ready();
+        }
         self.active_search = None;
         self.active_preview = None;
         // Keep the last completed result set and its producer key long enough for the mounted Preview
@@ -1523,6 +1724,22 @@ impl FindInFilesPanelState {
         for delivery in search_deliveries {
             if self.active_search.as_ref() == Some(&delivery.stamp) {
                 self.active_search = None;
+                let expected_semantic = self.search_action_semantic_for_stamp(&delivery.stamp);
+                let completion_matches = self.search_action_state
+                    == crate::mcp::action::ClickCompletionState::Pending
+                    && self.search_action_semantic.as_deref() == Some(expected_semantic.as_str());
+                let completion_outcome = match &delivery.outcome {
+                    Ok((hits, key)) if completion_matches => Ok(serde_json::json!({
+                        "workspace_id": delivery.stamp.workspace_id,
+                        "epoch": delivery.stamp.epoch,
+                        "sequence": delivery.stamp.sequence,
+                        "result_count": hits.len(),
+                        "result_set_key": key,
+                    })
+                    .to_string()),
+                    Ok(_) => Err("search completion identity drifted".to_owned()),
+                    Err(message) => Err(message.clone()),
+                };
                 match delivery.outcome {
                     Ok((hits, key)) => {
                         self.results = hits;
@@ -1537,6 +1754,10 @@ impl FindInFilesPanelState {
                 }
                 // A new (or cleared) result set invalidates the memoized visible-hit filter.
                 self.results_generation = self.results_generation.wrapping_add(1);
+                match completion_outcome {
+                    Ok(detail) => self.complete_search_action(detail),
+                    Err(error) => self.fail_search_action(error),
+                }
                 changed = true;
             }
         }
@@ -2257,8 +2478,10 @@ fn show_with_author_scope(
     callbacks: &mut FindInFilesCallbacks<'_>,
     secondary_pane_id: Option<&str>,
 ) {
-    state.poll_with_search_refresh(search_client, workspace_id);
-    if state.loading {
+    if !state.snapshot_capture_mode {
+        state.poll_with_search_refresh(search_client, workspace_id);
+    }
+    if state.loading && !state.snapshot_capture_mode {
         ui.ctx().request_repaint();
     }
 
@@ -2283,6 +2506,9 @@ fn show_with_author_scope(
     let tag_filter_author_id = scoped(TAG_FILTER_AUTHOR_ID);
     let path_filter_author_id = scoped(PATH_FILTER_AUTHOR_ID);
     let search_author_id = scoped(SEARCH_AUTHOR_ID);
+    let search_completion_author_id = scoped(SEARCH_COMPLETION_AUTHOR_ID);
+    let search_completion_context = state.search_completion_context(&search_author_id);
+    let query_completion_context = state.search_completion_context(&query_author_id);
     let preview_replace_author_id = scoped(PREVIEW_REPLACE_AUTHOR_ID);
     let apply_author_id = scoped(APPLY_AUTHOR_ID);
     let cancel_author_id = scoped(CANCEL_AUTHOR_ID);
@@ -2301,14 +2527,35 @@ fn show_with_author_scope(
         ui.ctx().accesskit_node_builder(resp.id, |node| {
             node.add_action(egui::accesskit::Action::SetValue);
         });
-        let query_set_via_accesskit =
-            crate::mcp::accesskit_string_set_value(ui, resp.id).map(|value| {
-                state.query = value;
-                ui.ctx().request_repaint();
-            });
+        let query_set_via_accesskit = crate::mcp::accesskit_string_set_value(ui, resp.id);
+        if let Some(value) = query_set_via_accesskit.as_ref() {
+            state.query.clone_from(value);
+            if let Some(generation) = state.query_set_value_generation.checked_add(1) {
+                state.query_set_value_generation = generation;
+                state.query_set_value_applied = Some(value.clone());
+            }
+            ui.ctx().request_repaint();
+        }
         if resp.changed() || query_set_via_accesskit.is_some() {
             state.invalidate_search_inputs();
         }
+        let completion_author_id =
+            crate::mcp::action::set_value_completion_author_id(&query_author_id);
+        let completion_value = crate::mcp::action::serialize_set_value_completion(
+            &query_author_id,
+            &query_completion_context,
+            state.query_set_value_generation,
+            state.query_set_value_applied.as_deref(),
+        );
+        let completion_id = ui.make_persistent_id(&completion_author_id);
+        ui.ctx().accesskit_node_builder(completion_id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(completion_author_id.clone());
+            node.set_label("Find query SetValue completion");
+            if let Some(value) = completion_value {
+                node.set_value(value);
+            }
+        });
         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             fire_search = true;
         }
@@ -2362,11 +2609,32 @@ fn show_with_author_scope(
             egui::Button::new("Search"),
         );
         accessibility::emit_interactive_node(ui.ctx(), search_btn.id, &search_author_id);
+        let search_target_completion = state.search_target_completion_value(
+            &search_completion_author_id,
+            &search_completion_context,
+        );
+        ui.ctx().accesskit_node_builder(search_btn.id, |node| {
+            if let Some(value) = search_target_completion {
+                node.set_value(value);
+            }
+        });
         if search_btn.clicked() {
             fire_search = true;
         }
     });
 
+    let search_observer_completion =
+        state.search_observer_completion_value(&search_completion_context);
+    let search_completion_id = ui.make_persistent_id(&search_completion_author_id);
+    ui.ctx()
+        .accesskit_node_builder(search_completion_id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(search_completion_author_id.clone());
+            node.set_label("Find search action completion");
+            if let Some(value) = search_observer_completion {
+                node.set_value(value);
+            }
+        });
     // ── Replacement + replace actions ──
     ui.horizontal(|ui| {
         let replacement_enabled = !state.apply_in_flight();
@@ -2699,7 +2967,33 @@ fn show_with_author_scope(
         state.request_cancel();
     }
     if fire_search {
-        state.run_search(search_client, workspace_id);
+        let semantic = state.planned_search_action_semantic();
+        let observer_started = state.begin_search_action(
+            search_author_id.clone(),
+            search_completion_context.clone(),
+            semantic.clone(),
+        );
+        let search_started = state.run_search(search_client, workspace_id);
+        if observer_started {
+            if search_started {
+                let actual_semantic = state
+                    .active_search
+                    .as_ref()
+                    .map(|stamp| state.search_action_semantic_for_stamp(stamp));
+                if actual_semantic.as_deref() != Some(semantic.as_str()) {
+                    state.fail_search_action(
+                        "search request stamp drifted before dispatch".to_owned(),
+                    );
+                }
+            } else {
+                state.fail_search_action(
+                    state
+                        .error
+                        .clone()
+                        .unwrap_or_else(|| "search did not start".to_owned()),
+                );
+            }
+        }
     }
     if fire_preview {
         state.run_preview_replace(doc_client, workspace_id);
@@ -2922,7 +3216,9 @@ impl PaneFactory for FindInFilesPaneFactory {
         let state = states
             .get_mut(&ctx.record.pane_id)
             .expect("pane state inserted immediately above");
-        if state.bind_workspace(workspace_id.as_deref(), workspace_generation) {
+        if !state.snapshot_capture_mode
+            && state.bind_workspace(workspace_id.as_deref(), workspace_generation)
+        {
             let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             guard
                 .open_requests
@@ -2930,7 +3226,9 @@ impl PaneFactory for FindInFilesPaneFactory {
         }
 
         // Load the workspace's bookmarks exactly once per workspace (the React mount-effect).
-        let needs_bookmark_load = {
+        let needs_bookmark_load = if state.snapshot_capture_mode {
+            false
+        } else {
             let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             let binding = (workspace_id.clone(), workspace_generation);
             if guard.bookmarks_loaded_for.get(&ctx.record.pane_id) != Some(&binding) {
@@ -4174,5 +4472,115 @@ mod tests {
             !state.poll(),
             "old completions cannot be accepted after restore"
         );
+    }
+
+    #[test]
+    fn search_action_observer_completes_only_for_matching_stamped_delivery() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "needle".to_owned();
+        let target = SEARCH_AUTHOR_ID.to_owned();
+        let context = state.search_completion_context(&target);
+        let semantic = state.planned_search_action_semantic();
+        assert!(state.begin_search_action(target.clone(), context, semantic.clone()));
+        let stamp = state.next_stamp("A", FindInFilesOperation::Search);
+        assert_eq!(state.search_action_semantic_for_stamp(&stamp), semantic);
+        state.active_search = Some(stamp.clone());
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: stamp.clone(),
+                outcome: Ok((Vec::new(), state.current_search_key())),
+            });
+        assert!(state.poll());
+        assert_eq!(
+            state.search_action_state,
+            crate::mcp::action::ClickCompletionState::Applied
+        );
+        assert!(state
+            .search_action_detail
+            .as_deref()
+            .is_some_and(|detail| detail.contains(&format!("\"sequence\":{}", stamp.sequence))));
+    }
+
+    #[test]
+    fn stale_and_failed_search_deliveries_cannot_false_apply() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "needle".to_owned();
+        let context = state.search_completion_context(SEARCH_AUTHOR_ID);
+        let semantic = state.planned_search_action_semantic();
+        assert!(state.begin_search_action(SEARCH_AUTHOR_ID.to_owned(), context, semantic));
+        let stale = state.next_stamp("A", FindInFilesOperation::Search);
+        let current = state.next_stamp("A", FindInFilesOperation::Search);
+        state.active_search = Some(current.clone());
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: stale,
+                outcome: Ok((Vec::new(), "stale".to_owned())),
+            });
+        assert!(!state.poll());
+        assert_eq!(
+            state.search_action_state,
+            crate::mcp::action::ClickCompletionState::Pending
+        );
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: current,
+                outcome: Err("backend search failed".to_owned()),
+            });
+        assert!(state.poll());
+        assert_eq!(
+            state.search_action_state,
+            crate::mcp::action::ClickCompletionState::Failed
+        );
+        assert_eq!(
+            state.search_action_error.as_deref(),
+            Some("backend search failed")
+        );
+    }
+
+    #[test]
+    fn workspace_rebind_retains_failed_context_until_terminal_snapshot_ack() {
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "needle".to_owned();
+        let old_context = state.search_completion_context(SEARCH_AUTHOR_ID);
+        let semantic = state.planned_search_action_semantic();
+        assert!(state.begin_search_action(
+            SEARCH_AUTHOR_ID.to_owned(),
+            old_context.clone(),
+            semantic
+        ));
+
+        state.bind_workspace(Some("B"), 2);
+        assert_eq!(
+            state.search_action_state,
+            crate::mcp::action::ClickCompletionState::Failed
+        );
+        let new_context = state.search_completion_context(SEARCH_AUTHOR_ID);
+        assert_ne!(new_context, old_context);
+        let observer = state
+            .search_observer_completion_value(&new_context)
+            .expect("failed observer remains serializable");
+        assert!(observer.contains(&old_context));
+        state.acknowledge_action_terminal_snapshot();
+        assert_eq!(
+            state.search_action_state,
+            crate::mcp::action::ClickCompletionState::Ready
+        );
+        assert!(state.search_action_context.is_none());
     }
 }
