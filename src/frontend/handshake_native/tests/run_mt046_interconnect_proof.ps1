@@ -1401,7 +1401,9 @@ try {
         throw 'MT-046 canonical Argus trace or screenshot marker is missing'
     }
     $traceRows = @(Get-Content -LiteralPath $tracePath | ForEach-Object { $_ | ConvertFrom-Json })
-    $expectedTraceCount = @($argusMatrix | Measure-Object -Property target_count -Sum).Sum
+    $expectedTraceCount = ($argusMatrix |
+        ForEach-Object { [int]$_['target_count'] } |
+        Measure-Object -Sum).Sum
     if ($traceRows.Count -ne $expectedTraceCount -or @($traceRows | Where-Object {
         $_.run_id -cne $RunId -or $_.source_sha -cne $sourceSha -or
         $_.terminal_refreshed -ne $true -or $_.receipt_status -notin @('applied', 'rejected') -or
@@ -1433,7 +1435,9 @@ try {
         }
     }
     $markers = @(Get-Content -LiteralPath $markerPath | ForEach-Object { $_ | ConvertFrom-Json })
-    $expectedFrameCount = @($argusMatrix | Measure-Object -Property frame_count -Sum).Sum
+    $expectedFrameCount = ($argusMatrix |
+        ForEach-Object { [int]$_['frame_count'] } |
+        Measure-Object -Sum).Sum
     if ($markers.Count -ne $expectedFrameCount -or @($markers | Where-Object {
         $_.mt_id -cne 'MT-046' -or $_.run_id -cne $RunId -or $_.status -cne 'CAPTURED'
     }).Count -ne 0) {
