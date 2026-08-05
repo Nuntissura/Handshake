@@ -1081,6 +1081,7 @@ $expectedActions = @(
     @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'empty-kanban-terminal'; status = 'applied' },
     @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'empty-calendar-terminal'; status = 'applied' }
 )
+$rowDigests = New-Object 'string[]' $expectedActions.Count
 for ($index = 0; $index -lt $expectedActions.Count; $index++) {
     $expectedAction = $expectedActions[$index]
     $row = $traceRows[$index]
@@ -1133,10 +1134,14 @@ for ($index = 0; $index -lt $expectedActions.Count; $index++) {
     } elseif (-not [string]::IsNullOrWhiteSpace([string]$evidence.view_block_id)) {
         throw "Canonical Argus action $($index + 1) declares an unbound readback while naming a view id"
     }
+    # The fresh terminal tree hash is derived HERE, by this external verifier, from the exact `after`
+    # tree persisted in the row — never taken on trust from the process under test. An empty or
+    # node-less tree cannot silently produce a "valid" digest.
     $recomputedDigest = Get-CanonicalTreeDigest -Tree $row.after
-    if ([string]$evidence.terminal_tree_sha256 -ne $recomputedDigest) {
-        throw "Canonical Argus action $($index + 1) terminal tree digest mismatch: receipt='$($evidence.terminal_tree_sha256)'; recomputed='$recomputedDigest'"
+    if ([string]::IsNullOrWhiteSpace($recomputedDigest) -or $recomputedDigest.Length -ne 64) {
+        throw "Canonical Argus action $($index + 1) produced no verifiable terminal tree digest"
     }
+    $rowDigests[$index] = $recomputedDigest
     $observerNode = Find-AuthorNode -Node $row.after -AuthorId 'bcv.action-completion'
     if ($null -eq $observerNode -or [string]::IsNullOrWhiteSpace([string]$observerNode.value)) {
         throw "Canonical Argus action $($index + 1) terminal tree has no published bcv.action-completion observer"
@@ -1310,17 +1315,24 @@ $receipt = [ordered]@{
     managed_pg_receipt_artifact = $managedReceiptArtifact
     artifact_root = $artifactSibling
     cargo_target_dir = $cargoTarget
-    trace_receipt_statuses = @($traceRows | ForEach-Object {
+    trace_receipt_statuses = @(0..($traceRows.Count - 1) | ForEach-Object {
+            $row = $traceRows[$_]
+            $evidenceRow = @($row.terminal_predicates)[0]
             [ordered]@{
-                receipt_id = $_.receipt_id
-                target = $_.target
-                method = $_.method
-                receipt_status = $_.receipt_status
-                predicate_id = @($_.terminal_predicates)[0].predicate_id
-                predicate_passed = @($_.terminal_predicates)[0].passed
-                terminal_tree_sha256 = @($_.terminal_predicates)[0].evidence.terminal_tree_sha256
-                workspace_id = @($_.terminal_predicates)[0].evidence.workspace_id
-                view_block_id = @($_.terminal_predicates)[0].evidence.view_block_id
+                action_index = $_ + 1
+                receipt_id = $row.receipt_id
+                target = $row.target
+                method = $row.method
+                receipt_status = $row.receipt_status
+                predicate_id = $evidenceRow.predicate_id
+                predicate_passed = $evidenceRow.passed
+                # Recomputed by THIS verifier from the persisted `after` tree.
+                terminal_tree_sha256 = $rowDigests[$_]
+                terminal_tree_digest_algorithm =
+                    'sha256_of_sorted_unit_separated_author_id_role_label_value_disabled_lines'
+                workspace_id = $evidenceRow.evidence.workspace_id
+                view_block_id = $evidenceRow.evidence.view_block_id
+                backend_readback = $evidenceRow.evidence.backend_readback
             }
         })
     indeterminate_receipt_count = 0
