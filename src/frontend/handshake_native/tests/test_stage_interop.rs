@@ -550,6 +550,11 @@ struct LiveWorkspaceGuard<'a> {
     stage_job_ids: Vec<String>,
     stage_event_ids: Vec<String>,
     workspace_deleted: bool,
+    /// MT-066 V4: which cleanup phases have already run to completion. Drop recovery consults
+    /// this so an explicit `finish_and_assert_zero()` panic is not followed by a second identical
+    /// panic + backtrace from `Drop`, which previously obscured the primary defect.
+    native_fr_cleanup_done: bool,
+    stage_side_effect_cleanup_done: bool,
 }
 
 impl LiveWorkspaceGuard<'_> {
@@ -581,9 +586,10 @@ impl LiveWorkspaceGuard<'_> {
     }
 
     fn cleanup_native_fr_ledger(&mut self) {
-        let rows = self
-            .backend
-            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        let rows = self.backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", self.workspace_id),
+            &live_binding_session_token(),
+        );
         for row in rows.as_array().into_iter().flatten() {
             if matches!(
                 row["payload"]["kind"].as_str(),
@@ -639,6 +645,7 @@ impl LiveWorkspaceGuard<'_> {
         let artifacts = Self::sql_text_array(&self.stage_artifact_ids);
         let jobs = Self::sql_text_array(&self.stage_job_ids);
         let events = Self::sql_text_array(&self.stage_event_ids);
+        let detach_ledger_references = Self::DETACH_LEDGER_REFERENCES_SQL;
         self.backend.run_fixture_sql(
             "mt066-stage-side-effect-cleanup",
             &format!(
@@ -662,6 +669,7 @@ impl LiveWorkspaceGuard<'_> {
                           OR event_id IN (SELECT event_ledger_event_id \
                                           FROM mt066_stage_cleanup_artifacts \
                                           WHERE event_ledger_event_id IS NOT NULL); \
+                 {detach_ledger_references} \
                  DELETE FROM stage_capture_artifacts \
                  WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}'; \
                  DELETE FROM kernel_event_ledger \
@@ -698,9 +706,71 @@ impl LiveWorkspaceGuard<'_> {
         self.stage_event_ids.clear();
     }
 
+    /// MT-066 V4 remediation item 2: detach EVERY row that references the ledger events we are
+    /// about to delete, derived DYNAMICALLY from `pg_constraint` rather than from a hard-coded list.
+    ///
+    /// The V3 failure deleted `kernel_event_ledger` rows while workspace-owned rows still pointed at
+    /// them, so the delete tripped a foreign-key constraint. The validator explicitly warned against
+    /// hard-coding only the two constraints observed in those runs
+    /// (`loom_canvas_boards.event_ledger_event_id` and `loom_block_knowledge_bridge.index_event_id`).
+    /// That warning is well founded: a live schema inspection during this remediation found
+    /// **68** foreign keys targeting `kernel_event_ledger`, of which 53 are `RESTRICT` and 14 are
+    /// `NO ACTION` — i.e. 67 of them can block a ledger delete. Any literal list would therefore be
+    /// incomplete the day it is written and would silently rot as new tables are added.
+    ///
+    /// This walks `pg_constraint` at runtime, nulls every nullable referencing column, and deletes
+    /// rows whose referencing column is NOT NULL (they cannot survive without their event). It stays
+    /// scoped to the exact set of events this cleanup is about to remove — never a TRUNCATE, never a
+    /// broad source-component delete — because parallel work-packet agents share this PostgreSQL
+    /// server.
+    ///
+    /// Two properties are load-bearing and were BOTH wrong in the first V4 draft:
+    ///
+    /// 1. `kernel_event_ledger.event_id` is `text`, not `uuid`, and its live values are typed
+    ///    `KE-<uuid>` strings. Every one of the 68 referencing columns is therefore also `text`.
+    ///    Casting the scoped id array to `uuid[]` made PostgreSQL reject the statement outright with
+    ///    `operator does not exist: text = uuid`, and a real `KE-…` id additionally fails
+    ///    `invalid input syntax for type uuid`. The comparison must stay in `text`.
+    /// 2. The detached set must be the SAME set the delete removes. Scoping the detach to only the
+    ///    explicitly tracked ids while the delete also removes workspace-matched and
+    ///    idempotency-key-matched events would leave exactly the RESTRICT window the V3 run tripped
+    ///    over. It therefore drives `mt066_stage_cleanup_events`, the temp table built immediately
+    ///    above it inside the same transaction.
+    const DETACH_LEDGER_REFERENCES_SQL: &'static str = "DO $mt066_detach$ \
+         DECLARE r RECORD; \
+         BEGIN \
+           FOR r IN \
+             SELECT c.conrelid::regclass::text AS tbl, \
+                    a.attname               AS col, \
+                    a.attnotnull            AS notnull \
+             FROM pg_constraint c \
+             JOIN LATERAL unnest(c.conkey) AS k(attnum) ON true \
+             JOIN pg_attribute a \
+               ON a.attrelid = c.conrelid AND a.attnum = k.attnum \
+             WHERE c.contype = 'f' \
+               AND c.confrelid = 'kernel_event_ledger'::regclass \
+           LOOP \
+             IF r.notnull THEN \
+               EXECUTE format('DELETE FROM %s WHERE %I IN (SELECT event_id FROM \
+                               mt066_stage_cleanup_events WHERE event_id IS NOT NULL)', \
+                              r.tbl, r.col); \
+             ELSE \
+               EXECUTE format('UPDATE %s SET %I = NULL WHERE %I IN (SELECT event_id FROM \
+                               mt066_stage_cleanup_events WHERE event_id IS NOT NULL)', \
+                              r.tbl, r.col, r.col); \
+             END IF; \
+           END LOOP; \
+         END $mt066_detach$;";
+
     fn cleanup_all_and_assert_zero(&mut self) {
-        self.cleanup_native_fr_ledger();
-        self.cleanup_stage_side_effects_and_assert_zero();
+        if !self.native_fr_cleanup_done {
+            self.cleanup_native_fr_ledger();
+            self.native_fr_cleanup_done = true;
+        }
+        if !self.stage_side_effect_cleanup_done {
+            self.cleanup_stage_side_effects_and_assert_zero();
+            self.stage_side_effect_cleanup_done = true;
+        }
     }
 
     fn delete_workspace_and_assert_absent(&mut self) {
@@ -712,9 +782,10 @@ impl LiveWorkspaceGuard<'_> {
             (200..300).contains(&status) || status == 404,
             "MT-066 managed workspace cleanup returned {status}"
         );
-        let rows = self
-            .backend
-            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        let rows = self.backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", self.workspace_id),
+            &live_binding_session_token(),
+        );
         assert!(
             rows.as_array().is_some_and(Vec::is_empty),
             "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
@@ -722,30 +793,89 @@ impl LiveWorkspaceGuard<'_> {
         self.workspace_deleted = true;
     }
 
+    /// MT-066 V4 remediation item 4: canonical entity cleanup FIRST, then Stage/FR residue, then
+    /// the read-only zero assertions.
+    ///
+    /// The V3 ordering ran the explicit SQL residue cleanup before the workspace DELETE, so it tried
+    /// to remove `kernel_event_ledger` rows while workspace-owned rows (Canvas boards, knowledge
+    /// bridge rows, and 65 other referencing columns) still pointed at them under RESTRICT. The
+    /// product's own workspace DELETE API is the authoritative cascade boundary, so it goes first and
+    /// is allowed to own everything it owns; only the residue the API does NOT own is then removed
+    /// explicitly.
     fn finish_and_assert_zero(&mut self) {
-        self.cleanup_all_and_assert_zero();
         self.delete_workspace_and_assert_absent();
+        self.cleanup_all_and_assert_zero();
     }
 }
 
 impl Drop for LiveWorkspaceGuard<'_> {
+    /// MT-066 V4 remediation item 5: bounded, idempotent, NON-DUPLICATIVE recovery.
+    ///
+    /// Previously `Drop` unconditionally re-ran both cleanup phases. When `finish_and_assert_zero()`
+    /// had already panicked, `Drop` re-ran the same failing SQL and emitted a SECOND identical panic
+    /// and backtrace, which buried the primary defect under its own echo. Now each phase is guarded
+    /// by the completion flags, so `Drop` performs a best-effort recovery only for phases that never
+    /// ran, and it orders the workspace DELETE first for the same foreign-key reason as
+    /// `finish_and_assert_zero`. A deterministic diagnostic is preserved either way.
     fn drop(&mut self) {
-        let cleanup_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.cleanup_all_and_assert_zero();
-        }));
+        let already_panicking = std::thread::panicking();
+
         let workspace_cleanup_result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 self.delete_workspace_and_assert_absent();
             }));
-        if !std::thread::panicking() {
-            if let Err(payload) = cleanup_result {
-                std::panic::resume_unwind(payload);
+        let cleanup_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.cleanup_all_and_assert_zero();
+        }));
+
+        if already_panicking {
+            // The primary failure is already unwinding. Do not raise a second panic on top of it;
+            // emit a deterministic diagnostic so the recovery attempt is still visible in the log.
+            if workspace_cleanup_result.is_err() || cleanup_result.is_err() {
+                eprintln!(
+                    "MT-066 LiveWorkspaceGuard drop-recovery could not fully clean workspace {} \
+                     (workspace_delete_ok={}, residue_cleanup_ok={}); the ORIGINAL panic above is \
+                     the primary defect and is not masked by this recovery attempt.",
+                    self.workspace_id,
+                    workspace_cleanup_result.is_ok(),
+                    cleanup_result.is_ok()
+                );
             }
-            if let Err(payload) = workspace_cleanup_result {
-                std::panic::resume_unwind(payload);
-            }
+            return;
+        }
+
+        if let Err(payload) = workspace_cleanup_result {
+            std::panic::resume_unwind(payload);
+        }
+        if let Err(payload) = cleanup_result {
+            std::panic::resume_unwind(payload);
         }
     }
+}
+
+/// WP-KERNEL-012 MT-109 put fail-closed capability middleware over the ENTIRE Flight Recorder route
+/// group: `GET /api/flight_recorder` now requires a live native-MCP binding token whose recorded
+/// owner is still the process the OS says it is, plus the `fr.read` capability.
+///
+/// These proofs already publish a REAL binding (`stage_binding_proof`), so every recorder read here
+/// presents that exact on-disk credential — the same `x-hsk-session-token` the mounted native client
+/// sends. Nothing about the authorization is weakened, bypassed, feature-gated, or stubbed: a
+/// missing, forged, or stale binding still fails closed with `HSK-401-FR-SESSION`.
+fn live_binding_session_token() -> String {
+    let path = handshake_native::mcp::binding_path();
+    let bytes = std::fs::read(&path).unwrap_or_else(|error| {
+        panic!(
+            "MT-109 capability-gated Flight Recorder read requires the live native-MCP binding at \
+             {}: {error}",
+            path.display()
+        )
+    });
+    let binding: serde_json::Value = serde_json::from_slice(&bytes)
+        .unwrap_or_else(|error| panic!("parse live native-MCP binding {}: {error}", path.display()));
+    binding["token"]
+        .as_str()
+        .expect("live native-MCP binding carries a session token")
+        .to_owned()
 }
 
 fn wait_for_native_fr(
@@ -756,7 +886,10 @@ fn wait_for_native_fr(
 ) -> serde_json::Value {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
-        let rows = backend.get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+        let rows = backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={workspace_id}"),
+            &live_binding_session_token(),
+        );
         if let Some(row) = rows.as_array().and_then(|rows| {
             rows.iter()
                 .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
@@ -1249,6 +1382,8 @@ fn live_route_round_trip_real_pg() {
         stage_job_ids: Vec::new(),
         stage_event_ids: Vec::new(),
         workspace_deleted: false,
+        native_fr_cleanup_done: false,
+        stage_side_effect_cleanup_done: false,
     };
 
     let exact_text = "MT-066 exact Stage bytes: café / LF\nsecond line";
@@ -1424,9 +1559,10 @@ fn live_route_round_trip_real_pg() {
         .clone()
         .expect("retained route carries immutable causal action id");
     let retained_route_event_id = retained_route.receipt.event_id.clone();
-    let before_retry_rows = cleanup
-        .backend
-        .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let before_retry_rows = cleanup.backend.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={workspace_id}"),
+        &live_binding_session_token(),
+    );
     assert!(
         before_retry_rows
             .as_array()
@@ -1483,9 +1619,10 @@ fn live_route_round_trip_real_pg() {
             && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
     });
     cleanup.track_native_fr(&route_row);
-    let route_rows_before_restart = cleanup
-        .backend
-        .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let route_rows_before_restart = cleanup.backend.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={workspace_id}"),
+        &live_binding_session_token(),
+    );
     let route_dispatches_before_restart = route_rows_before_restart
         .as_array()
         .expect("pre-restart Flight Recorder rows")
@@ -1723,9 +1860,10 @@ fn live_route_round_trip_real_pg() {
         "the exact embed-back event is strictly later than its exact route event"
     );
     std::thread::sleep(std::time::Duration::from_millis(100));
-    let rows = cleanup
-        .backend
-        .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let rows = cleanup.backend.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={workspace_id}"),
+        &live_binding_session_token(),
+    );
     let route_dispatches = rows
         .as_array()
         .expect("Flight Recorder rows")
@@ -1939,6 +2077,8 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         stage_job_ids: Vec::new(),
         stage_event_ids: Vec::new(),
         workspace_deleted: false,
+        native_fr_cleanup_done: false,
+        stage_side_effect_cleanup_done: false,
     };
     let canvas = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
@@ -3021,4 +3161,189 @@ fn author_under(root: &egui_kittest::Node<'_>, child_author: &str, ancestor_auth
         }
     }
     false
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// MT-066 V4 remediation item 6: focused regression fixtures for BOTH reproduced foreign-key paths.
+//
+// The V3 failure was a foreign-key violation while deleting `kernel_event_ledger` rows that
+// workspace-owned rows still referenced. The validator named two concrete constraints and warned
+// against hard-coding only those two. A live schema inspection during this remediation found 68
+// foreign keys targeting `kernel_event_ledger` (53 RESTRICT, 14 NO ACTION), so `detach_ledger_references`
+// derives the referencing set DYNAMICALLY from `pg_constraint`.
+//
+// These two fixtures pin the exact paths the validator reproduced. Each seeds a real referencing row
+// against a real tracked ledger event, then requires cleanup to finish with ZERO scoped rows and NO
+// constraint failure.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/// Seeds a Canvas board whose `event_ledger_event_id` references a tracked event (the first
+/// constraint the validator hit), then proves cleanup completes with zero residue.
+#[test]
+fn mt066_canvas_board_event_ledger_reference_does_not_block_cleanup() {
+    let _binding_env_guard = BINDING_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    mt066_ledger_reference_regression(
+        "loom_canvas_boards",
+        "event_ledger_event_id",
+        "mt066-canvas-board-fk",
+    );
+}
+
+/// Seeds a `loom_block_knowledge_bridge` row whose `index_event_id` references a tracked event (the
+/// second constraint the validator hit), then proves cleanup completes with zero residue.
+#[test]
+fn mt066_knowledge_bridge_index_event_reference_does_not_block_cleanup() {
+    let _binding_env_guard = BINDING_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    mt066_ledger_reference_regression(
+        "loom_block_knowledge_bridge",
+        "index_event_id",
+        "mt066-knowledge-bridge-fk",
+    );
+}
+
+/// Shared body for the two regression fixtures.
+///
+/// Deliberately parameterised by (table, column) rather than duplicated, because the DEFECT class is
+/// "some row references a tracked ledger event", not "these two tables specifically". Adding a third
+/// path is one call, and the dynamic detach already covers the other 66 constraints.
+fn mt066_ledger_reference_regression(table: &str, column: &str, label: &str) {
+    // MT-109 made the Flight Recorder route group fail-closed, and this fixture's cleanup reads
+    // `GET /api/flight_recorder`. Publish a REAL native-MCP binding for this exact process (real
+    // pid, real OS-issued process-birth identity) BEFORE the owned backend is selected, so the child
+    // inherits the same isolated app-data root and authenticates the genuine credential.
+    let session_token = format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    );
+    let _binding = stage_binding_proof::StageBindingGuard::install(&session_token, label);
+
+    let mut backend = interconnect_support::require_reachable_backend();
+    let workspace = backend.create_workspace(&format!("{label}-{}", uuid::Uuid::new_v4().simple()));
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+
+    // A REAL ledger identity: `kernel_event_ledger.event_id` is `text` carrying `KE-<uuid>` values,
+    // not a `uuid` column. Seeding a bare UUID here would have hidden the `::uuid[]` cast defect the
+    // detach originally shipped with, so the fixture uses the production id shape on purpose.
+    let event_id = format!("KE-{}", uuid::Uuid::new_v4());
+    let block_id = format!("LB-{}", uuid::Uuid::new_v4().simple());
+    let entity_id = format!("KEN-{}", uuid::Uuid::new_v4().simple());
+    let ws_sql = workspace_id.replace('\'', "''");
+
+    // The referencing row the validator actually hit. `loom_canvas_boards.event_ledger_event_id` and
+    // `loom_block_knowledge_bridge.index_event_id` are both NOT NULL RESTRICT foreign keys, so the
+    // row cannot exist without its event and the ledger delete cannot proceed while it does.
+    let reference_sql = match table {
+        "loom_canvas_boards" => format!(
+            "INSERT INTO loom_canvas_boards \
+               (block_id, workspace_id, board_state, event_ledger_event_id) \
+             VALUES ('{block_id}', '{ws_sql}', \
+                     jsonb_build_object('schema_id', 'hsk.loom_canvas_board@1'), '{event_id}'); "
+        ),
+        "loom_block_knowledge_bridge" => format!(
+            "INSERT INTO knowledge_entities \
+               (entity_id, workspace_id, entity_kind, entity_key, display_name) \
+             VALUES ('{entity_id}', '{ws_sql}', 'loom_block', '{block_id}', \
+                     'MT-066 regression entity'); \
+             INSERT INTO loom_block_knowledge_bridge \
+               (block_id, workspace_id, entity_id, index_event_id) \
+             VALUES ('{block_id}', '{ws_sql}', '{entity_id}', '{event_id}'); "
+        ),
+        other => panic!("MT-066 regression fixture has no seed for referencing table {other}"),
+    };
+
+    // Seed the real ledger event, its owning Loom block, and the real referencing row in ONE
+    // transaction. Every NOT NULL ledger column is populated: the first V4 draft omitted nine of
+    // them and the seed died on `null value in column "event_version"`, which meant the fixture
+    // could never reach the behaviour it claimed to prove.
+    backend.run_fixture_sql(
+        &format!("{label}-seed"),
+        &format!(
+            "BEGIN; \
+             INSERT INTO kernel_event_ledger \
+               (event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, \
+                aggregate_id, idempotency_key, event_type, actor_kind, actor_id, payload_hash, \
+                source_component, payload) \
+             VALUES ('{event_id}', '1', 'mt066-fk-regression-task', 'mt066-fk-regression-session', \
+                     'stage_capture', '{ws_sql}', 'stage-capture:{ws_sql}:{label}', \
+                     'stage.capture.recorded', 'operator', 'mt066-fk-regression', \
+                     'mt066-fk-regression-payload-hash', 'stage_capture_api', \
+                     jsonb_build_object('workspace_id', '{ws_sql}', 'kind', '{label}')); \
+             INSERT INTO loom_blocks (block_id, workspace_id, content_type, title) \
+             VALUES ('{block_id}', '{ws_sql}', 'note', 'MT-066 regression block'); \
+             {reference_sql} \
+             COMMIT;"
+        ),
+    );
+
+    let mut cleanup = LiveWorkspaceGuard {
+        backend: &mut backend,
+        workspace_id: workspace_id.clone(),
+        native_fr_event_ids: Vec::new(),
+        stage_artifact_ids: Vec::new(),
+        stage_job_ids: Vec::new(),
+        stage_event_ids: vec![event_id.clone()],
+        workspace_deleted: false,
+        native_fr_cleanup_done: false,
+        stage_side_effect_cleanup_done: false,
+    };
+
+    // Prove the referencing constraint exists and points where the validator said it does. If the
+    // schema ever drops it, this fixture must fail loudly rather than silently proving nothing.
+    cleanup.backend.run_fixture_sql(
+        &format!("{label}-assert-constraint-exists"),
+        &format!(
+            "DO $mt066_assert_fk$ BEGIN \
+               IF NOT EXISTS ( \
+                 SELECT 1 FROM pg_constraint c \
+                 JOIN LATERAL unnest(c.conkey) AS k(attnum) ON true \
+                 JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum \
+                 WHERE c.contype = 'f' \
+                   AND c.confrelid = 'kernel_event_ledger'::regclass \
+                   AND c.conrelid = '{table}'::regclass \
+                   AND a.attname = '{column}') \
+               THEN RAISE EXCEPTION \
+                 'MT-066 regression fixture is vacuous: {table}.{column} no longer references kernel_event_ledger'; \
+               END IF; \
+               IF NOT EXISTS (SELECT 1 FROM {table} WHERE {column} = '{event_id}') \
+               THEN RAISE EXCEPTION \
+                 'MT-066 regression fixture is vacuous: no {table}.{column} row references the tracked event'; \
+               END IF; \
+             END $mt066_assert_fk$;"
+        ),
+    );
+
+    // The actual regression, in the EXACT order the V3 run failed: remove the Stage/Flight-Recorder
+    // residue (which deletes `kernel_event_ledger` rows) while the workspace-owned referencing row is
+    // still present. Without the dynamic detach this raises
+    // "update or delete on table kernel_event_ledger violates foreign key constraint".
+    cleanup.cleanup_all_and_assert_zero();
+    // Then the canonical finish path. The completion flags make the residue phases idempotent, so
+    // this performs the product-owned workspace DELETE and re-asserts absence.
+    cleanup.finish_and_assert_zero();
+
+    // Independent read-only confirmation that both the tracked event and its referencing row are
+    // gone. `event_id` is text, so no cast: a `::uuid` cast here would reject a real `KE-…` id.
+    cleanup.backend.run_fixture_sql(
+        &format!("{label}-assert-zero"),
+        &format!(
+            "DO $mt066_zero$ BEGIN \
+               IF EXISTS (SELECT 1 FROM kernel_event_ledger WHERE event_id = '{event_id}') \
+               THEN RAISE EXCEPTION 'MT-066 {label}: tracked ledger event survived cleanup'; END IF; \
+               IF EXISTS (SELECT 1 FROM {table} WHERE {column} = '{event_id}') \
+               THEN RAISE EXCEPTION 'MT-066 {label}: referencing {table} row survived cleanup'; END IF; \
+               IF EXISTS (SELECT 1 FROM loom_blocks WHERE block_id = '{block_id}') \
+               THEN RAISE EXCEPTION 'MT-066 {label}: scoped Loom block survived cleanup'; END IF; \
+             END $mt066_zero$;"
+        ),
+    );
+
+    println!("MT-066 regression OK: {table}.{column} reference did not block scoped cleanup");
 }
