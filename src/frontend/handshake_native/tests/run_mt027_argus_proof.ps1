@@ -227,27 +227,67 @@ if (Test-Path -LiteralPath $fixedManagedPgReceipt) {
 New-Item -ItemType Directory -Force -Path $proofRoot | Out-Null
 New-Item -ItemType Directory -Path $runDir | Out-Null
 $stageBindingRoot = Join-Path $runDir 'stage-binding'
-$runtimeArtifactsRoot = Join-Path $runDir 'fixture-artifacts'
 $argusBindingRoot = Join-Path $runDir 'argus-binding'
+# ── Owned-backend runtime root: deliberately SHALLOW (MAX_PATH), still run-scoped and cleaned ──────
+#
+# The fixture derives the owned backend's runtime directory from HANDSHAKE_ARTIFACTS_ROOT by appending
+# a FIXED 105-character suffix (`\wp-kernel-012\backend-runtime\r-<16>\s-<16>\<36-char uuid>`), and the
+# backend then opens `<runtime>\data\flight_recorder.db` through DuckDB. DuckDB is a C++ dependency: it
+# does not use Windows extended-length `\\?\` paths, so that file name is hard-bound by MAX_PATH (260).
+# Nesting the runtime root inside `integrated\<RunId>\fixture-artifacts` pushed the DuckDB file to 272
+# characters and the backend exited 1 with `Cannot open file ... flight_recorder.db` before publishing
+# its listen report — for ANY RunId, because the fixed overhead alone exceeds the budget.
+#
+# The runtime root therefore lives directly under the artifact sibling in a short run-scoped directory.
+# Containment is unchanged in strength: it stays inside the approved Handshake_Artifacts root, its
+# terminal component is exactly the RunId, it is reparse-point checked, and it is cleaned on both the
+# success and failure paths exactly like the other transient roots.
+$runtimeArtifactsParent = Join-Path $artifactSibling 'handshake-test\mt027-rt'
+New-Item -ItemType Directory -Force -Path $runtimeArtifactsParent | Out-Null
+$runtimeArtifactsRoot = Join-Path $runtimeArtifactsParent $RunId
+if (Test-Path -LiteralPath $runtimeArtifactsRoot) {
+    throw "RunId '$RunId' is not fresh: backend runtime root '$runtimeArtifactsRoot' already exists"
+}
 foreach ($containedRoot in @($stageBindingRoot, $runtimeArtifactsRoot, $argusBindingRoot)) {
     New-Item -ItemType Directory -Path $containedRoot | Out-Null
     Assert-NoReparsePointEscape -Path $containedRoot -Root $artifactSibling
 }
-# The fixture spawns the owned backend with its runtime directory as the child's WORKING DIRECTORY.
-# `CreateProcessW`'s `lpCurrentDirectory` is MAX_PATH-bound and does not accept `\\?\` extended paths,
-# so an over-long RunId produces a cryptic `os error 267` at spawn instead of a legible failure. The
-# fixture appends a FIXED-LENGTH suffix under HANDSHAKE_ARTIFACTS_ROOT:
-#   \wp-kernel-012\backend-runtime\r-<16 hex>\s-<16 hex>\<36-char uuid>
+# The DuckDB flight-recorder file is the deepest path the owned backend opens without `\\?\` support.
 $backendRuntimeSuffixLength =
     '\wp-kernel-012\backend-runtime\r-'.Length + 16 + '\s-'.Length + 16 + 1 + 36
-$projectedBackendRunRootLength = $runtimeArtifactsRoot.Length + $backendRuntimeSuffixLength
-$maxSpawnableDirectoryLength = 248
-if ($projectedBackendRunRootLength -gt $maxSpawnableDirectoryLength) {
-    $overflow = $projectedBackendRunRootLength - $maxSpawnableDirectoryLength
+$duckDbSuffixLength = '\data\flight_recorder.db'.Length
+$projectedRecorderPathLength =
+    $runtimeArtifactsRoot.Length + $backendRuntimeSuffixLength + $duckDbSuffixLength
+$maxNonExtendedPathLength = 259
+if ($projectedRecorderPathLength -gt $maxNonExtendedPathLength) {
+    $overflow = $projectedRecorderPathLength - $maxNonExtendedPathLength
     $maxRunId = $RunId.Length - $overflow
-    throw ("MT-027 proof RunId '$RunId' makes the fixture backend working directory " +
-        "$projectedBackendRunRootLength characters, over the $maxSpawnableDirectoryLength-character " +
-        "CreateProcess working-directory budget; use a RunId of at most $maxRunId characters")
+    throw ("MT-027 proof RunId '$RunId' makes the owned backend DuckDB flight-recorder path " +
+        "$projectedRecorderPathLength characters, over the $maxNonExtendedPathLength-character " +
+        "MAX_PATH budget DuckDB is bound by; use a RunId of at most $maxRunId characters")
+}
+
+# A transient proof root is cleanable only when it is EXACTLY one of the run-scoped directories this
+# invocation created: inside the exact run directory, or the short backend runtime root whose terminal
+# component is exactly this RunId under the approved Handshake_Artifacts sibling. Anything else is
+# refused, so cleanup can never walk outside the paths this run owns.
+function Test-CleanableTransientRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$RunDirectory,
+        [Parameter(Mandatory = $true)][string]$RuntimeParent,
+        [Parameter(Mandatory = $true)][string]$RunIdentifier
+    )
+
+    $resolved = [IO.Path]::GetFullPath($Path)
+    if ($resolved.StartsWith(
+            [IO.Path]::GetFullPath($RunDirectory) + [IO.Path]::DirectorySeparatorChar,
+            [StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    $expectedRuntimeRoot = [IO.Path]::GetFullPath((Join-Path $RuntimeParent $RunIdentifier))
+    return $resolved.Equals($expectedRuntimeRoot, [StringComparison]::OrdinalIgnoreCase) -and
+        [IO.Path]::GetFileName($resolved).Equals($RunIdentifier, [StringComparison]::Ordinal)
 }
 
 function Format-CanonicalUtc {
@@ -1205,10 +1245,9 @@ $managedReceiptArtifact = [ordered]@{
 }
 foreach ($transientRoot in @($stageBindingRoot, $runtimeArtifactsRoot, $argusBindingRoot)) {
     $resolvedTransient = [IO.Path]::GetFullPath($transientRoot)
-    if (-not $resolvedTransient.StartsWith(
-            [IO.Path]::GetFullPath($runDir) + [IO.Path]::DirectorySeparatorChar,
-            [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to clean transient proof path outside the exact run directory: '$resolvedTransient'"
+    if (-not (Test-CleanableTransientRoot -Path $resolvedTransient -RunDirectory $runDir `
+                -RuntimeParent $runtimeArtifactsParent -RunIdentifier $RunId)) {
+        throw "Refusing to clean transient proof path outside this run's owned directories: '$resolvedTransient'"
     }
     if (Test-Path -LiteralPath $resolvedTransient) {
         [IO.Directory]::Delete($resolvedTransient, $true)
@@ -1407,11 +1446,9 @@ Write-Output "MT-027 canonical Argus proof complete; run_id=$RunId; source_sha=$
     foreach ($transientRoot in @($stageBindingRoot, $runtimeArtifactsRoot, $argusBindingRoot)) {
         try {
             $resolvedTransient = [IO.Path]::GetFullPath($transientRoot)
-            $requiredPrefix = [IO.Path]::GetFullPath($runDir) +
-                [IO.Path]::DirectorySeparatorChar
-            if (-not $resolvedTransient.StartsWith(
-                    $requiredPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-                throw "path escaped exact run directory: '$resolvedTransient'"
+            if (-not (Test-CleanableTransientRoot -Path $resolvedTransient -RunDirectory $runDir `
+                        -RuntimeParent $runtimeArtifactsParent -RunIdentifier $RunId)) {
+                throw "path escaped this run's owned directories: '$resolvedTransient'"
             }
             if (Test-Path -LiteralPath $resolvedTransient) {
                 [IO.Directory]::Delete($resolvedTransient, $true)
