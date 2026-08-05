@@ -89,6 +89,17 @@ impl UndoManager {
         self.history.is_empty()
     }
 
+    /// The newest retained transaction receipt, if any (read-only).
+    ///
+    /// WP-KERNEL-012 MT-072 remediation item 5: a mounted-editor proof must show an ATTRIBUTABLE
+    /// receipt for the edit a custom keybinding chord produced — the receipt carries the actor kind +
+    /// actor id and the exact forward/inverse steps, so a test can prove WHICH actor performed WHICH
+    /// document mutation through the real input route rather than merely observing that the document
+    /// changed. Read-only: the undo/redo cursor is untouched.
+    pub fn last_receipt(&self) -> Option<&TransactionReceipt> {
+        self.history.back()
+    }
+
     /// Undo the most recent not-yet-undone transaction by applying its inverse steps
     /// to `doc`. Returns `Ok(true)` if an undo happened, `Ok(false)` if there was
     /// nothing to undo, or the transform error if the inverse failed (which leaves

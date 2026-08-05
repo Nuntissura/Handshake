@@ -87,15 +87,701 @@ pub const MT046_QUICK_SWITCHER_SEARCH_COMPLETION_AUTHOR_ID: &str =
     "mt046.quick-switcher-search-completion";
 const MT046_QUICK_SWITCHER_SEARCH_EFFECT: &str = "mt046.search-quick-switcher";
 const MT046_QUICK_SWITCHER_SEARCH_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
-pub const MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID: &str =
-    "mt046.diagnostic-note-open-completion";
-const MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT: &str = "mt046.open-diagnostic-note";
-const MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
+pub const MT046_CKC_MODULE_COMPLETION_AUTHOR_ID: &str = "mt046.ckc-module-completion";
+const MT046_CKC_MODULE_EFFECT: &str = "mt046.select-ckc-module";
+const MT046_CKC_MODULE_CONTEXT: &str = "wp-kernel-012-mt-046-v4";
 
 /// Stable observer node used to causally terminalize MT-042 graph-node navigation through Argus.
 pub const MT042_GRAPH_OPEN_COMPLETION_AUTHOR_ID: &str = "mt042.graph-open-completion";
 const MT042_GRAPH_OPEN_EFFECT: &str = "mt042.graph-open-node";
 const MT042_GRAPH_OPEN_CONTEXT: &str = "wp-kernel-012-mt-042-v4";
+
+/// MT-024 V4: the durable observer that terminalizes a mounted sidebar pin removal.
+///
+/// `validation_v4` failed MT-024 because the mounted sidebar "changes after the pin-removal click, but
+/// the required proof cannot distinguish a successful persisted removal from a failed request, stale
+/// refresh, or target disappearance". The Remove control is a TRANSIENT-on-success / PRESENT-on-failure
+/// target, so it is declared with the flexible observer form: the ActionChannel only accepts
+///   * `Applied` when the Remove control is GONE, and
+///   * `Failed` when the exact Remove control is still mounted (the rollback preserved the pin),
+/// and the app only publishes `Applied` after the AUTHORITATIVE post-mutation pin refresh has been
+/// received from PostgreSQL and no longer contains the block. Target disappearance alone can never
+/// terminalize the receipt.
+pub const MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID: &str =
+    "mt024.sidebar-pin-removal-completion";
+const MT024_SIDEBAR_PIN_REMOVAL_EFFECT: &str = "mt024.sidebar-remove-pin";
+const MT024_SIDEBAR_PIN_REMOVAL_CONTEXT: &str = "wp-kernel-012-mt-024-v4";
+
+/// The authoritative terminal state of one mounted sidebar pin removal.
+#[derive(Debug, Clone)]
+struct Mt024SidebarPinRemovalCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    block_id: Option<String>,
+    workspace_id: Option<String>,
+    semantic_value: Option<String>,
+    /// The backend's own operation receipt, retained until the authoritative refresh confirms the
+    /// persisted post-state. Never published as `Applied` on its own.
+    receipt: Option<crate::backend_client::SidebarMutationReceipt>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl Default for Mt024SidebarPinRemovalCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            block_id: None,
+            workspace_id: None,
+            semantic_value: None,
+            receipt: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt024SidebarPinRemovalCompletion {
+    /// The exact pre-dispatch semantic a Remove control declares. Derived only from stable identity
+    /// (workspace + block + target author id) so the declaration an Argus client inspects is
+    /// byte-identical to the one the host binds when the click is dispatched.
+    fn semantic(workspace_id: &str, block_id: &str, target_author_id: &str) -> String {
+        serde_json::json!({
+            "action": "sidebar.remove-pin",
+            "target_author_id": target_author_id,
+            "workspace_id": workspace_id,
+            "block_id": block_id,
+        })
+        .to_string()
+    }
+
+    fn declaration(&self, target_author_id: &str, semantic_value: &str) -> Option<String> {
+        let semantic_value = if self.pending_target.as_deref() == Some(target_author_id) {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        crate::mcp::action::serialize_flexible_observer_click_target(
+            MT024_SIDEBAR_PIN_REMOVAL_EFFECT,
+            MT024_SIDEBAR_PIN_REMOVAL_CONTEXT,
+            self.generation,
+            MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID,
+            semantic_value,
+        )
+    }
+
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    fn begin(
+        &mut self,
+        target_author_id: String,
+        workspace_id: String,
+        block_id: String,
+        semantic_value: String,
+    ) {
+        if self.is_pending() {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(target_author_id);
+        self.workspace_id = Some(workspace_id);
+        self.block_id = Some(block_id);
+        self.semantic_value = Some(semantic_value);
+        self.receipt = None;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
+
+    /// Retain the backend's authoritative operation receipt while the app awaits the refreshed
+    /// PostgreSQL pin list. This is deliberately NOT a terminal transition.
+    ///
+    /// Returns `false` when the delivery does not belong to the in-flight action, so a slow or
+    /// reordered completion can never attach another block's receipt to this observer.
+    fn record_backend_receipt(
+        &mut self,
+        block_id: &str,
+        receipt: crate::backend_client::SidebarMutationReceipt,
+    ) -> bool {
+        if self.is_pending() && self.block_id.as_deref() == Some(block_id) {
+            self.receipt = Some(receipt);
+            return true;
+        }
+        false
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT024_SIDEBAR_PIN_REMOVAL_EFFECT,
+                    MT024_SIDEBAR_PIN_REMOVAL_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT024_SIDEBAR_PIN_REMOVAL_EFFECT,
+                    MT024_SIDEBAR_PIN_REMOVAL_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT024_SIDEBAR_PIN_REMOVAL_EFFECT,
+                    MT024_SIDEBAR_PIN_REMOVAL_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+// ── WP-KERNEL-012 MT-064 V5: canonical mounted FEMS proposal-flow action completion ──────────────
+//
+// `validation_v4` failed MT-064 because EVERY canonical action receipt in the mounted
+// palette -> dialog -> confirm flow terminated `indeterminate`: the steered controls published no
+// action-specific completion token, so `crate::mcp::action` had nothing to acknowledge and fell back
+// to the conservative Indeterminate verdict. "The dialog is open now" and "the confirm button
+// disappeared" are NOT proof that THAT action produced THAT effect.
+//
+// This extends the EXISTING opt-in completion-token mechanism (`handshake.click-completion/v1`,
+// observer mode) instead of inventing a parallel one — the same shape MT-024 (sidebar pin removal)
+// and MT-026 (canvas viewport / placement mutation) already prove. ONE durable Role::Status observer
+// serves the four proposal-flow steps whose effect is not a plain menu-open:
+//
+//   * `menu.edit.select-all`                                     (TRANSIENT target — the menu closes)
+//   * `command-palette.option.hs-fems-palette-propose-to-memory`  (TRANSIENT target — palette closes)
+//   * `fems-class-{episodic|semantic|procedural}`                 (PERSISTENT target — radio stays)
+//   * `fems-propose-confirm`                                      (TRANSIENT target — dialog closes)
+//
+// Each step terminalizes ONLY on its own authoritative post-state:
+//   * select-all      -> the shared-selection substrate CHANGED to the exact full-document range and
+//                        the selected content hash equals the mounted document's content hash,
+//   * palette row     -> a FRESH proposal operation exists and the dialog + class-state + confirm
+//                        author_ids are addressable in the same fresh tree,
+//   * class radio     -> `fems-propose-class-state` reports the exact requested class as BOTH the
+//                        selected radio and the previewed proposal class,
+//   * confirm         -> `fems-propose-status` reports `state=completed;outcome=event_persisted` for
+//                        THIS operation with non-empty `proposal_id`/`event_id`; a partial/failed/
+//                        blocked terminal status publishes a typed FAILURE (terminal `Rejected`),
+//                        never a silent Indeterminate.
+//
+// `menu-edit` / `menu-go` keep the existing same-target menu-open tokens (MT-035 / MT-033) and
+// `menu.go.command-palette` reuses the MT-033 command-palette observer, so no surface that already
+// has a completion mechanism gets a second one.
+//
+// The observer is proof-only: it never gates product behavior (the flow works identically with no
+// Argus binding open), so an un-instrumented host is unaffected.
+
+/// Durable Role::Status observer publishing MT-064 proposal-flow action completion.
+pub const MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID: &str =
+    "mt064.fems-proposal-flow-completion";
+/// Durable Role::Status node publishing the AUTHORITATIVE shared-selection state (pane, byte range,
+/// selected length, and loom content hash) so a select-all receipt binds to a selection value rather
+/// than to the transient menu item that disappeared.
+pub const MT064_SHARED_SELECTION_STATE_AUTHOR_ID: &str = "mt064.shared-selection-state";
+const MT064_FEMS_PROPOSAL_FLOW_EFFECT: &str = "mt064.fems-proposal-flow";
+const MT064_FEMS_PROPOSAL_FLOW_CONTEXT: &str = "wp-kernel-012-mt-064-v5";
+const MT064_SELECT_ALL_TARGET: &str = "menu.edit.select-all";
+const MT064_PALETTE_ROW_TARGET: &str = "command-palette.option.hs-fems-palette-propose-to-memory";
+/// BOUNDED observation window for one proposal-flow action. Polling is bounded, not open-ended: if the
+/// action-specific predicate never appears within this window the observer publishes a TYPED terminal
+/// rejection instead of staying Pending forever. A permanently pending observer would silently block
+/// every later action from binding a completion at all, which is a worse failure than an honest typed
+/// rejection. Deliberately longer than the `ActionChannel` lease so a receipt that already expired
+/// still leaves a settled, non-Pending observer baseline behind.
+const MT064_PENDING_OBSERVATION_WINDOW: std::time::Duration = std::time::Duration::from_secs(12);
+
+// ── WP-KERNEL-012 MT-028: shell-owned Notes-Search result-navigation completion ────────────────────
+//
+// Activating a Loom Search result routes the block into the target editor ON THE ORIGINATING PANE, so
+// the clicked row AND every pane-local status node are replaced by the routed tab in the same frame. A
+// pane-local observer would therefore disappear together with its target and could never publish a
+// terminal acknowledgement. The shell owns this durable observer instead: it survives the target's
+// disappearance (the MT-064 pattern) and terminalizes ONLY when the exact declared block is really
+// bound into the routed pane type by THIS shell's MT-028 open path.
+/// BOUNDED observation window for one result-navigation action, mirroring MT-064's rationale: an
+/// observer that stays Pending forever would silently strand every later action as `Indeterminate`.
+const MT028_LOOM_SEARCH_OPEN_OBSERVATION_WINDOW: std::time::Duration =
+    std::time::Duration::from_secs(12);
+
+/// The exact canonical navigation this shell last performed for a Loom Search result row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Mt028LoomSearchRouted {
+    block_id: String,
+    content_type: String,
+    pane_id: String,
+    pane_type_label: String,
+}
+
+#[derive(Debug, Clone)]
+struct Mt028LoomSearchOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    target: Option<String>,
+    semantic: Option<String>,
+    expected_block_id: Option<String>,
+    expected_content_type: Option<String>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+    pending_since: Option<std::time::Instant>,
+}
+
+impl Default for Mt028LoomSearchOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            target: None,
+            semantic: None,
+            expected_block_id: None,
+            expected_content_type: None,
+            terminal_detail: None,
+            terminal_error: None,
+            pending_since: None,
+        }
+    }
+}
+
+impl Mt028LoomSearchOpenCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    /// The binding the shell pushes into the Loom Search pane each frame. A row declares only while
+    /// the observer is settled, so a stale declaration can never race a live transition.
+    fn binding(&self) -> crate::loom_search_v2::LoomSearchOpenCompletionBinding {
+        crate::loom_search_v2::LoomSearchOpenCompletionBinding {
+            generation: self.generation,
+            ready: !self.is_pending(),
+        }
+    }
+
+    fn begin(&mut self, target: String, semantic: String) {
+        let parsed: Option<serde_json::Value> = serde_json::from_str(&semantic).ok();
+        let block_id = parsed
+            .as_ref()
+            .and_then(|value| value.get("block_id"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        let content_type = parsed
+            .as_ref()
+            .and_then(|value| value.get("content_type"))
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned);
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.target = Some(target);
+        self.semantic = Some(semantic);
+        self.expected_block_id = block_id;
+        self.expected_content_type = content_type;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        self.pending_since = Some(std::time::Instant::now());
+    }
+
+    /// Terminalize against the AUTHORITATIVE routed pane state. `routed` is the exact navigation this
+    /// shell performed from the MT-028 open queue; `mounted` proves the routed tab is live now.
+    fn complete_if_routed(&mut self, routed: Option<&Mt028LoomSearchRouted>, mounted: bool) {
+        if !self.is_pending() {
+            return;
+        }
+        let (Some(block_id), Some(content_type)) = (
+            self.expected_block_id.clone(),
+            self.expected_content_type.clone(),
+        ) else {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error =
+                Some("result declaration carried no canonical block identity".to_owned());
+            return;
+        };
+        if let Some(routed) = routed {
+            if routed.block_id == block_id && routed.content_type == content_type && mounted {
+                self.state = crate::mcp::action::ClickCompletionState::Applied;
+                self.terminal_detail = Some(
+                    serde_json::json!({
+                        "routed_block_id": routed.block_id,
+                        "routed_content_type": routed.content_type,
+                        "routed_pane_id": routed.pane_id,
+                        "routed_pane_type": routed.pane_type_label,
+                        "mounted_tab_bound_to_block": true,
+                    })
+                    .to_string(),
+                );
+                return;
+            }
+        }
+        if self
+            .pending_since
+            .is_some_and(|since| since.elapsed() >= MT028_LOOM_SEARCH_OPEN_OBSERVATION_WINDOW)
+        {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(format!(
+                "Loom Search result navigation for {block_id} did not reach a routed {content_type} pane within the bounded {}s window",
+                MT028_LOOM_SEARCH_OPEN_OBSERVATION_WINDOW.as_secs()
+            ));
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "expected_block_id": block_id,
+                    "expected_content_type": content_type,
+                    "observed_routed": routed.map(|routed| serde_json::json!({
+                        "block_id": routed.block_id,
+                        "content_type": routed.content_type,
+                        "pane_id": routed.pane_id,
+                        "pane_type": routed.pane_type_label,
+                    })),
+                    "mounted_tab_bound_to_block": mounted,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            // A settled Ready baseline must ALWAYS be publishable, including before the first
+            // navigation: without it a result row would declare against a missing observer and every
+            // navigation would terminate as `Indeterminate`.
+            crate::mcp::action::ClickCompletionState::Ready => {
+                crate::mcp::action::serialize_observer_click_state(
+                    crate::loom_search_v2::OPEN_COMPLETION_EFFECT,
+                    crate::loom_search_v2::OPEN_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.state,
+                    None,
+                    None,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    crate::loom_search_v2::OPEN_COMPLETION_EFFECT,
+                    crate::loom_search_v2::OPEN_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.target.as_deref(),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    crate::loom_search_v2::OPEN_COMPLETION_EFFECT,
+                    crate::loom_search_v2::OPEN_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref().unwrap_or("{}"),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    crate::loom_search_v2::OPEN_COMPLETION_EFFECT,
+                    crate::loom_search_v2::OPEN_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_error
+                        .as_deref()
+                        .unwrap_or("Loom Search result navigation failed"),
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+/// Read one `key=value` field out of a stable semicolon-delimited machine projection.
+fn mt064_structured_field<'a>(value: &'a str, key: &str) -> Option<&'a str> {
+    value.split(';').find_map(|part| {
+        part.strip_prefix(key)
+            .and_then(|rest| rest.strip_prefix('='))
+    })
+}
+
+/// The authoritative shared-selection state MT-064 binds a select-all receipt to.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct Mt064SelectionState {
+    pane_id: Option<String>,
+    surface: Option<String>,
+    start: Option<usize>,
+    end: Option<usize>,
+    text_len: Option<usize>,
+    content_hash: Option<String>,
+}
+
+impl Mt064SelectionState {
+    fn from_shared_selection(selection: &crate::interop::SharedSelection) -> Self {
+        match selection {
+            crate::interop::SharedSelection::TextRange {
+                pane_id,
+                surface,
+                start,
+                end,
+                text,
+            } => Self {
+                pane_id: Some(pane_id.to_string()),
+                surface: Some(format!("{surface:?}")),
+                start: Some(*start),
+                end: Some(*end),
+                text_len: Some(text.len()),
+                content_hash: Some(crate::fems::memory_proposal::content_hash_of_selection(
+                    text,
+                )),
+            },
+            crate::interop::SharedSelection::BlockRef { pane_id, block_id } => Self {
+                pane_id: Some(pane_id.to_string()),
+                surface: Some(format!("block:{block_id}")),
+                ..Self::default()
+            },
+            crate::interop::SharedSelection::NodeRef {
+                pane_id,
+                surface,
+                node_id,
+            } => Self {
+                pane_id: Some(pane_id.to_string()),
+                surface: Some(format!("{surface:?}:{node_id}")),
+                ..Self::default()
+            },
+            crate::interop::SharedSelection::None => Self::default(),
+        }
+    }
+
+    /// The stable machine projection published on [`MT064_SHARED_SELECTION_STATE_AUTHOR_ID`]. Also
+    /// used as the change fingerprint: a select-all receipt requires this to have CHANGED.
+    fn value(&self) -> String {
+        format!(
+            "pane_id={};surface={};start={};end={};len={};content_hash={}",
+            self.pane_id.as_deref().unwrap_or("none"),
+            self.surface.as_deref().unwrap_or("none"),
+            self.start
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "none".to_owned()),
+            self.end
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "none".to_owned()),
+            self.text_len
+                .map(|value| value.to_string())
+                .unwrap_or_else(|| "none".to_owned()),
+            self.content_hash.as_deref().unwrap_or("none"),
+        )
+    }
+}
+
+/// The exact post-state one bound MT-064 proposal-flow action is waiting for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Mt064FlowExpectation {
+    SelectAll {
+        pane_id: String,
+        document_id: String,
+        document_len: usize,
+        document_content_hash: String,
+        /// The selection fingerprint observed in the LAST snapshot before this dispatch. The receipt
+        /// requires the selection to have moved off this exact value, so an already-full selection
+        /// can never be replayed as proof of this click.
+        prior_selection: String,
+    },
+    OpenDialog {
+        /// The proposal operation id present before this dispatch (`none` when no dialog was open).
+        /// A receipt completes only against a FRESH operation identity, so a dialog opened by some
+        /// other command can never satisfy this click.
+        prior_operation_id: String,
+    },
+    SelectClass {
+        class_wire: String,
+    },
+    Confirm {
+        operation_id: String,
+    },
+}
+
+/// One durable MT-064 proposal-flow observer. Mirrors the proven MT-024 / MT-026 observer shape: a
+/// monotonic generation, the exact pending target, the pre-dispatch semantic that binds the receipt
+/// causally, and a bounded terminal detail carrying the authoritative post-state.
+#[derive(Debug, Clone)]
+struct Mt064FemsProposalFlowCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    expectation: Option<Mt064FlowExpectation>,
+    /// When the current action was bound. Bounds the observation window (see
+    /// [`MT064_PENDING_OBSERVATION_WINDOW`]).
+    pending_since: Option<std::time::Instant>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl Default for Mt064FemsProposalFlowCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            expectation: None,
+            pending_since: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt064FemsProposalFlowCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    /// The declaration a steerable proposal-flow control publishes as its AccessKit `value`.
+    ///
+    /// While an action bound to THIS exact control is open the ORIGINAL semantic is republished
+    /// verbatim, because `crate::mcp::action` requires a persistent target's post-action declaration
+    /// to advance by exactly one generation while carrying an unchanged semantic tuple.
+    fn declaration(
+        &self,
+        author_id: &str,
+        semantic_value: &str,
+        persistent_target: bool,
+    ) -> Option<String> {
+        let bound_to_this_target = self.pending_target.as_deref() == Some(author_id);
+        let semantic_value = if bound_to_this_target {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        if persistent_target {
+            crate::mcp::action::serialize_persistent_observer_click_target(
+                MT064_FEMS_PROPOSAL_FLOW_EFFECT,
+                MT064_FEMS_PROPOSAL_FLOW_CONTEXT,
+                self.generation,
+                MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+                semantic_value,
+            )
+        } else {
+            (!self.is_pending())
+                .then(|| {
+                    crate::mcp::action::serialize_observer_click_target(
+                        MT064_FEMS_PROPOSAL_FLOW_EFFECT,
+                        MT064_FEMS_PROPOSAL_FLOW_CONTEXT,
+                        self.generation,
+                        MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                })
+                .flatten()
+        }
+    }
+
+    fn begin(
+        &mut self,
+        target: String,
+        semantic_value: String,
+        expectation: Mt064FlowExpectation,
+    ) {
+        if self.is_pending() {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(target);
+        self.semantic_value = Some(semantic_value);
+        self.expectation = Some(expectation);
+        self.pending_since = Some(std::time::Instant::now());
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
+
+    /// `true` once the BOUNDED observation window for the in-flight action has elapsed.
+    fn observation_window_elapsed(&self) -> bool {
+        self.is_pending()
+            && self
+                .pending_since
+                .is_some_and(|since| since.elapsed() >= MT064_PENDING_OBSERVATION_WINDOW)
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+            self.terminal_error = None;
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT064_FEMS_PROPOSAL_FLOW_EFFECT,
+                    MT064_FEMS_PROPOSAL_FLOW_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT064_FEMS_PROPOSAL_FLOW_EFFECT,
+                    MT064_FEMS_PROPOSAL_FLOW_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT064_FEMS_PROPOSAL_FLOW_EFFECT,
+                    MT064_FEMS_PROPOSAL_FLOW_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 struct Mt036FlightRecorderOpenCompletion {
@@ -325,285 +1011,6 @@ struct Mt046QuickSwitcherSearchCompletion {
     terminal_error: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-enum Mt046DiagnosticNoteDispatchOutcome {
-    Navigation(crate::quick_switcher::NavDispatchOutcome),
-    DestinationAlreadySatisfied,
-}
-
-#[derive(Debug, Clone)]
-struct Mt046DiagnosticNoteNavigationOutcome {
-    request: crate::interop::DiagnosticNoteNavigationRequest,
-    outcome: Mt046DiagnosticNoteDispatchOutcome,
-    rich_load_generation_before: u64,
-}
-
-#[derive(Debug, Clone)]
-struct Mt046DiagnosticNoteOpenCompletion {
-    generation: u64,
-    state: crate::mcp::action::ClickCompletionState,
-    pending_target: Option<String>,
-    document_id: Option<String>,
-    workspace_id: Option<String>,
-    workspace_generation: Option<u64>,
-    request_id: Option<u64>,
-    action_receipt_id: Option<u64>,
-    last_accepted_request_id: u64,
-    dispatch_outcome: Option<Mt046DiagnosticNoteDispatchOutcome>,
-    rich_load_generation_before: Option<u64>,
-    semantic: Option<String>,
-    terminal_detail: Option<String>,
-    terminal_error: Option<String>,
-}
-
-impl Default for Mt046DiagnosticNoteOpenCompletion {
-    fn default() -> Self {
-        Self {
-            generation: 0,
-            state: crate::mcp::action::ClickCompletionState::Ready,
-            pending_target: None,
-            document_id: None,
-            workspace_id: None,
-            workspace_generation: None,
-            request_id: None,
-            action_receipt_id: None,
-            last_accepted_request_id: 0,
-            dispatch_outcome: None,
-            rich_load_generation_before: None,
-            semantic: None,
-            terminal_detail: None,
-            terminal_error: None,
-        }
-    }
-}
-
-impl Mt046DiagnosticNoteOpenCompletion {
-    fn semantic(
-        target: &str,
-        document_id: &str,
-        workspace_id: &str,
-        request_id: u64,
-        workspace_generation: u64,
-    ) -> String {
-        serde_json::json!({
-            "action": "open-diagnostic-note",
-            "target": target,
-            "document_id": document_id,
-            "workspace_id": workspace_id,
-            "request_id": request_id,
-            "workspace_generation": workspace_generation,
-            "expected_document_author_id": format!("rich-editor.document.{document_id}"),
-            "expected_focus_author_id": crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID,
-        })
-        .to_string()
-    }
-
-    fn declaration(
-        &self,
-        target: &str,
-        document_id: &str,
-        workspace_id: &str,
-        reserved_request: Option<&crate::interop::DiagnosticNoteNavigationRequest>,
-    ) -> Option<String> {
-        if target.is_empty() || document_id.trim().is_empty() || workspace_id.trim().is_empty() {
-            return None;
-        }
-        let semantic = if self.state != crate::mcp::action::ClickCompletionState::Ready {
-            if self.pending_target.as_deref() != Some(target)
-                || self.document_id.as_deref() != Some(document_id)
-                || self.workspace_id.as_deref() != Some(workspace_id)
-            {
-                return None;
-            }
-            self.semantic.clone()?
-        } else {
-            let request = reserved_request?;
-            if request.source_author_id != target
-                || request.document_id != document_id
-                || request.workspace_id != workspace_id
-            {
-                return None;
-            }
-            Self::semantic(
-                target,
-                document_id,
-                workspace_id,
-                request.request_id,
-                request.workspace_generation,
-            )
-        };
-        crate::mcp::action::serialize_persistent_observer_click_target(
-            MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
-            MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
-            self.generation,
-            MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID,
-            &semantic,
-        )
-    }
-
-    fn begin(
-        &mut self,
-        target: String,
-        request: &crate::interop::DiagnosticNoteNavigationRequest,
-        semantic: String,
-        action_receipt_id: Option<u64>,
-    ) -> bool {
-        if self.state == crate::mcp::action::ClickCompletionState::Pending {
-            return false;
-        }
-        if request.request_id <= self.last_accepted_request_id || request.source_author_id != target
-        {
-            return false;
-        }
-        let Some(generation) = self.generation.checked_add(1) else {
-            return false;
-        };
-        self.generation = generation;
-        self.state = crate::mcp::action::ClickCompletionState::Pending;
-        self.pending_target = Some(target);
-        self.document_id = Some(request.document_id.clone());
-        self.workspace_id = Some(request.workspace_id.clone());
-        self.workspace_generation = Some(request.workspace_generation);
-        self.request_id = Some(request.request_id);
-        self.action_receipt_id = action_receipt_id;
-        self.last_accepted_request_id = request.request_id;
-        self.dispatch_outcome = None;
-        self.rich_load_generation_before = None;
-        self.semantic = Some(semantic);
-        self.terminal_detail = None;
-        self.terminal_error = None;
-        true
-    }
-
-    fn begin_rejected_without_request(
-        &mut self,
-        target: String,
-        document_id: String,
-        workspace_id: String,
-        semantic: String,
-        error: String,
-    ) -> bool {
-        if self.state == crate::mcp::action::ClickCompletionState::Pending {
-            return false;
-        }
-        let Some(generation) = self.generation.checked_add(1) else {
-            return false;
-        };
-        self.generation = generation;
-        self.state = crate::mcp::action::ClickCompletionState::Failed;
-        self.pending_target = Some(target);
-        self.document_id = Some(document_id);
-        self.workspace_id = Some(workspace_id);
-        self.workspace_generation = None;
-        self.request_id = None;
-        self.action_receipt_id = None;
-        self.dispatch_outcome = None;
-        self.rich_load_generation_before = None;
-        self.semantic = Some(semantic);
-        self.terminal_error = Some(error);
-        self.terminal_detail =
-            Some(serde_json::json!({"typed_outcome": "request_not_admitted"}).to_string());
-        true
-    }
-
-    fn matches_request(&self, request: &crate::interop::DiagnosticNoteNavigationRequest) -> bool {
-        self.state == crate::mcp::action::ClickCompletionState::Pending
-            && self.request_id == Some(request.request_id)
-            && self.workspace_generation == Some(request.workspace_generation)
-            && self.workspace_id.as_deref() == Some(request.workspace_id.as_str())
-            && self.pending_target.as_deref() == Some(request.source_author_id.as_str())
-            && self.document_id.as_deref() == Some(request.document_id.as_str())
-    }
-
-    fn observe_dispatch_outcome(
-        &mut self,
-        request: &crate::interop::DiagnosticNoteNavigationRequest,
-        outcome: &Mt046DiagnosticNoteDispatchOutcome,
-        rich_load_generation_before: u64,
-    ) -> bool {
-        if !self.matches_request(request) || self.dispatch_outcome.is_some() {
-            return false;
-        }
-        self.dispatch_outcome = Some(outcome.clone());
-        self.rich_load_generation_before = Some(rich_load_generation_before);
-        true
-    }
-
-    fn complete_applied(&mut self, detail: String) {
-        if self.state == crate::mcp::action::ClickCompletionState::Pending {
-            self.state = crate::mcp::action::ClickCompletionState::Applied;
-            self.terminal_detail = Some(detail);
-        }
-    }
-
-    fn complete_failed(&mut self, error: String, detail: String) {
-        if self.state == crate::mcp::action::ClickCompletionState::Pending {
-            self.state = crate::mcp::action::ClickCompletionState::Failed;
-            self.terminal_error = Some(error);
-            self.terminal_detail = Some(detail);
-        }
-    }
-
-    fn observer_value(&self) -> Option<String> {
-        match self.state {
-            crate::mcp::action::ClickCompletionState::Ready
-            | crate::mcp::action::ClickCompletionState::Pending => {
-                crate::mcp::action::serialize_observer_click_state(
-                    MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
-                    MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
-                    self.generation,
-                    self.state,
-                    self.pending_target.as_deref(),
-                    self.semantic.as_deref(),
-                )
-            }
-            crate::mcp::action::ClickCompletionState::Applied => {
-                crate::mcp::action::serialize_observer_click_applied(
-                    MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
-                    MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
-                    self.generation,
-                    self.pending_target.as_deref()?,
-                    self.semantic.as_deref()?,
-                    self.terminal_detail.as_deref()?,
-                )
-            }
-            crate::mcp::action::ClickCompletionState::Failed => {
-                crate::mcp::action::serialize_observer_click_failure(
-                    MT046_DIAGNOSTIC_NOTE_OPEN_EFFECT,
-                    MT046_DIAGNOSTIC_NOTE_OPEN_CONTEXT,
-                    self.generation,
-                    self.pending_target.as_deref()?,
-                    self.semantic.as_deref()?,
-                    self.terminal_error.as_deref()?,
-                    self.terminal_detail.as_deref(),
-                )
-            }
-        }
-    }
-
-    fn acknowledge_terminal_snapshot(&mut self) {
-        if !matches!(
-            self.state,
-            crate::mcp::action::ClickCompletionState::Applied
-                | crate::mcp::action::ClickCompletionState::Failed
-        ) {
-            return;
-        }
-        self.state = crate::mcp::action::ClickCompletionState::Ready;
-        self.pending_target = None;
-        self.document_id = None;
-        self.workspace_id = None;
-        self.workspace_generation = None;
-        self.request_id = None;
-        self.action_receipt_id = None;
-        self.dispatch_outcome = None;
-        self.rich_load_generation_before = None;
-        self.semantic = None;
-        self.terminal_detail = None;
-        self.terminal_error = None;
-    }
-}
-
 impl Default for Mt046QuickSwitcherSearchCompletion {
     fn default() -> Self {
         Self {
@@ -813,6 +1220,104 @@ impl Mt046QuickSwitcherSearchCompletion {
                     self.terminal_detail.as_deref(),
                 )
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt046CkcModuleCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    semantic: Option<String>,
+    terminal_detail: Option<String>,
+}
+
+impl Default for Mt046CkcModuleCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            semantic: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl Mt046CkcModuleCompletion {
+    const TARGET: &'static str = "module-ckc";
+
+    fn semantic() -> String {
+        serde_json::json!({
+            "action": "select-module",
+            "target": Self::TARGET,
+            "expected_active_module": "CKC",
+        })
+        .to_string()
+    }
+
+    fn declaration(&self) -> Option<String> {
+        let default_semantic = Self::semantic();
+        crate::mcp::action::serialize_persistent_observer_click_target(
+            MT046_CKC_MODULE_EFFECT,
+            MT046_CKC_MODULE_CONTEXT,
+            self.generation,
+            MT046_CKC_MODULE_COMPLETION_AUTHOR_ID,
+            self.semantic.as_deref().unwrap_or(&default_semantic),
+        )
+    }
+
+    fn begin(&mut self, semantic: String) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.semantic = Some(semantic);
+        self.terminal_detail = None;
+    }
+
+    fn complete_if_selected(&mut self, active_module: ModuleId, mounted_target_unique: bool) {
+        if self.state == crate::mcp::action::ClickCompletionState::Pending
+            && active_module == ModuleId::Ckc
+            && mounted_target_unique
+        {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "active_module": active_module.as_str(),
+                    "target": Self::TARGET,
+                    "mounted_target_unique": true,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT046_CKC_MODULE_EFFECT,
+                    MT046_CKC_MODULE_CONTEXT,
+                    self.generation,
+                    self.state,
+                    (self.state == crate::mcp::action::ClickCompletionState::Pending)
+                        .then_some(Self::TARGET),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT046_CKC_MODULE_EFFECT,
+                    MT046_CKC_MODULE_CONTEXT,
+                    self.generation,
+                    Self::TARGET,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => None,
         }
     }
 }
@@ -4172,6 +4677,11 @@ pub struct HandshakeApp {
     ///
     /// [`set_preference_transport`]: HandshakeApp::set_preference_transport
     preference_transport: Option<Arc<dyn crate::preference_client::PreferenceTransport>>,
+    /// WP-KERNEL-012 MT-072 (validation V4 item 8): the resolved SET-REC-001 `source` + `revision`
+    /// for each editor preference id, projected from the canonical PostgreSQL PreferenceRecord surface
+    /// so the Settings sections can render default-vs-custom provenance next to each control. This is a
+    /// DISPLAY projection only — never a second settings authority.
+    editor_preference_provenance: crate::settings_editor_section::EditorPreferenceProvenance,
     /// Queued editor-preference writes (set/reset/hydrate) flushed OFF the egui thread one at a time.
     preference_write_queue: VecDeque<crate::preference_client::PreferenceWrite>,
     /// The async cell a spawned preference write task writes into; drained (try_lock) each frame so the
@@ -4439,13 +4949,26 @@ pub struct HandshakeApp {
     mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion,
     /// MT-046 V4 payload-bound completion for a Quick Switcher query and exact mounted result.
     mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion,
-    /// MT-046 V4 completion for a transient diagnostic gutter chip opening an exact rich note.
-    mt046_diagnostic_note_open_completion: Mt046DiagnosticNoteOpenCompletion,
-    /// Exact shell outcomes retained across the live-frame drain / isolated-snapshot boundary. The
-    /// observer removes a correlated terminal record only after its receipt-bearing snapshot publishes.
-    mt046_diagnostic_note_navigation_outcomes: VecDeque<Mt046DiagnosticNoteNavigationOutcome>,
+    /// MT-046 V4 receipt-bound completion for selecting the mounted CKC module.
+    mt046_ckc_module_completion: Mt046CkcModuleCompletion,
     /// MT-042 V4 app-owned terminal observer for exact graph-node document navigation.
     mt042_graph_open_completion: Mt042GraphOpenCompletion,
+    /// MT-024 V4: the durable observer that terminalizes a mounted sidebar pin removal.
+    mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion,
+    /// MT-064 V5: the durable observer that terminalizes each mounted FEMS proposal-flow action
+    /// against its OWN authoritative post-state.
+    mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion,
+    /// WP-KERNEL-012 MT-028: shell-owned durable observer for Notes-Search result navigation.
+    mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion,
+    /// The exact navigation the MT-028 open queue last performed (block, content type, routed pane).
+    mt028_loom_search_routed: Option<Mt028LoomSearchRouted>,
+    /// MT-064 V5: the shared-selection fingerprint published by the PREVIOUS snapshot projection. A
+    /// select-all receipt requires the live selection to have moved off this exact value, so an
+    /// already-full selection can never be replayed as proof of the dispatched click.
+    mt064_prior_selection_fingerprint: String,
+    /// MT-064 V5: the proposal operation id present in the PREVIOUS snapshot projection. A
+    /// dialog-open receipt completes only against a FRESH operation identity.
+    mt064_prior_proposal_operation_id: String,
     /// MT-027: the per-session HMAC token gating every MCP request. Generated at startup; written into
     /// the discovery binding file so an authorized agent can present it.
     mcp_token: crate::mcp::SessionToken,
@@ -6028,6 +6551,7 @@ impl HandshakeApp {
             settings_persist_error: None,
             settings_retry_operation: None,
             preference_transport,
+            editor_preference_provenance: Default::default(),
             preference_write_queue: VecDeque::new(),
             preference_io_cell: Arc::new(Mutex::new(None)),
             preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -6131,9 +6655,14 @@ impl HandshakeApp {
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
             mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
             mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
-            mt046_diagnostic_note_open_completion: Mt046DiagnosticNoteOpenCompletion::default(),
-            mt046_diagnostic_note_navigation_outcomes: VecDeque::new(),
+            mt046_ckc_module_completion: Mt046CkcModuleCompletion::default(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
+            mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion::default(),
+            mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion::default(),
+            mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion::default(),
+            mt028_loom_search_routed: None,
+            mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
+            mt064_prior_proposal_operation_id: "none".to_owned(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
@@ -6501,18 +7030,11 @@ impl HandshakeApp {
         .to_string()
     }
 
-    fn mt033_module_semantic(target: &str, module_id: ModuleId) -> String {
-        serde_json::json!({
-            "action": "select-module",
-            "target": target,
-            "expected_module": module_id.as_str(),
-            "expected_selected": true,
-        })
-        .to_string()
-    }
-
     fn project_mt033_argus_completion(&self, snapshot: &mut crate::accessibility::UiTreeSnapshot) {
-        for author_id in ["menu-view", "menu-editors", "menu-operator"] {
+        // `menu-go` joins the existing per-author_id menu-open completion map (MT-064 V5): the GO menu
+        // is a canonical navigation step in the mounted FEMS proposal flow, and without its own
+        // same-target token its receipt could only ever terminate `indeterminate`.
+        for author_id in ["menu-view", "menu-editors", "menu-operator", "menu-go"] {
             if let Some(value) = self.mt033_argus_action_completion.menu_token(author_id) {
                 mt033_set_snapshot_node_value(&mut snapshot.root, author_id, &value);
             }
@@ -6535,7 +7057,9 @@ impl HandshakeApp {
                 "menu.editors.route-to-stage" | "command-palette.option.hs-stage-palette-route" => {
                     Some(self.mt033_route_semantic(author_id))
                 }
-                "menu.operator.command-palette" => Some(
+                // MT-064 V5 adds `menu.go.command-palette` to the SAME observer declaration the
+                // OPERATOR entry already uses; both open the one command palette.
+                "menu.operator.command-palette" | "menu.go.command-palette" => Some(
                     serde_json::json!({
                         "action": "open-command-palette",
                         "target": author_id,
@@ -6543,7 +7067,6 @@ impl HandshakeApp {
                     })
                     .to_string(),
                 ),
-                "module-ckc" => Some(Self::mt033_module_semantic(author_id, ModuleId::Ckc)),
                 _ if author_id.starts_with("atelier-item-") => {
                     Some(self.mt033_item_semantic(author_id))
                 }
@@ -6553,7 +7076,7 @@ impl HandshakeApp {
                 if let Some(value) = self.mt033_argus_action_completion.target_declaration(
                     author_id,
                     &semantic,
-                    author_id.starts_with("atelier-item-") || author_id == "module-ckc",
+                    author_id.starts_with("atelier-item-"),
                 ) {
                     declarations.push((author_id.to_owned(), value));
                 }
@@ -6583,7 +7106,22 @@ impl HandshakeApp {
         }
     }
 
-    fn mt034_semantic(author_id: &str, code_symbol_search_generation: u64) -> Option<String> {
+    fn mt034_semantic(
+        author_id: &str,
+        code_symbol_search_generation: u64,
+        node_value: Option<&str>,
+    ) -> Option<String> {
+        if author_id.strip_prefix("ctx-menu.")
+            == Some(crate::code_editor::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID)
+        {
+            return Some(
+                serde_json::json!({
+                    "action": "copy-code-as-note-reference",
+                    "target": author_id,
+                })
+                .to_string(),
+            );
+        }
         if author_id == "editor.rich.insert-slash-command" {
             return Some(
                 serde_json::json!({
@@ -6621,7 +7159,41 @@ impl HandshakeApp {
                 );
             }
         }
+        if author_id.starts_with(crate::code_editor::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX)
+        {
+            let document_id = node_value.filter(|value| !value.is_empty())?;
+            return Some(
+                serde_json::json!({
+                    "action": "reveal-diagnostic-related-note",
+                    "document_id": document_id,
+                    "target": author_id,
+                })
+                .to_string(),
+            );
+        }
         None
+    }
+
+    fn mt034_code_ref_matches_target(
+        requested_ref: &str,
+        resolved: &crate::interop::cross_ref::CodeRef,
+    ) -> bool {
+        if resolved.symbol_entity_id == requested_ref {
+            return true;
+        }
+        let Some((requested_path, requested_name)) = requested_ref.rsplit_once('#') else {
+            return false;
+        };
+        let Some((symbol_path_with_kind, symbol_name)) = resolved.symbol_key.rsplit_once('#')
+        else {
+            return false;
+        };
+        let symbol_path = symbol_path_with_kind
+            .split_once(':')
+            .map_or(symbol_path_with_kind, |(_, path)| path);
+        requested_name == symbol_name
+            && requested_path.replace('\\', "/").trim_start_matches("./")
+                == symbol_path.replace('\\', "/").trim_start_matches("./")
     }
 
     fn mt034_payload_matches_target(author_id: &str, payload: Option<&str>) -> bool {
@@ -6652,7 +7224,10 @@ impl HandshakeApp {
                 .map(|channel| channel.unique_dispatched_activation())
                 .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
             if let Some((author_id, payload, semantic)) = activation {
-                if Self::mt034_semantic(&author_id, 0).is_some()
+                if (Self::mt034_semantic(&author_id, 0, None).is_some()
+                    || author_id.starts_with(
+                        crate::code_editor::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX,
+                    ))
                     && Self::mt034_payload_matches_target(&author_id, payload.as_deref())
                 {
                     if let Some(semantic) = semantic {
@@ -6677,6 +7252,36 @@ impl HandshakeApp {
         else {
             return;
         };
+        if target.strip_prefix("ctx-menu.")
+            == Some(crate::code_editor::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID)
+        {
+            let panel = self.active_mounted_code_panel();
+            let Some(expected_reference) = panel.note_reference_for_cursor() else {
+                return;
+            };
+            let clipboard_reference = self.mt035_live_context().and_then(|ctx| {
+                let bus = crate::interop::InteractionBus::get_or_init(&ctx);
+                crate::interop::InteractionBus::with_try_lock(&bus, |bus| bus.clipboard_read_text())
+                    .flatten()
+            });
+            let menu_closed = snapshot.iter_nodes().all(|node| {
+                !node
+                    .author_id
+                    .as_deref()
+                    .is_some_and(|id| id.starts_with("ctx-menu."))
+            });
+            if clipboard_reference.as_deref() == Some(expected_reference.as_str()) && menu_closed {
+                self.mt034_argus_action_completion.complete(
+                    serde_json::json!({
+                        "clipboard_reference": clipboard_reference,
+                        "expected_reference": expected_reference,
+                        "context_menu_closed": true,
+                    })
+                    .to_string(),
+                );
+            }
+            return;
+        }
         if target == "editor.rich.insert-slash-command" {
             let baseline_generation = self
                 .mt034_argus_action_completion
@@ -6725,18 +7330,52 @@ impl HandshakeApp {
             }
             return;
         }
+        if target.starts_with(crate::code_editor::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX) {
+            let document_id = self
+                .mt034_argus_action_completion
+                .semantic_value
+                .as_deref()
+                .and_then(|semantic| serde_json::from_str::<serde_json::Value>(semantic).ok())
+                .filter(|semantic| {
+                    semantic["action"].as_str() == Some("reveal-diagnostic-related-note")
+                        && semantic["target"].as_str() == Some(target.as_str())
+                })
+                .and_then(|semantic| semantic["document_id"].as_str().map(ToOwned::to_owned));
+            let Some(document_id) = document_id else {
+                return;
+            };
+            let rich_document_author_id = format!("rich-editor.document.{document_id}");
+            let exact_document_mounted = snapshot
+                .find_by_author_id(&rich_document_author_id)
+                .is_some_and(|node| node.value.as_deref() == Some(document_id.as_str()));
+            let rich_text_mounted = snapshot.find_by_author_id("editor.rich.text").is_some();
+            if let Some((pane_id, active_document_id)) = self.active_rich_document_binding() {
+                if active_document_id == document_id && exact_document_mounted && rich_text_mounted
+                {
+                    let rich = self.active_rich_state();
+                    let revision = rich
+                        .lock()
+                        .map(|state| state.doc_revision())
+                        .unwrap_or_default();
+                    self.mt034_argus_action_completion.complete(
+                        serde_json::json!({
+                            "active_document_id": active_document_id,
+                            "rich_document_author_id": rich_document_author_id,
+                            "active_pane_id": pane_id,
+                            "rich_document_revision": revision,
+                            "rich_text_author_id": "editor.rich.text",
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            return;
+        }
         if let Some(symbol_entity_id) = target.strip_prefix("code-ref-chip-") {
             let Some(code_ref) = self.mt034_last_resolved_code_ref.as_ref() else {
                 return;
             };
-            // A rich-note code chip may carry an authored `<path>#<name>` reference. Resolution
-            // returns the backend's opaque entity id, so terminalize against the exact canonical
-            // symbol identity while the current-operation guard in `drain_code_ref_navigation`
-            // prevents an unrelated navigation delivery from populating this completion state.
-            if !crate::interop::cross_ref::code_ref_matches_requested_ref(
-                code_ref,
-                symbol_entity_id,
-            ) {
+            if !Self::mt034_code_ref_matches_target(symbol_entity_id, code_ref) {
                 return;
             }
             let panel = self.active_mounted_code_panel();
@@ -6776,13 +7415,19 @@ impl HandshakeApp {
             .iter_nodes()
             .filter_map(|node| {
                 let author_id = node.author_id.as_deref()?;
-                let semantic = Self::mt034_semantic(author_id, code_symbol_search_generation)?;
+                let semantic = Self::mt034_semantic(
+                    author_id,
+                    code_symbol_search_generation,
+                    node.value.as_deref(),
+                )?;
+                let persistent = author_id.strip_prefix("ctx-menu.")
+                    != Some(crate::code_editor::CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID);
                 self.mt034_argus_action_completion
                     // The split editor intentionally keeps both rich and code panes mounted. A
                     // code chip or NoteRefs row can therefore remain AccessKit-visible after the
                     // other pane becomes active; bind its exact stable node/declaration across the
                     // generation transition instead of falsely requiring disappearance.
-                    .declaration(author_id, &semantic, true)
+                    .declaration(author_id, &semantic, persistent)
                     .map(|value| (author_id.to_owned(), value))
             })
             .collect::<Vec<_>>();
@@ -7835,6 +8480,695 @@ impl HandshakeApp {
         }
     }
 
+    // ── WP-KERNEL-012 MT-024 V4: authoritative mounted pin-removal completion ────────────────────────
+
+    /// The `(workspace_id, block_id)` a mounted `sidebar.pin.{id}.remove` control currently addresses.
+    /// Derived from the live mounted panel, so a control that is no longer backed by a real pinned row
+    /// produces no declaration and therefore cannot be steered into an unbacked completion.
+    fn mt024_sidebar_pin_removal_target(&self, author_id: &str) -> Option<(String, String)> {
+        let panel = self.editor_mounts.secondary.sidebar_panel.lock().ok()?;
+        let workspace_id = panel.workspace_id.clone();
+        if workspace_id.is_empty() {
+            return None;
+        }
+        let block = panel.pins.iter().find(|block| {
+            crate::graph::sidebar_panel::pin_remove_author_id(&block.block_id) == author_id
+        })?;
+        Some((workspace_id, block.block_id.clone()))
+    }
+
+    /// Bind a mounted `SidebarEvent::RemovePin` to the durable MT-024 observer. Called from the host
+    /// event pump so an operator-driven removal is equally observable; the projection reconcile below
+    /// covers the Argus dispatch ordering.
+    fn begin_mt024_sidebar_pin_removal(&mut self, workspace_id: &str, block_id: &str) {
+        let target = crate::graph::sidebar_panel::pin_remove_author_id(block_id);
+        let semantic = Mt024SidebarPinRemovalCompletion::semantic(workspace_id, block_id, &target);
+        self.mt024_sidebar_pin_removal_completion.begin(
+            target,
+            workspace_id.to_owned(),
+            block_id.to_owned(),
+            semantic,
+        );
+    }
+
+    /// Collapse a backend-authored message into a single control-character-free line no longer than
+    /// `max_bytes`. The click-completion token rejects control characters and caps its error/detail
+    /// fields, so an unbounded or multi-line backend body would otherwise make the whole terminal
+    /// token unserializable and silently degrade the receipt back to `Indeterminate`.
+    fn mt024_bounded_text(value: &str, max_bytes: usize) -> String {
+        let sanitized = value
+            .chars()
+            .map(|character| {
+                if character.is_control() {
+                    ' '
+                } else {
+                    character
+                }
+            })
+            .collect::<String>();
+        let trimmed = sanitized.trim();
+        if trimmed.is_empty() {
+            return "unspecified sidebar mutation failure".to_owned();
+        }
+        if trimmed.len() <= max_bytes {
+            return trimmed.to_owned();
+        }
+        let mut cut = max_bytes.saturating_sub(1);
+        while cut > 0 && !trimmed.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        format!("{}…", &trimmed[..cut])
+    }
+
+    /// Bounded terminal proof detail for one pin removal: the backend's authoritative operation
+    /// receipt plus the authoritative refreshed-pin evidence. Stays inside the click-completion
+    /// `terminal_detail` byte budget because only counts (not the whole refreshed list) are carried.
+    fn mt024_sidebar_pin_removal_detail(
+        completion: &Mt024SidebarPinRemovalCompletion,
+        refreshed_pin_count: Option<usize>,
+        refreshed_contains_block: Option<bool>,
+        refresh_error: Option<&str>,
+    ) -> String {
+        // The backend-authored strings inside the receipt are bounded here so the whole terminal
+        // token always fits the click-completion detail budget.
+        let mut receipt = completion.receipt.clone();
+        if let Some(receipt) = receipt.as_mut() {
+            receipt.failure = receipt
+                .failure
+                .as_deref()
+                .map(|failure| Self::mt024_bounded_text(failure, 320));
+            receipt.event_ledger_lookup =
+                Self::mt024_bounded_text(&receipt.event_ledger_lookup, 160);
+        }
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_024.pin_removal_terminal_detail@1",
+            "target_author_id": completion.pending_target,
+            "workspace_id": completion.workspace_id,
+            "block_id": completion.block_id,
+            "operation_receipt": receipt,
+            "authoritative_refreshed_pin_count": refreshed_pin_count,
+            "authoritative_refresh_contains_block": refreshed_contains_block,
+            "authoritative_refresh_error": refresh_error
+                .map(|error| Self::mt024_bounded_text(error, 320)),
+        })
+        .to_string()
+    }
+
+    /// Advance the durable observer for an Argus-dispatched Remove control before the same captured
+    /// snapshot is acknowledged. Without this the first post-dispatch snapshot would still show the
+    /// observer at its pre-click generation and the ActionChannel would terminalize the receipt as
+    /// `Indeterminate` — the exact MT-024 FAIL_V4 defect.
+    fn reconcile_mt024_sidebar_pin_removal_completion(&mut self) {
+        if self.mt024_sidebar_pin_removal_completion.is_pending() {
+            return;
+        }
+        let activation = self
+            .mcp_action_channel
+            .lock()
+            .map(|channel| channel.unique_dispatched_activation())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+        // NOTE: a terminal (Applied/Failed) observer is deliberately NOT reset here. The durable
+        // terminal token — including the authoritative operation receipt in `terminal_detail` — must
+        // stay inspectable after the ActionChannel has acknowledged the receipt, so an external
+        // verifier can re-read the exact proof. A later removal advances it in place: the terminal
+        // state is a valid, non-Pending baseline at the same generation the controls declare.
+        let Some((author_id, _payload, declared_semantic)) = activation else {
+            return;
+        };
+        let Some((workspace_id, block_id)) = self.mt024_sidebar_pin_removal_target(&author_id)
+        else {
+            return;
+        };
+        let current_semantic =
+            Mt024SidebarPinRemovalCompletion::semantic(&workspace_id, &block_id, &author_id);
+        let Some(declared_semantic) = declared_semantic.filter(|semantic| {
+            serde_json::from_str::<serde_json::Value>(semantic)
+                .ok()
+                .is_some_and(|value| {
+                    value["action"].as_str() == Some("sidebar.remove-pin")
+                        && value["target_author_id"].as_str() == Some(author_id.as_str())
+                })
+        }) else {
+            return;
+        };
+        self.mt024_sidebar_pin_removal_completion.begin(
+            author_id,
+            workspace_id,
+            block_id,
+            declared_semantic.clone(),
+        );
+        if declared_semantic != current_semantic {
+            self.mt024_sidebar_pin_removal_completion.complete_failed(
+                "stale MT-024 sidebar pin-removal context changed between inspect and dispatch"
+                    .to_owned(),
+                serde_json::json!({
+                    "declared_semantic": declared_semantic,
+                    "current_semantic": current_semantic,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    fn project_mt024_sidebar_pin_removal_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        self.reconcile_mt024_sidebar_pin_removal_completion();
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                let (workspace_id, block_id) = self.mt024_sidebar_pin_removal_target(author_id)?;
+                let semantic =
+                    Mt024SidebarPinRemovalCompletion::semantic(&workspace_id, &block_id, author_id);
+                self.mt024_sidebar_pin_removal_completion
+                    .declaration(author_id, &semantic)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+        if let Some(value) = self.mt024_sidebar_pin_removal_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-024 sidebar pin removal completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    // ── WP-KERNEL-012 MT-064 V5: canonical proposal-flow completion ─────────────────────────────
+
+    /// The class a `fems-class-{class}` radio addresses, or `None` for any other author id.
+    fn mt064_class_for_author_id(
+        author_id: &str,
+    ) -> Option<crate::fems::memory_proposal::MemoryClass> {
+        crate::fems::memory_proposal::MemoryClass::ORDER
+            .into_iter()
+            .find(|class| crate::fems::memory_proposal::fems_class_author_id(*class) == author_id)
+    }
+
+    /// The LIVE shared-selection state. Read from the live frame context's interaction bus, never
+    /// from the throwaway snapshot-capture context (which owns no bus state).
+    fn mt064_live_selection_state(&self) -> Mt064SelectionState {
+        let Some(ctx) = self.mt035_live_context() else {
+            return Mt064SelectionState::default();
+        };
+        let bus = crate::interop::InteractionBus::get_or_init(&ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            Mt064SelectionState::from_shared_selection(bus.shared_selection())
+        })
+        .unwrap_or_default()
+    }
+
+    /// The current proposal operation identity (`none` when no proposal dialog/operation is open).
+    fn mt064_current_operation_id(&self) -> String {
+        self.memory_proposal_operation
+            .as_ref()
+            .map(|operation| operation.operation_id.clone())
+            .unwrap_or_else(|| "none".to_owned())
+    }
+
+    /// The exact pre-dispatch semantic an MT-064 proposal-flow control declares. Derived ONLY from
+    /// state that is stable across the dispatch (pane/document identity, the requested class, the
+    /// operation identity), so the declaration an Argus client inspects is byte-identical to the one
+    /// the host binds when the click is dispatched.
+    fn mt064_semantic(&self, author_id: &str) -> Option<String> {
+        match author_id {
+            MT064_SELECT_ALL_TARGET => {
+                let pane_id = self.active_pane.clone()?;
+                let workspace_id = self.active_project_id.clone();
+                let source = self.authoritative_text_source_for_pane(&pane_id, &workspace_id)?;
+                let content = source.document_content?;
+                Some(
+                    serde_json::json!({
+                        "action": "editor-select-all",
+                        "target": author_id,
+                        "pane_id": pane_id.to_string(),
+                        "workspace_id": workspace_id,
+                        "document_id": source.document_id,
+                        "document_len": content.len(),
+                        "document_content_hash":
+                            crate::fems::memory_proposal::content_hash_of_selection(&content),
+                        "expected_selection_state": MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+                    })
+                    .to_string(),
+                )
+            }
+            MT064_PALETTE_ROW_TARGET => Some(
+                serde_json::json!({
+                    "action": "open-propose-to-memory-dialog",
+                    "target": author_id,
+                    "command_id": crate::fems::memory_proposal::FEMS_PROPOSE_COMMAND_ID,
+                    "expected_dialog": crate::fems::memory_proposal::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                    "expected_class_state":
+                        crate::fems::memory_proposal::FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                    "expected_confirm":
+                        crate::fems::memory_proposal::FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+                })
+                .to_string(),
+            ),
+            crate::fems::memory_proposal::FEMS_PROPOSE_CONFIRM_AUTHOR_ID => {
+                let operation = self.memory_proposal_operation.as_ref()?;
+                Some(
+                    serde_json::json!({
+                        "action": "confirm-memory-proposal",
+                        "target": author_id,
+                        "operation_id": operation.operation_id,
+                        "workspace_id": operation.workspace_id,
+                        "expected_status":
+                            crate::fems::memory_proposal::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                        "expected_state": "completed",
+                        "expected_outcome": "event_persisted",
+                    })
+                    .to_string(),
+                )
+            }
+            _ => {
+                let class = Self::mt064_class_for_author_id(author_id)?;
+                Some(
+                    serde_json::json!({
+                        "action": "select-memory-class",
+                        "target": author_id,
+                        "class": class.wire(),
+                        "expected_class_state":
+                            crate::fems::memory_proposal::FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                    })
+                    .to_string(),
+                )
+            }
+        }
+    }
+
+    /// `true` only for a declaration THIS observer authored for THIS target. A neighbouring observer
+    /// (MT-033's palette/menu declarations, MT-035's undo declarations) can address the same node, so
+    /// a receipt is never bound to another mechanism's semantic.
+    fn mt064_declaration_is_own(declared_semantic: &str, author_id: &str) -> bool {
+        serde_json::from_str::<serde_json::Value>(declared_semantic)
+            .ok()
+            .is_some_and(|value| {
+                value["target"].as_str() == Some(author_id)
+                    && matches!(
+                        value["action"].as_str(),
+                        Some(
+                            "editor-select-all"
+                                | "open-propose-to-memory-dialog"
+                                | "select-memory-class"
+                                | "confirm-memory-proposal"
+                        )
+                    )
+            })
+    }
+
+    /// Advance the durable observer for an Argus-dispatched proposal-flow control BEFORE the same
+    /// captured snapshot is acknowledged. Without this the first post-dispatch snapshot would still
+    /// show the observer at its pre-click generation and the ActionChannel would terminalize the
+    /// receipt as `Indeterminate` — the exact MT-064 FAIL_V4 defect.
+    fn reconcile_mt064_proposal_flow_completion(&mut self) {
+        if self.mt064_fems_proposal_flow_completion.is_pending() {
+            return;
+        }
+        let activation = self
+            .mcp_action_channel
+            .lock()
+            .map(|channel| channel.unique_dispatched_activation())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+        let Some((author_id, _payload, declared_semantic)) = activation else {
+            return;
+        };
+        let Some(declared_semantic) =
+            declared_semantic.filter(|semantic| Self::mt064_declaration_is_own(semantic, &author_id))
+        else {
+            return;
+        };
+        let Ok(declared) = serde_json::from_str::<serde_json::Value>(&declared_semantic) else {
+            return;
+        };
+        let expectation = match declared["action"].as_str() {
+            Some("editor-select-all") => {
+                let (Some(pane_id), Some(document_id), Some(document_len), Some(content_hash)) = (
+                    declared["pane_id"].as_str(),
+                    declared["document_id"].as_str(),
+                    declared["document_len"].as_u64(),
+                    declared["document_content_hash"].as_str(),
+                ) else {
+                    return;
+                };
+                Mt064FlowExpectation::SelectAll {
+                    pane_id: pane_id.to_owned(),
+                    document_id: document_id.to_owned(),
+                    document_len: document_len as usize,
+                    document_content_hash: content_hash.to_owned(),
+                    prior_selection: self.mt064_prior_selection_fingerprint.clone(),
+                }
+            }
+            Some("open-propose-to-memory-dialog") => Mt064FlowExpectation::OpenDialog {
+                prior_operation_id: self.mt064_prior_proposal_operation_id.clone(),
+            },
+            Some("select-memory-class") => {
+                let Some(class_wire) = declared["class"].as_str() else {
+                    return;
+                };
+                Mt064FlowExpectation::SelectClass {
+                    class_wire: class_wire.to_owned(),
+                }
+            }
+            Some("confirm-memory-proposal") => {
+                let Some(operation_id) = declared["operation_id"].as_str() else {
+                    return;
+                };
+                Mt064FlowExpectation::Confirm {
+                    operation_id: operation_id.to_owned(),
+                }
+            }
+            _ => return,
+        };
+        let current_semantic = self.mt064_semantic(&author_id);
+        self.mt064_fems_proposal_flow_completion.begin(
+            author_id,
+            declared_semantic.clone(),
+            expectation,
+        );
+        if current_semantic.as_deref() != Some(declared_semantic.as_str()) {
+            // The exact declared context no longer exists at dispatch time. That is a causally owned
+            // failure of THIS action, not an unknown outcome, so it publishes a typed terminal
+            // failure instead of decaying into a silent Indeterminate.
+            self.mt064_fems_proposal_flow_completion.complete_failed(
+                "stale MT-064 proposal-flow context changed between inspect and dispatch".to_owned(),
+                serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_064.stale_context@1",
+                    "declared_semantic": declared_semantic,
+                    "current_semantic": current_semantic,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    /// Terminalize the bound proposal-flow action from its OWN authoritative post-state.
+    fn advance_mt064_proposal_flow_completion(
+        &mut self,
+        snapshot: &crate::accessibility::UiTreeSnapshot,
+        selection: &Mt064SelectionState,
+    ) {
+        if !self.mt064_fems_proposal_flow_completion.is_pending() {
+            return;
+        }
+        let Some(expectation) = self.mt064_fems_proposal_flow_completion.expectation.clone() else {
+            return;
+        };
+        match expectation {
+            Mt064FlowExpectation::SelectAll {
+                pane_id,
+                document_id,
+                document_len,
+                document_content_hash,
+                prior_selection,
+            } => {
+                let observed = selection.value();
+                let changed = observed != prior_selection;
+                let full_range = selection.pane_id.as_deref() == Some(pane_id.as_str())
+                    && selection.start == Some(0)
+                    && selection.end == Some(document_len)
+                    && selection.text_len == Some(document_len)
+                    && selection.content_hash.as_deref() == Some(document_content_hash.as_str());
+                if changed && full_range {
+                    self.mt064_fems_proposal_flow_completion.complete_applied(
+                        serde_json::json!({
+                            "schema_id": "hsk.wp_kernel_012.mt_064.select_all_terminal_detail@1",
+                            "target_author_id": MT064_SELECT_ALL_TARGET,
+                            "pane_id": pane_id,
+                            "document_id": document_id,
+                            "document_len": document_len,
+                            "document_content_hash": document_content_hash,
+                            "prior_selection_state": prior_selection,
+                            "observed_selection_state": observed,
+                            "selection_state_author_id": MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            Mt064FlowExpectation::OpenDialog { prior_operation_id } => {
+                let current_operation_id = self.mt064_current_operation_id();
+                let fresh_operation =
+                    current_operation_id != "none" && current_operation_id != prior_operation_id;
+                let required = [
+                    crate::fems::memory_proposal::FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned(),
+                    crate::fems::memory_proposal::FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID.to_owned(),
+                    crate::fems::memory_proposal::FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
+                    crate::fems::memory_proposal::fems_class_author_id(
+                        crate::fems::memory_proposal::MemoryClass::Episodic,
+                    ),
+                    crate::fems::memory_proposal::fems_class_author_id(
+                        crate::fems::memory_proposal::MemoryClass::Semantic,
+                    ),
+                    crate::fems::memory_proposal::fems_class_author_id(
+                        crate::fems::memory_proposal::MemoryClass::Procedural,
+                    ),
+                ];
+                let mounted = required
+                    .iter()
+                    .all(|author_id| Self::mt064_snapshot_has(snapshot, author_id));
+                if self.pending_memory_proposal.is_some() && fresh_operation && mounted {
+                    self.mt064_fems_proposal_flow_completion.complete_applied(
+                        serde_json::json!({
+                            "schema_id": "hsk.wp_kernel_012.mt_064.open_dialog_terminal_detail@1",
+                            "target_author_id": MT064_PALETTE_ROW_TARGET,
+                            "prior_operation_id": prior_operation_id,
+                            "operation_id": current_operation_id,
+                            "mounted_author_ids": required,
+                            "class_state": Self::mt064_snapshot_value(
+                                snapshot,
+                                crate::fems::memory_proposal::FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                            ),
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            Mt064FlowExpectation::SelectClass { class_wire } => {
+                let Some(dialog) = self.pending_memory_proposal.as_ref() else {
+                    return;
+                };
+                let class_state = Self::mt064_snapshot_value(
+                    snapshot,
+                    crate::fems::memory_proposal::FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                );
+                let selected_matches = class_state.as_deref().is_some_and(|value| {
+                    mt064_structured_field(value, "selected_class") == Some(class_wire.as_str())
+                        && mt064_structured_field(value, "proposal_class")
+                            == Some(class_wire.as_str())
+                });
+                let radio_author_id = format!(
+                    "{}{class_wire}",
+                    crate::fems::memory_proposal::FEMS_CLASS_AUTHOR_PREFIX
+                );
+                if selected_matches
+                    && dialog.class.wire() == class_wire
+                    && dialog.proposal.class.wire() == class_wire
+                    && Self::mt064_snapshot_has(snapshot, &radio_author_id)
+                {
+                    let detail = serde_json::json!({
+                        "schema_id": "hsk.wp_kernel_012.mt_064.select_class_terminal_detail@1",
+                        "target_author_id": radio_author_id,
+                        "requested_class": class_wire,
+                        "selected_class": class_wire,
+                        "previewed_proposal_class": dialog.proposal.class.wire(),
+                        "review_gated": dialog.proposal.is_review_gated(),
+                        "class_state_author_id":
+                            crate::fems::memory_proposal::FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                        "class_state": class_state,
+                        "content_hash": dialog.proposal.source.content_hash,
+                    })
+                    .to_string();
+                    self.mt064_fems_proposal_flow_completion
+                        .complete_applied(detail);
+                }
+            }
+            Mt064FlowExpectation::Confirm { operation_id } => {
+                let Some(app_status) = self.memory_proposal_status_value.clone() else {
+                    return;
+                };
+                if mt064_structured_field(&app_status, "operation_id") != Some(operation_id.as_str())
+                {
+                    return;
+                }
+                // The mounted status node must carry the SAME value in this exact fresh tree; an
+                // app-side field alone is not an observable post-state.
+                let mounted_status = Self::mt064_snapshot_value(
+                    snapshot,
+                    crate::fems::memory_proposal::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                );
+                if mounted_status.as_deref() != Some(app_status.as_str()) {
+                    return;
+                }
+                let state = mt064_structured_field(&app_status, "state");
+                let outcome = mt064_structured_field(&app_status, "outcome");
+                let proposal_id = mt064_structured_field(&app_status, "proposal_id")
+                    .filter(|value| !value.is_empty() && *value != "none");
+                let event_id = mt064_structured_field(&app_status, "event_id")
+                    .filter(|value| !value.is_empty() && *value != "none");
+                let detail = serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_064.confirm_terminal_detail@1",
+                    "target_author_id":
+                        crate::fems::memory_proposal::FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+                    "operation_id": operation_id,
+                    "status_author_id":
+                        crate::fems::memory_proposal::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                    "status_value": app_status,
+                    "proposal_id": proposal_id,
+                    "event_id": event_id,
+                })
+                .to_string();
+                match (state, outcome, proposal_id, event_id) {
+                    (Some("completed"), Some("event_persisted"), Some(_), Some(_)) => {
+                        self.mt064_fems_proposal_flow_completion
+                            .complete_applied(detail);
+                    }
+                    (Some("submitting"), _, _, _) => {}
+                    (Some(state), _, _, _) => {
+                        // A terminal non-success status is a causally owned FAILURE of this exact
+                        // confirm click (proposal rejected, FR event missing, backend error). It
+                        // publishes a typed terminal failure, never a silent success.
+                        self.mt064_fems_proposal_flow_completion.complete_failed(
+                            format!(
+                                "mounted proposal confirm reached terminal state={state} outcome={}",
+                                outcome.unwrap_or("unknown")
+                            ),
+                            detail,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn mt064_snapshot_has(
+        snapshot: &crate::accessibility::UiTreeSnapshot,
+        author_id: &str,
+    ) -> bool {
+        snapshot
+            .iter_nodes()
+            .any(|node| node.author_id.as_deref() == Some(author_id))
+    }
+
+    fn mt064_snapshot_value(
+        snapshot: &crate::accessibility::UiTreeSnapshot,
+        author_id: &str,
+    ) -> Option<String> {
+        snapshot
+            .iter_nodes()
+            .find(|node| node.author_id.as_deref() == Some(author_id))
+            .and_then(|node| node.value.clone())
+    }
+
+    /// Project the MT-064 proposal-flow declarations, the authoritative shared-selection state node,
+    /// and the durable completion observer into the fresh snapshot the ActionChannel acknowledges.
+    fn project_mt064_fems_proposal_flow_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        let selection = self.mt064_live_selection_state();
+        self.reconcile_mt064_proposal_flow_completion();
+        self.advance_mt064_proposal_flow_completion(snapshot, &selection);
+        // BOUNDED polling: a predicate that never appears fails with a TYPED rejection instead of
+        // leaving the observer pending forever (which would block every later action from binding).
+        if self.mt064_fems_proposal_flow_completion.observation_window_elapsed() {
+            let expectation = self
+                .mt064_fems_proposal_flow_completion
+                .expectation
+                .clone();
+            self.mt064_fems_proposal_flow_completion.complete_failed(
+                format!(
+                    "MT-064 proposal-flow completion predicate did not appear within the bounded {}s observation window",
+                    MT064_PENDING_OBSERVATION_WINDOW.as_secs()
+                ),
+                serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_064.observation_window_elapsed@1",
+                    "expectation": format!("{expectation:?}"),
+                    "observed_selection_state": selection.value(),
+                    "observed_status_value": self.memory_proposal_status_value,
+                })
+                .to_string(),
+            );
+        }
+
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                // The class radios intentionally stay mounted after activation, so they declare the
+                // stricter PERSISTENT form; every other proposal-flow control disappears with its
+                // menu / palette / dialog and declares the transient form.
+                let persistent_target = Self::mt064_class_for_author_id(author_id).is_some();
+                let semantic = self.mt064_semantic(author_id)?;
+                self.mt064_fems_proposal_flow_completion
+                    .declaration(author_id, &semantic, persistent_target)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        let selection_value = selection.value();
+        snapshot
+            .root
+            .children
+            .push(crate::accessibility::UiTreeNode {
+                id: MT064_SHARED_SELECTION_STATE_AUTHOR_ID.to_owned(),
+                author_id: Some(MT064_SHARED_SELECTION_STATE_AUTHOR_ID.to_owned()),
+                node_id: egui::Id::new(MT064_SHARED_SELECTION_STATE_AUTHOR_ID).value(),
+                role: "Status".to_owned(),
+                label: Some("MT-064 shared selection state".to_owned()),
+                value: Some(selection_value.clone()),
+                disabled: false,
+                actions: Vec::new(),
+                bounds: None,
+                children: Vec::new(),
+            });
+        snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+
+        if let Some(value) = self.mt064_fems_proposal_flow_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-064 FEMS proposal flow completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+
+        // Record the priors LAST, so the next dispatch's expectation carries the state this exact
+        // snapshot published rather than the post-click state it is meant to be compared against.
+        self.mt064_prior_selection_fingerprint = selection_value;
+        self.mt064_prior_proposal_operation_id = self.mt064_current_operation_id();
+    }
+
     fn mt035_live_context(&self) -> Option<egui::Context> {
         self.frame_ctx.clone()
     }
@@ -8065,32 +9399,28 @@ impl HandshakeApp {
 
         let state_value = self.mt035_undo_state_value(&ctx);
         mt033_set_snapshot_node_value(&mut snapshot.root, MT035_UNDO_STATE_AUTHOR_ID, &state_value);
-        // Snapshot capture renders pane headers on an isolated egui context, whose InteractionBus has
-        // no live undo rings. Project EVERY visible registered pane's count from the live frame bus.
-        // Repairing only the focused pane leaves sibling pane headers at the isolated `Undo (0)` value
-        // and makes a two-surface scoped-undo snapshot contradict the actual shared scope.
         let pane_ids = self
             .pane_registry
             .lock()
             .map(|registry| registry.pane_ids())
             .unwrap_or_default();
         let live_bus = crate::interop::InteractionBus::get_or_init(&ctx);
-        let live_undo_counts = crate::interop::InteractionBus::with_try_lock(&live_bus, |bus| {
+        let live_counts = crate::interop::InteractionBus::with_try_lock(&live_bus, |bus| {
             pane_ids
                 .into_iter()
-                .filter_map(|pane_id| {
-                    let author_id = crate::interop::undo_count_author_id(&pane_id);
-                    (snapshot.author_id_match_count(&author_id) == 1)
-                        .then(|| (author_id, bus.local_undo_count(&pane_id)))
+                .map(|pane_id| {
+                    let count = bus.local_undo_count(&pane_id);
+                    (pane_id, count)
                 })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-        for (undo_count_author_id, local_count) in live_undo_counts {
+        for (pane_id, count) in live_counts {
+            let undo_count_author_id = crate::interop::undo_count_author_id(&pane_id.to_string());
             mt033_set_snapshot_node_value(
                 &mut snapshot.root,
                 &undo_count_author_id,
-                &format!("Undo ({local_count})"),
+                &format!("Undo ({count})"),
             );
         }
 
@@ -8281,408 +9611,113 @@ impl HandshakeApp {
         }
     }
 
-    fn project_mt046_diagnostic_note_open_completion(
+    /// WP-KERNEL-012 MT-028: publish the shell-owned Notes-Search result-navigation observer.
+    ///
+    /// The clicked row is a TRANSIENT target (routing replaces the search surface with the target
+    /// editor on the same pane), so its declaration lives on the row while this durable `Role::Status`
+    /// observer lives on the shell and survives the row's disappearance. `Applied` is published only
+    /// when the exact declared block/content-type pair was routed by THIS shell's MT-028 open queue
+    /// AND that routed tab is bound to the same canonical id in the live tab state.
+    fn project_mt028_loom_search_open_completion(
         &mut self,
         snapshot: &mut crate::accessibility::UiTreeSnapshot,
     ) {
-        let target_prefix =
-            crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX;
-        if self.mt046_diagnostic_note_open_completion.state
-            == crate::mcp::action::ClickCompletionState::Ready
-        {
+        if !self.mt028_loom_search_open_completion.is_pending() {
             let activation = self
                 .mcp_action_channel
                 .lock()
-                .map(|channel| channel.unique_dispatched_activation_with_receipt())
-                .unwrap_or_else(|poisoned| {
-                    poisoned
-                        .into_inner()
-                        .unique_dispatched_activation_with_receipt()
-                });
-            if let Some((action_receipt_id, target, payload, semantic)) = activation {
-                if target.starts_with(target_prefix) && payload.is_none() {
-                    if let Some(semantic) = semantic {
-                        let parsed = serde_json::from_str::<serde_json::Value>(&semantic).ok();
-                        let document_id = parsed
-                            .as_ref()
-                            .and_then(|value| value.get("document_id"))
-                            .and_then(serde_json::Value::as_str)
-                            .filter(|document_id| !document_id.trim().is_empty());
-                        let workspace_id = parsed
-                            .as_ref()
-                            .and_then(|value| value.get("workspace_id"))
-                            .and_then(serde_json::Value::as_str)
-                            .filter(|workspace_id| !workspace_id.trim().is_empty());
-                        let declared_request_id = parsed
-                            .as_ref()
-                            .and_then(|value| value.get("request_id"))
-                            .and_then(serde_json::Value::as_u64);
-                        let declared_workspace_generation = parsed
-                            .as_ref()
-                            .and_then(|value| value.get("workspace_generation"))
-                            .and_then(serde_json::Value::as_u64);
-                        if let (
-                            Some(document_id),
-                            Some(workspace_id),
-                            Some(declared_request_id),
-                            Some(declared_workspace_generation),
-                        ) = (
-                            document_id,
-                            workspace_id,
-                            declared_request_id,
-                            declared_workspace_generation,
-                        ) {
-                            let expected = Mt046DiagnosticNoteOpenCompletion::semantic(
-                                &target,
-                                document_id,
-                                workspace_id,
-                                declared_request_id,
-                                declared_workspace_generation,
-                            );
-                            if semantic == expected && workspace_id == self.active_project_id {
-                                let pending_request =
-                                    self.frame_ctx.as_ref().and_then(|live_ctx| {
-                                        let bus =
-                                            crate::interop::InteractionBus::get_or_init(live_ctx);
-                                        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-                                            bus.pending_diagnostic_note_navigations()
-                                                .iter()
-                                                .rev()
-                                                .find(|request| {
-                                                    request.request_id == declared_request_id
-                                                        && request.workspace_generation
-                                                            == declared_workspace_generation
-                                                        && request.source_author_id == target
-                                                        && request.document_id == document_id
-                                                        && request.workspace_id == workspace_id
-                                                })
-                                                .cloned()
-                                        })
-                                        .flatten()
-                                    });
-                                let retained_request = self
-                                    .mt046_diagnostic_note_navigation_outcomes
-                                    .iter()
-                                    .rev()
-                                    .find(|entry| {
-                                        entry.request.request_id == declared_request_id
-                                            && entry.request.workspace_generation
-                                                == declared_workspace_generation
-                                            && entry.request.source_author_id == target
-                                            && entry.request.document_id == document_id
-                                            && entry.request.workspace_id == workspace_id
-                                    })
-                                    .map(|entry| entry.request.clone());
-                                if let Some(request) = pending_request.or(retained_request) {
-                                    self.mt046_diagnostic_note_open_completion.begin(
-                                        target,
-                                        &request,
-                                        semantic,
-                                        Some(action_receipt_id),
-                                    );
-                                } else {
-                                    self.mt046_diagnostic_note_open_completion
-                                        .begin_rejected_without_request(
-                                            target,
-                                            document_id.to_owned(),
-                                            workspace_id.to_owned(),
-                                            semantic,
-                                            "diagnostic navigation request was not admitted to the typed interaction queue"
-                                                .to_owned(),
-                                        );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if self.mt046_diagnostic_note_open_completion.state
-            == crate::mcp::action::ClickCompletionState::Pending
-        {
-            let action_receipt_terminal = self
-                .mt046_diagnostic_note_open_completion
-                .action_receipt_id
-                .and_then(|receipt_id| {
-                    self.mcp_action_channel
-                        .lock()
-                        .map(|mut channel| {
-                            channel
-                                .receipt_status(receipt_id)
-                                .map(|(status, rejection)| (receipt_id, status, rejection))
-                        })
-                        .unwrap_or_else(|poisoned| {
-                            poisoned
-                                .into_inner()
-                                .receipt_status(receipt_id)
-                                .map(|(status, rejection)| (receipt_id, status, rejection))
-                        })
-                });
-            if let Some((receipt_id, status, rejection)) = action_receipt_terminal {
-                if matches!(
-                    status,
-                    crate::mcp::action::ActionReceiptStatus::Indeterminate
-                        | crate::mcp::action::ActionReceiptStatus::Rejected
-                ) {
-                    self.mt046_diagnostic_note_open_completion.complete_failed(
-                        rejection.unwrap_or_else(|| {
-                            "action channel terminalized before diagnostic navigation completion"
-                                .to_owned()
-                        }),
-                        serde_json::json!({
-                            "typed_outcome": "action_channel_terminal",
-                            "action_receipt_id": receipt_id,
-                            "action_receipt_status": format!("{status:?}"),
-                        })
-                        .to_string(),
-                    );
-                }
-            }
-        }
-
-        if self.mt046_diagnostic_note_open_completion.state
-            == crate::mcp::action::ClickCompletionState::Pending
-        {
-            let request_id = self
-                .mt046_diagnostic_note_open_completion
-                .request_id
-                .unwrap_or_default();
-            if let Some(entry) = self
-                .mt046_diagnostic_note_navigation_outcomes
-                .iter()
-                .find(|entry| entry.request.request_id == request_id)
-                .cloned()
-            {
-                self.mt046_diagnostic_note_open_completion
-                    .observe_dispatch_outcome(
-                        &entry.request,
-                        &entry.outcome,
-                        entry.rich_load_generation_before,
-                    );
-            }
-            let expected_workspace = self
-                .mt046_diagnostic_note_open_completion
-                .workspace_id
-                .clone()
-                .unwrap_or_default();
-            let expected_workspace_generation = self
-                .mt046_diagnostic_note_open_completion
-                .workspace_generation
-                .unwrap_or_default();
-            let current_bus_binding = self.frame_ctx.as_ref().and_then(|live_ctx| {
-                let bus = crate::interop::InteractionBus::get_or_init(live_ctx);
-                crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-                    (bus.workspace_id().to_owned(), bus.workspace_generation())
-                })
-            });
-            if self.active_project_id != expected_workspace
-                || current_bus_binding
-                    .as_ref()
-                    .is_some_and(|(workspace_id, generation)| {
-                        workspace_id != &expected_workspace
-                            || *generation != expected_workspace_generation
-                    })
-            {
-                self.mt046_diagnostic_note_open_completion.complete_failed(
-                    "workspace changed before diagnostic note navigation completed".to_owned(),
-                    serde_json::json!({
-                        "expected_workspace_id": expected_workspace,
-                        "expected_workspace_generation": expected_workspace_generation,
-                        "current_workspace_id": self.active_project_id,
-                        "current_bus_binding": current_bus_binding,
-                        "request_id": request_id,
-                    })
-                    .to_string(),
-                );
-            } else {
-                let expected_document = self
-                    .mt046_diagnostic_note_open_completion
-                    .document_id
-                    .clone()
-                    .unwrap_or_default();
-                match self
-                    .mt046_diagnostic_note_open_completion
-                    .dispatch_outcome
-                    .clone()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((target, _payload, Some(semantic))) = activation {
+                if target.starts_with(crate::loom_search_v2::RESULT_AUTHOR_ID_PREFIX)
+                    && semantic.contains("\"open-search-result\"")
                 {
-                    Some(Mt046DiagnosticNoteDispatchOutcome::DestinationAlreadySatisfied) => {
-                        self.mt046_diagnostic_note_open_completion.complete_failed(
-                            "diagnostic destination was already active and focused before the exact request"
-                                .to_owned(),
-                            serde_json::json!({
-                                "typed_outcome": "destination_pre_satisfied",
-                                "request_id": request_id,
-                                "document_id": expected_document,
-                            })
-                            .to_string(),
-                        );
-                    }
-                    Some(Mt046DiagnosticNoteDispatchOutcome::Navigation(outcome @ (
-                        crate::quick_switcher::NavDispatchOutcome::EditorPaneNotMounted { .. }
-                        | crate::quick_switcher::NavDispatchOutcome::NoTargetPane
-                        | crate::quick_switcher::NavDispatchOutcome::Unsupported
-                    ))) => {
-                        self.mt046_diagnostic_note_open_completion.complete_failed(
-                            outcome.status_text(),
-                            serde_json::json!({
-                                "typed_outcome": format!("{outcome:?}"),
-                                "request_id": request_id,
-                                "document_id": expected_document,
-                            })
-                            .to_string(),
-                        );
-                    }
-                    Some(Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                        crate::quick_switcher::NavDispatchOutcome::Opened { surface },
-                    )) => {
-                        let active_binding = self.active_rich_document_binding();
-                        let load_generation_before = self
-                            .mt046_diagnostic_note_open_completion
-                            .rich_load_generation_before
-                            .unwrap_or_default();
-                        let exact_load_failure = active_binding
-                            .as_ref()
-                            .filter(|(_, document_id)| document_id == &expected_document)
-                            .and_then(|(pane_id, document_id)| {
-                                self.rich_doc_loads
-                                    .get(&(pane_id.clone(), document_id.clone()))
-                            })
-                            .filter(|load| {
-                                load.workspace_id == expected_workspace
-                                    && load.loading_generation.is_none()
-                                    && load.completed_generation.is_none()
-                            })
-                            .and_then(|load| load.failure.as_ref())
-                            .filter(|failure| failure.document_id == expected_document);
-                        if let Some(load_failure) = exact_load_failure {
-                            self.mt046_diagnostic_note_open_completion.complete_failed(
-                                load_failure.message.clone(),
-                                serde_json::json!({
-                                    "typed_outcome": "document_load_failed",
-                                    "request_id": request_id,
-                                    "load_generation": load_failure.generation,
-                                    "load_generation_before": load_generation_before,
-                                    "document_id": load_failure.document_id,
-                                })
-                                .to_string(),
-                            );
-                        } else {
-                            let document_author_id =
-                                format!("rich-editor.document.{expected_document}");
-                            let document_node =
-                                snapshot.find_unique_by_author_id(&document_author_id);
-                            let rich_text_node = snapshot.find_unique_by_author_id(
-                                crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID,
-                            );
-                            let live_rich_has_focus = self
-                                .active_rich_state()
-                                .lock()
-                                .map(|state| state.live_editor_has_focus())
-                                .unwrap_or(false);
-                            if active_binding.as_ref().is_some_and(|(_, document_id)| {
-                                document_id == &expected_document
-                            }) && document_node.and_then(|node| node.value.as_deref())
-                                == Some(expected_document.as_str())
-                                && rich_text_node.is_some()
-                                && live_rich_has_focus
-                            {
-                                let (active_pane_id, active_document_id) = active_binding
-                                    .expect("exact active rich binding checked above");
-                                self.mt046_diagnostic_note_open_completion.complete_applied(
-                                    serde_json::json!({
-                                        "request_id": request_id,
-                                        "workspace_id": expected_workspace,
-                                        "workspace_generation": expected_workspace_generation,
-                                        "navigation_surface": surface,
-                                        "active_pane_id": active_pane_id,
-                                        "active_tab_content_id": active_document_id,
-                                        "document_author_id": document_author_id,
-                                        "document_node_id": document_node.map(|node| node.node_id),
-                                        "rich_text_author_id": crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID,
-                                        "rich_text_node_id": rich_text_node.map(|node| node.node_id),
-                                        "rich_text_focused": true,
-                                    })
-                                    .to_string(),
-                                );
-                            }
-                        }
-                    }
-                    None => {}
+                    self.mt028_loom_search_open_completion
+                        .begin(target, semantic);
                 }
             }
         }
 
-        let diagnostic_bus = self
-            .frame_ctx
-            .as_ref()
-            .map(crate::interop::InteractionBus::get_or_init);
-        let diagnostic_candidates = snapshot
-            .iter_nodes()
-            .filter_map(|node| {
-                let target = node.author_id.as_deref()?;
-                if !target.starts_with(target_prefix)
-                    || snapshot.author_id_match_count(target) != 1
-                    || !node.actions.iter().any(|action| action == "Click")
-                {
-                    return None;
-                }
-                let document_id = node
-                    .value
-                    .as_deref()
-                    .filter(|document_id| !document_id.trim().is_empty())?;
-                Some((target.to_owned(), document_id.to_owned()))
-            })
-            .collect::<Vec<_>>();
-        let visible_keys = diagnostic_candidates.iter().cloned().collect();
-        let reservations = diagnostic_bus
-            .as_ref()
-            .and_then(|bus| {
-                crate::interop::InteractionBus::with_try_lock(bus, |bus| {
-                    bus.sweep_diagnostic_note_navigation_reservations(&visible_keys);
-                    if self.mt046_diagnostic_note_open_completion.state
-                        != crate::mcp::action::ClickCompletionState::Ready
-                    {
-                        return std::collections::BTreeMap::new();
-                    }
-                    diagnostic_candidates
-                        .iter()
-                        .filter_map(|(target, document_id)| {
-                            bus.reserve_diagnostic_note_navigation(target, document_id)
-                                .ok()
-                                .map(|request| ((target.clone(), document_id.clone()), request))
-                        })
-                        .collect()
+        let routed = self.mt028_loom_search_routed.clone();
+        let mounted = routed.as_ref().is_some_and(|routed| {
+            self.tab_bar_states.values().any(|bar| {
+                bar.tabs.iter().any(|tab| {
+                    tab.pane_type.label() == routed.pane_type_label
+                        && tab.content_id.as_deref() == Some(routed.block_id.as_str())
                 })
             })
-            .unwrap_or_default();
-        let declarations = diagnostic_candidates
-            .iter()
-            .filter_map(|(target, document_id)| {
-                self.mt046_diagnostic_note_open_completion
-                    .declaration(
-                        target,
-                        document_id,
-                        &self.active_project_id,
-                        reservations.get(&(target.clone(), document_id.clone())),
-                    )
-                    .map(|value| (target.clone(), value))
-            })
-            .collect::<Vec<_>>();
-        for (target, value) in declarations {
-            mt033_set_snapshot_node_value(&mut snapshot.root, &target, &value);
-        }
+        });
+        self.mt028_loom_search_open_completion
+            .complete_if_routed(routed.as_ref(), mounted);
 
-        if let Some(value) = self.mt046_diagnostic_note_open_completion.observer_value() {
+        if let Some(value) = self.mt028_loom_search_open_completion.observer_value() {
             snapshot
                 .root
                 .children
                 .push(crate::accessibility::UiTreeNode {
-                    id: MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
-                    author_id: Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
-                    node_id: egui::Id::new(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID).value(),
+                    id: crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(
+                        crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    ),
+                    node_id: egui::Id::new(crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID)
+                        .value(),
                     role: "Status".to_owned(),
-                    label: Some("MT-046 diagnostic note open completion".to_owned()),
+                    label: Some("MT-028 Notes Search result navigation completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    fn project_mt046_ckc_module_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        if self.mt046_ckc_module_completion.state
+            != crate::mcp::action::ClickCompletionState::Pending
+        {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((target, _payload, semantic)) = activation {
+                let expected_semantic = Mt046CkcModuleCompletion::semantic();
+                if target == Mt046CkcModuleCompletion::TARGET
+                    && semantic.as_deref() == Some(expected_semantic.as_str())
+                {
+                    self.mt046_ckc_module_completion.begin(expected_semantic);
+                }
+            }
+        }
+
+        let mounted_target_unique = snapshot
+            .find_unique_by_author_id(Mt046CkcModuleCompletion::TARGET)
+            .is_some();
+        self.mt046_ckc_module_completion
+            .complete_if_selected(self.module_switcher.active(), mounted_target_unique);
+
+        if let Some(value) = self.mt046_ckc_module_completion.declaration() {
+            mt033_set_snapshot_node_value(
+                &mut snapshot.root,
+                Mt046CkcModuleCompletion::TARGET,
+                &value,
+            );
+        }
+        if let Some(value) = self.mt046_ckc_module_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT046_CKC_MODULE_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT046_CKC_MODULE_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT046_CKC_MODULE_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-046 CKC module completion".to_owned()),
                     value: Some(value),
                     disabled: false,
                     actions: Vec::new(),
@@ -8720,17 +9755,6 @@ impl HandshakeApp {
         }
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(true);
-        let snapshot_rich_states = self.editor_mounts.rich_documents.states();
-        for rich_state in &snapshot_rich_states {
-            if let Ok(mut state) = rich_state.lock() {
-                state.set_snapshot_capture_mode(true);
-            }
-        }
-        if let Ok(mut states) = self.find_in_files_state.lock() {
-            for state in states.values_mut() {
-                state.set_snapshot_capture_mode(true);
-            }
-        }
         self.capturing_snapshot = true;
         let output = ctx.run(egui::RawInput::default(), |ctx| self.ui(ctx));
         self.capturing_snapshot = false;
@@ -8742,16 +9766,6 @@ impl HandshakeApp {
         }
         self.active_mounted_code_panel()
             .set_snapshot_capture_mode(false);
-        for rich_state in &snapshot_rich_states {
-            if let Ok(mut state) = rich_state.lock() {
-                state.set_snapshot_capture_mode(false);
-            }
-        }
-        if let Ok(mut states) = self.find_in_files_state.lock() {
-            for state in states.values_mut() {
-                state.set_snapshot_capture_mode(false);
-            }
-        }
         if let Some(update) = output.platform_output.accesskit_update {
             let mut snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
             self.project_mt033_argus_completion(&mut snapshot);
@@ -8760,8 +9774,11 @@ impl HandshakeApp {
             self.project_mt036_flight_recorder_open_completion(&mut snapshot);
             self.project_mt046_quick_switcher_open_completion(&mut snapshot);
             self.project_mt046_quick_switcher_search_completion(&mut snapshot);
-            self.project_mt046_diagnostic_note_open_completion(&mut snapshot);
+            self.project_mt046_ckc_module_completion(&mut snapshot);
             self.project_mt042_graph_open_completion(&mut snapshot);
+            self.project_mt024_sidebar_pin_removal_completion(&mut snapshot);
+            self.project_mt064_fems_proposal_flow_completion(&mut snapshot);
+            self.project_mt028_loom_search_open_completion(&mut snapshot);
             match self.mcp_action_channel.lock() {
                 Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
                 Err(poisoned) => poisoned.into_inner().acknowledge_after_render(&snapshot),
@@ -8769,24 +9786,6 @@ impl HandshakeApp {
             match self.mcp_snapshot.lock() {
                 Ok(mut slot) => *slot = snapshot,
                 Err(poisoned) => *poisoned.into_inner() = snapshot,
-            }
-            let terminal_diagnostic_request_id = matches!(
-                self.mt046_diagnostic_note_open_completion.state,
-                crate::mcp::action::ClickCompletionState::Applied
-                    | crate::mcp::action::ClickCompletionState::Failed
-            )
-            .then_some(self.mt046_diagnostic_note_open_completion.request_id)
-            .flatten();
-            self.mt046_diagnostic_note_open_completion
-                .acknowledge_terminal_snapshot();
-            if let Some(request_id) = terminal_diagnostic_request_id {
-                self.mt046_diagnostic_note_navigation_outcomes
-                    .retain(|entry| entry.request.request_id != request_id);
-            }
-            if let Ok(mut states) = self.find_in_files_state.lock() {
-                for state in states.values_mut() {
-                    state.acknowledge_action_terminal_snapshot();
-                }
             }
             // A failed Retry uses a transient target. Keep it absent until this exact projected tree
             // has terminalized the receipt and been published, then permit a later fresh snapshot to
@@ -8993,6 +9992,7 @@ impl HandshakeApp {
             // Headless/test shell: no runtime to bridge a live preference transport onto. A test injects
             // a stub via `set_preference_transport`; without one, editor-preference writes are a no-op.
             preference_transport: None,
+            editor_preference_provenance: Default::default(),
             preference_write_queue: VecDeque::new(),
             preference_io_cell: Arc::new(Mutex::new(None)),
             preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -9089,9 +10089,14 @@ impl HandshakeApp {
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
             mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
             mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
-            mt046_diagnostic_note_open_completion: Mt046DiagnosticNoteOpenCompletion::default(),
-            mt046_diagnostic_note_navigation_outcomes: VecDeque::new(),
+            mt046_ckc_module_completion: Mt046CkcModuleCompletion::default(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
+            mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion::default(),
+            mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion::default(),
+            mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion::default(),
+            mt028_loom_search_routed: None,
+            mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
+            mt064_prior_proposal_operation_id: "none".to_owned(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
             ime_allowed_sent: false,
@@ -16935,6 +17940,57 @@ impl HandshakeApp {
         }));
     }
 
+    /// Apply a resolved PreferenceRecord projection (the canonical PostgreSQL-authoritative effective
+    /// values) onto the live workspace settings AND push it into every mounted editor: scalar editor
+    /// prefs + reading-mode default, the syntax palette, and BOTH editor keymaps (the `code.` overrides
+    /// onto each mounted [`CodeEditorPanel`] and the `rich.` overrides onto every mounted
+    /// [`RichEditorState`](crate::rich_editor::renderer::rich_editor_widget::RichEditorState)).
+    ///
+    /// This is the single hydration body used by the real drained `Hydrate` delivery and by
+    /// [`hydrate_editor_preferences_for_test`](Self::hydrate_editor_preferences_for_test), so a proof
+    /// that hydrates a fresh client exercises the production path rather than a copy of it.
+    fn apply_preference_hydration(
+        &mut self,
+        rows: &[crate::preference_client::PreferenceProjectionRow],
+    ) {
+        crate::preference_client::apply_projection(rows, &mut self.workspace_settings);
+        // Record the SET-REC-001 provenance the projection carried so the Settings controls can show
+        // default-vs-custom + revision next to each value (display projection only).
+        self.editor_preference_provenance =
+            crate::settings_editor_section::EditorPreferenceProvenance::from_projection(rows);
+        // Push the hydrated values into the live mounted editors this frame.
+        self.sync_editor_prefs_to_panel();
+        for panel in self.editor_mounts.code_documents.panels() {
+            panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
+        }
+        self.sync_editor_keymap_to_panel();
+    }
+
+    /// WP-KERNEL-012 MT-072 remediation item 8 proof seam: put the dialog into the exact typed
+    /// preference-write failure state a real unreachable/rejected `PUT` produces, so the visual proof can
+    /// capture the operator-facing error status row plus its typed "Retry saving preference" affordance
+    /// without taking the backend down mid-capture.
+    #[doc(hidden)]
+    pub fn surface_preference_persist_error_for_test(&mut self, message: &str) {
+        self.settings_persist_error = Some(message.to_owned());
+        self.settings_retry_operation =
+            Some(crate::settings_dialog::SettingsPersistenceOperation::Preference);
+    }
+
+    /// WP-KERNEL-012 MT-072 remediation item 5/6 proof seam: hydrate this app from a preference
+    /// projection exactly as a freshly-opened client does after its `GET /workspaces/:id/preferences`
+    /// completes. Takes the SAME rows the production transport returns (a live-PostgreSQL proof passes
+    /// the real [`crate::preference_client::PreferenceClient`] response straight through), and runs the
+    /// SAME [`apply_preference_hydration`](Self::apply_preference_hydration) body the drained delivery
+    /// runs — no test-only reimplementation of hydration.
+    #[doc(hidden)]
+    pub fn hydrate_editor_preferences_for_test(
+        &mut self,
+        rows: &[crate::preference_client::PreferenceProjectionRow],
+    ) {
+        self.apply_preference_hydration(rows);
+    }
+
     /// Drain a completed preference write (try_lock, HBR-QUIET): apply a hydrate to the live settings +
     /// editors, or surface a set/reset validation / unavailable error on the dialog status row. Then keep
     /// flushing the queue.
@@ -16953,17 +18009,7 @@ impl HandshakeApp {
                 Out::Hydrate(Ok(rows)) => {
                     // Only apply to the workspace still bound (the binding may have changed mid-flight).
                     if delivery.workspace_id == self.active_project_id {
-                        crate::preference_client::apply_projection(
-                            &rows,
-                            &mut self.workspace_settings,
-                        );
-                        // Push the hydrated values into the live mounted editors this frame.
-                        self.sync_editor_prefs_to_panel();
-                        for panel in self.editor_mounts.code_documents.panels() {
-                            panel
-                                .set_syntax_palette(self.workspace_settings.syntax_palette.clone());
-                        }
-                        self.sync_editor_keymap_to_panel();
+                        self.apply_preference_hydration(&rows);
                     }
                 }
                 Out::Hydrate(Err(err)) => {
@@ -16971,7 +18017,21 @@ impl HandshakeApp {
                     self.settings_persist_error =
                         Some(format!("Could not load editor preferences: {err}"));
                 }
-                Out::Set { result: Ok(_), .. } | Out::Reset { result: Ok(_), .. } => {
+                Out::Set {
+                    result: Ok(ref record),
+                    ..
+                }
+                | Out::Reset {
+                    result: Ok(ref record),
+                    ..
+                } => {
+                    // The response record carries the authoritative post-write source + revision, so the
+                    // just-changed control shows its new provenance without waiting for a full re-hydrate.
+                    self.editor_preference_provenance.record(
+                        &record.preference_id,
+                        &record.source,
+                        record.revision,
+                    );
                     // A successful write clears any prior transient preference error + retained retry.
                     self.preference_in_flight_write = None;
                     self.preference_retry_write = None;
@@ -17864,6 +18924,7 @@ impl HandshakeApp {
             diagnostics_force_open,
             palette: &palette,
             worksurface_inspector_last_dump: self.worksurface_inspector_last_dump.as_deref(),
+            preference_provenance: &self.editor_preference_provenance,
         };
         if self.capturing_snapshot && !self.settings_snapshot_query.is_empty() {
             crate::settings_dialog::prime_query(
@@ -18714,9 +19775,22 @@ impl HandshakeApp {
                 true
             }
             MenuBarAction::OpenCommandPalette => {
-                let mt033_target = "menu.operator.command-palette";
-                let mt033_attributed =
-                    self.mt033_dispatched_target().as_deref() == Some(mt033_target);
+                // MT-064 V5: both palette openers (OPERATOR and GO) are canonical Argus steps, so
+                // the attribution follows the ACTUAL dispatched target instead of one hardcoded id.
+                // A GO-menu palette open previously had no completion predicate at all.
+                let dispatched = self.mt033_dispatched_target();
+                let mt033_target = dispatched
+                    .as_deref()
+                    .filter(|target| {
+                        matches!(
+                            *target,
+                            "menu.operator.command-palette" | "menu.go.command-palette"
+                        )
+                    })
+                    .unwrap_or("menu.operator.command-palette")
+                    .to_owned();
+                let mt033_target = mt033_target.as_str();
+                let mt033_attributed = dispatched.as_deref() == Some(mt033_target);
                 if mt033_attributed {
                     let semantic = serde_json::json!({
                         "action": "open-command-palette",
@@ -23520,9 +24594,27 @@ impl HandshakeApp {
                         .sidebar_pins_seq
                         .load(std::sync::atomic::Ordering::Relaxed)
             {
+                // MT-024 V4: the AUTHORITATIVE post-mutation refresh. A pin removal only reaches
+                // `Applied` when this refreshed PostgreSQL list is observed and no longer contains the
+                // removed block; a refresh failure or a still-present block is a terminal typed
+                // failure. Target disappearance alone never terminalizes the receipt.
+                let mut refreshed_terminal: Option<(Option<usize>, Option<bool>, Option<String>)> =
+                    None;
                 if let Ok(mut p) = sec.sidebar_panel.lock() {
                     match result {
                         Ok(pins) => {
+                            if let Some(block_id) =
+                                self.mt024_sidebar_pin_removal_completion.block_id.clone()
+                            {
+                                if self.mt024_sidebar_pin_removal_completion.is_pending()
+                                    && self.mt024_sidebar_pin_removal_completion.receipt.is_some()
+                                {
+                                    let contains =
+                                        pins.iter().any(|block| block.block_id == block_id);
+                                    refreshed_terminal =
+                                        Some((Some(pins.len()), Some(contains), None));
+                                }
+                            }
                             p.set_pins(pins);
                             if let Some(error) = sec
                                 .sidebar_action_error_after_refresh
@@ -23533,7 +24625,44 @@ impl HandshakeApp {
                                 p.set_error(SectionKind::Pins, error);
                             }
                         }
-                        Err(e) => p.set_error(SectionKind::Pins, e),
+                        Err(e) => {
+                            if self.mt024_sidebar_pin_removal_completion.is_pending()
+                                && self.mt024_sidebar_pin_removal_completion.receipt.is_some()
+                            {
+                                refreshed_terminal = Some((None, None, Some(e.clone())));
+                            }
+                            p.set_error(SectionKind::Pins, e);
+                        }
+                    }
+                }
+                if let Some((count, contains, refresh_error)) = refreshed_terminal {
+                    let detail = Self::mt024_sidebar_pin_removal_detail(
+                        &self.mt024_sidebar_pin_removal_completion,
+                        count,
+                        contains,
+                        refresh_error.as_deref(),
+                    );
+                    match (contains, refresh_error) {
+                        (Some(false), None) => self
+                            .mt024_sidebar_pin_removal_completion
+                            .complete_applied(detail),
+                        (Some(true), None) => {
+                            self.mt024_sidebar_pin_removal_completion.complete_failed(
+                                "authoritative pin refresh still lists the removed block"
+                                    .to_owned(),
+                                detail,
+                            )
+                        }
+                        (_, Some(error)) => {
+                            self.mt024_sidebar_pin_removal_completion.complete_failed(
+                                Self::mt024_bounded_text(
+                                    &format!("authoritative pin refresh failed: {error}"),
+                                    512,
+                                ),
+                                detail,
+                            )
+                        }
+                        _ => {}
                     }
                 }
                 ctx.request_repaint();
@@ -23661,8 +24790,14 @@ impl HandshakeApp {
                 == Some(sequence);
             if delivered_workspace == workspace && delivered_epoch == workspace_epoch && is_latest {
                 match result {
-                    Ok(()) => {
+                    Ok(receipt) => {
                         if section == SectionKind::Pins {
+                            // MT-024 V4: retain the backend's authoritative operation receipt. The
+                            // observer stays Pending until the refreshed PostgreSQL pin list below
+                            // proves the persisted absence.
+                            let _bound = self
+                                .mt024_sidebar_pin_removal_completion
+                                .record_backend_receipt(&block_id, receipt);
                             self.event_bus_tx
                                 .send(crate::event_bus::ShellEvent::BookmarkRemoved {
                                     block_id: block_id.clone(),
@@ -23677,7 +24812,8 @@ impl HandshakeApp {
                             rollback.remove(&key);
                         }
                     }
-                    Err(e) => {
+                    Err(failure) => {
+                        let e = failure.message.clone();
                         let rollback = sec
                             .sidebar_action_rollback
                             .lock()
@@ -23695,7 +24831,25 @@ impl HandshakeApp {
                                     _ => {}
                                 }
                             }
-                            p.set_error(section, e);
+                            p.set_error(section, e.clone());
+                        }
+                        if section == SectionKind::Pins
+                            && self
+                                .mt024_sidebar_pin_removal_completion
+                                .record_backend_receipt(&block_id, failure.receipt.clone())
+                        {
+                            // MT-024 V4: a terminal TYPED failure with the original pin preserved by
+                            // the rollback above. The flexible observer form requires the exact
+                            // Remove control to still be mounted for this state, so a failed removal
+                            // can never be read as a success.
+                            let detail = Self::mt024_sidebar_pin_removal_detail(
+                                &self.mt024_sidebar_pin_removal_completion,
+                                None,
+                                None,
+                                None,
+                            );
+                            self.mt024_sidebar_pin_removal_completion
+                                .complete_failed(Self::mt024_bounded_text(&e, 512), detail);
                         }
                     }
                 }
@@ -23768,6 +24922,10 @@ impl HandshakeApp {
                         let Some((position, block)) = snapshot else {
                             continue;
                         };
+                        // MT-024 V4: bind the durable observer BEFORE the optimistic row leaves the
+                        // tree, so the terminal receipt is owned by this exact mutation.
+                        self.begin_mt024_sidebar_pin_removal(workspace, &block_id);
+                        let sec = &self.editor_mounts.secondary;
                         if let Ok(mut latest) = sec.sidebar_action_latest.lock() {
                             latest.insert(key.clone(), sequence);
                         }
@@ -23781,12 +24939,22 @@ impl HandshakeApp {
                             sequence,
                             Arc::clone(&sec.sidebar_action_cell),
                         );
-                    } else if let Ok(mut panel) = self.editor_mounts.secondary.sidebar_panel.lock()
-                    {
-                        panel.set_error(
-                            SectionKind::Pins,
-                            "Runtime unavailable; the pin was not removed. Retry when the backend runtime is available.",
+                    } else {
+                        let message = "Runtime unavailable; the pin was not removed. Retry when the backend runtime is available.";
+                        if let Ok(mut panel) = self.editor_mounts.secondary.sidebar_panel.lock() {
+                            panel.set_error(SectionKind::Pins, message);
+                        }
+                        // MT-024 V4: no runtime means no mutation was attempted and the pin row is
+                        // preserved — a terminal typed failure, never an ambiguous receipt.
+                        self.begin_mt024_sidebar_pin_removal(workspace, &block_id);
+                        let detail = Self::mt024_sidebar_pin_removal_detail(
+                            &self.mt024_sidebar_pin_removal_completion,
+                            None,
+                            None,
+                            Some(message),
                         );
+                        self.mt024_sidebar_pin_removal_completion
+                            .complete_failed(message.to_owned(), detail);
                     }
                 }
                 SidebarEvent::RemoveFavorite { block_id } => {
@@ -27026,10 +28194,22 @@ impl HandshakeApp {
         };
 
         let client = crate::backend_client::CanvasBoardClient::new(&self.rich_doc_base_url, rt);
+        // WP-KERNEL-012 MT-026 V4: a removed placement is gone from the board, so its SOURCE block
+        // would never be probed again — and a placement-removal receipt must carry an EXPLICIT
+        // source-block existence confirmation (removing a placement must never delete the Loom block).
+        // The board names those ids; they resolve through the same `getLoomBlock` path.
+        let retention_probes = self
+            .editor_mounts
+            .secondary
+            .canvas_board
+            .lock()
+            .map(|board| board.retention_probe_block_ids())
+            .unwrap_or_default();
         let mut seen = std::collections::BTreeSet::new();
         for placed_block_id in placements
             .iter()
             .map(|p| p.placed_block_id.trim())
+            .chain(retention_probes.iter().map(|id| id.trim()))
             .filter(|id| !id.is_empty())
         {
             if !seen.insert(placed_block_id.to_owned()) {
@@ -27939,13 +29119,23 @@ impl HandshakeApp {
         self.code_ref_nav_pending.remove(&navigation_scope);
         match resolved {
             Ok(code_ref) => {
-                if self
+                let pending_completion_matches = self
                     .mt034_argus_action_completion
                     .pending_target
                     .as_deref()
                     .and_then(|target| target.strip_prefix("code-ref-chip-"))
-                    == Some(symbol_entity_id.as_str())
-                {
+                    == Some(symbol_entity_id.as_str());
+                let dispatched_activation_matches = self
+                    .mcp_action_channel
+                    .lock()
+                    .map(|channel| channel.unique_dispatched_activation())
+                    .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation())
+                    .is_some_and(|(target, _payload, _semantic)| {
+                        target
+                            .strip_prefix("code-ref-chip-")
+                            .is_some_and(|symbol| symbol == symbol_entity_id)
+                    });
+                if pending_completion_matches || dispatched_activation_matches {
                     self.mt034_last_resolved_code_ref = Some(code_ref.clone());
                 }
                 if let Some((pane_id, document_id)) = operation.origin_rich_view.as_ref() {
@@ -28141,21 +29331,12 @@ impl HandshakeApp {
                 (
                     bus.pending_stage_route().cloned(),
                     bus.take_pending_stage_error(),
-                    bus.drain_pending_diagnostic_note_navigations(),
                     bus.take_pending_navigation(),
                     bus.take_pending_code_symbol(),
                     bus.take_pending_locus_ref(),
                 )
             });
-            if let Some((
-                stage_route,
-                route_error,
-                diagnostic_note_requests,
-                nav_doc,
-                code_symbol,
-                locus_ref,
-            )) = drained
-            {
+            if let Some((stage_route, route_error, nav_doc, code_symbol, locus_ref)) = drained {
                 let stage_route_attempted = stage_route.is_some() || route_error.is_some();
                 if let Some(route) = stage_route {
                     let stage = Arc::clone(&self.stage_pane);
@@ -28282,51 +29463,6 @@ impl HandshakeApp {
                             stage.last_embed_back = Some(outcome);
                         }
                     }
-                }
-                // MT-046 IC-09: every diagnostic chip has an immutable request id and receives an
-                // exact typed shell outcome. Retain that pair across the live/snapshot boundary so a
-                // coincidentally open note can never satisfy an unrelated or replayed click.
-                for request in diagnostic_note_requests {
-                    let rich_load_generation_before = self.rich_doc_load_generation;
-                    let destination_already_satisfied = self
-                        .active_rich_document_binding()
-                        .is_some_and(|(_, document_id)| document_id == request.document_id)
-                        && self
-                            .active_rich_state()
-                            .lock()
-                            .map(|state| state.live_editor_has_focus())
-                            .unwrap_or(false);
-                    let outcome = if destination_already_satisfied {
-                        Mt046DiagnosticNoteDispatchOutcome::DestinationAlreadySatisfied
-                    } else if request.workspace_id != self.active_project_id {
-                        Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                            crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
-                        )
-                    } else {
-                        self.nav_pending_label = Some(request.document_id.clone());
-                        let outcome = crate::quick_switcher::ShellNavigator::open_document(
-                            self,
-                            &request.document_id,
-                        );
-                        self.nav_pending_label = None;
-                        Mt046DiagnosticNoteDispatchOutcome::Navigation(outcome)
-                    };
-                    if let Mt046DiagnosticNoteDispatchOutcome::Navigation(nav_outcome) = &outcome {
-                        self.surface_nav_outcome(nav_outcome);
-                    }
-                    self.mt046_diagnostic_note_open_completion
-                        .observe_dispatch_outcome(&request, &outcome, rich_load_generation_before);
-                    self.mt046_diagnostic_note_navigation_outcomes.push_back(
-                        Mt046DiagnosticNoteNavigationOutcome {
-                            request,
-                            outcome,
-                            rich_load_generation_before,
-                        },
-                    );
-                    while self.mt046_diagnostic_note_navigation_outcomes.len() > 64 {
-                        self.mt046_diagnostic_note_navigation_outcomes.pop_front();
-                    }
-                    ctx.request_repaint();
                 }
                 // MT-032: a staged CMD_OPEN_DOCUMENT target (NoteRefs click / backlink row) opens the
                 // document through the SAME ShellNavigator seam the quick switcher uses.
@@ -30667,10 +31803,14 @@ impl HandshakeApp {
                     (!p.is_empty()).then_some(p)
                 });
             let palette = self.current_theme.palette();
+            // MT-028: the shell-owned result-navigation completion binding must reach the pane BEFORE
+            // it renders, so a result row declares the exact current observer generation.
+            let loom_search_open_completion = self.mt028_loom_search_open_completion.binding();
             if let Ok(mut shared) = self.loom_search_v2_shared.lock() {
                 shared.workspace_id = workspace_id.clone();
                 shared.palette = palette.clone();
                 shared.active_pane_id = self.active_pane.clone();
+                shared.open_completion = loom_search_open_completion;
             }
             // MT-029: mirror the same per-frame push into the Find-in-Files pane's shared cell so its
             // search targets the active workspace and its highlight tracks the live theme.
@@ -30908,6 +32048,8 @@ impl HandshakeApp {
                     Some(crate::top_menu_bar::MenuId::View) => Some("menu-view"),
                     Some(crate::top_menu_bar::MenuId::Editors) => Some("menu-editors"),
                     Some(crate::top_menu_bar::MenuId::Operator) => Some("menu-operator"),
+                    // MT-064 V5: the GO menu is a canonical step in the mounted FEMS proposal flow.
+                    Some(crate::top_menu_bar::MenuId::Go) => Some("menu-go"),
                     _ => None,
                 };
                 if let Some(target) = target {
@@ -30956,40 +32098,7 @@ impl HandshakeApp {
             // A non-active module button was clicked: retab the active pane + move the highlight. The
             // change is detected by the MT-006/MT-009 layout change-detector below, which schedules the
             // debounced save (no synchronous save here — rapid clicks coalesce).
-            let module_target = module_id.definition().data_id;
-            let attributed = module_target == "module-ckc"
-                && self.mt033_dispatched_target().as_deref() == Some(module_target);
-            if attributed {
-                self.mt033_argus_action_completion.begin(
-                    module_target,
-                    Self::mt033_module_semantic(module_target, module_id),
-                );
-            }
-            let changed = self.set_module(module_id);
-            if attributed {
-                if self.module_switcher.active() == module_id {
-                    self.mt033_argus_action_completion.complete_applied(
-                        module_target,
-                        serde_json::json!({
-                            "selected_module": module_id.as_str(),
-                            "selected_author_id": module_target,
-                            "state_changed": changed,
-                        })
-                        .to_string(),
-                    );
-                } else {
-                    self.mt033_argus_action_completion.complete_failed(
-                        module_target,
-                        "Module switch did not select the requested module".to_owned(),
-                        serde_json::json!({
-                            "requested_module": module_id.as_str(),
-                            "active_module": self.module_switcher.active().as_str(),
-                        })
-                        .to_string(),
-                    );
-                }
-            }
-            if changed {
+            if self.set_module(module_id) {
                 ctx.request_repaint();
             }
         }
@@ -31370,7 +32479,21 @@ impl HandshakeApp {
             } else {
                 PaneType::LoomBlock
             };
-            self.open_content_on_pane(request.origin_pane_id, pane_type, Some(request.block_id));
+            let pane_type_label = pane_type.label();
+            let origin_pane_id = request.origin_pane_id.clone();
+            let block_id = request.block_id.clone();
+            if self.open_content_on_pane(origin_pane_id.clone(), pane_type, Some(request.block_id))
+            {
+                // MT-028: record the exact canonical navigation this shell performed so the durable
+                // result-navigation observer can terminalize on authoritative routed state instead of
+                // on a merely-present tab it did not cause.
+                self.mt028_loom_search_routed = Some(Mt028LoomSearchRouted {
+                    block_id,
+                    content_type: request.content_type.clone(),
+                    pane_id: origin_pane_id.as_ref().to_owned(),
+                    pane_type_label,
+                });
+            }
         }
 
         // ── MT-029: drain Find-in-Files open-hit requests into the appropriate open path ─────────────
@@ -31975,1069 +33098,6 @@ mod mt033_argus_causality_and_menu_tests {
     }
 
     #[test]
-    fn diagnostic_note_completion_is_exact_transient_and_checked_generation() {
-        let target = "code_editor_diagnostic_note_ref_7#pane-a";
-        let document_id = "doc-mt046-ic09";
-        let workspace_id = "workspace-mt046-ic09";
-        let request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 1,
-            workspace_generation: 1,
-            workspace_id: workspace_id.to_owned(),
-            source_author_id: target.to_owned(),
-            document_id: document_id.to_owned(),
-        };
-        let semantic = Mt046DiagnosticNoteOpenCompletion::semantic(
-            target,
-            document_id,
-            workspace_id,
-            request.request_id,
-            request.workspace_generation,
-        );
-        let mut completion = Mt046DiagnosticNoteOpenCompletion::default();
-        let declaration = completion
-            .declaration(target, document_id, workspace_id, Some(&request))
-            .expect("valid diagnostic chip has an observer declaration");
-        assert!(declaration.contains(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID));
-        assert!(declaration.contains("open-diagnostic-note"));
-
-        assert!(completion.begin(target.to_owned(), &request, semantic, None));
-        assert_eq!(completion.generation, 1);
-        let pending_declaration = completion
-            .declaration(target, document_id, workspace_id, None)
-            .expect("the still-mounted chip advances its exact declaration while pending");
-        assert!(pending_declaration.contains("\"generation\":1"));
-        assert!(pending_declaration.contains("\"persistent_target\":true"));
-        completion.generation = u64::MAX;
-        completion.state = crate::mcp::action::ClickCompletionState::Applied;
-        assert!(
-            !completion.begin(
-                target.to_owned(),
-                &crate::interop::DiagnosticNoteNavigationRequest {
-                    request_id: 2,
-                    ..request
-                },
-                Mt046DiagnosticNoteOpenCompletion::semantic(
-                    target,
-                    document_id,
-                    workspace_id,
-                    2,
-                    1,
-                ),
-                None,
-            ),
-            "generation overflow fails closed"
-        );
-        assert_eq!(completion.generation, u64::MAX);
-    }
-
-    #[test]
-    fn diagnostic_note_completion_requires_focus_and_fails_on_workspace_drift() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let workspace_id = "workspace-mt046-ic09";
-        let document_id = "doc-mt046-ic09";
-        let target = "code_editor_diagnostic_note_ref_0";
-        app.bind_active_project_for_integration_test(workspace_id);
-        assert!(
-            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id.to_owned()),)
-        );
-        let request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 1,
-            workspace_generation: 1,
-            workspace_id: workspace_id.to_owned(),
-            source_author_id: target.to_owned(),
-            document_id: document_id.to_owned(),
-        };
-        let semantic = Mt046DiagnosticNoteOpenCompletion::semantic(
-            target,
-            document_id,
-            workspace_id,
-            request.request_id,
-            request.workspace_generation,
-        );
-        assert!(app.mt046_diagnostic_note_open_completion.begin(
-            target.to_owned(),
-            &request,
-            semantic,
-            None,
-        ));
-        let mut snapshot = mt046_search_snapshot(None);
-        snapshot.root.children.extend([
-            crate::accessibility::UiTreeNode {
-                id: format!("rich-editor.document.{document_id}"),
-                author_id: Some(format!("rich-editor.document.{document_id}")),
-                node_id: 4609,
-                role: "Document".to_owned(),
-                label: Some("Exact diagnostic destination".to_owned()),
-                value: Some(document_id.to_owned()),
-                disabled: false,
-                actions: Vec::new(),
-                bounds: None,
-                children: Vec::new(),
-            },
-            crate::accessibility::UiTreeNode {
-                id: crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID
-                    .to_owned(),
-                author_id: Some(
-                    crate::rich_editor::renderer::rich_editor_widget::RICH_EDITOR_TEXT_AUTHOR_ID
-                        .to_owned(),
-                ),
-                node_id: 4610,
-                role: "TextInput".to_owned(),
-                label: None,
-                value: None,
-                disabled: false,
-                actions: vec!["Focus".to_owned()],
-                bounds: None,
-                children: Vec::new(),
-            },
-        ]);
-        snapshot.widget_count += 2;
-
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Pending,
-            "an exact tab and mounted nodes cannot apply before the real rich editor has focus"
-        );
-
-        app.set_active_project_id_for_test("workspace-mt046-ic09-drift");
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed,
-            "workspace drift must terminalize the exact pending action as failed"
-        );
-        assert!(app
-            .mt046_diagnostic_note_open_completion
-            .observer_value()
-            .is_some_and(|value| value.contains("workspace changed")));
-    }
-
-    #[test]
-    fn diagnostic_note_completion_advances_persistent_split_pane_chip_declaration() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let workspace_id = "workspace-mt046-ic09-transient";
-        let document_id = "doc-mt046-ic09-transient";
-        let target = "code_editor_diagnostic_note_ref_0";
-        app.bind_active_project_for_integration_test(workspace_id);
-        let live_ctx = egui::Context::default();
-        app.frame_ctx = Some(live_ctx.clone());
-        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.bind_workspace(workspace_id);
-            bus.register_open_document_command();
-        })
-        .expect("live bus available");
-
-        let mut inspected = mt046_search_snapshot(None);
-        inspected
-            .root
-            .children
-            .push(crate::accessibility::UiTreeNode {
-                id: target.to_owned(),
-                author_id: Some(target.to_owned()),
-                node_id: 4690,
-                role: "Button".to_owned(),
-                label: Some("Open diagnostic related note".to_owned()),
-                value: Some(document_id.to_owned()),
-                disabled: false,
-                actions: vec!["Click".to_owned()],
-                bounds: None,
-                children: Vec::new(),
-            });
-        inspected.widget_count += 1;
-        app.project_mt046_diagnostic_note_open_completion(&mut inspected);
-        let declared = inspected
-            .find_unique_by_author_id(target)
-            .and_then(|node| node.value.as_deref())
-            .expect("inspected transient chip carries exact observer declaration");
-        assert!(declared.contains(document_id));
-
-        let receipt_id = {
-            let mut channel = app.mcp_action_channel.lock().expect("action channel");
-            let outcome = channel
-                .enqueue(&inspected, target, crate::mcp::action::UiAction::Click)
-                .expect("declared transient chip click enqueues");
-            assert_eq!(channel.drain_revalidated_into_events(&inspected).len(), 1);
-            outcome.receipt_id
-        };
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.open_diagnostic_note(&live_ctx, target, document_id)
-                .expect("exact declared diagnostic reservation consumed")
-        })
-        .expect("live bus available");
-
-        let mut still_mounted = inspected.clone();
-        still_mounted.root.children.retain(|node| {
-            node.author_id.as_deref() != Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID)
-        });
-        still_mounted.widget_count = still_mounted.widget_count.saturating_sub(1);
-        assert!(mt033_set_snapshot_node_value(
-            &mut still_mounted.root,
-            target,
-            document_id,
-        ));
-        app.project_mt046_diagnostic_note_open_completion(&mut still_mounted);
-        {
-            let mut channel = app.mcp_action_channel.lock().expect("action channel");
-            channel.acknowledge_after_render(&still_mounted);
-            let receipt = channel
-                .receipts()
-                .into_iter()
-                .find(|receipt| receipt.receipt_id == receipt_id)
-                .expect("exact pending receipt");
-            assert_eq!(
-                receipt.status,
-                crate::mcp::action::ActionReceiptStatus::Dispatched,
-                "the advanced persistent declaration keeps the exact action pending through the bus drain"
-            );
-        }
-
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Pending
-        );
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion
-                .document_id
-                .as_deref(),
-            Some(document_id)
-        );
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion
-                .workspace_id
-                .as_deref(),
-            Some(workspace_id)
-        );
-        app.mt046_diagnostic_note_open_completion
-            .complete_applied(serde_json::json!({"test": "exact terminal"}).to_string());
-        let mut terminal = still_mounted.clone();
-        terminal.root.children.retain(|node| {
-            node.author_id.as_deref() != Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID)
-        });
-        terminal.widget_count = terminal.widget_count.saturating_sub(1);
-        terminal
-            .root
-            .children
-            .push(crate::accessibility::UiTreeNode {
-                id: MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
-                author_id: Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
-                node_id: egui::Id::new(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID).value(),
-                role: "Status".to_owned(),
-                label: Some("MT-046 diagnostic note open completion".to_owned()),
-                value: app.mt046_diagnostic_note_open_completion.observer_value(),
-                disabled: false,
-                actions: Vec::new(),
-                bounds: None,
-                children: Vec::new(),
-            });
-        terminal.widget_count += 1;
-        let mut channel = app.mcp_action_channel.lock().expect("action channel");
-        channel.acknowledge_after_render(&terminal);
-        let receipt = channel
-            .receipts()
-            .into_iter()
-            .find(|receipt| receipt.receipt_id == receipt_id)
-            .expect("exact terminal receipt");
-        assert_eq!(
-            receipt.status,
-            crate::mcp::action::ActionReceiptStatus::Applied
-        );
-    }
-
-    #[test]
-    fn diagnostic_note_snapshot_reservations_are_bounded_and_visibility_swept() {
-        fn push_diagnostic_chip(
-            snapshot: &mut crate::accessibility::UiTreeSnapshot,
-            target: String,
-            document_id: String,
-            node_id: u64,
-        ) {
-            snapshot
-                .root
-                .children
-                .push(crate::accessibility::UiTreeNode {
-                    id: target.clone(),
-                    author_id: Some(target),
-                    node_id,
-                    role: "Button".to_owned(),
-                    label: Some("Open diagnostic related note".to_owned()),
-                    value: Some(document_id),
-                    disabled: false,
-                    actions: vec!["Click".to_owned()],
-                    bounds: None,
-                    children: Vec::new(),
-                });
-            snapshot.widget_count += 1;
-        }
-
-        fn declared_request_id(
-            snapshot: &crate::accessibility::UiTreeSnapshot,
-            target: &str,
-        ) -> Option<u64> {
-            let declaration = snapshot
-                .find_unique_by_author_id(target)?
-                .value
-                .as_deref()?;
-            let token = serde_json::from_str::<serde_json::Value>(declaration).ok()?;
-            let semantic = token.get("semantic_value")?.as_str()?;
-            serde_json::from_str::<serde_json::Value>(semantic)
-                .ok()?
-                .get("request_id")?
-                .as_u64()
-        }
-
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let workspace_id = "workspace-mt046-reservation-sweep";
-        app.bind_active_project_for_integration_test(workspace_id);
-        let live_ctx = egui::Context::default();
-        app.frame_ctx = Some(live_ctx.clone());
-        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
-        let admitted = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.bind_workspace(workspace_id);
-            bus.request_diagnostic_note_navigation("already-clicked", "already-clicked-doc")
-                .expect("admitted FIFO request")
-        })
-        .expect("live bus available");
-
-        let capacity = crate::interop::MAX_DIAGNOSTIC_NOTE_NAVIGATION_RESERVATIONS;
-        let stable_target = format!(
-            "{}stable",
-            crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
-        );
-        let mut initial = mt046_search_snapshot(None);
-        let mut initial_targets = Vec::new();
-        for index in 0..=capacity {
-            let target = if index == 0 {
-                stable_target.clone()
-            } else {
-                format!(
-                    "{}initial_{index:02}",
-                    crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
-                )
-            };
-            let document_id = format!("initial-doc-{index:02}");
-            push_diagnostic_chip(
-                &mut initial,
-                target.clone(),
-                document_id,
-                47_000 + index as u64,
-            );
-            initial_targets.push(target);
-        }
-        app.project_mt046_diagnostic_note_open_completion(&mut initial);
-        let initial_ids = initial_targets[..capacity]
-            .iter()
-            .map(|target| {
-                declared_request_id(&initial, target)
-                    .expect("every current candidate through capacity receives a declaration")
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            initial
-                .find_unique_by_author_id(&initial_targets[capacity])
-                .and_then(|node| node.value.as_deref()),
-            Some(format!("initial-doc-{capacity:02}").as_str()),
-            "the distinct candidate beyond capacity remains declaration-absent"
-        );
-        let stable_request_id = initial_ids[0];
-        let max_initial_request_id = *initial_ids.iter().max().expect("initial declarations");
-
-        let mut churn = mt046_search_snapshot(None);
-        push_diagnostic_chip(
-            &mut churn,
-            stable_target.clone(),
-            "initial-doc-00".to_owned(),
-            48_000,
-        );
-        let mut churn_targets = Vec::new();
-        for index in 0..capacity - 1 {
-            let target = format!(
-                "{}churn_{index:02}",
-                crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
-            );
-            push_diagnostic_chip(
-                &mut churn,
-                target.clone(),
-                format!("churn-doc-{index:02}"),
-                48_001 + index as u64,
-            );
-            churn_targets.push(target);
-        }
-        app.project_mt046_diagnostic_note_open_completion(&mut churn);
-        assert_eq!(
-            declared_request_id(&churn, &stable_target),
-            Some(stable_request_id),
-            "a key visible in both authoritative snapshots retains its exact request id"
-        );
-        let churn_ids = churn_targets
-            .iter()
-            .map(|target| {
-                declared_request_id(&churn, target)
-                    .expect("new keys admit after vanished initial keys are swept")
-            })
-            .collect::<Vec<_>>();
-        assert!(
-            churn_ids
-                .iter()
-                .all(|request_id| *request_id > max_initial_request_id),
-            "evicted request ids are not reused during visibility churn"
-        );
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            assert_eq!(
-                bus.pending_diagnostic_note_navigations(),
-                &std::collections::VecDeque::from([admitted.clone()]),
-                "snapshot visibility sweeps never mutate the admitted FIFO"
-            );
-        })
-        .expect("live bus available");
-
-        let mut empty = mt046_search_snapshot(None);
-        app.project_mt046_diagnostic_note_open_completion(&mut empty);
-        let mut recovered = mt046_search_snapshot(None);
-        let recovered_target = format!(
-            "{}post_churn",
-            crate::code_editor::panel::CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX
-        );
-        push_diagnostic_chip(
-            &mut recovered,
-            recovered_target.clone(),
-            "post-churn-doc".to_owned(),
-            49_000,
-        );
-        app.project_mt046_diagnostic_note_open_completion(&mut recovered);
-        assert!(
-            declared_request_id(&recovered, &recovered_target)
-                .is_some_and(|request_id| request_id > *churn_ids.iter().max().expect("churn ids")),
-            "a new key continues to admit after a later empty visibility sweep"
-        );
-    }
-
-    #[test]
-    fn diagnostic_note_completion_rejects_missing_typed_request_after_dispatched_click() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let workspace_id = "workspace-mt046-missing-request";
-        let document_id = "doc-mt046-missing-request";
-        let target = "code_editor_diagnostic_note_ref_0";
-        app.bind_active_project_for_integration_test(workspace_id);
-        let live_ctx = egui::Context::default();
-        app.frame_ctx = Some(live_ctx.clone());
-        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.bind_workspace(workspace_id);
-            bus.register_open_document_command();
-        })
-        .expect("live bus available");
-
-        let mut snapshot = mt046_search_snapshot(None);
-        snapshot
-            .root
-            .children
-            .push(crate::accessibility::UiTreeNode {
-                id: target.to_owned(),
-                author_id: Some(target.to_owned()),
-                node_id: 4691,
-                role: "Button".to_owned(),
-                label: Some("Open diagnostic related note".to_owned()),
-                value: Some(document_id.to_owned()),
-                disabled: false,
-                actions: vec!["Click".to_owned()],
-                bounds: None,
-                children: Vec::new(),
-            });
-        snapshot.widget_count += 1;
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        {
-            let mut channel = app.mcp_action_channel.lock().expect("action channel");
-            channel
-                .enqueue(&snapshot, target, crate::mcp::action::UiAction::Click)
-                .expect("declared click enqueues");
-            assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
-        }
-
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed
-        );
-        assert!(app
-            .mt046_diagnostic_note_open_completion
-            .observer_value()
-            .is_some_and(|value| value.contains("request was not admitted")));
-    }
-
-    #[test]
-    fn diagnostic_note_completion_cannot_reuse_prior_operator_outcome_after_model_contention() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let workspace_id = "workspace-mt046-operator-race";
-        let document_id = "doc-mt046-operator-race";
-        let target = "code_editor_diagnostic_note_ref_0";
-        app.bind_active_project_for_integration_test(workspace_id);
-        let live_ctx = egui::Context::default();
-        app.frame_ctx = Some(live_ctx.clone());
-        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.bind_workspace(workspace_id);
-            bus.register_open_document_command();
-        })
-        .expect("live bus available");
-        let mut snapshot = mt046_search_snapshot(None);
-        snapshot
-            .root
-            .children
-            .push(crate::accessibility::UiTreeNode {
-                id: target.to_owned(),
-                author_id: Some(target.to_owned()),
-                node_id: 4692,
-                role: "Button".to_owned(),
-                label: Some("Open diagnostic related note".to_owned()),
-                value: Some(document_id.to_owned()),
-                disabled: false,
-                actions: vec!["Click".to_owned()],
-                bounds: None,
-                children: Vec::new(),
-            });
-        snapshot.widget_count += 1;
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        let operator_request = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.open_diagnostic_note(&live_ctx, target, document_id)
-                .expect("operator consumes the first inspected reservation");
-            bus.take_pending_diagnostic_note_navigation()
-                .expect("operator request queued")
-        })
-        .expect("live bus available");
-        app.mt046_diagnostic_note_navigation_outcomes.push_back(
-            Mt046DiagnosticNoteNavigationOutcome {
-                request: operator_request.clone(),
-                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                    crate::quick_switcher::NavDispatchOutcome::Opened {
-                        surface: "prior operator destination".to_owned(),
-                    },
-                ),
-                rich_load_generation_before: 0,
-            },
-        );
-
-        snapshot.root.children.retain(|node| {
-            node.author_id.as_deref() != Some(MT046_DIAGNOSTIC_NOTE_OPEN_COMPLETION_AUTHOR_ID)
-        });
-        snapshot.widget_count = snapshot.widget_count.saturating_sub(1);
-        assert!(mt033_set_snapshot_node_value(
-            &mut snapshot.root,
-            target,
-            document_id,
-        ));
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        let fresh_semantic = snapshot
-            .find_unique_by_author_id(target)
-            .and_then(|node| node.value.as_deref())
-            .expect("fresh model declaration");
-        assert!(fresh_semantic.contains(&format!(
-            "\\\"request_id\\\":{}",
-            operator_request.request_id + 1
-        )));
-        {
-            let mut channel = app.mcp_action_channel.lock().expect("action channel");
-            channel
-                .enqueue(&snapshot, target, crate::mcp::action::UiAction::Click)
-                .expect("fresh model click enqueues");
-            assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
-        }
-        // Simulate panel try-lock contention: the fresh reservation is not consumed into the FIFO.
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed
-        );
-        assert_ne!(
-            app.mt046_diagnostic_note_open_completion.request_id,
-            Some(operator_request.request_id),
-            "the prior operator outcome is never paired to the later model declaration"
-        );
-    }
-
-    #[test]
-    fn diagnostic_note_completion_releases_after_channel_indeterminate_target_disappearance() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let workspace_id = "workspace-mt046-indeterminate";
-        let document_id = "doc-mt046-indeterminate";
-        let target = "code_editor_diagnostic_note_ref_0";
-        app.bind_active_project_for_integration_test(workspace_id);
-        let live_ctx = egui::Context::default();
-        app.frame_ctx = Some(live_ctx.clone());
-        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.bind_workspace(workspace_id);
-            bus.register_open_document_command();
-        })
-        .expect("live bus available");
-        let mut snapshot = mt046_search_snapshot(None);
-        snapshot
-            .root
-            .children
-            .push(crate::accessibility::UiTreeNode {
-                id: target.to_owned(),
-                author_id: Some(target.to_owned()),
-                node_id: 4693,
-                role: "Button".to_owned(),
-                label: Some("Open diagnostic related note".to_owned()),
-                value: Some(document_id.to_owned()),
-                disabled: false,
-                actions: vec!["Click".to_owned()],
-                bounds: None,
-                children: Vec::new(),
-            });
-        snapshot.widget_count += 1;
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        let receipt_id = {
-            let mut channel = app.mcp_action_channel.lock().expect("action channel");
-            let receipt_id = channel
-                .enqueue(&snapshot, target, crate::mcp::action::UiAction::Click)
-                .expect("declared click enqueues")
-                .receipt_id;
-            assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
-            receipt_id
-        };
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            bus.open_diagnostic_note(&live_ctx, target, document_id)
-                .expect("exact reservation consumed")
-        })
-        .expect("live bus available");
-        app.project_mt046_diagnostic_note_open_completion(&mut snapshot);
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Pending
-        );
-
-        let mut disappeared = mt046_search_snapshot(None);
-        {
-            let mut channel = app.mcp_action_channel.lock().expect("action channel");
-            channel.acknowledge_after_render(&disappeared);
-            assert_eq!(
-                channel
-                    .receipt_status(receipt_id)
-                    .expect("terminal receipt")
-                    .0,
-                crate::mcp::action::ActionReceiptStatus::Indeterminate
-            );
-        }
-        app.project_mt046_diagnostic_note_open_completion(&mut disappeared);
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed
-        );
-        app.mt046_diagnostic_note_open_completion
-            .acknowledge_terminal_snapshot();
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Ready,
-            "channel-terminal action releases its observer lease for recovery"
-        );
-    }
-
-    #[test]
-    fn diagnostic_note_completion_ignores_failed_sibling_rich_view() {
-        let workspace_id = "workspace-mt046-sibling-load";
-        let document_id = "doc-mt046-sibling-load";
-        let target = "code_editor_diagnostic_note_ref_0";
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        app.bind_active_project_for_integration_test(workspace_id);
-        assert!(
-            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id.to_owned()),)
-        );
-        let active_pane = app
-            .active_rich_document_binding()
-            .expect("active rich binding")
-            .0;
-        assert_ne!(active_pane, "sibling-pane");
-        app.rich_doc_loads.insert(
-            ("sibling-pane".to_owned(), document_id.to_owned()),
-            RichDocumentLoadState {
-                workspace_id: workspace_id.to_owned(),
-                failure: Some(RichDocumentLoadFailure {
-                    generation: 5,
-                    document_id: document_id.to_owned(),
-                    message: "sibling-only failure".to_owned(),
-                }),
-                ..RichDocumentLoadState::default()
-            },
-        );
-        let request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 1,
-            workspace_generation: 1,
-            workspace_id: workspace_id.to_owned(),
-            source_author_id: target.to_owned(),
-            document_id: document_id.to_owned(),
-        };
-        assert!(app.mt046_diagnostic_note_open_completion.begin(
-            target.to_owned(),
-            &request,
-            Mt046DiagnosticNoteOpenCompletion::semantic(
-                target,
-                document_id,
-                workspace_id,
-                request.request_id,
-                request.workspace_generation,
-            ),
-            None,
-        ));
-        app.mt046_diagnostic_note_navigation_outcomes.push_back(
-            Mt046DiagnosticNoteNavigationOutcome {
-                request,
-                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                    crate::quick_switcher::NavDispatchOutcome::Opened {
-                        surface: "Notes".to_owned(),
-                    },
-                ),
-                rich_load_generation_before: 0,
-            },
-        );
-        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Pending,
-            "a failed sibling view cannot reject the active successful destination"
-        );
-    }
-
-    #[test]
-    fn mcp_snapshot_preserves_focus_state_for_two_rich_views() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        app.bind_active_project_for_integration_test("workspace-mt046-two-rich-views");
-        let pane_a = PaneId::from("pane-a");
-        let pane_b = PaneId::from("pane-b");
-        app.set_active_pane_for_test(Some(pane_a.clone()));
-        assert!(
-            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some("doc-rich-a".to_owned()),)
-        );
-        app.set_active_pane_for_test(Some(pane_b.clone()));
-        assert!(
-            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some("doc-rich-b".to_owned()),)
-        );
-        let state_a = app
-            .editor_mounts
-            .rich_documents
-            .state_for_view(Some("doc-rich-a"), pane_a.as_ref());
-        let state_b = app
-            .editor_mounts
-            .rich_documents
-            .state_for_view(Some("doc-rich-b"), pane_b.as_ref());
-        for state in [&state_a, &state_b] {
-            let mut state = state.lock().expect("rich state");
-            state.request_editor_focus();
-            state.set_live_editor_has_focus_for_test(true);
-        }
-
-        app.refresh_mcp_snapshot();
-
-        for state in [&state_a, &state_b] {
-            let state = state.lock().expect("rich state");
-            assert!(
-                state.editor_focus_pending,
-                "isolated snapshot must not consume either rich view's pending real focus"
-            );
-            assert!(
-                state.live_editor_has_focus(),
-                "isolated snapshot must not overwrite either rich view's real focus observation"
-            );
-        }
-    }
-
-    #[test]
-    fn mt035_snapshot_projects_live_undo_counts_for_focused_and_unfocused_panes() {
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        let code_pane = PaneId::from("mt035-projection-code");
-        let rich_pane = PaneId::from("mt035-projection-rich");
-        {
-            let mut registry = app.pane_registry.lock().expect("pane registry");
-            registry.insert(PaneRecord::new(
-                code_pane.clone(),
-                PaneType::CodeSymbol,
-                DEFAULT_PROJECT_ID,
-                None,
-                LockState::Unlocked,
-                DirtyState::Clean,
-                PaneAuthority::System,
-            ));
-            registry.insert(PaneRecord::new(
-                rich_pane.clone(),
-                PaneType::LoomWikiPage,
-                DEFAULT_PROJECT_ID,
-                None,
-                LockState::Unlocked,
-                DirtyState::Clean,
-                PaneAuthority::System,
-            ));
-        }
-        app.set_active_pane_for_test(Some(code_pane.clone()));
-        let live_ctx = egui::Context::default();
-        app.frame_ctx = Some(live_ctx.clone());
-        let bus = crate::interop::InteractionBus::get_or_init(&live_ctx);
-        crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
-            for pane_id in [&rich_pane, &code_pane] {
-                bus.push_undo_local(
-                    pane_id.clone(),
-                    crate::undo_stack::UndoAction::sync(
-                        format!("{} edit", pane_id),
-                        Arc::new(crate::undo_stack::UndoResult::ok),
-                        Arc::new(crate::undo_stack::UndoResult::ok),
-                    ),
-                );
-            }
-        })
-        .expect("live interaction bus available");
-
-        let mut snapshot = mt046_search_snapshot(None);
-        for (index, pane_id) in [&rich_pane, &code_pane].into_iter().enumerate() {
-            let author_id = crate::interop::undo_count_author_id(pane_id);
-            snapshot
-                .root
-                .children
-                .push(crate::accessibility::UiTreeNode {
-                    id: author_id.clone(),
-                    author_id: Some(author_id),
-                    node_id: 50_000 + index as u64,
-                    role: "Label".to_owned(),
-                    label: Some("Undo count".to_owned()),
-                    value: Some("Undo (0)".to_owned()),
-                    disabled: false,
-                    actions: Vec::new(),
-                    bounds: None,
-                    children: Vec::new(),
-                });
-            snapshot.widget_count += 1;
-        }
-
-        app.project_mt035_argus_completion(&mut snapshot);
-        for pane_id in [&rich_pane, &code_pane] {
-            let author_id = crate::interop::undo_count_author_id(pane_id);
-            assert_eq!(
-                snapshot
-                    .find_unique_by_author_id(&author_id)
-                    .and_then(|node| node.value.as_deref()),
-                Some("Undo (1)"),
-                "isolated snapshot count must be replaced from the live bus for pane {pane_id}"
-            );
-        }
-    }
-
-    #[test]
-    fn diagnostic_note_completion_rejects_pre_satisfied_no_target_and_load_failure() {
-        let workspace_id = "workspace-mt046-terminal-outcomes";
-        let document_id = "doc-mt046-terminal-outcomes";
-        let target = "code_editor_diagnostic_note_ref_0";
-        let request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 1,
-            workspace_generation: 1,
-            workspace_id: workspace_id.to_owned(),
-            source_author_id: target.to_owned(),
-            document_id: document_id.to_owned(),
-        };
-        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
-        app.bind_active_project_for_integration_test(workspace_id);
-        assert!(app.mt046_diagnostic_note_open_completion.begin(
-            target.to_owned(),
-            &request,
-            Mt046DiagnosticNoteOpenCompletion::semantic(
-                target,
-                document_id,
-                workspace_id,
-                request.request_id,
-                request.workspace_generation,
-            ),
-            None,
-        ));
-        app.mt046_diagnostic_note_navigation_outcomes.push_back(
-            Mt046DiagnosticNoteNavigationOutcome {
-                request: request.clone(),
-                outcome: Mt046DiagnosticNoteDispatchOutcome::DestinationAlreadySatisfied,
-                rich_load_generation_before: 0,
-            },
-        );
-        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed,
-            "a pre-opened focused destination is not causal proof"
-        );
-
-        app.mt046_diagnostic_note_open_completion
-            .acknowledge_terminal_snapshot();
-        let no_target_request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 2,
-            ..request.clone()
-        };
-        assert!(app.mt046_diagnostic_note_open_completion.begin(
-            target.to_owned(),
-            &no_target_request,
-            Mt046DiagnosticNoteOpenCompletion::semantic(
-                target,
-                document_id,
-                workspace_id,
-                no_target_request.request_id,
-                no_target_request.workspace_generation,
-            ),
-            None,
-        ));
-        app.mt046_diagnostic_note_navigation_outcomes.push_back(
-            Mt046DiagnosticNoteNavigationOutcome {
-                request: no_target_request,
-                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                    crate::quick_switcher::NavDispatchOutcome::NoTargetPane,
-                ),
-                rich_load_generation_before: 0,
-            },
-        );
-        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed,
-            "NoTargetPane is terminal rejection, never indefinite Pending"
-        );
-
-        app.mt046_diagnostic_note_open_completion
-            .acknowledge_terminal_snapshot();
-        assert!(
-            app.open_content_on_active_pane(PaneType::LoomWikiPage, Some(document_id.to_owned()),)
-        );
-        let active_rich_pane = app
-            .active_rich_document_binding()
-            .expect("exact rich destination active")
-            .0;
-        let load_request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 3,
-            ..request
-        };
-        assert!(app.mt046_diagnostic_note_open_completion.begin(
-            target.to_owned(),
-            &load_request,
-            Mt046DiagnosticNoteOpenCompletion::semantic(
-                target,
-                document_id,
-                workspace_id,
-                load_request.request_id,
-                load_request.workspace_generation,
-            ),
-            None,
-        ));
-        app.rich_doc_loads.insert(
-            (active_rich_pane, document_id.to_owned()),
-            RichDocumentLoadState {
-                workspace_id: workspace_id.to_owned(),
-                failure: Some(RichDocumentLoadFailure {
-                    generation: 0,
-                    document_id: document_id.to_owned(),
-                    message: "Notes document load blocked: no runtime handle is bound.".to_owned(),
-                }),
-                ..RichDocumentLoadState::default()
-            },
-        );
-        app.mt046_diagnostic_note_navigation_outcomes.push_back(
-            Mt046DiagnosticNoteNavigationOutcome {
-                request: load_request,
-                outcome: Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                    crate::quick_switcher::NavDispatchOutcome::Opened {
-                        surface: "Notes".to_owned(),
-                    },
-                ),
-                rich_load_generation_before: 0,
-            },
-        );
-        app.project_mt046_diagnostic_note_open_completion(&mut mt046_search_snapshot(None));
-        assert_eq!(
-            app.mt046_diagnostic_note_open_completion.state,
-            crate::mcp::action::ClickCompletionState::Failed
-        );
-        assert!(app
-            .mt046_diagnostic_note_open_completion
-            .observer_value()
-            .is_some_and(|value| value.contains("no runtime handle")));
-    }
-
-    #[test]
-    fn diagnostic_note_completion_ignores_wrong_replay_and_recovers_plus_one() {
-        let target = "code_editor_diagnostic_note_ref_0";
-        let workspace_id = "workspace-mt046-recovery";
-        let document_id = "doc-mt046-recovery";
-        let request = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 10,
-            workspace_generation: 4,
-            workspace_id: workspace_id.to_owned(),
-            source_author_id: target.to_owned(),
-            document_id: document_id.to_owned(),
-        };
-        let mut completion = Mt046DiagnosticNoteOpenCompletion::default();
-        assert!(completion.begin(
-            target.to_owned(),
-            &request,
-            Mt046DiagnosticNoteOpenCompletion::semantic(
-                target,
-                document_id,
-                workspace_id,
-                request.request_id,
-                request.workspace_generation,
-            ),
-            None,
-        ));
-        let wrong = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 11,
-            document_id: "wrong-document".to_owned(),
-            ..request.clone()
-        };
-        assert!(!completion.observe_dispatch_outcome(
-            &wrong,
-            &Mt046DiagnosticNoteDispatchOutcome::Navigation(
-                crate::quick_switcher::NavDispatchOutcome::Opened {
-                    surface: "wrong".to_owned(),
-                },
-            ),
-            0,
-        ));
-        assert!(completion.dispatch_outcome.is_none());
-        completion.complete_failed("expected terminal".to_owned(), "{}".to_owned());
-        completion.acknowledge_terminal_snapshot();
-        assert_eq!(
-            completion.state,
-            crate::mcp::action::ClickCompletionState::Ready
-        );
-        assert!(
-            !completion.begin(
-                target.to_owned(),
-                &request,
-                Mt046DiagnosticNoteOpenCompletion::semantic(
-                    target,
-                    document_id,
-                    workspace_id,
-                    request.request_id,
-                    request.workspace_generation,
-                ),
-                None,
-            ),
-            "the same immutable request id cannot replay after terminal acknowledgement"
-        );
-        let next = crate::interop::DiagnosticNoteNavigationRequest {
-            request_id: 12,
-            ..request
-        };
-        assert!(completion.begin(
-            target.to_owned(),
-            &next,
-            Mt046DiagnosticNoteOpenCompletion::semantic(
-                target,
-                document_id,
-                workspace_id,
-                next.request_id,
-                next.workspace_generation,
-            ),
-            None,
-        ));
-        assert_eq!(
-            completion.generation, 2,
-            "repeat action advances exactly +1"
-        );
-    }
-
-    #[test]
     fn quick_switcher_search_action_is_enabled_in_canonical_snapshot() {
         let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
         app.bind_active_project_for_integration_test("workspace-mt046-search");
@@ -33069,6 +33129,26 @@ mod mt033_argus_causality_and_menu_tests {
             node.disabled,
             "search cannot run without a workspace: {node:?}"
         );
+    }
+
+    #[test]
+    fn mt034_literal_code_ref_matches_verified_backend_symbol_key() {
+        let resolved = crate::interop::cross_ref::CodeRef {
+            symbol_entity_id: "opaque-backend-entity".to_owned(),
+            symbol_key: "rust:ic06_fixture_src/lib.rs#my_function".to_owned(),
+            source_id: "source-ic06".to_owned(),
+            file_path: "ic06_fixture_src/lib.rs".to_owned(),
+            line_start: 6,
+            line_end: 6,
+        };
+        assert!(HandshakeApp::mt034_code_ref_matches_target(
+            "ic06_fixture_src\\lib.rs#my_function",
+            &resolved,
+        ));
+        assert!(!HandshakeApp::mt034_code_ref_matches_target(
+            "other/lib.rs#my_function",
+            &resolved,
+        ));
     }
 
     fn mt046_search_snapshot(
@@ -35547,5 +35627,695 @@ fn resolve_code_ref_target_path(
                 .collect::<Vec<_>>()
                 .join(", ")
         )),
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-064 V5 — FAIL-CLOSED negative coverage for the canonical proposal-flow receipts.
+//
+// `validation_v4` remediation item 7 requires focused negative tests proving that each violated
+// invariant leaves the receipt rejected/indeterminate (never `applied`), so the canonical
+// `argus.finish` gate fails instead of accepting a false-green mounted proof.
+//
+// Every ActionChannel case below drives the REAL `crate::mcp::action` acknowledgement over the REAL
+// observer token this MT publishes, so a regression in either half is caught. A positive control runs
+// first so the negatives are known to be meaningful (the same harness DOES produce `applied` when the
+// invariant holds).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+#[cfg(test)]
+mod mt064_v5_completion_negative_tests {
+    use super::*;
+    use crate::accessibility::{UiTreeNode, UiTreeSnapshot};
+    use crate::fems::memory_proposal::{
+        fems_class_author_id, MemoryClass, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+        FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        FEMS_PROPOSE_STATUS_AUTHOR_ID,
+    };
+    use crate::mcp::action::{ActionChannel, ActionReceiptStatus, ClickCompletionState, UiAction};
+
+    fn node(author_id: &str, node_id: u64, role: &str, value: Option<String>) -> UiTreeNode {
+        UiTreeNode {
+            id: author_id.to_owned(),
+            author_id: Some(author_id.to_owned()),
+            node_id,
+            role: role.to_owned(),
+            label: Some(author_id.to_owned()),
+            value,
+            disabled: false,
+            actions: vec!["Click".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn status_node(author_id: &str, node_id: u64, value: String) -> UiTreeNode {
+        UiTreeNode {
+            actions: Vec::new(),
+            ..node(author_id, node_id, "Status", Some(value))
+        }
+    }
+
+    fn snapshot(children: Vec<UiTreeNode>) -> UiTreeSnapshot {
+        let widget_count = children.len() + 1;
+        UiTreeSnapshot {
+            root: UiTreeNode {
+                id: "root".to_owned(),
+                author_id: None,
+                node_id: 1,
+                role: "Window".to_owned(),
+                label: None,
+                value: None,
+                disabled: false,
+                actions: Vec::new(),
+                bounds: None,
+                children,
+            },
+            captured_at_utc: "0.0Z".to_owned(),
+            widget_count,
+        }
+    }
+
+    fn offline_app() -> HandshakeApp {
+        HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()))
+    }
+
+    /// Drive one canonical click end to end over the REAL ActionChannel and return its terminal
+    /// receipt status. `pre` is the tree the client inspected and steered from; `post` is the fresh
+    /// authoritative tree the channel acknowledges against.
+    fn receipt_status_for(
+        pre: &UiTreeSnapshot,
+        post: &UiTreeSnapshot,
+        target: &str,
+    ) -> ActionReceiptStatus {
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(pre, target, UiAction::Click)
+            .expect("canonical proposal-flow target is steerable");
+        channel.drain_revalidated_into_events(pre);
+        channel.acknowledge_after_render(post);
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == outcome.receipt_id)
+            .expect("receipt is retained")
+            .status
+    }
+
+    /// Build the pre/post trees for a persistent class-radio steer with an explicit observer outcome.
+    fn class_radio_trees(
+        outcome: Option<(ClickCompletionState, String)>,
+    ) -> (UiTreeSnapshot, UiTreeSnapshot, String) {
+        let target = fems_class_author_id(MemoryClass::Procedural);
+        let mut completion = Mt064FemsProposalFlowCompletion::default();
+        let semantic = serde_json::json!({
+            "action": "select-memory-class",
+            "target": target,
+            "class": "procedural",
+            "expected_class_state": FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+        })
+        .to_string();
+
+        let pre = snapshot(vec![
+            node(
+                &target,
+                40,
+                "RadioButton",
+                completion.declaration(&target, &semantic, true),
+            ),
+            status_node(
+                MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+                41,
+                completion
+                    .observer_value()
+                    .expect("ready observer serializes"),
+            ),
+        ]);
+
+        completion.begin(
+            target.clone(),
+            semantic.clone(),
+            Mt064FlowExpectation::SelectClass {
+                class_wire: "procedural".to_owned(),
+            },
+        );
+        match outcome {
+            Some((ClickCompletionState::Applied, detail)) => completion.complete_applied(detail),
+            Some((ClickCompletionState::Failed, detail)) => {
+                completion.complete_failed("class selection failed".to_owned(), detail)
+            }
+            _ => {}
+        }
+        let post = snapshot(vec![
+            node(
+                &target,
+                40,
+                "RadioButton",
+                completion.declaration(&target, &semantic, true),
+            ),
+            status_node(
+                MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+                41,
+                completion
+                    .observer_value()
+                    .expect("bound observer serializes"),
+            ),
+        ]);
+        (pre, post, target)
+    }
+
+    #[test]
+    fn positive_control_class_radio_completion_is_applied() {
+        let (pre, post, target) = class_radio_trees(Some((
+            ClickCompletionState::Applied,
+            serde_json::json!({ "selected_class": "procedural" }).to_string(),
+        )));
+        assert_eq!(
+            receipt_status_for(&pre, &post, &target),
+            ActionReceiptStatus::Applied,
+            "the harness must be able to produce an applied receipt, otherwise the negative cases \
+             below prove nothing"
+        );
+    }
+
+    #[test]
+    fn class_radio_without_authoritative_selection_never_applies() {
+        // The product predicate did not observe the requested class selected, so the observer stays
+        // Pending. The receipt must NOT be applied.
+        let (pre, post, target) = class_radio_trees(None);
+        assert_ne!(
+            receipt_status_for(&pre, &post, &target),
+            ActionReceiptStatus::Applied,
+            "an unproven class selection can never terminalize applied"
+        );
+    }
+
+    #[test]
+    fn class_radio_typed_failure_is_rejected() {
+        let (pre, post, target) = class_radio_trees(Some((
+            ClickCompletionState::Failed,
+            serde_json::json!({ "selected_class": "episodic" }).to_string(),
+        )));
+        assert_eq!(
+            receipt_status_for(&pre, &post, &target),
+            ActionReceiptStatus::Rejected,
+            "a causally owned class-selection failure is a typed rejection, never a silent success"
+        );
+    }
+
+    /// Build the pre/post trees for the transient confirm steer with an explicit observer outcome.
+    /// The confirm control DISAPPEARS in `post` (the dialog closes) — the exact `validation_v4`
+    /// receipt-7 condition.
+    fn confirm_trees(
+        outcome: Option<(ClickCompletionState, String)>,
+        include_status_node: bool,
+    ) -> (UiTreeSnapshot, UiTreeSnapshot) {
+        let mut completion = Mt064FemsProposalFlowCompletion::default();
+        let semantic = serde_json::json!({
+            "action": "confirm-memory-proposal",
+            "target": FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+            "operation_id": "op-1",
+            "workspace_id": "ws-1",
+            "expected_status": FEMS_PROPOSE_STATUS_AUTHOR_ID,
+            "expected_state": "completed",
+            "expected_outcome": "event_persisted",
+        })
+        .to_string();
+        let pre = snapshot(vec![
+            node(FEMS_PROPOSE_DIALOG_AUTHOR_ID, 50, "Dialog", None),
+            node(
+                FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+                51,
+                "Button",
+                completion.declaration(FEMS_PROPOSE_CONFIRM_AUTHOR_ID, &semantic, false),
+            ),
+            status_node(
+                MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+                52,
+                completion
+                    .observer_value()
+                    .expect("ready observer serializes"),
+            ),
+        ]);
+
+        completion.begin(
+            FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
+            semantic,
+            Mt064FlowExpectation::Confirm {
+                operation_id: "op-1".to_owned(),
+            },
+        );
+        match outcome {
+            Some((ClickCompletionState::Applied, detail)) => completion.complete_applied(detail),
+            Some((ClickCompletionState::Failed, detail)) => completion.complete_failed(
+                "mounted proposal confirm reached a non-success state".to_owned(),
+                detail,
+            ),
+            _ => {}
+        }
+        let mut children = vec![status_node(
+            MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+            52,
+            completion
+                .observer_value()
+                .expect("bound observer serializes"),
+        )];
+        if include_status_node {
+            children.push(status_node(
+                FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                53,
+                "state=completed;outcome=event_persisted;operation_id=op-1;proposal_id=p-1;event_id=e-1"
+                    .to_owned(),
+            ));
+        }
+        (pre, snapshot(children))
+    }
+
+    #[test]
+    fn confirm_successor_predicate_applies_across_target_disappearance() {
+        let (pre, post) = confirm_trees(
+            Some((
+                ClickCompletionState::Applied,
+                serde_json::json!({ "proposal_id": "p-1", "event_id": "e-1" }).to_string(),
+            )),
+            true,
+        );
+        assert_eq!(
+            receipt_status_for(&pre, &post, FEMS_PROPOSE_CONFIRM_AUTHOR_ID),
+            ActionReceiptStatus::Applied,
+            "the confirm receipt must terminalize APPLIED after the button disappears when its \
+             authoritative successor status is observed (validation_v4 receipt 7)"
+        );
+    }
+
+    #[test]
+    fn confirm_target_disappearance_without_terminal_status_never_applies() {
+        let (pre, post) = confirm_trees(None, false);
+        assert_ne!(
+            receipt_status_for(&pre, &post, FEMS_PROPOSE_CONFIRM_AUTHOR_ID),
+            ActionReceiptStatus::Applied,
+            "a disappeared confirm button with no terminal status is NOT proof of a persisted proposal"
+        );
+    }
+
+    #[test]
+    fn confirm_terminal_failure_is_rejected() {
+        let (pre, post) = confirm_trees(
+            Some((
+                ClickCompletionState::Failed,
+                serde_json::json!({ "status_value": "state=partial;outcome=event_rejected" })
+                    .to_string(),
+            )),
+            true,
+        );
+        assert_eq!(
+            receipt_status_for(&pre, &post, FEMS_PROPOSE_CONFIRM_AUTHOR_ID),
+            ActionReceiptStatus::Rejected,
+            "a proposal that persisted WITHOUT its correlated FR event is a typed rejection"
+        );
+    }
+
+    fn confirm_app(status_value: &str) -> HandshakeApp {
+        let mut app = offline_app();
+        app.memory_proposal_operation = Some(MemoryProposalOperation {
+            operation_id: "op-1".to_owned(),
+            workspace_id: "ws-1".to_owned(),
+            workspace_generation: 1,
+        });
+        app.memory_proposal_status_value = Some(status_value.to_owned());
+        app.mt064_fems_proposal_flow_completion.begin(
+            FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
+            "semantic".to_owned(),
+            Mt064FlowExpectation::Confirm {
+                operation_id: "op-1".to_owned(),
+            },
+        );
+        app
+    }
+
+    fn confirm_snapshot(status_value: &str) -> UiTreeSnapshot {
+        snapshot(vec![status_node(
+            FEMS_PROPOSE_STATUS_AUTHOR_ID,
+            53,
+            status_value.to_owned(),
+        )])
+    }
+
+    #[test]
+    fn confirm_predicate_requires_event_persisted_and_matching_operation() {
+        // Backend 404/401/5xx -> the mounted status is a terminal failure -> typed FAILURE.
+        let status =
+            "state=failed;outcome=proposal_failed;operation_id=op-1;proposal_id=none;event_id=none";
+        let mut app = confirm_app(status);
+        let tree = confirm_snapshot(status);
+        app.advance_mt064_proposal_flow_completion(&tree, &Mt064SelectionState::default());
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Failed,
+            "a failed backend submit publishes a typed terminal failure"
+        );
+
+        // Proposal persisted but the correlated FR event was NOT queued -> typed FAILURE.
+        let status =
+            "state=partial;outcome=event_rejected;operation_id=op-1;proposal_id=p-1;event_id=none";
+        let mut app = confirm_app(status);
+        let tree = confirm_snapshot(status);
+        app.advance_mt064_proposal_flow_completion(&tree, &Mt064SelectionState::default());
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Failed,
+            "a proposal without its correlated FR event can never be reported as success"
+        );
+
+        // A terminal status belonging to ANOTHER operation must not terminalize this receipt.
+        let status = "state=completed;outcome=event_persisted;operation_id=op-OTHER;proposal_id=p-1;event_id=e-1";
+        let mut app = confirm_app(status);
+        let tree = confirm_snapshot(status);
+        app.advance_mt064_proposal_flow_completion(&tree, &Mt064SelectionState::default());
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Pending,
+            "a mismatched operation identity is not this action's effect"
+        );
+
+        // The app field alone is not an observable post-state: the mounted status node must carry the
+        // SAME value in the same fresh tree.
+        let status =
+            "state=completed;outcome=event_persisted;operation_id=op-1;proposal_id=p-1;event_id=e-1";
+        let mut app = confirm_app(status);
+        let tree = snapshot(Vec::new());
+        app.advance_mt064_proposal_flow_completion(&tree, &Mt064SelectionState::default());
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Pending,
+            "an unmounted status node is not a fresh authoritative observation"
+        );
+
+        // The exact success case, for contrast.
+        let mut app = confirm_app(status);
+        let tree = confirm_snapshot(status);
+        app.advance_mt064_proposal_flow_completion(&tree, &Mt064SelectionState::default());
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Applied
+        );
+    }
+
+    #[test]
+    fn select_all_predicate_requires_a_changed_full_document_selection() {
+        let content = "pub fn mt064() {}\n";
+        let hash = crate::fems::memory_proposal::content_hash_of_selection(content);
+        let full = Mt064SelectionState {
+            pane_id: Some("pane-a".to_owned()),
+            surface: Some("Code".to_owned()),
+            start: Some(0),
+            end: Some(content.len()),
+            text_len: Some(content.len()),
+            content_hash: Some(hash.clone()),
+        };
+        let expectation = |prior: String| Mt064FlowExpectation::SelectAll {
+            pane_id: "pane-a".to_owned(),
+            document_id: "KSRC-1".to_owned(),
+            document_len: content.len(),
+            document_content_hash: hash.clone(),
+            prior_selection: prior,
+        };
+
+        // STALE: the selection was ALREADY the full document before the click, so nothing this action
+        // did can be proven.
+        let mut app = offline_app();
+        app.mt064_fems_proposal_flow_completion.begin(
+            MT064_SELECT_ALL_TARGET.to_owned(),
+            "semantic".to_owned(),
+            expectation(full.value()),
+        );
+        app.advance_mt064_proposal_flow_completion(&snapshot(Vec::new()), &full);
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Pending,
+            "an unchanged selection is not proof of this select-all click"
+        );
+
+        // PARTIAL: the selection changed but is not the whole document.
+        let partial = Mt064SelectionState {
+            end: Some(content.len() - 1),
+            text_len: Some(content.len() - 1),
+            content_hash: Some(crate::fems::memory_proposal::content_hash_of_selection(
+                &content[..content.len() - 1],
+            )),
+            ..full.clone()
+        };
+        let mut app = offline_app();
+        app.mt064_fems_proposal_flow_completion.begin(
+            MT064_SELECT_ALL_TARGET.to_owned(),
+            "semantic".to_owned(),
+            expectation(Mt064SelectionState::default().value()),
+        );
+        app.advance_mt064_proposal_flow_completion(&snapshot(Vec::new()), &partial);
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Pending,
+            "a partial selection is not the expected full-document selection"
+        );
+
+        // The exact success case, for contrast.
+        let mut app = offline_app();
+        app.mt064_fems_proposal_flow_completion.begin(
+            MT064_SELECT_ALL_TARGET.to_owned(),
+            "semantic".to_owned(),
+            expectation(Mt064SelectionState::default().value()),
+        );
+        app.advance_mt064_proposal_flow_completion(&snapshot(Vec::new()), &full);
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Applied
+        );
+    }
+
+    /// WRONG SELECTED CLASS: the operator/model asked for `procedural`, but the authoritative
+    /// class-state reports a different class. The receipt must never terminalize applied.
+    #[test]
+    fn wrong_selected_class_never_completes_the_requested_radio() {
+        let dialog_selection = crate::interop::SharedSelection::TextRange {
+            pane_id: crate::pane_registry::PaneId::from("pane-a"),
+            surface: crate::interop::EditorSurfaceKind::Code,
+            start: 0,
+            end: 5,
+            text: "hello".to_owned(),
+        };
+        let dialog = crate::fems::memory_proposal::ProposeToMemoryDialog::open_for_document(
+            &dialog_selection,
+            "KSRC-1",
+            "ws-1",
+            "actor-1",
+        )
+        .expect("dialog opens over a text-range selection");
+
+        // The mounted dialog ALREADY carries the requested class, so the authoritative class-state
+        // node is the SOLE discriminator in these cases. Without this the assertion would be masked
+        // by the dialog-class check and could not detect a weakened class-state predicate.
+        let mut procedural_dialog = dialog.clone();
+        procedural_dialog.set_class(MemoryClass::Procedural);
+        assert_eq!(procedural_dialog.class, MemoryClass::Procedural);
+        assert_eq!(procedural_dialog.proposal.class, MemoryClass::Procedural);
+
+        for (label, class_state) in [
+            (
+                "a DIFFERENT class is reported selected",
+                "selected_class=episodic;proposal_class=episodic;episodic=true;semantic=false;procedural=false;content_hash=abc",
+            ),
+            (
+                "the radio says procedural but the PREVIEWED proposal is still episodic",
+                "selected_class=procedural;proposal_class=episodic;episodic=false;semantic=false;procedural=true;content_hash=abc",
+            ),
+        ] {
+            let mut app = offline_app();
+            app.pending_memory_proposal = Some(procedural_dialog.clone());
+            app.mt064_fems_proposal_flow_completion.begin(
+                fems_class_author_id(MemoryClass::Procedural),
+                "semantic".to_owned(),
+                Mt064FlowExpectation::SelectClass {
+                    class_wire: "procedural".to_owned(),
+                },
+            );
+            let tree = snapshot(vec![
+                status_node(FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID, 61, class_state.to_owned()),
+                status_node(
+                    &fems_class_author_id(MemoryClass::Procedural),
+                    65,
+                    "p".to_owned(),
+                ),
+            ]);
+            app.advance_mt064_proposal_flow_completion(&tree, &Mt064SelectionState::default());
+            assert_eq!(
+                app.mt064_fems_proposal_flow_completion.state,
+                ClickCompletionState::Pending,
+                "{label}: the requested radio was NOT proven selected, so the receipt cannot apply"
+            );
+        }
+    }
+
+    /// TIMEOUT: a predicate that never appears must fail with a TYPED rejection inside the bounded
+    /// observation window, never linger Pending (which would block every later action from binding).
+    #[test]
+    fn bounded_observation_window_publishes_a_typed_timeout_rejection() {
+        let mut completion = Mt064FemsProposalFlowCompletion::default();
+        completion.begin(
+            FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
+            "semantic".to_owned(),
+            Mt064FlowExpectation::Confirm {
+                operation_id: "op-1".to_owned(),
+            },
+        );
+        assert!(
+            !completion.observation_window_elapsed(),
+            "a freshly bound action is inside its bounded window"
+        );
+        completion.pending_since = Some(
+            std::time::Instant::now()
+                - MT064_PENDING_OBSERVATION_WINDOW
+                - std::time::Duration::from_secs(1),
+        );
+        assert!(
+            completion.observation_window_elapsed(),
+            "an action past the bounded window must be reported, not silently retained"
+        );
+        completion.complete_failed("timeout".to_owned(), "{}".to_owned());
+        assert_eq!(completion.state, ClickCompletionState::Failed);
+        // A settled terminal observer is a valid non-Pending baseline again, so the NEXT action can
+        // still bind a completion instead of being permanently starved.
+        assert!(completion
+            .declaration(FEMS_PROPOSE_CONFIRM_AUTHOR_ID, "next-semantic", false)
+            .is_some());
+    }
+
+    #[test]
+    fn stale_declared_context_publishes_a_typed_failure() {
+        let mut completion = Mt064FemsProposalFlowCompletion::default();
+        completion.begin(
+            MT064_SELECT_ALL_TARGET.to_owned(),
+            "declared".to_owned(),
+            Mt064FlowExpectation::SelectAll {
+                pane_id: "pane-a".to_owned(),
+                document_id: "KSRC-1".to_owned(),
+                document_len: 1,
+                document_content_hash: "x".to_owned(),
+                prior_selection: "none".to_owned(),
+            },
+        );
+        completion.complete_failed("stale".to_owned(), "{}".to_owned());
+        assert_eq!(completion.state, ClickCompletionState::Failed);
+        let value = completion
+            .observer_value()
+            .expect("a typed failure still serializes as an observer state");
+        assert!(value.contains("\"state\":\"failed\""), "{value}");
+    }
+
+    #[test]
+    fn a_foreign_declaration_never_binds_an_mt064_receipt() {
+        // MT-033 authors a declaration on `menu.go.command-palette`; MT-064 must not adopt it.
+        let foreign = serde_json::json!({
+            "action": "open-command-palette",
+            "target": "menu.go.command-palette",
+            "expected_dialog": "command-palette.dialog",
+        })
+        .to_string();
+        assert!(!HandshakeApp::mt064_declaration_is_own(
+            &foreign,
+            "menu.go.command-palette"
+        ));
+        let own = serde_json::json!({
+            "action": "select-memory-class",
+            "target": fems_class_author_id(MemoryClass::Procedural),
+            "class": "procedural",
+        })
+        .to_string();
+        assert!(HandshakeApp::mt064_declaration_is_own(
+            &own,
+            &fems_class_author_id(MemoryClass::Procedural)
+        ));
+        // A declaration whose target does not match the dispatched author id is never adopted.
+        assert!(!HandshakeApp::mt064_declaration_is_own(
+            &own,
+            &fems_class_author_id(MemoryClass::Episodic)
+        ));
+    }
+
+    #[test]
+    fn open_dialog_predicate_requires_a_fresh_operation_and_every_required_author_id() {
+        let required = vec![
+            status_node(FEMS_PROPOSE_DIALOG_AUTHOR_ID, 60, "dialog".to_owned()),
+            status_node(
+                FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                61,
+                "selected_class=episodic;proposal_class=episodic;episodic=true;semantic=false;procedural=false;content_hash=abc"
+                    .to_owned(),
+            ),
+            status_node(FEMS_PROPOSE_CONFIRM_AUTHOR_ID, 62, "confirm".to_owned()),
+            status_node(
+                &fems_class_author_id(MemoryClass::Episodic),
+                63,
+                "e".to_owned(),
+            ),
+            status_node(
+                &fems_class_author_id(MemoryClass::Semantic),
+                64,
+                "s".to_owned(),
+            ),
+            status_node(
+                &fems_class_author_id(MemoryClass::Procedural),
+                65,
+                "p".to_owned(),
+            ),
+        ];
+
+        // A dialog that was ALREADY open (same operation identity) is not this command's effect.
+        let mut app = offline_app();
+        app.memory_proposal_operation = Some(MemoryProposalOperation {
+            operation_id: "op-1".to_owned(),
+            workspace_id: "ws-1".to_owned(),
+            workspace_generation: 1,
+        });
+        app.mt064_fems_proposal_flow_completion.begin(
+            MT064_PALETTE_ROW_TARGET.to_owned(),
+            "semantic".to_owned(),
+            Mt064FlowExpectation::OpenDialog {
+                prior_operation_id: "op-1".to_owned(),
+            },
+        );
+        app.advance_mt064_proposal_flow_completion(
+            &snapshot(required.clone()),
+            &Mt064SelectionState::default(),
+        );
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Pending,
+            "a dialog opened by some other command (no fresh operation identity) is not this action's effect"
+        );
+
+        // A missing required author_id must also block completion.
+        let mut app = offline_app();
+        app.memory_proposal_operation = Some(MemoryProposalOperation {
+            operation_id: "op-2".to_owned(),
+            workspace_id: "ws-1".to_owned(),
+            workspace_generation: 1,
+        });
+        app.mt064_fems_proposal_flow_completion.begin(
+            MT064_PALETTE_ROW_TARGET.to_owned(),
+            "semantic".to_owned(),
+            Mt064FlowExpectation::OpenDialog {
+                prior_operation_id: "op-1".to_owned(),
+            },
+        );
+        let mut missing = required.clone();
+        missing.retain(|child| child.author_id.as_deref() != Some(FEMS_PROPOSE_CONFIRM_AUTHOR_ID));
+        app.advance_mt064_proposal_flow_completion(
+            &snapshot(missing),
+            &Mt064SelectionState::default(),
+        );
+        assert_eq!(
+            app.mt064_fems_proposal_flow_completion.state,
+            ClickCompletionState::Pending,
+            "a dialog missing a required author_id is not a complete proposal surface"
+        );
     }
 }

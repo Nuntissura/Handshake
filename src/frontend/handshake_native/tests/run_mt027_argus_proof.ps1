@@ -18,23 +18,140 @@ $sourceSha = (& git -C $repoRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $sourceSha -notmatch '^[0-9a-f]{40}$') {
     throw "Unable to resolve an exact committed source SHA; got '$sourceSha'"
 }
-$relevantStatus = @(& git -C $repoRoot status --porcelain --untracked-files=all -- `
-        '.' `
-        ':(exclude)AGENTS.md' `
-        ':(exclude)CLAUDE.md')
-if ($LASTEXITCODE -ne 0) {
-    throw 'Unable to inspect MT-027 relevant source cleanliness'
-}
-if (@($relevantStatus | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -ne 0) {
-    throw "MT-027 proof requires every compiled/configured repository input to match committed HEAD; dirty rows: $($relevantStatus -join '; ')"
+# ── MT-027 V5 cleanliness gate (validation_v4 remediation item 2) ─────────────────────────────────
+#
+# The previous gate treated the ENTIRE repository as MT-027 compiled/configured input and therefore
+# rejected a fresh run over an unrelated pre-existing formatting diff in another test binary. It is now
+# narrowed to the EXACT MT-027 input set, and the narrowing is conservative: everything is gated by
+# DEFAULT, and the ONLY excludable rows are other test binaries' top-level `.rs` files under
+# `src/frontend/handshake_native/tests/`. Each Rust integration test compiles into its OWN separate test
+# binary, so such a file provably cannot enter the artifacts of `test_block_collection_view` — while the
+# lib, this binary's own source, every shared `#[path]` helper module it declares, the manifests and
+# lockfiles, and the whole managed backend crate all REMAIN gated and still hard-fail when dirty.
+# Every excluded row is recorded with its HEAD and worktree blob hashes in the external process receipt
+# so a reviewer can confirm exactly what was excluded and that none of it is a compiled input.
+$mt027TestFileName = 'test_block_collection_view.rs'
+$mt027TestsDirPrefix = 'src/frontend/handshake_native/tests/'
+
+function Get-Mt027StatusRows {
+    $rows = @(& git -C $repoRoot status --porcelain --untracked-files=all -- `
+            '.' `
+            ':(exclude)AGENTS.md' `
+            ':(exclude)CLAUDE.md')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Unable to inspect MT-027 relevant source cleanliness'
+    }
+    return @($rows | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 }
 
+function Get-Mt027StatusPath {
+    param([Parameter(Mandatory = $true)][string]$Row)
+
+    # porcelain v1: 'XY <path>' or 'XY <old> -> <new>'. Quoted paths keep their quotes; we only need a
+    # stable comparable path, and an unexpected shape must stay GATED rather than silently excluded.
+    $path = $Row.Substring(3).Trim()
+    $arrow = $path.IndexOf(' -> ', [StringComparison]::Ordinal)
+    if ($arrow -ge 0) {
+        $path = $path.Substring($arrow + 4).Trim()
+    }
+    return $path.Trim('"').Replace('\', '/')
+}
+
+function Test-Mt027ExcludableRow {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ($Path.Contains('"')) {
+        return $false
+    }
+    if (-not $Path.StartsWith($mt027TestsDirPrefix, [StringComparison]::Ordinal)) {
+        return $false
+    }
+    $relative = $Path.Substring($mt027TestsDirPrefix.Length)
+    if ($relative.Contains('/')) {
+        # A shared helper module directory (native_gui_support/, interconnect_support/,
+        # pg_proof_support/, fixtures/, ...) IS compiled/consumed by this binary. Stay gated.
+        return $false
+    }
+    if (-not $relative.EndsWith('.rs', [StringComparison]::OrdinalIgnoreCase)) {
+        return $false
+    }
+    return -not $relative.Equals($mt027TestFileName, [StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-Mt027BlobHash {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateSet('head', 'worktree')][string]$Source
+    )
+
+    if ($Source -eq 'head') {
+        # An untracked exclusion has no HEAD blob; a non-zero `rev-parse` is expected there and must not
+        # abort the gate (PS7 promotes native stderr to a terminating error under ErrorActionPreference
+        # Stop, so the lookup is explicitly contained).
+        $hash = $null
+        try {
+            $hash = (& git -C $repoRoot rev-parse --quiet --verify "HEAD:$Path" 2>$null)
+        } catch {
+            $hash = $null
+        }
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$hash)) {
+            $global:LASTEXITCODE = 0
+            return 'absent-at-head'
+        }
+        return ([string]$hash).Trim()
+    }
+    $full = Join-Path $repoRoot $Path
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
+        return 'absent-in-worktree'
+    }
+    $hash = (& git -C $repoRoot hash-object -- $Path)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to hash excluded MT-027 row '$Path'"
+    }
+    return ([string]$hash).Trim()
+}
+
+function Assert-Mt027Cleanliness {
+    param([Parameter(Mandatory = $true)][string]$Phase)
+
+    $gated = @()
+    $excluded = @()
+    foreach ($row in Get-Mt027StatusRows) {
+        $path = Get-Mt027StatusPath -Row $row
+        if (Test-Mt027ExcludableRow -Path $path) {
+            $excluded += [ordered]@{
+                path = $path
+                status = $row.Substring(0, 2)
+                reason = 'separate_test_binary_top_level_source_not_linked_into_test_block_collection_view'
+                head_blob_sha1 = Get-Mt027BlobHash -Path $path -Source 'head'
+                worktree_blob_sha1 = Get-Mt027BlobHash -Path $path -Source 'worktree'
+            }
+        } else {
+            $gated += $row
+        }
+    }
+    if ($gated.Count -ne 0) {
+        throw "MT-027 proof requires every compiled/configured input to match committed HEAD ($Phase); dirty gated rows: $($gated -join '; ')"
+    }
+    return , @($excluded)
+}
+
+$excludedDirtyRows = Assert-Mt027Cleanliness -Phase 'preflight'
+
 $artifactSibling = [IO.Path]::GetFullPath((Join-Path $crateRoot '..\..\..\..\Handshake_Artifacts'))
-$cargoTarget = [IO.Path]::GetFullPath((Join-Path $artifactSibling 'handshake-cargo-target'))
+# HBR-SWARM-005 / CX-984: CARGO_TARGET_DIR MUST be a PER-OWNER subdirectory, never the shared root. The
+# shared root previously let another worktree's `handshake_core.exe` be picked up as this proof's
+# "current-source" backend, which is exactly the provenance failure the rule exists to prevent.
+$cargoTarget = [IO.Path]::GetFullPath(
+    (Join-Path $artifactSibling 'handshake-cargo-target\wp012-mt027'))
 $proofRoot = [IO.Path]::GetFullPath(
     (Join-Path $artifactSibling 'handshake-test\wp-kernel-012-mt-027\integrated'))
 $backendBinary = [IO.Path]::GetFullPath((Join-Path $cargoTarget 'debug\handshake_core.exe'))
-$postgresDsn = 'postgresql://postgres@127.0.0.1:5544/handshake'
+# HBR-SWARM-005 / CX-984: a proof run needs a WP-SCOPED database. The shared `handshake` database
+# carries another worktree's applied migration set, so a divergent migration in this worktree fails
+# sqlx checksum validation there. The database identity is bound into the receipt below.
+$postgresDatabase = 'handshake_wp_kernel_012_mt_027'
+$postgresDsn = "postgresql://postgres@127.0.0.1:5544/$postgresDatabase"
 $expectedArtifactRoot = [IO.Path]::GetFullPath(
     (Join-Path ([IO.Directory]::GetParent($repoRoot).FullName) 'Handshake_Artifacts'))
 if (-not $artifactSibling.Equals($expectedArtifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
@@ -230,7 +347,7 @@ $cargoArguments = @(
     '--features', 'integration',
     '--test', 'test_block_collection_view',
     'block_collection_views_live_pg_self_seed_full_round_trip',
-    '-j', '1',
+    '-j', '6',
     '--',
     '--exact',
     '--nocapture'
@@ -240,7 +357,7 @@ $backendBuildArguments = @(
     '--manifest-path', (Join-Path $repoRoot 'src\backend\handshake_core\Cargo.toml'),
     '--features', 'app-runtime,duckdb-flight-recorder',
     '--bin', 'handshake_core',
-    '-j', '1'
+    '-j', '6'
 )
 
 $environmentNames = @(
@@ -488,13 +605,19 @@ $invalidRows = @($traceRows | Where-Object {
         $_.scenario_id -ne $scenario -or
         $_.surface -ne 'Block Collection Views' -or
         $_.edge_state_tag -ne 'create-mutate-switch-empty-error-retry' -or
-        $_.receipt_status -notin @('applied', 'indeterminate') -or
+        $_.receipt_status -notin @('applied', 'rejected') -or
         [string]::IsNullOrWhiteSpace([string]$_.agent_id) -or
         -not ([string]$_.agent_id).EndsWith(':client:wp-kernel-012-mt-027-block-collections-agent') -or
         [int]$_.process_id -ne [int]$testIdentity.pid
     })
 if ($invalidRows.Count -ne 0) {
     throw 'Canonical Argus trace is not bound to the committed source and observed test process'
+}
+# MT-027 V5 (validation_v4 remediation item 4): ZERO indeterminate receipts. This is strictly stronger
+# than the previous allowlist, which permitted every row to be `indeterminate`.
+$indeterminateRows = @($traceRows | Where-Object { $_.receipt_status -eq 'indeterminate' })
+if ($indeterminateRows.Count -ne 0) {
+    throw "Canonical Argus trace retains $($indeterminateRows.Count) indeterminate receipt(s): $(($indeterminateRows | ForEach-Object { \"$($_.receipt_id)/$($_.target)\" }) -join ',')"
 }
 $methods = @($traceRows.method | Sort-Object -Unique)
 foreach ($requiredMethod in @('argus.click', 'argus.set_value')) {
@@ -646,6 +769,79 @@ function Test-AuthorValues {
     return $true
 }
 
+function Add-CanonicalTreeLines {
+    param(
+        [AllowNull()]$Node,
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [Collections.Generic.List[string]]$Lines
+    )
+
+    if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) {
+        return
+    }
+    if ($Node -is [Collections.IEnumerable] -and
+        $Node -isnot [Management.Automation.PSCustomObject]) {
+        foreach ($child in $Node) {
+            Add-CanonicalTreeLines -Node $child -Lines $Lines
+        }
+        return
+    }
+    $unit = [string][char]0x1F
+    $absent = [string][char]0x00
+    $authorProperty = $Node.PSObject.Properties['author_id']
+    if ($null -ne $authorProperty -and $authorProperty.Value -is [string]) {
+        $field = {
+            param([string]$Name)
+            $property = $Node.PSObject.Properties[$Name]
+            if ($null -eq $property -or $property.Value -isnot [string]) {
+                return $absent
+            }
+            return [string]$property.Value
+        }
+        $disabledProperty = $Node.PSObject.Properties['disabled']
+        $disabled = if ($null -eq $disabledProperty -or $disabledProperty.Value -isnot [bool]) {
+            $absent
+        } elseif ([bool]$disabledProperty.Value) {
+            '1'
+        } else {
+            '0'
+        }
+        $Lines.Add(
+            [string]$authorProperty.Value + $unit + (& $field 'role') + $unit +
+            (& $field 'label') + $unit + (& $field 'value') + $unit + $disabled)
+    }
+    foreach ($property in $Node.PSObject.Properties) {
+        Add-CanonicalTreeLines -Node $property.Value -Lines $Lines
+    }
+}
+
+# The exact digest `test_block_collection_view::canonical_tree_digest` records into every receipt:
+# sorted, unit-separated `author_id / role / label / value / disabled` lines over the addressable nodes,
+# newline-terminated, SHA-256. Recomputing it HERE is what makes the persisted receipt independently
+# verifiable instead of a self-asserted claim.
+function Get-CanonicalTreeDigest {
+    param([AllowNull()]$Tree)
+
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    Add-CanonicalTreeLines -Node $Tree -Lines $lines
+    $array = $lines.ToArray()
+    [Array]::Sort($array, [StringComparer]::Ordinal)
+    $builder = New-Object Text.StringBuilder
+    foreach ($line in $array) {
+        [void]$builder.Append($line)
+        [void]$builder.Append("`n")
+    }
+    $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($builder.ToString())
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($hasher.ComputeHash($bytes))).
+            Replace('-', '').ToLowerInvariant()
+    } finally {
+        $hasher.Dispose()
+    }
+}
+
 function Test-TerminalTreePredicate {
     param(
         [Parameter(Mandatory = $true)][string]$PredicateId,
@@ -667,16 +863,16 @@ function Test-TerminalTreePredicate {
             return -not (& $has 'bcv.retry') -and (& $has 'bcv.kind.calendar')
         }
         'kind-table-selected' {
-            return Test-AuthorValue $Tree 'bcv.kind.table' 'selected'
+            return Test-AuthorValue $Tree 'bcv.kind.table.state' 'selected'
         }
         'kind-kanban-selected' {
-            return Test-AuthorValue $Tree 'bcv.kind.kanban' 'selected'
+            return Test-AuthorValue $Tree 'bcv.kind.kanban.state' 'selected'
         }
         'kind-calendar-selected' {
-            return Test-AuthorValue $Tree 'bcv.kind.calendar' 'selected'
+            return Test-AuthorValue $Tree 'bcv.kind.calendar.state' 'selected'
         }
         'kind-table-restored' {
-            return Test-AuthorValue $Tree 'bcv.kind.table' 'selected'
+            return Test-AuthorValue $Tree 'bcv.kind.table.state' 'selected'
         }
         'sort-title-ascending' {
             $node = Find-AuthorNode $Tree 'bcv.table.sort.title'
@@ -747,10 +943,10 @@ function Test-TerminalTreePredicate {
             return $null -ne $node -and [string]$node.value -eq [string]$ActionValue
         }
         'unbound-create-calendar-selected' {
-            return Test-AuthorValue $Tree 'bcv.new-view.kind.calendar' 'selected'
+            return Test-AuthorValue $Tree 'bcv.new-view.kind.calendar.state' 'selected'
         }
         'unbound-create-calendar-terminal' {
-            return (Test-AuthorValue $Tree 'bcv.kind.calendar' 'selected') -and
+            return (Test-AuthorValue $Tree 'bcv.kind.calendar.state' 'selected') -and
                 -not (& $has 'bcv.retry') -and
                 -not (& $has 'bcv.new-view.title')
         }
@@ -762,13 +958,13 @@ function Test-TerminalTreePredicate {
             return $null -ne $node -and [string]$node.value -eq [string]$ActionValue
         }
         'retry-create-kanban-selected' {
-            return Test-AuthorValue $Tree 'bcv.new-view.kind.kanban' 'selected'
+            return Test-AuthorValue $Tree 'bcv.new-view.kind.kanban.state' 'selected'
         }
         'failed-create-retry-visible' {
             return & $has 'bcv.retry'
         }
         'retry-create-kanban-terminal' {
-            return (Test-AuthorValue $Tree 'bcv.kind.kanban' 'selected') -and
+            return (Test-AuthorValue $Tree 'bcv.kind.kanban.state' 'selected') -and
                 -not (& $has 'bcv.retry') -and
                 -not (& $has 'bcv.new-view.title')
         }
@@ -802,30 +998,32 @@ function Test-TerminalTreePredicate {
 
 $movePayloadForPredicates = $traceRows[7].action_value | ConvertFrom-Json
 $expectedActions = @(
-    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'initial-retry-recovered-projection' },
-    @{ method = 'argus.click'; target = 'bcv.kind.table'; predicate = 'kind-table-selected' },
-    @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'kind-kanban-selected' },
-    @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'kind-calendar-selected' },
-    @{ method = 'argus.click'; target = 'bcv.kind.table'; predicate = 'kind-table-restored' },
-    @{ method = 'argus.click'; target = 'bcv.table.sort.title'; predicate = 'sort-title-ascending' },
-    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'kanban-retry-loaded-card' },
-    @{ method = 'argus.click'; target = 'collection.kanban-move'; predicate = 'kanban-card-moved-target-lane'; payload = 'kanban-move' },
-    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'calendar-retry-loaded-controls' },
-    @{ method = 'argus.set_value'; target = 'bcv.calendar.date-from'; predicate = 'calendar-from-value'; value = '2026-02-28' },
-    @{ method = 'argus.set_value'; target = 'bcv.calendar.date-to'; predicate = 'calendar-to-value'; value = '2026-04-30' },
-    @{ method = 'argus.click'; target = 'bcv.calendar.apply-range'; predicate = 'calendar-range-terminal' },
-    @{ method = 'argus.click'; target = 'bcv.new-view'; predicate = 'unbound-create-form-open' },
-    @{ method = 'argus.set_value'; target = 'bcv.new-view.title'; predicate = 'unbound-create-title-set'; value_suffix = '-host-created' },
-    @{ method = 'argus.click'; target = 'bcv.new-view.kind.calendar'; predicate = 'unbound-create-calendar-selected' },
-    @{ method = 'argus.click'; target = 'bcv.new-view.confirm'; predicate = 'unbound-create-calendar-terminal' },
-    @{ method = 'argus.click'; target = 'bcv.new-view'; predicate = 'retry-create-form-open' },
-    @{ method = 'argus.set_value'; target = 'bcv.new-view.title'; predicate = 'retry-create-title-set'; value_suffix = '-retry-created' },
-    @{ method = 'argus.click'; target = 'bcv.new-view.kind.kanban'; predicate = 'retry-create-kanban-selected' },
-    @{ method = 'argus.click'; target = 'bcv.new-view.confirm'; predicate = 'failed-create-retry-visible' },
-    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'retry-create-kanban-terminal' },
-    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'empty-table-terminal' },
-    @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'empty-kanban-terminal' },
-    @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'empty-calendar-terminal' }
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'initial-retry-recovered-projection'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.kind.table'; predicate = 'kind-table-selected'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'kind-kanban-selected'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'kind-calendar-selected'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.kind.table'; predicate = 'kind-table-restored'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.table.sort.title'; predicate = 'sort-title-ascending'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'kanban-retry-loaded-card'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'collection.kanban-move'; predicate = 'kanban-card-moved-target-lane'; payload = 'kanban-move'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'calendar-retry-loaded-controls'; status = 'applied' },
+    @{ method = 'argus.set_value'; target = 'bcv.calendar.date-from'; predicate = 'calendar-from-value'; value = '2026-02-28'; status = 'applied' },
+    @{ method = 'argus.set_value'; target = 'bcv.calendar.date-to'; predicate = 'calendar-to-value'; value = '2026-04-30'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.calendar.apply-range'; predicate = 'calendar-range-terminal'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.new-view'; predicate = 'unbound-create-form-open'; status = 'applied' },
+    @{ method = 'argus.set_value'; target = 'bcv.new-view.title'; predicate = 'unbound-create-title-set'; value_suffix = '-host-created'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.kind.calendar'; predicate = 'unbound-create-calendar-selected'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.confirm'; predicate = 'unbound-create-calendar-terminal'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.new-view'; predicate = 'retry-create-form-open'; status = 'applied' },
+    @{ method = 'argus.set_value'; target = 'bcv.new-view.title'; predicate = 'retry-create-title-set'; value_suffix = '-retry-created'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.new-view.kind.kanban'; predicate = 'retry-create-kanban-selected'; status = 'applied' },
+    # The create against the dead backend is a CAUSALLY OWNED typed terminal failure, not an
+    # unprovable outcome: the observer binds the exact target/context/generation/semantic tuple.
+    @{ method = 'argus.click'; target = 'bcv.new-view.confirm'; predicate = 'failed-create-retry-visible'; status = 'rejected' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'retry-create-kanban-terminal'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.retry'; predicate = 'empty-table-terminal'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.kind.kanban'; predicate = 'empty-kanban-terminal'; status = 'applied' },
+    @{ method = 'argus.click'; target = 'bcv.kind.calendar'; predicate = 'empty-calendar-terminal'; status = 'applied' }
 )
 for ($index = 0; $index -lt $expectedActions.Count; $index++) {
     $expectedAction = $expectedActions[$index]
@@ -849,6 +1047,43 @@ for ($index = 0; $index -lt $expectedActions.Count; $index++) {
                 -ActionValue $row.action_value `
                 -PredicateEvidence $predicates[0].evidence)) {
         throw "Canonical Argus action $($index + 1) terminal tree contradicts predicate '$($expectedAction.predicate)'"
+    }
+    # MT-027 V5 (validation_v4 remediation items 1 + 4): the receipt itself must be TERMINAL and must
+    # carry its own verifiable evidence — the expected causal status, the target binding, the
+    # workspace/view identity, an independent authoritative backend readback, and a digest of the exact
+    # terminal tree that is recomputed HERE from the persisted row.
+    if ([string]$row.receipt_status -ne [string]$expectedAction.status) {
+        throw "Canonical Argus action $($index + 1) receipt status is '$($row.receipt_status)', expected the causal '$($expectedAction.status)'"
+    }
+    $evidence = $predicates[0].evidence
+    if ($null -eq $evidence -or
+        $evidence.schema_id -ne 'hsk.mt027.terminal_receipt_evidence@1') {
+        throw "Canonical Argus action $($index + 1) carries no MT-027 terminal receipt evidence"
+    }
+    if ([string]$evidence.receipt_binding.target -ne [string]$row.target -or
+        [string]$evidence.receipt_binding.expected_receipt_status -ne [string]$row.receipt_status) {
+        throw "Canonical Argus action $($index + 1) receipt evidence is not bound to its own row: evidence_target='$($evidence.receipt_binding.target)'; row_target='$($row.target)'; evidence_status='$($evidence.receipt_binding.expected_receipt_status)'; row_status='$($row.receipt_status)'"
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$evidence.workspace_id)) {
+        throw "Canonical Argus action $($index + 1) receipt evidence has no workspace identity"
+    }
+    if ($null -eq $evidence.backend_readback) {
+        throw "Canonical Argus action $($index + 1) receipt evidence has no authoritative backend readback"
+    }
+    if ([bool]$evidence.backend_readback.bound) {
+        if ([string]$evidence.backend_readback.view_block_id -ne [string]$evidence.view_block_id) {
+            throw "Canonical Argus action $($index + 1) backend readback view id does not match the bound view identity"
+        }
+    } elseif (-not [string]::IsNullOrWhiteSpace([string]$evidence.view_block_id)) {
+        throw "Canonical Argus action $($index + 1) declares an unbound readback while naming a view id"
+    }
+    $recomputedDigest = Get-CanonicalTreeDigest -Tree $row.after
+    if ([string]$evidence.terminal_tree_sha256 -ne $recomputedDigest) {
+        throw "Canonical Argus action $($index + 1) terminal tree digest mismatch: receipt='$($evidence.terminal_tree_sha256)'; recomputed='$recomputedDigest'"
+    }
+    $observerNode = Find-AuthorNode -Node $row.after -AuthorId 'bcv.action-completion'
+    if ($null -eq $observerNode -or [string]::IsNullOrWhiteSpace([string]$observerNode.value)) {
+        throw "Canonical Argus action $($index + 1) terminal tree has no published bcv.action-completion observer"
     }
     if ($expectedAction.ContainsKey('value') -and
         [string]$row.action_value -ne [string]$expectedAction.value) {
@@ -887,7 +1122,7 @@ if ($managedReceipt.schema_id -ne 'hsk.mt027_managed_pg_proof@1' -or
         $expectedBackendBinary, [StringComparison]::OrdinalIgnoreCase) -or
     $managedReceipt.backend_binding.database_host -ne '127.0.0.1' -or
     [int]$managedReceipt.backend_binding.database_port -ne 5544 -or
-    $managedReceipt.backend_binding.database_name -ne 'handshake') {
+    $managedReceipt.backend_binding.database_name -ne $postgresDatabase) {
     throw "Managed proof receipt binding mismatch: schema='$($managedReceipt.schema_id)'; owned='$($managedReceipt.backend_binding.owned)'; receipt_pid='$($managedReceipt.backend_binding.backend_pid)'; observed_pid='$($backendIdentity.pid)'; receipt_binary='$receiptBackendBinary'; observed_executable='$observedBackendExecutable'; expected_binary='$expectedBackendBinary'; database_host='$($managedReceipt.backend_binding.database_host)'; database_port='$($managedReceipt.backend_binding.database_port)'; database_name='$($managedReceipt.backend_binding.database_name)'"
 }
 $backendSha256 = (Get-FileHash -LiteralPath $backendBinary -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -908,13 +1143,12 @@ $postSourceSha = (& git -C $repoRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $postSourceSha -ne $sourceSha) {
     throw "Repository HEAD changed during MT-027 proof: before='$sourceSha', after='$postSourceSha'"
 }
-$postRelevantStatus = @(& git -C $repoRoot status --porcelain --untracked-files=all -- `
-        '.' `
-        ':(exclude)AGENTS.md' `
-        ':(exclude)CLAUDE.md')
-if ($LASTEXITCODE -ne 0 -or
-    @($postRelevantStatus | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -ne 0) {
-    throw "MT-027 source inputs changed during proof: $($postRelevantStatus -join '; ')"
+$postExcludedDirtyRows = Assert-Mt027Cleanliness -Phase 'post-run'
+$preExcludedPaths = @($excludedDirtyRows | ForEach-Object { "$($_.path)|$($_.worktree_blob_sha1)" })
+$postExcludedPaths = @($postExcludedDirtyRows | ForEach-Object { "$($_.path)|$($_.worktree_blob_sha1)" })
+if (@(Compare-Object -ReferenceObject @($preExcludedPaths) `
+            -DifferenceObject @($postExcludedPaths)).Count -ne 0) {
+    throw "MT-027 excluded unrelated dirty rows changed during the proof; pre='$($preExcludedPaths -join ';')' post='$($postExcludedPaths -join ';')'"
 }
 
 $receiptPgPort = [int]$managedReceipt.backend_binding.database_port
@@ -998,7 +1232,7 @@ $receipt = [ordered]@{
     backend_binary_sha256 = $backendSha256
     postgres_pid = [int]$currentPostgresIdentity.pid
     postgres_start_time_utc = $currentPostgresIdentity.start_time_utc
-    postgres_database = 'handshake'
+    postgres_database = $postgresDatabase
     postgres_host = '127.0.0.1'
     postgres_port = 5544
     owned_process_tree = $owned
@@ -1017,6 +1251,40 @@ $receipt = [ordered]@{
     trace_artifact = $traceArtifact
     managed_pg_receipt_artifact = $managedReceiptArtifact
     artifact_root = $artifactSibling
+    cargo_target_dir = $cargoTarget
+    trace_receipt_statuses = @($traceRows | ForEach-Object {
+            [ordered]@{
+                receipt_id = $_.receipt_id
+                target = $_.target
+                method = $_.method
+                receipt_status = $_.receipt_status
+                predicate_id = @($_.terminal_predicates)[0].predicate_id
+                predicate_passed = @($_.terminal_predicates)[0].passed
+                terminal_tree_sha256 = @($_.terminal_predicates)[0].evidence.terminal_tree_sha256
+                workspace_id = @($_.terminal_predicates)[0].evidence.workspace_id
+                view_block_id = @($_.terminal_predicates)[0].evidence.view_block_id
+            }
+        })
+    indeterminate_receipt_count = 0
+    cleanliness_gate = [ordered]@{
+        policy = 'gated_by_default_only_other_test_binary_top_level_sources_are_excludable'
+        gated_inputs = @(
+            'src/frontend/handshake_native/src/**',
+            'src/frontend/handshake_native/tests/test_block_collection_view.rs',
+            'src/frontend/handshake_native/tests/native_gui_support/**',
+            'src/frontend/handshake_native/tests/interconnect_support/**',
+            'src/frontend/handshake_native/tests/pg_proof_support/**',
+            'src/frontend/handshake_native/tests/fixtures/**',
+            'src/frontend/handshake_native/Cargo.toml',
+            'src/frontend/handshake_native/Cargo.lock',
+            'src/frontend/handshake_native/diag_ring/**',
+            'src/frontend/palmistry/**',
+            'src/backend/handshake_core/**',
+            'every other repository path'
+        )
+        excluded_unrelated_dirty_rows = @($excludedDirtyRows)
+        excluded_unrelated_dirty_row_count = @($excludedDirtyRows).Count
+    }
     transient_roots_cleaned = @($stageBindingRoot, $runtimeArtifactsRoot, $argusBindingRoot)
     status = 'COMPLETED'
     completed_at_utc = Format-CanonicalUtc ([DateTimeOffset]::UtcNow)

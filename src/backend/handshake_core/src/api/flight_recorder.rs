@@ -1,27 +1,142 @@
+//! Flight Recorder HTTP surface.
+//!
+//! # Authorization boundary (WP-KERNEL-012 MT-109, FAIL_V4 remediation)
+//!
+//! Every route in this group is behind [`authorize_flight_recorder_request`], a fail-closed
+//! `axum` middleware that mirrors the boundary already proven in [`crate::api::memory`]:
+//!
+//! * The caller is authenticated with [`crate::api::stage::capture_context`] (live native-MCP
+//!   binding token + process-birth identity). No binding, a forged token, or a stale binding is
+//!   `401 HSK-401-FR-SESSION` and performs no recorder or EventLedger mutation.
+//! * The route class maps to exactly one capability, resolved through
+//!   `capability_registry.profile_can("Operator", ..)`. A denied capability is
+//!   `403 HSK-403-FR-CAPABILITY` with no mutation.
+//!   - `GET /flight_recorder` / `GET /events` require `fr.read`, and additionally
+//!     `fr.read.global` when the caller omits `?wsid=` (unscoped cross-workspace enumeration).
+//!   - `POST /workspaces/:workspace_id/flight_recorder/runtime_chat_event` requires
+//!     `fr.ingest.runtime_chat`.
+//!   - `POST /workspaces/:workspace_id/flight_recorder/native_editor_event` requires
+//!     `fr.ingest.native_editor`.
+//! * Every allow and every deny emits one redacted `capability_action` Flight Recorder event
+//!   (`capability_id` / `actor_id` / `job_id` / `decision_outcome` only — never the session token,
+//!   the request body, or the queried event payloads). If the audit write fails the request fails
+//!   closed with `500`.
+//!
+//! # Canonical native-editor envelope contract
+//!
+//! `actor_id`, `actor_kind` and `workspace_id` are NO LONGER client authority:
+//!
+//! * `actor_id` is optional. When present it MUST equal the authenticated
+//!   [`crate::api::stage::CaptureContext::actor_id`] exactly; otherwise the request is rejected
+//!   with `403 HSK-403-FR-ACTOR-SPOOF` before any durable write. When absent the server fills it.
+//! * `actor_kind` is optional and is derived from the authenticated context (the native-MCP
+//!   binding authenticates an operator, so the lane is always `human`). A client-supplied value
+//!   that disagrees is rejected with `403 HSK-403-FR-ACTOR-SPOOF`.
+//! * `workspace_id` is optional. When present it MUST equal the `:workspace_id` path segment;
+//!   otherwise the request is rejected with `403 HSK-403-FR-WORKSPACE` before any durable write.
+//!   When absent the server fills it from the path. The path workspace must resolve to a real
+//!   canonical workspace row; an unknown workspace is also `403 HSK-403-FR-WORKSPACE` (the same
+//!   status as an unauthorized one, so the route never discloses workspace existence).
+//!
+//! # Workspace-partitioned idempotency
+//!
+//! The durable Flight Recorder / EventLedger identity of a native-editor event is
+//! [`workspace_scoped_fr_event_id`] — a deterministic digest of
+//! `(namespace, authenticated workspace_id, client event_id)`. Two workspaces that submit the same
+//! client `event_id` therefore own two disjoint aggregates, so a caller cannot pre-seed another
+//! workspace's `event_id`, turn its honest retry into a `409`, read its row back, or complete /
+//! reconcile its pending receipt. The ingestion ack returns both `event_id` (the client id, echoed
+//! canonicalized) and `fr_event_id` (the durable server-derived id used by `GET /flight_recorder`).
+
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::models::ErrorResponse;
 use crate::AppState;
 use axum::{
-    extract::{Query, State},
-    http::StatusCode,
+    extract::{Path, Query, Request, State},
+    http::{Method, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post},
-    Json, Router,
+    Extension, Json, Router,
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use sqlx::Row;
 use uuid::Uuid;
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
 type ApiResult<T> = Result<T, ApiError>;
 
+/// Recorder read, scoped to one workspace named by `?wsid=`.
+const FR_READ_CAPABILITY: &str = "fr.read";
+/// Strictly higher capability required to omit `?wsid=` and enumerate every workspace.
+const FR_READ_GLOBAL_CAPABILITY: &str = "fr.read.global";
+const FR_INGEST_RUNTIME_CHAT_CAPABILITY: &str = "fr.ingest.runtime_chat";
+const FR_INGEST_NATIVE_EDITOR_CAPABILITY: &str = "fr.ingest.native_editor";
+/// The capability profile the authenticated native-MCP binding resolves to. `capture_context`
+/// only ever mints `actor_kind = "operator"`, so this mirrors `api::memory`'s proven boundary.
+const FR_CAPABILITY_PROFILE: &str = "Operator";
+
+/// Recorder-relative ingestion paths. Named so the workspace-scoped route, the middleware's
+/// capability router, and the native client all share exactly one spelling.
+pub const NATIVE_EDITOR_INGEST_PATH: &str = "/flight_recorder/native_editor_event";
+pub const RUNTIME_CHAT_INGEST_PATH: &str = "/flight_recorder/runtime_chat_event";
+
 fn invalid_event() -> ApiError {
     (
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
             error: "HSK-400-INVALID-EVENT",
+        }),
+    )
+}
+
+fn unauthenticated_recorder() -> ApiError {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(ErrorResponse {
+            error: "HSK-401-FR-SESSION",
+        }),
+    )
+}
+
+fn capability_denied() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-FR-CAPABILITY",
+        }),
+    )
+}
+
+/// One status for "workspace does not exist" and "workspace is not yours", so the route never
+/// discloses which workspaces exist.
+fn workspace_denied() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-FR-WORKSPACE",
+        }),
+    )
+}
+
+fn actor_spoof_denied() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            error: "HSK-403-FR-ACTOR-SPOOF",
+        }),
+    )
+}
+
+fn audit_failed_closed() -> ApiError {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(ErrorResponse {
+            error: "HSK-500-FR-CAPABILITY-AUDIT",
         }),
     )
 }
@@ -82,18 +197,230 @@ pub struct EventFilter {
 
 pub fn routes(state: AppState) -> Router {
     spawn_native_editor_reconciler(state.clone());
+    let middleware_state = state.clone();
     Router::new()
         .route("/flight_recorder", get(list_events))
         .route("/events", get(list_events)) // backward-compatible path
+        // Both ingestion routes are workspace-scoped: the PATH is the workspace authority, so a
+        // body field can never widen it. The unscoped `/flight_recorder/{runtime_chat,
+        // native_editor}_event` paths are deliberately gone — they had no bindable workspace
+        // authority and were the FAIL_V4 unauthenticated write surface.
         .route(
-            "/flight_recorder/runtime_chat_event",
+            concat!(
+                "/workspaces/:workspace_id",
+                "/flight_recorder/runtime_chat_event"
+            ),
             post(record_runtime_chat_event),
         )
         .route(
-            "/flight_recorder/native_editor_event",
+            concat!(
+                "/workspaces/:workspace_id",
+                "/flight_recorder/native_editor_event"
+            ),
             post(record_native_editor_event),
         )
+        .layer(middleware::from_fn_with_state(
+            middleware_state,
+            authorize_flight_recorder_request,
+        ))
         .with_state(state)
+}
+
+/// The authenticated recorder authority the middleware hands to every handler. Handlers read
+/// identity ONLY from here — never from headers or the request body, both of which the caller
+/// controls.
+#[derive(Clone)]
+pub(crate) struct RecorderAuthority {
+    pub(crate) ctx: crate::api::stage::CaptureContext,
+    /// The `:workspace_id` path segment, present for the ingestion routes.
+    pub(crate) workspace_id: Option<String>,
+}
+
+impl RecorderAuthority {
+    /// The bounded native-editor actor lane the authenticated context maps to. `capture_context`
+    /// authenticates the native shell as an operator, so the lane is `human`; agent/system lanes
+    /// have no authenticating binding today and must not be reachable from a request body.
+    fn native_editor_actor_kind(&self) -> NativeEditorActorKind {
+        match self.ctx.actor_kind.as_str() {
+            "operator" => NativeEditorActorKind::Human,
+            "agent" | "local_model" | "cloud_model" => NativeEditorActorKind::Agent,
+            _ => NativeEditorActorKind::System,
+        }
+    }
+}
+
+/// Route class -> required capability. Fail-closed: an unmapped path under this router is denied.
+fn flight_recorder_capability_for_request(method: &Method, path: &str) -> Option<&'static str> {
+    if method == Method::POST {
+        if path.ends_with(NATIVE_EDITOR_INGEST_PATH) {
+            return Some(FR_INGEST_NATIVE_EDITOR_CAPABILITY);
+        }
+        if path.ends_with(RUNTIME_CHAT_INGEST_PATH) {
+            return Some(FR_INGEST_RUNTIME_CHAT_CAPABILITY);
+        }
+        return None;
+    }
+    if method == Method::GET && matches!(path, "/flight_recorder" | "/events") {
+        return Some(FR_READ_CAPABILITY);
+    }
+    None
+}
+
+/// `/workspaces/{workspace_id}/flight_recorder/...` -> the path workspace segment.
+fn workspace_id_from_recorder_path(path: &str) -> Option<String> {
+    let mut segments = path.trim_start_matches('/').split('/');
+    match (segments.next(), segments.next(), segments.next()) {
+        (Some("workspaces"), Some(workspace_id), Some("flight_recorder"))
+            if !workspace_id.is_empty() =>
+        {
+            Some(workspace_id.to_owned())
+        }
+        _ => None,
+    }
+}
+
+/// The single redacted audit shape for every recorder authorization decision. Matches the
+/// `capability_action` FR contract exactly (`capability_id` / `actor_id` / `job_id` /
+/// `decision_outcome`), so no token, path, query, or event payload can leak through the audit.
+async fn record_flight_recorder_capability_decision(
+    state: &AppState,
+    ctx: Option<&crate::api::stage::CaptureContext>,
+    capability_id: &'static str,
+    decision_outcome: &'static str,
+    workspace_id: Option<String>,
+) -> Result<(), crate::flight_recorder::RecorderError> {
+    let trace_id = Uuid::now_v7();
+    let policy_decision_id = format!("native-fr-capability:{trace_id}");
+    let actor_id = ctx
+        .map(|ctx| ctx.actor_id.as_str())
+        .unwrap_or("unauthenticated-native-client");
+    let actor = if ctx.is_some() {
+        crate::flight_recorder::FlightRecorderActor::Human
+    } else {
+        crate::flight_recorder::FlightRecorderActor::System
+    };
+    let mut event = crate::flight_recorder::FlightRecorderEvent::new(
+        crate::flight_recorder::FlightRecorderEventType::CapabilityAction,
+        actor,
+        trace_id,
+        json!({
+            "capability_id": capability_id,
+            "actor_id": actor_id,
+            "job_id": null,
+            "decision_outcome": decision_outcome,
+        }),
+    )
+    .with_actor_id(actor_id)
+    .with_capability_id(capability_id)
+    .with_policy_decision_id(policy_decision_id);
+    if let Some(workspace_id) = workspace_id {
+        event = event.with_wsids(vec![workspace_id]);
+    }
+    state.flight_recorder.record_event(event).await
+}
+
+/// Audit an in-handler decision (the unscoped-read escalation) and map an audit failure to a
+/// fail-closed `500`.
+async fn audit_recorder_decision(
+    state: &AppState,
+    ctx: Option<&crate::api::stage::CaptureContext>,
+    capability_id: &'static str,
+    decision_outcome: &'static str,
+    workspace_id: Option<String>,
+) -> ApiResult<()> {
+    record_flight_recorder_capability_decision(
+        state,
+        ctx,
+        capability_id,
+        decision_outcome,
+        workspace_id,
+    )
+    .await
+    .map_err(|error| {
+        tracing::error!(
+            target: "handshake_core::flight_recorder_api",
+            capability_id,
+            error = ?error,
+            "flight_recorder_capability_audit_failed"
+        );
+        audit_failed_closed()
+    })
+}
+
+/// Fail-closed authorization for the WHOLE flight-recorder route group.
+async fn authorize_flight_recorder_request(
+    State(state): State<AppState>,
+    mut request: Request,
+    next: Next,
+) -> Response {
+    let path = request.uri().path().to_owned();
+    let workspace_id = workspace_id_from_recorder_path(&path);
+    let Some(capability_id) = flight_recorder_capability_for_request(request.method(), &path)
+    else {
+        // An unmapped path under this router has no capability contract; deny rather than
+        // silently pass an unclassified recorder request through.
+        return capability_denied().into_response();
+    };
+
+    let ctx = match crate::api::stage::capture_context(request.headers()) {
+        Ok(ctx) => ctx,
+        Err(_) => {
+            if record_flight_recorder_capability_decision(
+                &state,
+                None,
+                capability_id,
+                "deny",
+                workspace_id,
+            )
+            .await
+            .is_err()
+            {
+                return audit_failed_closed().into_response();
+            }
+            return unauthenticated_recorder().into_response();
+        }
+    };
+
+    let allowed = state
+        .capability_registry
+        .profile_can(FR_CAPABILITY_PROFILE, capability_id)
+        .unwrap_or(false);
+    let outcome = if allowed { "allow" } else { "deny" };
+    if record_flight_recorder_capability_decision(
+        &state,
+        Some(&ctx),
+        capability_id,
+        outcome,
+        workspace_id.clone(),
+    )
+    .await
+    .is_err()
+    {
+        return audit_failed_closed().into_response();
+    }
+    if !allowed {
+        return capability_denied().into_response();
+    }
+
+    request
+        .extensions_mut()
+        .insert(RecorderAuthority { ctx, workspace_id });
+    next.run(request).await
+}
+
+/// Bind the path workspace to canonical authority BEFORE any durable write. There is no
+/// membership table in this product yet, so "authorized workspace" means: the authenticated
+/// native binding holds the ingest capability AND the path names a real canonical workspace.
+/// A client-asserted workspace that does not resolve is denied, never created implicitly.
+async fn authorize_recorder_workspace(state: &AppState, workspace_id: &str) -> ApiResult<()> {
+    if workspace_id.trim().is_empty() {
+        return Err(workspace_denied());
+    }
+    match state.storage.get_workspace(workspace_id).await {
+        Ok(Some(_)) => Ok(()),
+        Ok(None) => Err(workspace_denied()),
+        Err(error) => Err(db_error(error)),
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -142,10 +469,31 @@ pub struct RuntimeChatEventV0_1 {
     pub violation_clauses: Option<Vec<String>>,
 }
 
+/// Workspace-scoped runtime-chat ingestion.
+///
+/// The FR actor stays the canonical `system` / `runtime_chat` lane (the recorder contract requires
+/// `runtime_chat_*` events to be system-actor, and that identifier was never client-supplied), but
+/// the workspace attribution is now taken from the authenticated PATH: a body `wsid` may only
+/// confirm it, never widen or redirect it.
 async fn record_runtime_chat_event(
     State(state): State<AppState>,
-    Json(event): Json<RuntimeChatEventV0_1>,
+    Path(workspace_id): Path<String>,
+    Extension(authority): Extension<RecorderAuthority>,
+    Json(mut event): Json<RuntimeChatEventV0_1>,
 ) -> ApiResult<Json<Value>> {
+    debug_assert_eq!(
+        authority.workspace_id.as_deref(),
+        Some(workspace_id.as_str())
+    );
+    if let Some(claimed) = event.wsid.as_deref() {
+        if claimed.trim() != workspace_id {
+            return Err(workspace_denied());
+        }
+    }
+    authorize_recorder_workspace(&state, &workspace_id).await?;
+    // Server-derived from here on; the client's spelling never reaches the recorder.
+    event.wsid = Some(workspace_id.clone());
+
     let trace_id = match Uuid::parse_str(event.session_id.trim()) {
         Ok(parsed) if parsed != Uuid::nil() => parsed,
         _ => return Err(invalid_event()),
@@ -256,6 +604,12 @@ pub enum NativeEditorActorKind {
 /// The versioned native-editor Flight Recorder ingestion envelope. Closed field set
 /// (`deny_unknown_fields`) + closed `kind` vocabulary — free text is only allowed inside
 /// the bounded, named `payload` object (rejected if it is not a JSON object).
+///
+/// `actor_id`, `actor_kind` and `workspace_id` are NOT client authority (see the module header):
+/// they are optional confirmations of the authenticated request context. A value that disagrees
+/// with the context is rejected with `403` before any durable write; an absent value is filled
+/// server-side. Once canonicalized every stored envelope carries the server-derived identity, so
+/// the durable EventLedger/Flight Recorder attribution can never be caller-forged.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct NativeEditorFrEventV0_1 {
@@ -263,14 +617,16 @@ pub struct NativeEditorFrEventV0_1 {
     pub event_id: String,
     pub ts_utc: String,
     pub kind: NativeEditorFrEventKind,
-    pub actor_id: String,
+    #[serde(default)]
+    pub actor_id: Option<String>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub actor_kind: Option<NativeEditorActorKind>,
     pub pane_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub surface: Option<String>,
-    pub workspace_id: String,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -280,6 +636,47 @@ pub struct NativeEditorFrEventV0_1 {
     /// (no top-level free-text/array smuggling).
     #[serde(default)]
     pub payload: Value,
+}
+
+impl NativeEditorFrEventV0_1 {
+    /// The server-derived actor id. Only meaningful after the handler (or the reconciler reading a
+    /// canonicalized stored envelope) has bound it to the authenticated context.
+    pub fn canonical_actor_id(&self) -> &str {
+        self.actor_id.as_deref().unwrap_or_default()
+    }
+
+    /// The server-derived workspace id (the authenticated `:workspace_id` path segment).
+    pub fn canonical_workspace_id(&self) -> &str {
+        self.workspace_id.as_deref().unwrap_or_default()
+    }
+}
+
+/// Namespace for the workspace-partitioned durable Flight Recorder event identity.
+const NATIVE_EDITOR_EVENT_ID_NAMESPACE: &str = "hsk.native_editor.fr_event_id@1";
+
+/// Derive the durable Flight Recorder / EventLedger identity of a native-editor event from the
+/// AUTHENTICATED workspace plus the client-supplied `event_id`.
+///
+/// This is what partitions idempotency and conflict ownership per workspace. The client `event_id`
+/// alone is caller-controlled, so using it directly as the durable key let any caller pre-seed an
+/// id another workspace would later submit and convert that workspace's honest retry into a `409`,
+/// or read its row back through `GET /flight_recorder?event_id=`. Mixing the authenticated
+/// workspace into the digest makes the two aggregates disjoint while staying deterministic, so
+/// retries and restart reconciliation still converge on exactly one row.
+pub fn workspace_scoped_fr_event_id(workspace_id: &str, client_event_id: Uuid) -> Uuid {
+    let mut hasher = Sha256::new();
+    hasher.update(NATIVE_EDITOR_EVENT_ID_NAMESPACE.as_bytes());
+    hasher.update([0u8]);
+    hasher.update(workspace_id.as_bytes());
+    hasher.update([0u8]);
+    hasher.update(client_event_id.as_bytes());
+    let digest = hasher.finalize();
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&digest[..16]);
+    // RFC 9562 version 8 (custom / name-based digest) + variant 10x.
+    bytes[6] = (bytes[6] & 0x0f) | 0x80;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes)
 }
 
 fn non_empty_string(map: &serde_json::Map<String, Value>, key: &str) -> bool {
@@ -494,7 +891,10 @@ async fn validate_document_save_receipt(
         && row.try_get::<String, _>("aggregate_id").map_err(db_error)?
             == payload["document_id"].as_str().unwrap_or_default()
         && row.try_get::<String, _>("actor_kind").map_err(db_error)? == request_actor_kind
-        && row.try_get::<String, _>("actor_id").map_err(db_error)? == event.actor_id
+        // The canonical save receipt must belong to the SAME authenticated actor that is now
+        // claiming it: `event.actor_id` is server-derived by this point, so a caller cannot bind
+        // its native event to another principal's document-save receipt.
+        && row.try_get::<String, _>("actor_id").map_err(db_error)? == event.canonical_actor_id()
         && row
             .try_get::<String, _>("kernel_task_run_id")
             .map_err(db_error)?
@@ -506,7 +906,7 @@ async fn validate_document_save_receipt(
         && correlation == claimed_correlation
         && receipt_payload.get("event").and_then(Value::as_str) == Some("saved")
         && receipt_payload.get("workspace_id").and_then(Value::as_str)
-            == Some(event.workspace_id.as_str())
+            == Some(event.canonical_workspace_id())
         && receipt_payload.get("content_hash").and_then(Value::as_str)
             == payload.get("content_hash").and_then(Value::as_str);
     if !authentic {
@@ -525,7 +925,22 @@ fn map_recorder_err(err: crate::flight_recorder::RecorderError) -> ApiError {
 fn native_editor_fr_event_from_envelope(
     event: &NativeEditorFrEventV0_1,
 ) -> ApiResult<crate::flight_recorder::FlightRecorderEvent> {
-    let event_uuid = Uuid::parse_str(event.event_id.trim()).map_err(|_| invalid_event())?;
+    let client_event_uuid = Uuid::parse_str(event.event_id.trim()).map_err(|_| invalid_event())?;
+    // A canonicalized envelope always carries the server-derived actor/workspace. If either is
+    // missing the envelope never passed the authorization boundary and must not become an FR row.
+    let workspace_id = event
+        .workspace_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(invalid_event)?;
+    let actor_id = event
+        .actor_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(invalid_event)?;
+    let event_uuid = workspace_scoped_fr_event_id(workspace_id, client_event_uuid);
     let timestamp = DateTime::parse_from_rfc3339(event.ts_utc.trim())
         .map_err(|_| invalid_event())?
         .with_timezone(&Utc);
@@ -555,8 +970,11 @@ fn native_editor_fr_event_from_envelope(
         "editor_surface": surface,
         "ops": [ { "kind": kind, "payload": event.payload.clone() } ],
         "pane_id": event.pane_id,
-        "workspace_id": event.workspace_id,
-        "actor_id": event.actor_id,
+        "workspace_id": workspace_id,
+        "actor_id": actor_id,
+        // The caller's own correlation id, preserved for client-side reconciliation. It is NOT the
+        // durable identity: `fr_event.event_id` is the workspace-partitioned derivation.
+        "client_event_id": client_event_uuid.to_string(),
         // Keep the payload spelling identical to the typed TIMESTAMPTZ identity. A partial FR write
         // built from an equivalent RFC3339 spelling (`Z` versus `+00:00`) must converge with the
         // canonical retry instead of conflicting with itself.
@@ -569,8 +987,8 @@ fn native_editor_fr_event_from_envelope(
         trace_id,
         payload,
     )
-    .with_actor_id(event.actor_id.clone())
-    .with_wsids(vec![event.workspace_id.clone()]);
+    .with_actor_id(actor_id)
+    .with_wsids(vec![workspace_id.to_owned()]);
     fr_event.event_id = event_uuid;
     fr_event.timestamp = timestamp;
     if let Some(session_id) = event.session_id.clone() {
@@ -693,9 +1111,18 @@ fn kernel_event_matches_new(
 }
 
 fn native_editor_completion_payload(envelope: &NativeEditorFrEventV0_1) -> Value {
+    // `fr_event_id` is the DURABLE workspace-partitioned id actually written to the recorder; the
+    // caller's own id is preserved separately so client-side reconciliation still has its handle.
+    let fr_event_id = Uuid::parse_str(envelope.event_id.trim())
+        .map(|client_event_id| {
+            workspace_scoped_fr_event_id(envelope.canonical_workspace_id(), client_event_id)
+                .to_string()
+        })
+        .unwrap_or_default();
     json!({
         "receipt_kind": "native_editor_flight_recorder_recorded",
-        "fr_event_id": envelope.event_id,
+        "fr_event_id": fr_event_id,
+        "client_event_id": envelope.event_id,
         "fr_event_type": "system",
         "envelope": envelope,
     })
@@ -711,20 +1138,24 @@ fn build_native_editor_pending(
     envelope: &NativeEditorFrEventV0_1,
     expected_fr: &crate::flight_recorder::FlightRecorderEvent,
 ) -> Result<NewKernelEvent, String> {
+    let actor_id = envelope.canonical_actor_id().to_owned();
     let actor = match &expected_fr.actor {
-        crate::flight_recorder::FlightRecorderActor::Human => {
-            KernelActor::Operator(envelope.actor_id.clone())
-        }
-        _ => KernelActor::System(envelope.actor_id.clone()),
+        crate::flight_recorder::FlightRecorderActor::Human => KernelActor::Operator(actor_id),
+        _ => KernelActor::System(actor_id),
     };
+    let workspace_id = envelope.canonical_workspace_id().to_owned();
     let kernel_task_run_id = envelope
         .work_packet_id
         .clone()
-        .unwrap_or_else(|| envelope.workspace_id.clone());
+        .unwrap_or_else(|| workspace_id.clone());
     let session_run_id = envelope
         .session_id
         .clone()
         .unwrap_or_else(|| envelope.event_id.clone());
+    // Aggregate identity and idempotency are BOTH workspace-partitioned. `expected_fr.event_id` is
+    // the workspace-scoped derivation, and the idempotency key names the authenticated workspace
+    // explicitly so an operator reading the ledger can see the tenant boundary directly.
+    let durable_event_id = expected_fr.event_id.to_string();
 
     NewKernelEvent::builder(
         kernel_task_run_id,
@@ -732,8 +1163,11 @@ fn build_native_editor_pending(
         KernelEventType::FlightRecorderMirrorPending,
         actor,
     )
-    .aggregate("native_editor_event", envelope.event_id.clone())
-    .idempotency_key(format!("native-editor-fr-pending:{}", envelope.event_id))
+    .aggregate("native_editor_event", durable_event_id)
+    .idempotency_key(format!(
+        "native-editor-fr-pending:{workspace_id}:{}",
+        envelope.event_id
+    ))
     .source_component("native_editor_fr_ingestion")
     .correlation_id(expected_fr.trace_id.to_string())
     .payload(json!({
@@ -785,8 +1219,14 @@ fn build_native_editor_completion(
         KernelEventType::FlightRecorderMirrorRecorded,
         pending_receipt.actor.clone(),
     )
-    .aggregate("native_editor_event", envelope.event_id.clone())
-    .idempotency_key(format!("native-editor-fr-complete:{}", envelope.event_id))
+    // Reuse the pending receipt's already workspace-partitioned aggregate identity so a caller can
+    // never complete or reconcile another workspace's pending mirror.
+    .aggregate("native_editor_event", pending_receipt.aggregate_id.clone())
+    .idempotency_key(format!(
+        "native-editor-fr-complete:{}:{}",
+        envelope.canonical_workspace_id(),
+        envelope.event_id
+    ))
     .source_component("native_editor_fr_ingestion")
     .causation_id(pending_receipt.event_id.clone())
     .correlation_id(
@@ -867,12 +1307,45 @@ async fn reconcile_native_editor_pending_receipt(
 }
 
 /// AC-109-1: accept a versioned native-editor event envelope, land it in the FR authority
-/// store (readable via the existing GET route), idempotent on `event_id`, and durably
-/// mirror it into the PostgreSQL kernel EventLedger.
+/// store (readable via the existing GET route), idempotent on the workspace-partitioned durable
+/// event id, and durably mirror it into the PostgreSQL kernel EventLedger.
+///
+/// Authorization is enforced twice over: [`authorize_flight_recorder_request`] already proved the
+/// caller holds `fr.ingest.native_editor` on a live binding, and this handler then binds actor and
+/// workspace attribution to that authenticated context BEFORE the first durable write.
 async fn record_native_editor_event(
     State(state): State<AppState>,
+    Path(workspace_id): Path<String>,
+    Extension(authority): Extension<RecorderAuthority>,
     Json(mut event): Json<NativeEditorFrEventV0_1>,
 ) -> ApiResult<Json<Value>> {
+    debug_assert_eq!(
+        authority.workspace_id.as_deref(),
+        Some(workspace_id.as_str())
+    );
+
+    // ---- Attribution binding (before ANY durable mutation) --------------------------------
+    // A body-supplied actor/workspace may only CONFIRM the authenticated context; it can never
+    // set, widen, or redirect it.
+    let authenticated_actor_id = authority.ctx.actor_id.clone();
+    let authenticated_actor_kind = authority.native_editor_actor_kind();
+    if let Some(claimed_actor_id) = event.actor_id.as_deref() {
+        if claimed_actor_id.trim() != authenticated_actor_id {
+            return Err(actor_spoof_denied());
+        }
+    }
+    if let Some(claimed_actor_kind) = event.actor_kind {
+        if claimed_actor_kind != authenticated_actor_kind {
+            return Err(actor_spoof_denied());
+        }
+    }
+    if let Some(claimed_workspace_id) = event.workspace_id.as_deref() {
+        if claimed_workspace_id.trim() != workspace_id {
+            return Err(workspace_denied());
+        }
+    }
+    authorize_recorder_workspace(&state, &workspace_id).await?;
+
     if event.schema_version.trim() != NATIVE_EDITOR_SCHEMA_VERSION {
         return Err(invalid_event());
     }
@@ -880,10 +1353,7 @@ async fn record_native_editor_event(
         Ok(id) if id != Uuid::nil() => id,
         _ => return Err(invalid_event()),
     };
-    if event.actor_id.trim().is_empty() {
-        return Err(invalid_event());
-    }
-    if event.pane_id.trim().is_empty() || event.workspace_id.trim().is_empty() {
+    if event.pane_id.trim().is_empty() {
         return Err(invalid_event());
     }
     let timestamp = DateTime::parse_from_rfc3339(event.ts_utc.trim())
@@ -899,6 +1369,32 @@ async fn record_native_editor_event(
     if !valid_native_editor_payload(event.kind, &event.payload) {
         return Err(invalid_event());
     }
+
+    // Canonicalize every common envelope identity before the first durable write. Equivalent lexical
+    // UUID/timestamp spellings must converge on one PostgreSQL aggregate/idempotency state machine and
+    // one Flight Recorder UUID, never create parallel mirrors for the same logical event.
+    //
+    // Actor and workspace are OVERWRITTEN from the authenticated context here, so everything
+    // downstream — the save-receipt authentication, the pending receipt, the FR row, the derived
+    // durable id — reads server-derived identity only.
+    event.schema_version = NATIVE_EDITOR_SCHEMA_VERSION.to_owned();
+    event.event_id = event_uuid.to_string();
+    event.ts_utc = timestamp.to_rfc3339();
+    event.actor_id = Some(authenticated_actor_id);
+    event.actor_kind = Some(authenticated_actor_kind);
+    event.workspace_id = Some(workspace_id.clone());
+    event.pane_id = event.pane_id.trim().to_owned();
+    event.surface = event
+        .surface
+        .take()
+        .and_then(|surface| (!surface.trim().is_empty()).then(|| surface.trim().to_owned()));
+    event.session_id = session_id;
+    event.work_packet_id = event.work_packet_id.take().and_then(|work_packet| {
+        (!work_packet.trim().is_empty()).then(|| work_packet.trim().to_owned())
+    });
+
+    // Runs AFTER canonicalization so the receipt is authenticated against the server-derived
+    // actor/workspace, not against anything the caller claimed.
     if event.kind == NativeEditorFrEventKind::DocumentSaved {
         validate_document_save_receipt(&state, &event).await?;
     }
@@ -909,26 +1405,11 @@ async fn record_native_editor_event(
         return Err(invalid_event());
     }
 
-    // Canonicalize every common envelope identity before the first durable write. Equivalent lexical
-    // UUID/timestamp spellings must converge on one PostgreSQL aggregate/idempotency state machine and
-    // one Flight Recorder UUID, never create parallel mirrors for the same logical event.
-    event.schema_version = NATIVE_EDITOR_SCHEMA_VERSION.to_owned();
-    event.event_id = event_uuid.to_string();
-    event.ts_utc = timestamp.to_rfc3339();
-    event.actor_id = event.actor_id.trim().to_owned();
-    event.pane_id = event.pane_id.trim().to_owned();
-    event.workspace_id = event.workspace_id.trim().to_owned();
-    event.surface = event
-        .surface
-        .take()
-        .and_then(|surface| (!surface.trim().is_empty()).then(|| surface.trim().to_owned()));
-    event.session_id = session_id;
-    event.work_packet_id = event.work_packet_id.take().and_then(|work_packet| {
-        (!work_packet.trim().is_empty()).then(|| work_packet.trim().to_owned())
-    });
-
     let kind_str = event.kind.as_str();
     let fr_event = native_editor_fr_event_from_envelope(&event)?;
+    // The durable, workspace-partitioned recorder identity. Every idempotency/conflict probe below
+    // uses THIS id, never the caller-controlled `event_uuid`.
+    let durable_event_uuid = fr_event.event_id;
     // Durable EventLedger mirror is written FIRST and is idempotent. If the subsequent FR write fails,
     // a retry converges by reusing this receipt and completing the missing FR row. The former FR-first
     // ordering could strand an FR row forever without its required PostgreSQL mirror.
@@ -951,7 +1432,7 @@ async fn record_native_editor_event(
     let existing = state
         .flight_recorder
         .list_events(crate::flight_recorder::EventFilter {
-            event_id: Some(event_uuid),
+            event_id: Some(durable_event_uuid),
             ..Default::default()
         })
         .await
@@ -967,7 +1448,7 @@ async fn record_native_editor_event(
             let raced = state
                 .flight_recorder
                 .list_events(crate::flight_recorder::EventFilter {
-                    event_id: Some(event_uuid),
+                    event_id: Some(durable_event_uuid),
                     ..Default::default()
                 })
                 .await
@@ -998,7 +1479,13 @@ async fn record_native_editor_event(
 
     Ok(Json(json!({
         "ok": true,
+        // The caller's own id, echoed canonicalized...
         "event_id": event.event_id,
+        // ...and the durable workspace-partitioned id the recorder actually stores. `GET
+        // /flight_recorder?event_id=` reads back on THIS id.
+        "fr_event_id": durable_event_uuid.to_string(),
+        "workspace_id": workspace_id,
+        "actor_id": event.canonical_actor_id(),
         "kind": kind_str,
         "idempotent": idempotent,
     })))
@@ -1013,10 +1500,44 @@ fn system_event_matches_surface(
             && event.payload.get("editor_surface").and_then(Value::as_str) == Some(target))
 }
 
+/// Recorder read.
+///
+/// The middleware already proved `fr.read`. This handler adds the SCOPE decision: a caller that
+/// omits `?wsid=` is asking to enumerate every workspace, which requires the strictly higher
+/// `fr.read.global`. Otherwise the authenticated workspace scope is applied unconditionally, after
+/// every other filter, so no combination of `actor`/`surface`/`event_type`/`event_id` query
+/// parameters can reach a row outside it. A cross-workspace `event_id` therefore returns an empty
+/// list rather than an error, so the route never discloses that a protected event exists.
 async fn list_events(
     State(state): State<AppState>,
+    Extension(authority): Extension<RecorderAuthority>,
     Query(filter): Query<EventFilter>,
 ) -> ApiResult<Json<Vec<FlightEvent>>> {
+    let workspace_scope = filter
+        .wsid
+        .as_deref()
+        .map(str::trim)
+        .filter(|wsid| !wsid.is_empty())
+        .map(str::to_owned);
+    if workspace_scope.is_none() {
+        let global_allowed = state
+            .capability_registry
+            .profile_can(FR_CAPABILITY_PROFILE, FR_READ_GLOBAL_CAPABILITY)
+            .unwrap_or(false);
+        let outcome = if global_allowed { "allow" } else { "deny" };
+        audit_recorder_decision(
+            &state,
+            Some(&authority.ctx),
+            FR_READ_GLOBAL_CAPABILITY,
+            outcome,
+            None,
+        )
+        .await?;
+        if !global_allowed {
+            return Err(capability_denied());
+        }
+    }
+
     let actor_lane = filter
         .actor
         .as_ref()
@@ -1038,7 +1559,8 @@ async fn list_events(
         actor_id: filter.actor_id.clone().or(actor_id_from_legacy_actor),
         surface: filter.surface.clone(),
         event_type: filter.event_type.clone(),
-        wsid: filter.wsid.clone(),
+        // Authoritative scope, not the raw query value (a blank `?wsid=` must not read as "all").
+        wsid: workspace_scope.clone(),
     };
 
     let mut events = state
@@ -1062,9 +1584,6 @@ async fn list_events(
     }
     if let Some(kind) = filter.event_type {
         events.retain(|e| e.event_type.to_string() == kind);
-    }
-    if let Some(wsid) = filter.wsid {
-        events.retain(|e| e.wsids.contains(&wsid));
     }
     if let Some(surface) = filter.surface {
         let target = surface.as_str();
@@ -1112,6 +1631,13 @@ async fn list_events(
         events = filtered;
     }
 
+    // LAST and unconditional: the authenticated workspace scope. Applying it after every other
+    // filter is what makes filter-bypass impossible — a scoped caller cannot widen the result set
+    // with any query parameter, and an event carrying no workspace attribution is excluded.
+    if let Some(wsid) = workspace_scope.as_ref() {
+        events.retain(|event| event.wsids.iter().any(|candidate| candidate == wsid));
+    }
+
     let api_events = events
         .into_iter()
         .map(|e| FlightEvent {
@@ -1143,7 +1669,7 @@ mod tests {
     use crate::capabilities::CapabilityRegistry;
     use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
     use crate::flight_recorder::{
-        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
+        FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
     };
     use crate::llm::{
         CompletionRequest, CompletionResponse, LlmClient, LlmError, ModelProfile, TokenUsage,
@@ -1151,8 +1677,170 @@ mod tests {
     use crate::storage::{tests::optional_postgres_backend_with_pool_from_env, Database};
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use crate::AppState;
+    use axum::http::{HeaderMap, HeaderValue};
     use std::sync::Arc;
     use uuid::Uuid;
+
+    /// The canonical fixture workspace every unqualified native-editor fixture is bound to.
+    const TEST_WORKSPACE_ID: &str = "WS-NE-1";
+    /// A second real workspace used to prove the cross-workspace boundary.
+    const OTHER_TEST_WORKSPACE_ID: &str = "WS-NE-2";
+    /// The server-derived actor identity the authenticated context yields in these tests. Fixtures
+    /// never set `actor_id` themselves — that is the point of the MT-109 remediation.
+    const TEST_ACTOR_ID: &str = "handshake-native:mt109-fixture:0";
+
+    /// `HANDSHAKE_STAGE_BINDING_FILE` is process-global, so the router-level authorization tests
+    /// that install a real native-MCP binding must not race each other OR `api::memory`'s suite.
+    use crate::api::stage::NATIVE_BINDING_ENV_LOCK as FR_AUTH_ENV_LOCK;
+
+    struct BindingEnvGuard {
+        previous: Option<std::ffi::OsString>,
+        path: std::path::PathBuf,
+    }
+
+    impl Drop for BindingEnvGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = self.previous.take() {
+                std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+            } else {
+                std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+            }
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+
+    /// Install a REAL live native-MCP binding for the current process and return the token a
+    /// client must present. Used by the router-level authorization proofs so they exercise
+    /// `capture_context` itself rather than a hand-built context.
+    fn install_native_binding() -> Result<(String, BindingEnvGuard), Box<dyn std::error::Error>> {
+        let token = "a".repeat(64);
+        let path = std::env::temp_dir().join(format!("hsk-fr-binding-{}.json", Uuid::now_v7()));
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&crate::api::stage::current_process_native_binding(&token))?,
+        )?;
+        let guard = BindingEnvGuard {
+            previous: std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"),
+            path: path.clone(),
+        };
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &path);
+        Ok((token, guard))
+    }
+
+    /// The authenticated authority the middleware injects. Handler-level tests (which prove
+    /// ingestion mechanics, not the auth boundary) construct it directly; the auth boundary itself
+    /// is proven end-to-end through the mounted router in the dedicated authorization tests.
+    fn test_recorder_authority(workspace_id: &str) -> RecorderAuthority {
+        RecorderAuthority {
+            ctx: crate::api::stage::CaptureContext {
+                actor_kind: "operator".to_owned(),
+                actor_id: TEST_ACTOR_ID.to_owned(),
+                limiter_principal: "mt109-fixture-principal".to_owned(),
+                actor: KernelActor::Operator(TEST_ACTOR_ID.to_owned()),
+                kernel_task_run_id: "native-stage-task:mt109-fixture:0".to_owned(),
+                session_run_id: "native-mcp-session:mt109-fixture:0".to_owned(),
+                binding_token: "0".repeat(64),
+            },
+            workspace_id: Some(workspace_id.to_owned()),
+        }
+    }
+
+    /// Handler-level ingestion with the authenticated authority the middleware would inject. The
+    /// signature mirrors the real handler's extractor prefix so the tests read the same.
+    async fn ingest_native_editor(
+        State(state): State<AppState>,
+        Json(event): Json<NativeEditorFrEventV0_1>,
+    ) -> ApiResult<Json<Value>> {
+        let workspace_id = event.canonical_workspace_id().to_owned();
+        super::record_native_editor_event(
+            State(state),
+            Path(workspace_id.clone()),
+            Extension(test_recorder_authority(&workspace_id)),
+            Json(event),
+        )
+        .await
+    }
+
+    /// Handler-level recorder read with the authenticated authority the middleware would inject.
+    async fn list_events_scoped(
+        State(state): State<AppState>,
+        Query(filter): Query<EventFilter>,
+    ) -> ApiResult<Json<Vec<FlightEvent>>> {
+        let workspace = filter.wsid.clone().unwrap_or_default();
+        super::list_events(
+            State(state),
+            Extension(test_recorder_authority(&workspace)),
+            Query(filter),
+        )
+        .await
+    }
+
+    /// Seed a real canonical workspace row with a chosen id. Ingestion binds the path workspace to
+    /// canonical authority, so fixtures must name workspaces that actually exist. Every test runs
+    /// in its own isolated `storage_test_<uuid>` schema, so the fixed ids never collide.
+    async fn ensure_test_workspace(
+        state: &AppState,
+        workspace_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        sqlx::query(
+            "INSERT INTO workspaces (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+        )
+        .bind(workspace_id)
+        .bind(format!("mt109-fr-{workspace_id}"))
+        .execute(&state.postgres_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Count only the native-editor residue. The capability audit events the authorization
+    /// boundary is REQUIRED to emit are evidence, not residue, so a zero-residue assertion must
+    /// measure the native-editor family specifically instead of the whole recorder.
+    async fn native_editor_fr_row_count(state: &AppState) -> Result<usize, RecorderError> {
+        Ok(state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter::default())
+            .await?
+            .into_iter()
+            .filter(|event| {
+                event.payload.get("event_family").and_then(Value::as_str) == Some("native_editor")
+            })
+            .count())
+    }
+
+    async fn native_editor_ledger_row_count(
+        state: &AppState,
+    ) -> Result<i64, Box<dyn std::error::Error>> {
+        Ok(sqlx::query_scalar(
+            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event'",
+        )
+        .fetch_one(&state.postgres_pool)
+        .await?)
+    }
+
+    /// The exact redacted capability-decision audit rows this route group must emit.
+    async fn capability_decisions(
+        state: &AppState,
+        capability_id: &str,
+        outcome: &str,
+    ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter {
+                event_type: Some("capability_action".to_owned()),
+                ..Default::default()
+            })
+            .await?
+            .into_iter()
+            .filter(|event| {
+                event.payload.get("capability_id").and_then(Value::as_str) == Some(capability_id)
+                    && event
+                        .payload
+                        .get("decision_outcome")
+                        .and_then(Value::as_str)
+                        == Some(outcome)
+            })
+            .collect())
+    }
 
     struct TestLlmClient {
         profile: ModelProfile,
@@ -1195,7 +1883,7 @@ mod tests {
 
         let recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
-        Ok(Some(AppState {
+        let state = AppState {
             storage: backend.database,
             postgres_pool: backend.postgres_pool,
             flight_recorder: recorder.clone(),
@@ -1203,7 +1891,16 @@ mod tests {
             llm_client: Arc::new(TestLlmClient::new()),
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
-        }))
+        };
+        // Ingestion binds the path workspace to canonical authority, so the fixture workspaces
+        // must be real rows in this test's isolated schema.
+        ensure_test_workspace(&state, TEST_WORKSPACE_ID)
+            .await
+            .map_err(|error| error.to_string())?;
+        ensure_test_workspace(&state, OTHER_TEST_WORKSPACE_ID)
+            .await
+            .map_err(|error| error.to_string())?;
+        Ok(Some(state))
     }
 
     async fn serve_test_router(
@@ -1253,27 +1950,32 @@ mod tests {
                         "event_id": "FR-EVT-SYS-001",
                     }),
                 )
-                .with_model_session_id("sess-keep"),
+                .with_model_session_id("sess-keep")
+                .with_wsids(vec![TEST_WORKSPACE_ID.to_owned()]),
             )
             .await?;
 
         state
             .flight_recorder
-            .record_event(FlightRecorderEvent::new(
-                FlightRecorderEventType::System,
-                FlightRecorderActor::System,
-                trace_id,
-                json!({
-                    "type": "system",
-                    "event_id": "FR-EVT-SYS-000",
-                }),
-            ))
+            .record_event(
+                FlightRecorderEvent::new(
+                    FlightRecorderEventType::System,
+                    FlightRecorderActor::System,
+                    trace_id,
+                    json!({
+                        "type": "system",
+                        "event_id": "FR-EVT-SYS-000",
+                    }),
+                )
+                .with_wsids(vec![TEST_WORKSPACE_ID.to_owned()]),
+            )
             .await?;
 
-        let response = list_events(
+        let response = list_events_scoped(
             State(state),
             Query(EventFilter {
                 model_session_id: Some("sess-keep".to_string()),
+                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
                 ..Default::default()
             }),
         )
@@ -1291,20 +1993,42 @@ mod tests {
     }
 
     fn native_editor_envelope(event_id: &str) -> NativeEditorFrEventV0_1 {
+        native_editor_envelope_in(TEST_WORKSPACE_ID, event_id)
+    }
+
+    /// `actor_id`/`actor_kind` are deliberately left unset: they are no longer client authority,
+    /// and the handler fills them from the authenticated context.
+    fn native_editor_envelope_in(workspace_id: &str, event_id: &str) -> NativeEditorFrEventV0_1 {
         NativeEditorFrEventV0_1 {
             schema_version: NATIVE_EDITOR_SCHEMA_VERSION.to_string(),
             event_id: event_id.to_string(),
             ts_utc: "2026-07-02T04:08:05Z".to_string(),
             kind: NativeEditorFrEventKind::CodeEdit,
-            actor_id: "hsk:native_editor:pane-rich".to_string(),
-            actor_kind: None,
+            actor_id: Some(TEST_ACTOR_ID.to_owned()),
+            actor_kind: Some(NativeEditorActorKind::Human),
             pane_id: "pane-rich".to_owned(),
             surface: None,
-            workspace_id: "WS-NE-1".to_owned(),
+            workspace_id: Some(workspace_id.to_owned()),
             session_id: None,
             work_packet_id: None,
             payload: json!({"file_path":"src/main.rs","line_delta":1}),
         }
+    }
+
+    /// The durable, workspace-partitioned recorder id for a fixture envelope.
+    fn durable_id(event: &NativeEditorFrEventV0_1) -> Uuid {
+        workspace_scoped_fr_event_id(
+            event.canonical_workspace_id(),
+            Uuid::parse_str(event.event_id.trim()).expect("uuid fixture event id"),
+        )
+    }
+
+    /// The durable recorder id for a client event id submitted to the canonical test workspace.
+    fn durable_id_for(event_id: &str) -> Uuid {
+        workspace_scoped_fr_event_id(
+            TEST_WORKSPACE_ID,
+            Uuid::parse_str(event_id.trim()).expect("uuid fixture event id"),
+        )
     }
 
     fn native_editor_pending_event(event: &NativeEditorFrEventV0_1) -> NewKernelEvent {
@@ -1318,11 +2042,14 @@ mod tests {
     ) -> Result<NativeEditorFrEventV0_1, Box<dyn std::error::Error>> {
         let document_id = format!("DOC-{}", Uuid::now_v7());
         let workspace_id = format!("WS-{}", Uuid::now_v7());
+        ensure_test_workspace(state, &workspace_id).await?;
         let content_hash = "a".repeat(64);
         let task = format!("task-{}", Uuid::now_v7());
         let session = format!("session-{}", Uuid::now_v7());
         let correlation = format!("correlation-{}", Uuid::now_v7());
-        let actor_id = "mt043-authentic-actor".to_owned();
+        // The canonical save receipt must belong to the SAME authenticated principal the native
+        // event is now attributed to; the handler no longer accepts a caller-declared actor.
+        let actor_id = TEST_ACTOR_ID.to_owned();
         let receipt = state
             .storage
             .append_kernel_event(
@@ -1349,11 +2076,11 @@ mod tests {
             event_id: Uuid::now_v7().to_string(),
             ts_utc: Utc::now().to_rfc3339(),
             kind: NativeEditorFrEventKind::DocumentSaved,
-            actor_id,
-            actor_kind: Some(NativeEditorActorKind::Agent),
+            actor_id: Some(TEST_ACTOR_ID.to_owned()),
+            actor_kind: Some(NativeEditorActorKind::Human),
             pane_id: "pane-rich".to_owned(),
             surface: Some("rich-editor".to_owned()),
-            workspace_id,
+            workspace_id: Some(workspace_id),
             session_id: None,
             work_packet_id: Some("WP-KERNEL-012".to_owned()),
             payload: json!({
@@ -1378,16 +2105,23 @@ mod tests {
         };
         let event_id = Uuid::now_v7().to_string();
         let uuid = Uuid::parse_str(&event_id)?;
+        // The durable, workspace-partitioned identity the recorder actually stores.
+        let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
+        assert_ne!(
+            durable_uuid, uuid,
+            "the durable id must not be the caller-controlled id"
+        );
         let body = json!({
             "schema_version": NATIVE_EDITOR_SCHEMA_VERSION,
             "event_id": event_id,
             "ts_utc": "2026-07-02T04:08:05Z",
             "kind": "stage_embed_back",
-            "actor_id": "hsk:native_editor:pane-rich",
+            // An envelope MAY confirm the authenticated identity; it may never set it.
+            "actor_id": TEST_ACTOR_ID,
             "actor_kind": "human",
             "pane_id": "pane-rich",
             "surface": "stage",
-            "workspace_id": "WS-NE-1",
+            "workspace_id": TEST_WORKSPACE_ID,
             "payload": {
                 "artifact_id": "ART-1",
                 "target_pane_id": "pane-rich",
@@ -1398,17 +2132,28 @@ mod tests {
         });
         let event: NativeEditorFrEventV0_1 = serde_json::from_value(body.clone())?;
 
-        let Json(ack) = record_native_editor_event(State(state.clone()), Json(event))
+        let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
             .await
             .map_err(|(code, _body)| format!("ingest failed: {code}"))?;
         assert_eq!(ack["ok"], true);
         assert_eq!(ack["kind"], "stage_embed_back");
+        assert_eq!(ack["event_id"], event_id, "the caller id is echoed back");
+        assert_eq!(
+            ack["fr_event_id"],
+            durable_uuid.to_string(),
+            "the ack names the durable workspace-partitioned recorder id"
+        );
+        assert_eq!(
+            ack["actor_id"], TEST_ACTOR_ID,
+            "attribution is server-derived, never caller-declared"
+        );
 
         // Readable back via the existing GET route, keyed on event_id.
-        let Json(events) = list_events(
+        let Json(events) = list_events_scoped(
             State(state.clone()),
             Query(EventFilter {
-                event_id: Some(uuid),
+                event_id: Some(durable_uuid),
+                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
                 ..Default::default()
             }),
         )
@@ -1416,7 +2161,10 @@ mod tests {
         .map_err(|_| "list failed")?;
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_type, "system");
-        assert_eq!(events[0].actor_id, "hsk:native_editor:pane-rich");
+        assert_eq!(events[0].event_id, durable_uuid.to_string());
+        assert_eq!(events[0].actor_id, TEST_ACTOR_ID);
+        assert_eq!(events[0].payload["client_event_id"], event_id);
+        assert_eq!(events[0].payload["actor_id"], TEST_ACTOR_ID);
         assert_eq!(events[0].payload["kind"], "stage_embed_back");
         assert_eq!(events[0].payload["action"], "stage_embed_back");
         assert_eq!(events[0].payload["schema"], NATIVE_EDITOR_SCHEMA_VERSION);
@@ -1425,13 +2173,13 @@ mod tests {
             events[0].payload["native_payload"]["causal_action_id"],
             "stage-route-action-1"
         );
-        assert!(events[0].wsids.contains(&"WS-NE-1".to_string()));
+        assert!(events[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
 
         // Durable EventLedger mirror in managed PostgreSQL.
         let ledger_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
         )
-        .bind(format!("native-editor-fr-complete:{event_id}"))
+        .bind(format!("native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"))
         .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
         .fetch_one(&state.postgres_pool)
         .await?;
@@ -1442,15 +2190,16 @@ mod tests {
 
         // Idempotent re-POST of the same event_id.
         let event_again: NativeEditorFrEventV0_1 = serde_json::from_value(body)?;
-        let Json(ack2) = record_native_editor_event(State(state.clone()), Json(event_again))
+        let Json(ack2) = ingest_native_editor(State(state.clone()), Json(event_again))
             .await
             .map_err(|(code, _body)| format!("re-ingest failed: {code}"))?;
         assert_eq!(ack2["idempotent"], true);
 
-        let Json(events_after) = list_events(
+        let Json(events_after) = list_events_scoped(
             State(state.clone()),
             Query(EventFilter {
-                event_id: Some(uuid),
+                event_id: Some(durable_uuid),
+                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
                 ..Default::default()
             }),
         )
@@ -1465,7 +2214,9 @@ mod tests {
         let ledger_after: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
         )
-        .bind(format!("native-editor-fr-complete:{event_id}"))
+        .bind(format!(
+            "native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"
+        ))
         .fetch_one(&state.postgres_pool)
         .await?;
         assert_eq!(
@@ -1485,7 +2236,7 @@ mod tests {
             let event_id = Uuid::now_v7().to_string();
             let mut original = native_editor_envelope(&event_id);
             original.surface = Some("pane-rich".to_owned());
-            record_native_editor_event(State(state.clone()), Json(original.clone()))
+            ingest_native_editor(State(state.clone()), Json(original.clone()))
                 .await
                 .map_err(|(status, _)| format!("initial ingest failed: {status}"))?;
             let mut changed = original;
@@ -1497,7 +2248,7 @@ mod tests {
             }
             assert!(
                 matches!(
-                    record_native_editor_event(State(state.clone()), Json(changed)).await,
+                    ingest_native_editor(State(state.clone()), Json(changed)).await,
                     Err((StatusCode::CONFLICT, _))
                 ),
                 "same event_id with changed {mutation} must conflict"
@@ -1516,8 +2267,8 @@ mod tests {
         let event = native_editor_envelope(&event_id);
 
         let (left, right) = tokio::join!(
-            record_native_editor_event(State(state.clone()), Json(event.clone())),
-            record_native_editor_event(State(state.clone()), Json(event)),
+            ingest_native_editor(State(state.clone()), Json(event.clone())),
+            ingest_native_editor(State(state.clone()), Json(event)),
         );
         assert!(left.is_ok(), "first concurrent ingest failed");
         assert!(right.is_ok(), "second concurrent ingest failed");
@@ -1525,7 +2276,7 @@ mod tests {
         let recorder_rows = state
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(Uuid::parse_str(&event_id)?),
+                event_id: Some(durable_id_for(&event_id)),
                 ..Default::default()
             })
             .await?;
@@ -1534,7 +2285,7 @@ mod tests {
         let ledger_rows: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type IN ($2, $3)",
         )
-        .bind(&event_id)
+        .bind(durable_id_for(&event_id).to_string())
         .bind(KernelEventType::FlightRecorderMirrorPending.as_str())
         .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
         .fetch_one(&state.postgres_pool)
@@ -1556,15 +2307,16 @@ mod tests {
         retry.ts_utc = "2026-07-02T04:08:05.123456789Z".to_owned();
         let expected_timestamp = DateTime::parse_from_rfc3339(&retry.ts_utc)?.with_timezone(&Utc);
 
-        record_native_editor_event(State(state.clone()), Json(first))
+        ingest_native_editor(State(state.clone()), Json(first))
             .await
             .map_err(|(status, _)| format!("canonical initial ingest failed: {status}"))?;
-        let Json(ack) = record_native_editor_event(State(state.clone()), Json(retry))
+        let Json(ack) = ingest_native_editor(State(state.clone()), Json(retry))
             .await
             .map_err(|(status, _)| format!("canonical retry failed: {status}"))?;
         assert_eq!(ack["idempotent"], true);
 
-        let aggregate_id = uuid.to_string();
+        let durable_uuid = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, uuid);
+        let aggregate_id = durable_uuid.to_string();
         let ledger_rows: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type IN ($2, $3)",
         )
@@ -1580,7 +2332,7 @@ mod tests {
         let recorder_rows = state
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(uuid),
+                event_id: Some(durable_uuid),
                 ..Default::default()
             })
             .await?;
@@ -1608,10 +2360,10 @@ mod tests {
         let mut event = native_editor_envelope(&event_id);
         event.kind = NativeEditorFrEventKind::CodeEdit;
         event.payload = json!({"file_path": "Cafe\u{301}.rs", "line_delta": 1});
-        record_native_editor_event(State(state.clone()), Json(event.clone()))
+        ingest_native_editor(State(state.clone()), Json(event.clone()))
             .await
             .map_err(|(status, _)| format!("unicode initial ingest failed: {status}"))?;
-        let Json(ack) = record_native_editor_event(State(state), Json(event))
+        let Json(ack) = ingest_native_editor(State(state), Json(event))
             .await
             .map_err(|(status, _)| format!("unicode retry failed: {status}"))?;
         assert_eq!(ack["idempotent"], true);
@@ -1714,18 +2466,22 @@ mod tests {
         .with_actor_id("runtime-system");
         state.flight_recorder.record_event(unrelated).await?;
 
-        let Json(rows) = list_events(
+        let Json(rows) = list_events_scoped(
             State(state),
             Query(EventFilter {
                 surface: Some("pane-rich".to_owned()),
                 event_type: Some("system".to_owned()),
+                wsid: Some(TEST_WORKSPACE_ID.to_owned()),
                 ..Default::default()
             }),
         )
         .await
         .map_err(|(status, _)| format!("surface-filter list failed: {status}"))?;
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].event_id, native_id.to_string());
+        assert_eq!(
+            rows[0].event_id,
+            workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, native_id).to_string()
+        );
         assert_eq!(rows[0].payload["event_family"], "native_editor");
         Ok(())
     }
@@ -1847,7 +2603,7 @@ mod tests {
         let before = state
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(Uuid::parse_str(&event_id)?),
+                event_id: Some(durable_id_for(&event_id)),
                 ..Default::default()
             })
             .await?;
@@ -1865,7 +2621,7 @@ mod tests {
         let after = state
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(Uuid::parse_str(&event_id)?),
+                event_id: Some(durable_id_for(&event_id)),
                 ..Default::default()
             })
             .await?;
@@ -1873,7 +2629,7 @@ mod tests {
         let completion_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
         )
-        .bind(format!("native-editor-fr-complete:{event_id}"))
+        .bind(format!("native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"))
         .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
         .fetch_one(&state.postgres_pool)
         .await?;
@@ -1903,7 +2659,7 @@ mod tests {
             let rows = state
                 .flight_recorder
                 .list_events(crate::flight_recorder::EventFilter {
-                    event_id: Some(Uuid::parse_str(&event_id)?),
+                    event_id: Some(durable_id_for(&event_id)),
                     ..Default::default()
                 })
                 .await?;
@@ -1932,10 +2688,10 @@ mod tests {
             .append_kernel_event(native_editor_pending_event(&event))
             .await?;
         let spurious = NewKernelEvent::builder(
-            event.workspace_id.clone(),
+            event.canonical_workspace_id().to_owned(),
             event.event_id.clone(),
             KernelEventType::FlightRecorderMirrorRecorded,
-            KernelActor::Operator(event.actor_id.clone()),
+            KernelActor::Operator(event.canonical_actor_id().to_owned()),
         )
         .aggregate("native_editor_event", event.event_id.clone())
         .idempotency_key(format!(
@@ -1956,7 +2712,7 @@ mod tests {
             state
                 .flight_recorder
                 .list_events(crate::flight_recorder::EventFilter {
-                    event_id: Some(Uuid::parse_str(&event_id)?),
+                    event_id: Some(durable_id_for(&event_id)),
                     ..Default::default()
                 })
                 .await?
@@ -1967,7 +2723,7 @@ mod tests {
         let completion_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
         )
-        .bind(format!("native-editor-fr-complete:{event_id}"))
+        .bind(format!("native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"))
         .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
         .fetch_one(&state.postgres_pool)
         .await?;
@@ -1999,7 +2755,11 @@ mod tests {
 
         sqlx::query("UPDATE kernel_event_ledger SET payload_hash = $1 WHERE idempotency_key = $2")
             .bind("0".repeat(64))
-            .bind(format!("native-editor-fr-complete:{}", event.event_id))
+            .bind(format!(
+                "native-editor-fr-complete:{}:{}",
+                event.canonical_workspace_id(),
+                event.event_id
+            ))
             .execute(&state.postgres_pool)
             .await?;
 
@@ -2017,7 +2777,11 @@ mod tests {
         // does not retain a poison row after this adversarial probe.
         sqlx::query("UPDATE kernel_event_ledger SET payload_hash = $1 WHERE idempotency_key = $2")
             .bind(canonical_completion_hash)
-            .bind(format!("native-editor-fr-complete:{}", event.event_id))
+            .bind(format!(
+                "native-editor-fr-complete:{}:{}",
+                event.canonical_workspace_id(),
+                event.event_id
+            ))
             .execute(&state.postgres_pool)
             .await?;
         assert!(
@@ -2055,7 +2819,7 @@ mod tests {
         let recovered = state
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(Uuid::parse_str(&event.event_id)?),
+                event_id: Some(durable_id(&event)),
                 ..Default::default()
             })
             .await?;
@@ -2114,7 +2878,7 @@ mod tests {
             .map_err(std::io::Error::other)?;
 
         for event in [&before_fr, &after_fr] {
-            let uuid = Uuid::parse_str(&event.event_id)?;
+            let uuid = durable_id(event);
             assert_eq!(
                 state_after
                     .flight_recorder
@@ -2130,7 +2894,11 @@ mod tests {
             let completion_count: i64 = sqlx::query_scalar(
                 "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1 AND event_type = $2",
             )
-            .bind(format!("native-editor-fr-complete:{}", event.event_id))
+            .bind(format!(
+                "native-editor-fr-complete:{}:{}",
+                event.canonical_workspace_id(),
+                event.event_id
+            ))
             .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
             .fetch_one(&state_after.postgres_pool)
             .await?;
@@ -2174,7 +2942,7 @@ mod tests {
         let valid_rows = state
             .flight_recorder
             .list_events(crate::flight_recorder::EventFilter {
-                event_id: Some(Uuid::parse_str(&valid.event_id)?),
+                event_id: Some(durable_id(&valid)),
                 ..Default::default()
             })
             .await?
@@ -2186,7 +2954,7 @@ mod tests {
             "DELETE FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND (aggregate_id LIKE $1 OR aggregate_id = $2)",
         )
         .bind(format!("{prefix}%"))
-        .bind(&valid.event_id)
+        .bind(durable_id(&valid).to_string())
         .execute(&state.postgres_pool)
         .await?;
         assert_eq!(
@@ -2244,23 +3012,23 @@ mod tests {
         let Some(state) = setup_state().await? else {
             return Ok(());
         };
-        let before_fr = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter::default())
-            .await?
-            .len();
-        let before_ledger: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event'",
-        )
-        .fetch_one(&state.postgres_pool)
-        .await?;
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let before_fr = native_editor_fr_row_count(&state).await?;
+        let before_ledger = native_editor_ledger_row_count(&state).await?;
         let (base, http, server) = serve_test_router(routes(state.clone())).await;
-        let endpoint = format!("{base}/flight_recorder/native_editor_event");
+        let endpoint =
+            format!("{base}/workspaces/{TEST_WORKSPACE_ID}/flight_recorder/native_editor_event");
 
         let mut unknown_kind =
             serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
         unknown_kind["kind"] = json!("smuggled_editor_kind");
-        let response = http.post(&endpoint).json(&unknown_kind).send().await?;
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&unknown_kind)
+            .send()
+            .await?;
         assert!(
             response.status().is_client_error(),
             "unknown kind must be rejected by the mounted route, got {}",
@@ -2270,24 +3038,24 @@ mod tests {
         let mut unknown_field =
             serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
         unknown_field["smuggled"] = json!("free text");
-        let response = http.post(&endpoint).json(&unknown_field).send().await?;
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&unknown_field)
+            .send()
+            .await?;
         assert!(
             response.status().is_client_error(),
             "unknown envelope field must be rejected by the mounted route, got {}",
             response.status()
         );
 
-        let after_fr = state
-            .flight_recorder
-            .list_events(crate::flight_recorder::EventFilter::default())
-            .await?
-            .len();
-        let after_ledger: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event'",
-        )
-        .fetch_one(&state.postgres_pool)
-        .await?;
-        assert_eq!(after_fr, before_fr, "rejected bodies must emit no FR row");
+        let after_fr = native_editor_fr_row_count(&state).await?;
+        let after_ledger = native_editor_ledger_row_count(&state).await?;
+        assert_eq!(
+            after_fr, before_fr,
+            "rejected bodies must emit no native-editor FR row"
+        );
         assert_eq!(
             after_ledger, before_ledger,
             "rejected bodies must emit no EventLedger receipt"
@@ -2386,11 +3154,11 @@ mod tests {
                 event.payload = payload;
                 event
             };
-            let event_id = Uuid::parse_str(&event.event_id)?;
+            let workspace_id = event.canonical_workspace_id().to_owned();
+            let event_id = durable_id(&event);
             let aggregate_id = event_id.to_string();
-            let workspace_id = event.workspace_id.clone();
 
-            let Json(ack) = record_native_editor_event(State(state.clone()), Json(event))
+            let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
                 .await
                 .map_err(|(status, _)| {
                     format!(
@@ -2401,10 +3169,11 @@ mod tests {
             assert_eq!(ack["ok"], true, "{} acknowledgement", kind.as_str());
             assert_eq!(ack["kind"], kind.as_str());
 
-            let Json(events) = list_events(
+            let Json(events) = list_events_scoped(
                 State(state.clone()),
                 Query(EventFilter {
                     event_id: Some(event_id),
+                    wsid: Some(workspace_id.clone()),
                     ..Default::default()
                 }),
             )
@@ -2566,7 +3335,7 @@ mod tests {
                     }
                     assert!(
                         matches!(
-                            record_native_editor_event(State(state.clone()), Json(event)).await,
+                            ingest_native_editor(State(state.clone()), Json(event)).await,
                             Err((StatusCode::BAD_REQUEST, _))
                         ),
                         "handler accepted {corruption} {}.{key}",
@@ -2585,7 +3354,7 @@ mod tests {
                 .insert("unknown".to_owned(), json!("smuggled"));
             assert!(
                 matches!(
-                    record_native_editor_event(State(state.clone()), Json(unknown)).await,
+                    ingest_native_editor(State(state.clone()), Json(unknown)).await,
                     Err((StatusCode::BAD_REQUEST, _))
                 ),
                 "handler accepted an unknown field for {}",
@@ -2625,7 +3394,7 @@ mod tests {
             let mut accepted = native_editor_envelope(&Uuid::now_v7().to_string());
             accepted.kind = kind;
             accepted.payload = payload.clone();
-            let Json(ack) = record_native_editor_event(State(state.clone()), Json(accepted))
+            let Json(ack) = ingest_native_editor(State(state.clone()), Json(accepted))
                 .await
                 .map_err(|(status, _)| {
                     format!("handler rejected correlated {}: {status}", kind.as_str())
@@ -2643,7 +3412,7 @@ mod tests {
                     .expect("correlated fixture is an object")
                     .insert("causal_action_id".to_owned(), invalid);
                 assert!(matches!(
-                    record_native_editor_event(State(state.clone()), Json(rejected)).await,
+                    ingest_native_editor(State(state.clone()), Json(rejected)).await,
                     Err((StatusCode::BAD_REQUEST, _))
                 ));
             }
@@ -2657,7 +3426,7 @@ mod tests {
                 .expect("correlated fixture is an object")
                 .insert("unknown_correlation".to_owned(), json!("smuggled"));
             assert!(matches!(
-                record_native_editor_event(State(state.clone()), Json(unknown)).await,
+                ingest_native_editor(State(state.clone()), Json(unknown)).await,
                 Err((StatusCode::BAD_REQUEST, _))
             ));
         }
@@ -2675,28 +3444,28 @@ mod tests {
         let mut wrong_schema = native_editor_envelope(&Uuid::now_v7().to_string());
         wrong_schema.schema_version = "wrong@0.0".to_string();
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(wrong_schema)).await,
+            ingest_native_editor(State(state.clone()), Json(wrong_schema)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
         let mut bad_id = native_editor_envelope("not-a-uuid");
         bad_id.payload = Value::Null;
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(bad_id)).await,
+            ingest_native_editor(State(state.clone()), Json(bad_id)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
         let mut free_text_payload = native_editor_envelope(&Uuid::now_v7().to_string());
         free_text_payload.payload = json!("free text string");
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(free_text_payload)).await,
+            ingest_native_editor(State(state.clone()), Json(free_text_payload)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
         let mut invalid_timestamp = native_editor_envelope(&Uuid::now_v7().to_string());
         invalid_timestamp.ts_utc = "not-rfc3339".to_owned();
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(invalid_timestamp)).await,
+            ingest_native_editor(State(state.clone()), Json(invalid_timestamp)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
@@ -2704,22 +3473,39 @@ mod tests {
         incomplete_document.kind = NativeEditorFrEventKind::DocumentSaved;
         incomplete_document.payload = json!({"document_id": "DOC-MISSING-HASH"});
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(incomplete_document)).await,
+            ingest_native_editor(State(state.clone()), Json(incomplete_document)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
         let mut missing_pane = native_editor_envelope(&Uuid::now_v7().to_string());
         missing_pane.pane_id.clear();
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(missing_pane)).await,
+            ingest_native_editor(State(state.clone()), Json(missing_pane)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
-        let mut missing_workspace = native_editor_envelope(&Uuid::now_v7().to_string());
-        missing_workspace.workspace_id.clear();
+        // A blank body workspace no longer "falls back" to anything: it disagrees with the
+        // authenticated path workspace, so it is a workspace rejection, not a shape error.
+        let mut blank_workspace = native_editor_envelope(&Uuid::now_v7().to_string());
+        blank_workspace.workspace_id = Some(String::new());
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(missing_workspace)).await,
-            Err((StatusCode::BAD_REQUEST, _))
+            record_native_editor_event(
+                State(state.clone()),
+                Path(TEST_WORKSPACE_ID.to_owned()),
+                Extension(test_recorder_authority(TEST_WORKSPACE_ID)),
+                Json(blank_workspace),
+            )
+            .await,
+            Err((StatusCode::FORBIDDEN, _))
+        ));
+
+        // An unknown path workspace is denied (never implicitly created) and is indistinguishable
+        // from an unauthorized one, so the route discloses nothing about workspace existence.
+        let unknown_workspace_event =
+            native_editor_envelope_in("WS-DOES-NOT-EXIST", &Uuid::now_v7().to_string());
+        assert!(matches!(
+            ingest_native_editor(State(state.clone()), Json(unknown_workspace_event)).await,
+            Err((StatusCode::FORBIDDEN, _))
         ));
         Ok(())
     }
@@ -2739,25 +3525,25 @@ mod tests {
             .expect("document payload")
             .remove("save_receipt_event_id");
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(missing)).await,
+            ingest_native_editor(State(state.clone()), Json(missing)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
         let mut fabricated = authentic.clone();
         fabricated.payload["save_receipt_event_id"] = json!(format!("KE-{}", Uuid::now_v7()));
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(fabricated)).await,
+            ingest_native_editor(State(state.clone()), Json(fabricated)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
         let mut corrupt = authentic.clone();
         corrupt.payload["content_hash"] = json!("b".repeat(64));
         assert!(matches!(
-            record_native_editor_event(State(state.clone()), Json(corrupt)).await,
+            ingest_native_editor(State(state.clone()), Json(corrupt)).await,
             Err((StatusCode::BAD_REQUEST, _))
         ));
 
-        let Json(ack) = record_native_editor_event(State(state), Json(authentic))
+        let Json(ack) = ingest_native_editor(State(state), Json(authentic))
             .await
             .map_err(|(status, _)| format!("authentic receipt rejected: {status}"))?;
         assert_eq!(ack["ok"], true);
@@ -2778,14 +3564,16 @@ mod tests {
             .map_err(|_| "failed to build exact FR-only fixture")?;
         state.flight_recorder.record_event(fr_only).await?;
 
-        let Json(ack) = record_native_editor_event(State(state.clone()), Json(event))
+        let Json(ack) = ingest_native_editor(State(state.clone()), Json(event))
             .await
             .map_err(|(code, _)| format!("repair replay failed: {code}"))?;
         assert_eq!(ack["idempotent"], true);
         let ledger_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
         )
-        .bind(format!("native-editor-fr-complete:{event_id}"))
+        .bind(format!(
+            "native-editor-fr-complete:{TEST_WORKSPACE_ID}:{event_id}"
+        ))
         .fetch_one(&state.postgres_pool)
         .await?;
         assert_eq!(
@@ -2793,5 +3581,678 @@ mod tests {
             "replay repaired the missing PostgreSQL mirror"
         );
         Ok(())
+    }
+
+    // =====================================================================================
+    // MT-109 FAIL_V4 remediation: HTTP-level authorization proofs against the REAL router.
+    // =====================================================================================
+
+    /// The `handshake-native:<pid>:<birth>` identity `capture_context` mints for this process.
+    fn authenticated_actor_id(token: &str) -> String {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-hsk-session-token",
+            HeaderValue::from_str(token).expect("session token header"),
+        );
+        crate::api::stage::capture_context(&headers)
+            .expect("live native binding")
+            .actor_id
+    }
+
+    fn native_editor_endpoint(base: &str, workspace_id: &str) -> String {
+        format!("{base}/workspaces/{workspace_id}/flight_recorder/native_editor_event")
+    }
+
+    fn runtime_chat_endpoint(base: &str, workspace_id: &str) -> String {
+        format!("{base}/workspaces/{workspace_id}/flight_recorder/runtime_chat_event")
+    }
+
+    fn runtime_chat_body(session_id: Uuid, message_id: Uuid, wsid: Option<&str>) -> Value {
+        let mut body = json!({
+            "schema_version": "hsk.fr.runtime_chat@0.1",
+            "event_id": "FR-EVT-RUNTIME-CHAT-101",
+            "ts_utc": "2026-07-02T04:08:05Z",
+            "session_id": session_id.to_string(),
+            "type": "runtime_chat_message_appended",
+            "message_id": message_id.to_string(),
+            "role": "user",
+            "body_sha256": "e".repeat(64),
+        });
+        if let Some(wsid) = wsid {
+            body["wsid"] = json!(wsid);
+        }
+        body
+    }
+
+    /// Missing or forged session binding => 401 on EVERY route in the group, with zero durable
+    /// residue and one exact redacted deny audit per attempt.
+    #[tokio::test]
+    async fn flight_recorder_routes_reject_unauthenticated_callers_with_zero_residue(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let before_fr = native_editor_fr_row_count(&state).await?;
+        let before_ledger = native_editor_ledger_row_count(&state).await?;
+        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+
+        let envelope = serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+        let chat = runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None);
+
+        for (label, response) in [
+            (
+                "GET /flight_recorder without binding",
+                http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}"))
+                    .send()
+                    .await?,
+            ),
+            (
+                "GET /events without binding",
+                http.get(format!("{base}/events?wsid={TEST_WORKSPACE_ID}"))
+                    .send()
+                    .await?,
+            ),
+            (
+                "GET /flight_recorder with a forged token",
+                http.get(format!("{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}"))
+                    .header("x-hsk-session-token", "b".repeat(64))
+                    .send()
+                    .await?,
+            ),
+            (
+                "POST native_editor_event without binding",
+                http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                    .json(&envelope)
+                    .send()
+                    .await?,
+            ),
+            (
+                "POST native_editor_event with a forged token",
+                http.post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+                    .header("x-hsk-session-token", "c".repeat(64))
+                    .json(&envelope)
+                    .send()
+                    .await?,
+            ),
+            (
+                "POST runtime_chat_event without binding",
+                http.post(runtime_chat_endpoint(&base, TEST_WORKSPACE_ID))
+                    .json(&chat)
+                    .send()
+                    .await?,
+            ),
+        ] {
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{label} must be 401"
+            );
+            let body: Value = response.json().await?;
+            assert_eq!(body["error"], "HSK-401-FR-SESSION", "{label} error code");
+        }
+
+        assert_eq!(
+            native_editor_fr_row_count(&state).await?,
+            before_fr,
+            "unauthenticated calls must leave no native-editor FR row"
+        );
+        assert_eq!(
+            native_editor_ledger_row_count(&state).await?,
+            before_ledger,
+            "unauthenticated calls must leave no EventLedger receipt"
+        );
+
+        // Every denial is attributable and redacted.
+        for capability_id in [
+            FR_READ_CAPABILITY,
+            FR_INGEST_NATIVE_EDITOR_CAPABILITY,
+            FR_INGEST_RUNTIME_CHAT_CAPABILITY,
+        ] {
+            let denies = capability_decisions(&state, capability_id, "deny").await?;
+            assert!(!denies.is_empty(), "{capability_id} denial must be audited");
+            for deny in &denies {
+                let payload = deny.payload.as_object().expect("audit payload object");
+                assert_eq!(
+                    payload.len(),
+                    4,
+                    "the capability audit must carry exactly the redacted contract keys"
+                );
+                assert_eq!(payload["capability_id"], capability_id);
+                assert_eq!(payload["decision_outcome"], "deny");
+                assert_eq!(payload["actor_id"], "unauthenticated-native-client");
+                let rendered = serde_json::to_string(&deny.payload)?;
+                assert!(
+                    !rendered.contains(&token) && !rendered.contains("body_sha256"),
+                    "the audit must never carry the session token or request body"
+                );
+            }
+        }
+        server.abort();
+        Ok(())
+    }
+
+    /// A VALID authenticated context that lacks the required capability => 403 with zero residue
+    /// and an exact deny audit. `fr.read.global` is granted to no shipped profile, so an
+    /// authenticated caller that omits `?wsid=` cannot enumerate across workspaces.
+    #[tokio::test]
+    async fn recorder_read_without_scope_is_denied_for_lack_of_global_capability(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let actor_id = authenticated_actor_id(&token);
+        let before_fr = native_editor_fr_row_count(&state).await?;
+        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+
+        for url in [
+            format!("{base}/flight_recorder"),
+            format!("{base}/events"),
+            // A blank scope must not read as "all workspaces".
+            format!("{base}/flight_recorder?wsid="),
+        ] {
+            let response = http
+                .get(&url)
+                .header("x-hsk-session-token", &token)
+                .send()
+                .await?;
+            assert_eq!(
+                response.status(),
+                StatusCode::FORBIDDEN,
+                "unscoped recorder enumeration must be 403 at {url}"
+            );
+            let body: Value = response.json().await?;
+            assert_eq!(body["error"], "HSK-403-FR-CAPABILITY");
+        }
+
+        let denies = capability_decisions(&state, FR_READ_GLOBAL_CAPABILITY, "deny").await?;
+        assert_eq!(
+            denies.len(),
+            3,
+            "one exact deny audit per unscoped read attempt"
+        );
+        for deny in &denies {
+            assert_eq!(deny.payload["actor_id"], actor_id);
+            assert_eq!(
+                deny.capability_id.as_deref(),
+                Some(FR_READ_GLOBAL_CAPABILITY)
+            );
+        }
+        assert!(
+            capability_decisions(&state, FR_READ_CAPABILITY, "allow")
+                .await?
+                .len()
+                >= 3,
+            "the base read capability was allowed before the scope escalation was denied"
+        );
+        assert_eq!(
+            native_editor_fr_row_count(&state).await?,
+            before_fr,
+            "a denied read must not mutate recorder state"
+        );
+        server.abort();
+        Ok(())
+    }
+
+    /// A spoofed actor or a body workspace that disagrees with the authenticated path is rejected
+    /// BEFORE any durable write; a clean envelope is accepted with server-derived attribution.
+    #[tokio::test]
+    async fn native_editor_ingest_rejects_spoofed_identity_and_derives_attribution(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let actor_id = authenticated_actor_id(&token);
+        assert!(actor_id.starts_with("handshake-native:"));
+        let before_fr = native_editor_fr_row_count(&state).await?;
+        let before_ledger = native_editor_ledger_row_count(&state).await?;
+        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+        let endpoint = native_editor_endpoint(&base, TEST_WORKSPACE_ID);
+
+        let mut spoofed_actor =
+            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+        spoofed_actor["actor_id"] = json!("operator-i-am-not");
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&spoofed_actor)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "spoofed actor_id");
+        assert_eq!(
+            response.json::<Value>().await?["error"],
+            "HSK-403-FR-ACTOR-SPOOF"
+        );
+
+        let mut spoofed_kind =
+            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+        spoofed_kind["actor_id"] = json!(actor_id);
+        spoofed_kind["actor_kind"] = json!("system");
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&spoofed_kind)
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::FORBIDDEN,
+            "spoofed actor_kind"
+        );
+
+        let mut spoofed_workspace =
+            serde_json::to_value(native_editor_envelope(&Uuid::now_v7().to_string()))?;
+        spoofed_workspace["actor_id"] = json!(actor_id);
+        spoofed_workspace["workspace_id"] = json!(OTHER_TEST_WORKSPACE_ID);
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&spoofed_workspace)
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::FORBIDDEN,
+            "body workspace must not contradict the authenticated path"
+        );
+        assert_eq!(
+            response.json::<Value>().await?["error"],
+            "HSK-403-FR-WORKSPACE"
+        );
+
+        assert_eq!(
+            native_editor_fr_row_count(&state).await?,
+            before_fr,
+            "spoof attempts must leave no native-editor FR row"
+        );
+        assert_eq!(
+            native_editor_ledger_row_count(&state).await?,
+            before_ledger,
+            "spoof attempts must leave no EventLedger receipt"
+        );
+
+        // A clean envelope that names NO identity at all is accepted, and the server fills it.
+        let client_event_id = Uuid::now_v7();
+        let mut clean = serde_json::to_value(native_editor_envelope(&client_event_id.to_string()))?;
+        clean["actor_id"] = Value::Null;
+        clean["actor_kind"] = Value::Null;
+        clean["workspace_id"] = Value::Null;
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&clean)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let ack: Value = response.json().await?;
+        let durable = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, client_event_id);
+        assert_eq!(ack["fr_event_id"], durable.to_string());
+        assert_eq!(ack["actor_id"], actor_id);
+        assert_eq!(ack["workspace_id"], TEST_WORKSPACE_ID);
+
+        let stored = state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter {
+                event_id: Some(durable),
+                ..Default::default()
+            })
+            .await?;
+        assert_eq!(stored.len(), 1);
+        assert_eq!(
+            stored[0].actor_id, actor_id,
+            "server-derived FR attribution"
+        );
+        assert!(stored[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()));
+
+        let ledger_actor: String = sqlx::query_scalar(
+            "SELECT actor_id FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1 AND event_type = $2",
+        )
+        .bind(durable.to_string())
+        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        assert_eq!(
+            ledger_actor, actor_id,
+            "the durable EventLedger attribution is server-derived"
+        );
+
+        let allows =
+            capability_decisions(&state, FR_INGEST_NATIVE_EDITOR_CAPABILITY, "allow").await?;
+        assert!(!allows.is_empty(), "accepted ingest must be audited");
+        for allow in &allows {
+            assert_eq!(allow.payload["actor_id"], actor_id);
+            assert_eq!(
+                allow.payload.as_object().expect("audit object").len(),
+                4,
+                "redacted audit contract"
+            );
+        }
+        server.abort();
+        Ok(())
+    }
+
+    /// Idempotency and conflict ownership are partitioned per authenticated workspace: one
+    /// workspace cannot pre-seed another workspace's `event_id`, turn its retry into a conflict,
+    /// read its row, or reconcile its receipt.
+    #[tokio::test]
+    async fn cross_workspace_event_id_preemption_cannot_conflict_or_leak(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+
+        // The attacker pre-seeds a client event id inside the workspace it DOES hold.
+        let contested = Uuid::now_v7();
+        let mut attacker = serde_json::to_value(native_editor_envelope_in(
+            OTHER_TEST_WORKSPACE_ID,
+            &contested.to_string(),
+        ))?;
+        attacker["pane_id"] = json!("attacker-pane");
+        attacker["actor_id"] = Value::Null;
+        let response = http
+            .post(native_editor_endpoint(&base, OTHER_TEST_WORKSPACE_ID))
+            .header("x-hsk-session-token", &token)
+            .json(&attacker)
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "attacker's own workspace"
+        );
+
+        // The victim workspace submits the SAME client id with different content. Before the
+        // partition this was a 409 that denied the victim its own event.
+        let mut victim = serde_json::to_value(native_editor_envelope_in(
+            TEST_WORKSPACE_ID,
+            &contested.to_string(),
+        ))?;
+        victim["pane_id"] = json!("victim-pane");
+        victim["actor_id"] = Value::Null;
+        let response = http
+            .post(native_editor_endpoint(&base, TEST_WORKSPACE_ID))
+            .header("x-hsk-session-token", &token)
+            .json(&victim)
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::OK,
+            "a foreign workspace must not be able to convert this into a conflict"
+        );
+        let victim_ack: Value = response.json().await?;
+        assert_eq!(victim_ack["idempotent"], false);
+
+        let attacker_durable = workspace_scoped_fr_event_id(OTHER_TEST_WORKSPACE_ID, contested);
+        let victim_durable = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, contested);
+        assert_ne!(attacker_durable, victim_durable);
+        assert_eq!(victim_ack["fr_event_id"], victim_durable.to_string());
+
+        // Two disjoint aggregates, two disjoint pending/completion state machines.
+        for (workspace_id, durable) in [
+            (OTHER_TEST_WORKSPACE_ID, attacker_durable),
+            (TEST_WORKSPACE_ID, victim_durable),
+        ] {
+            let receipts: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_type = 'native_editor_event' AND aggregate_id = $1",
+            )
+            .bind(durable.to_string())
+            .fetch_one(&state.postgres_pool)
+            .await?;
+            assert_eq!(
+                receipts, 2,
+                "{workspace_id} owns its own pending+completion"
+            );
+        }
+
+        // A scoped read cannot reach the other workspace's row, even by naming its exact id.
+        let leaked = http
+            .get(format!(
+                "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={attacker_durable}"
+            ))
+            .header("x-hsk-session-token", &token)
+            .send()
+            .await?;
+        assert_eq!(leaked.status(), StatusCode::OK);
+        let rows: Vec<FlightEvent> = leaked.json().await?;
+        assert!(
+            rows.is_empty(),
+            "a cross-workspace event id must return an empty list, not the row and not an error"
+        );
+
+        // The scoped read returns exactly the caller's own row.
+        let own = http
+            .get(format!(
+                "{base}/flight_recorder?wsid={TEST_WORKSPACE_ID}&event_id={victim_durable}"
+            ))
+            .header("x-hsk-session-token", &token)
+            .send()
+            .await?;
+        let rows: Vec<FlightEvent> = own.json().await?;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].payload["pane_id"], "victim-pane");
+        server.abort();
+        Ok(())
+    }
+
+    /// Query filters cannot widen the authenticated workspace scope, and both GET aliases behave
+    /// identically.
+    #[tokio::test]
+    async fn recorder_read_scope_cannot_be_widened_by_query_filters(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let actor_id = authenticated_actor_id(&token);
+        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+
+        for workspace_id in [TEST_WORKSPACE_ID, OTHER_TEST_WORKSPACE_ID] {
+            let mut body = serde_json::to_value(native_editor_envelope_in(
+                workspace_id,
+                &Uuid::now_v7().to_string(),
+            ))?;
+            body["actor_id"] = Value::Null;
+            let response = http
+                .post(native_editor_endpoint(&base, workspace_id))
+                .header("x-hsk-session-token", &token)
+                .json(&body)
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+
+        for alias in ["flight_recorder", "events"] {
+            // Both workspaces share one actor and one surface, so neither filter may widen scope.
+            for query in [
+                format!("wsid={TEST_WORKSPACE_ID}"),
+                format!("wsid={TEST_WORKSPACE_ID}&actor_id={actor_id}"),
+                format!("wsid={TEST_WORKSPACE_ID}&surface=pane-rich&event_type=system"),
+                format!("wsid={TEST_WORKSPACE_ID}&actor=human"),
+            ] {
+                let response = http
+                    .get(format!("{base}/{alias}?{query}"))
+                    .header("x-hsk-session-token", &token)
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::OK, "{alias}?{query}");
+                let rows: Vec<FlightEvent> = response.json().await?;
+                assert!(
+                    rows.iter()
+                        .all(|row| row.wsids.contains(&TEST_WORKSPACE_ID.to_string())),
+                    "{alias}?{query} leaked a row outside the authenticated workspace"
+                );
+                assert!(
+                    rows.iter()
+                        .all(|row| !row.wsids.contains(&OTHER_TEST_WORKSPACE_ID.to_string())),
+                    "{alias}?{query} leaked the other workspace"
+                );
+            }
+        }
+        server.abort();
+        Ok(())
+    }
+
+    /// Runtime-chat ingestion shares the same boundary: capability, authenticated path workspace,
+    /// and a body `wsid` that may only confirm it.
+    #[tokio::test]
+    async fn runtime_chat_ingest_is_capability_gated_and_workspace_bound(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let _env_lock = FR_AUTH_ENV_LOCK.lock().expect("fr auth env lock");
+        let (token, _binding) = install_native_binding()?;
+        let (base, http, server) = serve_test_router(routes(state.clone())).await;
+        let endpoint = runtime_chat_endpoint(&base, TEST_WORKSPACE_ID);
+
+        let mismatched = runtime_chat_body(
+            Uuid::now_v7(),
+            Uuid::now_v7(),
+            Some(OTHER_TEST_WORKSPACE_ID),
+        );
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&mismatched)
+            .send()
+            .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::FORBIDDEN,
+            "a runtime-chat body wsid must not contradict the authenticated path"
+        );
+
+        let unknown_workspace = runtime_chat_endpoint(&base, "WS-DOES-NOT-EXIST");
+        let response = http
+            .post(&unknown_workspace)
+            .header("x-hsk-session-token", &token)
+            .json(&runtime_chat_body(Uuid::now_v7(), Uuid::now_v7(), None))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+        let session_id = Uuid::now_v7();
+        let response = http
+            .post(&endpoint)
+            .header("x-hsk-session-token", &token)
+            .json(&runtime_chat_body(session_id, Uuid::now_v7(), None))
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let rows = state
+            .flight_recorder
+            .list_events(crate::flight_recorder::EventFilter {
+                trace_id: Some(session_id),
+                ..Default::default()
+            })
+            .await?;
+        assert_eq!(rows.len(), 1);
+        assert!(
+            rows[0].wsids.contains(&TEST_WORKSPACE_ID.to_string()),
+            "runtime-chat workspace attribution is taken from the authenticated path"
+        );
+        assert_eq!(
+            rows[0].payload["wsid"], TEST_WORKSPACE_ID,
+            "the stored envelope carries the server-derived workspace"
+        );
+        server.abort();
+        Ok(())
+    }
+
+    /// The capability registry must actually carry the MT-109 recorder capabilities, and the
+    /// unscoped-read escalation must stay ungranted.
+    #[test]
+    fn recorder_capabilities_are_registered_and_global_read_stays_ungranted() {
+        let registry = CapabilityRegistry::new();
+        for capability_id in [
+            FR_READ_CAPABILITY,
+            FR_READ_GLOBAL_CAPABILITY,
+            FR_INGEST_RUNTIME_CHAT_CAPABILITY,
+            FR_INGEST_NATIVE_EDITOR_CAPABILITY,
+        ] {
+            assert!(
+                registry.is_valid(capability_id),
+                "{capability_id} must be a canonical capability"
+            );
+        }
+        for capability_id in [
+            FR_READ_CAPABILITY,
+            FR_INGEST_RUNTIME_CHAT_CAPABILITY,
+            FR_INGEST_NATIVE_EDITOR_CAPABILITY,
+        ] {
+            assert!(
+                matches!(
+                    registry.profile_can(FR_CAPABILITY_PROFILE, capability_id),
+                    Ok(true)
+                ),
+                "{capability_id} must be granted to the authenticated native profile"
+            );
+        }
+        assert!(
+            matches!(
+                registry.profile_can(FR_CAPABILITY_PROFILE, FR_READ_GLOBAL_CAPABILITY),
+                Ok(false)
+            ),
+            "unscoped cross-workspace recorder enumeration must stay fail-closed"
+        );
+    }
+
+    /// The workspace partition is a real partition: same client id, different workspace, different
+    /// durable identity — and it is stable across restarts (deterministic, not random).
+    #[test]
+    fn workspace_scoped_event_ids_are_disjoint_and_deterministic() {
+        let client_event_id = Uuid::now_v7();
+        let a = workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, client_event_id);
+        let b = workspace_scoped_fr_event_id(OTHER_TEST_WORKSPACE_ID, client_event_id);
+        assert_ne!(a, b);
+        assert_ne!(a, client_event_id);
+        assert_eq!(
+            a,
+            workspace_scoped_fr_event_id(TEST_WORKSPACE_ID, client_event_id),
+            "reconciliation and retries depend on determinism"
+        );
+        assert_eq!(a.get_version_num(), 8);
+        assert_eq!(
+            a.get_variant(),
+            uuid::Variant::RFC4122,
+            "the derived id must still be a well-formed UUID"
+        );
+    }
+}
+
+/// MT-109 proof-command guard.
+///
+/// The MT-109 native-editor proof suite is `cfg(feature = "duckdb-flight-recorder")`, so
+/// `cargo test --lib native_editor` under DEFAULT features selects zero tests and reports
+/// `0 passed; 0 failed` — a false green that a validator can mistake for a pass. This guard is
+/// compiled ONLY when the feature is absent, matches the same `native_editor` filter, and is
+/// `#[ignore]` so it never fails an unrelated default-feature run: an ignored result is visibly
+/// NOT a pass, and running the MT-109 filter with `--include-ignored` (or reading the `ignored`
+/// count) makes the missing feature explicit instead of silent.
+///
+/// Authoritative MT-109 proof command:
+/// `cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib
+///  --features duckdb-flight-recorder,test-utils api::flight_recorder::tests::native_editor`
+#[cfg(all(test, not(feature = "duckdb-flight-recorder")))]
+mod native_editor_mt109_proof_guard {
+    #[test]
+    #[ignore = "MT-109 native_editor proof requires --features duckdb-flight-recorder; a zero-test run is NOT green"]
+    fn native_editor_mt109_proof_requires_duckdb_flight_recorder_feature() {
+        panic!(
+            "MT-109 proof command ran without --features duckdb-flight-recorder: the \
+             native-editor ingestion and authorization suite was not compiled, so any \
+             '0 passed; 0 failed' result is a false green."
+        );
     }
 }

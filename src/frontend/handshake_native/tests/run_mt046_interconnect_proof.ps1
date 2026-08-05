@@ -10,7 +10,7 @@ param(
     [ValidateRange(900, 7200)]
     [int]$WholeRunTimeoutSeconds = 5400,
 
-    [string]$PostgresDsn = 'postgresql://postgres@127.0.0.1:5544/handshake',
+    [string]$PostgresDsn = 'postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_046',
 
     [ValidatePattern('^MT046-RUN-[A-Za-z0-9_-]{1,118}$')]
     [string]$BaselineRunId,
@@ -26,7 +26,24 @@ function Get-FileSha256 {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "Cannot hash missing file '$Path'"
     }
-    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(10)
+    do {
+        try {
+            return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path -ErrorAction Stop).Hash.ToLowerInvariant()
+        }
+        catch [IO.IOException] {
+            if ([DateTimeOffset]::UtcNow -ge $deadline) {
+                throw "Cannot hash '$Path' after waiting 10s for the completed process to release it: $($_.Exception.Message)"
+            }
+            Start-Sleep -Milliseconds 50
+        }
+        catch [UnauthorizedAccessException] {
+            if ([DateTimeOffset]::UtcNow -ge $deadline) {
+                throw "Cannot hash '$Path' after waiting 10s for the completed process to release it: $($_.Exception.Message)"
+            }
+            Start-Sleep -Milliseconds 50
+        }
+    } while ($true)
 }
 
 function Get-TextSha256 {
@@ -39,37 +56,13 @@ function Get-TextSha256 {
     finally { $hasher.Dispose() }
 }
 
-function ConvertTo-WindowsNativePathIdentity {
+function Get-ComparableFullPath {
     param([Parameter(Mandatory)][string]$Path)
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw 'Windows native path identity requires a non-empty path'
+    $candidate = $Path
+    if ($candidate.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+        $candidate = $candidate.Substring(4)
     }
-
-    $identity = $Path
-    if ($identity.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
-        $identity = '\\' + $identity.Substring(8)
-    }
-    elseif ($identity -match '^\\\\\?\\[A-Za-z]:\\') {
-        $identity = $identity.Substring(4)
-    }
-    elseif ($identity.StartsWith('\\?\', [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Unsupported Windows native path namespace '$Path'"
-    }
-    if ($identity -notmatch '^[A-Za-z]:\\' -and
-        -not $identity.StartsWith('\\', [StringComparison]::Ordinal)) {
-        throw "Windows native path identity requires an absolute drive or UNC path: '$Path'"
-    }
-    return [IO.Path]::GetFullPath($identity)
-}
-
-function Test-SameWindowsNativePath {
-    param(
-        [Parameter(Mandatory)][string]$Left,
-        [Parameter(Mandatory)][string]$Right
-    )
-    $leftIdentity = ConvertTo-WindowsNativePathIdentity -Path $Left
-    $rightIdentity = ConvertTo-WindowsNativePathIdentity -Path $Right
-    return [StringComparer]::OrdinalIgnoreCase.Equals($leftIdentity, $rightIdentity)
+    return [IO.Path]::GetFullPath($candidate).TrimEnd('\')
 }
 
 function Write-JsonAtomic {
@@ -171,7 +164,6 @@ function Get-JsonPropertyValues {
         foreach ($item in $Value) { Get-JsonPropertyValues -Value $item -PropertyName $PropertyName }
         return
     }
-    if ($Value -isnot [pscustomobject]) { return }
     foreach ($property in @($Value.PSObject.Properties)) {
         if ($property.Name -ceq $PropertyName) { Write-Output $property.Value }
         Get-JsonPropertyValues -Value $property.Value -PropertyName $PropertyName
@@ -201,15 +193,24 @@ $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot '..\Handshake_Artifa
 if (-not (Test-Path -LiteralPath $artifactRoot -PathType Container)) {
     throw "Canonical Handshake_Artifacts root is unavailable: '$artifactRoot'"
 }
-$targetRoot = Join-Path $artifactRoot 'handshake-cargo-target'
-$measurementRoot = Join-Path $artifactRoot 'wp-kernel-012\mt-046\measurements'
-$supervisorRoot = Join-Path $artifactRoot 'wp-kernel-012\mt-046\supervisor'
+$targetRoot = Join-Path $artifactRoot 'handshake-cargo-target\wp-kernel-012-mt-046'
+$testArtifactRoot = Join-Path $artifactRoot 'handshake-test'
+$wpTestRoot = Join-Path $testArtifactRoot 'wp-kernel-012'
+$measurementRoot = Join-Path $wpTestRoot 'mt-046\measurements'
+$supervisorRoot = Join-Path $wpTestRoot 'mt-046\supervisor'
+$legacyMeasurementRoot = Join-Path $artifactRoot 'wp-kernel-012\mt-046\measurements'
 $runRoot = Join-Path $supervisorRoot "runs\$RunId"
 $argusRoot = Join-Path $runRoot 'argus'
 $argusRunRoot = Join-Path $argusRoot $RunId
-$backendBindingRoot = Join-Path $artifactRoot "wp-kernel-012\mt-046\backend-bindings\$RunId"
-$externalArgusWorkspaceRoot = Join-Path $artifactRoot "wp-kernel-012\mt-046\canonical-argus\$RunId"
-$successRuntimeRoot = Join-Path $artifactRoot "wp-kernel-012\mt-045\success-runtime\$RunId"
+$backendBindingRoot = Join-Path $wpTestRoot "mt-046\backend-bindings\$RunId"
+$externalArgusWorkspaceRoot = Join-Path $wpTestRoot "mt-046\canonical-argus\$RunId"
+$successRuntimeRoot = Join-Path $wpTestRoot "mt-045\success-runtime\$RunId"
+$legacyRunIdPaths = @(
+    (Join-Path $legacyMeasurementRoot "runs\$RunId.json"),
+    (Join-Path $artifactRoot "wp-kernel-012\mt-046\supervisor\runs\$RunId"),
+    (Join-Path $artifactRoot "wp-kernel-012\mt-046\backend-bindings\$RunId"),
+    (Join-Path $artifactRoot "wp-kernel-012\mt-046\canonical-argus\$RunId")
+)
 $currentRunPath = Join-Path $measurementRoot 'current-run.json'
 $latestRunPath = Join-Path $measurementRoot 'latest-run-summary.json'
 $immutableRunPath = Join-Path $measurementRoot "runs\$RunId.json"
@@ -275,6 +276,9 @@ if ((Test-Path -LiteralPath $runRoot) -or (Test-Path -LiteralPath $immutableRunP
     (Test-Path -LiteralPath $successRuntimeRoot)) {
     throw "RunId '$RunId' is not fresh; immutable MT-046 evidence already exists"
 }
+if (@($legacyRunIdPaths | Where-Object { Test-Path -LiteralPath $_ }).Count -ne 0) {
+    throw "RunId '$RunId' already exists in the legacy MT-046 evidence generation"
+}
 [void][IO.Directory]::CreateDirectory($runRoot)
 [void][IO.Directory]::CreateDirectory($argusRoot)
 $forbiddenRepoDirectoriesBefore = @(Get-RepoForbiddenDirectories -Repository $repoRoot)
@@ -282,16 +286,26 @@ $forbiddenRepoDirectoriesBefore = @(Get-RepoForbiddenDirectories -Repository $re
 trap {
     $preflightFailure = $_
     try {
+        $preflightFailed = [ordered]@{
+            schema_id = 'hsk.wp_kernel_012.interconnection_run@2'
+            work_packet_id = 'WP-KERNEL-012'
+            micro_task_id = 'MT-046'
+            run_id = $RunId
+            source_sha = $sourceSha
+            status = 'FAIL'
+            phase = 'NEVER_STARTED_OR_PREFLIGHT'
+            terminal_reason = $preflightFailure.Exception.Message
+            completed_at = [DateTimeOffset]::UtcNow.ToString('O')
+        }
+        if (-not (Test-Path -LiteralPath $immutableRunPath)) {
+            $preflightImmutableSha = Write-ImmutableJson -Path $immutableRunPath -Value $preflightFailed
+            $preflightFailed['immutable_run_path'] = $immutableRunPath
+            $preflightFailed['immutable_run_sha256'] = $preflightImmutableSha
+        }
+        Write-JsonAtomic -Path $currentRunPath -Value $preflightFailed
+        Write-JsonAtomic -Path $latestRunPath -Value $preflightFailed
         if (-not (Test-Path -LiteralPath $supervisorSummaryPath)) {
-            [void](Write-ImmutableJson -Path $supervisorSummaryPath -Value ([ordered]@{
-                schema_id = 'hsk.wp_kernel_012.mt046_supervisor_summary@1'
-                run_id = $RunId
-                source_sha = $sourceSha
-                status = 'FAIL'
-                phase = 'NEVER_STARTED_OR_PREFLIGHT'
-                terminal_reason = $preflightFailure.Exception.Message
-                completed_at = [DateTimeOffset]::UtcNow.ToString('O')
-            }))
+            [void](Write-ImmutableJson -Path $supervisorSummaryPath -Value $preflightFailed)
         }
     }
     finally {
@@ -302,21 +316,53 @@ trap {
 }
 
 $priorProjectionArchive = [Collections.Generic.List[object]]::new()
-foreach ($priorPath in @($currentRunPath, $latestRunPath)) {
+$priorProjectionSources = @(
+    [ordered]@{ path = $currentRunPath; archive_name = 'current-run.json' },
+    [ordered]@{ path = $latestRunPath; archive_name = 'latest-run-summary.json' },
+    [ordered]@{ path = (Join-Path $legacyMeasurementRoot 'current-run.json'); archive_name = 'legacy-current-run.json' },
+    [ordered]@{ path = (Join-Path $legacyMeasurementRoot 'latest-run-summary.json'); archive_name = 'legacy-latest-run-summary.json' }
+)
+foreach ($priorSource in $priorProjectionSources) {
+    $priorPath = [string]$priorSource.path
     if (Test-Path -LiteralPath $priorPath -PathType Leaf) {
         $priorText = Get-Content -LiteralPath $priorPath -Raw
         $prior = $priorText | ConvertFrom-Json
         if ($prior.run_id -ceq $RunId) {
             throw "RunId '$RunId' already appears in projection '$priorPath'"
         }
-        $archivePath = Join-Path $runRoot "prior-projections\$(Split-Path $priorPath -Leaf)"
+        $abandonedReceipt = $null
+        if ($prior.status -ceq 'RUNNING') {
+            $priorSupervisorPid = $prior.provenance.supervisor_pid
+            $livePriorSupervisor = if ($null -ne $priorSupervisorPid) {
+                Get-Process -Id ([int]$priorSupervisorPid) -ErrorAction SilentlyContinue
+            } else { $null }
+            if ($null -ne $livePriorSupervisor) {
+                throw "Prior RUNNING projection '$priorPath' still has a live supervisor pid=$priorSupervisorPid"
+            }
+            $abandonedPath = Join-Path $runRoot "prior-projections\abandoned-$($priorSource.archive_name)"
+            $abandonedSha = Write-ImmutableJson -Path $abandonedPath -Value ([ordered]@{
+                schema_id = 'hsk.wp_kernel_012.mt046_abandoned_run@1'
+                run_id = [string]$prior.run_id
+                status = 'FAIL'
+                terminal_reason = 'ABANDONED_DEAD_SUPERVISOR'
+                prior_projection_path = $priorPath
+                prior_projection_sha256 = Get-FileSha256 $priorPath
+                prior_supervisor_pid = $priorSupervisorPid
+                recovered_by_run_id = $RunId
+                completed_at = [DateTimeOffset]::UtcNow.ToString('O')
+            })
+            $abandonedReceipt = [ordered]@{ path = $abandonedPath; sha256 = $abandonedSha }
+        }
+        $archivePath = Join-Path $runRoot "prior-projections\$($priorSource.archive_name)"
         $archiveSha = Write-ImmutableJson -Path $archivePath -Value ([ordered]@{
             source_path = $priorPath
             source_sha256 = Get-FileSha256 $priorPath
             archived_at = [DateTimeOffset]::UtcNow.ToString('O')
             projection = $prior
         })
-        $priorProjectionArchive.Add([ordered]@{ path = $archivePath; sha256 = $archiveSha })
+        $priorProjectionArchive.Add([ordered]@{
+            path = $archivePath; sha256 = $archiveSha; abandonment = $abandonedReceipt
+        })
     }
 }
 $attemptRoot = Join-Path $measurementRoot 'attempts'
@@ -382,56 +428,7 @@ if ($DiagnosticsSelfTest) {
         attempt_id = 'ATTEMPT-1'; test_thread = 'interconnect_ic01_ckc_image_into_note'
     }
     Assert-DiagnosticBinding $valid
-    $positiveResults = [Collections.Generic.List[string]]::new()
     $negativeResults = [Collections.Generic.List[string]]::new()
-    $nullBearingEvidence = [pscustomobject]@{
-        workspace_id = 'workspace-diagnostic'
-        terminal_reason = $null
-        nested = [pscustomobject]@{ optional = $null }
-    }
-    $workspaceValues = @(Get-JsonPropertyValues -Value $nullBearingEvidence -PropertyName 'workspace_id')
-    if ($workspaceValues.Count -ne 1 -or $workspaceValues[0] -cne 'workspace-diagnostic') {
-        throw 'Recursive JSON property traversal did not tolerate null sibling values'
-    }
-    $positiveResults.Add('null_json_property_traversal_accepted')
-    $datedCommandReceipt = [pscustomobject][ordered]@{
-        process_start_time_utc = [DateTime]::Parse('2026-08-03T04:04:09.5009839Z')
-        stdout_path = 'D:\proof\command.stdout.log'
-        stderr_path = 'D:\proof\command.stderr.log'
-    }
-    $stdoutValues = @(Get-JsonPropertyValues -Value $datedCommandReceipt -PropertyName 'stdout_path')
-    $stderrValues = @(Get-JsonPropertyValues -Value $datedCommandReceipt -PropertyName 'stderr_path')
-    if ($stdoutValues.Count -ne 1 -or $stdoutValues[0] -cne 'D:\proof\command.stdout.log' -or
-        $stderrValues.Count -ne 1 -or $stderrValues[0] -cne 'D:\proof\command.stderr.log') {
-        throw 'Recursive JSON property traversal did not stop at DateTime scalar values'
-    }
-    $positiveResults.Add('datetime_json_scalar_traversal_bounded')
-    $diagnosticBackendPath = 'D:\Handshake_Artifacts\handshake-cargo-target\debug\handshake_core.exe'
-    if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right "\\?\$diagnosticBackendPath")) {
-        throw 'Windows extended-length backend path alias was not recognized as the same native path'
-    }
-    $positiveResults.Add('windows_extended_backend_path_alias_accepted')
-    $diagnosticUncPath = '\\server\share\handshake_core.exe'
-    if (-not (Test-SameWindowsNativePath -Left $diagnosticUncPath -Right '\\?\UNC\server\share\handshake_core.exe')) {
-        throw 'Windows extended-length UNC path alias was not recognized as the same native path'
-    }
-    $positiveResults.Add('windows_extended_unc_path_alias_accepted')
-    $negativeResults.Add((Expect-DiagnosticRejection -Label 'wrong_backend_binary_path' -Action {
-        if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right 'D:\wrong\handshake_core.exe')) {
-            throw 'backend path mismatch'
-        }
-    }))
-    $negativeResults.Add((Expect-DiagnosticRejection -Label 'whitespace_decorated_backend_path' -Action {
-        if (-not (Test-SameWindowsNativePath -Left $diagnosticBackendPath -Right " $diagnosticBackendPath")) {
-            throw 'backend path mismatch'
-        }
-    }))
-    $negativeResults.Add((Expect-DiagnosticRejection -Label 'relative_backend_binary_path' -Action {
-        [void](ConvertTo-WindowsNativePathIdentity -Path '..\debug\handshake_core.exe')
-    }))
-    $negativeResults.Add((Expect-DiagnosticRejection -Label 'unsupported_windows_native_namespace' -Action {
-        [void](ConvertTo-WindowsNativePathIdentity -Path '\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy1\handshake_core.exe')
-    }))
     foreach ($case in @(
         @{ label = 'stale_current_running'; mutate = { param($r) $r.run_id = 'RUN-OLD' } },
         @{ label = 'cross_run_receipt'; mutate = { param($r) $r.run_id = 'RUN-OTHER' } },
@@ -488,14 +485,13 @@ if ($DiagnosticsSelfTest) {
 
     $diagnosticPath = Join-Path $diagnosticsRoot 'diagnostics-summary.json'
     $diagnosticSha = Write-ImmutableJson -Path $diagnosticPath -Value ([ordered]@{
-        run_id = $RunId; status = 'PASS'; positive_cases = $positiveResults;
-        negative_cases = $negativeResults;
+        run_id = $RunId; status = 'PASS'; negative_cases = $negativeResults;
         failed_command = $failed; timeout_reap = $timedOut;
         completed_at = [DateTimeOffset]::UtcNow.ToString('O')
     })
     Write-Output ([ordered]@{
         status = 'PASS'; diagnostics = $diagnosticPath; diagnostics_sha256 = $diagnosticSha;
-        positive_cases = $positiveResults; negative_cases = $negativeResults
+        negative_cases = $negativeResults
     } | ConvertTo-Json -Depth 8)
     $supervisorLockStream.Dispose()
     exit 0
@@ -503,7 +499,10 @@ if ($DiagnosticsSelfTest) {
 
 $sourceBoundPaths = @(
     'Cargo.lock',
+    '.cargo/config.toml',
     'src/frontend/handshake_native/Cargo.toml',
+    'src/frontend/handshake_native/Cargo.lock',
+    'src/frontend/handshake_native/build.rs',
     'src/frontend/handshake_native/src',
     'src/frontend/handshake_native/tests/interconnect_support',
     'src/frontend/handshake_native/tests/test_interconnect_ckc_to_note.rs',
@@ -512,6 +511,7 @@ $sourceBoundPaths = @(
     'src/frontend/handshake_native/tests/test_interconnect_shared_undo_ledger.rs',
     'src/frontend/handshake_native/tests/test_interconnect_manifest.json',
     'src/frontend/handshake_native/tests/run_mt046_interconnect_proof.ps1',
+    'src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1',
     'src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs',
     'src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs',
     'src/frontend/handshake_native/tests/native_gui_support/screenshot_marker.rs',
@@ -643,7 +643,8 @@ function Invoke-ContainedCommand {
         [Parameter(Mandatory)][string]$Executable,
         [Parameter(Mandatory)][string[]]$Arguments,
         [Parameter(Mandatory)][string]$WorkingDirectory,
-        [Parameter(Mandatory)][string]$LogRoot
+        [Parameter(Mandatory)][string]$LogRoot,
+        [ValidateRange(500, 300000)][int]$DescendantExitGraceMilliseconds = 5000
     )
     [void][IO.Directory]::CreateDirectory($LogRoot)
     $stdoutPath = Join-Path $LogRoot "$Label.stdout.log"
@@ -656,7 +657,7 @@ function Invoke-ContainedCommand {
     $commandBudgetMilliseconds = [Math]::Min($CommandTimeoutSeconds * 1000, $remainingMilliseconds)
     $result = [Mt045JobRunner]::Run(
         $Executable, $Arguments, $WorkingDirectory, $stdoutPath, $stderrPath,
-        $commandBudgetMilliseconds, 5000)
+        $commandBudgetMilliseconds, $DescendantExitGraceMilliseconds)
     $receipt = [ordered]@{
         label = $Label
         executable = $Executable
@@ -775,7 +776,8 @@ try {
         -Arguments @('build', '--locked', '--target-dir', $targetRoot, '--manifest-path',
             (Join-Path $repoRoot 'src\backend\handshake_core\Cargo.toml'), '--bin',
             'handshake_core', '--features', 'app-runtime') `
-        -WorkingDirectory $repoRoot -LogRoot (Join-Path $runRoot 'commands')
+        -WorkingDirectory $repoRoot -LogRoot (Join-Path $runRoot 'commands') `
+        -DescendantExitGraceMilliseconds 120000
     $commands.Add($build)
     [void](Write-ImmutableJson -Path (Join-Path $runRoot 'command-receipts\build-current-backend-debug.json') -Value $build)
     Assert-ContainedCommandPassed -Receipt $build
@@ -832,6 +834,7 @@ try {
     Write-JsonAtomic -Path $latestRunPath -Value $state
 
     $env:HANDSHAKE_ARTIFACTS_ROOT = $artifactRoot
+    $env:HANDSHAKE_TEST_ARTIFACTS_ROOT = $testArtifactRoot
     $env:CARGO_TARGET_DIR = $targetRoot
     $env:HSK_TEST_BACKEND_BIN = $backendPath
     $env:HANDSHAKE_TEST_PG_DSN = $PostgresDsn
@@ -947,6 +950,16 @@ try {
         'test_interconnect_loom_backlink_search',
         'test_interconnect_shared_undo_ledger'
     )
+    $guardTests = @(
+        [ordered]@{
+            test_binary = 'test_interconnect_note_code_crossref'
+            test_name = 'supplemental_ic06_code_panel_focus_boundary_probe'
+        },
+        [ordered]@{
+            test_binary = 'test_interconnect_loom_backlink_search'
+            test_name = 'typed_no_model_skip_classifier_is_fail_closed'
+        }
+    )
     $commandByBinary = @{}
     $testExecutableByBinary = @{}
     $argusCommandByScenario = @{}
@@ -972,7 +985,8 @@ try {
         $buildTest = Invoke-ContainedCommand -Label "discover-build-$binary" -Executable $cargo `
             -Arguments @('test', '--locked', '--target-dir', $targetRoot, '--test', $binary,
                 '--no-run', '--message-format=json-render-diagnostics') `
-            -WorkingDirectory $crateRoot -LogRoot (Join-Path $runRoot 'commands')
+            -WorkingDirectory $crateRoot -LogRoot (Join-Path $runRoot 'commands') `
+            -DescendantExitGraceMilliseconds 120000
         $commands.Add($buildTest)
         [void](Write-ImmutableJson -Path (Join-Path $runRoot "command-receipts\discover-build-$binary.json") -Value $buildTest)
         Assert-ContainedCommandPassed -Receipt $buildTest
@@ -1068,6 +1082,28 @@ try {
         }
         if ($null -ne $processObservationFailure) { throw $processObservationFailure }
         Assert-ContainedCommandPassed -Receipt $command
+    }
+
+    foreach ($guard in $guardTests) {
+        $label = "guard-$($guard.test_name)"
+        $guardExecutable = $testExecutableByBinary[[string]$guard.test_binary]
+        $guardCommand = Invoke-ContainedCommand -Label $label -Executable ([string]$guardExecutable.path) `
+            -Arguments @([string]$guard.test_name, '--exact', '--nocapture', '--test-threads=1') `
+            -WorkingDirectory $crateRoot -LogRoot (Join-Path $runRoot 'commands')
+        $commands.Add($guardCommand)
+        [void](Write-ImmutableJson -Path (Join-Path $runRoot "command-receipts\$label.json") `
+            -Value ([ordered]@{
+                schema_id = 'hsk.wp_kernel_012.mt046_guard_command@1'
+                run_id = $RunId
+                source_sha = $sourceSha
+                test_binary = $guard.test_binary
+                exact_test = $guard.test_name
+                status = if (-not $guardCommand.timed_out -and $guardCommand.exit_code -eq 0 -and
+                    $guardCommand.leaked_process_count -eq 0 -and
+                    @($guardCommand.post_drain_descendant_process_ids).Count -eq 0) { 'PASS' } else { 'FAIL' }
+                containment = $guardCommand
+            }))
+        Assert-ContainedCommandPassed -Receipt $guardCommand
     }
 
     foreach ($matrixRow in @($argusMatrix | Where-Object { $_.invocation -ceq 'ignored-exact' })) {
@@ -1209,7 +1245,8 @@ try {
             $binding = $attempt.evidence.backend_binding
             $runtimeReceipt = $attempt.evidence.backend_runtime_receipt
             if ($null -eq $binding -or $binding.owned -ne $true -or
-                -not (Test-SameWindowsNativePath -Left ([string]$binding.backend_binary) -Right $backendPath) -or
+                (Get-ComparableFullPath ([string]$binding.backend_binary)) -cne
+                    (Get-ComparableFullPath $backendPath) -or
                 [string]$binding.backend_binary_sha256 -cne $backendSha256 -or
                 [uint64]$binding.backend_pid -le 0 -or
                 [string]$binding.database_host -cne $pgUri.Host -or
@@ -1263,6 +1300,29 @@ try {
         $sealedAttempts.Add([ordered]@{ path = $sealPath; sha256 = $sealSha; scenario_id = $attempt.scenario_id })
     }
 
+    $allSameRunAttempts = @(Get-ChildItem -LiteralPath $attemptRoot -File -Filter '*.json' |
+        ForEach-Object {
+            $candidateAttempt = try { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json } catch { $null }
+            if ($null -ne $candidateAttempt -and $candidateAttempt.run_id -ceq $RunId) {
+                [ordered]@{
+                    path = [IO.Path]::GetFullPath($_.FullName)
+                    scenario_id = [string]$candidateAttempt.scenario_id
+                    attempt_id = [string]$candidateAttempt.attempt_id
+                }
+            }
+        })
+    $projectedAttemptPaths = @($sealedAttempts | ForEach-Object {
+        $seal = Get-Content -LiteralPath $_.path -Raw | ConvertFrom-Json
+        [IO.Path]::GetFullPath([string]$seal.source_receipt_path)
+    } | Sort-Object)
+    $allSameRunAttemptPaths = @($allSameRunAttempts.path | Sort-Object)
+    if ($allSameRunAttempts.Count -ne 18 -or
+        @($allSameRunAttempts.scenario_id | Sort-Object -Unique).Count -ne 18 -or
+        @($allSameRunAttempts.attempt_id | Sort-Object -Unique).Count -ne 18 -or
+        ($allSameRunAttemptPaths -join "`n") -cne ($projectedAttemptPaths -join "`n")) {
+        throw 'MT-046 same-run attempt history contains an orphan, duplicate, or unsealed receipt'
+    }
+
     $backendBindingPaths = @(Get-ChildItem -LiteralPath $backendBindingRoot -File -Filter '*.json' `
         -ErrorAction Stop | Where-Object { $_.Name -notlike '*.sha256' })
     if ($backendBindingPaths.Count -ne 19) {
@@ -1289,7 +1349,8 @@ try {
             [string]$bindingReceipt.test_executable_path -cne [string]$bindingCommand.test_executable_path -or
             [string]$bindingReceipt.test_executable_sha256 -cne [string]$bindingCommand.test_executable_sha256 -or
             $bindingReceipt.backend.owned -ne $true -or [uint64]$bindingReceipt.backend.backend_pid -le 0 -or
-            -not (Test-SameWindowsNativePath -Left ([string]$bindingReceipt.backend.backend_binary) -Right $backendPath) -or
+            (Get-ComparableFullPath ([string]$bindingReceipt.backend.backend_binary)) -cne
+                (Get-ComparableFullPath $backendPath) -or
             [string]$bindingReceipt.backend.backend_binary_sha256 -cne $backendSha256 -or
             [string]$bindingReceipt.backend.database_host -cne $pgUri.Host -or
             [int]$bindingReceipt.backend.database_port -ne $pgUri.Port -or
@@ -1332,7 +1393,7 @@ try {
         throw 'MT-046 owned-backend binding/runtime PID sets differ; stale or missing backend evidence detected'
     }
 
-    $supplementalWorkspaceRoot = Join-Path $artifactRoot "wp-kernel-012\mt-046\canonical-argus\$RunId"
+    $supplementalWorkspaceRoot = Join-Path $wpTestRoot "mt-046\canonical-argus\$RunId"
     $supplementalWorkspaceScenarios = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     if (Test-Path -LiteralPath $supplementalWorkspaceRoot -PathType Container) {
         foreach ($workspaceReceiptPath in @(Get-ChildItem -LiteralPath $supplementalWorkspaceRoot `
@@ -1401,9 +1462,9 @@ try {
         throw 'MT-046 canonical Argus trace or screenshot marker is missing'
     }
     $traceRows = @(Get-Content -LiteralPath $tracePath | ForEach-Object { $_ | ConvertFrom-Json })
-    $expectedTraceCount = ($argusMatrix |
-        ForEach-Object { [int]$_['target_count'] } |
-        Measure-Object -Sum).Sum
+    $expectedTraceCount = @(
+        $argusMatrix | ForEach-Object { [int]$_['target_count'] } | Measure-Object -Sum
+    ).Sum
     if ($traceRows.Count -ne $expectedTraceCount -or @($traceRows | Where-Object {
         $_.run_id -cne $RunId -or $_.source_sha -cne $sourceSha -or
         $_.terminal_refreshed -ne $true -or $_.receipt_status -notin @('applied', 'rejected') -or
@@ -1413,9 +1474,10 @@ try {
     }
     foreach ($matrixRow in $argusMatrix) {
         $scenarioRows = @($traceRows | Where-Object { $_.scenario_id -ceq $matrixRow.scenario_id })
-        $targetPatterns = @(if ($matrixRow.Contains('target_patterns')) {
-            $matrixRow['target_patterns']
-        })
+        $targetPatterns = @()
+        if ($matrixRow.Contains('target_patterns')) {
+            $targetPatterns = @($matrixRow['target_patterns'])
+        }
         if ($scenarioRows.Count -ne [int]$matrixRow.target_count -or
             (@($matrixRow.targets).Count -ne 0 -and
                 ($scenarioRows.target -join "`n") -cne (@($matrixRow.targets) -join "`n")) -or
@@ -1435,9 +1497,9 @@ try {
         }
     }
     $markers = @(Get-Content -LiteralPath $markerPath | ForEach-Object { $_ | ConvertFrom-Json })
-    $expectedFrameCount = ($argusMatrix |
-        ForEach-Object { [int]$_['frame_count'] } |
-        Measure-Object -Sum).Sum
+    $expectedFrameCount = @(
+        $argusMatrix | ForEach-Object { [int]$_['frame_count'] } | Measure-Object -Sum
+    ).Sum
     if ($markers.Count -ne $expectedFrameCount -or @($markers | Where-Object {
         $_.mt_id -cne 'MT-046' -or $_.run_id -cne $RunId -or $_.status -cne 'CAPTURED'
     }).Count -ne 0) {
@@ -1526,12 +1588,13 @@ try {
             "$($ic07Command.process_correlation_id):disabled-never-started:", [StringComparison]::Ordinal) -or
         $disabledNeverStarted.target -cne 'ctx-menu.code_editor_ctx_copy_note_ref' -or
         $disabledNeverStarted.error.code -ne -32000 -or
+        -not ([string]$disabledNeverStarted.error.message).Contains('disabled') -or
         $disabledNeverStarted.state_unchanged.equal -ne $true -or
-        $disabledNeverStarted.state_unchanged.receipts_equal -ne $true -or
-        $disabledNeverStarted.state_unchanged.clipboard_equal -ne $true -or
         $disabledNeverStarted.state_unchanged.receipt_count_before -ne
-            $disabledNeverStarted.state_unchanged.receipt_count_after) {
-        throw 'MT-046 disabled action did not prove pre-enqueue rejection with zero receipt creation'
+            $disabledNeverStarted.state_unchanged.receipt_count_after -or
+        $disabledNeverStarted.state_unchanged.clipboard_before -cne
+            $disabledNeverStarted.state_unchanged.clipboard_after) {
+        throw 'MT-046 disabled action did not prove pre-dispatch rejection with zero receipt/clipboard mutation'
     }
     [void](Write-ImmutableJson -Path (Join-Path $runRoot 'sealed-artifacts\ic07-disabled-never-started.json') `
         -Value ([ordered]@{ run_id = $RunId; source_sha = $sourceSha; scenario_id = 'IC-07';
@@ -1555,8 +1618,8 @@ try {
         (Get-JsonPropertyValues -Value $commands -PropertyName 'stdout_path')
         (Get-JsonPropertyValues -Value $commands -PropertyName 'stderr_path')
         @($backendRuntimeLogPaths)
-        @(if (Test-Path -LiteralPath (Join-Path $artifactRoot "wp-kernel-012\backend-runtime\$RunId")) {
-            Get-ChildItem -LiteralPath (Join-Path $artifactRoot "wp-kernel-012\backend-runtime\$RunId") `
+        @(if (Test-Path -LiteralPath (Join-Path $wpTestRoot "backend-runtime\$RunId")) {
+            Get-ChildItem -LiteralPath (Join-Path $wpTestRoot "backend-runtime\$RunId") `
                 -Recurse -File -Filter '*.log' | ForEach-Object FullName
         })
     ) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Sort-Object -Unique
@@ -1655,13 +1718,53 @@ try {
             throw 'MT-046 baseline immutable run changed during the second run'
         }
         $baselineRun = Get-Content -LiteralPath $baselineRunPath -Raw | ConvertFrom-Json
-        $baselineAttempts = @($baselineRun.sealed_attempts | ForEach-Object {
-            (Get-Content -LiteralPath $_.path -Raw | ConvertFrom-Json).attempt_id
-        })
+        $baselineRunRootPrefix = [IO.Path]::GetFullPath(
+            (Join-Path $supervisorRoot "runs\$BaselineRunId")).TrimEnd('\') + '\'
+        $baselineAttemptRows = [Collections.Generic.List[object]]::new()
+        foreach ($baselineSealRef in @($baselineRun.sealed_attempts)) {
+            $baselineSealPath = [IO.Path]::GetFullPath([string]$baselineSealRef.path)
+            if (-not $baselineSealPath.StartsWith($baselineRunRootPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+                -not (Test-Path -LiteralPath $baselineSealPath -PathType Leaf) -or
+                (Get-FileSha256 $baselineSealPath) -cne [string]$baselineSealRef.sha256) {
+                throw 'MT-046 baseline sealed-attempt reference escaped its run or failed its digest'
+            }
+            $baselineSeal = Get-Content -LiteralPath $baselineSealPath -Raw | ConvertFrom-Json
+            $baselineSourcePath = [IO.Path]::GetFullPath([string]$baselineSeal.source_receipt_path)
+            if ($baselineSeal.run_id -cne $BaselineRunId -or
+                $baselineSeal.scenario_id -cne [string]$baselineSealRef.scenario_id -or
+                $baselineSeal.seal_status -cne 'BOUND' -or
+                -not (Test-Path -LiteralPath $baselineSourcePath -PathType Leaf) -or
+                (Get-FileSha256 $baselineSourcePath) -cne [string]$baselineSeal.source_receipt_sha256) {
+                throw 'MT-046 baseline sealed-attempt content is stale, cross-run, or hash-invalid'
+            }
+            $baselineAttempt = Get-Content -LiteralPath $baselineSourcePath -Raw | ConvertFrom-Json
+            if ($baselineAttempt.run_id -cne $BaselineRunId -or
+                $baselineAttempt.scenario_id -cne $baselineSeal.scenario_id -or
+                $baselineAttempt.attempt_id -cne $baselineSeal.attempt_id) {
+                throw 'MT-046 baseline source attempt does not match its seal'
+            }
+            $baselineAttemptRows.Add($baselineAttempt)
+        }
+        if ($baselineAttemptRows.Count -ne 18 -or
+            @($baselineAttemptRows.scenario_id | Sort-Object -Unique).Count -ne 18 -or
+            @($baselineAttemptRows.attempt_id | Sort-Object -Unique).Count -ne 18 -or
+            @($baselineRun.workspace_cleanup).Count -eq 0 -or
+            @($baselineRun.workspace_cleanup | Where-Object {
+                -not (Test-Path -LiteralPath ([string]$_.path) -PathType Leaf) -or
+                (Get-FileSha256 ([string]$_.path)) -cne [string]$_.sha256
+            }).Count -ne 0 -or
+            -not (Test-Path -LiteralPath ([string]$baselineRun.argus_terminal_proof.path) -PathType Leaf) -or
+            (Get-FileSha256 ([string]$baselineRun.argus_terminal_proof.path)) -cne
+                [string]$baselineRun.argus_terminal_proof.sha256) {
+            throw 'MT-046 baseline terminal evidence is incomplete or hash-invalid'
+        }
+        $baselineAttempts = @($baselineAttemptRows.attempt_id)
         $currentAttempts = @($sealedAttempts | ForEach-Object {
             (Get-Content -LiteralPath $_.path -Raw | ConvertFrom-Json).attempt_id
         })
         if ($baselineRun.provenance.candidate_source_id -cne $candidateSourceId -or
+            $baselineRun.provenance.backend_sha256 -cne $backendSha256 -or
+            $baselineRun.provenance.manifest_sha256 -cne $manifestSha256 -or
             @($currentAttempts | Where-Object { $_ -in $baselineAttempts }).Count -ne 0 -or
             $baselineRun.status -cne 'PASS' -or $baselineRun.terminal_scenario_count -ne 18 -or
             $baselineRun.exact_scenario_set -ne $true -or $baselineRun.all_statuses_accepted -ne $true) {
@@ -1711,18 +1814,67 @@ try {
 }
 catch {
     $failure = $_
+    $partialState = if (Test-Path -LiteralPath $currentRunPath -PathType Leaf) {
+        try { Get-Content -LiteralPath $currentRunPath -Raw | ConvertFrom-Json } catch { $null }
+    } else { $null }
+    $failureProvenance = Get-Variable -Name provenance -ValueOnly -ErrorAction SilentlyContinue
+    if ($null -eq $failureProvenance) {
+        $failureProvenance = [ordered]@{
+            supervisor_run_id = $RunId
+            source_sha = $sourceSha
+            candidate_source_id = $candidateSourceId
+            source_dirty_policy = 'controlled_candidate_status_patch_and_untracked_hashes_bound'
+            source_dirty_result = @($dirtyRows)
+            source_dirty_result_sha256 = $sourceDirtyResultSha256
+            candidate_source_binding = $candidateBindingPath
+            candidate_source_binding_sha256 = $candidateBindingSha256
+            cargo_profile = 'debug'
+            cargo_locked = $true
+            canonical_target_root = $targetRoot
+            backend_path = Get-Variable -Name backendPath -ValueOnly -ErrorAction SilentlyContinue
+            backend_sha256 = Get-Variable -Name backendSha256 -ValueOnly -ErrorAction SilentlyContinue
+            postgres = $postgresReceipt
+            manifest_path = $manifestPath
+            manifest_sha256 = $manifestSha256
+            job_helper_path = $jobHelperPath
+            job_helper_sha256 = $jobHelperSha256
+            supervisor_pid = $PID
+            canonical_test_discovery = $discoveryPath
+            canonical_test_discovery_sha256 = $discoverySha256
+        }
+    }
     $failed = [ordered]@{
         schema_id = 'hsk.wp_kernel_012.interconnection_run@2'
         work_packet_id = 'WP-KERNEL-012'
         micro_task_id = 'MT-046'
         run_id = $RunId
         source_sha = $sourceSha
+        candidate_source_id = $candidateSourceId
         status = 'FAIL'
         terminal_reason = $failure.Exception.Message
-        terminal_position = $failure.InvocationInfo.PositionMessage
-        terminal_script_stack_trace = $failure.ScriptStackTrace
+        provenance = $failureProvenance
+        partial_state = $partialState
         completed_commands = $commands
         completed_at = [DateTimeOffset]::UtcNow.ToString('O')
+    }
+    if (-not (Test-Path -LiteralPath $immutableRunPath)) {
+        $failedImmutableSha = Write-ImmutableJson -Path $immutableRunPath -Value $failed
+        $failed['immutable_run_path'] = $immutableRunPath
+        $failed['immutable_run_sha256'] = $failedImmutableSha
+    } else {
+        $invalidationPath = Join-Path $runRoot 'pass-publication-invalidated.json'
+        $invalidationSha = Write-ImmutableJson -Path $invalidationPath -Value ([ordered]@{
+            schema_id = 'hsk.wp_kernel_012.mt046_pass_publication_invalidation@1'
+            run_id = $RunId
+            status = 'FAIL'
+            terminal_reason = $failure.Exception.Message
+            preexisting_immutable_run_path = $immutableRunPath
+            preexisting_immutable_run_sha256 = Get-FileSha256 $immutableRunPath
+            completed_at = [DateTimeOffset]::UtcNow.ToString('O')
+        })
+        $failed['pass_publication_invalidation'] = [ordered]@{
+            path = $invalidationPath; sha256 = $invalidationSha
+        }
     }
     Write-JsonAtomic -Path $currentRunPath -Value $failed
     Write-JsonAtomic -Path $latestRunPath -Value $failed

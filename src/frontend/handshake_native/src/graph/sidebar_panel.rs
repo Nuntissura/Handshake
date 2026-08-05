@@ -392,8 +392,21 @@ pub struct LoomSidebarPanel {
     /// Per-section generation counter (RISK-2): bumped on each reload; a stale delivery for an older
     /// generation is dropped by the host. Exposed so the host can compare on delivery.
     pub generation: HashMap<SectionKind, u64>,
-    /// The stable egui::Id salt for this panel's persistent collapse state (RISK-5). Defaults to a fixed
-    /// salt; the host may set a unique salt when multiple sidebars coexist.
+    /// Per-section collapse state (RISK-5 / MC-5 / AC8). Absent == expanded.
+    ///
+    /// MT-024 V4 (canonical action-registration repair): this used to live in [`egui::Memory`]. The
+    /// Argus snapshot is rendered on a FRESH `egui::Context` (`HandshakeApp::refresh_mcp_snapshot`),
+    /// whose `Memory` is empty, so a collapsed section always re-rendered as EXPANDED in every
+    /// inspected tree and a canonical collapse steer had no observable action result — the exact gap
+    /// disclosed in `validation_v3`. The state now lives on the host-owned panel itself, which both
+    /// the live frame and the snapshot frame share, so it survives widget rebuild (the original RISK-5
+    /// requirement) AND is context-independent.
+    pub expanded_section: HashMap<SectionKind, bool>,
+    /// Per-section monotonic collapse generation. Published as the section header's same-target
+    /// click-completion generation so a canonical Argus collapse terminalizes as `Applied`.
+    pub collapse_generation: HashMap<SectionKind, u64>,
+    /// The stable egui::Id salt for this panel's widget scopes. Defaults to a fixed salt; the host may
+    /// set a unique salt when multiple sidebars coexist.
     pub id_salt: String,
 }
 
@@ -410,6 +423,8 @@ impl Default for LoomSidebarPanel {
             loading_section: HashSet::new(),
             error_section: HashMap::new(),
             generation: HashMap::new(),
+            expanded_section: HashMap::new(),
+            collapse_generation: HashMap::new(),
             id_salt: "loom-sidebar".to_owned(),
         }
     }
@@ -546,26 +561,28 @@ impl LoomSidebarPanel {
             .collect()
     }
 
-    /// Whether a section is currently expanded. Reads the persistent collapse state from
-    /// [`egui::Memory`] keyed by a stable Id (RISK-5 / MC-5); default is expanded (`true`).
-    fn is_expanded(&self, ui: &egui::Ui, section: SectionKind) -> bool {
-        let id = self.collapse_id(ui, section);
-        ui.ctx().data(|d| d.get_temp::<bool>(id)).unwrap_or(true)
+    /// Whether a section is currently expanded (RISK-5 / MC-5); default is expanded (`true`).
+    pub fn is_expanded(&self, section: SectionKind) -> bool {
+        self.expanded_section.get(&section).copied().unwrap_or(true)
     }
 
-    /// Persist a section's expanded state into [`egui::Memory`] (RISK-5).
-    fn set_expanded(&self, ui: &egui::Ui, section: SectionKind, expanded: bool) {
-        let id = self.collapse_id(ui, section);
-        ui.ctx().data_mut(|d| d.insert_temp(id, expanded));
+    /// Persist a section's expanded state on the host-owned panel (RISK-5).
+    pub fn set_expanded(&mut self, section: SectionKind, expanded: bool) {
+        self.expanded_section.insert(section, expanded);
     }
 
-    /// The stable egui Id for a section's collapse state (salted by `id_salt` so multiple sidebars do
-    /// not collide).
-    fn collapse_id(&self, ui: &egui::Ui, section: SectionKind) -> egui::Id {
-        ui.id()
-            .with(&self.id_salt)
-            .with("collapse")
-            .with(section.slug())
+    /// MT-024 V4 (canonical action-registration repair): the monotonic collapse generation for a
+    /// section. It is the same-target click-completion generation the section header publishes, so a
+    /// canonical Argus collapse steer terminalizes as an action-specific `Applied` receipt instead of
+    /// the conservative `Indeterminate` the V3 disclosure recorded.
+    pub fn collapse_generation(&self, section: SectionKind) -> u64 {
+        self.collapse_generation.get(&section).copied().unwrap_or(0)
+    }
+
+    fn bump_collapse_generation(&mut self, section: SectionKind) -> u64 {
+        let next = self.collapse_generation(section).wrapping_add(1).max(1);
+        self.collapse_generation.insert(section, next);
+        next
     }
 
     /// Render the whole sidebar and return the typed event (if any) this frame produced. Requests a
@@ -636,27 +653,46 @@ impl LoomSidebarPanel {
         let mut event = None;
 
         // Collapsible header: a clickable header row toggles the persistent expanded state (RISK-5).
-        let expanded = self.is_expanded(ui, section);
+        //
+        // MT-024 V4: the header lives inside an explicit `push_id` scope keyed by the section slug so
+        // its egui `Id` — and therefore its AccessKit `node_id` — is INDEPENDENT of how many widgets
+        // the preceding sections rendered. Without this, collapsing one section silently re-numbered
+        // every later header's auto id and the ActionChannel's node-identity revalidation rejected or
+        // misattributed a canonical steer (HBR-SWARM stable identifiers).
+        let expanded = self.is_expanded(section);
         let count = self.section_count(section);
         let arrow = if expanded { "▾" } else { "▸" };
         let header_text = format!("{arrow} {} ({count})", section.title());
-        let header = ui.add(
-            egui::Label::new(
-                egui::RichText::new(header_text)
-                    .color(palette.text)
-                    .strong(),
-            )
-            .sense(Sense::click()),
-        );
-        emit_button_accesskit(
+        let header = ui
+            .push_id(("sidebar-section-header", section.slug()), |ui| {
+                ui.add(
+                    egui::Label::new(
+                        egui::RichText::new(header_text)
+                            .color(palette.text)
+                            .strong(),
+                    )
+                    .sense(Sense::click()),
+                )
+            })
+            .inner;
+        let toggled = header.clicked() || accesskit_clicked(ui, header.id);
+        let collapse_generation = if toggled {
+            self.set_expanded(section, !expanded);
+            self.bump_collapse_generation(section)
+        } else {
+            self.collapse_generation(section)
+        };
+        // Publish the action-specific same-target completion token AFTER the toggle so the exact
+        // Ready/Applied -> Applied generation transition the ActionChannel requires is visible in the
+        // same frame the collapse took effect.
+        emit_section_header_accesskit(
             ui,
             header.id,
             &section_header_author_id(section),
             &format!("Toggle {}", section.title()),
+            section,
+            collapse_generation,
         );
-        if header.clicked() || accesskit_clicked(ui, header.id) {
-            self.set_expanded(ui, section, !expanded);
-        }
 
         if !expanded {
             // A collapsed section renders NO rows -> its rows are absent from the AccessKit tree (AC8).
@@ -666,6 +702,14 @@ impl LoomSidebarPanel {
 
         ui.indent(section.slug(), |ui| {
             // Error banner + Retry (AC9) — this section only.
+            //
+            // MT-024 V4: the banner is ADDITIVE, not a replacement. It used to `return` before the
+            // rows, which meant a FAILED pin removal (whose rollback restored the pin) rendered a
+            // section with no rows at all: the operator saw the pin vanish even though it is still
+            // pinned in PostgreSQL, and Argus could not observe "terminal failure plus the original
+            // pin preserved" because the exact Remove control had left the tree. Showing the last
+            // authoritative rows underneath the failure banner is both the truthful state and the
+            // observable one.
             if let Some(err) = self.error_section.get(&section).cloned() {
                 ui.horizontal(|ui| {
                     ui.colored_label(palette.error_text, format!("⚠ {err}"));
@@ -675,7 +719,6 @@ impl LoomSidebarPanel {
                         event = Some(SidebarEvent::Retry { section });
                     }
                 });
-                return;
             }
 
             // Per-section bounded spinner (impl-note 70): only while a genuine fetch is in flight.
@@ -803,31 +846,39 @@ fn render_bookmark_row(
         ),
     };
 
+    // MT-024 V4: an explicit per-row id scope keyed by the row's stable author_id. Without it the
+    // row's (and its Remove button's) egui auto ids are positional, so removing a pin silently
+    // re-numbered every later row and a canonical action's node-identity revalidation could reject or
+    // misattribute the steer (HBR-SWARM stable identifiers).
     let (title_resp, remove_clicked) = ui
-        .horizontal(|ui| {
-            // The content-type chip (color from the shared theme — no hardcoded hex).
-            let (rect, _) = ui.allocate_exact_size(Vec2::splat(CHIP_SWATCH_SIZE), Sense::hover());
-            if ui.is_rect_visible(rect) {
-                ui.painter().rect_filled(rect, 2.0, chip_color);
-            }
-            ui.label(
-                egui::RichText::new(&block.content_type)
-                    .small()
-                    .color(palette.text_subtle),
-            );
-            let title = ui.add(
-                egui::Label::new(egui::RichText::new(&block.title).color(palette.text))
-                    .sense(Sense::click()),
-            );
-            // Right-aligned Remove button (its own AccessKit node).
-            let removed = ui
-                .with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let btn = ui.button("✕");
-                    emit_button_accesskit(ui, btn.id, &remove_id, remove_label);
-                    btn.clicked()
-                })
-                .inner;
-            (title, removed)
+        .push_id(("sidebar-bookmark-row", row_id.as_str()), |ui| {
+            ui.horizontal(|ui| {
+                // The content-type chip (color from the shared theme — no hardcoded hex).
+                let (rect, _) =
+                    ui.allocate_exact_size(Vec2::splat(CHIP_SWATCH_SIZE), Sense::hover());
+                if ui.is_rect_visible(rect) {
+                    ui.painter().rect_filled(rect, 2.0, chip_color);
+                }
+                ui.label(
+                    egui::RichText::new(&block.content_type)
+                        .small()
+                        .color(palette.text_subtle),
+                );
+                let title = ui.add(
+                    egui::Label::new(egui::RichText::new(&block.title).color(palette.text))
+                        .sense(Sense::click()),
+                );
+                // Right-aligned Remove button (its own AccessKit node).
+                let removed = ui
+                    .with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let btn = ui.button("✕");
+                        emit_button_accesskit(ui, btn.id, &remove_id, remove_label);
+                        btn.clicked()
+                    })
+                    .inner;
+                (title, removed)
+            })
+            .inner
         })
         .inner;
 
@@ -940,6 +991,46 @@ fn render_unlinked_row(
 }
 
 // ── AccessKit emit helpers (HBR-SWARM) ───────────────────────────────────────────────────────────────
+
+/// The action-specific click-completion effect a collapsible section header publishes.
+pub const SECTION_COLLAPSE_COMPLETION_EFFECT: &str = "sidebar-section-collapse";
+
+/// Emit a collapsible section header's live AccessKit node.
+///
+/// MT-024 V4: identical to [`emit_button_accesskit`] plus the reserved same-target click-completion
+/// token in the node's `value`. A canonical Argus `argus.click` on this header therefore observes the
+/// exact `generation -> generation + 1` Applied transition and receives an action-specific terminal
+/// receipt instead of the conservative `Indeterminate` recorded in the `validation_v3` disclosure.
+fn emit_section_header_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    section: SectionKind,
+    collapse_generation: u64,
+) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let completion = crate::mcp::action::serialize_same_target_click_completion(
+        SECTION_COLLAPSE_COMPLETION_EFFECT,
+        section.slug(),
+        collapse_generation,
+        if collapse_generation == 0 {
+            crate::mcp::action::ClickCompletionState::Ready
+        } else {
+            crate::mcp::action::ClickCompletionState::Applied
+        },
+    );
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Button);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.add_action(accesskit::Action::Click);
+        if let Some(completion) = completion.clone() {
+            node.set_value(completion);
+        }
+    });
+}
 
 /// Emit a button's live AccessKit node (Role::Button + Action::Click + author_id).
 fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {

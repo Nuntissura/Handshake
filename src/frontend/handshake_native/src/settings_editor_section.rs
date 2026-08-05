@@ -393,7 +393,79 @@ pub struct EditorSettingsView<'a> {
     /// The already-present auto-save interval display string (e.g. `"30s"`). Surfaced read-only inside
     /// the Editor section so the editor prefs read together WITHOUT this MT re-adding the field.
     pub auto_save_interval_label: &'a str,
+    /// SET-REC-001 provenance for every editor preference id, as last resolved from the canonical
+    /// PostgreSQL PreferenceRecord surface. Rendered as a small per-control chip so the operator (and a
+    /// no-context model reading the AccessKit tree) can see whether a value is the registry DEFAULT or a
+    /// CUSTOM operator value, and at which revision — the state MT-072 validation V4 required to be
+    /// visible next to the default/custom/reset affordances.
+    pub provenance: &'a EditorPreferenceProvenance,
 }
+
+/// The resolved `source` + `revision` of each editor preference, projected from the canonical
+/// PreferenceRecord surface (`GET /workspaces/:id/preferences`).
+///
+/// This is a READ-ONLY display projection: it never becomes a second settings authority. When a
+/// preference has not been resolved yet (no projection has landed for this workspace), the chip says so
+/// honestly rather than implying a revision the client has not actually read.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EditorPreferenceProvenance {
+    by_id: std::collections::BTreeMap<String, (String, i64)>,
+}
+
+impl EditorPreferenceProvenance {
+    /// Build the provenance projection from a resolved preference projection.
+    pub fn from_projection(rows: &[crate::preference_client::PreferenceProjectionRow]) -> Self {
+        Self {
+            by_id: rows
+                .iter()
+                .map(|row| {
+                    (
+                        row.preference_id.clone(),
+                        (row.source.clone(), row.revision),
+                    )
+                })
+                .collect(),
+        }
+    }
+
+    /// Record the provenance a single set/reset response reported, so a just-changed control shows its
+    /// new revision without waiting for the next full projection.
+    pub fn record(&mut self, preference_id: &str, source: &str, revision: i64) {
+        self.by_id
+            .insert(preference_id.to_owned(), (source.to_owned(), revision));
+    }
+
+    /// `(source, revision)` for `preference_id`, if a canonical projection/record has been resolved.
+    pub fn get(&self, preference_id: &str) -> Option<(&str, i64)> {
+        self.by_id
+            .get(preference_id)
+            .map(|(source, revision)| (source.as_str(), *revision))
+    }
+
+    /// The operator-facing chip text for `preference_id`.
+    pub fn chip_text(&self, preference_id: &str) -> String {
+        match self.get(preference_id) {
+            Some((source, revision)) if source == "default" => {
+                format!("default · rev {revision}")
+            }
+            Some((source, revision)) => format!("custom ({source}) · rev {revision}"),
+            None => "not resolved yet".to_owned(),
+        }
+    }
+
+    /// True when nothing has been resolved yet (the honest "no projection read" state).
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
+}
+
+/// Stable AccessKit author_id for a preference provenance chip.
+pub fn preference_provenance_author_id(preference_id: &str) -> String {
+    format!("{PREFERENCE_PROVENANCE_AUTHOR_ID_PREFIX}{preference_id}")
+}
+
+/// Prefix for every `settings-pref-source-{preference_id}` provenance chip.
+pub const PREFERENCE_PROVENANCE_AUTHOR_ID_PREFIX: &str = "settings-pref-source-";
 
 /// What an editor-section control wants the shell to apply (and then persist via the existing debounced
 /// `PUT`). At most one per frame (a single control interaction). The shell mutates the corresponding
@@ -524,6 +596,7 @@ impl EditorSettingsSection {
                     .suffix(" pt"),
             );
             set_author_id_and_label(ui, dv.id, EDITOR_FONT_SIZE_AUTHOR_ID, "Editor font size");
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_FONT_SIZE);
             changed |= dv.changed();
         });
         // S6 item 3: the font size applies live to mounted editor body text, row geometry, and gutter
@@ -548,6 +621,7 @@ impl EditorSettingsSection {
                     ..=(*crate::workspace_settings::TAB_SIZE_RANGE.end() as u32),
             ));
             set_author_id_and_label(ui, dv.id, EDITOR_TAB_SIZE_AUTHOR_ID, "Tab size");
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_TAB_SIZE);
             if dv.changed() {
                 prefs.tab_size = tab as u8;
                 changed = true;
@@ -568,6 +642,7 @@ impl EditorSettingsSection {
                 EDITOR_INSERT_SPACES_AUTHOR_ID,
                 "Insert spaces instead of tabs",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_INSERT_SPACES);
             if cb.changed() {
                 prefs.insert_spaces = insert;
                 changed = true;
@@ -594,6 +669,7 @@ impl EditorSettingsSection {
                 EDITOR_WORD_WRAP_AUTHOR_ID,
                 "Word wrap mode",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_WORD_WRAP);
             add_native_set_value_action(ui, combo.response.id);
             if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
                 if let Some(kind) = parse_wrap_kind(&value) {
@@ -626,6 +702,7 @@ impl EditorSettingsSection {
                         .range(20u32..=400u32),
                 );
                 set_author_id_and_label(ui, dv.id, EDITOR_WRAP_COLUMN_AUTHOR_ID, "Wrap column");
+                provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_WORD_WRAP_COLUMN);
                 if dv.changed() {
                     prefs.word_wrap = WordWrapMode::BoundedColumn(c.min(u16::MAX as u32) as u16);
                     changed = true;
@@ -657,6 +734,7 @@ impl EditorSettingsSection {
                 EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
                 "Render whitespace mode",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_RENDER_WHITESPACE);
             add_native_set_value_action(ui, combo.response.id);
             if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
                 if let Some(mode) = parse_whitespace_mode(&value) {
@@ -677,6 +755,7 @@ impl EditorSettingsSection {
             let mut minimap = prefs.minimap_enabled;
             let cb = ui.checkbox(&mut minimap, "Minimap");
             set_author_id_and_label(ui, cb.id, EDITOR_MINIMAP_AUTHOR_ID, "Show minimap");
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_MINIMAP_ENABLED);
             if cb.changed() {
                 prefs.minimap_enabled = minimap;
                 changed = true;
@@ -691,6 +770,7 @@ impl EditorSettingsSection {
                 EDITOR_STICKY_SCROLL_AUTHOR_ID,
                 "Show sticky scroll header band",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_STICKY_SCROLL);
             if cb.changed() {
                 prefs.sticky_scroll = sticky;
                 changed = true;
@@ -705,6 +785,7 @@ impl EditorSettingsSection {
                 EDITOR_LINE_NUMBERS_AUTHOR_ID,
                 "Show gutter line numbers",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_LINE_NUMBERS);
             if cb.changed() {
                 prefs.line_numbers = line_numbers;
                 changed = true;
@@ -730,6 +811,7 @@ impl EditorSettingsSection {
                 EDITOR_LINE_HEIGHT_AUTHOR_ID,
                 "Line height multiplier",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_LINE_HEIGHT);
             changed |= dv.changed();
         });
         ui.horizontal(|ui| {
@@ -741,6 +823,7 @@ impl EditorSettingsSection {
                 EDITOR_BRACKET_MATCHING_AUTHOR_ID,
                 "Highlight the matching bracket at the caret",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_BRACKET_MATCHING);
             if cb.changed() {
                 prefs.bracket_matching = bracket_matching;
                 changed = true;
@@ -755,6 +838,7 @@ impl EditorSettingsSection {
                 EDITOR_INDENT_GUIDES_AUTHOR_ID,
                 "Show vertical indent-guide lines",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_INDENT_GUIDES);
             if cb.changed() {
                 prefs.indent_guides = indent_guides;
                 changed = true;
@@ -769,6 +853,7 @@ impl EditorSettingsSection {
                 EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
                 "Open rich documents in Reading (read-only) view by default",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_READING_MODE_DEFAULT);
             if cb.changed() {
                 prefs.reading_mode_default = reading_mode_default;
                 changed = true;
@@ -892,6 +977,7 @@ impl EditorSettingsSection {
                 SYNTAX_PALETTE_MODE_AUTHOR_ID,
                 "Syntax palette mode",
             );
+            provenance_chip(ui, view, crate::preference_client::PREF_EDITOR_SYNTAX_PALETTE_MODE);
             add_native_set_value_action(ui, combo.response.id);
             if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
                 if let Some(mode) = parse_palette_mode(&value) {
@@ -913,6 +999,17 @@ impl EditorSettingsSection {
         );
         ui.ctx().accesskit_node_builder(syntax_note.id, |node| {
             node.set_label(SYNTAX_PALETTE_LIVE_EFFECT_NOTE);
+        });
+
+        // The Custom-swatch map is its own PreferenceRecord; show its resolved source/revision once for
+        // the whole swatch group (one chip, not eight).
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new("Custom scope colors").small().weak());
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_SYNTAX_CUSTOM_COLORS,
+            );
         });
 
         // One row per scope: a label, the live-resolved preview swatch, and (in Custom mode) an editable
@@ -997,6 +1094,22 @@ impl EditorSettingsSection {
             .reseed_if_reopened(open_count, view.settings, &self.catalog);
 
         let mut outcome = EditorSectionOutcome::None;
+
+        // Every editor keybinding override lives in the single canonical
+        // `view-defaults.editor.keybinding-overrides` PreferenceRecord; show its resolved source/revision
+        // once above the table so the operator sees the durable provenance of the whole override map.
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new("Editor keybinding overrides")
+                    .small()
+                    .weak(),
+            );
+            provenance_chip(
+                ui,
+                view,
+                crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES,
+            );
+        });
 
         // Group the table by surface for legibility (Code first, then Rich), preserving catalog order.
         for surface in [EditorActionSurface::Code, EditorActionSurface::Rich] {
@@ -1236,6 +1349,21 @@ fn set_author_id(ui: &egui::Ui, widget_id: egui::Id, author_id: &str) {
     let author_id = author_id.to_owned();
     ui.ctx()
         .accesskit_node_builder(widget_id, move |node| node.set_author_id(author_id));
+}
+
+/// Render the small weak SET-REC-001 provenance chip (`default · rev 0` / `custom (operator) · rev 3`)
+/// for `preference_id` inside the control's own row (no extra vertical space), addressable by a stable
+/// `settings-pref-source-{preference_id}` AccessKit author_id so a no-context model reads the resolved
+/// source + revision from the tree instead of inferring it from the value.
+fn provenance_chip(ui: &mut egui::Ui, view: &EditorSettingsView<'_>, preference_id: &str) {
+    let text = view.provenance.chip_text(preference_id);
+    let chip = ui.label(egui::RichText::new(&text).small().weak());
+    set_author_id_and_label(
+        ui,
+        chip.id,
+        &preference_provenance_author_id(preference_id),
+        &text,
+    );
 }
 
 fn add_native_set_value_action(ui: &egui::Ui, widget_id: egui::Id) {

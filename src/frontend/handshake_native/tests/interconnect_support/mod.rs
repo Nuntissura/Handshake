@@ -39,6 +39,43 @@ thread_local! {
     };
 }
 
+/// Wait for the managed-workspace FEMS refresh to terminalize, then remove only its incidental
+/// notice before a cross-feature MT-046 screenshot. The product seam refuses to clear operator-owned
+/// proposals, decisions, submissions, or an in-flight refresh.
+pub fn settle_incidental_fems_for_capture(
+    harness: &mut crate::screenshot_harness::ScreenshotHarness<
+        '_,
+        handshake_native::app::HandshakeApp,
+    >,
+    scenario_id: &str,
+) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        let cleared = harness
+            .state_mut()
+            .clear_incidental_fems_notice_for_integration_test();
+        harness.run_steps(1);
+        if cleared
+            && harness
+                .state_mut()
+                .clear_incidental_fems_notice_for_integration_test()
+        {
+            harness.run_steps(1);
+            if harness
+                .state_mut()
+                .clear_incidental_fems_notice_for_integration_test()
+            {
+                return;
+            }
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{scenario_id}: incidental FEMS notice did not terminalize before visual proof"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
 // ── External scenario receipts; protected manifest is catalog-only ───────────────────────────────────
 
 /// The protected contract catalog path. V2 proof runs never rewrite it.
@@ -575,14 +612,20 @@ impl Drop for FileLock {
 
 /// Dedicated external V2 receipt root, resolved without a hardcoded drive/user path.
 pub fn external_artifact_dir(subdir: &str) -> PathBuf {
-    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+    let root = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
         .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+                .map(PathBuf::from)
+                .map(|root| root.join("handshake-test"))
+        })
         .unwrap_or_else(|| {
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .ancestors()
                 .nth(4)
                 .expect("native crate must live below a worktree root")
                 .join("Handshake_Artifacts")
+                .join("handshake-test")
         });
     root.join("wp-kernel-012").join("mt-046").join(subdir)
 }
@@ -633,7 +676,7 @@ pub fn assert_no_local_artifact_dir() {
         assert!(
             !local.exists(),
             "CX-212E: no repo-local artifact dir may exist ({}) — artifacts go to the external \
-             Handshake_Artifacts/wp-kernel-012 root only",
+             Handshake_Artifacts/handshake-test/wp-kernel-012 root only",
             local.display()
         );
     }
@@ -1060,7 +1103,7 @@ WHERE event_type = 'AI_EDIT_PROPOSAL_RECORDED'
     }
 }
 
-fn run_bounded_psql(sql: &str, variable: Option<(&str, &str)>) -> String {
+pub(crate) fn run_bounded_psql(sql: &str, variable: Option<(&str, &str)>) -> String {
     let database_url = [
         "HANDSHAKE_TEST_PG_DSN",
         "HSK_PROOF_DATABASE_URL",

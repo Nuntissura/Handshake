@@ -235,6 +235,15 @@ fn token_matches(stored: &str, presented: &str) -> bool {
     actual.verify_slice(&expected_tag).is_ok()
 }
 
+/// Shared guard for the process-global `HANDSHAKE_STAGE_BINDING_FILE` test binding.
+///
+/// Every test module that installs a native-MCP binding MUST hold this while it runs. The env var
+/// is process-global, so two suites in the same test binary (for example `api::memory` and
+/// `api::flight_recorder`) would otherwise authenticate against each other's token and fail
+/// non-deterministically.
+#[cfg(test)]
+pub(crate) static NATIVE_BINDING_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 pub(crate) fn current_process_native_binding(token: &str) -> serde_json::Value {
     let pid = std::process::id();

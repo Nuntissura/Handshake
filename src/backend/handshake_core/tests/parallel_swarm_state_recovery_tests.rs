@@ -58,7 +58,7 @@ use handshake_core::swarm_orchestration::state_recovery::{
 };
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::AppState;
-use knowledge_pg_support::{knowledge_pg, KnowledgePg};
+use knowledge_pg_support::knowledge_pg;
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::Barrier;
@@ -171,7 +171,7 @@ impl FlightRecorder for CountingRecorder {
     }
 }
 
-async fn recovery_store() -> Option<(KnowledgePg, sqlx::PgPool, ParallelSwarmStateRecoveryStore)> {
+async fn recovery_store() -> Option<(sqlx::PgPool, ParallelSwarmStateRecoveryStore)> {
     let Some(pg) = knowledge_pg().await else {
         eprintln!("SKIP parallel_swarm_state_recovery_tests: no PostgreSQL");
         return None;
@@ -183,20 +183,7 @@ async fn recovery_store() -> Option<(KnowledgePg, sqlx::PgPool, ParallelSwarmSta
         .expect("connect isolated parallel swarm schema");
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
     let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
-    Some((pg, pool, store))
-}
-
-async fn create_test_workspace(pool: &sqlx::PgPool, label: &str) -> String {
-    let db = PostgresDatabase::new(pool.clone());
-    db.create_workspace(
-        &WriteContext::human(None),
-        NewWorkspace {
-            name: format!("{label}-{}", Uuid::now_v7()),
-        },
-    )
-    .await
-    .expect("create real workspace for parallel swarm test")
-    .id
+    Some((pool, store))
 }
 
 async fn app_state_for(schema_url: &str) -> AppState {
@@ -787,7 +774,7 @@ async fn install_quiet_indexing_receipt_failure(pool: &sqlx::PgPool) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_lanes_and_work_claims_are_typed_attributable_and_exclusive() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -903,7 +890,7 @@ async fn agent_lanes_and_work_claims_are_typed_attributable_and_exclusive() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn claim_authority_failure_after_receipt_rolls_back_eventledger_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -951,7 +938,7 @@ async fn claim_authority_failure_after_receipt_rolls_back_eventledger_receipt() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn release_claim_rolls_back_authority_state_if_receipt_insert_fails() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1022,7 +1009,7 @@ async fn release_claim_rolls_back_authority_state_if_receipt_insert_fails() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cloud_lane_is_denied_worktree_claim_and_local_index_write_lease() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1114,7 +1101,7 @@ async fn cloud_lane_is_denied_worktree_claim_and_local_index_write_lease() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cloud_assistance_output_is_reviewable_attributed_and_non_authoritative() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1399,7 +1386,7 @@ async fn cloud_assistance_output_is_reviewable_attributed_and_non_authoritative(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_hash() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1525,7 +1512,7 @@ async fn cloud_assistance_requires_cloud_owned_workspace_claim_and_valid_output_
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cloud_assistance_rejects_loose_or_replayed_fallback_basis() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1640,7 +1627,7 @@ async fn cloud_assistance_rejects_loose_or_replayed_fallback_basis() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn editor_document_and_graph_claims_serialize_parallel_mutations() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1806,7 +1793,7 @@ async fn editor_document_and_graph_claims_serialize_parallel_mutations() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn non_editor_lanes_cannot_claim_editor_mutation_scopes() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -1906,7 +1893,7 @@ async fn non_editor_lanes_cannot_claim_editor_mutation_scopes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -2006,7 +1993,7 @@ async fn malformed_editor_mutation_scopes_do_not_persist_claims_or_receipts() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -2225,11 +2212,11 @@ async fn validator_lanes_inspect_swarm_evidence_without_mutating_state() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn swarm_dashboard_projection_derives_from_postgres_eventledger_and_is_projection_only() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
-    let workspace_id = create_test_workspace(&pool, "workspace-dashboard-projection").await;
+    let workspace_id = format!("workspace-dashboard-projection-{}", Uuid::now_v7());
     let local = local_lane("dashboard-projection");
     let claim = store
         .claim_work_surface(WorkClaimRequest {
@@ -2549,7 +2536,7 @@ async fn swarm_dashboard_projection_api_exposes_postgres_eventledger_read_model(
         .expect("connect isolated parallel swarm schema");
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
     let store = ParallelSwarmStateRecoveryStore::new(pool.clone(), event_db);
-    let workspace_id = create_test_workspace(&pool, "workspace-dashboard-api").await;
+    let workspace_id = format!("workspace-dashboard-api-{}", Uuid::now_v7());
     let local = local_lane("dashboard-api");
     let claim = store
         .claim_work_surface(WorkClaimRequest {
@@ -2654,7 +2641,7 @@ async fn swarm_dashboard_projection_api_exposes_postgres_eventledger_read_model(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_limited() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -2728,11 +2715,11 @@ async fn swarm_dashboard_projection_totals_remain_authoritative_when_rows_are_li
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn quiet_background_work_receipts_reject_foreground_or_focus_stealing_work() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
-    let workspace_id = create_test_workspace(&pool, "workspace-quiet-background").await;
+    let workspace_id = format!("workspace-quiet-background-{}", Uuid::now_v7());
     let local = local_lane("quiet-background");
     let mut loud_visual = QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::VisualCapture);
     loud_visual.no_foreground_window = false;
@@ -2911,10 +2898,10 @@ async fn quiet_background_work_receipts_reject_foreground_or_focus_stealing_work
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn indexing_leases_and_backend_navigation_are_quiet_by_contract() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
-    let workspace_id = create_test_workspace(&pool, "workspace-quiet-index").await;
+    let workspace_id = format!("workspace-quiet-index-{}", Uuid::now_v7());
 
     let nav = NavigationCommandSet::default();
     for command in nav.commands() {
@@ -3068,7 +3055,7 @@ async fn indexing_leases_and_backend_navigation_are_quiet_by_contract() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
@@ -3236,7 +3223,7 @@ async fn real_product_entrypoints_emit_quiet_background_work_receipts() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn quiet_entrypoint_denials_happen_before_product_side_effects() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
@@ -3556,7 +3543,7 @@ async fn quiet_entrypoint_denials_happen_before_product_side_effects() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mailbox_handoff_requires_write_mailbox_capability() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -3619,7 +3606,7 @@ fn tiny_png_bytes() -> Vec<u8> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalid_mailbox_handoff_claim_ref_does_not_emit_false_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -3664,7 +3651,7 @@ async fn invalid_mailbox_handoff_claim_ref_does_not_emit_false_receipt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalid_checkpoint_refs_do_not_emit_false_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -3721,7 +3708,7 @@ async fn invalid_checkpoint_refs_do_not_emit_false_receipt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_same_scope_claim_records_one_durable_claim_event() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     install_parallel_swarm_event_delay(&pool, "parallel_swarm_claim").await;
@@ -3826,7 +3813,7 @@ async fn concurrent_same_scope_claim_records_one_durable_claim_event() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mailbox_navigation_checkpoint_and_recovery_are_restartable_from_postgres() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -3968,7 +3955,7 @@ async fn mailbox_navigation_checkpoint_and_recovery_are_restartable_from_postgre
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compressed_handoff_template_is_bounded_restartable_and_secret_safe() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4058,7 +4045,7 @@ async fn compressed_handoff_template_is_bounded_restartable_and_secret_safe() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compressed_handoff_redacts_all_dynamic_sections_and_redacted_labels_validate() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4116,7 +4103,7 @@ async fn compressed_handoff_redacts_all_dynamic_sections_and_redacted_labels_val
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compressed_handoff_omits_raw_transcript_markers_from_next_step_context() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4175,7 +4162,7 @@ async fn compressed_handoff_omits_raw_transcript_markers_from_next_step_context(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compressed_handoff_rejects_secret_like_mandatory_metadata() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4222,7 +4209,7 @@ async fn compressed_handoff_rejects_secret_like_mandatory_metadata() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compressed_handoff_accepts_redacted_url_credentials() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4275,7 +4262,7 @@ async fn compressed_handoff_accepts_redacted_url_credentials() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_missing_checkpoint_recovery_does_not_emit_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4314,7 +4301,7 @@ async fn mt223_missing_checkpoint_recovery_does_not_emit_receipt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4391,7 +4378,7 @@ async fn mt223_corrupt_checkpoint_payload_hash_does_not_emit_recovery_receipt() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipts() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
@@ -4494,7 +4481,7 @@ async fn mt223_interrupted_indexing_start_failure_leaves_no_swarm_or_kir_receipt
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_quiet_receipt_failure_rolls_back_index_run_and_lease() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     let event_db = Arc::new(PostgresDatabase::new(pool.clone()));
@@ -4614,7 +4601,7 @@ async fn mt223_quiet_receipt_failure_rolls_back_index_run_and_lease() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4699,7 +4686,7 @@ async fn mt223_stale_indexing_lease_reclaim_then_queued_writer_is_promotable() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4790,7 +4777,7 @@ async fn mt223_stale_indexing_lease_enqueue_does_not_leapfrog_queued_writer() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -4975,7 +4962,7 @@ async fn mt223_interrupted_editor_save_reclaim_unblocks_rich_document_claim() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_partial_validation_progress_handoff_is_not_reported_as_pass() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -5055,11 +5042,11 @@ async fn mt223_partial_validation_progress_handoff_is_not_reported_as_pass() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mt223_restart_after_crash_reconstructs_swarm_state_from_postgres() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
-    let workspace_id = create_test_workspace(&pool, "workspace-restart-crash").await;
+    let workspace_id = format!("workspace-restart-crash-{}", Uuid::now_v7());
     let lane = local_lane("restart-crash-source");
     let claim = store
         .claim_work_surface(WorkClaimRequest {
@@ -5231,7 +5218,7 @@ async fn mt223_restart_after_crash_reconstructs_swarm_state_from_postgres() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recovery_receipt_authority_failure_does_not_emit_false_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -5298,7 +5285,7 @@ async fn recovery_receipt_authority_failure_does_not_emit_false_receipt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mailbox_handoff_statuses_round_trip_from_postgres() {
-    let Some((_pg, _pool, store)) = recovery_store().await else {
+    let Some((_pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -5335,7 +5322,7 @@ async fn mailbox_handoff_statuses_round_trip_from_postgres() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn raw_secret_like_provider_metadata_is_scrubbed_at_persist_time() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -5398,7 +5385,7 @@ async fn raw_secret_like_provider_metadata_is_scrubbed_at_persist_time() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaims_orphans() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     let scope = ClaimScope::IndexRun {
@@ -5524,7 +5511,7 @@ async fn parallel_indexing_lease_queue_serializes_same_scope_writers_and_reclaim
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_same_scope_indexing_lease_records_only_real_outcome_events() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
     install_parallel_swarm_event_delay(&pool, "parallel_indexing_lease").await;
@@ -5653,7 +5640,7 @@ async fn concurrent_same_scope_indexing_lease_records_only_real_outcome_events()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn explicit_expired_claim_reclaim_records_event_receipt() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 
@@ -5720,7 +5707,7 @@ async fn explicit_expired_claim_reclaim_records_event_receipt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn expired_claim_reclaim_rolls_back_if_receipt_insert_fails() {
-    let Some((_pg, pool, store)) = recovery_store().await else {
+    let Some((pool, store)) = recovery_store().await else {
         return;
     };
 

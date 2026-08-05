@@ -14,6 +14,7 @@ use handshake_native::mcp::{
     ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD, ARGUS_INSPECT_METHOD,
     ARGUS_SET_VALUE_METHOD,
 };
+use sha2::{Digest, Sha256};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ArgusObservation {
@@ -21,6 +22,8 @@ pub struct ArgusObservation {
     pub after: serde_json::Value,
     pub receipt_id: u64,
     pub receipt_status: String,
+    /// Stable per-request identity joining the client binding, RPC method, and authoritative receipt.
+    pub correlation_id: String,
     pub agent_id: String,
     pub terminal_observed_sequence: u64,
     pub target_selected_before: Option<bool>,
@@ -169,9 +172,23 @@ pub struct CanonicalArgusDriver {
     _app_data: Option<ScopedArgusAppData>,
     token: String,
     client_session_id: String,
+    correlation_scope: String,
     next_id: u64,
     action_targets: Vec<(String, String, Option<String>)>,
     observations: Vec<ArgusObservation>,
+}
+
+fn bounded_client_session_id(proof_id: &str) -> String {
+    const SUFFIX: &str = "-agent";
+    const MAX_STEM: usize = 64 - SUFFIX.len();
+    let sanitized = sanitize(proof_id);
+    if sanitized.len() <= MAX_STEM {
+        return format!("{sanitized}{SUFFIX}");
+    }
+    let digest = format!("{:x}", Sha256::digest(sanitized.as_bytes()));
+    let hash = &digest[..12];
+    let prefix_len = MAX_STEM - 1 - hash.len();
+    format!("{}-{hash}{SUFFIX}", &sanitized[..prefix_len])
 }
 
 impl CanonicalArgusDriver {
@@ -223,12 +240,18 @@ impl CanonicalArgusDriver {
                 }),
             ))
             .expect("bind the production Argus localhost server");
+        let client_session_id = bounded_client_session_id(proof_id);
+        assert!(
+            client_session_id.is_ascii() && (1..=64).contains(&client_session_id.len()),
+            "canonical client session id must satisfy the production MCP boundary"
+        );
         Self {
             runtime,
             server,
             _app_data: app_data,
             token,
-            client_session_id: format!("{}-agent", sanitize(proof_id)),
+            client_session_id,
+            correlation_scope: uuid::Uuid::new_v4().simple().to_string(),
             next_id: 1,
             action_targets: Vec::new(),
             observations: Vec::new(),
@@ -327,9 +350,24 @@ impl CanonicalArgusDriver {
         author_id: &str,
     ) -> ArgusObservation {
         let observation = self.click_and_reinspect(harness, author_id);
+        let receipt = observation.after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+            })
+            .expect("authoritative post-action tree retains the exact receipt");
+        let receipt_status = receipt["status"]
+            .as_str()
+            .expect("authoritative post-action tree retains a typed receipt status");
         assert_eq!(
-            observation.receipt_status, "applied",
-            "{author_id} must produce an action-specific Applied receipt"
+            receipt_status, "applied",
+            "{author_id} must produce an action-specific Applied receipt: {receipt}"
+        );
+        assert_eq!(
+            observation.receipt_status, receipt_status,
+            "returned observation status must match its authoritative post-action tree"
         );
         observation
     }
@@ -374,6 +412,10 @@ impl CanonicalArgusDriver {
         author_id: &str,
         expected_message: &str,
     ) -> serde_json::Value {
+        assert!(
+            !expected_message.is_empty(),
+            "expected rejection message is required"
+        );
         let before = self.inspect(harness);
         assert!(json_has_author_id(&before, author_id));
         let response = self.rpc_unchecked(
@@ -390,6 +432,8 @@ impl CanonicalArgusDriver {
         response
     }
 
+    /// Issue a click against an exact previously inspected tree after the caller changes live UI
+    /// state. This proves the stale/hidden-target race without silently refreshing the target away.
     pub fn click_from_snapshot_expect_rpc_rejected(
         &mut self,
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
@@ -405,6 +449,10 @@ impl CanonicalArgusDriver {
             json_has_author_id(before, author_id),
             "cached canonical tree saw target {author_id} before it became stale/hidden"
         );
+        // Synchronize the server with the live post-transition tree while retaining `before` as the
+        // caller's cached snapshot. The stale-client proof is specifically that the old target is
+        // rejected against current canonical state; issuing the RPC against the server's old tree
+        // would only prove two stale caches can agree.
         let live_before_click = self.inspect(harness);
         let before_value = json_author_value(before, author_id);
         let live_value = json_author_value(&live_before_click, author_id);
@@ -479,6 +527,10 @@ impl CanonicalArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus click returns a receipt id");
+        let correlation_id = format!(
+            "{}:{}:argus.click:receipt:{receipt_id}",
+            self.correlation_scope, self.client_session_id
+        );
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -507,9 +559,10 @@ impl CanonicalArgusDriver {
             .as_str()
             .expect("Argus receipt has a typed status")
             .to_owned();
+        let accepted_status = matches!(receipt_status.as_str(), "applied" | "indeterminate")
+            || (allow_typed_rejected && receipt_status == "rejected");
         assert!(
-            matches!(receipt_status.as_str(), "applied" | "indeterminate")
-                || (allow_typed_rejected && receipt_status == "rejected"),
+            accepted_status,
             "Argus receipt status is allowed: {receipt}"
         );
         let terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
@@ -521,6 +574,7 @@ impl CanonicalArgusDriver {
             after,
             receipt_id,
             receipt_status,
+            correlation_id,
             agent_id,
             terminal_observed_sequence,
             target_selected_before,
@@ -578,6 +632,10 @@ impl CanonicalArgusDriver {
         let receipt_id = click["result"]["receipt_id"]
             .as_u64()
             .expect("Argus parameterized click returns a receipt id");
+        let correlation_id = format!(
+            "{}:{}:argus.click:receipt:{receipt_id}",
+            self.correlation_scope, self.client_session_id
+        );
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -623,6 +681,7 @@ impl CanonicalArgusDriver {
             after,
             receipt_id,
             receipt_status,
+            correlation_id,
             agent_id,
             terminal_observed_sequence,
             target_selected_before,
@@ -667,6 +726,39 @@ impl CanonicalArgusDriver {
         observation
     }
 
+    pub fn click_with_payload_from_snapshot_expect_typed_rejected_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        payload: serde_json::Value,
+        before: serde_json::Value,
+        expected_message: &str,
+    ) -> ArgusObservation {
+        assert!(
+            !expected_message.is_empty(),
+            "expected rejection message is required"
+        );
+        let observation = self.click_with_payload_from_snapshot_and_reinspect_with_status_policy(
+            harness, author_id, payload, before, true,
+        );
+        assert_eq!(observation.receipt_status, "rejected");
+        let receipt = observation.after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+            })
+            .expect("cached typed-Rejected parameterized observation retains its exact receipt");
+        assert!(receipt["rejection"]
+            .as_str()
+            .is_some_and(|message| message.contains(expected_message)));
+        observation
+    }
+
+    /// Parameterized counterpart to [`Self::click_expect_applied_and_reinspect`]. Canonical proofs
+    /// use this when the stable target has a closed payload vocabulary and action-specific completion
+    /// is mandatory; an indeterminate receipt is rejected at the call site immediately.
     pub fn click_with_payload_expect_applied_and_reinspect(
         &mut self,
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
@@ -709,6 +801,10 @@ impl CanonicalArgusDriver {
         let receipt_id = set_value["result"]["receipt_id"]
             .as_u64()
             .expect("Argus set-value returns a receipt id");
+        let correlation_id = format!(
+            "{}:{}:argus.set_value:receipt:{receipt_id}",
+            self.correlation_scope, self.client_session_id
+        );
         let mut raw_input = egui::RawInput::default();
         <HandshakeApp as eframe::App>::raw_input_hook(
             harness.state_mut(),
@@ -763,6 +859,7 @@ impl CanonicalArgusDriver {
             after,
             receipt_id,
             receipt_status,
+            correlation_id,
             agent_id,
             terminal_observed_sequence,
             target_selected_before,
@@ -805,11 +902,8 @@ impl CanonicalArgusDriver {
             matches!(receipt_status, "applied" | "rejected" | "indeterminate"),
             "terminal reinspection receipt must remain terminal: {receipt}"
         );
-        assert_eq!(
-            receipt_status, observation.receipt_status,
-            "terminal reinspection cannot change the exact action's terminal status"
-        );
         observation.after = after.clone();
+        observation.receipt_status = receipt_status.to_owned();
         observation.terminal_observed_sequence = screenshot_marker::next_proof_event_sequence();
         observation.terminal_refreshed = true;
         after
@@ -862,6 +956,98 @@ impl CanonicalArgusDriver {
             "canonical terminal predicate {predicate_id:?} failed against {after}"
         );
         after
+    }
+
+    /// Bind an action-specific predicate that reads BOTH the authoritative terminal Argus tree and the
+    /// live mounted product state at the same terminal instant.
+    ///
+    /// [`Self::assert_latest_terminal_predicate_with_evidence`] can only see what the surface projects
+    /// into AccessKit. Some authoritative effects are deliberately not projected as an addressable
+    /// value (the per-pane `TabBarState` model is the load-bearing example: a routed tab renders as a
+    /// `Role::Tab` node labelled by pane type, never by the routed content id). Re-reading that state
+    /// through the harness *after* the call would not be bound to the terminal observation at all, so
+    /// this variant hands the predicate the live app alongside the freshly reinspected terminal tree.
+    ///
+    /// This records the SAME [`TerminalPredicateResult`] row and enforces the same pass requirement as
+    /// the snapshot-only variant. It is an additional binding surface, never a weaker one.
+    pub fn assert_latest_terminal_predicate_with_app_evidence(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        predicate_id: &str,
+        evidence: serde_json::Value,
+        predicate: impl FnOnce(&serde_json::Value, &HandshakeApp) -> bool,
+    ) -> serde_json::Value {
+        assert!(
+            !predicate_id.trim().is_empty(),
+            "terminal predicate id must be non-empty"
+        );
+        let after = self.reinspect_latest_terminal(harness);
+        let passed = predicate(&after, harness.state());
+        self.observations
+            .last_mut()
+            .expect("preceding canonical observation")
+            .terminal_predicates
+            .push(TerminalPredicateResult {
+                predicate_id: predicate_id.to_owned(),
+                passed,
+                evidence,
+            });
+        assert!(
+            passed,
+            "canonical terminal predicate {predicate_id:?} failed against {after}"
+        );
+        after
+    }
+
+    /// How many canonical actions this driver has actually dispatched. A matrix that must prove it
+    /// never steered a disabled/unavailable entry asserts this is zero (or exactly the count of the
+    /// enabled actions it deliberately drove) instead of inferring non-dispatch from unchanged state.
+    pub fn dispatched_action_count(&self) -> usize {
+        self.observations.len()
+    }
+
+    /// Return the exact persisted trace row after terminal reinspection and predicate evaluation.
+    /// Callers that serialize action proof must use this instead of the provisional clone returned by
+    /// the action method, because the terminal tree and predicate evidence are recorded later.
+    pub fn latest_terminal_observation(&self) -> ArgusObservation {
+        let observation = self
+            .observations
+            .last()
+            .expect("terminal observation requires a preceding canonical action");
+        assert!(
+            observation.terminal_refreshed,
+            "latest observation must be rebound to its authoritative terminal tree"
+        );
+        assert!(
+            !observation.terminal_predicates.is_empty()
+                && observation
+                    .terminal_predicates
+                    .iter()
+                    .all(|predicate| predicate.passed),
+            "latest terminal observation must retain passing predicate evidence"
+        );
+        observation.clone()
+    }
+
+    /// Advance one ordinary live frame after a receipt has terminalized and refresh the latest trace
+    /// row's selected-state sample. Some controls update their owning app state after their header was
+    /// painted, so the same dispatch frame legitimately retains the previous AccessKit selection.
+    pub fn refresh_latest_live_target_selected(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+    ) -> Option<bool> {
+        let target = self
+            .action_targets
+            .last()
+            .map(|(_, target, _)| target.clone())
+            .expect("live target refresh requires a preceding canonical action");
+        harness.run_steps(1);
+        let selected = live_author_id_selected(harness, &target);
+        self.observations
+            .last_mut()
+            .expect("live target refresh requires a preceding observation")
+            .target_selected_after = selected;
+        selected
     }
 
     pub fn finish(mut self) {
@@ -964,6 +1150,7 @@ fn write_matrix_trace(
             "target_selected_after": observation.target_selected_after,
             "receipt_id": observation.receipt_id,
             "receipt_status": &observation.receipt_status,
+            "correlation_id": &observation.correlation_id,
             "agent_id": &observation.agent_id,
             "terminal_observed_sequence": observation.terminal_observed_sequence,
             "terminal_refreshed": observation.terminal_refreshed,

@@ -57,9 +57,9 @@ const MAX_CLICK_COMPLETION_SEMANTIC_BYTES: usize = 2048;
 const MAX_CLICK_COMPLETION_ERROR_BYTES: usize = 1024;
 const MAX_CLICK_COMPLETION_DETAIL_BYTES: usize = 2048;
 
-/// Opt-in causal acknowledgement for a SetValue target. A sibling Status node carries this token
-/// because the target's own value must remain the operator-visible text. Generic SetValue controls
-/// without this observer retain the conservative Indeterminate behavior below.
+/// Reserved opt-in acknowledgement for a SetValue target. The displayed value cannot safely carry
+/// completion metadata, so a sibling Status node named `<target>.set-value-completion` publishes the
+/// exact target/generation/value tuple only after the production widget consumes the AccessKit request.
 const SET_VALUE_COMPLETION_SCHEMA: &str = "handshake.set-value-completion/v1";
 const SET_VALUE_COMPLETION_SUFFIX: &str = ".set-value-completion";
 const MAX_SET_VALUE_COMPLETION_TOKEN_BYTES: usize = 8192;
@@ -69,7 +69,6 @@ const MAX_SET_VALUE_COMPLETION_TOKEN_BYTES: usize = 8192;
 struct SetValueCompletionToken {
     schema: String,
     target: String,
-    context: String,
     generation: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     applied_value: Option<String>,
@@ -79,10 +78,8 @@ impl SetValueCompletionToken {
     fn valid(&self) -> bool {
         self.schema == SET_VALUE_COMPLETION_SCHEMA
             && valid_click_token_field(&self.target, MAX_CLICK_COMPLETION_AUTHOR_BYTES)
-            && valid_click_token_field(&self.context, MAX_CLICK_COMPLETION_CONTEXT_BYTES)
             && self.applied_value.as_deref().map_or(true, |value| {
                 value.len() <= MAX_SET_VALUE_COMPLETION_TOKEN_BYTES
-                    && !value.chars().any(char::is_control)
             })
     }
 }
@@ -93,14 +90,12 @@ pub(crate) fn set_value_completion_author_id(target: &str) -> String {
 
 pub(crate) fn serialize_set_value_completion(
     target: &str,
-    context: &str,
     generation: u64,
     applied_value: Option<&str>,
 ) -> Option<String> {
     let token = SetValueCompletionToken {
         schema: SET_VALUE_COMPLETION_SCHEMA.to_owned(),
         target: target.to_owned(),
-        context: context.to_owned(),
         generation,
         applied_value: applied_value.map(str::to_owned),
     };
@@ -558,6 +553,8 @@ pub enum ActionError {
     /// No live node carries the requested `author_id` (the model addressed a widget that is not on
     /// screen this frame).
     UnknownTarget { author_id: String },
+    /// More than one live node claims the stable id, so selecting either would be tree-order dependent.
+    AmbiguousTarget { author_id: String, count: usize },
     /// The target exists but is disabled; steering a disabled control is rejected (red-team: never
     /// drive a control the model must not touch).
     DisabledTarget { author_id: String },
@@ -583,6 +580,10 @@ impl std::fmt::Display for ActionError {
             ActionError::UnknownTarget { author_id } => {
                 write!(f, "no live widget with author_id '{author_id}'")
             }
+            ActionError::AmbiguousTarget { author_id, count } => write!(
+                f,
+                "author_id '{author_id}' is ambiguous across {count} live widgets"
+            ),
             ActionError::DisabledTarget { author_id } => {
                 write!(f, "widget '{author_id}' is disabled and cannot be steered")
             }
@@ -654,11 +655,23 @@ fn resolve_node<'a>(
     author_id: &str,
     action: &UiAction,
 ) -> Result<&'a crate::accessibility::UiTreeNode, ActionError> {
-    let node = snapshot
-        .find_by_author_id(author_id)
-        .ok_or_else(|| ActionError::UnknownTarget {
-            author_id: author_id.to_owned(),
-        })?;
+    let match_count = snapshot.author_id_match_count(author_id);
+    let node = match match_count {
+        0 => {
+            return Err(ActionError::UnknownTarget {
+                author_id: author_id.to_owned(),
+            })
+        }
+        1 => snapshot
+            .find_unique_by_author_id(author_id)
+            .expect("one counted author-id match must resolve uniquely"),
+        count => {
+            return Err(ActionError::AmbiguousTarget {
+                author_id: author_id.to_owned(),
+                count,
+            })
+        }
+    };
 
     if node.disabled {
         return Err(ActionError::DisabledTarget {
@@ -866,15 +879,6 @@ impl ActionChannel {
     pub(crate) fn unique_dispatched_activation(
         &self,
     ) -> Option<(String, Option<String>, Option<String>)> {
-        self.unique_dispatched_activation_with_receipt()
-            .map(|(_, target, payload, semantic)| (target, payload, semantic))
-    }
-
-    /// Receipt-bearing activation seam for app observers that must reconcile a later channel-side
-    /// terminal state after the in-flight row has been released.
-    pub(crate) fn unique_dispatched_activation_with_receipt(
-        &self,
-    ) -> Option<(u64, String, Option<String>, Option<String>)> {
         let mut matches = self.in_flight.iter().filter(|pending| {
             is_click_activation(&pending.action)
                 && self.receipts.iter().any(|receipt| {
@@ -884,7 +888,6 @@ impl ActionChannel {
         });
         let pending = matches.next()?;
         let activation = (
-            pending.outcome.receipt_id,
             pending.author_id.clone(),
             match &pending.action {
                 UiAction::Click => None,
@@ -899,17 +902,6 @@ impl ActionChannel {
             },
         );
         matches.next().is_none().then_some(activation)
-    }
-
-    pub(crate) fn receipt_status(
-        &mut self,
-        receipt_id: u64,
-    ) -> Option<(ActionReceiptStatus, Option<String>)> {
-        self.expire_stale_actions();
-        self.receipts
-            .iter()
-            .find(|receipt| receipt.receipt_id == receipt_id)
-            .map(|receipt| (receipt.status, receipt.rejection.clone()))
     }
 
     /// True when the queue is at capacity (the next [`Self::enqueue`] would be rejected).
@@ -948,7 +940,7 @@ impl ActionChannel {
         let node = resolve_node(snapshot, author_id, &action)?;
         validate_target_value(author_id, node, &action)?;
         let click_completion = pending_click_completion(snapshot, node, &action);
-        let set_value_completion = pending_set_value_completion(snapshot, author_id, node, &action);
+        let set_value_completion = pending_set_value_completion(snapshot, author_id, &action);
         let observer_author_id = match &click_completion {
             Some(PendingClickCompletion::Observer {
                 observer_author_id, ..
@@ -1145,7 +1137,7 @@ impl ActionChannel {
                 }
                 continue;
             }
-            let node = fresh_snapshot.find_by_author_id(&pending.author_id);
+            let node = fresh_snapshot.find_unique_by_author_id(&pending.author_id);
             match (&pending.action, node) {
                 (UiAction::SetValue { text }, Some(node))
                     if post_render_target_identity_matches(&pending, node)
@@ -1407,7 +1399,7 @@ fn acknowledge_click_completion(
         .expect("caller checks click-completion presence")
     {
         PendingClickCompletion::SameTarget { baseline } => {
-            let Some(node) = snapshot.find_by_author_id(&pending.author_id) else {
+            let Some(node) = snapshot.find_unique_by_author_id(&pending.author_id) else {
                 return indeterminate(
                     None,
                     "same-target completion target disappeared before acknowledgement",
@@ -1493,12 +1485,16 @@ fn acknowledge_click_completion(
                         "observer target disappeared before acknowledgement",
                     );
                 };
-                let pending_disabled_identity = declaration.persistent_target
+                let pending_async_target_identity = declaration.persistent_target
                     && applied.state == ClickCompletionState::Pending
                     && post_target.node_id == pending.outcome.request.target.0
                     && post_target.role == pending.expected_role
-                    && post_target.disabled;
-                if !pending_disabled_identity
+                    && (post_target.disabled
+                        || post_target
+                            .actions
+                            .iter()
+                            .any(|action| action == &pending.expected_action));
+                if !pending_async_target_identity
                     && !post_render_target_identity_matches(pending, post_target)
                 {
                     return indeterminate(
@@ -1600,7 +1596,7 @@ fn pending_click_completion(
         return None;
     }
     let observer_author_id = token.observer_author_id.clone()?;
-    let observer = snapshot.find_by_author_id(&observer_author_id)?;
+    let observer = snapshot.find_unique_by_author_id(&observer_author_id)?;
     let observer_raw_baseline = observer.value.clone()?;
     let observer_token = parse_click_completion_token(&observer_raw_baseline)?;
     if !observer_token.valid_observer_state()
@@ -1624,13 +1620,9 @@ fn pending_click_completion(
 fn pending_set_value_completion(
     snapshot: &UiTreeSnapshot,
     target_author_id: &str,
-    target: &crate::accessibility::UiTreeNode,
     action: &UiAction,
 ) -> Option<PendingSetValueCompletion> {
-    let UiAction::SetValue { text } = action else {
-        return None;
-    };
-    if observed_value_matches(target_author_id, &target.value, text) {
+    if !matches!(action, UiAction::SetValue { .. }) {
         return None;
     }
     let observer_author_id = set_value_completion_author_id(target_author_id);
@@ -1689,7 +1681,7 @@ fn acknowledge_set_value_completion(
         return terminal(
             ActionReceiptStatus::Rejected,
             None,
-            "SetValue target disappeared or became ambiguous before acknowledgement",
+            "SetValue target disappeared before acknowledgement",
         );
     };
     if !post_render_target_identity_matches(pending, target) {
@@ -1703,7 +1695,7 @@ fn acknowledge_set_value_completion(
         return terminal(
             ActionReceiptStatus::Indeterminate,
             target.value.clone(),
-            "SetValue completion observer disappeared or became ambiguous",
+            "SetValue completion observer disappeared before acknowledgement",
         );
     };
     if observer.node_id != completion.observer_node_id || observer.role != completion.observer_role
@@ -1736,7 +1728,6 @@ fn acknowledge_set_value_completion(
         .checked_add(1)
         .is_some_and(|generation| observed_completion.generation == generation);
     if observed_completion.target == pending.author_id
-        && observed_completion.context == completion.baseline.context
         && generation_matches
         && observed_completion.applied_value.as_deref() == Some(text.as_str())
         && observed_value_matches(&pending.author_id, &target.value, text)
@@ -1750,7 +1741,7 @@ fn acknowledge_set_value_completion(
     terminal(
         ActionReceiptStatus::Indeterminate,
         target.value.clone(),
-        "SetValue completion did not make the exact target/context/generation/value transition",
+        "SetValue completion did not make the exact target/generation/value transition",
     )
 }
 
@@ -1766,7 +1757,7 @@ fn observer_dispatch_identity_matches(
     observer_role: &str,
     observer_raw_baseline: &str,
 ) -> bool {
-    let Some(observer) = snapshot.find_by_author_id(observer_author_id) else {
+    let Some(observer) = snapshot.find_unique_by_author_id(observer_author_id) else {
         return false;
     };
     if observer.node_id != observer_node_id
@@ -1794,8 +1785,8 @@ fn revalidate_pending(
     snapshot: &UiTreeSnapshot,
 ) -> Result<(), String> {
     let node = snapshot
-        .find_by_author_id(&pending.author_id)
-        .ok_or_else(|| "target disappeared before dispatch".to_owned())?;
+        .find_unique_by_author_id(&pending.author_id)
+        .ok_or_else(|| "target disappeared or became ambiguous before dispatch".to_owned())?;
     if node.node_id != pending.outcome.request.target.0 {
         return Err("target NodeId changed before dispatch".to_owned());
     }
@@ -2127,6 +2118,34 @@ mod tests {
                 author_id: "nope".to_owned()
             }
         );
+    }
+
+    #[test]
+    fn duplicate_author_id_is_rejected_before_enqueue_and_if_introduced_before_dispatch() {
+        let mut duplicate = fixture_snapshot();
+        let mut duplicate_button = duplicate.root.children[0].clone();
+        duplicate_button.node_id = 99;
+        duplicate.root.children.push(duplicate_button);
+        assert_eq!(
+            resolve_target(&duplicate, "btn", &UiAction::Click).unwrap_err(),
+            ActionError::AmbiguousTarget {
+                author_id: "btn".to_owned(),
+                count: 2,
+            }
+        );
+
+        let original = fixture_snapshot();
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&original, "btn", UiAction::Click)
+            .expect("unique target enqueues");
+        assert!(channel.drain_revalidated_into_events(&duplicate).is_empty());
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(receipt.status, ActionReceiptStatus::Rejected);
+        assert!(receipt
+            .rejection
+            .as_deref()
+            .is_some_and(|reason| reason.contains("ambiguous")));
     }
 
     #[test]
@@ -4041,136 +4060,6 @@ mod tests {
             .unwrap();
         assert_eq!(receipt.status, ActionReceiptStatus::Indeterminate);
         assert_ne!(receipt.status, ActionReceiptStatus::Applied);
-    }
-
-    #[test]
-    fn set_value_completion_requires_exact_context_generation_and_value_transition() {
-        let observer_author = set_value_completion_author_id("field");
-        let baseline_value =
-            serialize_set_value_completion("field", "workspace-a/find", 7, None).unwrap();
-        let mut baseline = fixture_snapshot();
-        baseline
-            .root
-            .children
-            .push(observer_node(&observer_author, 90, baseline_value.clone()));
-        let mut channel = ActionChannel::new();
-        let outcome = channel
-            .enqueue(
-                &baseline,
-                "field",
-                UiAction::SetValue {
-                    text: "needle".to_owned(),
-                },
-            )
-            .unwrap();
-        assert_eq!(channel.drain_revalidated_into_events(&baseline).len(), 1);
-
-        let mut applied = baseline;
-        top_level_node_mut(&mut applied, "field").value = Some("needle".to_owned());
-        top_level_node_mut(&mut applied, &observer_author).value =
-            serialize_set_value_completion("field", "workspace-a/find", 8, Some("needle"));
-        channel.acknowledge_after_render(&applied);
-        assert_eq!(
-            terminal_receipt(&mut channel, outcome.receipt_id).status,
-            ActionReceiptStatus::Applied
-        );
-    }
-
-    #[test]
-    fn set_value_completion_fails_closed_for_same_value_and_token_drift() {
-        let observer_author = set_value_completion_author_id("field");
-        let baseline_token =
-            serialize_set_value_completion("field", "workspace-a/find", 3, None).unwrap();
-
-        let mut same = fixture_snapshot();
-        top_level_node_mut(&mut same, "field").value = Some("already".to_owned());
-        same.root
-            .children
-            .push(observer_node(&observer_author, 91, baseline_token.clone()));
-        let mut same_channel = ActionChannel::new();
-        let same_outcome = same_channel
-            .enqueue(
-                &same,
-                "field",
-                UiAction::SetValue {
-                    text: "already".to_owned(),
-                },
-            )
-            .unwrap();
-        same_channel.drain_revalidated_into_events(&same);
-        let mut same_post = same;
-        top_level_node_mut(&mut same_post, &observer_author).value =
-            serialize_set_value_completion("field", "workspace-a/find", 4, Some("already"));
-        same_channel.acknowledge_after_render(&same_post);
-        assert_eq!(
-            terminal_receipt(&mut same_channel, same_outcome.receipt_id).status,
-            ActionReceiptStatus::Indeterminate,
-            "already-present values never opt into causal completion"
-        );
-
-        for (label, context, generation, value) in [
-            ("wrong context", "workspace-b/find", 4, "needle"),
-            ("generation jump", "workspace-a/find", 5, "needle"),
-            ("wrong value", "workspace-a/find", 4, "replacement"),
-        ] {
-            let mut baseline = fixture_snapshot();
-            baseline.root.children.push(observer_node(
-                &observer_author,
-                92,
-                baseline_token.clone(),
-            ));
-            let mut channel = ActionChannel::new();
-            let outcome = channel
-                .enqueue(
-                    &baseline,
-                    "field",
-                    UiAction::SetValue {
-                        text: "needle".to_owned(),
-                    },
-                )
-                .unwrap();
-            channel.drain_revalidated_into_events(&baseline);
-            let mut post = baseline;
-            top_level_node_mut(&mut post, "field").value = Some("needle".to_owned());
-            top_level_node_mut(&mut post, &observer_author).value =
-                serialize_set_value_completion("field", context, generation, Some(value));
-            channel.acknowledge_after_render(&post);
-            assert_eq!(
-                terminal_receipt(&mut channel, outcome.receipt_id).status,
-                ActionReceiptStatus::Indeterminate,
-                "{label}"
-            );
-        }
-
-        let mut baseline = fixture_snapshot();
-        baseline
-            .root
-            .children
-            .push(observer_node(&observer_author, 93, baseline_token));
-        let mut channel = ActionChannel::new();
-        let outcome = channel
-            .enqueue(
-                &baseline,
-                "field",
-                UiAction::SetValue {
-                    text: "needle".to_owned(),
-                },
-            )
-            .unwrap();
-        channel.drain_revalidated_into_events(&baseline);
-        let mut post = baseline;
-        top_level_node_mut(&mut post, "field").value = Some("needle".to_owned());
-        post.root.children.push(observer_node(
-            &observer_author,
-            94,
-            serialize_set_value_completion("field", "workspace-a/find", 4, Some("needle")).unwrap(),
-        ));
-        channel.acknowledge_after_render(&post);
-        assert_eq!(
-            terminal_receipt(&mut channel, outcome.receipt_id).status,
-            ActionReceiptStatus::Indeterminate,
-            "an ambiguous completion observer cannot acknowledge SetValue"
-        );
     }
 
     #[test]

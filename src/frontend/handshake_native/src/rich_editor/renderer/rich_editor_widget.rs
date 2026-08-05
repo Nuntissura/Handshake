@@ -148,12 +148,6 @@ pub struct RichEditorState {
     /// One-shot focus request from shell navigation. The editable surface consumes this on its next
     /// mounted frame so logical pane focus and AccessKit/keyboard focus advance together.
     pub editor_focus_pending: bool,
-    /// Last focus state observed from the real mounted editor response. The app's isolated MCP
-    /// snapshot pass must not overwrite this: completion observers use it to prove that shell
-    /// navigation advanced keyboard/AccessKit focus, not merely the active tab.
-    live_editor_has_focus: bool,
-    /// True only while the app renders its isolated, side-effect-free MCP snapshot context.
-    snapshot_capture_mode: bool,
     /// Live body font size for rich document content, synchronized from editor settings.
     pub editor_font_size: f32,
     /// Workspace-scoped rich-editor command keymap. Settings `rich.*` overrides replace defaults in
@@ -432,8 +426,6 @@ impl RichEditorState {
             preedit: PreeditState::default(),
             theme: HsTheme::Dark,
             editor_focus_pending: false,
-            live_editor_has_focus: false,
-            snapshot_capture_mode: false,
             editor_font_size: super::line_layout::BASE_FONT_SIZE,
             rich_keymap: crate::rich_editor::formatting::RichKeymap::default(),
             reading_mode_default: false,
@@ -493,22 +485,6 @@ impl RichEditorState {
     /// Request focus on the mounted editable rich surface on its next render.
     pub fn request_editor_focus(&mut self) {
         self.editor_focus_pending = true;
-    }
-
-    /// Preserve the most recent real-frame focus observation while the app renders an isolated MCP
-    /// snapshot. The snapshot context has its own egui focus memory and is not live-focus authority.
-    pub fn set_snapshot_capture_mode(&mut self, enabled: bool) {
-        self.snapshot_capture_mode = enabled;
-    }
-
-    /// Whether the exact mounted rich-text surface held focus in the latest real app frame.
-    pub fn live_editor_has_focus(&self) -> bool {
-        self.live_editor_has_focus
-    }
-
-    #[cfg(test)]
-    pub fn set_live_editor_has_focus_for_test(&mut self, focused: bool) {
-        self.live_editor_has_focus = focused;
     }
 
     /// Apply the operator editor-font preference to rich document layout.
@@ -1565,9 +1541,7 @@ impl RichEditorWidget {
                 let focus_requested = !read_only && state.editor_focus_pending;
                 if focus_requested {
                     surface.request_focus();
-                    if !state.snapshot_capture_mode {
-                        state.editor_focus_pending = false;
-                    }
+                    state.editor_focus_pending = false;
                 }
                 // RISK-005: in reading mode the surface is never treated as focused, so the input
                 // path is skipped and no caret/selection state is ever advanced or allocated. Treat a
@@ -1910,9 +1884,6 @@ impl RichEditorWidget {
                 surface
             })
             .inner;
-        if !state.snapshot_capture_mode {
-            state.live_editor_has_focus = response.has_focus();
-        }
 
         // WP-KERNEL-012 MT-020 (inline-atom undo rewire): record any popup/prompt/dialog atom inserts
         // made THIS frame on the MT-035 unified undo bus. Those paths mutate the doc either before the

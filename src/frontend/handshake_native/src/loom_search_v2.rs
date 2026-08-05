@@ -66,6 +66,52 @@ pub const FACET_AUTHOR_ID_PREFIX: &str = "loom-search-v2.facet.";
 pub const RESULT_AUTHOR_ID_PREFIX: &str = "search.result.";
 /// Prefix for the plain-text preview attached to a result (`search.preview.{block_id}`).
 pub const PREVIEW_AUTHOR_ID_PREFIX: &str = "search.preview.";
+/// The durable `Role::Status` observer that terminalises Search / facet / Save-as-view activations
+/// against the AUTHORITATIVE backend delivery (`handshake.click-completion/v1`, observer mode). A
+/// visible state change alone is never causal proof; this node only advances when the exact response
+/// (or the exact typed failure) for the dispatched action has landed in the panel state.
+pub const ACTION_COMPLETION_AUTHOR_ID: &str = "loom-search-v2.action-completion";
+/// The observer-mode `effect` for [`ACTION_COMPLETION_AUTHOR_ID`].
+const ACTION_COMPLETION_EFFECT: &str = "loom-search-v2.action";
+/// The app-owned durable observer that terminalises a result-row activation. It lives OUTSIDE this
+/// pane (the routed target tab replaces the search surface, so a pane-local observer would disappear
+/// with the row); the shell projects it and advances it only after the exact block is really routed.
+pub const OPEN_COMPLETION_AUTHOR_ID: &str = "loom-search-v2.open-completion";
+/// The observer-mode `effect` for [`OPEN_COMPLETION_AUTHOR_ID`].
+pub const OPEN_COMPLETION_EFFECT: &str = "loom-search-v2.open-result";
+/// The observer-mode `context` for [`OPEN_COMPLETION_AUTHOR_ID`].
+pub const OPEN_COMPLETION_CONTEXT: &str = "loom-search-v2.open-result:shell";
+
+/// Which authoritative delivery terminalises the current [`ACTION_COMPLETION_AUTHOR_ID`] transition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoomSearchActionKind {
+    /// The `Search` button: terminalises on the search response for the dispatched query.
+    Search,
+    /// A content-type facet toggle: terminalises on the refiltered search response.
+    Facet,
+    /// `Save as view`: terminalises on the persisted view-definition receipt.
+    SaveView,
+}
+
+/// The exact semantic payload a result row declares. The shell parses this to know which canonical
+/// block/pane the routed navigation must reach before the observer may publish `Applied`.
+pub fn open_result_semantic(block_id: &str, content_type: &str) -> String {
+    serde_json::json!({
+        "action": "open-search-result",
+        "block_id": block_id,
+        "content_type": content_type,
+    })
+    .to_string()
+}
+
+/// The app-owned open-completion binding the shell pushes into the pane each frame. `generation` is
+/// the shell observer's current non-Pending generation; `ready` is false while a routed navigation is
+/// still in flight, which withholds the declaration instead of publishing a stale one.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LoomSearchOpenCompletionBinding {
+    pub generation: u64,
+    pub ready: bool,
+}
 
 /// The facet toggle author_id for a `content_type` (e.g. `loom-search-v2.facet.note`).
 pub fn facet_author_id(content_type: &str) -> String {
@@ -248,6 +294,23 @@ pub struct LoomSearchV2PanelState {
     /// response/error and is retired only on success or a query/workspace
     /// identity change.
     save_attempt_id: Option<String>,
+    /// CAUSAL SetValue acknowledgement for the mounted query field. `generation` advances ONLY where
+    /// the production `TextEdit` actually consumed a target-specific AccessKit `SetValue` request, and
+    /// `applied` records the exact value it consumed. Merely observing the requested text in the tree
+    /// is not proof (a concurrent or replacement write reaches the same value), so
+    /// `crate::mcp::action` refuses to publish `Applied` without this sibling token.
+    query_set_value_generation: u64,
+    query_set_value_applied: Option<String>,
+    /// CAUSAL click acknowledgement for Search / facet / Save-as-view. The generation advances when
+    /// the activation is handled; the state reaches `Applied`/`Failed` only when the AUTHORITATIVE
+    /// backend delivery for that exact dispatch lands (or its typed failure does).
+    action_generation: u64,
+    action_state: crate::mcp::action::ClickCompletionState,
+    action_kind: Option<LoomSearchActionKind>,
+    action_target: Option<String>,
+    action_semantic: Option<String>,
+    action_error: Option<String>,
+    action_detail: Option<String>,
 }
 
 impl Default for LoomSearchV2PanelState {
@@ -272,6 +335,154 @@ impl LoomSearchV2PanelState {
             search_cell: Arc::new(Mutex::new(None)),
             save_cell: Arc::new(Mutex::new(None)),
             save_attempt_id: None,
+            query_set_value_generation: 0,
+            query_set_value_applied: None,
+            action_generation: 0,
+            action_state: crate::mcp::action::ClickCompletionState::Ready,
+            action_kind: None,
+            action_target: None,
+            action_semantic: None,
+            action_error: None,
+            action_detail: None,
+        }
+    }
+
+    /// The `handshake.set-value-completion/v1` observer value for the mounted query field.
+    fn query_set_value_completion(&self, query_author_id: &str) -> Option<String> {
+        crate::mcp::action::serialize_set_value_completion(
+            query_author_id,
+            self.query_set_value_generation,
+            self.query_set_value_applied.as_deref(),
+        )
+    }
+
+    /// Record that the production `TextEdit` consumed an exact AccessKit `SetValue` request.
+    fn record_query_set_value(&mut self, applied: &str) {
+        self.query_set_value_generation = self.query_set_value_generation.wrapping_add(1).max(1);
+        self.query_set_value_applied = Some(applied.to_owned());
+    }
+
+    /// The exact semantic tuple a click target declares. It is deliberately INVARIANT across the
+    /// activation (the persistent-target contract requires the post-click declaration to carry the
+    /// identical semantic at generation + 1), so it names the action identity, never its outcome.
+    fn action_semantic_value(&self, kind: LoomSearchActionKind, facet: Option<&str>) -> String {
+        match kind {
+            LoomSearchActionKind::Search => serde_json::json!({
+                "action": "search",
+                "query": self.query.trim(),
+                "content_type": self.active_content_type,
+            })
+            .to_string(),
+            LoomSearchActionKind::Facet => serde_json::json!({
+                "action": "facet",
+                "content_type": facet,
+            })
+            .to_string(),
+            LoomSearchActionKind::SaveView => serde_json::json!({
+                "action": "save-view",
+                "query": self.query.trim(),
+                "content_type": self.active_content_type,
+            })
+            .to_string(),
+        }
+    }
+
+    /// Open a fresh action transition. A newly dispatched activation always SUPERSEDES an older
+    /// pending one: the superseded delivery cell was already orphaned by `run_search`/`save_as_view`,
+    /// so leaving the observer pending on it would strand every later action as `Indeterminate`.
+    fn begin_action(&mut self, kind: LoomSearchActionKind, target: String, semantic: String) {
+        self.action_generation = self.action_generation.wrapping_add(1).max(1);
+        self.action_state = crate::mcp::action::ClickCompletionState::Pending;
+        self.action_kind = Some(kind);
+        self.action_target = Some(target);
+        self.action_semantic = Some(semantic);
+        self.action_error = None;
+        self.action_detail = None;
+    }
+
+    /// Terminalise the pending transition against its AUTHORITATIVE delivery.
+    fn complete_action(&mut self, kind: LoomSearchActionKind, detail: String) {
+        if self.action_state == crate::mcp::action::ClickCompletionState::Pending
+            && self.action_kind == Some(kind)
+        {
+            self.action_state = crate::mcp::action::ClickCompletionState::Applied;
+            self.action_detail = Some(detail);
+        }
+    }
+
+    /// Terminalise the pending transition as a CAUSALLY OWNED typed failure (not an unprovable
+    /// outcome): the target/context/generation/semantic tuple was fixed before dispatch.
+    fn fail_action(&mut self, kind: LoomSearchActionKind, error: String) {
+        if self.action_state == crate::mcp::action::ClickCompletionState::Pending
+            && self.action_kind == Some(kind)
+        {
+            self.action_state = crate::mcp::action::ClickCompletionState::Failed;
+            self.action_error = Some(error);
+        }
+    }
+
+    /// The persistent observer-mode declaration a Search / facet / Save target carries.
+    fn action_target_declaration(
+        &self,
+        observer_author_id: &str,
+        context: &str,
+        semantic: &str,
+    ) -> Option<String> {
+        crate::mcp::action::serialize_persistent_observer_click_target(
+            ACTION_COMPLETION_EFFECT,
+            context,
+            self.action_generation,
+            observer_author_id,
+            semantic,
+        )
+    }
+
+    /// The durable `loom-search-v2.action-completion` observer value.
+    fn action_observer_value(&self, context: &str) -> Option<String> {
+        match self.action_state {
+            crate::mcp::action::ClickCompletionState::Ready => {
+                crate::mcp::action::serialize_observer_click_state(
+                    ACTION_COMPLETION_EFFECT,
+                    context,
+                    self.action_generation,
+                    self.action_state,
+                    None,
+                    None,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    ACTION_COMPLETION_EFFECT,
+                    context,
+                    self.action_generation,
+                    self.action_state,
+                    self.action_target.as_deref(),
+                    self.action_semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    ACTION_COMPLETION_EFFECT,
+                    context,
+                    self.action_generation,
+                    self.action_target.as_deref()?,
+                    self.action_semantic.as_deref()?,
+                    self.action_detail.as_deref().unwrap_or("{}"),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    ACTION_COMPLETION_EFFECT,
+                    context,
+                    self.action_generation,
+                    self.action_target.as_deref()?,
+                    self.action_semantic.as_deref()?,
+                    self.action_error
+                        .as_deref()
+                        .unwrap_or("Loom search action failed"),
+                    self.action_detail.as_deref(),
+                )
+            }
         }
     }
 
@@ -330,35 +541,80 @@ impl LoomSearchV2PanelState {
     /// top of [`show`]; returns `true` if anything was delivered (so the caller may request a repaint).
     pub fn poll(&mut self) -> bool {
         let mut changed = false;
-        if let Ok(mut slot) = self.search_cell.lock() {
-            if let Some(result) = slot.take() {
-                self.loading = false;
-                match result {
-                    Ok(resp) => {
-                        self.response = Some(resp);
-                        self.error = None;
-                    }
-                    Err(msg) => {
-                        self.response = None;
-                        self.error = Some(msg);
-                    }
+        let search_delivery = self
+            .search_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take());
+        if let Some(result) = search_delivery {
+            self.loading = false;
+            // The AUTHORITATIVE terminal state for a Search/facet activation is this exact delivery,
+            // not the visible row set: only the response (or its typed transport failure) can
+            // causally acknowledge the dispatched request.
+            let action_kind = match self.action_kind {
+                Some(kind @ (LoomSearchActionKind::Search | LoomSearchActionKind::Facet)) => {
+                    Some(kind)
                 }
-                changed = true;
-            }
-        }
-        if let Ok(mut slot) = self.save_cell.lock() {
-            if let Some(result) = slot.take() {
-                self.save_in_flight = false;
-                self.view_status = Some(match result {
-                    Ok(block_id) => {
-                        self.saved_view_block_id = Some(block_id.clone());
-                        self.save_attempt_id = None;
-                        format!("Saved search as Loom view {block_id}")
+                _ => None,
+            };
+            match result {
+                Ok(resp) => {
+                    if let Some(kind) = action_kind {
+                        let detail = serde_json::json!({
+                            "total": resp.total,
+                            "result_count": resp.hits.len(),
+                            "semantic_available": resp.semantic_available,
+                            "content_type": self.active_content_type,
+                            "result_block_ids": resp
+                                .hits
+                                .iter()
+                                .take(16)
+                                .map(|hit| hit.block.block_id.clone())
+                                .collect::<Vec<_>>(),
+                        })
+                        .to_string();
+                        self.complete_action(kind, detail);
                     }
-                    Err(msg) => format!("Save view failed: {msg}"),
-                });
-                changed = true;
+                    self.response = Some(resp);
+                    self.error = None;
+                }
+                Err(msg) => {
+                    if let Some(kind) = action_kind {
+                        self.fail_action(kind, format!("Loom search failed: {msg}"));
+                    }
+                    self.response = None;
+                    self.error = Some(msg);
+                }
             }
+            changed = true;
+        }
+        let save_delivery = self.save_cell.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(result) = save_delivery {
+            self.save_in_flight = false;
+            let action_kind = (self.action_kind == Some(LoomSearchActionKind::SaveView))
+                .then_some(LoomSearchActionKind::SaveView);
+            self.view_status = Some(match result {
+                Ok(block_id) => {
+                    self.saved_view_block_id = Some(block_id.clone());
+                    self.save_attempt_id = None;
+                    if let Some(kind) = action_kind {
+                        let detail = serde_json::json!({
+                            "saved_view_block_id": block_id,
+                            "content_type": self.active_content_type,
+                        })
+                        .to_string();
+                        self.complete_action(kind, detail);
+                    }
+                    format!("Saved search as Loom view {block_id}")
+                }
+                Err(msg) => {
+                    if let Some(kind) = action_kind {
+                        self.fail_action(kind, format!("Loom save-as-view failed: {msg}"));
+                    }
+                    format!("Save view failed: {msg}")
+                }
+            });
+            changed = true;
         }
         changed
     }
@@ -366,16 +622,18 @@ impl LoomSearchV2PanelState {
     /// Fire a search against `workspace_id` using the current query + active facet. Guards the
     /// no-workspace case (MC-7: show an error, NO HTTP call) and the empty-query case (the backend
     /// requires a non-empty query). On a real fire, sets `loading` and clears the previous error.
-    pub fn run_search(&mut self, client: &LoomSearchV2Client, workspace_id: Option<&str>) {
+    /// Returns `true` when a real request was dispatched, `false` when a guard rejected it before
+    /// transport (the caller terminalises the bound action-completion as a typed failure).
+    pub fn run_search(&mut self, client: &LoomSearchV2Client, workspace_id: Option<&str>) -> bool {
         self.bind_workspace(workspace_id);
         let Some(ws) = workspace_id else {
             self.error = Some("No workspace selected".to_owned());
-            return;
+            return false;
         };
         let trimmed = self.query.trim();
         if trimmed.is_empty() {
             self.error = Some("Search query is required".to_owned());
-            return;
+            return false;
         }
         let body = LoomSearchV2Body::baseline(trimmed.to_owned(), self.active_content_type.clone());
         self.loading = true;
@@ -391,6 +649,7 @@ impl LoomSearchV2PanelState {
         self.save_cell = Arc::new(Mutex::new(None));
         self.save_attempt_id = None;
         client.search(ws, &body, Arc::clone(&self.search_cell));
+        true
     }
 
     /// Toggle a content_type facet and immediately re-run the search. Clicking the active facet again
@@ -400,28 +659,34 @@ impl LoomSearchV2PanelState {
         content_type: &str,
         client: &LoomSearchV2Client,
         workspace_id: Option<&str>,
-    ) {
+    ) -> bool {
         if self.active_content_type.as_deref() == Some(content_type) {
             self.active_content_type = None;
         } else {
             self.active_content_type = Some(content_type.to_owned());
         }
-        self.run_search(client, workspace_id);
+        self.run_search(client, workspace_id)
     }
 
     /// Save the current results as a Loom view (createBlockView). No-op when there are no results
     /// (the button is also disabled in that state) or no workspace.
-    pub fn save_as_view(&mut self, client: &LoomSearchV2Client, workspace_id: Option<&str>) {
+    ///
+    /// Returns `true` when a real create-view request was dispatched.
+    pub fn save_as_view(
+        &mut self,
+        client: &LoomSearchV2Client,
+        workspace_id: Option<&str>,
+    ) -> bool {
         self.bind_workspace(workspace_id);
         let Some(ws) = workspace_id else {
             self.view_status = Some("Save view failed: No workspace selected".to_owned());
-            return;
+            return false;
         };
         if !self.has_results() {
-            return;
+            return false;
         }
         if self.save_in_flight {
-            return;
+            return false;
         }
         self.view_status = None;
         self.save_in_flight = true;
@@ -438,6 +703,7 @@ impl LoomSearchV2PanelState {
             self.active_content_type.as_deref(),
             Arc::clone(&self.save_cell),
         );
+        true
     }
 
     /// React to a query-text edit. Every search response, error, and save receipt is derived from the
@@ -488,6 +754,13 @@ pub fn show(
     show_with_author_scope(ui, state, palette, client, workspace_id, callbacks, None);
 }
 
+/// The plain `show` compatibility path is not mounted under the shell's open-completion observer, so
+/// result rows carry no navigation declaration there.
+const UNBOUND_OPEN_COMPLETION: LoomSearchOpenCompletionBinding = LoomSearchOpenCompletionBinding {
+    generation: 0,
+    ready: false,
+};
+
 /// Render with an optional secondary-pane author-id scope. `None` is the primary pane and preserves
 /// canonical `search.*` ids; a secondary pane appends its injectively encoded stable pane id.
 #[allow(clippy::too_many_arguments)]
@@ -511,6 +784,7 @@ fn show_with_author_scope(
         workspace_id,
         &mut open,
         secondary_pane_id,
+        UNBOUND_OPEN_COMPLETION,
     );
 }
 
@@ -526,6 +800,7 @@ fn show_with_author_scope_and_dispatch(
     workspace_id: Option<&str>,
     on_open_block: &mut dyn FnMut(&str, &str),
     secondary_pane_id: Option<&str>,
+    open_completion: LoomSearchOpenCompletionBinding,
 ) {
     state.bind_workspace(workspace_id);
     // Drain any delivered async result first, then keep repainting while a request is in flight so the
@@ -549,6 +824,14 @@ fn show_with_author_scope_and_dispatch(
     let open_saved_view_author_id =
         pane_scoped_author_id(OPEN_SAVED_VIEW_AUTHOR_ID, secondary_pane_id);
     let status_author_id = pane_scoped_author_id(STATUS_AUTHOR_ID, secondary_pane_id);
+    let action_completion_author_id =
+        pane_scoped_author_id(ACTION_COMPLETION_AUTHOR_ID, secondary_pane_id);
+    let action_completion_context =
+        format!("loom-search-v2.action:{action_completion_author_id}");
+    let query_completion_author_id =
+        crate::mcp::action::set_value_completion_author_id(&query_author_id);
+    let search_semantic = state.action_semantic_value(LoomSearchActionKind::Search, None);
+    let save_semantic = state.action_semantic_value(LoomSearchActionKind::SaveView, None);
     ui.horizontal(|ui| {
         let edit = egui::TextEdit::singleline(&mut state.query)
             .hint_text("Search Notes")
@@ -581,8 +864,14 @@ fn show_with_author_scope_and_dispatch(
             }
         });
         if let Some(query) = swarm_query {
-            state.query = query;
+            // The production widget consumed the exact target-specific AccessKit SetValue request.
+            // Publishing that fact through the sibling completion observer is what lets
+            // `crate::mcp::action` distinguish an Argus-caused mutation from an unrelated write that
+            // merely happens to reach the same text.
+            state.query.clone_from(&query);
+            state.record_query_set_value(&query);
             state.on_query_edited();
+            ui.ctx().request_repaint();
         }
         if !swarm_append.is_empty() {
             state.query.push_str(&swarm_append.concat());
@@ -591,6 +880,17 @@ fn show_with_author_scope_and_dispatch(
         if resp.changed() {
             state.on_query_edited();
         }
+        let query_completion_value = state.query_set_value_completion(&query_author_id);
+        let query_completion_id = ui.make_persistent_id(&query_completion_author_id);
+        ui.ctx()
+            .accesskit_node_builder(query_completion_id, |node| {
+                node.set_role(egui::accesskit::Role::Status);
+                node.set_author_id(query_completion_author_id.clone());
+                node.set_label("Notes Search query SetValue completion");
+                if let Some(value) = query_completion_value {
+                    node.set_value(value);
+                }
+            });
         // Enter in the focused field fires the search (React parity: onKeyDown Enter).
         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             fire_search = true;
@@ -598,6 +898,16 @@ fn show_with_author_scope_and_dispatch(
 
         let search_btn = ui.button("Search");
         accessibility::emit_interactive_node(ui.ctx(), search_btn.id, &search_author_id);
+        let search_declaration = state.action_target_declaration(
+            &action_completion_author_id,
+            &action_completion_context,
+            &search_semantic,
+        );
+        ui.ctx().accesskit_node_builder(search_btn.id, |node| {
+            if let Some(value) = search_declaration {
+                node.set_value(value);
+            }
+        });
         if search_btn.clicked() {
             fire_search = true;
         }
@@ -611,6 +921,16 @@ fn show_with_author_scope_and_dispatch(
             }),
         );
         accessibility::emit_interactive_node(ui.ctx(), save_btn.id, &save_view_author_id);
+        let save_declaration = state.action_target_declaration(
+            &action_completion_author_id,
+            &action_completion_context,
+            &save_semantic,
+        );
+        ui.ctx().accesskit_node_builder(save_btn.id, |node| {
+            if let Some(value) = save_declaration {
+                node.set_value(value);
+            }
+        });
         if save_btn.clicked() {
             fire_save = true;
         }
@@ -629,6 +949,22 @@ fn show_with_author_scope_and_dispatch(
             }
         }
     });
+
+    // ── Durable action-completion observer (Search / facet / Save-as-view) ──
+    // This node is the CAUSAL acknowledgement surface: it advances to Applied/Failed only when the
+    // authoritative backend delivery for the dispatched activation lands. A generic click on any of
+    // those controls without this observer terminates as `Indeterminate` by design.
+    let action_observer_value = state.action_observer_value(&action_completion_context);
+    let action_completion_id = ui.make_persistent_id(&action_completion_author_id);
+    ui.ctx()
+        .accesskit_node_builder(action_completion_id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(action_completion_author_id.clone());
+            node.set_label("Notes Search action completion");
+            if let Some(value) = action_observer_value {
+                node.set_value(value);
+            }
+        });
 
     // ── Status line ──
     let status_text = state.status_text();
@@ -670,12 +1006,32 @@ fn show_with_author_scope_and_dispatch(
                     let active =
                         state.active_content_type.as_deref() == Some(content_type.as_str());
                     let label = format!("{content_type} ({count})");
-                    let btn = ui.add(egui::Button::new(label).selected(active));
+                    // Scope the widget id by content_type so the facet's stable AccessKit NodeId
+                    // survives a count/order change. The persistent-completion contract requires the
+                    // exact same node identity before and after the activation.
+                    let btn = ui
+                        .push_id(content_type.as_str(), |ui| {
+                            ui.add(egui::Button::new(label).selected(active))
+                        })
+                        .inner;
                     accessibility::emit_interactive_node(
                         ui.ctx(),
                         btn.id,
                         &pane_scoped_author_id(&facet_author_id(content_type), secondary_pane_id),
                     );
+                    let facet_declaration = state.action_target_declaration(
+                        &action_completion_author_id,
+                        &action_completion_context,
+                        &state.action_semantic_value(
+                            LoomSearchActionKind::Facet,
+                            Some(content_type.as_str()),
+                        ),
+                    );
+                    ui.ctx().accesskit_node_builder(btn.id, |node| {
+                        if let Some(value) = facet_declaration {
+                            node.set_value(value);
+                        }
+                    });
                     if btn.clicked() {
                         toggle_facet = Some(content_type.clone());
                     }
@@ -736,6 +1092,23 @@ fn show_with_author_scope_and_dispatch(
                         row.id,
                         &pane_scoped_result_author_id(&block_id, secondary_pane_id),
                     );
+                    // A routed result REPLACES this surface with the target editor, so the row is a
+                    // TRANSIENT observer target bound to the shell-owned open-completion observer:
+                    // the acknowledgement survives the row's disappearance.
+                    let open_declaration = open_completion.ready.then(|| {
+                        crate::mcp::action::serialize_observer_click_target(
+                            OPEN_COMPLETION_EFFECT,
+                            OPEN_COMPLETION_CONTEXT,
+                            open_completion.generation,
+                            OPEN_COMPLETION_AUTHOR_ID,
+                            &open_result_semantic(&block_id, &hit.block.content_type),
+                        )
+                    });
+                    ui.ctx().accesskit_node_builder(row.id, |node| {
+                        if let Some(Some(value)) = open_declaration {
+                            node.set_value(value);
+                        }
+                    });
                     if row.clicked() {
                         open_block = Some((block_id, hit.block.content_type.clone()));
                     }
@@ -744,17 +1117,53 @@ fn show_with_author_scope_and_dispatch(
     }
 
     // ── Dispatch deferred actions (after the borrows of `state.response` end) ──
+    // Each activation OPENS its completion transition BEFORE the request is dispatched, so the
+    // declaration the caller saw at generation N is answered by the observer at exactly N + 1. A
+    // guard that rejects the request before transport publishes the typed failure immediately.
     if let Some(content_type) = toggle_facet {
-        state.toggle_facet(&content_type, client, workspace_id);
+        let semantic =
+            state.action_semantic_value(LoomSearchActionKind::Facet, Some(content_type.as_str()));
+        let target =
+            pane_scoped_author_id(&facet_author_id(&content_type), secondary_pane_id);
+        state.begin_action(LoomSearchActionKind::Facet, target, semantic);
+        if !state.toggle_facet(&content_type, client, workspace_id) {
+            let reason = state
+                .error
+                .clone()
+                .unwrap_or_else(|| "facet search did not start".to_owned());
+            state.fail_action(LoomSearchActionKind::Facet, reason);
+        }
     }
     if let Some((block_id, content_type)) = open_block {
         on_open_block(&block_id, &content_type);
     }
     if fire_search {
-        state.run_search(client, workspace_id);
+        state.begin_action(
+            LoomSearchActionKind::Search,
+            search_author_id.clone(),
+            search_semantic.clone(),
+        );
+        if !state.run_search(client, workspace_id) {
+            let reason = state
+                .error
+                .clone()
+                .unwrap_or_else(|| "search did not start".to_owned());
+            state.fail_action(LoomSearchActionKind::Search, reason);
+        }
     }
     if fire_save {
-        state.save_as_view(client, workspace_id);
+        state.begin_action(
+            LoomSearchActionKind::SaveView,
+            save_view_author_id.clone(),
+            save_semantic.clone(),
+        );
+        if !state.save_as_view(client, workspace_id) {
+            let reason = state
+                .view_status
+                .clone()
+                .unwrap_or_else(|| "save as view did not start".to_owned());
+            state.fail_action(LoomSearchActionKind::SaveView, reason);
+        }
     }
 }
 
@@ -789,6 +1198,9 @@ pub struct LoomSearchV2PaneShared {
     /// Typed targets the operator/agent clicked this frame, drained by the shell into the exact
     /// originating pane's open path (FIFO).
     pub open_requests: Vec<LoomSearchOpenRequest>,
+    /// The shell-owned [`OPEN_COMPLETION_AUTHOR_ID`] observer binding, pushed every frame BEFORE the
+    /// pane host renders so a result row declares the exact current generation.
+    pub open_completion: LoomSearchOpenCompletionBinding,
 }
 
 impl LoomSearchV2PaneShared {
@@ -799,6 +1211,7 @@ impl LoomSearchV2PaneShared {
             palette,
             active_pane_id: None,
             open_requests: Vec::new(),
+            open_completion: LoomSearchOpenCompletionBinding::default(),
         }
     }
 }
@@ -887,12 +1300,13 @@ impl PaneFactory for LoomSearchV2PaneFactory {
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
         // Read the per-frame inputs (workspace id + palette) under a short lock, so the long-lived
         // `show` borrow does not hold the shared mutex while the panel renders.
-        let (workspace_id, palette, active_pane_id) = {
+        let (workspace_id, palette, active_pane_id, open_completion) = {
             let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             (
                 guard.workspace_id.clone(),
                 guard.palette.clone(),
                 guard.active_pane_id.clone(),
+                guard.open_completion,
             )
         };
         let shared_for_open = Arc::clone(&self.shared);
@@ -944,6 +1358,7 @@ impl PaneFactory for LoomSearchV2PaneFactory {
             workspace_id.as_deref(),
             &mut on_open,
             secondary_pane_id,
+            open_completion,
         );
     }
 }
@@ -1174,10 +1589,33 @@ mod tests {
         assert_eq!(
             authors
                 .iter()
-                .filter(|author| author.starts_with("search.query"))
+                .filter(|author| author.starts_with("search.query")
+                    && !author.ends_with(".set-value-completion"))
                 .count(),
             2,
             "both mounted pane query nodes remain addressable"
+        );
+        // Each mounted query input owns its OWN causal SetValue acknowledgement sibling; a shared one
+        // would let a mutation in pane A acknowledge a request dispatched against pane B.
+        assert_eq!(
+            authors
+                .iter()
+                .filter(|author| author.starts_with("search.query")
+                    && author.ends_with(".set-value-completion"))
+                .count(),
+            2,
+            "both mounted pane query inputs publish their own SetValue completion observer"
+        );
+        assert!(authors
+            .iter()
+            .any(|author| author.as_str() == ACTION_COMPLETION_AUTHOR_ID));
+        assert_eq!(
+            authors
+                .iter()
+                .filter(|author| author.starts_with(ACTION_COMPLETION_AUTHOR_ID))
+                .count(),
+            2,
+            "each mounted Notes Search pane owns its own action-completion observer"
         );
 
         let states = factory.states.lock().expect("mounted pane states");

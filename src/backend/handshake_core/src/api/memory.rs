@@ -1685,11 +1685,14 @@ mod tests {
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use std::sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, LazyLock, Mutex,
+        Arc,
     };
     use uuid::Uuid;
 
-    static MEMORY_AUTH_ENV_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+    // One shared guard for the process-global test binding env var: `api::flight_recorder`'s
+    // authorization suite installs the same binding, and two suites racing on it would
+    // authenticate against each other's token.
+    use crate::api::stage::NATIVE_BINDING_ENV_LOCK as MEMORY_AUTH_ENV_LOCK;
 
     struct BindingEnvGuard {
         previous: Option<std::ffi::OsString>,

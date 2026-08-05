@@ -97,6 +97,17 @@ pub const FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID: &str = "fems-review-refresh-retry
 /// `Role::RadioButton`). The full id is built by [`fems_class_author_id`].
 pub const FEMS_CLASS_AUTHOR_PREFIX: &str = "fems-class-";
 
+/// AccessKit author_id for the durable class-selection state (`Role::Status`) — WP-KERNEL-012 MT-064
+/// `validation_v4` remediation item 4.
+///
+/// A `Role::RadioButton` exposes its selected state as an AccessKit boolean, which is NOT projected
+/// into the `UiTreeSnapshot` an out-of-process Argus client reads over JSON-RPC. Receipt 6 for
+/// `fems-class-procedural` therefore had no addressable value proving THAT radio's own effect. This
+/// durable status node publishes the exact selected class, the class the PREVIEWED proposal carries,
+/// and the per-radio booleans as a stable semicolon-delimited machine projection, so a canonical
+/// receipt binds to an authoritative selection value instead of inferring one from "something changed".
+pub const FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID: &str = "fems-propose-class-state";
+
 // ── Fixed AccessKit `NodeId` for the dialog ROOT (the WP-011 registry convention — AC-007, MC-010) ──
 // Every other shell modal dialog (command_palette/quick_switcher/settings) pins a fixed `NodeId` for its
 // dialog ROOT container and enrolls it in `accessibility::registry::DECLARED_IDENTITIES` so the
@@ -123,6 +134,28 @@ pub const FEMS_PROPOSE_COMMAND_LABEL: &str = "Propose to Memory";
 /// Build the stable AccessKit author_id for a class radio (`fems-class-{episodic|semantic|procedural}`).
 pub fn fems_class_author_id(class: MemoryClass) -> String {
     format!("{FEMS_CLASS_AUTHOR_PREFIX}{}", class.wire())
+}
+
+/// The stable machine projection published by [`FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID`] (MT-064 V5).
+///
+/// `selected_class` is the radio the operator/swarm currently has selected; `proposal_class` is the
+/// class the PREVIEWED proposal carries (they are equal once the dialog has reconciled the radio into
+/// the preview). The per-class booleans let a snapshot reader assert the exact radio without parsing
+/// the class name, and `content_hash` ties the selection state to the exact previewed content.
+pub fn fems_class_state_value(
+    selected_class: MemoryClass,
+    proposal_class: MemoryClass,
+    content_hash: &str,
+) -> String {
+    format!(
+        "selected_class={};proposal_class={};episodic={};semantic={};procedural={};content_hash={}",
+        selected_class.wire(),
+        proposal_class.wire(),
+        selected_class == MemoryClass::Episodic,
+        selected_class == MemoryClass::Semantic,
+        selected_class == MemoryClass::Procedural,
+        content_hash
+    )
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1492,8 +1525,14 @@ impl ProposeToMemoryDialog {
                         })
                         .inner;
                     emit_interactive_node(ui.ctx(), resp.id, &author_id);
-                    ui.ctx().accesskit_node_builder(resp.id, |node| {
+                    let accesskit_selected = self.class == class;
+                    ui.ctx().accesskit_node_builder(resp.id, move |node| {
                         node.clear_disabled();
+                        // MT-064 V5: publish the radio's own selected state so a canonical Argus
+                        // client (and the mounted live-tree sampler that records
+                        // `target_selected_before`/`target_selected_after`) reads THIS radio's effect
+                        // rather than inferring it from an unrelated later state.
+                        node.set_selected(accesskit_selected);
                     });
                     if ui.input(|input| {
                         input
@@ -1509,6 +1548,22 @@ impl ProposeToMemoryDialog {
             if self.proposal.class != self.class {
                 self.set_class(self.class);
             }
+
+            // MT-064 V5: the durable, snapshot-addressable class-selection state. Emitted AFTER the
+            // radio/preview reconcile above so the published value is the class the previewed proposal
+            // will actually submit, never a half-applied intermediate.
+            let class_state_value = fems_class_state_value(
+                self.class,
+                self.proposal.class,
+                &self.proposal.source.content_hash,
+            );
+            let class_state_id = egui::Id::new(FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID);
+            ui.ctx().accesskit_node_builder(class_state_id, move |node| {
+                node.set_role(egui::accesskit::Role::Status);
+                node.set_author_id(FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID.to_owned());
+                node.set_label("Propose to Memory class selection".to_owned());
+                node.set_value(class_state_value.clone());
+            });
 
             // Preview: the selected content + the computed content_hash (short prefix) so the operator
             // sees exactly what will be proposed.

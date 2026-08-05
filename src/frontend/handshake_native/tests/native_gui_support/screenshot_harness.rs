@@ -196,6 +196,15 @@ impl<State> ScreenshotHarness<'_, State> {
         }
     }
 
+    /// Advance one ordinary application frame before capturing proof pixels. Canonical action
+    /// receipts and AccessKit snapshots can terminalize in the dispatch frame while wgpu still owns
+    /// the preceding painted frame; this seam makes the pixel artifact observe the same settled state.
+    #[track_caller]
+    pub fn render_settled_proof_frame(&mut self, expectation: &str) -> Option<image::RgbaImage> {
+        self.inner.step();
+        self.render_proof_frame(expectation)
+    }
+
     pub fn last_screenshot_outcome(&self) -> Option<&ScreenshotOutcomeEvidence> {
         self.last_screenshot_outcome.as_ref()
     }

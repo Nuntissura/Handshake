@@ -1111,7 +1111,11 @@ fn in_flight_mutation_controls_are_accessibly_disabled() {
     let view = shared(seeded_table(1));
     view.lock().unwrap().in_flight = true;
     let mut harness = harness_for(view, Arc::new(Mutex::new(Vec::new())));
-    harness.run();
+    // A genuine in-flight mutation deliberately requests the next frame every frame (the host clears
+    // `in_flight` when the authoritative re-query lands), so `Harness::run` — which requires the UI to
+    // stop requesting repaints — can never converge here and panics on max_steps. This is the same
+    // `step`-based drive the sibling in-flight popup test uses; the assertions below are unchanged.
+    harness.run_steps(3);
     let sort_author_id = table_sort_author_id(BlockViewField::Title);
     for author_id in [
         KIND_KANBAN_AUTHOR_ID,
@@ -1763,6 +1767,192 @@ fn json_node_by_author_id<'a>(
     }
 }
 
+// ── WP-KERNEL-012 MT-027 V5: terminal canonical receipt binding (validation_v4 remediation 1) ─────
+//
+// `validation_v4` accepted that the ACTIONS were driven but rejected the receipts: they were
+// `indeterminate` and the terminal evidence lived only in test-code assertions. Every canonical row now
+// carries, inside the receipt itself: the named predicate result, the target/receipt-status binding,
+// the workspace + view identity, an INDEPENDENT authoritative backend re-read taken through a fresh
+// product client, and a digest of the exact terminal AccessKit tree the predicate was evaluated
+// against. The external wrapper recomputes the digest from the persisted row, so the receipt is
+// verifiable without trusting the test process.
+
+/// Canonical, order-independent digest of the addressable state of an Argus tree: one
+/// unit-separated `author_id / role / label / value / disabled` line per addressable node, sorted, then
+/// SHA-256. Volatile fields (node ids, bounds, capture timestamps) are deliberately excluded so two
+/// consecutive captures of a SETTLED surface agree, and `run_mt027_argus_proof.ps1` recomputes exactly
+/// this digest from the persisted `after` tree.
+#[cfg(feature = "integration")]
+fn canonical_tree_digest(tree: &serde_json::Value) -> String {
+    use sha2::{Digest, Sha256};
+
+    fn collect(node: &serde_json::Value, lines: &mut Vec<String>) {
+        match node {
+            serde_json::Value::Object(object) => {
+                if let Some(author_id) = object.get("author_id").and_then(serde_json::Value::as_str)
+                {
+                    let role = object
+                        .get("role")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("\u{0}");
+                    let label = object
+                        .get("label")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("\u{0}");
+                    let value = object
+                        .get("value")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("\u{0}");
+                    let disabled = match object.get("disabled").and_then(serde_json::Value::as_bool)
+                    {
+                        Some(true) => "1",
+                        Some(false) => "0",
+                        None => "\u{0}",
+                    };
+                    lines.push(format!(
+                        "{author_id}\u{1f}{role}\u{1f}{label}\u{1f}{value}\u{1f}{disabled}"
+                    ));
+                }
+                for child in object.values() {
+                    collect(child, lines);
+                }
+            }
+            serde_json::Value::Array(values) => {
+                for child in values {
+                    collect(child, lines);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut lines = Vec::new();
+    collect(tree, &mut lines);
+    lines.sort();
+    let mut hasher = Sha256::new();
+    for line in &lines {
+        hasher.update(line.as_bytes());
+        hasher.update(b"\n");
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+/// An INDEPENDENT authoritative re-read of the saved view through a fresh product client. This is the
+/// "authoritative backend revision/readback" the receipt carries: it is taken from PostgreSQL through
+/// the real routes, not from the widget's own projection.
+#[cfg(feature = "integration")]
+fn backend_readback(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    view_id: Option<&str>,
+) -> serde_json::Value {
+    let Some(view_id) = view_id.filter(|id| !id.is_empty()) else {
+        return serde_json::json!({
+            "bound": false,
+            "reason": "pane_is_unbound_no_saved_view_definition_exists",
+        });
+    };
+    let record = live_fetch_view(client, workspace_id, view_id);
+    let results = live_query_view(client, workspace_id, view_id);
+    serde_json::json!({
+        "bound": true,
+        "view_block_id": record.view_block_id,
+        "kind": record.definition.kind.as_str(),
+        "sort_field": record.definition.sort.map(|sort| sort.field.as_str()),
+        "sort_direction": record.definition.sort.map(|sort| sort.direction.as_str()),
+        "date_from": record.definition.query.date_from,
+        "date_to": record.definition.query.date_to,
+        "results_kind": results.kind_str,
+        "total_returned": results.total_returned,
+        "block_ids": results
+            .blocks
+            .iter()
+            .map(|block| block.block_id.clone())
+            .collect::<Vec<_>>(),
+        "lanes": results
+            .groups
+            .iter()
+            .map(|lane| serde_json::json!({
+                "key": lane.key,
+                "members": lane
+                    .blocks
+                    .iter()
+                    .map(|block| block.block_id.clone())
+                    .collect::<Vec<_>>(),
+            }))
+            .collect::<Vec<_>>(),
+    })
+}
+
+/// Assemble the receipt-embedded evidence for one canonical action.
+#[cfg(feature = "integration")]
+fn receipt_evidence(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    view_id: Option<&str>,
+    target: &str,
+    expected_receipt_status: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema_id": "hsk.mt027.terminal_receipt_evidence@1",
+        "receipt_binding": {
+            "target": target,
+            "expected_receipt_status": expected_receipt_status,
+        },
+        "workspace_id": workspace_id,
+        "view_block_id": view_id,
+        "backend_readback": backend_readback(client, workspace_id, view_id),
+    })
+}
+
+/// Bind the named terminal predicate to the latest canonical action AND persist the terminal tree
+/// digest into the same receipt row. The predicate is evaluated against a FRESHLY reinspected
+/// authoritative tree and must additionally reproduce the recorded digest, so the row's `after` tree,
+/// its digest, and the predicate verdict are one indivisible record.
+#[cfg(feature = "integration")]
+fn bind_terminal_receipt(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    predicate_id: &str,
+    evidence: serde_json::Value,
+    predicate: impl Fn(&serde_json::Value) -> bool,
+) -> serde_json::Value {
+    let settled = argus.reinspect_latest_terminal(harness);
+    let digest = canonical_tree_digest(&settled);
+    let mut evidence = evidence;
+    let object = evidence
+        .as_object_mut()
+        .expect("MT-027 receipt evidence is a JSON object");
+    object.insert(
+        "terminal_tree_sha256".to_owned(),
+        serde_json::Value::String(digest.clone()),
+    );
+    object.insert(
+        "terminal_tree_digest_algorithm".to_owned(),
+        serde_json::Value::String(
+            "sha256_of_sorted_unit_separated_author_id_role_label_value_disabled_lines".to_owned(),
+        ),
+    );
+    let expected_digest = digest.clone();
+    argus.assert_latest_terminal_predicate_with_evidence(
+        harness,
+        predicate_id,
+        evidence,
+        move |tree| predicate(tree) && canonical_tree_digest(tree) == expected_digest,
+    )
+}
+
+/// The sibling Role::Status node that carries a declaring button's selection state (MT-027 V5: the
+/// button's own `value` is taken over by its completion declaration).
+#[cfg(feature = "integration")]
+fn selection_is(value: &serde_json::Value, author_id: &str, expected: &str) -> bool {
+    json_author_value_is(
+        value,
+        &handshake_native::graph::block_collection_view::button_state_author_id(author_id),
+        expected,
+    )
+}
+
 #[cfg(feature = "integration")]
 fn json_author_value_is(value: &serde_json::Value, author_id: &str, expected: &str) -> bool {
     json_author_values(value, author_id).is_some_and(|values| values.as_slice() == [expected])
@@ -2363,9 +2553,17 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     app_harness.step();
     let mounted_table = await_app_collection(&mut app_harness, &table_id);
     assert_eq!(mounted_table.kind, BlockViewKind::Calendar);
-    let recovered_tree = argus.assert_latest_terminal_predicate(
+    let recovered_tree = bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "initial-retry-recovered-projection",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&table_id),
+            RETRY_AUTHOR_ID,
+            "applied",
+        ),
         |tree| {
             !json_has_author_id(tree, RETRY_AUTHOR_ID)
                 && json_has_author_id(tree, KIND_CALENDAR_AUTHOR_ID)
@@ -2398,36 +2596,76 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         await_app_collection(&mut app_harness, &table_id).kind,
         BlockViewKind::Table
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-table-selected", |tree| {
-        json_author_value_is(tree, KIND_TABLE_AUTHOR_ID, "selected")
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "kind-table-selected",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&table_id),
+            KIND_TABLE_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| selection_is(tree, KIND_TABLE_AUTHOR_ID, "selected"),
+    );
     argus.click_and_reinspect(&mut app_harness, KIND_KANBAN_AUTHOR_ID);
     app_harness.step();
     assert_eq!(
         await_app_collection(&mut app_harness, &table_id).kind,
         BlockViewKind::Kanban
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-kanban-selected", |tree| {
-        json_author_value_is(tree, KIND_KANBAN_AUTHOR_ID, "selected")
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "kind-kanban-selected",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&table_id),
+            KIND_KANBAN_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| selection_is(tree, KIND_KANBAN_AUTHOR_ID, "selected"),
+    );
     argus.click_and_reinspect(&mut app_harness, KIND_CALENDAR_AUTHOR_ID);
     app_harness.step();
     assert_eq!(
         await_app_collection(&mut app_harness, &table_id).kind,
         BlockViewKind::Calendar
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-calendar-selected", |tree| {
-        json_author_value_is(tree, KIND_CALENDAR_AUTHOR_ID, "selected")
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "kind-calendar-selected",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&table_id),
+            KIND_CALENDAR_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| selection_is(tree, KIND_CALENDAR_AUTHOR_ID, "selected"),
+    );
     argus.click_and_reinspect(&mut app_harness, KIND_TABLE_AUTHOR_ID);
     app_harness.step();
     assert_eq!(
         await_app_collection(&mut app_harness, &table_id).kind,
         BlockViewKind::Table
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "kind-table-restored", |tree| {
-        json_author_value_is(tree, KIND_TABLE_AUTHOR_ID, "selected")
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "kind-table-restored",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&table_id),
+            KIND_TABLE_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| selection_is(tree, KIND_TABLE_AUTHOR_ID, "selected"),
+    );
     argus.click_and_reinspect(
         &mut app_harness,
         &table_sort_author_id(BlockViewField::Title),
@@ -2441,12 +2679,24 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         })
     );
     let sort_title_author_id = table_sort_author_id(BlockViewField::Title);
-    argus.assert_latest_terminal_predicate(&mut app_harness, "sort-title-ascending", |tree| {
-        json_node_by_author_id(tree, &sort_title_author_id)
-            .and_then(|node| node.get("label"))
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|label| label == "Title ▲")
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "sort-title-ascending",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&table_id),
+            &sort_title_author_id,
+            "applied",
+        ),
+        |tree| {
+            json_node_by_author_id(tree, &sort_title_author_id)
+                .and_then(|node| node.get("label"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|label| label == "Title ▲")
+        },
+    );
 
     // Actual host Kanban mutation. Rebind via visible Retry, then enqueue the typed card event the real
     // drag surface emits; fresh backend state proves the host did not mutate lanes locally.
@@ -2461,11 +2711,24 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     await_app_collection(&mut app_harness, &kanban_id);
     let middle_card_author_id = kanban_card_author_id(&middle);
     let untagged_lane_author_id = kanban_lane_author_id(BLOCK_VIEW_UNTAGGED_LANE);
-    argus.assert_latest_terminal_predicate(&mut app_harness, "kanban-retry-loaded-card", |tree| {
-        json_has_author_id(tree, &untagged_lane_author_id)
-            && json_author_values(tree, &middle_card_author_id)
-                .is_some_and(|values| values.iter().all(|lane| *lane == BLOCK_VIEW_UNTAGGED_LANE))
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "kanban-retry-loaded-card",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&kanban_id),
+            RETRY_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| {
+            json_has_author_id(tree, &untagged_lane_author_id)
+                && json_author_values(tree, &middle_card_author_id).is_some_and(|values| {
+                    values.iter().all(|lane| *lane == BLOCK_VIEW_UNTAGGED_LANE)
+                })
+        },
+    );
     let live_kanban_ids = author_ids(&app_harness);
     assert!(live_kanban_ids.contains(&kanban_card_author_id(&middle)));
     argus.click_with_payload_and_reinspect(
@@ -2480,9 +2743,17 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     app_harness.step();
     await_app_collection(&mut app_harness, &kanban_id);
     let tag_a_lane_author_id = kanban_lane_author_id(&tag_a);
-    argus.assert_latest_terminal_predicate(
+    bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "kanban-card-moved-target-lane",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&kanban_id),
+            "collection.kanban-move",
+            "applied",
+        ),
         |tree| {
             json_has_author_id(tree, &tag_a_lane_author_id)
                 && json_author_values(tree, &middle_card_author_id).is_some_and(|values| {
@@ -2509,9 +2780,17 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     argus.click_and_reinspect(&mut app_harness, RETRY_AUTHOR_ID);
     app_harness.step();
     await_app_collection(&mut app_harness, &calendar_id);
-    argus.assert_latest_terminal_predicate(
+    bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "calendar-retry-loaded-controls",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&calendar_id),
+            RETRY_AUTHOR_ID,
+            "applied",
+        ),
         |tree| {
             json_has_author_id(
                 tree,
@@ -2527,36 +2806,63 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
         "2026-02-28",
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "calendar-from-value", |tree| {
-        json_author_value_is(
-            tree,
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "calendar-from-value",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&calendar_id),
             handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
-            "2026-02-28",
-        )
-    });
+            "applied",
+        ),
+        |tree| {
+            json_author_value_is(
+                tree,
+                handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
+                "2026-02-28",
+            )
+        },
+    );
     argus.set_value_and_reinspect(
         &mut app_harness,
         handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
         "2026-04-30",
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "calendar-to-value", |tree| {
-        json_author_value_is(
-            tree,
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "calendar-to-value",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&calendar_id),
             handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
-            "2026-04-30",
-        )
-    });
+            "applied",
+        ),
+        |tree| {
+            json_author_value_is(
+                tree,
+                handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
+                "2026-04-30",
+            )
+        },
+    );
     argus.click_and_reinspect(&mut app_harness, "bcv.calendar.apply-range");
     app_harness.step();
     let mounted_calendar = await_app_collection(&mut app_harness, &calendar_id);
     let march_one_entry_id = calendar_entry_author_id(&march_one);
     let march_two_entry_id = calendar_entry_author_id(&march_two);
     let april_one_entry_id = calendar_entry_author_id(&april_one);
-    argus.assert_latest_terminal_predicate_with_evidence(
-        &mut app_harness,
-        "calendar-range-terminal",
-        serde_json::json!({
-            "required_entries": [
+    let mut calendar_range_evidence = receipt_evidence(
+        &fresh_client,
+        &workspace_id,
+        Some(&calendar_id),
+        handshake_native::graph::block_collection_view::CALENDAR_APPLY_RANGE_AUTHOR_ID,
+        "applied",
+    );
+    calendar_range_evidence["required_entries"] = serde_json::json!([
                 {
                     "day_author_id": calendar_day_author_id("2026-03-01"),
                     "entry_author_id": march_one_entry_id.clone(),
@@ -2569,8 +2875,12 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
                     "day_author_id": calendar_day_author_id("2026-04-01"),
                     "entry_author_id": april_one_entry_id.clone(),
                 },
-            ],
-        }),
+    ]);
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "calendar-range-terminal",
+        calendar_range_evidence,
         |tree| {
             json_author_value_is(
                 tree,
@@ -2628,9 +2938,17 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     }
     let host_create_title = format!("{unique}-host-created");
     argus.click_and_reinspect(&mut app_harness, NEW_VIEW_AUTHOR_ID);
-    let create_tree = argus.assert_latest_terminal_predicate(
+    let create_tree = bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "unbound-create-form-open",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            None,
+            NEW_VIEW_AUTHOR_ID,
+            "applied",
+        ),
         |tree| {
             json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
                 && json_has_author_id(tree, NEW_VIEW_CONFIRM_AUTHOR_ID)
@@ -2648,14 +2966,32 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         NEW_VIEW_TITLE_AUTHOR_ID,
         &host_create_title,
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "unbound-create-title-set", |tree| {
-        json_author_value_is(tree, NEW_VIEW_TITLE_AUTHOR_ID, &host_create_title)
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "unbound-create-title-set",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            None,
+            NEW_VIEW_TITLE_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| json_author_value_is(tree, NEW_VIEW_TITLE_AUTHOR_ID, &host_create_title),
+    );
     argus.click_and_reinspect(&mut app_harness, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID);
-    argus.assert_latest_terminal_predicate(
+    bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "unbound-create-calendar-selected",
-        |tree| json_author_value_is(tree, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID, "selected"),
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            None,
+            NEW_VIEW_KIND_CALENDAR_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| selection_is(tree, NEW_VIEW_KIND_CALENDAR_AUTHOR_ID, "selected"),
     );
     argus.click_and_reinspect(&mut app_harness, NEW_VIEW_CONFIRM_AUTHOR_ID);
     app_harness.step();
@@ -2676,11 +3012,19 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     let host_created_id = host_created_id.expect("mounted host create did not resolve within 10s");
-    argus.assert_latest_terminal_predicate(
+    bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "unbound-create-calendar-terminal",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&host_created_id),
+            NEW_VIEW_CONFIRM_AUTHOR_ID,
+            "applied",
+        ),
         |tree| {
-            json_author_value_is(tree, KIND_CALENDAR_AUTHOR_ID, "selected")
+            selection_is(tree, KIND_CALENDAR_AUTHOR_ID, "selected")
                 && !json_has_author_id(tree, RETRY_AUTHOR_ID)
                 && !json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
         },
@@ -2705,25 +3049,63 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         .set_block_collection_backend_base_url_for_test("http://127.0.0.1:9");
     let retry_create_title = format!("{unique}-retry-created");
     argus.click_and_reinspect(&mut app_harness, NEW_VIEW_AUTHOR_ID);
-    argus.assert_latest_terminal_predicate(&mut app_harness, "retry-create-form-open", |tree| {
-        json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
-            && json_has_author_id(tree, NEW_VIEW_CONFIRM_AUTHOR_ID)
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "retry-create-form-open",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&host_created_id),
+            NEW_VIEW_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| {
+            json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
+                && json_has_author_id(tree, NEW_VIEW_CONFIRM_AUTHOR_ID)
+        },
+    );
     argus.set_value_and_reinspect(
         &mut app_harness,
         NEW_VIEW_TITLE_AUTHOR_ID,
         &retry_create_title,
     );
-    argus.assert_latest_terminal_predicate(&mut app_harness, "retry-create-title-set", |tree| {
-        json_author_value_is(tree, NEW_VIEW_TITLE_AUTHOR_ID, &retry_create_title)
-    });
+    bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "retry-create-title-set",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&host_created_id),
+            NEW_VIEW_TITLE_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| json_author_value_is(tree, NEW_VIEW_TITLE_AUTHOR_ID, &retry_create_title),
+    );
     argus.click_and_reinspect(&mut app_harness, NEW_VIEW_KIND_KANBAN_AUTHOR_ID);
-    argus.assert_latest_terminal_predicate(
+    bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "retry-create-kanban-selected",
-        |tree| json_author_value_is(tree, NEW_VIEW_KIND_KANBAN_AUTHOR_ID, "selected"),
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&host_created_id),
+            NEW_VIEW_KIND_KANBAN_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| selection_is(tree, NEW_VIEW_KIND_KANBAN_AUTHOR_ID, "selected"),
     );
-    argus.click_and_reinspect(&mut app_harness, NEW_VIEW_CONFIRM_AUTHOR_ID);
+    // MT-027 V5: this create MUST fail against the dead backend. The confirm control publishes a
+    // TYPED TERMINAL FAILURE through the same observer, so the canonical receipt is a causally bound
+    // `rejected` — never the conservative `indeterminate` that made validation_v4 fail.
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut app_harness,
+        NEW_VIEW_CONFIRM_AUTHOR_ID,
+        // `AppError::Http` Display prefix — the create POST cannot reach the dead 127.0.0.1:9 base.
+        "http:",
+    );
     app_harness.step();
     for _ in 0..200 {
         app_harness.step();
@@ -2733,9 +3115,17 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     assert!(mounted.lock().unwrap().error.is_some());
-    let failed_create_tree = argus.assert_latest_terminal_predicate(
+    let failed_create_tree = bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "failed-create-retry-visible",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&host_created_id),
+            NEW_VIEW_CONFIRM_AUTHOR_ID,
+            "rejected",
+        ),
         |tree| json_has_author_id(tree, RETRY_AUTHOR_ID),
     );
     assert!(
@@ -2771,11 +3161,19 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     }
     let retry_created_id =
         retry_created_id.expect("mounted create Retry did not resolve within 10s");
-    argus.assert_latest_terminal_predicate(
+    bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "retry-create-kanban-terminal",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&retry_created_id),
+            RETRY_AUTHOR_ID,
+            "applied",
+        ),
         |tree| {
-            json_author_value_is(tree, KIND_KANBAN_AUTHOR_ID, "selected")
+            selection_is(tree, KIND_KANBAN_AUTHOR_ID, "selected")
                 && !json_has_author_id(tree, RETRY_AUTHOR_ID)
                 && !json_has_author_id(tree, NEW_VIEW_TITLE_AUTHOR_ID)
         },
@@ -2832,11 +3230,22 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     app_harness.step();
     let empty_loaded = await_app_collection(&mut app_harness, &empty_id);
     assert_eq!(empty_loaded.kind, BlockViewKind::Table);
-    let empty_tree =
-        argus.assert_latest_terminal_predicate(&mut app_harness, "empty-table-terminal", |tree| {
+    let empty_tree = bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "empty-table-terminal",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&empty_id),
+            RETRY_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| {
             tree.to_string().contains("No blocks match this view.")
                 && !tree.to_string().contains(TABLE_ROW_AUTHOR_ID_PREFIX)
-        });
+        },
+    );
     assert!(
         !empty_tree.to_string().contains(TABLE_ROW_AUTHOR_ID_PREFIX),
         "canonical empty projection contains no table rows"
@@ -2853,12 +3262,23 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         await_app_collection(&mut app_harness, &empty_id).kind,
         BlockViewKind::Kanban
     );
-    let empty_kanban_tree =
-        argus.assert_latest_terminal_predicate(&mut app_harness, "empty-kanban-terminal", |tree| {
+    let empty_kanban_tree = bind_terminal_receipt(
+        &mut argus,
+        &mut app_harness,
+        "empty-kanban-terminal",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&empty_id),
+            KIND_KANBAN_AUTHOR_ID,
+            "applied",
+        ),
+        |tree| {
             tree.to_string().contains("No lanes in this view.")
                 && json_author_prefix_count(tree, KANBAN_LANE_AUTHOR_ID_PREFIX) == 0
                 && json_author_prefix_count(tree, KANBAN_CARD_AUTHOR_ID_PREFIX) == 0
-        });
+        },
+    );
     assert!(
         empty_kanban_tree
             .to_string()
@@ -2871,9 +3291,17 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         await_app_collection(&mut app_harness, &empty_id).kind,
         BlockViewKind::Calendar
     );
-    let empty_calendar_tree = argus.assert_latest_terminal_predicate(
+    let empty_calendar_tree = bind_terminal_receipt(
+        &mut argus,
         &mut app_harness,
         "empty-calendar-terminal",
+        receipt_evidence(
+            &fresh_client,
+            &workspace_id,
+            Some(&empty_id),
+            KIND_CALENDAR_AUTHOR_ID,
+            "applied",
+        ),
         |tree| {
             tree.to_string().contains("No blocks in this date range.")
                 && json_author_prefix_count(tree, CALENDAR_DAY_AUTHOR_ID_PREFIX) == 0
@@ -2952,7 +3380,9 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
             && payload["tags_removed"].is_array()
     }), "card moves must retain canonical tag payload arrays and top-level native actor attribution");
 
-    argus.finish();
+    // MT-027 V5: STRICT close-out — an indeterminate canonical action is a hard failure now that
+    // every collection control publishes a causal completion token.
+    argus.finish_require_no_indeterminate();
     cleanup.assert_cleaned_and_absent();
     drop(cleanup);
     let backend_runtime_root = std::path::PathBuf::from(

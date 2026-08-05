@@ -8,11 +8,11 @@
     "env_override": "PERF_BUDGET_LC01_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 87.0,
+    "measured_value": 80.0,
     "override_applied": false,
     "scenario_id": "LC-01",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -28,7 +28,7 @@
     "override_applied": false,
     "scenario_id": "LC-02",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -44,7 +44,7 @@
     "override_applied": false,
     "scenario_id": "LC-03",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -60,7 +60,7 @@
     "override_applied": false,
     "scenario_id": "LC-04",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -72,11 +72,11 @@
     "env_override": "PERF_BUDGET_LC05_MB",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 4.602,
+    "measured_value": 4.805,
     "override_applied": false,
     "scenario_id": "LC-05",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "mb"
   },
   {
@@ -88,11 +88,11 @@
     "env_override": "PERF_BUDGET_LC06_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 5208.0,
+    "measured_value": 3304.0,
     "override_applied": false,
     "scenario_id": "LC-06",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -108,7 +108,7 @@
     "override_applied": false,
     "scenario_id": "LC-07",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -124,7 +124,7 @@
     "override_applied": false,
     "scenario_id": "LC-08",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -136,11 +136,11 @@
     "env_override": "PERF_BUDGET_LR01_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 32.0,
+    "measured_value": 33.0,
     "override_applied": false,
     "scenario_id": "LR-01",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -152,11 +152,11 @@
     "env_override": "PERF_BUDGET_LR02_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 173.0,
+    "measured_value": 138.0,
     "override_applied": false,
     "scenario_id": "LR-02",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -168,11 +168,11 @@
     "env_override": "PERF_BUDGET_LR03_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 0.0,
+    "measured_value": 1.0,
     "override_applied": false,
     "scenario_id": "LR-03",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -184,11 +184,11 @@
     "env_override": "PERF_BUDGET_LR04_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 86.0,
+    "measured_value": 100.0,
     "override_applied": false,
     "scenario_id": "LR-04",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -200,11 +200,11 @@
     "env_override": "PERF_BUDGET_LR05_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 53.0,
+    "measured_value": 57.0,
     "override_applied": false,
     "scenario_id": "LR-05",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -216,11 +216,11 @@
     "env_override": "PERF_BUDGET_LR06_MB",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 6.895,
+    "measured_value": 7.438,
     "override_applied": false,
     "scenario_id": "LR-06",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "mb"
   },
   {
@@ -232,11 +232,11 @@
     "env_override": "PERF_BUDGET_LR07_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 8.0,
+    "measured_value": 12.0,
     "override_applied": false,
     "scenario_id": "LR-07",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -248,11 +248,11 @@
     "env_override": "PERF_BUDGET_LK01_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 58.0,
+    "measured_value": 134.0,
     "override_applied": false,
     "scenario_id": "LK-01",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -268,7 +268,7 @@
     "override_applied": false,
     "scenario_id": "LK-02",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -280,11 +280,11 @@
     "env_override": "PERF_BUDGET_LK03_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 85.0,
+    "measured_value": 88.0,
     "override_applied": false,
     "scenario_id": "LK-03",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -296,11 +296,11 @@
     "env_override": "PERF_BUDGET_LK04_MS",
     "gated": false,
     "measured_profile": "release",
-    "measured_value": 54.0,
+    "measured_value": 68.0,
     "override_applied": false,
     "scenario_id": "LK-04",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   },
   {
@@ -316,7 +316,7 @@
     "override_applied": false,
     "scenario_id": "LK-05",
     "status": "PASS",
-    "suite_run_id": "MT045-RUN-V3H-20260729040230",
+    "suite_run_id": "MT045-RUN-V4-20260802-9d303825-01",
     "unit": "ms"
   }
 ]

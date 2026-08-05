@@ -1381,6 +1381,22 @@ remove_tags mutations, then re-queries; the card does not move locally before Po
 Calendar inputs bcv.calendar.date-from and bcv.calendar.date-to accept YYYY-MM-DD; activate \
 bcv.calendar.apply-range to persist the definition and re-query. Switch and persist kinds with \
 bcv.kind.table, bcv.kind.kanban, and bcv.kind.calendar.\n\n\
+Every steerable collection control publishes an opt-in handshake.click-completion/v1 observer \
+declaration in its own AccessKit value and terminalizes through the durable Role::Status observer \
+bcv.action-completion, so a canonical Argus receipt is causally Applied or typed-Rejected instead of \
+indeterminate. Because a declaring button's value now carries that declaration, its selected / \
+not_selected projection is published on a dedicated sibling Role::Status node named \
+{author_id}.state - read bcv.kind.table.state, bcv.kind.kanban.state, bcv.kind.calendar.state, \
+bcv.new-view.kind.table.state, bcv.new-view.kind.kanban.state, and bcv.new-view.kind.calendar.state \
+instead of the button value. Retry, kind switch, sort, Kanban card move, calendar range, and create \
+finish Applied only when an authoritative getBlockView plus queryBlockViewResults readback lands at a \
+fresh load generation; the terminal detail records the workspace id, view_def block id, prior and \
+resulting load generation, persisted kind/sort/range, and the returned result and lane identities. A \
+backend failure finishes Rejected with the typed error, never Applied. The text inputs \
+bcv.new-view.title, bcv.calendar.date-from, and bcv.calendar.date-to publish \
+handshake.set-value-completion/v1 observers at {author_id}.set-value-completion that advance one \
+generation only when the widget genuinely consumes the AccessKit SetValue request; a value echo alone \
+is never proof.\n\n\
 Empty states are exact and visible: No blocks match this view.; No Kanban lanes.; No blocks in this \
 date range. Backend or malformed-response failures remain at bcv.status as View error: ... . Activate \
 bcv.retry to replay a retained create with the same block id or to reload the same view with one \
@@ -1563,7 +1579,21 @@ is absent. If getCanvasBoard fails, the Canvas status shows the typed error and 
 click_widget on canvas.retry re-runs the authoritative getCanvasBoard request through the host. Retry uses \
 a bounded loading state: another failure stops loading and restores the error/Retry surface, while success \
 replaces it with the fresh PostgreSQL board. Removing canvas.placement.{placement_id}.remove deletes only the \
-placement reference; the canonical Loom source block remains available to other panes. Open the canvas from \
+placement reference; the canonical Loom source block remains available to other panes. Two durable \
+Role::Status completion observers make those two actions CAUSALLY PROVABLE instead of Indeterminate: \
+canvas.viewport-completion acknowledges canvas.pan-left/canvas.pan-right/canvas.zoom-in/canvas.zoom-out and \
+publishes the board id, the prior and resulting viewport revision/scale/offset, the action id, the \
+PUT /workspaces/{workspace_id}/loom/canvas-boards/{block_id}/viewport route, and authority=persisted; \
+canvas.placement-mutation-completion acknowledges canvas.placement.{placement_id}.remove and publishes the \
+workspace/board/placement/block ids, the prior and refreshed board generation, the \
+DELETE /workspaces/{workspace_id}/loom/canvas-placements/{placement_id} route, \
+placement_absent_after_refresh, and an explicit source_block_present confirmation read back through \
+GET /workspaces/{workspace_id}/loom/blocks/{block_id}. Both observers terminalize ONLY on an authoritative \
+getCanvasBoard refresh (the removal additionally requires the source-block read-back); an optimistic \
+in-widget zoom, a vanished remove button, or an unchanged sibling node never terminalizes them, and a \
+source block that did NOT survive the removal publishes a typed terminal failure instead of applied. \
+The canvas DELETE route answers 204 with no body, so the receipt records event_ledger_event_id=null \
+explicitly rather than inventing a correlation id. Open the canvas from \
 the CKC module or the Command Palette; the editor never bypasses handshake_core. A no-context model should \
 discover canvas.placement.*, canvas.edge-mode, canvas.place-block, canvas.add-card, and canvas.retry with \
 list_widgets, verify exact resolved placement titles and section ids in AccessKit, use click_widget/set_value \
@@ -1754,10 +1784,22 @@ separately proves a missing symbol remains unresolved. Open the mounted Loom nav
 (menu.editors.sidebar) or the view.sidebar command. Its independent Pins, Favorites, Backlinks, and \
 Unlinked Mentions sections load from handshake_core for the active workspace/block; each section keeps its \
 own loading/error state and Retry control, so one failed route never disables the other sections. Pin removal \
-uses the canonical two-step PUT /pin-order {pin_order:null} then PATCH {pinned:false}; favorite removal uses \
-PATCH {favorite:false}; both retain an exact rollback row until mutation confirmation, restore it immediately on \
-failure, show the typed section error, and refetch server truth. If the runtime/backend is unavailable, the row is \
-not removed and the affected section exposes Retry. Backlinks use the dedicated incoming-edge \
+is ONE atomic POST /workspaces/{workspace_id}/loom/blocks/{block_id}/remove-pin that clears the pin ordinal and \
+unpins the block in a single PostgreSQL transaction together with its durable EventLedger receipt, so the partial \
+'ordinal cleared but still pinned' state the retired two-call flow risked is impossible; favorite removal uses \
+PATCH {favorite:false}. Every removal returns ONE authoritative operation receipt \
+(hsk.wp_kernel_012.mt_024.sidebar_mutation_receipt@1) carrying workspace_id, block_id, the post-write \
+mutation_revision, the backend outcome and HTTP status, the EventLedger correlation read back through \
+GET /kernel/events/aggregates/loom_block/{block_id}, and the final persisted pin-order revision. Both removals \
+retain an exact rollback row until that receipt confirms persistence, restore it immediately on failure, show the \
+typed section error ABOVE the still-listed rows (a failed removal never hides a pin that is still pinned), and \
+refetch server truth. If the runtime/backend is unavailable, the row is not removed and the affected section \
+exposes Retry. The durable mt024.sidebar-pin-removal-completion observer terminalizes a model-driven pin removal: \
+it reports applied ONLY after the authoritative refreshed PostgreSQL pin list no longer contains the block, and \
+reports a typed failure while the exact sidebar.pin.{encoded_block_id}.remove control stays mounted, so a row that \
+merely disappears can never be read as success. Each collapsible header sidebar.{section}.header publishes a \
+same-target collapse completion and the collapse state lives on the panel itself, not in per-context egui memory, \
+so an inspected tree shows the same collapsed/expanded state the operator sees. Backlinks use the dedicated incoming-edge \
 route and retain the source title plus edge type; Unlinked Mentions use the active-block textual scan and exclude \
 formal backlinks. Clicking any row opens that Loom block and appends its real title to the five-entry breadcrumb \
 trail. Model operators can inspect sidebar.pin.{encoded_block_id}, sidebar.favorite.{encoded_block_id}, \
@@ -1984,6 +2026,14 @@ runtime writes them with PUT /workspaces/:id/preferences/:pref_id, restores defa
 POST /workspaces/:id/preferences/:pref_id/reset, and lists them back on reopen through the preferences API. The \
 Settings rows settings-editor-prefs-reset and settings-syntax-palette-reset reset their whole Editor and Syntax \
 groups through that same PreferenceRecord route; there is no second editor-settings store. \
+PROVENANCE: every editor control renders a settings-pref-source-<preference_id> chip beside its value \
+showing the resolved PreferenceRecord source and revision, reading 'default \u{b7} rev 0' while the value is the \
+registry default, 'custom (operator) \u{b7} rev N' once an operator write has been committed, and \
+'not resolved yet' before the workspace preference projection has been read. The chip is a read-only display \
+projection of the canonical record (it is refreshed from the preferences GET and from each set/reset response); \
+it is never a second settings authority and it cannot be edited. Read it with list_widgets on \
+settings-pref-source-view-defaults.editor.font-size (and the matching id for any other preference) to see \
+whether a value is customised and at which revision before changing or resetting it. \
 LIVE-EFFECT STATE: tab/indent settings, wrap, whitespace, minimap, sticky scroll, line-number visibility, \
 line height, bracket matching, indent guides, code keybindings, and rich keybindings apply to the mounted editors \
 without restart. Editor font size also applies LIVE to the mounted code editor and rich editor: a font-size change \
@@ -2110,6 +2160,24 @@ artifact_ref=artifact://sha256/{memory_pack_hash}, never a host or workspace-rel
     starts immediately after the first drains, so the late commit cannot hide behind an earlier empty snapshot. Completed workers enter an operation-tagged FIFO, so \
     an old-A and fresh-A result can coexist without overwriting each other; the UI drains both, the late delivery is discarded \
     by operation identity, and the fresh proposal keeps its own proposal_id and event_id. \
+Three durable Role::Status observers make every canonical step of that flow CAUSALLY PROVABLE instead of \
+Indeterminate. fems-propose-class-state publishes selected_class, proposal_class, the per-class booleans, \
+and content_hash, so selecting fems-class-episodic/semantic/procedural is proven by an authoritative \
+selection value rather than by an unrelated later state change; each radio also exposes its AccessKit selected state. \
+mt064.shared-selection-state publishes the shared-selection pane_id, surface, start, end, len, and loom \
+content_hash, so Edit -> Select All (menu.edit.select-all) is proven by the selection CHANGING to the exact \
+full-document range even though the menu item itself disappears. \
+mt064.fems-proposal-flow-completion is the click-completion observer that acknowledges menu.edit.select-all, \
+command-palette.option.hs-fems-palette-propose-to-memory, fems-class-{episodic|semantic|procedural}, and \
+fems-propose-confirm; its terminal_detail carries the exact proven post-state (selection range/hash, the \
+fresh proposal operation identity plus every required dialog author_id, the selected/previewed class, and \
+the confirm proposal_id/event_id). The confirm observer is a SUCCESSOR predicate across target \
+disappearance: the button is gone by the time it terminalizes, and it applies only when fems-propose-status \
+reports state=completed;outcome=event_persisted for that exact operation_id with non-empty proposal_id and \
+event_id. A partial, failed, or blocked terminal status publishes a typed terminal FAILURE instead of \
+success, and an unmounted status node or a mismatched operation identity never terminalizes the receipt. \
+The GO menu (menu-go) and GO -> Command Palette (menu.go.command-palette) carry the same menu-open and \
+command-palette-open completion tokens the OPERATOR entries already use. \
 A no-context model can drive panel-open -> refresh -> propose -> confirm entirely through these stable \
 AccessKit author_ids and inspect the result with list_widgets + screenshot. Durable memory authority and \
 FR-EVT-MEM-001 proposal provenance live in handshake_core PostgreSQL/EventLedger. The workspace-scoped Flight \

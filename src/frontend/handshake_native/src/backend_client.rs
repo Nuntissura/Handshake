@@ -5658,9 +5658,100 @@ pub type SidebarUnlinkedDelivery = (
 );
 pub type SidebarUnlinkedCell = Arc<Mutex<VecDeque<SidebarUnlinkedDelivery>>>;
 
+/// WP-KERNEL-012 MT-024 FAIL_V4: the SINGLE authoritative operation receipt for a sidebar bookmark
+/// mutation.
+///
+/// `validation_v4` failed MT-024 because the proof "cannot distinguish a successful persisted removal
+/// from a failed request, stale refresh, or target disappearance". This receipt is the authoritative
+/// answer: it is built from the mutation route's own response body (never from UI state, never from a
+/// row disappearing) and correlated to the durable EventLedger row the backend appended in the SAME
+/// PostgreSQL transaction as the write.
+///
+/// Fields required by the FAIL_V4 remediation plan:
+/// - workspace ID + block ID: `workspace_id` / `block_id` (echoed by the backend, not by the caller).
+/// - mutation/revision ID: `mutation_revision` — the block's post-write `updated_at` authority
+///   timestamp, which is the same token `LoomBlockUpdate::expected_updated_at` uses for optimistic
+///   concurrency, i.e. the real revision identity of this mutation.
+/// - backend outcome: `outcome` + `http_status` (+ `failure` on the failing path).
+/// - EventLedger correlation: `event_ledger_event_id` / `event_ledger_operation` /
+///   `event_ledger_recorded_at`, read back through `GET /kernel/events/aggregates/loom_block/{id}`.
+///   `event_ledger_lookup` records whether that correlation resolved, so a missing correlation is a
+///   visible typed state and never a silent success.
+/// - final persisted pin-order revision: `persisted_pin_order` (`None` == cleared) plus
+///   `pin_order_cleared`, both read from the authoritative post-write block.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SidebarMutationReceipt {
+    pub schema_id: String,
+    pub operation: String,
+    pub workspace_id: String,
+    pub block_id: String,
+    /// `persisted` when the backend committed the mutation, `failed` otherwise. Never inferred.
+    pub outcome: String,
+    pub http_status: Option<u16>,
+    pub mutation_revision: Option<String>,
+    pub persisted_pinned: Option<bool>,
+    pub persisted_favorite: Option<bool>,
+    pub persisted_pin_order: Option<i64>,
+    pub pin_order_cleared: Option<bool>,
+    pub event_ledger_event_id: Option<String>,
+    pub event_ledger_operation: Option<String>,
+    pub event_ledger_recorded_at: Option<String>,
+    /// `resolved` | `absent` | `unavailable: {error}` | `not_attempted`.
+    pub event_ledger_lookup: String,
+    pub failure: Option<String>,
+}
+
+impl SidebarMutationReceipt {
+    pub const SCHEMA_ID: &'static str = "hsk.wp_kernel_012.mt_024.sidebar_mutation_receipt@1";
+    pub const OPERATION_REMOVE_PIN: &'static str = "sidebar.remove-pin";
+    pub const OPERATION_REMOVE_FAVORITE: &'static str = "sidebar.remove-favorite";
+    pub const OUTCOME_PERSISTED: &'static str = "persisted";
+    pub const OUTCOME_FAILED: &'static str = "failed";
+
+    fn new(operation: &str, workspace_id: &str, block_id: &str) -> Self {
+        Self {
+            schema_id: Self::SCHEMA_ID.to_owned(),
+            operation: operation.to_owned(),
+            workspace_id: workspace_id.to_owned(),
+            block_id: block_id.to_owned(),
+            outcome: Self::OUTCOME_FAILED.to_owned(),
+            http_status: None,
+            mutation_revision: None,
+            persisted_pinned: None,
+            persisted_favorite: None,
+            persisted_pin_order: None,
+            pin_order_cleared: None,
+            event_ledger_event_id: None,
+            event_ledger_operation: None,
+            event_ledger_recorded_at: None,
+            event_ledger_lookup: "not_attempted".to_owned(),
+            failure: None,
+        }
+    }
+
+    /// True only when the backend itself reported a committed removal AND the authoritative
+    /// post-write block no longer carries the pin. A vanished UI row can never produce this.
+    pub fn persisted_pin_removed(&self) -> bool {
+        self.outcome == Self::OUTCOME_PERSISTED
+            && self.persisted_pinned == Some(false)
+            && self.pin_order_cleared == Some(true)
+    }
+}
+
+/// A terminal sidebar mutation failure: the typed message the section surfaces PLUS the same
+/// authoritative receipt shape, so the failing path is equally provable (never a bare string).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SidebarMutationFailure {
+    pub message: String,
+    pub receipt: SidebarMutationReceipt,
+}
+
+/// The terminal result of one sidebar mutation. Both arms carry the authoritative receipt.
+pub type SidebarActionResult = Result<SidebarMutationReceipt, SidebarMutationFailure>;
+
 /// FIFO mutation result. Identity travels with the completion so a slow older action can never consume
 /// a newer side-slot and emit/remove the wrong bookmark after workspace or operation reordering.
-pub type SidebarActionDelivery = (String, u64, SectionKind, String, u64, Result<(), String>);
+pub type SidebarActionDelivery = (String, u64, SectionKind, String, u64, SidebarActionResult);
 pub type SidebarActionCell = Arc<Mutex<VecDeque<SidebarActionDelivery>>>;
 
 /// REST client for the VERIFIED Loom sidebar surfaces the MT-024 sidebar panel binds: pins/favorites
@@ -5710,6 +5801,18 @@ impl LoomSidebarClient {
         )
     }
 
+    /// WP-KERNEL-012 MT-024 FAIL_V4: the read-only EventLedger correlation surface
+    /// (`GET /kernel/events/aggregates/loom_block/{block_id}` -> `Vec<KernelEvent>`). The Loom block
+    /// mutation events are appended with `aggregate("loom_block", block_id)` in the same PostgreSQL
+    /// transaction as the write, so this is the durable authority the operation receipt cites. Read
+    /// only; no backend change.
+    fn block_event_ledger_url(&self, block_id: &str) -> String {
+        format!(
+            "{}/kernel/events/aggregates/loom_block/{}",
+            self.base_url, block_id
+        )
+    }
+
     fn backlinks_url(&self, workspace_id: &str, block_id: &str) -> String {
         format!(
             "{}/workspaces/{}/loom/blocks/{}/backlinks",
@@ -5741,6 +5844,15 @@ impl LoomSidebarClient {
             method: HttpMethod::Get,
             url: self.view_url(workspace_id, "favorites"),
             query: vec![("limit".to_owned(), "100".to_owned())],
+        }
+    }
+
+    /// Pure request builder for the MT-024 FAIL_V4 EventLedger correlation read.
+    pub fn block_event_ledger_request(&self, block_id: &str) -> GetRequestSpec {
+        GetRequestSpec {
+            method: HttpMethod::Get,
+            url: self.block_event_ledger_url(block_id),
+            query: vec![],
         }
     }
 
@@ -5948,13 +6060,31 @@ impl LoomSidebarClient {
         // persist the partial `pin_order cleared but still pinned` state the old
         // two-call PUT-then-PATCH flow risked. On failure the whole mutation rolls
         // back server-side and the host rolls the optimistic row back.
+        //
+        // WP-KERNEL-012 MT-024 FAIL_V4: the completion is no longer `Result<(), _>`.
+        // The route's own `LoomBlock` response body plus the read-only EventLedger
+        // correlation build ONE authoritative operation receipt, so a caller can
+        // distinguish a persisted removal from a failed request without ever
+        // consulting the UI row.
         let remove = self.remove_pin_request(workspace_id, block_id);
         let remove_body = remove.body.unwrap_or_default();
+        let ledger_url = self.block_event_ledger_url(block_id);
         let client = self.client.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = post_expect_success(&client, &remove.url, &remove_body).await;
+            let result = sidebar_mutation_receipt(
+                &client,
+                HttpMethod::Post,
+                &remove.url,
+                &remove_body,
+                &ledger_url,
+                SidebarMutationReceipt::OPERATION_REMOVE_PIN,
+                "pin_removed",
+                &delivered_workspace,
+                &delivered_block,
+            )
+            .await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,
@@ -5962,7 +6092,7 @@ impl LoomSidebarClient {
                     SectionKind::Pins,
                     delivered_block,
                     sequence,
-                    result.map_err(|e| e.to_string()),
+                    result,
                 ));
             }
         });
@@ -5983,11 +6113,23 @@ impl LoomSidebarClient {
     ) {
         let unfav = self.unfavorite_request(workspace_id, block_id);
         let body = unfav.body.unwrap_or_default();
+        let ledger_url = self.block_event_ledger_url(block_id);
         let client = self.client.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = patch_expect_success(&client, &unfav.url, &body).await;
+            let result = sidebar_mutation_receipt(
+                &client,
+                HttpMethod::Patch,
+                &unfav.url,
+                &body,
+                &ledger_url,
+                SidebarMutationReceipt::OPERATION_REMOVE_FAVORITE,
+                "update",
+                &delivered_workspace,
+                &delivered_block,
+            )
+            .await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,
@@ -5995,10 +6137,190 @@ impl LoomSidebarClient {
                     SectionKind::Favorites,
                     delivered_block,
                     sequence,
-                    result.map_err(|e| e.to_string()),
+                    result,
                 ));
             }
         });
+    }
+}
+
+/// Issue a sidebar bookmark mutation and build its authoritative [`SidebarMutationReceipt`]
+/// (WP-KERNEL-012 MT-024 FAIL_V4).
+///
+/// The receipt is derived only from authoritative backend state:
+///   1. the mutation route's HTTP status and its returned `LoomBlock` body (post-write `pinned`,
+///      `favorite`, `pin_order`, `updated_at`), and
+///   2. the durable EventLedger row for `loom_block/{block_id}` appended inside the same PostgreSQL
+///      transaction as the write.
+///
+/// A non-2xx status, an unparseable body, or a body that still reports the mutation as unapplied all
+/// produce a terminal typed failure carrying the same receipt shape — never a silent success.
+#[allow(clippy::too_many_arguments)]
+async fn sidebar_mutation_receipt(
+    client: &reqwest::Client,
+    method: HttpMethod,
+    url: &str,
+    body: &serde_json::Value,
+    ledger_url: &str,
+    operation: &str,
+    ledger_operation: &str,
+    workspace_id: &str,
+    block_id: &str,
+) -> SidebarActionResult {
+    let mut receipt = SidebarMutationReceipt::new(operation, workspace_id, block_id);
+    let request = match method {
+        HttpMethod::Patch => client.patch(url),
+        _ => client.post(url),
+    };
+    let response = match request
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            let message = AppError::Http(error.to_string()).to_string();
+            receipt.failure = Some(message.clone());
+            return Err(SidebarMutationFailure { message, receipt });
+        }
+    };
+    let status = response.status();
+    receipt.http_status = Some(status.as_u16());
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        let message =
+            AppError::Http(format!("{operation} non-success status {status}: {text}")).to_string();
+        receipt.failure = Some(message.clone());
+        return Err(SidebarMutationFailure { message, receipt });
+    }
+    let block: serde_json::Value = match serde_json::from_str(&text) {
+        Ok(value) => value,
+        Err(error) => {
+            let message =
+                AppError::Parse(format!("{operation} response is not a LoomBlock: {error}"))
+                    .to_string();
+            receipt.failure = Some(message.clone());
+            return Err(SidebarMutationFailure { message, receipt });
+        }
+    };
+    receipt.mutation_revision = block
+        .get("updated_at")
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned);
+    receipt.persisted_pinned = block.get("pinned").and_then(serde_json::Value::as_bool);
+    receipt.persisted_favorite = block.get("favorite").and_then(serde_json::Value::as_bool);
+    // `pin_order` is `skip_serializing_if = "Option::is_none"`, so an absent field IS the cleared
+    // ordinal. Both the value and the cleared flag are recorded as the final persisted pin-order
+    // revision the FAIL_V4 remediation names.
+    receipt.persisted_pin_order = block.get("pin_order").and_then(serde_json::Value::as_i64);
+    receipt.pin_order_cleared = Some(receipt.persisted_pin_order.is_none());
+    // Authoritative echo check: the mutated block must be the exact block that was addressed.
+    let echoed_block = block
+        .get("block_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
+    if echoed_block != block_id {
+        let message = AppError::Parse(format!(
+            "{operation} response echoed block_id {echoed_block:?} instead of {block_id:?}"
+        ))
+        .to_string();
+        receipt.failure = Some(message.clone());
+        return Err(SidebarMutationFailure { message, receipt });
+    }
+    let applied = match operation {
+        SidebarMutationReceipt::OPERATION_REMOVE_PIN => {
+            receipt.persisted_pinned == Some(false) && receipt.persisted_pin_order.is_none()
+        }
+        SidebarMutationReceipt::OPERATION_REMOVE_FAVORITE => {
+            receipt.persisted_favorite == Some(false)
+        }
+        _ => false,
+    };
+    if !applied {
+        let message = AppError::Http(format!(
+            "{operation} returned 2xx but the authoritative block still reports \
+             pinned={:?} favorite={:?} pin_order={:?}",
+            receipt.persisted_pinned, receipt.persisted_favorite, receipt.persisted_pin_order
+        ))
+        .to_string();
+        receipt.failure = Some(message.clone());
+        return Err(SidebarMutationFailure { message, receipt });
+    }
+    receipt.outcome = SidebarMutationReceipt::OUTCOME_PERSISTED.to_owned();
+    correlate_block_event_ledger(client, ledger_url, ledger_operation, &mut receipt).await;
+    Ok(receipt)
+}
+
+/// Read the durable EventLedger rows for `loom_block/{block_id}` and bind the newest row whose
+/// payload declares `operation == ledger_operation` into `receipt`. Read-only; a lookup failure is
+/// recorded as a typed `event_ledger_lookup` state and never silently dropped.
+async fn correlate_block_event_ledger(
+    client: &reqwest::Client,
+    ledger_url: &str,
+    ledger_operation: &str,
+    receipt: &mut SidebarMutationReceipt,
+) {
+    let events = match client
+        .get(ledger_url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+    {
+        Ok(response) if response.status().is_success() => {
+            match response.json::<Vec<serde_json::Value>>().await {
+                Ok(events) => events,
+                Err(error) => {
+                    receipt.event_ledger_lookup = format!("unavailable: parse {error}");
+                    return;
+                }
+            }
+        }
+        Ok(response) => {
+            receipt.event_ledger_lookup = format!("unavailable: status {}", response.status());
+            return;
+        }
+        Err(error) => {
+            receipt.event_ledger_lookup = format!("unavailable: {error}");
+            return;
+        }
+    };
+    let matched = events
+        .iter()
+        .filter(|event| {
+            event
+                .pointer("/payload/operation")
+                .and_then(serde_json::Value::as_str)
+                == Some(ledger_operation)
+                && event
+                    .pointer("/payload/block_id")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(receipt.block_id.as_str())
+        })
+        .max_by_key(|event| {
+            event
+                .get("event_sequence")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or_default()
+        });
+    match matched {
+        Some(event) => {
+            receipt.event_ledger_event_id = event
+                .get("event_id")
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned);
+            receipt.event_ledger_operation = Some(ledger_operation.to_owned());
+            receipt.event_ledger_recorded_at = event
+                .get("created_at")
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned);
+            receipt.event_ledger_lookup = if receipt.event_ledger_event_id.is_some() {
+                "resolved".to_owned()
+            } else {
+                "absent".to_owned()
+            };
+        }
+        None => receipt.event_ledger_lookup = "absent".to_owned(),
     }
 }
 

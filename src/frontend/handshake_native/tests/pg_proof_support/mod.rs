@@ -571,13 +571,19 @@ fn spawn_backend_at(
     listen_addr: &str,
     existing_data_dir: Option<&Path>,
 ) -> (Child, PathBuf, PathBuf) {
-    let run_id = safe_artifact_component(
-        &std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "standalone-run".to_owned()),
-        "standalone-run",
+    let run_id = compact_runtime_component(
+        "r",
+        &safe_artifact_component(
+            &std::env::var("HSK_MT045_RUN_ID").unwrap_or_else(|_| "standalone-run".to_owned()),
+            "standalone-run",
+        ),
     );
-    let scenario = safe_artifact_component(
-        thread::current().name().unwrap_or("unnamed-test-thread"),
-        "unnamed-test-thread",
+    let scenario = compact_runtime_component(
+        "s",
+        &safe_artifact_component(
+            thread::current().name().unwrap_or("unnamed-test-thread"),
+            "unnamed-test-thread",
+        ),
     );
     let run_root = external_artifact_root()
         .join("backend-runtime")
@@ -2384,24 +2390,8 @@ fn retain_backend_failure_files(
             wp_artifact_root.display()
         )
     })?;
-    let canonical_artifact_root = canonical_wp_root.parent().ok_or_else(|| {
-        format!(
-            "WP-012 external artifact root has no Handshake_Artifacts parent: {}",
-            canonical_wp_root.display()
-        )
-    })?;
-    if canonical_wp_root.file_name().and_then(|name| name.to_str()) != Some("wp-kernel-012")
-        || canonical_artifact_root
-            .file_name()
-            .and_then(|name| name.to_str())
-            != Some("Handshake_Artifacts")
-    {
-        return Err(format!(
-            "MT-045 failure diagnostics escaped the canonical Handshake_Artifacts/wp-kernel-012 root: {}",
-            canonical_wp_root.display()
-        ));
-    }
-    reject_reparse_chain(&canonical_wp_root, canonical_artifact_root)?;
+    let canonical_artifact_root = canonical_handshake_artifact_boundary(&canonical_wp_root)?;
+    reject_reparse_chain(&canonical_wp_root, &canonical_artifact_root)?;
     let backend_runtime_root = wp_artifact_root.join("backend-runtime");
     std::fs::create_dir_all(&backend_runtime_root).map_err(|error| {
         format!(
@@ -3685,24 +3675,7 @@ pub fn publish_mt045_evidence_bytes(
             wp_root.display()
         )
     })?;
-    let artifact_boundary = canonical_wp_root
-        .parent()
-        .map(Path::to_path_buf)
-        .ok_or_else(|| {
-            format!(
-                "WP-012 external artifact root has no artifact boundary: {}",
-                canonical_wp_root.display()
-            )
-        })?;
-    if canonical_wp_root.file_name().and_then(|name| name.to_str()) != Some("wp-kernel-012")
-        || artifact_boundary.file_name().and_then(|name| name.to_str())
-            != Some("Handshake_Artifacts")
-    {
-        return Err(format!(
-            "MT-045 evidence root is not canonical Handshake_Artifacts/wp-kernel-012: {}",
-            canonical_wp_root.display()
-        ));
-    }
+    let artifact_boundary = canonical_handshake_artifact_boundary(&canonical_wp_root)?;
     reject_reparse_chain(&canonical_wp_root, &artifact_boundary)?;
 
     let mut directory = canonical_wp_root;
@@ -3759,6 +3732,9 @@ pub fn publish_mt045_evidence_bytes(
 }
 
 pub fn external_artifact_root() -> PathBuf {
+    if let Some(root) = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT") {
+        return PathBuf::from(root).join("wp-kernel-012");
+    }
     if let Some(root) = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT") {
         return PathBuf::from(root).join("wp-kernel-012");
     }
@@ -3768,6 +3744,44 @@ pub fn external_artifact_root() -> PathBuf {
         .expect("native crate must live under a worktree root")
         .join("Handshake_Artifacts")
         .join("wp-kernel-012")
+}
+
+fn canonical_handshake_artifact_boundary(canonical_wp_root: &Path) -> Result<PathBuf, String> {
+    if canonical_wp_root.file_name().and_then(|name| name.to_str()) != Some("wp-kernel-012") {
+        return Err(format!(
+            "WP-012 evidence root has an invalid terminal component: {}",
+            canonical_wp_root.display()
+        ));
+    }
+    let parent = canonical_wp_root.parent().ok_or_else(|| {
+        format!(
+            "WP-012 external artifact root has no artifact boundary: {}",
+            canonical_wp_root.display()
+        )
+    })?;
+    if parent.file_name().and_then(|name| name.to_str()) == Some("Handshake_Artifacts") {
+        return Ok(parent.to_path_buf());
+    }
+    if parent.file_name().and_then(|name| name.to_str()) == Some("handshake-test") {
+        let boundary = parent.parent().ok_or_else(|| {
+            format!(
+                "handshake-test root has no Handshake_Artifacts parent: {}",
+                canonical_wp_root.display()
+            )
+        })?;
+        if boundary.file_name().and_then(|name| name.to_str()) == Some("Handshake_Artifacts") {
+            return Ok(boundary.to_path_buf());
+        }
+    }
+    Err(format!(
+        "WP-012 evidence root is outside canonical Handshake_Artifacts roots: {}",
+        canonical_wp_root.display()
+    ))
+}
+
+fn compact_runtime_component(prefix: &str, value: &str) -> String {
+    let digest = format!("{:x}", Sha256::digest(value.as_bytes()));
+    format!("{prefix}-{}", &digest[..16])
 }
 
 struct FileLock {

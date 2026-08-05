@@ -64,7 +64,7 @@ use crate::storage::knowledge::{
     KnowledgeCodeParseStatus, KnowledgeEdgeType, KnowledgeEntity, KnowledgeEntityKind,
     KnowledgeSpanKind, KnowledgeStore,
 };
-use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
+use crate::storage::postgres::PostgresDatabase;
 use crate::storage::{Database, StorageError};
 use crate::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, LocalCloudAttribution,
@@ -152,19 +152,6 @@ fn storage_error(err: StorageError) -> ApiError {
     }
 }
 
-async fn require_workspace(db: &PostgresDatabase, workspace_id: &str) -> Result<(), ApiError> {
-    if db
-        .get_workspace(workspace_id)
-        .await
-        .map_err(storage_error)?
-        .is_some()
-    {
-        Ok(())
-    } else {
-        Err(not_found(format!("workspace '{workspace_id}' not found")))
-    }
-}
-
 /// The backend-navigation identity required on every nav query.
 struct NavContext {
     actor: KernelActor,
@@ -214,11 +201,12 @@ fn nav_context(headers: &HeaderMap) -> Result<NavContext, ApiError> {
 /// carries the actor/session/correlation identity and the resolved query so the
 /// navigation is auditable. A receipt failure is surfaced (the nav is not served
 /// silently without its trace).
-fn build_nav_receipt(
+async fn record_nav_receipt(
+    db: &PostgresDatabase,
     ctx: &NavContext,
     query_kind: &str,
     query: Value,
-) -> Result<NewKernelEvent, ApiError> {
+) -> Result<String, ApiError> {
     let mut builder = NewKernelEvent::builder(
         ctx.kernel_task_run_id.clone(),
         ctx.session_run_id.clone(),
@@ -235,19 +223,22 @@ fn build_nav_receipt(
     if let Some(correlation_id) = &ctx.correlation_id {
         builder = builder.correlation_id(correlation_id.clone());
     }
-    builder.build().map_err(|err| {
+    let event = builder.build().map_err(|err| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "receipt_build_failed", "detail": err.to_string()})),
         )
-    })
+    })?;
+    let stored = db.append_kernel_event(event).await.map_err(storage_error)?;
+    Ok(stored.event_id)
 }
 
-fn quiet_nav_request(
+async fn record_quiet_nav_receipt(
+    state: &AppState,
     ctx: &NavContext,
     workspace_id: &str,
     nav_receipt_event_id: &str,
-) -> Result<QuietBackgroundWorkRequest, ApiError> {
+) -> Result<String, ApiError> {
     let actor_token = safe_lane_token(ctx.actor.actor_id());
     let lane = AgentLaneIdentity::new(
         format!("lane-backend-nav-{actor_token}"),
@@ -265,81 +256,28 @@ fn quiet_nav_request(
         },
     )
     .map_err(|err| bad_request(format!("invalid navigation quiet lane: {err}")))?;
-    Ok(QuietBackgroundWorkRequest {
-        lane,
-        workspace_id: workspace_id.to_string(),
-        wp_id: "WP-KERNEL-009".to_string(),
-        mt_id: "MT-219".to_string(),
-        work_kind: QuietBackgroundWorkKind::BackendNavigation,
-        subject_id: nav_receipt_event_id.to_string(),
-        session_id: ctx.session_run_id.clone(),
-        policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
-        evidence_ref: format!("event://{nav_receipt_event_id}"),
-    })
-}
-
-async fn record_nav_receipts(
-    state: &AppState,
-    ctx: &NavContext,
-    workspace_id: &str,
-    query_kind: &str,
-    query: Value,
-) -> Result<(String, String), ApiError> {
-    let mut tx = state
-        .postgres_pool
-        .begin()
+    let store =
+        ParallelSwarmStateRecoveryStore::new(state.postgres_pool.clone(), state.storage.clone());
+    let record = store
+        .record_quiet_background_work(QuietBackgroundWorkRequest {
+            lane,
+            workspace_id: workspace_id.to_string(),
+            wp_id: "WP-KERNEL-009".to_string(),
+            mt_id: "MT-219".to_string(),
+            work_kind: QuietBackgroundWorkKind::BackendNavigation,
+            subject_id: nav_receipt_event_id.to_string(),
+            session_id: ctx.session_run_id.clone(),
+            policy: QuietBackgroundPolicy::quiet_for(QuietBackgroundWorkKind::BackendNavigation),
+            evidence_ref: format!("event://{nav_receipt_event_id}"),
+        })
         .await
-        .map_err(StorageError::from)
-        .map_err(storage_error)?;
-    let result = async {
-        let workspace: Option<String> =
-            sqlx::query_scalar("SELECT id FROM workspaces WHERE id = $1 FOR KEY SHARE")
-                .bind(workspace_id)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(StorageError::from)
-                .map_err(storage_error)?;
-        if workspace.is_none() {
-            return Err(not_found(format!("workspace '{workspace_id}' not found")));
-        }
-
-        let event = build_nav_receipt(ctx, query_kind, query)?;
-        let stored = append_kernel_event_with_executor(&mut *tx, event)
-            .await
-            .map_err(storage_error)?;
-        let store = ParallelSwarmStateRecoveryStore::new(
-            state.postgres_pool.clone(),
-            state.storage.clone(),
-        );
-        let quiet = store
-            .record_quiet_background_work_tx(
-                &mut tx,
-                quiet_nav_request(ctx, workspace_id, &stored.event_id)?,
+        .map_err(|err| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "quiet_receipt_failed", "detail": err.to_string()})),
             )
-            .await
-            .map_err(|err| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": "quiet_receipt_failed", "detail": err.to_string()})),
-                )
-            })?;
-        Ok((stored.event_id, quiet.receipt_id))
-    }
-    .await;
-
-    match result {
-        Ok(receipts) => {
-            tx.commit()
-                .await
-                .map_err(StorageError::from)
-                .map_err(storage_error)?;
-            Ok(receipts)
-        }
-        Err(error) => {
-            let _ = tx.rollback().await;
-            Err(error)
-        }
-    }
+        })?;
+    Ok(record.receipt_id)
 }
 
 // ---------------------------------------------------------------------------
@@ -487,7 +425,6 @@ async fn lookup_symbols(
             "at least one of name, prefix, or path is required",
         ));
     }
-    require_workspace(&db, &params.workspace_id).await?;
     let limit = params.limit.unwrap_or(LIST_CAP).clamp(1, LIST_CAP);
 
     // DB-side path/name pushdown (MT-106 DoS fix): SQL cuts the candidate set to
@@ -538,14 +475,15 @@ async fn lookup_symbols(
         results.push(symbol_to_json(&db, symbol).await);
     }
 
-    let (receipt, quiet_receipt) = record_nav_receipts(
-        &state,
+    let receipt = record_nav_receipt(
+        &db,
         &ctx,
-        &params.workspace_id,
         "symbol_lookup",
         json!({"workspace_id": params.workspace_id, "name": name, "prefix": prefix, "path": path, "matches": results.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &params.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "workspace_id": params.workspace_id,
@@ -565,14 +503,10 @@ async fn get_symbol(
     let ctx = nav_context(&headers)?;
     let symbol = require_symbol(&db, &entity_id).await?;
     let body = symbol_to_json(&db, &symbol).await;
-    let (receipt, quiet_receipt) = record_nav_receipts(
-        &state,
-        &ctx,
-        &symbol.workspace_id,
-        "symbol_get",
-        json!({"entity_id": entity_id}),
-    )
-    .await?;
+    let receipt =
+        record_nav_receipt(&db, &ctx, "symbol_get", json!({"entity_id": entity_id})).await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
     Ok(Json(
         json!({"symbol": body, "nav_receipt_event_id": receipt, "quiet_background_work_receipt_id": quiet_receipt}),
     ))
@@ -630,14 +564,15 @@ async fn symbol_references(
 
     // The queried symbol's own staleness is surfaced alongside its relations.
     let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
-    let (receipt, quiet_receipt) = record_nav_receipts(
-        &state,
+    let receipt = record_nav_receipt(
+        &db,
         &ctx,
-        &symbol.workspace_id,
         "symbol_references",
         json!({"entity_id": entity_id, "callers": callers.len(), "callees": callees.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -686,14 +621,15 @@ async fn symbol_tests(
     }
 
     let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
-    let (receipt, quiet_receipt) = record_nav_receipts(
-        &state,
+    let receipt = record_nav_receipt(
+        &db,
         &ctx,
-        &symbol.workspace_id,
         "symbol_tests",
         json!({"entity_id": entity_id, "tests": tests.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -740,14 +676,15 @@ async fn symbol_spans(
     }
 
     let self_staleness = served_staleness(&db, symbol.primary_source_id.as_deref()).await;
-    let (receipt, quiet_receipt) = record_nav_receipts(
-        &state,
+    let receipt = record_nav_receipt(
+        &db,
         &ctx,
-        &symbol.workspace_id,
         "symbol_spans",
         json!({"entity_id": entity_id, "spans": spans.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &symbol.workspace_id, &receipt).await?;
 
     Ok(Json(json!({
         "symbol_entity_id": symbol.entity_id,
@@ -777,7 +714,6 @@ async fn file_lens(
             "path must be a repo-relative POSIX path with no '..'/'.' segments",
         ));
     }
-    require_workspace(&db, &params.workspace_id).await?;
     let payload = build_monaco_payload(
         &db,
         &params.workspace_id,
@@ -788,14 +724,15 @@ async fn file_lens(
     .await
     .map_err(code_index_error)?;
 
-    let (receipt, quiet_receipt) = record_nav_receipts(
-        &state,
+    let receipt = record_nav_receipt(
+        &db,
         &ctx,
-        &params.workspace_id,
         "file_lens",
         json!({"workspace_id": params.workspace_id, "relative_path": relative_path, "entries": payload.entries.len()}),
     )
     .await?;
+    let quiet_receipt =
+        record_quiet_nav_receipt(&state, &ctx, &params.workspace_id, &receipt).await?;
 
     let mut body = serde_json::to_value(&payload).map_err(|err| {
         (

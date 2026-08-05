@@ -96,6 +96,13 @@ pub const NEW_VIEW_KIND_KANBAN_AUTHOR_ID: &str = "bcv.new-view.kind.kanban";
 pub const NEW_VIEW_KIND_CALENDAR_AUTHOR_ID: &str = "bcv.new-view.kind.calendar";
 pub const CALENDAR_DATE_FROM_AUTHOR_ID: &str = "bcv.calendar.date-from";
 pub const CALENDAR_DATE_TO_AUTHOR_ID: &str = "bcv.calendar.date-to";
+pub const CALENDAR_APPLY_RANGE_AUTHOR_ID: &str = "bcv.calendar.apply-range";
+
+/// The MT-042 swarm KnowledgeActionRegistry collection controls this pane owns. Kept as named
+/// constants so the MT-027 V5 completion declarations and the dispatch routing cannot drift apart.
+pub const COLLECTION_SORT_AUTHOR_ID: &str = "collection.sort";
+pub const COLLECTION_KANBAN_MOVE_AUTHOR_ID: &str = "collection.kanban-move";
+pub const COLLECTION_OPEN_BLOCK_AUTHOR_ID: &str = "collection.open-block";
 
 /// Author_id prefixes (the full id is `prefix.{sanitized_suffix}`).
 pub const TABLE_SORT_AUTHOR_ID_PREFIX: &str = "bcv.table.sort.";
@@ -104,6 +111,58 @@ pub const KANBAN_LANE_AUTHOR_ID_PREFIX: &str = "bcv.kanban.lane.";
 pub const KANBAN_CARD_AUTHOR_ID_PREFIX: &str = "bcv.kanban.card.";
 pub const CALENDAR_DAY_AUTHOR_ID_PREFIX: &str = "bcv.calendar.day.";
 pub const CALENDAR_ENTRY_AUTHOR_ID_PREFIX: &str = "bcv.calendar.entry.";
+
+// ── WP-KERNEL-012 MT-027 V5: terminal action receipts (validation_v4 remediation item 1) ──────────
+//
+// `validation_v4` failed MT-027 because every canonical Argus action receipt came back
+// `indeterminate`: none of the collection controls published an action-specific completion token, so
+// `crate::mcp::action` had nothing to acknowledge and fell back to its conservative Indeterminate
+// verdict. "The projection looks right afterwards" is NOT causal proof — the tree could have been
+// changed by any concurrent writer.
+//
+// This extends the EXISTING opt-in completion-token mechanism (`handshake.click-completion/v1`
+// observer mode and `handshake.set-value-completion/v1`) exactly as MT-024/MT-026 did, rather than
+// inventing a parallel one:
+//
+//   * `bcv.action-completion` — one durable Role::Status observer. Every steerable collection control
+//     declares an observer target naming it, carrying a pre-dispatch semantic that binds the receipt
+//     causally to THAT control and THAT intent.
+//   * Backend-authoritative actions (Retry, kind switch, sort, Kanban card move, calendar range,
+//     create view) terminalize ONLY when [`BlockCollectionView::set_loaded`] installs an authoritative
+//     `getBlockView` + `queryBlockViewResults` readback at a FRESH load generation, and publish that
+//     readback (workspace/view id, persisted definition, result identities) as the terminal detail. A
+//     backend failure publishes a typed terminal FAILURE through [`BlockCollectionView::set_error`],
+//     which `crate::mcp::action` records as a terminal `Rejected` receipt — never a false success.
+//   * Local form actions (open the "+ New view" form, pick a form kind) terminalize from the host's own
+//     post-click form state, and say so explicitly in the terminal detail.
+//   * The three text inputs publish `handshake.set-value-completion/v1` observers that advance ONLY
+//     when the production widget genuinely consumes the AccessKit `SetValue` request
+//     (`crate::mcp::accesskit_string_set_value`). A value echo alone is never accepted as proof.
+//
+// The observers are proof-only: they never gate product behavior (a sort still sorts and a create still
+// creates when no binding is open), so an un-instrumented host is unaffected.
+
+/// The durable Role::Status observer publishing block-collection action completion.
+pub const ACTION_COMPLETION_AUTHOR_ID: &str = "bcv.action-completion";
+/// Schema of the pre-dispatch semantic a collection control declares.
+pub const ACTION_SEMANTIC_SCHEMA: &str = "handshake.block-collection-action/v1";
+/// Schema of the terminal detail the observer publishes on completion.
+pub const ACTION_COMPLETION_DETAIL_SCHEMA: &str = "handshake.block-collection-completion/v1";
+/// Suffix of the sibling Role::Status node that carries a declaring button's selection state. The
+/// button's own AccessKit `value` is taken over by its completion declaration, so the machine-readable
+/// `selected` / `not_selected` projection moves to this dedicated node instead of disappearing.
+pub const BUTTON_STATE_AUTHOR_ID_SUFFIX: &str = ".state";
+
+const ACTION_COMPLETION_EFFECT: &str = "block-collection-action";
+/// Bounded cap on the number of result identities embedded in a terminal readback detail, so the
+/// completion token stays inside the `crate::mcp::action` token-size bound on a large result set. The
+/// exact counts are always published alongside the truncated identity lists.
+const MAX_READBACK_IDENTITIES: usize = 4;
+
+/// The sibling Role::Status author_id carrying `author_id`'s selection state.
+pub fn button_state_author_id(author_id: &str) -> String {
+    format!("{author_id}{BUTTON_STATE_AUTHOR_ID_SUFFIX}")
+}
 
 /// Row height (px) for the table's VIRTUAL row rendering (RISK-6 / MC-6 — `ScrollArea::show_rows`
 /// renders only the visible window, so a 10k-row result never lays out offscreen).
@@ -595,6 +654,245 @@ impl Default for NewViewForm {
     }
 }
 
+// ── MT-027 V5 completion-observer machinery ──────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CollectionObserverPhase {
+    Ready,
+    Pending,
+    Applied,
+    Failed,
+}
+
+/// Which `crate::mcp::action` target-declaration shape a control uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CollectionTargetMode {
+    /// The control stays mounted after activation (kind switcher, sort headers, apply-range,
+    /// "+ New view", the swarm `collection.*` registry controls).
+    Persistent,
+    /// The control is removed by its own effect (the popup Confirm button closes its window).
+    Transient,
+    /// Success removes the control, a terminal failure leaves it mounted (the Retry control).
+    Flexible,
+}
+
+/// One durable collection action observer. Mirrors the proven MT-026 `CanvasActionObserver` shape: a
+/// monotonic generation, an exact pending target, the pre-dispatch semantic that binds the receipt
+/// causally, and a bounded terminal detail carrying the authoritative post-state readback.
+#[derive(Debug, Clone)]
+struct CollectionActionObserver {
+    generation: u64,
+    phase: CollectionObserverPhase,
+    context: String,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl CollectionActionObserver {
+    fn new() -> Self {
+        Self {
+            generation: 0,
+            phase: CollectionObserverPhase::Ready,
+            context: "bcv-unbound".to_owned(),
+            pending_target: None,
+            semantic_value: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+
+    /// Per-frame housekeeping. A terminal record is DURABLE (capture passes may render the pane
+    /// arbitrarily many times before `ActionChannel` reads it) and only settles when a NEW action opens
+    /// or the pane's authoritative binding context changes.
+    fn prepare_frame(&mut self, context: &str) {
+        let terminal = matches!(
+            self.phase,
+            CollectionObserverPhase::Applied | CollectionObserverPhase::Failed
+        );
+        if terminal && self.context != context {
+            self.settle();
+        }
+        if self.phase == CollectionObserverPhase::Ready {
+            self.context = context.to_owned();
+        }
+    }
+
+    fn settle(&mut self) {
+        self.phase = CollectionObserverPhase::Ready;
+        self.pending_target = None;
+        self.semantic_value = None;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
+
+    /// The generation the NEXT action on this observer will own, so a declaration can name its own
+    /// `action_id` before dispatch.
+    fn next_generation(&self) -> u64 {
+        self.generation.wrapping_add(1).max(1)
+    }
+
+    /// The declaration a control publishes as its AccessKit `value`. While an action bound to THIS
+    /// exact control is open (or terminal but not yet settled) the ORIGINAL semantic is republished
+    /// verbatim: `crate::mcp::action` requires the post-action declaration to advance by exactly one
+    /// generation while carrying an unchanged semantic tuple.
+    fn declaration(
+        &self,
+        author_id: &str,
+        fresh_semantic: &str,
+        mode: CollectionTargetMode,
+    ) -> Option<String> {
+        let semantic = if self.pending_target.as_deref() == Some(author_id) {
+            self.semantic_value.as_deref().unwrap_or(fresh_semantic)
+        } else {
+            fresh_semantic
+        };
+        match mode {
+            CollectionTargetMode::Persistent => {
+                crate::mcp::action::serialize_persistent_observer_click_target(
+                    ACTION_COMPLETION_EFFECT,
+                    &self.context,
+                    self.generation,
+                    ACTION_COMPLETION_AUTHOR_ID,
+                    semantic,
+                )
+            }
+            CollectionTargetMode::Transient => crate::mcp::action::serialize_observer_click_target(
+                ACTION_COMPLETION_EFFECT,
+                &self.context,
+                self.generation,
+                ACTION_COMPLETION_AUTHOR_ID,
+                semantic,
+            ),
+            CollectionTargetMode::Flexible => {
+                crate::mcp::action::serialize_flexible_observer_click_target(
+                    ACTION_COMPLETION_EFFECT,
+                    &self.context,
+                    self.generation,
+                    ACTION_COMPLETION_AUTHOR_ID,
+                    semantic,
+                )
+            }
+        }
+    }
+
+    /// Open a new action binding. Returns the owning generation, or `None` while a prior action is
+    /// still awaiting its authoritative terminal state (the product behavior still runs — only the
+    /// causal proof binding is skipped, so that receipt stays honestly indeterminate).
+    ///
+    /// A settled-but-still-published TERMINAL record is retired here rather than after a frame count:
+    /// the canonical driver never dispatches the next action before the previous receipt has already
+    /// terminalized, so retiring on the next `begin` is both sufficient and deterministic.
+    fn begin(&mut self, target: &str, semantic_value: String) -> Option<u64> {
+        if self.phase == CollectionObserverPhase::Pending {
+            return None;
+        }
+        self.generation = self.next_generation();
+        self.phase = CollectionObserverPhase::Pending;
+        self.pending_target = Some(target.to_owned());
+        self.semantic_value = Some(semantic_value);
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        Some(self.generation)
+    }
+
+    fn applied(&mut self, generation: u64, detail: String) -> bool {
+        if self.phase != CollectionObserverPhase::Pending || self.generation != generation {
+            return false;
+        }
+        self.phase = CollectionObserverPhase::Applied;
+        self.terminal_detail = Some(detail);
+        self.terminal_error = None;
+        true
+    }
+
+    fn failed(&mut self, generation: u64, error: String, detail: String) -> bool {
+        if self.phase != CollectionObserverPhase::Pending || self.generation != generation {
+            return false;
+        }
+        self.phase = CollectionObserverPhase::Failed;
+        self.terminal_error = Some(error);
+        self.terminal_detail = Some(detail);
+        true
+    }
+
+    fn serialized(&self) -> Option<String> {
+        match self.phase {
+            CollectionObserverPhase::Ready => crate::mcp::action::serialize_observer_click_state(
+                ACTION_COMPLETION_EFFECT,
+                &self.context,
+                self.generation,
+                crate::mcp::action::ClickCompletionState::Ready,
+                None,
+                None,
+            ),
+            CollectionObserverPhase::Pending => crate::mcp::action::serialize_observer_click_state(
+                ACTION_COMPLETION_EFFECT,
+                &self.context,
+                self.generation,
+                crate::mcp::action::ClickCompletionState::Pending,
+                self.pending_target.as_deref(),
+                self.semantic_value.as_deref(),
+            ),
+            CollectionObserverPhase::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    ACTION_COMPLETION_EFFECT,
+                    &self.context,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            CollectionObserverPhase::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    ACTION_COMPLETION_EFFECT,
+                    &self.context,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+/// What terminalizes the currently open action binding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CollectionActionEffect {
+    /// Terminalized ONLY by an authoritative `getBlockView` + `queryBlockViewResults` readback
+    /// (`set_loaded`), or by a typed backend failure (`set_error`).
+    AuthoritativeLoad,
+    /// Terminalized by the host's own post-click "+ New view" form state.
+    FormOpen,
+    /// Terminalized when the "+ New view" form carries the requested kind.
+    FormKind(BlockViewKind),
+}
+
+/// The exact action awaiting its terminal state.
+#[derive(Debug, Clone)]
+struct PendingCollectionAction {
+    generation: u64,
+    action_id: String,
+    target_author_id: String,
+    effect: CollectionActionEffect,
+    workspace_id: String,
+    view_block_id: String,
+    prior_load_generation: u64,
+}
+
+/// One text target's `handshake.set-value-completion/v1` observer state. `generation` advances ONLY
+/// when the production widget actually consumes the AccessKit `SetValue` request, so the token is a
+/// causal mutation record rather than an echo of the displayed value.
+#[derive(Debug, Clone, Default)]
+struct SetValueCompletionState {
+    generation: u64,
+    applied_value: Option<String>,
+}
+
 /// The block-collection view host. Held by the host pane, mutated in place by
 /// [`BlockCollectionView::show`]. `definition` + `results` are the projection of authoritative backend
 /// state the host loads via `getBlockView` + `queryBlockViewResults`; all other fields are ephemeral UI
@@ -636,6 +934,15 @@ pub struct BlockCollectionView {
     /// drives the registry, so any host that renders the collection gets a populated AccessKit tree +
     /// consumed dispatch with no extra calls.
     pending_knowledge_events: Vec<BlockViewEvent>,
+    /// MT-027 V5: the durable `bcv.action-completion` observer every steerable control declares against.
+    action_observer: CollectionActionObserver,
+    /// MT-027 V5: the exact action awaiting its authoritative terminal state.
+    pending_action: Option<PendingCollectionAction>,
+    /// MT-027 V5: monotonic count of authoritative definition+results installs. A terminal readback is
+    /// only accepted at a FRESH generation, so a stale re-render can never terminalize an action.
+    load_generation: u64,
+    /// MT-027 V5: per-text-target `handshake.set-value-completion/v1` observer state.
+    set_value_completions: std::collections::BTreeMap<String, SetValueCompletionState>,
 }
 
 /// The card a Kanban drag started from: its block id + the lane it left. The drop target's lane key
@@ -668,6 +975,10 @@ impl BlockCollectionView {
             create_retry: None,
             knowledge_registry: None,
             pending_knowledge_events: Vec::new(),
+            action_observer: CollectionActionObserver::new(),
+            pending_action: None,
+            load_generation: 0,
+            set_value_completions: std::collections::BTreeMap::new(),
         }
     }
 
@@ -709,14 +1020,309 @@ impl BlockCollectionView {
         self.status.clear();
         self.kanban_drag = None;
         self.create_retry = None;
+        // MT-027 V5: this is the ONLY authoritative readback boundary — the definition and the result
+        // set both came back from `getBlockView` + `queryBlockViewResults` after the mutation. A fresh
+        // load generation is what makes the terminal record causal rather than coincidental.
+        self.load_generation = self.load_generation.wrapping_add(1);
+        self.complete_authoritative_pending();
     }
 
     /// Set the error state (a `getBlockView` / query failure). Clears in-flight so the UI is reachable.
     pub fn set_error(&mut self, message: impl Into<String>) {
-        self.error = Some(message.into());
+        let message = message.into();
+        self.error = Some(message.clone());
         self.loading = false;
         self.in_flight = false;
         self.status.clear();
+        // MT-027 V5: a backend failure for the open action is a TYPED TERMINAL FAILURE bound to the same
+        // target/context/generation/semantic tuple, which `crate::mcp::action` records as a terminal
+        // `Rejected` receipt. It is deliberately NOT `Indeterminate`: the observer causally owns it.
+        self.fail_authoritative_pending(message);
+    }
+
+    // ── MT-027 V5: action-binding + terminalization ───────────────────────────────────────────────
+
+    /// The observer context this pane binds actions under. Deliberately workspace-scoped (NOT
+    /// view-scoped): a create switches `view_block_id` as its own effect, and an open action must not
+    /// be settled out from under its own completion.
+    fn observer_context(&self) -> String {
+        format!("bcv:{}", self.workspace_id)
+    }
+
+    fn action_id(&self) -> String {
+        format!(
+            "{ACTION_COMPLETION_EFFECT}:{}:{}",
+            self.observer_context(),
+            self.action_observer.next_generation()
+        )
+    }
+
+    /// The pre-dispatch semantic a control declares. It names the exact control, the exact intent, and
+    /// the authoritative binding the effect must land against, so a shared observer can never
+    /// acknowledge the wrong action.
+    fn action_semantic(&self, author_id: &str, intent: serde_json::Value) -> String {
+        serde_json::json!({
+            "schema_id": ACTION_SEMANTIC_SCHEMA,
+            "action": author_id,
+            "action_id": self.action_id(),
+            "workspace_id": self.workspace_id,
+            "view_block_id": self.view_block_id,
+            "prior_load_generation": self.load_generation,
+            "intent": intent,
+        })
+        .to_string()
+    }
+
+    /// Build a control's pre-dispatch semantic AND the declaration it publishes this frame. The caller
+    /// keeps the semantic and hands the SAME string to [`Self::begin_action`] if the control was
+    /// activated, so the declaration the client saw and the observer's causal binding are byte-identical
+    /// (`crate::mcp::action` compares them exactly).
+    fn declaration_for(
+        &self,
+        author_id: &str,
+        intent: serde_json::Value,
+        mode: CollectionTargetMode,
+    ) -> (String, Option<String>) {
+        let semantic = self.action_semantic(author_id, intent);
+        let declaration = self.action_observer.declaration(author_id, &semantic, mode);
+        (semantic, declaration)
+    }
+
+    /// Open the proof binding for the control the operator/swarm just activated. Proof-only: the
+    /// product effect fires regardless of whether a binding could be opened.
+    fn begin_action(&mut self, author_id: &str, semantic: String, effect: CollectionActionEffect) {
+        let action_id = self.action_id();
+        let workspace_id = self.workspace_id.clone();
+        let view_block_id = self.view_block_id.clone();
+        let prior_load_generation = self.load_generation;
+        if let Some(generation) = self.action_observer.begin(author_id, semantic) {
+            self.pending_action = Some(PendingCollectionAction {
+                generation,
+                action_id,
+                target_author_id: author_id.to_owned(),
+                effect,
+                workspace_id,
+                view_block_id,
+                prior_load_generation,
+            });
+        }
+    }
+
+    /// A bounded readback of the authoritative state this pane just installed. This is the evidence a
+    /// reviewer reads straight out of the action receipt.
+    fn authoritative_readback(&self) -> serde_json::Value {
+        let definition = self.definition.as_ref();
+        let results = self.results.as_ref();
+        serde_json::json!({
+            "load_generation": self.load_generation,
+            "view_block_id": self.view_block_id,
+            "kind": definition.map(|d| d.kind.as_str()),
+            "sort_field": definition.and_then(|d| d.sort).map(|s| s.field.as_str()),
+            "sort_direction": definition.and_then(|d| d.sort).map(|s| s.direction.as_str()),
+            "date_from": definition.and_then(|d| d.query.date_from.clone()),
+            "date_to": definition.and_then(|d| d.query.date_to.clone()),
+            "calendar_date_field": definition
+                .and_then(|d| d.calendar_date_field)
+                .map(|f| f.as_str()),
+            "total_returned": results.map(|r| r.total_returned),
+            "result_block_count": results.map(|r| r.blocks.len()),
+            // Bounded: the completion token has a hard size limit, so the receipt carries the leading
+            // identities plus the exact counts rather than an unbounded result dump.
+            "result_block_ids": results
+                .map(|r| {
+                    r.blocks
+                        .iter()
+                        .take(MAX_READBACK_IDENTITIES)
+                        .map(|b| b.block_id.clone())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default(),
+            "lane_count": results.map(|r| r.groups.len()),
+            "lanes": results
+                .map(|r| {
+                    r.groups
+                        .iter()
+                        .take(MAX_READBACK_IDENTITIES)
+                        .map(|lane| {
+                            serde_json::json!({
+                                "key": lane.key,
+                                "member_count": lane.blocks.len(),
+                                "members": lane
+                                    .blocks
+                                    .iter()
+                                    .take(MAX_READBACK_IDENTITIES)
+                                    .map(|b| b.block_id.clone())
+                                    .collect::<Vec<_>>(),
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default(),
+        })
+    }
+
+    fn terminal_detail(&self, pending: &PendingCollectionAction, authority: &str) -> String {
+        serde_json::json!({
+            "schema_id": ACTION_COMPLETION_DETAIL_SCHEMA,
+            "action_id": pending.action_id,
+            "target_author_id": pending.target_author_id,
+            "authority": authority,
+            "workspace_id": pending.workspace_id,
+            "requested_view_block_id": pending.view_block_id,
+            "prior_load_generation": pending.prior_load_generation,
+            "readback": self.authoritative_readback(),
+        })
+        .to_string()
+    }
+
+    /// Terminalize an [`CollectionActionEffect::AuthoritativeLoad`] action from the definition+results
+    /// pair that just landed. A readback at an unchanged load generation is refused, so an unproven
+    /// action is never converted into a claim.
+    fn complete_authoritative_pending(&mut self) {
+        let Some(pending) = self.pending_action.clone() else {
+            return;
+        };
+        if pending.effect != CollectionActionEffect::AuthoritativeLoad
+            || pending.workspace_id != self.workspace_id
+            || self.load_generation <= pending.prior_load_generation
+        {
+            return;
+        }
+        let detail =
+            self.terminal_detail(&pending, "authoritative_definition_and_results_readback");
+        if self.action_observer.applied(pending.generation, detail) {
+            self.pending_action = None;
+        }
+    }
+
+    fn fail_authoritative_pending(&mut self, message: String) {
+        let Some(pending) = self.pending_action.clone() else {
+            return;
+        };
+        if pending.effect != CollectionActionEffect::AuthoritativeLoad {
+            return;
+        }
+        let detail = self.terminal_detail(&pending, "typed_backend_failure");
+        let bounded: String = message.chars().take(512).collect();
+        if self
+            .action_observer
+            .failed(pending.generation, bounded, detail)
+        {
+            self.pending_action = None;
+        }
+    }
+
+    /// Terminalize a LOCAL form action from the host's own post-click state. Runs after the pane body
+    /// so the same rendered frame that consumed the click also publishes the terminal record.
+    fn complete_local_pending(&mut self) {
+        let Some(pending) = self.pending_action.clone() else {
+            return;
+        };
+        let satisfied = match &pending.effect {
+            CollectionActionEffect::AuthoritativeLoad => return,
+            CollectionActionEffect::FormOpen => self.new_view.is_some(),
+            CollectionActionEffect::FormKind(kind) => self
+                .new_view
+                .as_ref()
+                .is_some_and(|form| form.kind == *kind),
+        };
+        if !satisfied {
+            return;
+        }
+        let form = self.new_view.clone();
+        let detail = serde_json::json!({
+            "schema_id": ACTION_COMPLETION_DETAIL_SCHEMA,
+            "action_id": pending.action_id,
+            "target_author_id": pending.target_author_id,
+            "authority": "host_local_create_form_state",
+            "workspace_id": pending.workspace_id,
+            "requested_view_block_id": pending.view_block_id,
+            "prior_load_generation": pending.prior_load_generation,
+            "readback": {
+                "load_generation": self.load_generation,
+                "create_form_open": form.is_some(),
+                "create_form_block_id": form.as_ref().map(|f| f.block_id.clone()),
+                "create_form_title": form.as_ref().map(|f| f.title.clone()),
+                "create_form_kind": form.as_ref().map(|f| f.kind.as_str()),
+            },
+        })
+        .to_string();
+        if self.action_observer.applied(pending.generation, detail) {
+            self.pending_action = None;
+        }
+    }
+
+    /// The pre-dispatch intent the MT-042 swarm `collection.sort` control declares. The declaration and
+    /// the binding opened when the dispatch arrives MUST build this from the SAME function:
+    /// `crate::mcp::action` compares the declared and acknowledged semantic byte-for-byte.
+    fn collection_sort_intent(&self) -> serde_json::Value {
+        serde_json::json!({
+            "effect": "persist_sort_and_requery",
+            "current_sort_field": self
+                .definition
+                .as_ref()
+                .and_then(|definition| definition.sort)
+                .map(|sort| sort.field.as_str()),
+            "current_sort_direction": self
+                .definition
+                .as_ref()
+                .and_then(|definition| definition.sort)
+                .map(|sort| sort.direction.as_str()),
+        })
+    }
+
+    /// The pre-dispatch intent the `collection.kanban-move` control declares. Shared by the registry
+    /// declaration, the swarm dispatch binding, and the operator drag binding for the same reason.
+    fn collection_kanban_move_intent(&self) -> serde_json::Value {
+        serde_json::json!({
+            "effect": "persist_card_lane_move_and_requery",
+            "lane_keys": self
+                .results
+                .as_ref()
+                .map(|results| results
+                    .groups
+                    .iter()
+                    .take(MAX_READBACK_IDENTITIES)
+                    .map(|lane| lane.key.clone())
+                    .collect::<Vec<_>>())
+                .unwrap_or_default(),
+        })
+    }
+
+    /// The `handshake.set-value-completion/v1` observer value for `target`.
+    fn set_value_completion_value(&self, target: &str) -> Option<String> {
+        let state = self.set_value_completions.get(target);
+        crate::mcp::action::serialize_set_value_completion(
+            target,
+            state.map(|s| s.generation).unwrap_or(0),
+            state.and_then(|s| s.applied_value.as_deref()),
+        )
+    }
+
+    /// Record a genuinely consumed AccessKit `SetValue` on `target`. Advancing exactly one generation
+    /// with the applied value is the CAUSAL mutation token `crate::mcp::action` requires; the displayed
+    /// value alone is never accepted.
+    fn record_set_value_applied(&mut self, target: &str, value: &str) {
+        let state = self
+            .set_value_completions
+            .entry(target.to_owned())
+            .or_default();
+        state.generation = state.generation.wrapping_add(1);
+        state.applied_value = Some(value.to_owned());
+    }
+
+    /// Emit the durable `bcv.action-completion` observer node. Emitted on EVERY rendered frame and
+    /// every `show` return path (including the error and loading states) so a Retry click in the error
+    /// projection has an observer to acknowledge against.
+    fn emit_action_completion_node(&self, ui: &egui::Ui) {
+        let value = self.action_observer.serialized().unwrap_or_default();
+        emit_completion_node(
+            ui,
+            egui::Id::new(ACTION_COMPLETION_AUTHOR_ID),
+            ACTION_COMPLETION_AUTHOR_ID,
+            "Block collection action completion",
+            &value,
+        );
     }
 
     /// Retain the exact create intent until authority returns the new saved-view id. A failed unbound
@@ -769,7 +1375,40 @@ impl BlockCollectionView {
         let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
         reg.clear_nodes();
         for entry in COLLECTION_CONTROL_CATALOG {
-            reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present());
+            // MT-027 V5: the two MUTATING swarm controls carry an opt-in observer declaration in their
+            // AccessKit `value`, so a swarm dispatch through `collection.sort` /
+            // `collection.kanban-move` produces the same terminal receipt the operator path does.
+            // `collection.open-block` is read-only navigation and keeps the plain control node.
+            let declaration = if entry.author_id == COLLECTION_SORT_AUTHOR_ID {
+                self.declaration_for(
+                    COLLECTION_SORT_AUTHOR_ID,
+                    self.collection_sort_intent(),
+                    CollectionTargetMode::Persistent,
+                )
+                .1
+            } else if entry.author_id == COLLECTION_KANBAN_MOVE_AUTHOR_ID {
+                self.declaration_for(
+                    COLLECTION_KANBAN_MOVE_AUTHOR_ID,
+                    self.collection_kanban_move_intent(),
+                    CollectionTargetMode::Persistent,
+                )
+                .1
+            } else {
+                None
+            };
+            match declaration {
+                Some(declaration) => reg.upsert(
+                    entry.author_id,
+                    KAxRole::Button,
+                    entry.label,
+                    Some(declaration),
+                    vec!["Click".to_owned(), "Focus".to_owned()],
+                    KnowledgeNodeState::present(),
+                ),
+                None => {
+                    reg.upsert_control(entry.author_id, entry.label, KnowledgeNodeState::present())
+                }
+            }
         }
         let Some(results) = &self.results else { return };
         // Flat table/calendar rows.
@@ -894,6 +1533,18 @@ impl BlockCollectionView {
                                 },
                                 _ => flip_direction(current, field),
                             };
+                            // MT-027 V5: bind the causal completion for the swarm sort dispatch using
+                            // the SAME intent the control declared this frame.
+                            let (semantic, _) = self.declaration_for(
+                                COLLECTION_SORT_AUTHOR_ID,
+                                self.collection_sort_intent(),
+                                CollectionTargetMode::Persistent,
+                            );
+                            self.begin_action(
+                                COLLECTION_SORT_AUTHOR_ID,
+                                semantic,
+                                CollectionActionEffect::AuthoritativeLoad,
+                            );
                             events.push(BlockViewEvent::Sort { sort });
                         }
                     }
@@ -909,6 +1560,20 @@ impl BlockCollectionView {
                             p.from_lane
                         };
                         let (add_tags, remove_tags) = card_move_tags(&from, &p.to_lane);
+                        // MT-027 V5: bind the causal completion for the swarm card-move dispatch using
+                        // the SAME intent the control declared this frame. The observer only
+                        // terminalizes on the authoritative re-query readback, so the receipt cannot
+                        // claim a move the backend did not persist.
+                        let (semantic, _) = self.declaration_for(
+                            COLLECTION_KANBAN_MOVE_AUTHOR_ID,
+                            self.collection_kanban_move_intent(),
+                            CollectionTargetMode::Persistent,
+                        );
+                        self.begin_action(
+                            COLLECTION_KANBAN_MOVE_AUTHOR_ID,
+                            semantic,
+                            CollectionActionEffect::AuthoritativeLoad,
+                        );
                         events.push(BlockViewEvent::CardMove {
                             block_id: p.block_id,
                             add_tags,
@@ -966,13 +1631,23 @@ impl BlockCollectionView {
     /// swarm dispatch is consumed on every rendered frame, not only when a host happens to call the three
     /// methods by hand. Gated on an installed registry so a bare `view.show(ui, &palette)` stays a no-op.
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<BlockViewEvent> {
+        let context = self.observer_context();
+        self.action_observer.prepare_frame(&context);
         let event = self.show_inner(ui, palette);
         if self.knowledge_registry.is_some() {
             self.sync_knowledge_registry();
             self.emit_knowledge_accesskit(ui);
             let dispatched = self.take_knowledge_dispatched(ui);
+            // NOTE: a swarm dispatch consumed above opens its action binding AFTER this frame's
+            // registry declaration was emitted, so the declaration published in the dispatch frame is
+            // one generation behind. That is harmless and deliberately NOT patched by re-emitting:
+            // `ActionChannel::acknowledge_after_render` only ever reads a tree produced by
+            // `HandshakeApp::refresh_mcp_snapshot`, which renders the pane again on a fresh context
+            // with no pending input — so the acknowledged declaration is always the advanced one.
             self.pending_knowledge_events.extend(dispatched);
         }
+        self.complete_local_pending();
+        self.emit_action_completion_node(ui);
         event
     }
 
@@ -993,8 +1668,42 @@ impl BlockCollectionView {
             let resp = ui.colored_label(palette.error_text, format!("View error: {err}"));
             emit_status_node(ui, resp.id, STATUS_AUTHOR_ID, &format!("View error: {err}"));
             let retry = ui.button("Retry");
-            emit_button_node(ui, retry.id, RETRY_AUTHOR_ID, "Retry", false, true);
-            return retry.clicked().then_some(BlockViewEvent::Retry);
+            // MT-027 V5: Retry is a FLEXIBLE observer target — a recovered load removes it, while a
+            // terminal failure leaves the exact control mounted for the next attempt.
+            let (semantic, declaration) = self.declaration_for(
+                RETRY_AUTHOR_ID,
+                serde_json::json!({
+                    "effect": "retry_bound_view_or_replay_create",
+                    "create_retry_intent": self
+                        .create_retry
+                        .as_ref()
+                        .map(|form| serde_json::json!({
+                            "block_id": form.block_id,
+                            "title": form.title,
+                            "kind": form.kind.as_str(),
+                        })),
+                }),
+                CollectionTargetMode::Flexible,
+            );
+            emit_button_node_with_declaration(
+                ui,
+                retry.id,
+                RETRY_AUTHOR_ID,
+                "Retry",
+                false,
+                true,
+                declaration.as_deref(),
+                false,
+            );
+            if retry.clicked() {
+                self.begin_action(
+                    RETRY_AUTHOR_ID,
+                    semantic,
+                    CollectionActionEffect::AuthoritativeLoad,
+                );
+                return Some(BlockViewEvent::Retry);
+            }
+            return None;
         }
 
         // ── Mode strip: kind switcher + status + new-view button ─────────────────────────────────────
@@ -1062,11 +1771,48 @@ impl BlockCollectionView {
 
         match definition.kind {
             BlockViewKind::Table => {
+                // MT-027 V5: precompute one PERSISTENT observer declaration per sort header (the
+                // sub-view borrows only the definition/results, so the causal binding is opened here).
+                let mut sort_bindings: Vec<(BlockViewField, String, Option<String>)> = Vec::new();
+                for &field in &definition.effective_columns() {
+                    let author_id = table_sort_author_id(field);
+                    let requested = flip_direction(definition.sort, field);
+                    let (semantic, declaration) = self.declaration_for(
+                        &author_id,
+                        serde_json::json!({
+                            "effect": "persist_sort_and_requery",
+                            "requested_sort_field": requested.field.as_str(),
+                            "requested_sort_direction": requested.direction.as_str(),
+                            "current_sort_field": definition.sort.map(|s| s.field.as_str()),
+                            "current_sort_direction": definition
+                                .sort
+                                .map(|s| s.direction.as_str()),
+                        }),
+                        CollectionTargetMode::Persistent,
+                    );
+                    sort_bindings.push((field, semantic, declaration));
+                }
+                let declarations: Vec<(BlockViewField, Option<String>)> = sort_bindings
+                    .iter()
+                    .map(|(field, _, declaration)| (*field, declaration.clone()))
+                    .collect();
                 let mut table = TableSubView {
                     definition: &definition,
                     results: &results,
                 };
-                if let Some(ev) = table.show(ui, palette, self.in_flight) {
+                if let Some(ev) = table.show(ui, palette, self.in_flight, &declarations) {
+                    if let BlockViewEvent::Sort { sort } = &ev {
+                        if let Some((_, semantic, _)) = sort_bindings
+                            .iter()
+                            .find(|(field, _, _)| *field == sort.field)
+                        {
+                            self.begin_action(
+                                &table_sort_author_id(sort.field),
+                                semantic.clone(),
+                                CollectionActionEffect::AuthoritativeLoad,
+                            );
+                        }
+                    }
                     event = Some(ev);
                 }
             }
@@ -1088,8 +1834,13 @@ impl BlockCollectionView {
     /// The kind-switcher strip (`bcv.kind.{table|kanban|calendar}`). A click on a non-current kind emits
     /// [`BlockViewEvent::KindChange`] (the host persists via updateBlockView + re-queries). Rejected
     /// while a mutation is in flight (RISK-3 / MC-3).
-    fn kind_switcher(&self, ui: &mut egui::Ui, current: BlockViewKind) -> Option<BlockViewEvent> {
+    fn kind_switcher(
+        &mut self,
+        ui: &mut egui::Ui,
+        current: BlockViewKind,
+    ) -> Option<BlockViewEvent> {
         let mut event = None;
+        let mut begin: Option<(&'static str, String)> = None;
         for (kind, author_id) in [
             (BlockViewKind::Table, KIND_TABLE_AUTHOR_ID),
             (BlockViewKind::Kanban, KIND_KANBAN_AUTHOR_ID),
@@ -1098,10 +1849,38 @@ impl BlockCollectionView {
             let selected = kind == current;
             let enabled = !self.in_flight;
             let btn = ui.add_enabled(enabled, egui::Button::selectable(selected, kind.label()));
-            emit_button_node(ui, btn.id, author_id, kind.label(), selected, enabled);
+            // MT-027 V5: PERSISTENT observer target — the switcher stays mounted across the switch, so
+            // the declaration must advance one generation while the observer terminalizes.
+            let (semantic, declaration) = self.declaration_for(
+                author_id,
+                serde_json::json!({
+                    "effect": "persist_view_kind_and_requery",
+                    "requested_kind": kind.as_str(),
+                    "current_kind": current.as_str(),
+                }),
+                CollectionTargetMode::Persistent,
+            );
+            emit_button_node_with_declaration(
+                ui,
+                btn.id,
+                author_id,
+                kind.label(),
+                selected,
+                enabled,
+                declaration.as_deref(),
+                true,
+            );
             if btn.clicked() && !selected && !self.in_flight {
+                begin = Some((author_id, semantic));
                 event = Some(BlockViewEvent::KindChange { kind });
             }
+        }
+        if let Some((author_id, semantic)) = begin {
+            self.begin_action(
+                author_id,
+                semantic,
+                CollectionActionEffect::AuthoritativeLoad,
+            );
         }
         event
     }
@@ -1111,9 +1890,33 @@ impl BlockCollectionView {
     fn new_view_button(&mut self, ui: &mut egui::Ui) -> Option<BlockViewEvent> {
         let enabled = !self.in_flight;
         let btn = ui.add_enabled(enabled, egui::Button::new("+ New view"));
-        emit_button_node(ui, btn.id, NEW_VIEW_AUTHOR_ID, "New view", false, enabled);
+        // MT-027 V5: PERSISTENT observer target — opening the form leaves the button mounted. The
+        // effect is LOCAL host form state, and the terminal detail says exactly that.
+        let (semantic, declaration) = self.declaration_for(
+            NEW_VIEW_AUTHOR_ID,
+            serde_json::json!({
+                "effect": "open_create_view_form",
+                "form_open_before": self.new_view.is_some(),
+            }),
+            CollectionTargetMode::Persistent,
+        );
+        emit_button_node_with_declaration(
+            ui,
+            btn.id,
+            NEW_VIEW_AUTHOR_ID,
+            "New view",
+            false,
+            enabled,
+            declaration.as_deref(),
+            false,
+        );
         if btn.clicked() && enabled && self.new_view.is_none() {
             self.new_view = Some(NewViewForm::default());
+            self.begin_action(
+                NEW_VIEW_AUTHOR_ID,
+                semantic,
+                CollectionActionEffect::FormOpen,
+            );
         }
         None
     }
@@ -1148,14 +1951,25 @@ impl BlockCollectionView {
                     &form.title,
                     mutation_enabled,
                 );
+                // MT-027 V5: the causal SetValue mutation token for the title field.
+                emit_set_value_completion_node(
+                    ui,
+                    NEW_VIEW_TITLE_AUTHOR_ID,
+                    "New view title set-value completion",
+                    self.set_value_completion_value(NEW_VIEW_TITLE_AUTHOR_ID)
+                        .as_deref()
+                        .unwrap_or_default(),
+                );
                 if mutation_enabled {
                     if let Some(replacement) =
                         crate::mcp::accesskit_string_set_value(ui, title_resp.id)
                     {
-                        form.title = replacement;
+                        form.title = replacement.clone();
+                        self.record_set_value_applied(NEW_VIEW_TITLE_AUTHOR_ID, &replacement);
                     }
                 }
 
+                let mut begin_form_kind: Option<(&'static str, String, BlockViewKind)> = None;
                 ui.horizontal(|ui| {
                     for (kind, author_id) in [
                         (BlockViewKind::Table, NEW_VIEW_KIND_TABLE_AUTHOR_ID),
@@ -1167,31 +1981,68 @@ impl BlockCollectionView {
                             mutation_enabled,
                             egui::Button::selectable(selected, kind.label()),
                         );
-                        emit_button_node(
+                        let (semantic, declaration) = self.declaration_for(
+                            author_id,
+                            serde_json::json!({
+                                "effect": "select_create_form_kind",
+                                "requested_kind": kind.as_str(),
+                                "form_block_id": form.block_id,
+                            }),
+                            CollectionTargetMode::Persistent,
+                        );
+                        emit_button_node_with_declaration(
                             ui,
                             r.id,
                             author_id,
                             kind.label(),
                             selected,
                             mutation_enabled,
+                            declaration.as_deref(),
+                            true,
                         );
                         if r.clicked() && mutation_enabled {
+                            // Only a real transition opens a proof binding. Re-selecting the kind the
+                            // form already carries would otherwise terminalize instantly against a
+                            // state the click did not cause, so it stays honestly unbound.
+                            let changed = form.kind != kind;
                             form.kind = kind;
+                            if changed {
+                                begin_form_kind = Some((author_id, semantic, kind));
+                            }
                         }
                     }
                 });
+                if let Some((author_id, semantic, kind)) = begin_form_kind {
+                    self.begin_action(author_id, semantic, CollectionActionEffect::FormKind(kind));
+                }
 
+                let mut begin_confirm: Option<String> = None;
                 ui.horizontal(|ui| {
                     let confirm = ui.add_enabled(mutation_enabled, egui::Button::new("Create"));
-                    emit_button_node(
+                    // MT-027 V5: TRANSIENT observer target — confirming closes the popup, so the exact
+                    // control must be gone in the acknowledged tree.
+                    let (semantic, declaration) = self.declaration_for(
+                        NEW_VIEW_CONFIRM_AUTHOR_ID,
+                        serde_json::json!({
+                            "effect": "create_saved_view_and_bind",
+                            "requested_kind": form.kind.as_str(),
+                            "requested_title": form.title.trim(),
+                            "form_block_id": form.block_id,
+                        }),
+                        CollectionTargetMode::Transient,
+                    );
+                    emit_button_node_with_declaration(
                         ui,
                         confirm.id,
                         NEW_VIEW_CONFIRM_AUTHOR_ID,
                         "Create view",
                         false,
                         mutation_enabled,
+                        declaration.as_deref(),
+                        false,
                     );
                     if confirm.clicked() && mutation_enabled {
+                        begin_confirm = Some(semantic);
                         event = Some(BlockViewEvent::CreateView {
                             title: form.title.trim().to_owned(),
                             kind: form.kind,
@@ -1210,6 +2061,13 @@ impl BlockCollectionView {
                         self.new_view = None;
                     }
                 });
+                if let Some(semantic) = begin_confirm {
+                    self.begin_action(
+                        NEW_VIEW_CONFIRM_AUTHOR_ID,
+                        semantic,
+                        CollectionActionEffect::AuthoritativeLoad,
+                    );
+                }
             });
 
         if event.is_some() || !open {
@@ -1247,6 +2105,18 @@ impl BlockCollectionView {
             if tag_grouped {
                 let (add_tags, remove_tags) = card_move_tags(&from_key, &to_key);
                 self.status = "Moving card…".to_owned();
+                // MT-027 V5: the operator drag path binds the SAME observer and the SAME declared
+                // intent as the swarm `collection.kanban-move` control, so both prove the move causally.
+                let (semantic, _) = self.declaration_for(
+                    COLLECTION_KANBAN_MOVE_AUTHOR_ID,
+                    self.collection_kanban_move_intent(),
+                    CollectionTargetMode::Persistent,
+                );
+                self.begin_action(
+                    COLLECTION_KANBAN_MOVE_AUTHOR_ID,
+                    semantic,
+                    CollectionActionEffect::AuthoritativeLoad,
+                );
                 return Some(BlockViewEvent::CardMove {
                     block_id,
                     add_tags,
@@ -1266,6 +2136,7 @@ impl BlockCollectionView {
         results: &BlockViewResults,
     ) -> Option<BlockViewEvent> {
         let mut event = None;
+        let mut begin_apply: Option<String> = None;
 
         // Date-range inputs (server-side filtering — RISK-5 / MC-5: regex-validate before emitting).
         ui.horizontal(|ui| {
@@ -1283,9 +2154,18 @@ impl BlockCollectionView {
                 &self.date_from_input,
                 !self.in_flight,
             );
+            emit_set_value_completion_node(
+                ui,
+                CALENDAR_DATE_FROM_AUTHOR_ID,
+                "Calendar date-from set-value completion",
+                self.set_value_completion_value(CALENDAR_DATE_FROM_AUTHOR_ID)
+                    .as_deref()
+                    .unwrap_or_default(),
+            );
             if !self.in_flight {
                 if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, from.id) {
-                    self.date_from_input = replacement;
+                    self.date_from_input = replacement.clone();
+                    self.record_set_value_applied(CALENDAR_DATE_FROM_AUTHOR_ID, &replacement);
                 }
             }
 
@@ -1303,25 +2183,48 @@ impl BlockCollectionView {
                 &self.date_to_input,
                 !self.in_flight,
             );
+            emit_set_value_completion_node(
+                ui,
+                CALENDAR_DATE_TO_AUTHOR_ID,
+                "Calendar date-to set-value completion",
+                self.set_value_completion_value(CALENDAR_DATE_TO_AUTHOR_ID)
+                    .as_deref()
+                    .unwrap_or_default(),
+            );
             if !self.in_flight {
                 if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, to.id) {
-                    self.date_to_input = replacement;
+                    self.date_to_input = replacement.clone();
+                    self.record_set_value_applied(CALENDAR_DATE_TO_AUTHOR_ID, &replacement);
                 }
             }
 
             let apply = ui.add_enabled(!self.in_flight, egui::Button::new("Apply range"));
-            emit_button_node(
+            // MT-027 V5: PERSISTENT observer target — the apply control stays mounted across the
+            // persisted range change and its authoritative re-query.
+            let (semantic, declaration) = self.declaration_for(
+                CALENDAR_APPLY_RANGE_AUTHOR_ID,
+                serde_json::json!({
+                    "effect": "persist_calendar_range_and_requery",
+                    "requested_date_from": self.date_from_input.trim(),
+                    "requested_date_to": self.date_to_input.trim(),
+                }),
+                CollectionTargetMode::Persistent,
+            );
+            emit_button_node_with_declaration(
                 ui,
                 apply.id,
-                "bcv.calendar.apply-range",
+                CALENDAR_APPLY_RANGE_AUTHOR_ID,
                 "Apply date range",
                 false,
                 !self.in_flight,
+                declaration.as_deref(),
+                false,
             );
             if apply.clicked() && !self.in_flight {
                 match self.validated_date_range() {
                     Ok((from, to)) => {
                         self.date_error = None;
+                        begin_apply = Some(semantic);
                         event = Some(BlockViewEvent::DateRange {
                             date_from: from,
                             date_to: to,
@@ -1331,6 +2234,13 @@ impl BlockCollectionView {
                 }
             }
         });
+        if let Some(semantic) = begin_apply {
+            self.begin_action(
+                CALENDAR_APPLY_RANGE_AUTHOR_ID,
+                semantic,
+                CollectionActionEffect::AuthoritativeLoad,
+            );
+        }
         if let Some(err) = &self.date_error {
             ui.colored_label(palette.error_text, err);
         }
@@ -1414,6 +2324,7 @@ impl TableSubView<'_> {
         ui: &mut egui::Ui,
         palette: &HsPalette,
         in_flight: bool,
+        sort_declarations: &[(BlockViewField, Option<String>)],
     ) -> Option<BlockViewEvent> {
         let mut event = None;
         let columns = self.definition.effective_columns();
@@ -1429,13 +2340,19 @@ impl TableSubView<'_> {
                     .unwrap_or("");
                 let label = format!("{}{indicator}", field.label());
                 let btn = ui.add_enabled(!in_flight, egui::Button::new(&label));
-                emit_button_node(
+                let declaration = sort_declarations
+                    .iter()
+                    .find(|(declared, _)| *declared == field)
+                    .and_then(|(_, declaration)| declaration.as_deref());
+                emit_button_node_with_declaration(
                     ui,
                     btn.id,
                     &table_sort_author_id(field),
                     &label,
                     false,
                     !in_flight,
+                    declaration,
+                    false,
                 );
                 if btn.clicked() && !in_flight {
                     let sort = flip_direction(self.definition.sort, field);
@@ -1742,6 +2659,77 @@ fn emit_button_node(
     });
 }
 
+/// WP-KERNEL-012 MT-027 V5: emit a button node that carries an opt-in `handshake.click-completion/v1`
+/// observer DECLARATION in its AccessKit `value`.
+///
+/// The declaration takes over `value` because that is the only channel `crate::mcp::action` reads a
+/// target declaration from. When `emit_state_node` is set, the machine-readable selection projection is
+/// therefore published on a dedicated sibling `<author_id>.state` Role::Status node instead of being
+/// lost — the selection contract is relocated, never removed. With `declaration = None` this renders
+/// exactly the previous plain button node, so an un-instrumented host is unaffected.
+#[allow(clippy::too_many_arguments)]
+fn emit_button_node_with_declaration(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    selected: bool,
+    enabled: bool,
+    declaration: Option<&str>,
+    emit_state_node: bool,
+) {
+    let selection = if selected { "selected" } else { "not_selected" };
+    let author = author_id.to_owned();
+    let label_owned = label.to_owned();
+    let value = declaration.unwrap_or(selection).to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Button);
+        node.set_author_id(author.clone());
+        node.set_label(label_owned.clone());
+        node.set_value(value.clone());
+        if enabled {
+            node.add_action(accesskit::Action::Click);
+            node.clear_disabled();
+        } else {
+            node.remove_action(accesskit::Action::Click);
+            node.set_disabled();
+        }
+        if selected {
+            node.set_toggled(accesskit::Toggled::True);
+        }
+    });
+    if emit_state_node {
+        let state_author_id = button_state_author_id(author_id);
+        emit_status_node(
+            ui,
+            egui::Id::new(&state_author_id),
+            &state_author_id,
+            selection,
+        );
+    }
+}
+
+/// Emit a durable Role::Status completion observer node. The `value` is the
+/// `handshake.click-completion/v1` token `crate::mcp::action` acknowledges against.
+fn emit_completion_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str, value: &str) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let value = value.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Status);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
+    });
+}
+
+/// Emit the `<target>.set-value-completion` observer `crate::mcp::action` requires before it will call
+/// a SetValue causally proven. The displayed value alone is never accepted as proof.
+fn emit_set_value_completion_node(ui: &egui::Ui, target: &str, label: &str, value: &str) {
+    let author_id = crate::mcp::action::set_value_completion_author_id(target);
+    emit_completion_node(ui, egui::Id::new(&author_id), &author_id, label, value);
+}
+
 /// Emit a Role::Status AccessKit node (the status strip — "Re-sorting…" / "Moving card…" / "").
 fn emit_status_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str) {
     let author = author_id.to_owned();
@@ -2001,7 +2989,10 @@ mod tests {
         for palette in [HsPalette::dark(), HsPalette::light()] {
             let (fill, text, border) = kanban_card_colors(&palette);
             assert_ne!(fill, text, "card text must contrast with its fill");
-            assert_ne!(fill, border, "card border must distinguish the card from its lane");
+            assert_ne!(
+                fill, border,
+                "card border must distinguish the card from its lane"
+            );
         }
     }
 

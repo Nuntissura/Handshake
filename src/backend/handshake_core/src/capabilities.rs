@@ -30,6 +30,17 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "export.debug_bundle",
     "export.governance_pack",
     "fr.read",
+    // WP-KERNEL-012 MT-109 (FAIL_V4 remediation): the flight-recorder HTTP route group is
+    // capability-gated. `fr.read` authorizes a WORKSPACE-SCOPED recorder read
+    // (`GET /flight_recorder?wsid=...` / `GET /events?wsid=...`). `fr.read.global` is the
+    // strictly higher capability required to omit the workspace scope and enumerate every
+    // workspace; it is deliberately granted to NO shipped profile, so unscoped recorder
+    // enumeration is fail-closed until an Operator-approved profile grants it.
+    "fr.read.global",
+    // Recorder ingestion capabilities. Separate axes so a native-editor client cannot reach the
+    // runtime-chat lane (and vice versa) and neither implies recorder read.
+    "fr.ingest.runtime_chat",
+    "fr.ingest.native_editor",
     "diagnostics.read",
     "jobs.read",
     "stage.jobs.enqueue",
@@ -217,6 +228,13 @@ impl CapabilityRegistry {
                     "memory.propose".to_string(),
                     "memory.review".to_string(),
                     "memory.commit".to_string(),
+                    // MT-109: the authenticated native shell may ingest its own editor and
+                    // runtime-chat recorder events and may read the recorder back for a workspace
+                    // it names explicitly. `fr.read.global` is intentionally NOT granted here:
+                    // omitting the workspace scope must stay denied for the Operator profile.
+                    "fr.read".to_string(),
+                    "fr.ingest.runtime_chat".to_string(),
+                    "fr.ingest.native_editor".to_string(),
                 ],
             },
         );

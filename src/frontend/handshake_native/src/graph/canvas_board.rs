@@ -161,6 +161,290 @@ pub fn placement_resize_author_id(placement_id: &str) -> String {
     )
 }
 
+// ── WP-KERNEL-012 MT-026 V4: terminal action receipts (validation_v4 remediation) ────────────────
+//
+// `validation_v4` failed MT-026 because the mounted canvas post-state was plausible but NEITHER the
+// zoom NOR the placement removal was CAUSALLY PROVEN: both canonical Argus receipts came back
+// `indeterminate`, because the toolbar/remove buttons published no action-specific completion token, so
+// `crate::mcp::action` had nothing to acknowledge and fell back to the conservative Indeterminate
+// verdict. "The target disappeared" and "the sibling node is still there" are NOT proof.
+//
+// This extends the EXISTING opt-in completion-token mechanism in `crate::mcp::action`
+// (`handshake.click-completion/v1`, observer mode) rather than inventing a parallel one:
+//
+//   * `canvas.viewport-completion`  — a durable Role::Status observer for pan/zoom. The four viewport
+//     buttons declare a PERSISTENT observer target (they stay mounted after activation); the observer
+//     terminalizes ONLY when an authoritative `set_board` refresh delivers the persisted viewport.
+//   * `canvas.placement-mutation-completion` — a durable Role::Status observer for placement removal.
+//     The per-card remove button declares a FLEXIBLE observer target (success removes the button, a
+//     terminal failure leaves it mounted). The observer terminalizes ONLY after BOTH (a) an
+//     authoritative refreshed board proves the placement absent at a NEW board generation, and (b) an
+//     explicit `getLoomBlock` on the placement's SOURCE block proves the source survived the removal.
+//
+// Both observers are proof-only: they never gate the product behavior (a zoom still zooms and a removal
+// still removes when no observer binding is open), so an un-instrumented host is unaffected.
+
+/// Durable Role::Status observer publishing viewport (pan/zoom) action completion.
+pub const VIEWPORT_COMPLETION_AUTHOR_ID: &str = "canvas.viewport-completion";
+/// Durable Role::Status observer publishing placement-mutation (removal) completion.
+pub const PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID: &str = "canvas.placement-mutation-completion";
+
+/// Schema of the pre-dispatch semantic payload a viewport control declares.
+pub const VIEWPORT_ACTION_SEMANTIC_SCHEMA: &str = "handshake.canvas-viewport-action/v1";
+/// Schema of the terminal detail the viewport observer publishes on completion.
+pub const VIEWPORT_COMPLETION_DETAIL_SCHEMA: &str = "handshake.canvas-viewport-completion/v1";
+/// Schema of the pre-dispatch semantic payload a placement remove button declares.
+pub const PLACEMENT_REMOVAL_SEMANTIC_SCHEMA: &str = "handshake.canvas-placement-removal-action/v1";
+/// Schema of the terminal detail the placement observer publishes on completion.
+pub const PLACEMENT_REMOVAL_DETAIL_SCHEMA: &str =
+    "handshake.canvas-placement-removal-completion/v1";
+
+const VIEWPORT_COMPLETION_EFFECT: &str = "canvas-viewport";
+const PLACEMENT_MUTATION_COMPLETION_EFFECT: &str = "canvas-placement-mutation";
+
+/// How many rendered frames a TERMINAL observer record stays published before it settles back to
+/// `Ready` for the next action. The canonical Argus driver acknowledges a terminal receipt on the very
+/// next snapshot capture, so this window is generous; keeping it bounded means a later action on the
+/// same observer starts from a clean, honestly-recomputed declaration instead of republishing a stale
+/// prior-state semantic.
+const TERMINAL_SETTLE_FRAMES: u32 = 24;
+
+/// Tolerance (logical px / scale units) when proving a persisted viewport equals the dispatched one.
+const VIEWPORT_MATCH_EPSILON: f32 = 0.01;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CanvasObserverPhase {
+    Ready,
+    Pending,
+    Applied,
+    Failed,
+}
+
+/// Which `crate::mcp::action` target-declaration shape a control uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CanvasTargetMode {
+    /// The control stays mounted after activation (toolbar viewport buttons).
+    Persistent,
+    /// Success removes the control, a terminal failure leaves it mounted (per-card remove button).
+    Flexible,
+}
+
+/// One durable canvas action observer. Mirrors the proven `LoomWikiPagePanel` / MT-042 observer shape:
+/// a monotonic generation, an exact pending target, the pre-dispatch semantic that binds the receipt
+/// causally, and a bounded terminal detail carrying the authoritative post-state.
+#[derive(Debug, Clone)]
+struct CanvasActionObserver {
+    effect: &'static str,
+    observer_author_id: &'static str,
+    generation: u64,
+    phase: CanvasObserverPhase,
+    context: String,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+    terminal_frames: u32,
+}
+
+impl CanvasActionObserver {
+    fn new(effect: &'static str, observer_author_id: &'static str) -> Self {
+        Self {
+            effect,
+            observer_author_id,
+            generation: 0,
+            phase: CanvasObserverPhase::Ready,
+            context: "canvas-unbound".to_owned(),
+            pending_target: None,
+            semantic_value: None,
+            terminal_detail: None,
+            terminal_error: None,
+            terminal_frames: 0,
+        }
+    }
+
+    /// Per-frame housekeeping. A terminal record is DURABLE (capture/navigation passes may render the
+    /// board arbitrarily many times before `ActionChannel` reads it), but it settles after a bounded
+    /// number of frames or immediately when the board's authoritative binding changes.
+    fn prepare_frame(&mut self, context: &str) {
+        let terminal = matches!(
+            self.phase,
+            CanvasObserverPhase::Applied | CanvasObserverPhase::Failed
+        );
+        if terminal && self.context != context {
+            self.settle();
+        } else if terminal {
+            self.terminal_frames = self.terminal_frames.saturating_add(1);
+            if self.terminal_frames >= TERMINAL_SETTLE_FRAMES {
+                self.settle();
+            }
+        }
+        if self.phase == CanvasObserverPhase::Ready {
+            self.context = context.to_owned();
+        }
+    }
+
+    fn settle(&mut self) {
+        self.phase = CanvasObserverPhase::Ready;
+        self.pending_target = None;
+        self.semantic_value = None;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        self.terminal_frames = 0;
+    }
+
+    /// The generation the NEXT action on this observer will own (so a declaration can name its own
+    /// `action_id` before dispatch).
+    fn next_generation(&self) -> u64 {
+        self.generation.wrapping_add(1).max(1)
+    }
+
+    /// The declaration a control publishes as its AccessKit `value`. While an action bound to THIS
+    /// exact control is open (or terminal but not yet settled) the ORIGINAL semantic is republished
+    /// verbatim: `crate::mcp::action` requires the post-action declaration to advance by exactly one
+    /// generation while carrying an unchanged semantic tuple.
+    fn declaration(
+        &self,
+        author_id: &str,
+        fresh_semantic: &str,
+        mode: CanvasTargetMode,
+    ) -> Option<String> {
+        let semantic = if self.pending_target.as_deref() == Some(author_id) {
+            self.semantic_value.as_deref().unwrap_or(fresh_semantic)
+        } else {
+            fresh_semantic
+        };
+        match mode {
+            CanvasTargetMode::Persistent => {
+                crate::mcp::action::serialize_persistent_observer_click_target(
+                    self.effect,
+                    &self.context,
+                    self.generation,
+                    self.observer_author_id,
+                    semantic,
+                )
+            }
+            CanvasTargetMode::Flexible => {
+                crate::mcp::action::serialize_flexible_observer_click_target(
+                    self.effect,
+                    &self.context,
+                    self.generation,
+                    self.observer_author_id,
+                    semantic,
+                )
+            }
+        }
+    }
+
+    /// Open a new action binding. Returns the owning generation, or `None` when an action is already in
+    /// flight or a terminal record has not yet settled (the product behavior still runs — only the
+    /// causal proof binding is skipped, so the receipt stays honestly indeterminate).
+    fn begin(&mut self, target: &str, semantic_value: String) -> Option<u64> {
+        if self.phase != CanvasObserverPhase::Ready {
+            return None;
+        }
+        self.generation = self.next_generation();
+        self.phase = CanvasObserverPhase::Pending;
+        self.pending_target = Some(target.to_owned());
+        self.semantic_value = Some(semantic_value);
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        self.terminal_frames = 0;
+        Some(self.generation)
+    }
+
+    fn applied(&mut self, generation: u64, detail: String) -> bool {
+        if self.phase != CanvasObserverPhase::Pending || self.generation != generation {
+            return false;
+        }
+        self.phase = CanvasObserverPhase::Applied;
+        self.terminal_detail = Some(detail);
+        self.terminal_error = None;
+        self.terminal_frames = 0;
+        true
+    }
+
+    fn failed(&mut self, generation: u64, error: String, detail: String) -> bool {
+        if self.phase != CanvasObserverPhase::Pending || self.generation != generation {
+            return false;
+        }
+        self.phase = CanvasObserverPhase::Failed;
+        self.terminal_error = Some(error);
+        self.terminal_detail = Some(detail);
+        self.terminal_frames = 0;
+        true
+    }
+
+    fn serialized(&self) -> Option<String> {
+        match self.phase {
+            CanvasObserverPhase::Ready => crate::mcp::action::serialize_observer_click_state(
+                self.effect,
+                &self.context,
+                self.generation,
+                crate::mcp::action::ClickCompletionState::Ready,
+                None,
+                None,
+            ),
+            CanvasObserverPhase::Pending => crate::mcp::action::serialize_observer_click_state(
+                self.effect,
+                &self.context,
+                self.generation,
+                crate::mcp::action::ClickCompletionState::Pending,
+                self.pending_target.as_deref(),
+                self.semantic_value.as_deref(),
+            ),
+            CanvasObserverPhase::Applied => crate::mcp::action::serialize_observer_click_applied(
+                self.effect,
+                &self.context,
+                self.generation,
+                self.pending_target.as_deref()?,
+                self.semantic_value.as_deref()?,
+                self.terminal_detail.as_deref()?,
+            ),
+            CanvasObserverPhase::Failed => crate::mcp::action::serialize_observer_click_failure(
+                self.effect,
+                &self.context,
+                self.generation,
+                self.pending_target.as_deref()?,
+                self.semantic_value.as_deref()?,
+                self.terminal_error.as_deref()?,
+                self.terminal_detail.as_deref(),
+            ),
+        }
+    }
+}
+
+/// The exact viewport action awaiting an AUTHORITATIVE post-state. Terminalized only by a
+/// `set_board` refresh (persisted authority) — never by the optimistic in-widget value.
+#[derive(Debug, Clone)]
+struct PendingViewportAction {
+    generation: u64,
+    action_id: String,
+    author_id: String,
+    board_id: String,
+    workspace_id: String,
+    prior_revision: u64,
+    prior_board_generation: u64,
+    requested_pan: Vec2,
+    requested_zoom: f32,
+}
+
+/// The exact placement removal awaiting an AUTHORITATIVE post-state. Terminalized only after the
+/// refreshed board proves the placement absent AND a `getLoomBlock` proves the SOURCE block retained.
+#[derive(Debug, Clone)]
+struct PendingPlacementRemoval {
+    generation: u64,
+    action_id: String,
+    author_id: String,
+    workspace_id: String,
+    board_id: String,
+    placement_id: String,
+    placed_block_id: String,
+    prior_board_generation: u64,
+    /// Set once an authoritative refresh has proven the placement absent; the source-retention probe is
+    /// the remaining gate.
+    absent_board_generation: Option<u64>,
+}
+
 /// What backs a placement card, deciding whether it is INLINE-EDITABLE on the canvas (WP-KERNEL-012
 /// MT-061, the load-bearing reference-not-copy gate, AC-061-5).
 ///
@@ -671,6 +955,19 @@ pub struct LoomCanvasBoard {
     /// failure. Never synthesize a title from an opaque block id.
     unresolved_title_hints: std::collections::HashMap<String, String>,
     snapshot_capture_mode: bool,
+    /// WP-KERNEL-012 MT-026 V4: durable terminal-receipt observers (see the module-level V4 note).
+    viewport_observer: CanvasActionObserver,
+    placement_observer: CanvasActionObserver,
+    pending_viewport: Option<PendingViewportAction>,
+    pending_removal: Option<PendingPlacementRemoval>,
+    /// Monotonic revision of the board's AUTHORITATIVE viewport. Bumped by every viewport step the
+    /// widget applies and by every authoritative `set_board` that changes pan/zoom, so a receipt can
+    /// name a prior and a resulting viewport revision rather than only a scale/offset pair.
+    viewport_revision: u64,
+    /// Monotonic FRESH-STATE generation: incremented on every authoritative `set_board`. A terminal
+    /// receipt binds to the generation of the refreshed projection that proved its post-state, so
+    /// "unchanged node presence" can never masquerade as a re-observation.
+    board_generation: u64,
 }
 
 impl LoomCanvasBoard {
@@ -713,6 +1010,18 @@ impl LoomCanvasBoard {
             render_source_pane_id: None,
             unresolved_title_hints: std::collections::HashMap::new(),
             snapshot_capture_mode: false,
+            viewport_observer: CanvasActionObserver::new(
+                VIEWPORT_COMPLETION_EFFECT,
+                VIEWPORT_COMPLETION_AUTHOR_ID,
+            ),
+            placement_observer: CanvasActionObserver::new(
+                PLACEMENT_MUTATION_COMPLETION_EFFECT,
+                PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID,
+            ),
+            pending_viewport: None,
+            pending_removal: None,
+            viewport_revision: 0,
+            board_generation: 0,
         }
     }
 
@@ -762,6 +1071,12 @@ impl LoomCanvasBoard {
             self.ctx_menu_placement = None;
             self.ctx_menu_owner_pane_id = None;
             self.unresolved_title_hints.clear();
+            // WP-KERNEL-012 MT-026 V4: a different board can never satisfy an open receipt. Abandon the
+            // in-flight proof bindings rather than letting the next board's refresh terminalize them.
+            self.pending_viewport = None;
+            self.pending_removal = None;
+            self.viewport_observer.settle();
+            self.placement_observer.settle();
         }
         self.workspace_id = workspace_id.clone();
         self.canvas_block_id = canvas_block_id.clone();
@@ -833,7 +1148,10 @@ impl LoomCanvasBoard {
         if result.is_ok() {
             self.unresolved_title_hints.remove(block_id);
         }
-        matched
+        // WP-KERNEL-012 MT-026 V4: this same delivery carries the EXPLICIT source-block existence
+        // confirmation a placement-removal receipt requires (the removed placement is gone from the
+        // board, so its source block is probed through `retention_probe_block_ids`).
+        matched | self.complete_removal_with_source_proof(block_id, result)
     }
 
     /// WP-KERNEL-012 MT-061: install the per-`group_id` section labels (board section/group metadata) the
@@ -931,6 +1249,382 @@ impl LoomCanvasBoard {
         }
     }
 
+    // ── WP-KERNEL-012 MT-026 V4: terminal action receipts ─────────────────────────────────────────
+
+    /// The observer context: the exact authoritative board binding. Re-binding the board settles any
+    /// terminal record, so a receipt can never be read against a different board.
+    fn action_context(&self) -> String {
+        if self.workspace_id.trim().is_empty() || self.canvas_block_id.trim().is_empty() {
+            return "canvas-unbound".to_owned();
+        }
+        format!("canvas:{}:{}", self.workspace_id, self.canvas_block_id)
+    }
+
+    /// Monotonic FRESH-STATE generation of the last authoritative `set_board`. Exposed so a proof can
+    /// require a NEW projection generation rather than accepting unchanged node presence.
+    pub fn board_generation(&self) -> u64 {
+        self.board_generation
+    }
+
+    /// Monotonic revision of the authoritative viewport.
+    pub fn viewport_revision(&self) -> u64 {
+        self.viewport_revision
+    }
+
+    fn bump_viewport_revision(&mut self) {
+        self.viewport_revision = self.viewport_revision.wrapping_add(1).max(1);
+    }
+
+    /// The exact backend route the host dispatches for a viewport persist (route-level backend
+    /// correlation carried in the viewport receipt).
+    fn viewport_persist_route(&self) -> String {
+        format!(
+            "PUT /workspaces/{}/loom/canvas-boards/{}/viewport",
+            self.workspace_id, self.canvas_block_id
+        )
+    }
+
+    /// The exact backend route the host dispatches for a placement removal.
+    fn placement_delete_route(&self, placement_id: &str) -> String {
+        format!(
+            "DELETE /workspaces/{}/loom/canvas-placements/{placement_id}",
+            self.workspace_id
+        )
+    }
+
+    /// The viewport a control INTENDS to produce, computed before dispatch so the declaration binds the
+    /// receipt to an exact requested post-state instead of "something changed".
+    fn requested_viewport_for(&self, author_id: &str) -> Option<(Vec2, f32)> {
+        let stepped = |delta: f32| ((self.zoom + delta) * 100.0).round() / 100.0;
+        Some(match author_id {
+            PAN_LEFT_AUTHOR_ID => (Vec2::new(self.pan.x - PAN_STEP, self.pan.y), self.zoom),
+            PAN_RIGHT_AUTHOR_ID => (Vec2::new(self.pan.x + PAN_STEP, self.pan.y), self.zoom),
+            ZOOM_IN_AUTHOR_ID => (self.pan, stepped(ZOOM_STEP).clamp(MIN_ZOOM, MAX_ZOOM)),
+            ZOOM_OUT_AUTHOR_ID => (self.pan, stepped(-ZOOM_STEP).clamp(MIN_ZOOM, MAX_ZOOM)),
+            _ => return None,
+        })
+    }
+
+    /// The pre-dispatch semantic a viewport control declares: board identity, the PRIOR viewport
+    /// revision/scale/offset, this action's id, and the exact requested post-state.
+    fn viewport_action_semantic(&self, author_id: &str) -> Option<String> {
+        let (pan, zoom) = self.requested_viewport_for(author_id)?;
+        if ![self.pan.x, self.pan.y, self.zoom, pan.x, pan.y, zoom]
+            .iter()
+            .all(|value| value.is_finite())
+        {
+            return None;
+        }
+        Some(
+            serde_json::json!({
+                "schema_id": VIEWPORT_ACTION_SEMANTIC_SCHEMA,
+                "action": author_id,
+                "action_id": self.viewport_action_id(),
+                "workspace_id": self.workspace_id,
+                "board_id": self.canvas_block_id,
+                "prior": {
+                    "viewport_revision": self.viewport_revision,
+                    "board_generation": self.board_generation,
+                    "scale": self.zoom,
+                    "offset_x": self.pan.x,
+                    "offset_y": self.pan.y,
+                },
+                "requested": { "scale": zoom, "offset_x": pan.x, "offset_y": pan.y },
+                "persist_route": self.viewport_persist_route(),
+            })
+            .to_string(),
+        )
+    }
+
+    fn viewport_action_id(&self) -> String {
+        format!(
+            "{VIEWPORT_COMPLETION_EFFECT}:{}:{}",
+            self.viewport_observer.context,
+            self.viewport_observer.next_generation()
+        )
+    }
+
+    /// The declaration a viewport control publishes as its AccessKit `value`.
+    fn viewport_declaration(&self, author_id: &str, semantic: Option<&str>) -> Option<String> {
+        self.viewport_observer
+            .declaration(author_id, semantic?, CanvasTargetMode::Persistent)
+    }
+
+    /// Open the viewport proof binding for the control the operator/swarm just activated. Proof-only:
+    /// the pan/zoom effect applies regardless of whether a binding could be opened.
+    fn begin_viewport_action(&mut self, author_id: &str, semantic: Option<String>) {
+        let Some(semantic) = semantic else {
+            return;
+        };
+        let Some((requested_pan, requested_zoom)) = self.requested_viewport_for(author_id) else {
+            return;
+        };
+        let action_id = self.viewport_action_id();
+        let prior_revision = self.viewport_revision;
+        let prior_board_generation = self.board_generation;
+        let workspace_id = self.workspace_id.clone();
+        let board_id = self.canvas_block_id.clone();
+        if let Some(generation) = self.viewport_observer.begin(author_id, semantic) {
+            self.pending_viewport = Some(PendingViewportAction {
+                generation,
+                action_id,
+                author_id: author_id.to_owned(),
+                board_id,
+                workspace_id,
+                prior_revision,
+                prior_board_generation,
+                requested_pan,
+                requested_zoom,
+            });
+        }
+    }
+
+    /// Terminalize a pending viewport action from the AUTHORITATIVE refreshed board. A refresh whose
+    /// persisted viewport does not (yet) equal the dispatched one leaves the action pending — an
+    /// unproven action is never converted into a claim.
+    fn complete_viewport_from_refresh(&mut self) {
+        let Some(pending) = self.pending_viewport.clone() else {
+            return;
+        };
+        let matched = (self.pan.x - pending.requested_pan.x).abs() <= VIEWPORT_MATCH_EPSILON
+            && (self.pan.y - pending.requested_pan.y).abs() <= VIEWPORT_MATCH_EPSILON
+            && (self.zoom - pending.requested_zoom).abs() <= VIEWPORT_MATCH_EPSILON;
+        if !matched {
+            return;
+        }
+        let detail = serde_json::json!({
+            "schema_id": VIEWPORT_COMPLETION_DETAIL_SCHEMA,
+            "action_id": pending.action_id,
+            "target_author_id": pending.author_id,
+            "workspace_id": pending.workspace_id,
+            "board_id": pending.board_id,
+            "authority": "persisted",
+            "persist_route": self.viewport_persist_route(),
+            "backend_ack": "authoritative_board_refresh",
+            "prior": {
+                "viewport_revision": pending.prior_revision,
+                "board_generation": pending.prior_board_generation,
+            },
+            "resulting": {
+                "viewport_revision": self.viewport_revision,
+                "board_generation": self.board_generation,
+                "scale": self.zoom,
+                "offset_x": self.pan.x,
+                "offset_y": self.pan.y,
+            },
+        })
+        .to_string();
+        if self.viewport_observer.applied(pending.generation, detail) {
+            self.pending_viewport = None;
+        }
+    }
+
+    /// The pre-dispatch semantic a placement remove button declares.
+    fn placement_removal_semantic(
+        &self,
+        placement_id: &str,
+        placed_block_id: &str,
+    ) -> Option<String> {
+        if placement_id.trim().is_empty() {
+            return None;
+        }
+        Some(
+            serde_json::json!({
+                "schema_id": PLACEMENT_REMOVAL_SEMANTIC_SCHEMA,
+                "action": placement_remove_author_id(placement_id),
+                "action_id": self.placement_removal_action_id(),
+                "workspace_id": self.workspace_id,
+                "board_id": self.canvas_block_id,
+                "placement_id": placement_id,
+                "block_id": placed_block_id,
+                "prior_board_generation": self.board_generation,
+                "delete_route": self.placement_delete_route(placement_id),
+            })
+            .to_string(),
+        )
+    }
+
+    fn placement_removal_action_id(&self) -> String {
+        format!(
+            "{PLACEMENT_MUTATION_COMPLETION_EFFECT}:{}:{}",
+            self.placement_observer.context,
+            self.placement_observer.next_generation()
+        )
+    }
+
+    fn placement_removal_declaration(
+        &self,
+        author_id: &str,
+        semantic: Option<&str>,
+    ) -> Option<String> {
+        self.placement_observer
+            .declaration(author_id, semantic?, CanvasTargetMode::Flexible)
+    }
+
+    /// Open the removal proof binding. Proof-only: the removal event fires regardless.
+    fn begin_placement_removal(
+        &mut self,
+        placement_id: &str,
+        placed_block_id: &str,
+        semantic: Option<String>,
+    ) {
+        let Some(semantic) = semantic else {
+            return;
+        };
+        let author_id = placement_remove_author_id(placement_id);
+        let action_id = self.placement_removal_action_id();
+        let prior_board_generation = self.board_generation;
+        let workspace_id = self.workspace_id.clone();
+        let board_id = self.canvas_block_id.clone();
+        if let Some(generation) = self.placement_observer.begin(&author_id, semantic) {
+            self.pending_removal = Some(PendingPlacementRemoval {
+                generation,
+                action_id,
+                author_id,
+                workspace_id,
+                board_id,
+                placement_id: placement_id.to_owned(),
+                placed_block_id: placed_block_id.to_owned(),
+                prior_board_generation,
+                absent_board_generation: None,
+            });
+        }
+    }
+
+    /// Record that an AUTHORITATIVE refreshed board proves the removed placement absent at a NEW board
+    /// generation. This is only HALF the proof: the source-block retention probe still has to land.
+    fn observe_removal_refresh(&mut self) {
+        let generation = self.board_generation;
+        let still_present = match &self.pending_removal {
+            Some(pending) if pending.absent_board_generation.is_none() => self
+                .placements
+                .iter()
+                .any(|card| card.placement_id == pending.placement_id),
+            _ => return,
+        };
+        if still_present {
+            return;
+        }
+        if let Some(pending) = self.pending_removal.as_mut() {
+            pending.absent_board_generation = Some(generation);
+        }
+    }
+
+    /// The block ids the host must additionally resolve through `getLoomBlock` so a removal receipt can
+    /// carry an EXPLICIT source-block existence confirmation. The removed placement is gone from the
+    /// board, so its source block would otherwise never be probed again.
+    pub fn retention_probe_block_ids(&self) -> Vec<String> {
+        match &self.pending_removal {
+            Some(pending)
+                if pending.absent_board_generation.is_some()
+                    && !pending.placed_block_id.trim().is_empty() =>
+            {
+                vec![pending.placed_block_id.clone()]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Terminalize a pending removal with the explicit source-block retention proof. Returns `true`
+    /// when this delivery closed the removal receipt.
+    fn complete_removal_with_source_proof(
+        &mut self,
+        block_id: &str,
+        result: &Result<
+            crate::backend_client::LiveBlock,
+            crate::backend_client::LiveBlockResolveError,
+        >,
+    ) -> bool {
+        let Some(pending) = self.pending_removal.clone() else {
+            return false;
+        };
+        if pending.placed_block_id != block_id {
+            return false;
+        }
+        let Some(absent_board_generation) = pending.absent_board_generation else {
+            return false;
+        };
+        let (source_present, content_type, failure) = match result {
+            Ok((_, content_type, _)) => (true, Some(content_type.clone()), None),
+            Err(crate::backend_client::LiveBlockResolveError::Missing) => (
+                false,
+                None,
+                Some("source block is ABSENT after placement removal".to_owned()),
+            ),
+            Err(crate::backend_client::LiveBlockResolveError::Unavailable(reason)) => (
+                false,
+                None,
+                Some(format!("source-block retention unproven: {reason}")),
+            ),
+        };
+        let detail = serde_json::json!({
+            "schema_id": PLACEMENT_REMOVAL_DETAIL_SCHEMA,
+            "action_id": pending.action_id,
+            "target_author_id": pending.author_id,
+            "workspace_id": pending.workspace_id,
+            "board_id": pending.board_id,
+            "placement_id": pending.placement_id,
+            "block_id": pending.placed_block_id,
+            "mutation_revision": {
+                "prior_board_generation": pending.prior_board_generation,
+                "refreshed_board_generation": absent_board_generation,
+                "observed_board_generation": self.board_generation,
+            },
+            "backend": {
+                "route": self.placement_delete_route(&pending.placement_id),
+                "ack": "authoritative_board_refresh",
+                "source_probe_route": format!(
+                    "GET /workspaces/{}/loom/blocks/{}",
+                    pending.workspace_id, pending.placed_block_id
+                ),
+                // The canvas placement DELETE route answers 204 with no body, so the backend returns no
+                // EventLedger event id to correlate. Recorded as an explicit null rather than invented.
+                "event_ledger_event_id": serde_json::Value::Null,
+                "event_ledger_note":
+                    "DELETE /loom/canvas-placements/{id} returns 204 with no receipt body",
+            },
+            "placement_absent_after_refresh": true,
+            "source_block_present": source_present,
+            "source_block_content_type": content_type,
+        })
+        .to_string();
+        let closed = if source_present {
+            self.placement_observer.applied(pending.generation, detail)
+        } else {
+            self.placement_observer.failed(
+                pending.generation,
+                failure.unwrap_or_else(|| "source-block retention unproven".to_owned()),
+                detail,
+            )
+        };
+        if closed {
+            self.pending_removal = None;
+        }
+        closed
+    }
+
+    /// Emit the two durable completion observers into the live AccessKit tree.
+    fn emit_action_observers(&self, ui: &egui::Ui) {
+        if let Some(value) = self.viewport_observer.serialized() {
+            emit_completion_node(
+                ui,
+                egui::Id::new(VIEWPORT_COMPLETION_AUTHOR_ID),
+                VIEWPORT_COMPLETION_AUTHOR_ID,
+                "Canvas viewport action completion",
+                &value,
+            );
+        }
+        if let Some(value) = self.placement_observer.serialized() {
+            emit_completion_node(
+                ui,
+                egui::Id::new(PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID),
+                PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID,
+                "Canvas placement mutation completion",
+                &value,
+            );
+        }
+    }
+
     /// Replace the placement + visual-edge set (after a `getCanvasBoard` fetch resolves) and set the
     /// viewport from the board state. Clears the transient selection/edge-draw state so a reload never
     /// leaves a dangling edge-from referencing a removed placement.
@@ -943,8 +1637,19 @@ impl LoomCanvasBoard {
     ) {
         self.placements = placements;
         self.visual_edges = visual_edges;
+        let clamped_zoom = zoom.clamp(MIN_ZOOM, MAX_ZOOM);
+        // WP-KERNEL-012 MT-026 V4: an authoritative projection delivery is a FRESH STATE GENERATION.
+        // Terminal receipts bind to this counter so "the node is still there" can never pass as a
+        // re-observation.
+        self.board_generation = self.board_generation.wrapping_add(1).max(1);
+        if (self.pan.x - pan.x).abs() > f32::EPSILON
+            || (self.pan.y - pan.y).abs() > f32::EPSILON
+            || (self.zoom - clamped_zoom).abs() > f32::EPSILON
+        {
+            self.bump_viewport_revision();
+        }
         self.pan = pan;
-        self.zoom = zoom.clamp(MIN_ZOOM, MAX_ZOOM);
+        self.zoom = clamped_zoom;
         // Drop selection / edge-from ids that no longer exist after the reload.
         let present: HashSet<&str> = self
             .placements
@@ -983,6 +1688,11 @@ impl LoomCanvasBoard {
             workspace_id: self.workspace_id.clone(),
             canvas_block_id: self.canvas_block_id.clone(),
         };
+        // WP-KERNEL-012 MT-026 V4: the authoritative refresh is the ONLY thing allowed to terminalize a
+        // viewport receipt, and it supplies the first half (authoritative placement absence) of a
+        // removal receipt.
+        self.complete_viewport_from_refresh();
+        self.observe_removal_refresh();
     }
 
     /// WP-KERNEL-012 MT-080 FIX A: mark every placement whose `placed_block_id` the host recorded as a
@@ -1081,6 +1791,7 @@ impl LoomCanvasBoard {
         let screen_after = self.canvas_to_screen(canvas_before, origin);
         self.pan.x += pointer.x - screen_after.x;
         self.pan.y += pointer.y - screen_after.y;
+        self.bump_viewport_revision();
         true
     }
 
@@ -1111,8 +1822,37 @@ impl LoomCanvasBoard {
 
     /// Render the board + return the typed event (if any) this frame produced. The host applies the
     /// event (mutate via the backend client, then re-fetch). The widget performs NO network IO.
+    ///
+    /// WP-KERNEL-012 MT-026 V4: the render is wrapped so the two durable completion observers are
+    /// prepared before, and emitted after, the body — `show_body` has early returns, and an observer
+    /// that vanishes for one frame would break the exact acknowledgement `crate::mcp::action` requires.
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<CanvasEvent> {
+        let context = self.action_context();
+        self.viewport_observer.prepare_frame(&context);
+        self.placement_observer.prepare_frame(&context);
+        let event = self.show_body(ui, palette);
+        self.emit_action_observers(ui);
+        event
+    }
+
+    fn show_body(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<CanvasEvent> {
         let mut event: Option<CanvasEvent> = None;
+        // WP-KERNEL-012 MT-026 V4: pre-compute each viewport control's pre-dispatch semantic + observer
+        // declaration BEFORE the toolbar closure takes `&mut self`. A control publishes its declaration
+        // as the AccessKit `value`, which is what makes an Argus click on it causally acknowledgeable
+        // instead of conservatively Indeterminate.
+        let pan_left_semantic = self.viewport_action_semantic(PAN_LEFT_AUTHOR_ID);
+        let pan_left_declaration =
+            self.viewport_declaration(PAN_LEFT_AUTHOR_ID, pan_left_semantic.as_deref());
+        let pan_right_semantic = self.viewport_action_semantic(PAN_RIGHT_AUTHOR_ID);
+        let pan_right_declaration =
+            self.viewport_declaration(PAN_RIGHT_AUTHOR_ID, pan_right_semantic.as_deref());
+        let zoom_out_semantic = self.viewport_action_semantic(ZOOM_OUT_AUTHOR_ID);
+        let zoom_out_declaration =
+            self.viewport_declaration(ZOOM_OUT_AUTHOR_ID, zoom_out_semantic.as_deref());
+        let zoom_in_semantic = self.viewport_action_semantic(ZOOM_IN_AUTHOR_ID);
+        let zoom_in_declaration =
+            self.viewport_declaration(ZOOM_IN_AUTHOR_ID, zoom_in_semantic.as_deref());
         // External DnD outranks every toolbar/card/context event produced later in this frame. The
         // legacy single-Option return must not overwrite a physical cross-surface drop.
         let mut external_drop_event: Option<CanvasEvent> = None;
@@ -1129,36 +1869,68 @@ impl LoomCanvasBoard {
         // synthetic `.clicked()` so pan/zoom apply through the existing handler — never double-applied.
         ui.horizontal(|ui| {
             let pan_left = ui.button("◀ Pan");
-            emit_button_node(ui, pan_left.id, PAN_LEFT_AUTHOR_ID, "Pan left");
+            emit_button_node_value(
+                ui,
+                pan_left.id,
+                PAN_LEFT_AUTHOR_ID,
+                "Pan left",
+                pan_left_declaration.as_deref(),
+            );
             self.record_toolbar_id(PAN_LEFT_AUTHOR_ID, pan_left.id);
             if pan_left.clicked() {
+                self.begin_viewport_action(PAN_LEFT_AUTHOR_ID, pan_left_semantic.clone());
                 self.pan.x -= PAN_STEP;
+                self.bump_viewport_revision();
                 event = Some(self.viewport_event());
             }
             let pan_right = ui.button("Pan ▶");
-            emit_button_node(ui, pan_right.id, PAN_RIGHT_AUTHOR_ID, "Pan right");
+            emit_button_node_value(
+                ui,
+                pan_right.id,
+                PAN_RIGHT_AUTHOR_ID,
+                "Pan right",
+                pan_right_declaration.as_deref(),
+            );
             self.record_toolbar_id(PAN_RIGHT_AUTHOR_ID, pan_right.id);
             if pan_right.clicked() {
+                self.begin_viewport_action(PAN_RIGHT_AUTHOR_ID, pan_right_semantic.clone());
                 self.pan.x += PAN_STEP;
+                self.bump_viewport_revision();
                 event = Some(self.viewport_event());
             }
 
             ui.separator();
             let zoom_out = ui.button("−");
-            emit_button_node(ui, zoom_out.id, ZOOM_OUT_AUTHOR_ID, "Zoom out");
+            emit_button_node_value(
+                ui,
+                zoom_out.id,
+                ZOOM_OUT_AUTHOR_ID,
+                "Zoom out",
+                zoom_out_declaration.as_deref(),
+            );
             self.record_toolbar_id(ZOOM_OUT_AUTHOR_ID, zoom_out.id);
             if zoom_out.clicked() {
+                self.begin_viewport_action(ZOOM_OUT_AUTHOR_ID, zoom_out_semantic.clone());
                 self.step_zoom(-ZOOM_STEP);
+                self.bump_viewport_revision();
                 event = Some(self.viewport_event());
             }
             let zoom_label = format!("{:.2}x", self.zoom);
             let zlabel = ui.label(&zoom_label);
             emit_status_node(ui, zlabel.id, ZOOM_VALUE_AUTHOR_ID, &zoom_label);
             let zoom_in = ui.button("+");
-            emit_button_node(ui, zoom_in.id, ZOOM_IN_AUTHOR_ID, "Zoom in");
+            emit_button_node_value(
+                ui,
+                zoom_in.id,
+                ZOOM_IN_AUTHOR_ID,
+                "Zoom in",
+                zoom_in_declaration.as_deref(),
+            );
             self.record_toolbar_id(ZOOM_IN_AUTHOR_ID, zoom_in.id);
             if zoom_in.clicked() {
+                self.begin_viewport_action(ZOOM_IN_AUTHOR_ID, zoom_in_semantic.clone());
                 self.step_zoom(ZOOM_STEP);
+                self.bump_viewport_revision();
                 event = Some(self.viewport_event());
             }
 
@@ -1496,6 +2268,7 @@ impl LoomCanvasBoard {
                 });
             } else if self.resizing.is_none() {
                 // Pan release: persist the viewport (RISK-3 / MC-3 — host debounces).
+                self.bump_viewport_revision();
                 event = Some(self.viewport_event());
             }
         }
@@ -1865,18 +2638,22 @@ impl LoomCanvasBoard {
         match author_id {
             "canvas.pan-left" => {
                 self.pan.x -= PAN_STEP;
+                self.bump_viewport_revision();
                 None
             }
             "canvas.pan-right" => {
                 self.pan.x += PAN_STEP;
+                self.bump_viewport_revision();
                 None
             }
             "canvas.zoom-in" => {
                 self.step_zoom(ZOOM_STEP);
+                self.bump_viewport_revision();
                 None
             }
             "canvas.zoom-out" => {
                 self.step_zoom(-ZOOM_STEP);
+                self.bump_viewport_revision();
                 None
             }
             "canvas.zoom-reset" => {
@@ -2245,9 +3022,23 @@ impl LoomCanvasBoard {
                 palette.text,
             );
         }
-        emit_remove_node(ui, &remove_resp, &self.placements[idx]);
+        // WP-KERNEL-012 MT-026 V4: the remove button declares a FLEXIBLE observer target (success
+        // removes it, a terminal failure leaves it mounted) so an Argus removal is causally
+        // acknowledgeable instead of Indeterminate. The declaration carries workspace/board/placement/
+        // block identity + the prior board generation BEFORE dispatch.
+        let remove_author = placement_remove_author_id(&placement_id);
+        let remove_semantic = self.placement_removal_semantic(&placement_id, &placed_block_id);
+        let remove_declaration =
+            self.placement_removal_declaration(&remove_author, remove_semantic.as_deref());
+        emit_remove_node(
+            ui,
+            &remove_resp,
+            &self.placements[idx],
+            remove_declaration.as_deref(),
+        );
 
         if remove_resp.clicked() {
+            self.begin_placement_removal(&placement_id, &placed_block_id, remove_semantic);
             return Some(CanvasEvent::RemovePlacement { placement_id });
         }
         card_event
@@ -2486,6 +3277,43 @@ fn emit_button_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
     });
 }
 
+/// Emit a toolbar button's live AccessKit node carrying an opt-in completion declaration in `value`
+/// (WP-KERNEL-012 MT-026 V4). A `None` declaration renders exactly the plain button node.
+fn emit_button_node_value(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    value: Option<&str>,
+) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let value = value.map(ToOwned::to_owned);
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Button);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        if let Some(value) = &value {
+            node.set_value(value.clone());
+        }
+        node.add_action(accesskit::Action::Click);
+    });
+}
+
+/// Emit a durable Role::Status completion observer node (WP-KERNEL-012 MT-026 V4). The observer's
+/// `value` is the `handshake.click-completion/v1` token `crate::mcp::action` acknowledges against.
+fn emit_completion_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str, value: &str) {
+    let author = author_id.to_owned();
+    let label = label.to_owned();
+    let value = value.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_role(accesskit::Role::Status);
+        node.set_author_id(author.clone());
+        node.set_label(label.clone());
+        node.set_value(value.clone());
+    });
+}
+
 /// Emit a Role::Status AccessKit node (zoom value label, status bar).
 fn emit_status_node(ui: &egui::Ui, id: egui::Id, author_id: &str, value: &str) {
     let author = author_id.to_owned();
@@ -2570,14 +3398,24 @@ fn now_iso8601() -> String {
     format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z")
 }
 
-/// Emit a placement remove button's AccessKit node (Role::Button + Action::Click + author_id).
-fn emit_remove_node(ui: &egui::Ui, resp: &egui::Response, card: &CanvasPlacementCard) {
+/// Emit a placement remove button's AccessKit node (Role::Button + Action::Click + author_id), plus
+/// the WP-KERNEL-012 MT-026 V4 flexible completion declaration in `value` when one is open.
+fn emit_remove_node(
+    ui: &egui::Ui,
+    resp: &egui::Response,
+    card: &CanvasPlacementCard,
+    declaration: Option<&str>,
+) {
     let author = placement_remove_author_id(&card.placement_id);
     let label = format!("Remove {}", card.display_title());
+    let declaration = declaration.map(ToOwned::to_owned);
     ui.ctx().accesskit_node_builder(resp.id, move |node| {
         node.set_role(accesskit::Role::Button);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
+        if let Some(declaration) = &declaration {
+            node.set_value(declaration.clone());
+        }
         node.add_action(accesskit::Action::Click);
     });
 }
