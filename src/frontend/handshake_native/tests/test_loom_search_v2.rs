@@ -1223,6 +1223,169 @@ impl Drop for ManagedWorkspaceCleanup<'_> {
     }
 }
 
+/// Capture ONE durable proof frame for the exact state that is currently terminal and return its
+/// typed outcome. `ScreenshotHarness` records a durable CAPTURED/DEFERRED/BLOCKED row for every call,
+/// so a GREEN run can never imply pixels that were never produced.
+#[cfg(feature = "integration")]
+fn capture_state_screenshot<State>(
+    harness: &mut Harness<'_, State>,
+    label: &str,
+) -> serde_json::Value {
+    let image = harness.render_settled_proof_frame(label);
+    let outcome = harness
+        .last_screenshot_outcome()
+        .cloned()
+        .expect("the screenshot harness records a durable outcome for every proof frame");
+    serde_json::json!({
+        "label": label,
+        "status": outcome.status,
+        "frame_path": outcome.frame_path,
+        "gpu_screenshot_enabled": outcome.gpu_screenshot_enabled,
+        "screenshot_run_id": outcome.run_id,
+        "outcome_id": outcome.outcome_id,
+        "pixels": image.as_ref().map(|image| serde_json::json!({
+            "width": image.width(),
+            "height": image.height(),
+        })),
+    })
+}
+
+/// The canonical matrix this exact process wrote, opened row by row. Returns the persisted rows plus a
+/// binding summary; an empty/absent matrix on a declared matrix run is a hard failure, because a
+/// summary boolean is not per-action causal evidence.
+#[cfg(feature = "integration")]
+fn open_canonical_matrix_rows(client_session_id: &str) -> Option<serde_json::Value> {
+    let run_id = std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())?;
+    let artifact_dir = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR")
+        .expect("a declared canonical matrix run binds HANDSHAKE_PROOF_ARTIFACT_DIR");
+    let matrix_path = PathBuf::from(artifact_dir)
+        .join(&run_id)
+        .join("canonical-argus-matrix.jsonl");
+    let raw = std::fs::read_to_string(&matrix_path).unwrap_or_else(|error| {
+        panic!(
+            "the canonical Argus matrix must exist after this exact run: {} ({error})",
+            matrix_path.display()
+        )
+    });
+    let rows = raw
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("matrix row is JSON"))
+        .collect::<Vec<_>>();
+    assert!(
+        !rows.is_empty(),
+        "the canonical Argus matrix must carry one terminal row per action"
+    );
+    let source_sha = std::env::var("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA")
+        .expect("a declared canonical matrix run binds HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA");
+    let process_correlation_id = std::env::var("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID")
+        .expect("a declared canonical matrix run binds HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
+    let mut previous_sequence = 0_u64;
+    let mut receipt_ids = HashSet::new();
+    for row in &rows {
+        assert_eq!(
+            row["schema_id"], "hsk.native_gui.canonical_argus_matrix_trace@1",
+            "unexpected matrix row schema: {row}"
+        );
+        assert_eq!(row["run_id"].as_str(), Some(run_id.as_str()), "{row}");
+        assert_eq!(
+            row["source_sha"].as_str(),
+            Some(source_sha.as_str()),
+            "{row}"
+        );
+        assert_eq!(
+            row["process_correlation_id"].as_str(),
+            Some(process_correlation_id.as_str()),
+            "{row}"
+        );
+        assert_eq!(
+            row["process_id"].as_u64(),
+            Some(u64::from(std::process::id())),
+            "{row}"
+        );
+        assert_eq!(
+            row["client_session_id"].as_str(),
+            Some(client_session_id),
+            "{row}"
+        );
+        let status = row["receipt_status"]
+            .as_str()
+            .expect("typed receipt status");
+        assert_ne!(
+            status, "indeterminate",
+            "every canonical action must carry a causal terminal receipt: {row}"
+        );
+        assert!(
+            matches!(status, "applied" | "rejected"),
+            "unexpected terminal receipt status: {row}"
+        );
+        assert_eq!(row["terminal_refreshed"], true, "{row}");
+        let predicates = row["terminal_predicates"]
+            .as_array()
+            .expect("terminal predicates array");
+        assert!(!predicates.is_empty(), "{row}");
+        assert!(
+            predicates
+                .iter()
+                .all(|predicate| predicate["passed"] == true),
+            "{row}"
+        );
+        assert!(
+            row["agent_id"]
+                .as_str()
+                .is_some_and(|agent| agent.ends_with(&format!(":client:{client_session_id}"))),
+            "{row}"
+        );
+        assert!(
+            row["correlation_id"]
+                .as_str()
+                .is_some_and(|id| id.contains(&format!(":{client_session_id}:"))
+                    && id.ends_with(&format!(":receipt:{}", row["receipt_id"]))),
+            "{row}"
+        );
+        let sequence = row["terminal_observed_sequence"]
+            .as_u64()
+            .expect("terminal observed sequence");
+        assert!(sequence > previous_sequence, "{row}");
+        previous_sequence = sequence;
+        assert!(
+            receipt_ids.insert(row["receipt_id"].as_u64().expect("receipt id")),
+            "{row}"
+        );
+    }
+    let statuses = rows
+        .iter()
+        .map(|row| {
+            serde_json::json!({
+                "method": row["method"],
+                "target": row["target"],
+                "receipt_id": row["receipt_id"],
+                "receipt_status": row["receipt_status"],
+                "predicate_ids": row["terminal_predicates"]
+                    .as_array()
+                    .map(|predicates| predicates
+                        .iter()
+                        .map(|predicate| predicate["predicate_id"].clone())
+                        .collect::<Vec<_>>())
+                    .unwrap_or_default(),
+            })
+        })
+        .collect::<Vec<_>>();
+    Some(serde_json::json!({
+        "run_id": run_id,
+        "source_sha": source_sha,
+        "process_correlation_id": process_correlation_id,
+        "process_id": std::process::id(),
+        "client_session_id": client_session_id,
+        "matrix_path": matrix_path.display().to_string(),
+        "row_count": rows.len(),
+        "indeterminate_row_count": 0,
+        "rows": statuses,
+    }))
+}
+
 #[cfg(feature = "integration")]
 fn wait_search_cell(
     cell: &handshake_native::backend_client::LoomSearchCell,
@@ -1456,6 +1619,8 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         handshake_native::command_registry::CMD_VIEW_LOOM_SEARCH
     ));
     let mut argus = CanonicalArgusDriver::bind(&app, "mt028-notes-search");
+    let canonical_client_session_id = "mt028-notes-search-agent";
+    let mut screenshot_outcomes: Vec<serde_json::Value> = Vec::new();
     let _managed_wgpu_guard = wgpu_guard();
     let mut harness = Harness::builder()
         .with_size(egui::vec2(900.0, 760.0))
@@ -1532,6 +1697,10 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
     // transport/query/generation path did not publish the managed response; a subsequent row-id
     // failure therefore means AccessKit exposure, not an ambiguous network/timing failure.
     harness.get_by_label("3 results (keyword/fuzzy only)");
+    screenshot_outcomes.push(capture_state_screenshot(
+        &mut harness,
+        "mt028-populated-results",
+    ));
     let ids = author_ids(&harness);
     for block_id in seeded.values() {
         assert!(
@@ -1640,6 +1809,10 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         rebind_proxy.captured_requests()
     );
     harness.get_by_label("1 result (keyword/fuzzy only)");
+    screenshot_outcomes.push(capture_state_screenshot(
+        &mut harness,
+        "mt028-note-facet-filtered",
+    ));
     let save_disabled = harness
         .root()
         .children_recursive()
@@ -1819,6 +1992,10 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
                 .contains(&format!("Saved search as Loom view {saved_view_id}"))
         },
     );
+    screenshot_outcomes.push(capture_state_screenshot(
+        &mut harness,
+        "mt028-saved-view-receipt",
+    ));
     let reloaded = live.get_json(&format!(
         "/workspaces/{workspace_id}/loom/views/definitions/{saved_view_id}"
     ));
@@ -2006,6 +2183,7 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         .map(|node| node.accesskit_node().is_disabled())
         .expect("empty mounted Save as view remains addressable");
     assert!(empty_save_disabled);
+    screenshot_outcomes.push(capture_state_screenshot(&mut harness, "mt028-empty-state"));
 
     // Canonical mounted backend-error/recovery state. Rebind the concrete factory to a refused
     // loopback port, prove a bounded visible terminal error, then restore the managed proxy and
@@ -2026,7 +2204,14 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
                 == Some(needle.as_str())
         },
     );
-    argus.click_and_reinspect(&mut harness, SEARCH_AUTHOR_ID);
+    // A refused backend is a CAUSALLY OWNED terminal failure, not an unprovable outcome: the mounted
+    // Search action's completion observer binds the exact target/context/generation/semantic tuple
+    // before dispatch and then publishes the typed transport error against that same tuple.
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut harness,
+        SEARCH_AUTHOR_ID,
+        "Loom search failed",
+    );
     let mut mounted_error_tree = None;
     for _ in 0..400 {
         harness.run_steps(1);
@@ -2050,6 +2235,10 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
             .unwrap_or_default();
         status.contains("error sending request") || status.contains("Connection refused")
     });
+    screenshot_outcomes.push(capture_state_screenshot(
+        &mut harness,
+        "mt028-backend-error",
+    ));
 
     harness
         .state_mut()
@@ -2081,6 +2270,10 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
         serde_json::json!({"saved_view_id": saved_view_id.clone()}),
         |tree| json_has_author_id(tree, &result_author_id(&saved_view_id)),
     );
+    screenshot_outcomes.push(capture_state_screenshot(
+        &mut harness,
+        "mt028-backend-recovered",
+    ));
 
     // Reopen the saved view from the mounted Notes Search surface itself. The view_def facet is
     // selected through canonical Argus, then the exact saved row is activated. The host must route
@@ -2142,7 +2335,14 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
                 && tab.content_id.as_deref() == Some(saved_view_id.as_str())
         })
     }));
-    argus.finish();
+    screenshot_outcomes.push(capture_state_screenshot(
+        &mut harness,
+        "mt028-saved-view-reopened",
+    ));
+    // STRICT: every canonical action must have terminalized through a product-side causal completion
+    // observer. An `indeterminate` receipt is not accepted anywhere in this proof.
+    argus.finish_require_no_indeterminate();
+    let canonical_matrix = open_canonical_matrix_rows(canonical_client_session_id);
 
     // Stop the proxy only after every mounted mutation completed, then prove the traffic used the
     // rebound factory rather than the production default. The path prefix is present only in the
@@ -2238,8 +2438,14 @@ fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
             "inspect_click_set_value_with_terminal_predicates": true,
             "mounted_populated_empty_error_recovery": true,
             "saved_view_reopen": true,
-            "owned_backend_restart": canonical_restart
+            "owned_backend_restart": canonical_restart,
+            // Per-action causal evidence, NOT a summary boolean: the matrix rows this exact process
+            // wrote were reopened and re-verified above, and every identity below is read from the
+            // SAME run/process that produced this receipt.
+            "matrix": canonical_matrix,
+            "zero_indeterminate_actions_required": true
         },
+        "screenshots": screenshot_outcomes,
         "empty_query_rejected_without_request": true,
         "backend_refusal_visible_and_live_recovery": true,
         "workspace_rebind_clears_stale_state": true,

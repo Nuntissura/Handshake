@@ -9782,9 +9782,7 @@ impl HandshakeApp {
                 .children
                 .push(crate::accessibility::UiTreeNode {
                     id: crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID.to_owned(),
-                    author_id: Some(
-                        crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID.to_owned(),
-                    ),
+                    author_id: Some(crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID.to_owned()),
                     node_id: egui::Id::new(crate::loom_search_v2::OPEN_COMPLETION_AUTHOR_ID)
                         .value(),
                     role: "Status".to_owned(),

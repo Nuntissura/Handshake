@@ -826,8 +826,7 @@ fn show_with_author_scope_and_dispatch(
     let status_author_id = pane_scoped_author_id(STATUS_AUTHOR_ID, secondary_pane_id);
     let action_completion_author_id =
         pane_scoped_author_id(ACTION_COMPLETION_AUTHOR_ID, secondary_pane_id);
-    let action_completion_context =
-        format!("loom-search-v2.action:{action_completion_author_id}");
+    let action_completion_context = format!("loom-search-v2.action:{action_completion_author_id}");
     let query_completion_author_id =
         crate::mcp::action::set_value_completion_author_id(&query_author_id);
     let search_semantic = state.action_semantic_value(LoomSearchActionKind::Search, None);
@@ -1123,8 +1122,7 @@ fn show_with_author_scope_and_dispatch(
     if let Some(content_type) = toggle_facet {
         let semantic =
             state.action_semantic_value(LoomSearchActionKind::Facet, Some(content_type.as_str()));
-        let target =
-            pane_scoped_author_id(&facet_author_id(&content_type), secondary_pane_id);
+        let target = pane_scoped_author_id(&facet_author_id(&content_type), secondary_pane_id);
         state.begin_action(LoomSearchActionKind::Facet, target, semantic);
         if !state.toggle_facet(&content_type, client, workspace_id) {
             let reason = state
