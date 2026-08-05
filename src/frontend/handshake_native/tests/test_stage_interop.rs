@@ -1387,10 +1387,14 @@ fn live_route_round_trip_real_pg() {
         .lock()
         .unwrap()
         .retain_route_receipt(blocking_route.receipt.clone());
-    let busy_observation = argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
-    assert!(
-        !busy_observation.receipt_status.is_empty(),
-        "canonical Argus returns the route action receipt"
+    let busy_observation = argus.click_expect_typed_rejected_and_reinspect(
+        &mut harness,
+        "menu.editors.route-to-stage",
+        "Route to Stage is busy",
+    );
+    assert_eq!(
+        busy_observation.receipt_status, "rejected",
+        "the occupied canonical route returns the causally bound typed busy rejection"
     );
     let busy_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {

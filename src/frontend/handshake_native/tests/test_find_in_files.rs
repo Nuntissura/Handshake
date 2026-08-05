@@ -65,7 +65,10 @@ use handshake_native::find_in_files::{
     STATUS_AUTHOR_ID, TOGGLE_CASE_AUTHOR_ID, TOGGLE_REGEX_AUTHOR_ID, TOGGLE_WORD_AUTHOR_ID,
 };
 #[cfg(feature = "integration")]
-use handshake_native::find_in_files::{BOOKMARK_RETRY_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID};
+use handshake_native::find_in_files::{
+    BOOKMARK_RETRY_AUTHOR_ID, BOOKMARK_STATUS_AUTHOR_ID, CANCEL_AUTHOR_ID, SAVE_BOOKMARK_AUTHOR_ID,
+    TOGGLE_REGEX_STATE_AUTHOR_ID,
+};
 use handshake_native::find_in_files::{
     PATH_FILTER_AUTHOR_ID, REPLACE_AUTHOR_ID, TAG_FILTER_AUTHOR_ID,
 };
@@ -704,9 +707,7 @@ fn replacement_set_value_is_rejected_while_apply_is_in_flight() {
         egui::accesskit::ActionRequest {
             action: egui::accesskit::Action::SetValue,
             target: node_id,
-            data: Some(egui::accesskit::ActionData::Value(
-                "must-not-apply".into(),
-            )),
+            data: Some(egui::accesskit::ActionData::Value("must-not-apply".into())),
         },
     ));
     harness.run_steps(2);
@@ -1303,8 +1304,7 @@ fn two_registry_find_panes_keep_state_and_author_ids_isolated() {
     );
 
     let pane_b_query_author_id = pane_scoped_author_id(QUERY_AUTHOR_ID, Some(pane_b.as_ref()));
-    let pane_b_replace_author_id =
-        pane_scoped_author_id(REPLACE_AUTHOR_ID, Some(pane_b.as_ref()));
+    let pane_b_replace_author_id = pane_scoped_author_id(REPLACE_AUTHOR_ID, Some(pane_b.as_ref()));
     for (author_id, value) in [
         (&pane_b_query_author_id, "secondary-query"),
         (&pane_b_replace_author_id, "secondary-replacement"),
@@ -2016,9 +2016,14 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     ));
     let mut argus = CanonicalArgusDriver::bind(&production_app, "mt029-find-in-files");
     let _managed_wgpu_guard = wgpu_guard();
+    // The mounted proof surface is deliberately WIDER than the focused unit harnesses: the production
+    // shell lays the Find pane out as one column of the live pane grid, and at 900px the query /
+    // toggles / Search / Preview / Apply / Cancel / Bookmark controls are cropped by the neighbouring
+    // pane. A validator must be able to SEE the requested surface in the captured frame, so the
+    // managed run uses a viewport that renders the whole panel inside its real pane.
     let mut ui_harness = Harness::builder()
         .proof_mt_id("MT-029")
-        .with_size(egui::vec2(900.0, 760.0))
+        .with_size(egui::vec2(1800.0, 1100.0))
         .wgpu()
         .build_state(
             |ctx, app: &mut handshake_native::app::HandshakeApp| app.ui(ctx),
@@ -2078,6 +2083,67 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                     .is_some_and(|value| value.contains("result"))
         },
     );
+    // ── UNOBSCURED VISUAL PROOF (V4 remediation 1) ──────────────────────────────────────────────────
+    // A managed-workspace bind starts the canonical FEMS review refresh. When that unrelated transport
+    // terminalises as a failure it paints a "Propose to Memory" notice OVER the surface under
+    // inspection, which is exactly why the previous frame was rejected as primary visual evidence.
+    // Settle it through the product seam that clears ONLY the incidental notice: it REFUSES (returns
+    // false) while any operator-owned proposal, emitter, operation, submission, review target or
+    // in-flight refresh exists, so this can never hide real state and never disables FEMS globally.
+    interconnect_support::settle_incidental_fems_for_capture(
+        &mut ui_harness,
+        "wp-kernel-012-mt-029-mounted-find-in-files",
+    );
+    // Give the surface under inspection the full central region: collapse the unrelated chrome that
+    // would otherwise crop the query/results/preview/apply/bookmark controls out of the frame.
+    ui_harness.state_mut().set_left_rail_open(false);
+    ui_harness.state_mut().set_atelier_panel_open(false);
+    ui_harness.state_mut().set_bottom_drawer_open(false);
+    ui_harness.run_steps(3);
+
+    // Prove the frame is UNOBSCURED against the authoritative tree captured at the same instant:
+    // every unrelated FEMS overlay node is absent AND every requested Find-in-Files control is
+    // present. This is a structural occlusion check, not a narrative claim about the PNG.
+    let capture_tree = argus.inspect(&mut ui_harness);
+    for obscuring in [
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_REVIEW_STATUS_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID,
+    ] {
+        assert!(
+            !json_has_author_id(&capture_tree, obscuring),
+            "MT-029 visual proof must not be covered by the unrelated FEMS overlay node {obscuring}"
+        );
+    }
+    for required in [
+        QUERY_AUTHOR_ID,
+        REPLACE_AUTHOR_ID,
+        TOGGLE_CASE_AUTHOR_ID,
+        TOGGLE_WORD_AUTHOR_ID,
+        TOGGLE_REGEX_AUTHOR_ID,
+        KIND_FILTER_AUTHOR_ID,
+        TAG_FILTER_AUTHOR_ID,
+        PATH_FILTER_AUTHOR_ID,
+        SEARCH_AUTHOR_ID,
+        PREVIEW_REPLACE_AUTHOR_ID,
+        APPLY_AUTHOR_ID,
+        CANCEL_AUTHOR_ID,
+        SAVE_BOOKMARK_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&capture_tree, required),
+            "MT-029 visual proof must expose the requested control {required}"
+        );
+    }
+    assert!(
+        json_has_author_id(&capture_tree, &ui_result_author_id),
+        "MT-029 visual proof must expose the real managed-backend result row"
+    );
+
     let managed_png_dir = external_artifact_dir("wp-kernel-012-mt-029");
     std::fs::create_dir_all(&managed_png_dir).expect("create managed MT-029 screenshot directory");
     let managed_png = managed_png_dir.join("MT-029-managed-mounted-runtime.png");
@@ -2094,7 +2160,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
             managed_png
         });
 
-    argus.click_and_reinspect(&mut ui_harness, &ui_result_author_id);
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, &ui_result_author_id);
     let has_tab = |pane_type: PaneType, content_id: &str| {
         ui_harness.state().tab_bar_states().values().any(|bar| {
             bar.tabs.iter().any(|tab| {
@@ -2178,7 +2244,14 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                 && json_has_author_id(tree, PREVIEW_REPLACE_AUTHOR_ID)
         },
     );
-    argus.click_and_reinspect(&mut ui_harness, PREVIEW_REPLACE_AUTHOR_ID);
+    // The stale-result guard is a REAL terminal outcome of the Preview action with no HTTP request, so
+    // the canonical receipt is a typed, causally bound `rejected` — never `indeterminate` and never a
+    // silent no-op. The product-owned error envelope makes the failing effect externally checkable.
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut ui_harness,
+        PREVIEW_REPLACE_AUTHOR_ID,
+        "find-in-files.preview-replace failed",
+    );
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
         "stale-preview-blocked-visible",
@@ -2370,7 +2443,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                     .is_some_and(|value| value.contains("Previewed 1"))
         },
     );
-    argus.click_and_reinspect(&mut ui_harness, APPLY_AUTHOR_ID);
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, APPLY_AUTHOR_ID);
     let mut ui_apply_persisted = false;
     for _ in 0..400 {
         ui_harness.run_steps(1);
@@ -2421,9 +2494,9 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
         "regex-toggle-enabled",
-        serde_json::json!({"regex": true}),
+        serde_json::json!({"regex": true, "state_author_id": TOGGLE_REGEX_STATE_AUTHOR_ID}),
         |tree| {
-            json_node_by_author_id(tree, TOGGLE_REGEX_AUTHOR_ID)
+            json_node_by_author_id(tree, TOGGLE_REGEX_STATE_AUTHOR_ID)
                 .and_then(|node| node.get("value"))
                 .and_then(serde_json::Value::as_str)
                 == Some("true")
@@ -2441,7 +2514,13 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                 == Some("[")
         },
     );
-    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    // An invalid regex is a REAL terminal failure of the Search action with no backend round-trip, so
+    // the canonical receipt is a typed, causally bound `rejected`.
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut ui_harness,
+        SEARCH_AUTHOR_ID,
+        "find-in-files.search failed",
+    );
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
         "invalid-regex-error-visible",
@@ -2457,9 +2536,9 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
         "regex-toggle-disabled",
-        serde_json::json!({"regex": false}),
+        serde_json::json!({"regex": false, "state_author_id": TOGGLE_REGEX_STATE_AUTHOR_ID}),
         |tree| {
-            json_node_by_author_id(tree, TOGGLE_REGEX_AUTHOR_ID)
+            json_node_by_author_id(tree, TOGGLE_REGEX_STATE_AUTHOR_ID)
                 .and_then(|node| node.get("value"))
                 .and_then(serde_json::Value::as_str)
                 == Some("false")
@@ -2490,12 +2569,197 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
         "managed-empty-result-visible",
-        serde_json::json!({"query": guaranteed_miss}),
+        serde_json::json!({"query": guaranteed_miss.clone()}),
         |tree| {
             json_node_by_author_id(tree, STATUS_AUTHOR_ID)
                 .and_then(|node| node.get("value"))
                 .and_then(serde_json::Value::as_str)
                 .is_some_and(|value| value.contains("0 result"))
+        },
+    );
+
+    // ── Canonical Argus bookmark save / restore / remove + cancellation (V4 remediation 2) ──────────
+    // Every one of these is driven through the SAME production-mounted HandshakeApp and the same
+    // localhost Argus transport, so each emits a matrix row bound to a product-side terminal receipt.
+    // The saved bookmark id is derived from the live panel fields, exactly as the production
+    // `SearchBookmark::stable_id()` derives it, so nothing is seeded behind the UI.
+    //
+    // The bookmark row author ids are `find-in-files.bookmark-{restore,remove}.<hex(stable_id)>`, and the
+    // stable id hex-encodes the query. The canonical `handshake.click-completion/v1` boundary bounds an
+    // acknowledgement's `pending_target` at 256 bytes (`MAX_CLICK_COMPLETION_AUTHOR_BYTES`), so a
+    // bookmark whose query is long enough pushes its row id past that limit and its observer token is
+    // rejected as malformed — an `indeterminate` receipt. This proof therefore bookmarks a REALISTIC
+    // short query (the operator case), and the residual long-id limit is reported as a bounded
+    // HBR-VIS gap rather than papered over by weakening the boundary.
+    let bookmark_query = format!("M29B{:x}", std::process::id());
+    assert!(
+        bookmark_query.len() <= 22,
+        "the bookmarked query must keep its derived row author ids inside the 256-byte canonical          completion target bound"
+    );
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &bookmark_query);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "bookmark-query-visible",
+        serde_json::json!({"query": bookmark_query.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(bookmark_query.as_str())
+        },
+    );
+    let mounted_bookmark = {
+        let mut bookmark = SearchBookmark {
+            id: String::new(),
+            label: String::new(),
+            query: bookmark_query.clone(),
+            kind: KindFilter::All,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-08-05T00:00:00Z".to_owned(),
+        };
+        bookmark.id = bookmark.stable_id();
+        bookmark.label = bookmark.display_label();
+        bookmark
+    };
+    let mounted_restore_author_id = bookmark_restore_author_id(&mounted_bookmark.id);
+    let mounted_remove_author_id = bookmark_remove_author_id(&mounted_bookmark.id);
+    assert!(
+        mounted_remove_author_id.len() <= 256 && mounted_restore_author_id.len() <= 256,
+        "derived bookmark row ids must fit the canonical completion target bound: restore={} remove={}",
+        mounted_restore_author_id.len(),
+        mounted_remove_author_id.len()
+    );
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, SAVE_BOOKMARK_AUTHOR_ID);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        let ids = author_ids(&ui_harness);
+        if ids.contains(&mounted_restore_author_id) && ids.contains(&mounted_remove_author_id) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-bookmark-saved-with-receipt",
+        serde_json::json!({
+            "bookmark_id": mounted_bookmark.id.clone(),
+            "restore_author_id": mounted_restore_author_id.clone(),
+            "remove_author_id": mounted_remove_author_id.clone(),
+        }),
+        |tree| {
+            json_has_author_id(tree, &mounted_restore_author_id)
+                && json_has_author_id(tree, &mounted_remove_author_id)
+                && json_node_by_author_id(tree, BOOKMARK_STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| {
+                        value
+                            .split_once("receipt: ")
+                            .map(|(_, tail)| tail.trim())
+                            .is_some_and(|receipt| !receipt.is_empty())
+                    })
+        },
+    );
+    // A real backend GET must independently see the bookmark the mounted Save persisted.
+    let mounted_bookmark_cell: BookmarkStateCell =
+        Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    search_client.load_bookmarks(
+        &workspace_id,
+        operation_stamp(&workspace_id, FindInFilesOperation::BookmarkLoad, 81),
+        Arc::clone(&mounted_bookmark_cell),
+    );
+    let (mounted_saved_blob, _, _) =
+        wait_bookmark(&mounted_bookmark_cell).expect("mounted bookmark save backend GET");
+    let mounted_saved_state =
+        parse_bookmark_state(&mounted_saved_blob).expect("strict mounted bookmark payload");
+    assert!(
+        mounted_saved_state
+            .iter()
+            .any(|saved| saved.id == mounted_bookmark.id),
+        "the mounted Bookmark Search action persisted the exact semantic bookmark id"
+    );
+
+    // Move the query away so Restore has something real to repopulate, then restore through the UI.
+    let bookmark_scratch_query = format!("MT029_BOOKMARK_SCRATCH_{unique}");
+    argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &bookmark_scratch_query);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "bookmark-scratch-query-visible",
+        serde_json::json!({"query": bookmark_scratch_query.clone()}),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(bookmark_scratch_query.as_str())
+        },
+    );
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, &mounted_restore_author_id);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-bookmark-restored",
+        serde_json::json!({
+            "bookmark_id": mounted_bookmark.id.clone(),
+            "restored_query": bookmark_query.clone(),
+        }),
+        |tree| {
+            json_node_by_author_id(tree, QUERY_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some(bookmark_query.as_str())
+        },
+    );
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, &mounted_remove_author_id);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        if !author_ids(&ui_harness).contains(&mounted_remove_author_id) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-bookmark-removed",
+        serde_json::json!({"bookmark_id": mounted_bookmark.id.clone()}),
+        |tree| {
+            !json_has_author_id(tree, &mounted_remove_author_id)
+                && !json_has_author_id(tree, &mounted_restore_author_id)
+        },
+    );
+    let mounted_absence_cell: BookmarkStateCell =
+        Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    search_client.load_bookmarks(
+        &workspace_id,
+        operation_stamp(&workspace_id, FindInFilesOperation::BookmarkLoad, 82),
+        Arc::clone(&mounted_absence_cell),
+    );
+    let (mounted_absence_blob, _, _) =
+        wait_bookmark(&mounted_absence_cell).expect("mounted bookmark remove backend GET");
+    let mounted_absence_state =
+        parse_bookmark_state(&mounted_absence_blob).expect("strict mounted absence payload");
+    assert!(
+        mounted_absence_state
+            .iter()
+            .all(|saved| saved.id != mounted_bookmark.id),
+        "the mounted Remove action persisted exact-bookmark absence"
+    );
+
+    // Cancellation through the production control. No destructive save is in flight here, so the whole
+    // terminal effect is the local preview clear — and the completion observer says exactly that
+    // instead of pretending a mutation was cancelled.
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, CANCEL_AUTHOR_ID);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-cancel-cleared-preview",
+        serde_json::json!({"expected_status": "Replacement preview cleared."}),
+        |tree| {
+            json_node_by_author_id(tree, STATUS_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|value| value.contains("Replacement preview cleared"))
         },
     );
 
@@ -2918,7 +3182,7 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
             "content_json": mounted_conflict_content
         }),
     );
-    argus.click_and_reinspect(&mut ui_harness, APPLY_AUTHOR_ID);
+    argus.click_expect_applied_and_reinspect(&mut ui_harness, APPLY_AUTHOR_ID);
     for _ in 0..400 {
         ui_harness.run_steps(1);
         let partial_terminal_visible = ui_harness
@@ -3154,10 +3418,29 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     ui_harness
         .state_mut()
         .set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    // Force the production mount-effect bookmark GET to re-issue against the unreachable backend by
+    // advancing the shell's workspace binding generation through the normal project-switch path.
+    ui_harness
+        .state_mut()
+        .bind_active_project_for_integration_test(other_workspace_id.clone());
+    ui_harness
+        .state_mut()
+        .bind_active_project_for_integration_test(workspace_id.clone());
     assert!(ui_harness.state_mut().dispatch_palette_action_for_test(
         handshake_native::command_registry::CMD_VIEW_FIND_IN_FILES
     ));
     ui_harness.run_steps(2);
+    for _ in 0..400 {
+        ui_harness.run_steps(1);
+        if author_ids(&ui_harness).contains(BOOKMARK_RETRY_AUTHOR_ID) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        author_ids(&ui_harness).contains(BOOKMARK_RETRY_AUTHOR_ID),
+        "a failed mount-time bookmark GET must expose the stable Retry control"
+    );
     argus.set_value_and_reinspect(&mut ui_harness, QUERY_AUTHOR_ID, &backend_recovery_needle);
     argus.assert_latest_terminal_predicate_with_evidence(
         &mut ui_harness,
@@ -3170,7 +3453,14 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                 == Some(backend_recovery_needle.as_str())
         },
     );
-    argus.click_and_reinspect(&mut ui_harness, SEARCH_AUTHOR_ID);
+    // Backend loss is a REAL terminal transport failure of the Search action: the observer publishes a
+    // typed Failed transition bound to the same target/semantic, so the canonical receipt is `rejected`
+    // rather than an unprovable `indeterminate`.
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut ui_harness,
+        SEARCH_AUTHOR_ID,
+        "find-in-files.search failed",
+    );
     for _ in 0..400 {
         ui_harness.run_steps(1);
         let (_, loading, error, _) = ui_harness.state().find_in_files_diagnostics_for_test();
@@ -3193,6 +3483,32 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                         || lower.contains("connect")
                         || lower.contains("refused")
                 })
+        },
+    );
+
+    // ── Canonical Argus RETRY (V4 remediation 2) ────────────────────────────────────────────────────
+    // Retry re-issues the real bookmark GET against the still-unreachable backend. Success would remove
+    // the control; a typed terminal FAILURE leaves it mounted. The completion observer therefore
+    // publishes a causally bound Failed transition, and the canonical receipt is terminal `rejected` —
+    // never `indeterminate`, and never a silent "nothing changed".
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut ui_harness,
+        BOOKMARK_RETRY_AUTHOR_ID,
+        "find-in-files.bookmark-load failed",
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut ui_harness,
+        "mounted-bookmark-retry-typed-failure",
+        serde_json::json!({
+            "retry_author_id": BOOKMARK_RETRY_AUTHOR_ID,
+            "unavailable_base_url": "http://127.0.0.1:9",
+        }),
+        |tree| {
+            json_has_author_id(tree, BOOKMARK_RETRY_AUTHOR_ID)
+                && json_node_by_author_id(tree, BOOKMARK_STATUS_AUTHOR_ID)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty())
         },
     );
 
@@ -3238,7 +3554,11 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
                     .is_some_and(|value| value.contains("result"))
         },
     );
-    argus.finish();
+    // STRICT close-out: every canonical action in this proof must carry a terminal, causally bound
+    // receipt. `finish_require_no_indeterminate` rejects the run if ANY action terminalised as
+    // `indeterminate` (the exact V4 failure), on top of `finish`'s existing requirement that every
+    // action be rebound to an authoritative terminal snapshot with at least one passing predicate.
+    argus.finish_require_no_indeterminate();
     drop(ui_harness);
     drop(_managed_wgpu_guard);
 

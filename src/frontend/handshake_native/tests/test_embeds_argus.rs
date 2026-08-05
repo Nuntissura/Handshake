@@ -23,13 +23,15 @@
 
 use std::path::{Path, PathBuf};
 
+use egui_kittest::kittest::NodeT;
+
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -54,6 +56,100 @@ fn assert_no_local_artifact_dir() {
             local.display()
         );
     }
+}
+
+fn json_has_enabled_click_target(value: &serde_json::Value, author_id: &str) -> bool {
+    json_node_by_author_id(value, author_id).is_some_and(|node| {
+        node.get("disabled").and_then(serde_json::Value::as_bool) == Some(false)
+            && node
+                .get("actions")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|actions| {
+                    actions
+                        .iter()
+                        .any(|action| action.as_str() == Some("Click"))
+                })
+    })
+}
+
+fn json_retains_non_rejected_click_receipt(
+    value: &serde_json::Value,
+    receipt_id: u64,
+    target: &str,
+) -> bool {
+    value
+        .get("action_receipts")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|receipts| {
+            receipts.iter().any(|receipt| {
+                receipt
+                    .get("receipt_id")
+                    .and_then(serde_json::Value::as_u64)
+                    == Some(receipt_id)
+                    && receipt.get("target").and_then(serde_json::Value::as_str) == Some(target)
+                    && receipt
+                        .get("expected_action")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("Click")
+                    && receipt.get("status").and_then(serde_json::Value::as_str) == Some("applied")
+                    && receipt
+                        .get("rejection")
+                        .map_or(true, serde_json::Value::is_null)
+            })
+        })
+}
+
+fn json_click_completion_token(value: &serde_json::Value, author_id: &str) -> serde_json::Value {
+    let raw = json_node_by_author_id(value, author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_else(|| panic!("{author_id} carries a click-completion value"));
+    serde_json::from_str(raw).unwrap_or_else(|error| {
+        panic!("{author_id} click-completion value is strict JSON: {error}")
+    })
+}
+
+fn json_has_static_enabled_image(value: &serde_json::Value, author_id: &str) -> bool {
+    json_node_by_author_id(value, author_id).is_some_and(|node| {
+        node.get("role").and_then(serde_json::Value::as_str) == Some("Image")
+            && node.get("disabled").and_then(serde_json::Value::as_bool) == Some(false)
+            && node
+                .get("actions")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|actions| {
+                    !actions
+                        .iter()
+                        .any(|action| matches!(action.as_str(), Some("Click" | "Focus")))
+                })
+    })
+}
+
+fn json_bounds(value: &serde_json::Value, author_id: &str) -> Option<(f64, f64, f64, f64)> {
+    let bounds = json_node_by_author_id(value, author_id)?.get("bounds")?;
+    let x = bounds.get("x")?.as_f64()?;
+    let y = bounds.get("y")?.as_f64()?;
+    let width = bounds.get("w")?.as_f64()?;
+    let height = bounds.get("h")?.as_f64()?;
+    (x.is_finite()
+        && y.is_finite()
+        && width.is_finite()
+        && height.is_finite()
+        && width > 0.0
+        && height > 0.0)
+        .then_some((x, y, width, height))
+}
+
+fn json_dialog_contains(value: &serde_json::Value, dialog_id: &str, child_id: &str) -> bool {
+    let Some((dialog_x, dialog_y, dialog_w, dialog_h)) = json_bounds(value, dialog_id) else {
+        return false;
+    };
+    let Some((child_x, child_y, child_w, child_h)) = json_bounds(value, child_id) else {
+        return false;
+    };
+    child_x >= dialog_x
+        && child_y >= dialog_y
+        && child_x + child_w <= dialog_x + dialog_w
+        && child_y + child_h <= dialog_y + dialog_h
 }
 
 /// A live, RUNTIME-INJECTED shell whose top-right pane is RE-TYPED to the Notes/rich editor
@@ -139,6 +235,23 @@ fn sample_color_image() -> egui::ColorImage {
 
 #[test]
 fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-014/canonical-argus");
+    let tree_path = artifact_dir.join("mt014-mounted-embed-states-argus.json");
+    let screenshot_path = artifact_dir.join("mt014-mounted-embed-states.png");
+    // Fail closed against stale V3/V4 proof before any runtime, backend, harness, or Argus setup.
+    // Remove only this test's two exact final artifacts; they are republished below only after the
+    // canonical driver proves terminal state and shuts down cleanly.
+    for stale_path in [&tree_path, &screenshot_path] {
+        match std::fs::remove_file(stale_path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!(
+                "remove stale MT-014 proof artifact {}: {error}",
+                stale_path.display()
+            ),
+        }
+    }
+
     // `_runtime` must outlive the harness: the mounted rich editor unbinds if its runtime is dropped.
     let (app, _runtime) = live_shell();
 
@@ -166,10 +279,15 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
             "images:loaded1",
             EmbedResolutionState::Ok(resolved_image("loaded1")),
         );
+        let loaded_image = sample_color_image();
         state
             .embeds
             .decoded_images
-            .insert("images:thumb:loaded1".to_owned(), sample_color_image());
+            .insert("images:thumb:loaded1".to_owned(), loaded_image.clone());
+        state
+            .embeds
+            .decoded_images
+            .insert("images:full:loaded1".to_owned(), loaded_image);
         state.embeds.resolutions.insert(
             "images:missing1",
             EmbedResolutionState::Err(EmbedError::NotFound("missing1".to_owned())),
@@ -188,9 +306,6 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
 
     // Frames: upload the seeded texture on the egui thread + settle the AccessKit tree.
     harness.run_steps(4);
-
-    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-014/canonical-argus");
-    std::fs::create_dir_all(&artifact_dir).expect("create external MT-014 Argus artifact dir");
 
     let mut argus =
         CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-014-embed-states");
@@ -213,17 +328,25 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
         !json_has_author_id(&before, "embed-image-modal-loaded1"),
         "the loaded-image modal is closed before the safe action"
     );
+    let ready_token = json_click_completion_token(&before, "embed-image-loaded1");
+    assert_eq!(ready_token["schema"], "handshake.click-completion/v1");
+    assert_eq!(ready_token["mode"], "same_target");
+    assert_eq!(ready_token["effect"], "image-modal-open");
+    assert_eq!(ready_token["state"], "ready");
+    let ready_generation = ready_token["generation"]
+        .as_u64()
+        .expect("ready image token carries a generation");
+    let ready_context = ready_token["context"]
+        .as_str()
+        .expect("ready image token carries stable context")
+        .to_owned();
 
     // (2) Safe, reversible steer: click the loaded image (opens its full-size modal). This changes no
     // durable/backend/external state — it toggles an in-editor overlay.
     let observation = argus.click_and_reinspect(&mut harness, "embed-image-loaded1");
-    assert!(
-        matches!(
-            observation.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical embed action receipt is terminal and non-rejected: {}",
-        observation.receipt_status
+    assert_eq!(
+        observation.receipt_status, "applied",
+        "the exact image-modal token transition must produce a raw Applied receipt"
     );
     assert!(
         observation
@@ -233,59 +356,131 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
         observation.agent_id
     );
 
-    // (3) Fresh re-observation: the post-action tree now carries the opened modal node, and the four
-    // base states remain addressable (the action was additive, not destructive).
-    assert!(
-        json_has_author_id(&observation.after, "embed-image-modal-loaded1"),
-        "fresh canonical re-inspection observes the opened single-image modal"
+    // (3) Bind this exact attributed click to an authoritative, freshly captured terminal tree.
+    // The modal transition is terminal only when the click's exact receipt is retained, every
+    // pre-existing edge state remains visible, and the modal exposes a usable close control. This
+    // predicate is intentionally recomputed from the fresh tree; `evidence` is correlation data,
+    // never a replacement pass flag.
+    let receipt_id = observation.receipt_id;
+    let receipt_status = observation.receipt_status.clone();
+    let agent_id = observation.agent_id.clone();
+    let terminal_after = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt014.loaded-image-click.opens-steerable-modal-and-retains-edge-states",
+        serde_json::json!({
+            "receipt_id": receipt_id,
+            "receipt_status": receipt_status,
+            "agent_id": agent_id,
+            "target": "embed-image-loaded1",
+            "required_modal": "embed-image-modal-loaded1",
+            "required_close": "embed-image-modal-close-loaded1",
+            "required_full_image": "embed-image-full-loaded1",
+            "ready_click_token": ready_token.clone(),
+            "required_edge_states": [
+                "embed-error-missing1",
+                "embed-error-corrupt1",
+                "embed-loading-loading1",
+            ],
+        }),
+        |after| {
+            let applied_token = json_click_completion_token(after, "embed-image-loaded1");
+            json_has_author_id(after, "embed-image-modal-loaded1")
+                && json_has_enabled_click_target(after, "embed-image-modal-close-loaded1")
+                && json_has_static_enabled_image(after, "embed-image-full-loaded1")
+                && json_has_author_id(after, "embed-image-loaded1")
+                && json_has_author_id(after, "embed-error-missing1")
+                && json_has_author_id(after, "embed-error-corrupt1")
+                && json_has_author_id(after, "embed-loading-loading1")
+                && json_retains_non_rejected_click_receipt(after, receipt_id, "embed-image-loaded1")
+                && applied_token["schema"] == "handshake.click-completion/v1"
+                && applied_token["mode"] == "same_target"
+                && applied_token["effect"] == "image-modal-open"
+                && applied_token["context"] == ready_context
+                && applied_token["generation"].as_u64() == ready_generation.checked_add(1)
+                && applied_token["state"] == "applied"
+                && json_dialog_contains(
+                    after,
+                    "embed-image-modal-loaded1",
+                    "embed-image-modal-close-loaded1",
+                )
+                && json_dialog_contains(
+                    after,
+                    "embed-image-modal-loaded1",
+                    "embed-image-full-loaded1",
+                )
+        },
     );
+    let applied_token = json_click_completion_token(&terminal_after, "embed-image-loaded1");
+
+    // Paint one ordinary mounted-shell frame after the isolated canonical snapshot. This proves the
+    // modal remains open in the operator's live viewport (and gives the GPU capture the exact
+    // post-action frame) instead of publishing pixels from the pre-action painter cache.
+    harness.run_steps(1);
     for author in [
-        "embed-error-missing1",
-        "embed-error-corrupt1",
-        "embed-loading-loading1",
+        "embed-image-modal-loaded1",
+        "embed-image-modal-close-loaded1",
+        "embed-image-full-loaded1",
     ] {
         assert!(
-            json_has_author_id(&observation.after, author),
-            "the other mounted embed states remain addressable after the action ('{author}')"
+            harness
+                .root()
+                .children_recursive()
+                .any(|node| node.accesskit_node().author_id() == Some(author)),
+            "mounted post-action frame retains {author}"
         );
     }
+    let screenshot = harness.render();
 
-    // (4) Evidence: write the before/after canonical trees externally + a screenshot marker (headless
-    // DEFERRED is an acceptable typed outcome per the MT-014 remediation contract).
-    let tree_path = artifact_dir.join("mt014-mounted-embed-states-argus.json");
-    std::fs::write(
-        &tree_path,
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "before": before,
-            "after": observation.after,
-            "receipt_id": observation.receipt_id,
-            "receipt_status": observation.receipt_status,
-            "agent_id": observation.agent_id,
-        }))
-        .expect("serialize canonical MT-014 embed-state tree evidence"),
-    )
-    .expect("write canonical MT-014 embed-state tree evidence externally");
+    // (4) Prepare evidence in memory, then publish final artifacts only after `finish` has proven
+    // the canonical action log, terminal predicate, caller attribution, lease reclamation, and
+    // server shutdown. A failed proof therefore cannot publish current-run success artifacts.
+    let tree_evidence = serde_json::to_vec_pretty(&serde_json::json!({
+        "terminal_predicate": {
+            "predicate_id": "mt014.loaded-image-click.opens-steerable-modal-and-retains-edge-states",
+            "passed": true,
+            "expected_modal_id": "embed-image-modal-loaded1",
+            "expected_close_id": "embed-image-modal-close-loaded1",
+            "expected_full_image_id": "embed-image-full-loaded1",
+            "expected_raw_receipt_status": "applied",
+            "ready_click_token": ready_token,
+            "applied_click_token": applied_token,
+            "expected_edge_ids": [
+                "embed-error-missing1",
+                "embed-error-corrupt1",
+                "embed-loading-loading1",
+            ],
+            "receipt_id": receipt_id,
+        },
+        "before": before,
+        "after": terminal_after,
+        "receipt_id": receipt_id,
+        "receipt_status": receipt_status,
+        "agent_id": agent_id,
+    }))
+    .expect("serialize canonical MT-014 embed-state tree evidence");
+
+    argus.finish();
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-014 Argus artifact dir");
+    std::fs::write(&tree_path, tree_evidence)
+        .expect("write canonical MT-014 embed-state tree evidence externally");
     assert!(tree_path.is_file());
 
-    let screenshot_marker = match harness.render() {
+    let screenshot_marker = match screenshot {
         Ok(image) => {
-            let path = artifact_dir.join("mt014-mounted-embed-states.png");
             image
-                .save(&path)
+                .save(&screenshot_path)
                 .expect("save mounted embed-states screenshot");
-            format!("CAPTURED {}", path.display())
+            format!("CAPTURED {}", screenshot_path.display())
         }
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
         "MT-014 canonical Argus mounted embed states: inspect(4 states) -> click(embed-image-loaded1) \
          -> reinspect(modal open); receipt={} agent={} screenshot={} tree={}",
-        observation.receipt_status,
-        observation.agent_id,
+        receipt_status,
+        agent_id,
         screenshot_marker,
         tree_path.display()
     );
-
-    argus.finish();
     assert_no_local_artifact_dir();
 }

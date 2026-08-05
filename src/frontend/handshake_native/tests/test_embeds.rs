@@ -77,6 +77,40 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
+fn assert_image_interaction<State>(harness: &Harness<'_, State>, author_id: &str, clickable: bool) {
+    let root = harness.root();
+    let node = root
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .unwrap_or_else(|| panic!("image node {author_id:?} must be present"));
+    let access = node.accesskit_node();
+    assert!(
+        !access.is_disabled(),
+        "{author_id} must not advertise disabled"
+    );
+    assert_eq!(
+        access
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        clickable,
+        "{author_id} Click capability must match authoritative interaction mode"
+    );
+    assert_eq!(
+        access
+            .data()
+            .supports_action(egui::accesskit::Action::Focus),
+        clickable,
+        "{author_id} Focus capability must match authoritative interaction mode"
+    );
+    if !clickable {
+        assert_eq!(
+            access.value(),
+            None,
+            "{author_id} static image must not retain a stale click-completion value"
+        );
+    }
+}
+
 // ── Mock transport (no backend) ──────────────────────────────────────────────────────────────
 
 /// A fetcher that always errors — drives the headless typed-error-chip path (used by the
@@ -625,12 +659,18 @@ fn mt014_single_image_opens_and_closes_full_size_modal() {
         });
     harness.run();
 
-    harness
+    let thumbnail_before = harness
         .root()
         .children_recursive()
         .find(|node| node.accesskit_node().author_id() == Some("embed-image-img1"))
-        .expect("single image is addressable")
-        .click();
+        .expect("single image is addressable");
+    let thumbnail_before_value = thumbnail_before
+        .accesskit_node()
+        .value()
+        .expect("closed thumbnail carries click-completion token");
+    assert!(thumbnail_before_value.contains("\"generation\":0"));
+    assert!(thumbnail_before_value.contains("\"state\":\"ready\""));
+    thumbnail_before.click();
     harness.run();
     assert!(state.lock().unwrap().embeds.image_modals.contains("img1"));
     assert!(harness
@@ -638,14 +678,103 @@ fn mt014_single_image_opens_and_closes_full_size_modal() {
         .children_recursive()
         .any(|node| { node.accesskit_node().author_id() == Some("embed-image-modal-img1") }));
 
+    let assert_open_modal = |harness: &Harness<'_>| {
+        let root = harness.root();
+        let dialog = root
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some("embed-image-modal-img1"))
+            .expect("single image dialog is addressable");
+        let close = root
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some("embed-image-modal-close-img1"))
+            .expect("single image modal close control is addressable");
+        let full = root
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some("embed-image-full-img1"))
+            .expect("single image modal renders the truthful full-size image node");
+        assert!(
+            !close.accesskit_node().is_disabled(),
+            "single image modal close control is enabled and steerable"
+        );
+        assert!(
+            !full.accesskit_node().is_disabled()
+                && !full
+                    .accesskit_node()
+                    .data()
+                    .supports_action(egui::accesskit::Action::Click)
+                && !full
+                    .accesskit_node()
+                    .data()
+                    .supports_action(egui::accesskit::Action::Focus),
+            "full-size modal image is static, enabled content rather than a fake control"
+        );
+        let dialog_rect = dialog.rect();
+        for (name, child_rect) in [("Close", close.rect()), ("full image", full.rect())] {
+            assert!(
+                dialog_rect.is_finite()
+                    && dialog_rect.width() > 0.0
+                    && dialog_rect.height() > 0.0
+                    && child_rect.is_finite()
+                    && dialog_rect.contains_rect(child_rect),
+                "dialog bounds must be finite/positive and contain {name}: dialog={dialog_rect:?} child={child_rect:?}"
+            );
+        }
+    };
+    assert_open_modal(&harness);
+    let thumbnail_open = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("embed-image-img1"))
+        .expect("open thumbnail remains addressable");
+    let thumbnail_open_value = thumbnail_open.accesskit_node().value().unwrap();
+    assert!(thumbnail_open_value.contains("\"generation\":1"));
+    assert!(thumbnail_open_value.contains("\"state\":\"applied\""));
+
+    harness.set_size(egui::vec2(760.0, 460.0));
+    harness.run_steps(3);
+    assert_open_modal(&harness);
+    let resized_dialog = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("embed-image-modal-img1"))
+        .unwrap()
+        .rect();
+    assert!(
+        resized_dialog.left() >= 0.0
+            && resized_dialog.top() >= 0.0
+            && resized_dialog.right() <= 760.0
+            && resized_dialog.bottom() <= 460.0,
+        "live resize reconciles the modal into the resized viewport: {resized_dialog:?}"
+    );
+
     harness
         .root()
         .children_recursive()
         .find(|node| node.accesskit_node().author_id() == Some("embed-image-modal-close-img1"))
-        .expect("single image modal close control is addressable")
+        .unwrap()
         .click();
     harness.run();
     assert!(!state.lock().unwrap().embeds.image_modals.contains("img1"));
+
+    let thumbnail_closed = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("embed-image-img1"))
+        .unwrap();
+    let thumbnail_closed_value = thumbnail_closed.accesskit_node().value().unwrap();
+    assert!(thumbnail_closed_value.contains("\"generation\":1"));
+    assert!(thumbnail_closed_value.contains("\"state\":\"ready\""));
+    thumbnail_closed.click();
+    harness.run();
+    assert_open_modal(&harness);
+    let thumbnail_reopened = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("embed-image-img1"))
+        .unwrap();
+    let thumbnail_reopened_value = thumbnail_reopened.accesskit_node().value().unwrap();
+    assert!(thumbnail_reopened_value.contains("\"generation\":2"));
+    assert!(thumbnail_reopened_value.contains("\"state\":\"applied\""));
 }
 
 #[test]
@@ -676,7 +805,10 @@ fn mt014_video_uses_poster_tier_and_play_state_without_full_body_fetch() {
 
     let mut poster_ready = false;
     for _ in 0..200 {
-        harness.run();
+        // The poster pipeline intentionally keeps repainting while its spinner is visible.
+        // Advance one frame per poll so the harness does not mistake that bounded async work
+        // for a runaway repaint loop.
+        harness.step();
         if state
             .lock()
             .unwrap()
@@ -694,6 +826,7 @@ fn mt014_video_uses_poster_tier_and_play_state_without_full_body_fetch() {
         "video poster tier decodes into the runtime cache"
     );
     assert_eq!(fetcher.tier_calls(), vec![MediaTier::Poster]);
+    assert_image_interaction(&harness, "embed-image-video1", false);
 
     harness
         .root()
@@ -744,8 +877,12 @@ fn mt014_album_loads_thumbnails_then_only_selected_full_image() {
             RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
         });
 
+    let mut thumbnails_ready = false;
     for _ in 0..200 {
-        harness.run();
+        // All three thumbnail fetches are asynchronous and keep their spinners repainting.
+        // Poll one frame at a time; `Harness::run` deliberately rejects more than four
+        // consecutive repaint frames and therefore is not the synchronization primitive here.
+        harness.step();
         if ["a1", "a2", "a3"].iter().all(|id| {
             state
                 .lock()
@@ -754,10 +891,15 @@ fn mt014_album_loads_thumbnails_then_only_selected_full_image() {
                 .textures
                 .contains(&format!("album:thumb:{id}"))
         }) {
+            thumbnails_ready = true;
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
+    assert!(
+        thumbnails_ready,
+        "all album thumbnails decode into the runtime cache"
+    );
     assert_eq!(
         fetcher
             .tier_calls()
@@ -774,8 +916,9 @@ fn mt014_album_loads_thumbnails_then_only_selected_full_image() {
         .find(|node| node.accesskit_node().author_id() == Some("album-cell-a2"))
         .expect("selected album cell is addressable")
         .click();
+    let mut selected_full_ready = false;
     for _ in 0..200 {
-        harness.run();
+        harness.step();
         if state
             .lock()
             .unwrap()
@@ -783,16 +926,18 @@ fn mt014_album_loads_thumbnails_then_only_selected_full_image() {
             .textures
             .contains("album:full:a2")
         {
+            selected_full_ready = true;
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    assert!(state
-        .lock()
-        .unwrap()
-        .embeds
-        .textures
-        .contains("album:full:a2"));
+    assert!(
+        selected_full_ready,
+        "the selected album image decodes at full tier"
+    );
+    assert_image_interaction(&harness, "album-cell-a1", true);
+    assert_image_interaction(&harness, "album-cell-a2", true);
+    assert_image_interaction(&harness, "embed-image-full-a2", false);
     assert!(!state
         .lock()
         .unwrap()
@@ -924,6 +1069,7 @@ fn mt014_slideshow_prev_next_accesskit() {
         next_found,
         "AC-8: 'slideshow-next-s1' must be present in the AccessKit tree"
     );
+    assert_image_interaction(&harness, "embed-image-full-s1", false);
     println!("AC-8 slideshow nav nodes present: prev=slideshow-prev-s1 next=slideshow-next-s1");
 }
 

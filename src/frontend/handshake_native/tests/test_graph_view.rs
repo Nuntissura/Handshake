@@ -166,8 +166,32 @@ fn graph_view_accesskit_nodes_present() {
         "AC6: 'graph.node.block-001' must be in the tree"
     );
     let mut tree_item_found = false;
+    let mut graph_node_bounds = std::collections::HashSet::new();
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
+        if ak
+            .author_id()
+            .is_some_and(|author| author.starts_with(NODE_AUTHOR_ID_PREFIX))
+        {
+            let bounds = node.rect();
+            assert!(
+                bounds.is_finite() && bounds.width() > 0.0 && bounds.height() > 0.0,
+                "graph node accessibility bounds must be finite and non-zero: {bounds:?}"
+            );
+            assert!(
+                bounds.left() >= 0.0
+                    && bounds.top() >= 0.0
+                    && bounds.right() <= 800.0
+                    && bounds.bottom() <= 600.0,
+                "graph node accessibility bounds must stay in the mounted canvas viewport: {bounds:?}"
+            );
+            graph_node_bounds.insert((
+                bounds.min.x.to_bits(),
+                bounds.min.y.to_bits(),
+                bounds.max.x.to_bits(),
+                bounds.max.y.to_bits(),
+            ));
+        }
         if ak.author_id() == Some("graph.node.block-001") {
             assert_eq!(
                 format!("{:?}", ak.role()),
@@ -181,8 +205,54 @@ fn graph_view_accesskit_nodes_present() {
         tree_item_found,
         "AC6: graph.node.block-001 node not found for role check"
     );
+    assert_eq!(
+        graph_node_bounds.len(),
+        node_count,
+        "each painted graph node must expose its own distinct screen-space bounds"
+    );
 
     println!("PROOF2 structural: {node_count} graph.node.* nodes + 5 toolbar ids present");
+}
+
+#[test]
+fn narrow_mounted_graph_auto_collapses_controls_and_preserves_canvas() {
+    let view = shared(seeded_view(4));
+    let view_ui = Arc::clone(&view);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(520.0, 600.0))
+        .build_ui(move |ui| {
+            let pal = HsTheme::Dark.palette();
+            view_ui.lock().unwrap().show(ui, &pal);
+        });
+    harness.run();
+
+    let view = view.lock().unwrap();
+    assert!(
+        !view.controls.panel_open,
+        "a first render in a narrow editor lane must collapse the controls strip"
+    );
+    let canvas = view
+        .canvas_rect()
+        .expect("narrow render records canvas bounds");
+    assert!(
+        canvas.width() >= 400.0,
+        "collapsed controls must leave a usable graph canvas, got {canvas:?}"
+    );
+    for node in &view.nodes {
+        let screen = canvas.center() + view.pan + egui::vec2(node.x, node.y) * view.zoom;
+        let label_half_width = node.title.chars().count() as f32 * 3.0;
+        assert!(
+            screen.x - label_half_width >= canvas.min.x
+                && screen.x + label_half_width <= canvas.max.x,
+            "auto-fit must keep node label '{}' inside the narrow canvas: screen={screen:?} canvas={canvas:?}",
+            node.title
+        );
+        assert!(
+            screen.y - 18.0 >= canvas.min.y && screen.y + 42.0 <= canvas.max.y,
+            "auto-fit must keep node '{}' and its label inside the narrow canvas: screen={screen:?} canvas={canvas:?}",
+            node.title
+        );
+    }
 }
 
 // ── PROOF3: clicking a node fires the OpenNode callback with the right block_id ────────────────────

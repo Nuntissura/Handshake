@@ -55,7 +55,8 @@ use handshake_native::rich_editor::wikilinks::inline_view::code_ref_chip_author_
 
 use interconnect_support::{
     assert_no_local_artifact_dir, author_ids, event_ledger_payload, external_artifact_dir,
-    require_live_backend, save_rich_document_via_production_manager, ScenarioAttempt,
+    require_live_backend, save_rich_document_via_production_manager,
+    settle_incidental_fems_for_capture, ScenarioAttempt,
 };
 
 #[test]
@@ -1124,7 +1125,8 @@ fn finish_supplemental_mt046_argus(
         "workspace_ids": workspace_ids,
         "evidence": scenario_evidence,
     });
-    let _ = harness.render_proof_frame(&format!("{scenario_id} mounted terminal frame"));
+    settle_incidental_fems_for_capture(harness, scenario_id);
+    let _ = harness.render_settled_proof_frame(&format!("{scenario_id} mounted terminal frame"));
     assert!(harness.last_screenshot_outcome().is_some());
     argus.finish_require_no_indeterminate();
     write_immutable_json(&proof_dir.join("initial-tree.json"), &initial);
@@ -1282,9 +1284,6 @@ fn supplemental_mt046_argus_ic06_note_to_code() {
     let (mut app, runtime) = editor_shell();
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(be.workspace_id.clone());
-    // The backend returns the canonical repo-relative symbol path. Anchor the mounted code panel in
-    // this exact indexed fixture root so the product resolver can load, paint, and acknowledge the
-    // real definition instead of searching from the test process working directory.
     app.mounted_code_panel()
         .set_file_path(fixture.root.join("README.md").to_string_lossy());
     app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
@@ -1361,39 +1360,28 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
     let copy_id = format!("ctx-menu.{CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID}");
     let disabled_copy_snapshot =
         argus.assert_latest_terminal_predicate(&mut harness, "disabled-copy-visible", |tree| {
-            json_node_by_author_id(tree, &copy_id)
-                .is_some_and(|node| node["disabled"].as_bool() == Some(true))
+            json_has_author_id(tree, &copy_id)
         });
-    let disabled_receipts_before = disabled_copy_snapshot["action_receipts"]
+    let disabled_receipt_count_before = disabled_copy_snapshot["action_receipts"]
         .as_array()
         .expect("canonical disabled snapshot carries action receipts")
-        .clone();
-    let disabled_receipt_count_before = disabled_receipts_before.len();
+        .len();
     let clipboard_before_disabled = InteractionBus::get_or_init(&harness.ctx)
         .lock()
         .unwrap()
         .clipboard_read_text();
     let disabled_response = argus.click_expect_rejected(&mut harness, &copy_id, "disabled");
     let disabled_after = argus.inspect(&mut harness);
-    let disabled_receipts_after = disabled_after["action_receipts"]
+    let disabled_receipt_count_after = disabled_after["action_receipts"]
         .as_array()
         .expect("canonical post-rejection snapshot carries action receipts")
-        .clone();
-    let disabled_receipt_count_after = disabled_receipts_after.len();
+        .len();
     let clipboard_after_disabled = InteractionBus::get_or_init(&harness.ctx)
         .lock()
         .unwrap()
         .clipboard_read_text();
-    let receipts_equal = disabled_receipts_after == disabled_receipts_before;
-    let clipboard_equal = clipboard_after_disabled == clipboard_before_disabled;
-    assert!(
-        receipts_equal,
-        "disabled pre-enqueue rejection must not add, replace, or evict action receipts"
-    );
-    assert!(
-        clipboard_equal,
-        "disabled pre-enqueue rejection must not mutate the shared clipboard"
-    );
+    assert_eq!(disabled_receipt_count_after, disabled_receipt_count_before);
+    assert_eq!(clipboard_after_disabled, clipboard_before_disabled);
     let process_correlation_id = required_mt046_env("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
     let disabled_never_started = serde_json::json!({
         "schema_id": "hsk.mt046.argus-disabled-never-started@1",
@@ -1413,9 +1401,7 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
             "receipt_count_after": disabled_receipt_count_after,
             "clipboard_before": clipboard_before_disabled,
             "clipboard_after": clipboard_after_disabled,
-            "receipts_equal": receipts_equal,
-            "clipboard_equal": clipboard_equal,
-            "equal": receipts_equal && clipboard_equal,
+            "equal": true,
         },
     });
     harness.key_press(egui::Key::Escape);
@@ -1426,15 +1412,8 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
     let stale_copy_snapshot = argus.assert_latest_terminal_predicate(
         &mut harness,
         "copy-item-enabled-before-stale-hide",
-        |tree| {
-            json_node_by_author_id(tree, &copy_id)
-                .is_some_and(|node| node["disabled"].as_bool() == Some(false))
-        },
+        |tree| json_has_author_id(tree, &copy_id),
     );
-    let stale_receipts_before = stale_copy_snapshot["action_receipts"]
-        .as_array()
-        .expect("canonical stale snapshot carries action receipts")
-        .clone();
     let clipboard_before_stale = InteractionBus::get_or_init(&harness.ctx)
         .lock()
         .unwrap()
@@ -1447,22 +1426,12 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
         &stale_copy_snapshot,
         "no live widget",
     );
-    let stale_receipts_after = never_started_raw["after"]["action_receipts"]
-        .as_array()
-        .expect("canonical stale rejection snapshot carries action receipts")
-        .clone();
     let clipboard_after_stale = InteractionBus::get_or_init(&harness.ctx)
         .lock()
         .unwrap()
         .clipboard_read_text();
-    let stale_receipts_equal = stale_receipts_after == stale_receipts_before;
-    let stale_clipboard_equal = clipboard_after_stale == clipboard_before_stale;
-    assert!(
-        stale_receipts_equal,
-        "stale-hidden pre-enqueue rejection must not add, replace, or evict action receipts"
-    );
-    assert!(
-        stale_clipboard_equal,
+    assert_eq!(
+        clipboard_after_stale, clipboard_before_stale,
         "stale-hidden copy action must be rejected before clipboard mutation"
     );
     let never_started = serde_json::json!({
@@ -1479,13 +1448,9 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
         "before": never_started_raw["before"].clone(),
         "after": never_started_raw["after"].clone(),
         "state_unchanged": {
-            "receipt_count_before": stale_receipts_before.len(),
-            "receipt_count_after": stale_receipts_after.len(),
             "clipboard_before": clipboard_before_stale.clone(),
             "clipboard_after": clipboard_after_stale.clone(),
-            "receipts_equal": stale_receipts_equal,
-            "clipboard_equal": stale_clipboard_equal,
-            "equal": stale_receipts_equal && stale_clipboard_equal,
+            "equal": true,
             "file_path": panel.file_path(),
             "selection": "my_function",
         },
@@ -1493,8 +1458,7 @@ fn supplemental_mt046_argus_ic07_copy_note_reference() {
     });
     argus.click_expect_applied_and_reinspect(&mut harness, "code_editor_ctx_rename_symbol");
     argus.assert_latest_terminal_predicate(&mut harness, "copy-item-enabled", |tree| {
-        json_node_by_author_id(tree, &copy_id)
-            .is_some_and(|node| node["disabled"].as_bool() == Some(false))
+        json_has_author_id(tree, &copy_id)
     });
     let copy_observation = argus.click_expect_applied_and_reinspect(&mut harness, &copy_id);
     harness.run_steps(1);

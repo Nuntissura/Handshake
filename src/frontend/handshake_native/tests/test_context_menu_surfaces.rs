@@ -1274,6 +1274,103 @@ fn mt070_argus_dispatch_seam_observes_and_enforces_stage_route_availability() {
         })));
 }
 
+// ── WP-KERNEL-012 MT-070 validation_v4 remediation: canonical terminal binding + matrix artifacts ────
+//
+// FAIL_V4 root cause: the six mounted matrices below reached `canonical_argus_driver::finish` with
+// canonical actions that were never rebound to an authoritative terminal snapshot and never carried an
+// action-specific terminal predicate. Every dispatched action in this file is now (1) allowed to settle
+// on the owning product state, (2) bound through `assert_latest_terminal_predicate*` to the exact
+// authoritative effect of its REAL handler, and (3) exported into a source-bound canonical artifact that
+// is written ONLY after that matrix's `argus.finish()` gate already passed.
+//
+// The static regression gate at the bottom of this file
+// (`mt070_every_canonical_argus_action_is_terminally_bound_before_finish`) re-derives that invariant
+// from this file's own source so a future action cannot be added without its terminal predicate.
+
+/// One canonical matrix row: the dispatched action, the terminal observation the driver persisted
+/// (before snapshot, receipt id/status, terminal snapshot, predicate id/evidence/result), the exact
+/// handler trace, the owning pane, and the resulting product state.
+fn mt070_matrix_row(
+    action_target: &str,
+    observation: &canonical_argus_driver::ArgusObservation,
+    pane_ownership: serde_json::Value,
+    handler_trace: serde_json::Value,
+    resulting_state: serde_json::Value,
+) -> serde_json::Value {
+    serde_json::json!({
+        "action_target": action_target,
+        "observation": observation,
+        "pane_ownership": pane_ownership,
+        "handler_trace": handler_trace,
+        "resulting_state": resulting_state,
+    })
+}
+
+/// Write one source-bound canonical artifact for a mounted matrix. Callers MUST call this only after
+/// the matrix's `argus.finish()` returned, so a failed final gate can never leave a success artifact.
+fn mt070_write_matrix_artifact(matrix_id: &str, rows: &[serde_json::Value]) {
+    assert!(
+        !rows.is_empty(),
+        "canonical matrix {matrix_id} must export at least one bound action row"
+    );
+    let root = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR")
+        .unwrap_or_else(|_| "../../../../Handshake_Artifacts/handshake-test".to_owned());
+    let dir = std::path::PathBuf::from(root).join("mt070-canonical-matrices");
+    std::fs::create_dir_all(&dir).expect("create the MT-070 canonical matrix artifact directory");
+    let document = serde_json::json!({
+        "schema_id": "hsk.native_gui.mt070_canonical_matrix@1",
+        "mt_id": "MT-070",
+        "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+        "matrix_id": matrix_id,
+        "source_file": "src/frontend/handshake_native/tests/test_context_menu_surfaces.rs",
+        "process_id": std::process::id(),
+        "dispatched_action_count": rows.len(),
+        "rows": rows,
+    });
+    let path = dir.join(format!("{matrix_id}.json"));
+    std::fs::write(
+        &path,
+        serde_json::to_string_pretty(&document).expect("serialize the MT-070 canonical matrix"),
+    )
+    .unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
+}
+
+/// Every `(pane_id, tab_index)` whose live tab carries this exact `(content_id, pane_type)` identity,
+/// paired with the stable tab author_id the production tab bar emits for it. Used by the terminal
+/// predicates below to prove a routed destination is exactly-once and lands in the owning pane.
+fn mt070_tabs_for_content(
+    app: &HandshakeApp,
+    content_id: &str,
+    pane_type: &PaneType,
+) -> Vec<(String, usize, String)> {
+    let mut found: Vec<(String, usize, String)> = app
+        .tab_bar_states()
+        .iter()
+        .flat_map(|(pane_id, bar)| {
+            bar.tabs
+                .iter()
+                .enumerate()
+                .filter(|(_, tab)| {
+                    tab.content_id.as_deref() == Some(content_id) && tab.pane_type == *pane_type
+                })
+                .map(|(index, tab)| {
+                    (
+                        pane_id.as_ref().to_owned(),
+                        index,
+                        handshake_native::tab_bar::tab_author_id_for(
+                            pane_id.as_ref(),
+                            index,
+                            &tab.pane_type,
+                        ),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    found.sort();
+    found
+}
+
 #[test]
 fn mt070_mounted_canvas_argus_routes_exact_source_into_stage() {
     use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
@@ -1389,6 +1486,7 @@ fn mt070_mounted_canvas_argus_routes_exact_source_into_stage() {
     harness
         .state_mut()
         .set_active_pane_for_test(Some(PaneId::from("pane-b")));
+    let board = harness.state().mounted_canvas_board();
     let observation =
         argus.click_from_snapshot_and_reinspect(&mut harness, &route_id, before.clone());
     assert!(
@@ -1396,22 +1494,81 @@ fn mt070_mounted_canvas_argus_routes_exact_source_into_stage() {
             observation.receipt_status.as_str(),
             "applied" | "indeterminate"
         ),
-        "receipt is terminal; concrete Stage state below is the success gate"
+        "receipt is terminal; the bound terminal predicate below is the success gate"
     );
+    // Let the owning product state settle: the confirmed menu action stages a Route-to-Stage request on
+    // the shared InteractionBus, the shell drains it, and only then does the Stage pane own the content.
     harness.run_steps(3);
 
-    assert!(matches!(
-        harness.state().stage_content(),
-        StageContent::Selection(ref text, ref source)
-            if text == "canvas node block-live"
-                && source == "node://canvas-live/block-live"
-    ));
-    let post_state = argus.inspect(&mut harness);
-    assert!(
-        json_has_author_id(&post_state, STAGE_ROUTED_CONTENT_AUTHOR_ID),
-        "fresh canonical inspect sees the mounted Stage post-state"
+    let expected_text = "canvas node block-live";
+    let expected_source = "node://canvas-live/block-live";
+    let expected_routed_value = format!("Selection from {expected_source}: \"{expected_text}\"");
+    let routed_value_probe = expected_routed_value.clone();
+    let predicate_board = std::sync::Arc::clone(&board);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt070.canvas.route-to-stage.exact-source-reaches-stage",
+        serde_json::json!({
+            "source_pane_id": "pane-a",
+            "active_pane_at_dispatch": "pane-b",
+            "source_placement_author_id": placement_id.clone(),
+            "source_canvas_id": "canvas-live",
+            "source_node_id": "block-live",
+            "menu_target": route_id.clone(),
+            "receipt_id": observation.receipt_id,
+            "correlation_id": observation.correlation_id.clone(),
+            "expected_stage_text": expected_text,
+            "expected_stage_source": expected_source,
+            "expected_routed_content_value": expected_routed_value.clone(),
+        }),
+        move |after, app| {
+            // The exact routed content, addressed by the source pane/node identity that owned the
+            // right-click — NOT the pane that was active when the canonical click was dispatched.
+            let staged = matches!(
+                app.stage_content(),
+                StageContent::Selection(ref text, ref source)
+                    if text == expected_text && source == expected_source
+            );
+            // Stage pane activation + exact routed content, read from the authoritative terminal tree.
+            let stage_activated = find_author(after, STAGE_ROUTED_CONTENT_AUTHOR_ID)
+                .and_then(|node| node["value"].as_str())
+                .is_some_and(|value| value == routed_value_probe);
+            // The confirmed action released the retained right-click owner exactly once.
+            let owner_released = predicate_board
+                .lock()
+                .map(|board| board.context_menu_owner_pane_for_test().is_none())
+                .unwrap_or(false);
+            staged && stage_activated && owner_released
+        },
     );
+    let terminal = argus.latest_terminal_observation();
+    assert!(
+        json_has_author_id(&terminal.after, STAGE_ROUTED_CONTENT_AUTHOR_ID),
+        "the persisted terminal snapshot retains the mounted Stage post-state"
+    );
+    let rows = vec![mt070_matrix_row(
+        &route_id,
+        &terminal,
+        serde_json::json!({
+            "right_click_owner_pane": "pane-a",
+            "active_pane_at_dispatch": "pane-b",
+            "owner_released_after_confirm": true,
+        }),
+        serde_json::json!({
+            "handler": "node_menu::RouteToStage -> InteractionBus pending_stage_route -> StagePane",
+            "source_placement_author_id": placement_id,
+            "source_canvas_id": "canvas-live",
+            "source_node_id": "block-live",
+        }),
+        serde_json::json!({
+            "stage_content_kind": "selection",
+            "stage_text": expected_text,
+            "stage_source": expected_source,
+            "stage_routed_content_value": expected_routed_value,
+        }),
+    )];
     argus.finish();
+    mt070_write_matrix_artifact("mt070-mounted-canvas-route-to-stage", &rows);
 }
 
 #[test]
@@ -1436,21 +1593,130 @@ fn mt070_mounted_editor_body_localhost_argus_action_matrix() {
         }
     }
 
+    fn find_author<'a>(
+        value: &'a serde_json::Value,
+        author_id: &str,
+    ) -> Option<&'a serde_json::Value> {
+        match value {
+            serde_json::Value::Object(object) => {
+                if object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                    return Some(value);
+                }
+                object
+                    .values()
+                    .find_map(|value| find_author(value, author_id))
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .find_map(|value| find_author(value, author_id)),
+            _ => None,
+        }
+    }
+
+    /// The always-mounted `code_editor_ctx_rename_symbol` node publishes a
+    /// `handshake.click-completion/v1` same-target token for `code-editor.open-context-menu`. A popup
+    /// that merely *looks* open is not proof; the terminal predicate below requires the production
+    /// widget to have consumed the AccessKit request and advanced that token to `applied`.
+    fn popup_open_completion_applied(after: &serde_json::Value) -> bool {
+        find_author(after, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID)
+            .and_then(|node| node["value"].as_str())
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+            .is_some_and(|token| {
+                token["schema"] == "handshake.click-completion/v1"
+                    && token["effect"] == "code-editor.open-context-menu"
+                    && token["state"] == "applied"
+                    && token["generation"].as_u64().is_some_and(|value| value >= 1)
+            })
+    }
+
+    /// Drive one editor-body entry end-to-end through the canonical localhost transport, binding BOTH
+    /// canonical actions (open the real popup, then activate the entry) to authoritative terminal
+    /// predicates. `settle_steps` lets the owning handler reach its terminal product state before the
+    /// action-specific predicate is evaluated. Returns the persisted terminal observations in order.
     fn click_body_action(
         argus: &mut CanonicalArgusDriver,
         harness: &mut Harness<'_, HandshakeApp>,
         action_id: &str,
-    ) {
-        let opened = argus.click_and_reinspect(harness, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID);
+        settle_steps: usize,
+        predicate_id: &str,
+        evidence: serde_json::Value,
+        predicate: impl FnOnce(&serde_json::Value) -> bool,
+    ) -> Vec<canonical_argus_driver::ArgusObservation> {
         let target = format!("ctx-menu.{action_id}");
+        let opened = argus.click_and_reinspect(harness, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID);
+        // The trigger frame only REQUESTS the popup; the real popup paints on the next live frame.
+        // Settle it before re-observing, so the terminal tree describes an actually-open live popup
+        // and the following entry click lands on the live item rather than a snapshot-only node.
+        harness.run_steps(1);
+        let popup_target = target.clone();
+        argus.assert_latest_terminal_predicate_with_evidence(
+            harness,
+            &format!("mt070.editor.popup-open.{action_id}"),
+            serde_json::json!({
+                "open_trigger": CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+                "popup_target": target,
+                "receipt_id": opened.receipt_id,
+                "correlation_id": opened.correlation_id,
+            }),
+            move |after| {
+                json_has_author_id(after, &popup_target) && popup_open_completion_applied(after)
+            },
+        );
+        let open_observation = argus.latest_terminal_observation();
         assert!(
-            json_has_author_id(&opened.after, &target),
-            "fresh localhost Argus inspection sees the real mounted editor popup target {target}"
+            harness
+                .root()
+                .children_recursive()
+                .any(|node| node.accesskit_node().author_id() == Some(target.as_str())),
+            "the settled live popup exposes {target} before the entry is steered"
         );
         let action = argus.click_and_reinspect(harness, &target);
         assert!(matches!(
             action.receipt_status.as_str(),
             "applied" | "indeterminate"
+        ));
+        harness.run_steps(settle_steps);
+        argus.assert_latest_terminal_predicate_with_evidence(
+            harness,
+            predicate_id,
+            evidence,
+            predicate,
+        );
+        vec![open_observation, argus.latest_terminal_observation()]
+    }
+
+    /// Append the ordered one-action/one-receipt rows for one editor entry: the popup-open action and
+    /// the entry action, each carrying its own exact target and handler trace.
+    fn push_body_rows(
+        rows: &mut Vec<serde_json::Value>,
+        action_id: &str,
+        observations: &[canonical_argus_driver::ArgusObservation],
+        pane_ownership: &serde_json::Value,
+        handler_trace: serde_json::Value,
+        resulting_state: serde_json::Value,
+    ) {
+        assert_eq!(
+            observations.len(),
+            2,
+            "one editor entry dispatches exactly one popup-open action and one entry action"
+        );
+        rows.push(mt070_matrix_row(
+            CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+            &observations[0],
+            pane_ownership.clone(),
+            serde_json::json!({
+                "handler": "CodeEditorPanel editor-body context surface",
+                "effect": "code-editor.open-context-menu",
+                "opens_target": format!("ctx-menu.{action_id}"),
+            }),
+            serde_json::json!({"popup_open_completion_state": "applied"}),
+        ));
+        rows.push(mt070_matrix_row(
+            &format!("ctx-menu.{action_id}"),
+            &observations[1],
+            pane_ownership.clone(),
+            handler_trace,
+            resulting_state,
         ));
     }
 
@@ -1495,74 +1761,210 @@ fn mt070_mounted_editor_body_localhost_argus_action_matrix() {
         .unwrap()
         .wikilinks
         .is_resolver_index_ready());
+    let rich_state = harness.state().mounted_rich_state();
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-mounted-editor-matrix");
+    let mut rows: Vec<serde_json::Value> = Vec::new();
+    let editor_pane_ownership = serde_json::json!({
+        "right_click_owner_pane": "pane-a",
+        "owner_surface": "mounted code-editor body (PaneType::CodeSymbol)",
+    });
 
-    // Rename reaches the real panel state machine and the fresh post-state exposes its mounted input.
-    click_body_action(&mut argus, &mut harness, editor_body_ids::RENAME_SYMBOL);
-    assert!(matches!(panel.rename_state(), RenameState::Editing { .. }));
-    let rename_post = argus.inspect(&mut harness);
-    assert!(json_has_author_id(&rename_post, "code_editor_rename_input"));
+    // Rename reaches the REAL MT-048 rename state machine: the terminal tree must expose its mounted
+    // rename input, and the panel must actually be in `RenameState::Editing`.
+    let rename_panel = Arc::clone(&panel);
+    let observations = click_body_action(
+        &mut argus,
+        &mut harness,
+        editor_body_ids::RENAME_SYMBOL,
+        2,
+        "mt070.editor.rename-symbol.mt048-rename-state-machine-editing",
+        serde_json::json!({
+            "handler_mt": "MT-048",
+            "expected_rename_state": "Editing",
+            "expected_terminal_author_id": "code_editor_rename_input",
+        }),
+        move |after| {
+            matches!(rename_panel.rename_state(), RenameState::Editing { .. })
+                && json_has_author_id(after, "code_editor_rename_input")
+        },
+    );
+    push_body_rows(
+        &mut rows,
+        editor_body_ids::RENAME_SYMBOL,
+        &observations,
+        &editor_pane_ownership,
+        serde_json::json!({
+            "handler_mt": "MT-048",
+            "handler": "CodeEditorPanel::begin_rename_at_cursor",
+        }),
+        serde_json::json!({
+            "rename_state": "Editing",
+            "rename_input_author_id": "code_editor_rename_input",
+        }),
+    );
     panel.cancel_rename();
     harness.run_steps(2);
 
-    // Quick Fix reaches the same request/menu controller as Ctrl+.; the mounted popup is concrete state.
+    // Quick Fix reaches the same request/menu controller as Ctrl+.; the exactly-once handler trace is
+    // the monotonic request generation plus the exact requested line/version/open-menu tuple.
     panel.set_single_cursor(4);
     let quick_fix_before = panel.quick_fix_request_generation_for_test();
-    click_body_action(&mut argus, &mut harness, editor_body_ids::QUICK_FIX);
-    assert_eq!(
-        panel.quick_fix_request_generation_for_test(),
-        quick_fix_before + 1,
-        "canonical click reached the real quick-fix request handler exactly once"
+    let quick_fix_panel = Arc::clone(&panel);
+    let observations = click_body_action(
+        &mut argus,
+        &mut harness,
+        editor_body_ids::QUICK_FIX,
+        2,
+        "mt070.editor.quick-fix.mt049-request-generation-advanced-exactly-once",
+        serde_json::json!({
+            "handler_mt": "MT-049",
+            "quick_fix_generation_before": quick_fix_before,
+            "expected_quick_fix_generation_after": quick_fix_before + 1,
+            "expected_request_line": 0,
+            "expected_open_menu": true,
+        }),
+        move |_after| {
+            quick_fix_panel.quick_fix_request_generation_for_test() == quick_fix_before + 1
+                && quick_fix_panel.last_quick_fix_request_for_test()
+                    == Some((0, quick_fix_panel.buffer_version_for_test(), true))
+        },
     );
-    assert_eq!(
-        panel.last_quick_fix_request_for_test(),
-        Some((0, panel.buffer_version_for_test(), true)),
-        "fresh concrete state retains the requested line/version and open-menu intent"
+    push_body_rows(
+        &mut rows,
+        editor_body_ids::QUICK_FIX,
+        &observations,
+        &editor_pane_ownership,
+        serde_json::json!({
+            "handler_mt": "MT-049",
+            "handler": "CodeEditorPanel quick_fix_request -> per-frame pump",
+            "generation_before": quick_fix_before,
+            "generation_after": panel.quick_fix_request_generation_for_test(),
+        }),
+        serde_json::json!({
+            "last_quick_fix_request": panel.last_quick_fix_request_for_test(),
+        }),
     );
 
-    // Format Selection reaches the real formatter gate. This mounted headless panel has no formatter,
-    // so the truthful concrete post-state is the existing non-blocking no-formatter toast.
+    // Format Selection reaches the real MT-050 formatter gate. This mounted headless panel has no
+    // formatter, so the truthful authoritative effect is the non-blocking no-formatter toast.
     panel.set_cursors(vec![Cursor::selection(3, 8)]);
-    click_body_action(&mut argus, &mut harness, editor_body_ids::FORMAT_SELECTION);
-    assert!(panel
-        .last_format_toast()
-        .as_deref()
-        .is_some_and(|message| message.contains("formatter")));
+    let format_panel = Arc::clone(&panel);
+    let observations = click_body_action(
+        &mut argus,
+        &mut harness,
+        editor_body_ids::FORMAT_SELECTION,
+        2,
+        "mt070.editor.format-selection.mt050-no-formatter-toast",
+        serde_json::json!({
+            "handler_mt": "MT-050",
+            "expected_effect": "non-blocking no-formatter toast",
+        }),
+        move |_after| {
+            format_panel
+                .last_format_toast()
+                .as_deref()
+                .is_some_and(|message| message.contains("formatter"))
+        },
+    );
+    push_body_rows(
+        &mut rows,
+        editor_body_ids::FORMAT_SELECTION,
+        &observations,
+        &editor_pane_ownership,
+        serde_json::json!({
+            "handler_mt": "MT-050",
+            "handler": "CodeEditorPanel::request_format_selection",
+        }),
+        serde_json::json!({"last_format_toast": panel.last_format_toast()}),
+    );
 
-    // Peek reaches the actual go-to-definition request path, proven by its monotonic generation.
+    // Peek reaches the actual MT-008 go-to-definition request path, proven by its monotonic generation.
     panel.set_single_cursor(4);
     let definition_before = panel.definition_request_generation_for_test();
-    click_body_action(&mut argus, &mut harness, editor_body_ids::PEEK_DEFINITION);
-    assert!(panel.definition_request_generation_for_test() > definition_before);
+    let definition_panel = Arc::clone(&panel);
+    let observations = click_body_action(
+        &mut argus,
+        &mut harness,
+        editor_body_ids::PEEK_DEFINITION,
+        2,
+        "mt070.editor.peek-definition.mt008-definition-request-generation-advanced-exactly-once",
+        serde_json::json!({
+            "handler_mt": "MT-008",
+            "definition_generation_before": definition_before,
+            "expected_definition_generation_after": definition_before + 1,
+        }),
+        move |_after| {
+            definition_panel.definition_request_generation_for_test() == definition_before + 1
+        },
+    );
+    push_body_rows(
+        &mut rows,
+        editor_body_ids::PEEK_DEFINITION,
+        &observations,
+        &editor_pane_ownership,
+        serde_json::json!({
+            "handler_mt": "MT-008",
+            "handler": "CodeEditorPanel::request_go_to_definition",
+            "generation_before": definition_before,
+            "generation_after": panel.definition_request_generation_for_test(),
+        }),
+        serde_json::json!({
+            "definition_request_generation": panel.definition_request_generation_for_test(),
+        }),
+    );
 
     // Create-note uses an authoritative missing-link title and the mounted host drains it into the
-    // existing rich-editor create runtime. The pending stub preserves the concrete in-flight state.
+    // existing MT-057 rich-editor create runtime. The pending stub preserves the in-flight state.
     let link_cursor = "fn alpha() { let beta = 1; }\n// [[Missing Note]]\n"
         .find("Missing Note")
         .unwrap()
         + 2;
     panel.set_single_cursor(link_cursor);
     harness.run_steps(2);
-    click_body_action(
+    let create_rich_state = Arc::clone(&rich_state);
+    let observations = click_body_action(
         &mut argus,
         &mut harness,
         editor_body_ids::CREATE_NOTE_FROM_LINK,
+        3,
+        "mt070.editor.create-note-from-link.mt057-create-in-flight-for-exact-title",
+        serde_json::json!({
+            "handler_mt": "MT-057",
+            "expected_create_title": "Missing Note",
+        }),
+        move |_after| {
+            create_rich_state
+                .lock()
+                .map(|rich| rich.wikilinks.is_creating("Missing Note"))
+                .unwrap_or(false)
+        },
     );
-    assert!(harness
-        .state()
-        .mounted_rich_state()
-        .lock()
-        .unwrap()
-        .wikilinks
-        .is_creating("Missing Note"));
+    push_body_rows(
+        &mut rows,
+        editor_body_ids::CREATE_NOTE_FROM_LINK,
+        &observations,
+        &editor_pane_ownership,
+        serde_json::json!({
+            "handler_mt": "MT-057",
+            "handler":
+                "CodeEditorPanel::stage_create_note_from_link -> rich wikilinks create runtime",
+        }),
+        serde_json::json!({"creating_title": "Missing Note"}),
+    );
 
     capture_mt108_matrix_frame_if_selected(&mut harness);
+    assert_eq!(
+        argus.dispatched_action_count(),
+        10,
+        "five editor entries, each dispatched as exactly one popup-open action plus one entry action"
+    );
     argus.finish();
+    mt070_write_matrix_artifact("mt070-mounted-editor-body-action-matrix", &rows);
 }
 
 #[test]
 fn mt070_two_canvas_panes_retain_one_localhost_menu_owner_and_route_exact_origin() {
-    use canonical_argus_driver::CanonicalArgusDriver;
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
     use handshake_native::context_menu_surfaces::node_menu_ids;
     use handshake_native::graph::canvas_board::CanvasPlacementCard;
 
@@ -1622,13 +2024,49 @@ fn mt070_two_canvas_panes_retain_one_localhost_menu_owner_and_route_exact_origin
         1,
         "snapshot reconstruction emits one global target from only the owning pane"
     );
+    let board = harness.state().mounted_canvas_board();
     let observation = argus.click_from_snapshot_and_reinspect(&mut harness, &target, snapshot);
     assert!(matches!(
         observation.receipt_status.as_str(),
         "applied" | "indeterminate"
     ));
+    // Let the owning product state settle before binding the authoritative terminal predicate.
     harness.run_steps(3);
 
+    let owner_target = target.clone();
+    let predicate_board = std::sync::Arc::clone(&board);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt070.two-canvas.reveal-node.routes-to-exact-right-click-owner-pane",
+        serde_json::json!({
+            "right_click_owner_pane": "pane-a",
+            "active_pane_at_dispatch": "pane-b",
+            "menu_target": target.clone(),
+            "expected_node_id": "block-owner",
+            "expected_tab_pane_type": "LoomBlock",
+            "receipt_id": observation.receipt_id,
+            "correlation_id": observation.correlation_id.clone(),
+        }),
+        move |after, app| {
+            // Exactly-once destination: one LoomBlock tab for the exact node id, in the pane that
+            // owned the right-click, and none in the pane that was merely active at dispatch time.
+            let destinations = mt070_tabs_for_content(app, "block-owner", &PaneType::LoomBlock);
+            let exactly_once_in_owner = destinations.len() == 1 && destinations[0].0 == "pane-a";
+            // The destination tab is addressable in the authoritative terminal tree by its stable id.
+            let destination_addressable = destinations
+                .first()
+                .is_some_and(|(_, _, author_id)| json_has_author_id(after, author_id));
+            // A single confirmed action consumed the ONE retained menu owner; no stale pane kept it.
+            let owner_released = predicate_board
+                .lock()
+                .map(|board| board.context_menu_owner_pane_for_test().is_none())
+                .unwrap_or(false);
+            // The consumed popup is gone from the terminal tree, so no second owner can replay it.
+            let menu_consumed = !json_has_author_id(after, &owner_target);
+            exactly_once_in_owner && destination_addressable && owner_released && menu_consumed
+        },
+    );
+    let terminal = argus.latest_terminal_observation();
     let pane_a_tabs = &harness.state().tab_bar_states()[&pane_a].tabs;
     let pane_b_tabs = &harness.state().tab_bar_states()[&pane_b].tabs;
     assert!(pane_a_tabs.iter().any(|tab| {
@@ -1637,22 +2075,30 @@ fn mt070_two_canvas_panes_retain_one_localhost_menu_owner_and_route_exact_origin
     assert!(!pane_b_tabs.iter().any(|tab| {
         tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some("block-owner")
     }));
-    assert_eq!(
-        harness
-            .state()
-            .mounted_canvas_board()
-            .lock()
-            .unwrap()
-            .context_menu_owner_pane_for_test(),
-        None,
-        "confirmed action clears the retained owner"
-    );
+    let destinations = mt070_tabs_for_content(harness.state(), "block-owner", &PaneType::LoomBlock);
+    let rows = vec![mt070_matrix_row(
+        &target,
+        &terminal,
+        serde_json::json!({
+            "right_click_owner_pane": "pane-a",
+            "active_pane_at_dispatch": "pane-b",
+            "menu_owner_count_in_snapshot": 1,
+            "owner_released_after_confirm": true,
+        }),
+        serde_json::json!({
+            "handler": "node_menu::RevealNode -> NavigationTarget::RevealNode -> ShellNavigator",
+            "source_placement_id": "placement-owner",
+            "source_node_id": "block-owner",
+        }),
+        serde_json::json!({"destination_tabs": destinations}),
+    )];
     argus.finish();
+    mt070_write_matrix_artifact("mt070-two-canvas-panes-owner-routing", &rows);
 }
 
 #[test]
 fn mt070_two_graph_panes_localhost_action_channel_routes_owner_and_route_stays_disabled() {
-    use canonical_argus_driver::CanonicalArgusDriver;
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
     use handshake_native::context_menu_surfaces::node_menu_ids;
     use handshake_native::editor_pane_factories::{placeholder_pane_type, GRAPH_VIEW_PANE_LABEL};
     use handshake_native::graph::graph_view::GraphNode;
@@ -1746,15 +2192,65 @@ fn mt070_two_graph_panes_localhost_action_channel_routes_owner_and_route_stays_d
         "disabled Graph Route exposes no Click action: {route}"
     );
     argus.click_expect_rejected(&mut harness, &route_target, "disabled");
+    assert_eq!(
+        argus.dispatched_action_count(),
+        0,
+        "the disabled Graph Route entry is rejected before any canonical action is dispatched"
+    );
     let reveal_snapshot = argus.inspect(&mut harness);
+    let graph = harness.state().mounted_graph_view();
     let observation =
         argus.click_from_snapshot_and_reinspect(&mut harness, &reveal_target, reveal_snapshot);
     assert!(matches!(
         observation.receipt_status.as_str(),
         "applied" | "indeterminate"
     ));
+    // Let the owning product state settle before binding the authoritative terminal predicate.
     harness.run_steps(3);
 
+    let owner_reveal_target = reveal_target.clone();
+    let owner_route_target = route_target.clone();
+    let predicate_graph = std::sync::Arc::clone(&graph);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt070.two-graph.reveal-node.routes-to-owner-and-route-stays-unavailable",
+        serde_json::json!({
+            "right_click_owner_pane": "pane-a",
+            "active_pane_at_dispatch": "pane-b",
+            "menu_target": reveal_target.clone(),
+            "unavailable_target": route_target.clone(),
+            "expected_node_id": "graph-owner",
+            "expected_tab_pane_type": "LoomBlock",
+            "receipt_id": observation.receipt_id,
+            "correlation_id": observation.correlation_id.clone(),
+        }),
+        move |after, app| {
+            let destinations = mt070_tabs_for_content(app, "graph-owner", &PaneType::LoomBlock);
+            let exactly_once_in_owner = destinations.len() == 1 && destinations[0].0 == "pane-a";
+            let destination_addressable = destinations
+                .first()
+                .is_some_and(|(_, _, author_id)| json_has_author_id(after, author_id));
+            let owner_released = predicate_graph
+                .lock()
+                .map(|graph| graph.context_menu_owner_pane_for_test().is_none())
+                .unwrap_or(false);
+            let menu_consumed = !json_has_author_id(after, &owner_reveal_target);
+            // Graph Route never becomes steerable: its availability predicate is false, so it is
+            // either gone with the consumed popup or still disabled with no Click action.
+            let route_never_enabled = json_author(after, &owner_route_target).is_none_or(|node| {
+                node["disabled"] == true
+                    && !node["actions"]
+                        .as_array()
+                        .is_some_and(|actions| actions.iter().any(|action| action == "Click"))
+            });
+            exactly_once_in_owner
+                && destination_addressable
+                && owner_released
+                && menu_consumed
+                && route_never_enabled
+        },
+    );
+    let terminal = argus.latest_terminal_observation();
     let pane_a_tabs = &harness.state().tab_bar_states()[&pane_a].tabs;
     let pane_b_tabs = &harness.state().tab_bar_states()[&pane_b].tabs;
     assert!(pane_a_tabs.iter().any(|tab| {
@@ -1763,16 +2259,25 @@ fn mt070_two_graph_panes_localhost_action_channel_routes_owner_and_route_stays_d
     assert!(!pane_b_tabs.iter().any(|tab| {
         tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some("graph-owner")
     }));
-    assert_eq!(
-        harness
-            .state()
-            .mounted_graph_view()
-            .lock()
-            .unwrap()
-            .context_menu_owner_pane_for_test(),
-        None
-    );
+    let destinations = mt070_tabs_for_content(harness.state(), "graph-owner", &PaneType::LoomBlock);
+    let rows = vec![mt070_matrix_row(
+        &reveal_target,
+        &terminal,
+        serde_json::json!({
+            "right_click_owner_pane": "pane-a",
+            "active_pane_at_dispatch": "pane-b",
+            "menu_owner_count_in_snapshot": 1,
+            "owner_released_after_confirm": true,
+        }),
+        serde_json::json!({
+            "handler": "node_menu::RevealNode -> NavigationTarget::RevealNode -> ShellNavigator",
+            "source_node_id": "graph-owner",
+            "rejected_unavailable_target": route_target,
+        }),
+        serde_json::json!({"destination_tabs": destinations}),
+    )];
     argus.finish();
+    mt070_write_matrix_artifact("mt070-two-graph-panes-owner-routing", &rows);
 }
 
 #[test]
@@ -1813,19 +2318,79 @@ fn mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful() {
     panel.set_single_cursor(0);
     panel.set_workspace_id("");
 
-    let mut harness = harness_for(app);
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-editor-disabled-matrix");
-    let opened = argus.click_and_reinspect(&mut harness, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID);
-    for (id, reason_fragment) in [
+    const UNAVAILABLE_ENTRIES: [(&str, &str); 5] = [
         (editor_body_ids::RENAME_SYMBOL, "symbol"),
         (editor_body_ids::QUICK_FIX, "quick fix"),
         (editor_body_ids::FORMAT_SELECTION, "select"),
         (editor_body_ids::PEEK_DEFINITION, "definition"),
         (editor_body_ids::CREATE_NOTE_FROM_LINK, "unresolved"),
-    ] {
+    ];
+
+    /// Every unavailable entry must be a truthful `Role::MenuItem`: disabled, carrying its typed
+    /// reason, and exposing NO Click action a swarm agent could steer.
+    fn unavailable_entry_is_truthful(after: &serde_json::Value, id: &str, reason: &str) -> bool {
+        let Some(node) = find_author(after, &format!("ctx-menu.{id}")) else {
+            return false;
+        };
+        node["role"] == "MenuItem"
+            && node["disabled"] == true
+            && node["value"]
+                .as_str()
+                .is_some_and(|value| value.to_ascii_lowercase().contains(reason))
+            && !node["actions"]
+                .as_array()
+                .is_some_and(|actions| actions.iter().any(|action| action == "Click"))
+    }
+
+    let mut harness = harness_for(app);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-editor-disabled-matrix");
+    // The ONE canonical action this matrix is allowed to dispatch is the popup open. It is bound to a
+    // terminal predicate; every unavailable entry below is proven WITHOUT being dispatched.
+    let opened = argus.click_and_reinspect(&mut harness, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID);
+    harness.run_steps(2);
+    let definition_before = panel.definition_request_generation_for_test();
+    let quick_fix_before = panel.quick_fix_request_generation_for_test();
+    let zero_dispatch_panel = Arc::clone(&panel);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt070.editor.disabled-matrix.every-unavailable-entry-is-truthful-and-unsteerable",
+        serde_json::json!({
+            "open_trigger": CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+            "unavailable_entries": UNAVAILABLE_ENTRIES
+                .iter()
+                .map(|(id, reason)| serde_json::json!({
+                    "target": format!("ctx-menu.{id}"),
+                    "expected_reason_fragment": reason,
+                }))
+                .collect::<Vec<_>>(),
+            "receipt_id": opened.receipt_id,
+            "correlation_id": opened.correlation_id,
+            "definition_generation_before": definition_before,
+            "quick_fix_generation_before": quick_fix_before,
+        }),
+        move |after| {
+            let truthful = UNAVAILABLE_ENTRIES
+                .iter()
+                .all(|(id, reason)| unavailable_entry_is_truthful(after, id, reason));
+            // Opening the popup changed no handler state: the unavailable entries left every real
+            // MT-048/049/050/008/057 handler trace exactly where it was.
+            let handlers_untouched = matches!(
+                zero_dispatch_panel.rename_state(),
+                handshake_native::code_editor::RenameState::Idle
+            ) && !zero_dispatch_panel.quick_fix_request_armed_for_test()
+                && !zero_dispatch_panel.format_request_armed_for_test()
+                && zero_dispatch_panel.definition_request_generation_for_test()
+                    == definition_before
+                && zero_dispatch_panel.quick_fix_request_generation_for_test() == quick_fix_before;
+            truthful && handlers_untouched
+        },
+    );
+    let terminal = argus.latest_terminal_observation();
+    for (id, reason_fragment) in UNAVAILABLE_ENTRIES {
         let target = format!("ctx-menu.{id}");
         let node =
-            find_author(&opened.after, &target).unwrap_or_else(|| panic!("missing {target}"));
+            find_author(&terminal.after, &target).unwrap_or_else(|| panic!("missing {target}"));
+        assert_eq!(node["role"], "MenuItem", "{node}");
         assert_eq!(node["disabled"], true, "{node}");
         assert!(
             node["value"]
@@ -1841,15 +2406,60 @@ fn mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful() {
         );
         argus.click_expect_rejected(&mut harness, &target, "disabled");
     }
+    // Explicit zero-dispatch gate: the five unavailable entries produced zero canonical actions, so
+    // the driver still holds exactly the one popup-open action it was allowed to dispatch.
+    assert_eq!(
+        argus.dispatched_action_count(),
+        1,
+        "no disabled entry may be dispatched; only the popup-open action is canonical here"
+    );
     assert!(matches!(
         panel.rename_state(),
         handshake_native::code_editor::RenameState::Idle
     ));
     assert!(!panel.quick_fix_request_armed_for_test());
     assert!(!panel.format_request_armed_for_test());
+    assert_eq!(
+        panel.definition_request_generation_for_test(),
+        definition_before
+    );
+    assert_eq!(
+        panel.quick_fix_request_generation_for_test(),
+        quick_fix_before
+    );
     assert_eq!(panel.take_pending_create_note_link(), None);
     capture_mt108_matrix_frame_if_selected(&mut harness);
+    let rows = vec![mt070_matrix_row(
+        CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+        &terminal,
+        serde_json::json!({
+            "right_click_owner_pane": "pane-a",
+            "owner_surface": "mounted code-editor body with no symbol/selection/link/workspace",
+        }),
+        serde_json::json!({
+            "handler": "CodeEditorPanel editor-body context surface",
+            "effect": "code-editor.open-context-menu",
+            "dispatched_unavailable_entries": 0,
+        }),
+        serde_json::json!({
+            "unavailable_entries": UNAVAILABLE_ENTRIES
+                .iter()
+                .map(|(id, reason)| serde_json::json!({
+                    "target": format!("ctx-menu.{id}"),
+                    "role": "MenuItem",
+                    "disabled": true,
+                    "reason_fragment": reason,
+                    "exposes_click_action": false,
+                }))
+                .collect::<Vec<_>>(),
+            "rename_state": "Idle",
+            "quick_fix_request_armed": false,
+            "format_request_armed": false,
+            "definition_request_generation": definition_before,
+        }),
+    )];
     argus.finish();
+    mt070_write_matrix_artifact("mt070-mounted-editor-body-disabled-matrix", &rows);
 }
 
 #[test]
@@ -1977,12 +2587,20 @@ fn mt070_mounted_canvas_pending_and_failed_projection_argus_disables_all_actions
             "same-binding {phase} retains its visible card"
         );
     }
+    // Explicit zero-dispatch gate (validation_v4 remediation step 8): a pending/failed projection
+    // rejects EVERY node entry before an event can reach the host, so this matrix must reach
+    // `finish` holding zero canonical actions rather than passing vacuously.
+    assert_eq!(
+        argus.dispatched_action_count(),
+        0,
+        "a pending/failed Canvas projection may not dispatch any canonical action"
+    );
     argus.finish();
 }
 
 #[test]
 fn mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix() {
-    use canonical_argus_driver::CanonicalArgusDriver;
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
     use handshake_native::graph::canvas_board::CanvasPlacementCard;
     use handshake_native::rich_editor::wikilinks::runtime::{CreateNoteBackend, CreateNoteWrite};
 
@@ -2092,13 +2710,114 @@ fn mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix() {
             NodeMenuAction::CreateNoteFromLink => node_menu_ids::CREATE_NOTE_FROM_LINK,
             NodeMenuAction::RouteToStage => unreachable!(),
         };
+        let menu_target = format!("ctx-menu.{target}");
+        let board = harness.state().mounted_canvas_board();
+        let rich_state = harness.state().mounted_rich_state();
         let mut argus =
             CanonicalArgusDriver::bind(harness.state(), &format!("mt070-canvas-{action:?}"));
-        let observation = argus.click_and_reinspect(&mut harness, &format!("ctx-menu.{target}"));
+        let observation = argus.click_and_reinspect(&mut harness, &menu_target);
         assert!(matches!(
             observation.receipt_status.as_str(),
             "applied" | "indeterminate"
         ));
+        // Reinspect only after the owning destination/effect has settled for THIS action.
+        harness.run_steps(3);
+
+        let predicate_id = match action {
+            NodeMenuAction::OpenNote => "mt070.canvas.open-note.opens-exact-wiki-page-destination",
+            NodeMenuAction::RevealNode => "mt070.canvas.reveal-node.opens-exact-block-destination",
+            NodeMenuAction::CreateNoteFromLink => {
+                "mt070.canvas.create-note-from-link.mt057-create-in-flight-for-exact-title"
+            }
+            NodeMenuAction::RouteToStage => unreachable!(),
+        };
+        let expected_pane_type = match action {
+            NodeMenuAction::OpenNote => Some(PaneType::LoomWikiPage),
+            NodeMenuAction::RevealNode => Some(PaneType::LoomBlock),
+            NodeMenuAction::CreateNoteFromLink => None,
+            NodeMenuAction::RouteToStage => unreachable!(),
+        };
+        let predicate_block_id = block_id.clone();
+        let predicate_pane_type = expected_pane_type.clone();
+        let predicate_menu_target = menu_target.clone();
+        let predicate_board = std::sync::Arc::clone(&board);
+        let predicate_rich_state = std::sync::Arc::clone(&rich_state);
+        argus.assert_latest_terminal_predicate_with_app_evidence(
+            &mut harness,
+            predicate_id,
+            serde_json::json!({
+                "menu_target": menu_target.clone(),
+                "source_pane_id": "pane-a",
+                "source_canvas_id": canvas_id.clone(),
+                "source_placement_id": "placement-matrix",
+                "source_node_id": block_id.clone(),
+                "expected_destination_pane_type": expected_pane_type
+                    .as_ref()
+                    .map(|pane_type| format!("{pane_type:?}")),
+                "expected_create_title": matches!(action, NodeMenuAction::CreateNoteFromLink)
+                    .then_some("Missing Canvas Note"),
+                "receipt_id": observation.receipt_id,
+                "correlation_id": observation.correlation_id.clone(),
+            }),
+            move |after, app| {
+                // The confirmed action consumed the ONE retained right-click owner exactly once.
+                let owner_released = predicate_board
+                    .lock()
+                    .map(|board| board.context_menu_owner_pane_for_test().is_none())
+                    .unwrap_or(false);
+                let menu_consumed = !json_has_author_id(after, &predicate_menu_target);
+                let durable_effect = match predicate_pane_type {
+                    Some(pane_type) => {
+                        // Exactly-once durable destination for the exact node id, addressable in the
+                        // authoritative terminal tree by its stable production tab author_id.
+                        // Exactly ONE durable destination for the exact node id (no duplicate/fan-out
+                        // open), addressable in the authoritative terminal tree by its stable
+                        // production tab author_id. The destination PANE is chosen by the shared
+                        // MT-030 ShellNavigator seam (Open note routes to the note pane, Reveal node
+                        // to the block pane), so it is recorded as evidence rather than asserted here;
+                        // the two-pane ownership matrices below own the source-pane binding.
+                        let destinations =
+                            mt070_tabs_for_content(app, &predicate_block_id, &pane_type);
+                        destinations.len() == 1
+                            && json_has_author_id(after, &destinations[0].2)
+                            // The sibling destination kind must NOT also have been opened: Open note
+                            // and Reveal node are distinct authorities, not one shared effect.
+                            && mt070_tabs_for_content(
+                                app,
+                                &predicate_block_id,
+                                if pane_type == PaneType::LoomWikiPage {
+                                    &PaneType::LoomBlock
+                                } else {
+                                    &PaneType::LoomWikiPage
+                                },
+                            )
+                            .is_empty()
+                    }
+                    None => {
+                        // Create-note-from-link routes to the MT-057 create runtime for the exact
+                        // unresolved title, and must NOT open a destination tab for the node id.
+                        predicate_rich_state
+                            .lock()
+                            .map(|rich| rich.wikilinks.is_creating("Missing Canvas Note"))
+                            .unwrap_or(false)
+                            && mt070_tabs_for_content(
+                                app,
+                                &predicate_block_id,
+                                &PaneType::LoomWikiPage,
+                            )
+                            .is_empty()
+                            && mt070_tabs_for_content(
+                                app,
+                                &predicate_block_id,
+                                &PaneType::LoomBlock,
+                            )
+                            .is_empty()
+                    }
+                };
+                owner_released && menu_consumed && durable_effect
+            },
+        );
+        let terminal = argus.latest_terminal_observation();
         match action {
             NodeMenuAction::OpenNote => {
                 assert!(harness.state().tab_bar_states().values().any(|bar| {
@@ -2125,7 +2844,39 @@ fn mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix() {
                 .is_creating("Missing Canvas Note")),
             NodeMenuAction::RouteToStage => unreachable!(),
         }
+        assert_eq!(
+            argus.dispatched_action_count(),
+            1,
+            "each node-menu matrix entry dispatches exactly one canonical action"
+        );
+        let destinations = expected_pane_type
+            .as_ref()
+            .map(|pane_type| mt070_tabs_for_content(harness.state(), &block_id, pane_type))
+            .unwrap_or_default();
+        let rows = vec![mt070_matrix_row(
+            &menu_target,
+            &terminal,
+            serde_json::json!({
+                "right_click_owner_pane": "pane-a",
+                "source_canvas_id": canvas_id,
+                "source_placement_id": "placement-matrix",
+                "owner_released_after_confirm": true,
+            }),
+            serde_json::json!({
+                "handler": format!("node_menu::{action:?}"),
+                "source_node_id": block_id,
+            }),
+            serde_json::json!({
+                "destination_tabs": destinations,
+                "creating_title": matches!(action, NodeMenuAction::CreateNoteFromLink)
+                    .then_some("Missing Canvas Note"),
+            }),
+        )];
         argus.finish();
+        mt070_write_matrix_artifact(
+            &format!("mt070-mounted-canvas-node-menu-{action:?}").to_ascii_lowercase(),
+            &rows,
+        );
     }
 }
 
@@ -2293,4 +3044,118 @@ fn mt070_unavailable_entry_is_disabled_not_dead_enabled() {
         );
     }
     println!("PASS RISK-070-1: an unavailable editor-body entry is disabled+disclosed, never dead-enabled");
+}
+
+// ── WP-KERNEL-012 MT-070 validation_v4 remediation step 8: static canonical-binding regression gate ───
+
+/// Every canonical Argus action dispatched anywhere in THIS file must be rebound to an authoritative
+/// terminal snapshot and carry at least one action-specific terminal predicate BEFORE its driver is
+/// finished.
+///
+/// This is a source-level gate, not a runtime one: `canonical_argus_driver::finish` already fails a
+/// matrix that reaches it unbound (that is exactly how FAIL_V4 was caught), but a future matrix could
+/// silently regress by dispatching an action inside a helper and never re-observing it. Scanning this
+/// file's own source makes the invariant structural, so the omission is caught at the first `cargo test`
+/// rather than after a full mounted run.
+///
+/// Recognized tokens (lines carrying the scanner's own literals are skipped by sentinel):
+/// - ACTION:    any `*_and_reinspect(` driver call — every one of those pushes an observation;
+/// - PREDICATE: any `assert_latest_terminal_predicate*` call — every one rebinds + records;
+/// - FINISH:    `argus.finish` — the final gate.
+///
+/// Deliberately NOT actions: `click_expect_rejected` / `click_from_snapshot_expect_rpc_rejected`
+/// (an RPC-level rejection never reaches the action channel, so no observation exists to bind) and
+/// `argus.inspect` (a read).
+#[test]
+fn mt070_every_canonical_argus_action_is_terminally_bound_before_finish() {
+    const SOURCE: &str = include_str!("test_context_menu_surfaces.rs");
+    // The markers are assembled with `concat!` so the scanner's own source lines never contain the
+    // literals it searches for. A trailing-comment sentinel would work too, but rustfmt is free to
+    // move a trailing comment onto its own line and would silently make this gate match itself.
+    const ACTION_MARKER: &str = concat!("_and_", "reinspect(");
+    const PREDICATE_MARKER: &str = concat!("assert_latest_", "terminal_predicate");
+    const FINISH_MARKER: &str = concat!("argus", ".finish");
+
+    #[derive(Debug)]
+    enum Token {
+        Action(usize, String),
+        Predicate,
+        Finish(usize),
+    }
+
+    let mut tokens: Vec<Token> = Vec::new();
+    for (offset, line) in SOURCE.lines().enumerate() {
+        let number = offset + 1;
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("//") {
+            continue;
+        }
+        if line.contains(ACTION_MARKER) {
+            tokens.push(Token::Action(number, trimmed.to_owned()));
+        } else if line.contains(PREDICATE_MARKER) {
+            tokens.push(Token::Predicate);
+        } else if line.contains(FINISH_MARKER) {
+            tokens.push(Token::Finish(number));
+        }
+    }
+
+    let action_count = tokens
+        .iter()
+        .filter(|token| matches!(token, Token::Action(..)))
+        .count();
+    let finish_count = tokens
+        .iter()
+        .filter(|token| matches!(token, Token::Finish(_)))
+        .count();
+    // Seven canonical dispatch SITES exist in this file (one per mounted matrix, plus the two inside
+    // the editor-body helper that every one of its five entries reuses). The floor exists so a broken
+    // scanner that silently matches nothing cannot report a vacuous pass.
+    assert!(
+        action_count >= 7,
+        "the gate must observe the real canonical action inventory of this file, saw {action_count}"
+    );
+    assert!(
+        finish_count >= 7,
+        "the gate must observe every canonical driver finish in this file, saw {finish_count}"
+    );
+
+    let mut unbound: Option<(usize, String)> = None;
+    for token in &tokens {
+        match token {
+            Token::Action(number, text) => {
+                if let Some((pending, pending_text)) = unbound.take() {
+                    panic!(
+                        "canonical Argus action at line {pending} ({pending_text}) dispatched \
+                         another action at line {number} before binding a terminal predicate"
+                    );
+                }
+                unbound = Some((*number, text.clone()));
+            }
+            Token::Predicate => {
+                unbound = None;
+            }
+            Token::Finish(number) => {
+                if let Some((pending, pending_text)) = unbound.take() {
+                    panic!(
+                        "canonical Argus action at line {pending} ({pending_text}) reached the \
+                         driver finish at line {number} without a terminal predicate"
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        unbound.is_none(),
+        "trailing canonical Argus action without a terminal predicate: {unbound:?}"
+    );
+
+    // The zero-dispatch matrices must stay explicit rather than passing vacuously.
+    assert!(
+        SOURCE.contains("dispatched_action_count()"),
+        "matrices that dispatch nothing must assert their zero-dispatch state explicitly"
+    );
+    println!(
+        "PASS MT-070 static gate: {action_count} canonical actions, {finish_count} driver finishes, \
+         every action terminally bound before its finish"
+    );
 }

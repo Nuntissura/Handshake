@@ -48,8 +48,9 @@ use handshake_native::graph::canvas_board::{
     placement_author_id, placement_remove_author_id, CanvasDragPayload, CanvasEvent,
     CanvasPlacementCard, EdgeMode, LoomCanvasBoard, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H,
     DEFAULT_CARD_W, EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
-    PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID, RETRY_AUTHOR_ID, STATUS_AUTHOR_ID,
-    ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+    PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID, PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID,
+    RETRY_AUTHOR_ID, STATUS_AUTHOR_ID, VIEWPORT_COMPLETION_AUTHOR_ID, ZOOM_IN_AUTHOR_ID,
+    ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -666,6 +667,275 @@ fn canvas_remove_placement() {
         "PROOF5: remove node gone too"
     );
     println!("PROOF5/AC8: remove fired RemovePlacement(p-001); node absent after refresh");
+}
+
+// ── WP-KERNEL-012 MT-026 V4 (validation_v4 remediation): TERMINAL ACTION RECEIPTS ─────────────────
+//
+// `validation_v4` failed MT-026 because the mounted zoom and placement-removal receipts were both
+// INDETERMINATE: the controls published no completion declaration, so `crate::mcp::action` had nothing
+// to acknowledge. These widget-level proofs pin the exact token machinery those receipts depend on —
+// the durable observers exist in the AccessKit tree, the controls carry their declarations, and the
+// observers terminalize ONLY on authoritative post-state (a refreshed board, and for a removal also an
+// explicit source-block existence confirmation).
+
+fn observer_token<S>(harness: &Harness<'_, S>, author_id: &str) -> serde_json::Value {
+    let raw = value_for(harness, author_id)
+        .unwrap_or_else(|| panic!("completion observer '{author_id}' must publish a token value"));
+    serde_json::from_str(&raw)
+        .unwrap_or_else(|error| panic!("observer '{author_id}' token must be JSON: {error} ({raw})"))
+}
+
+fn declaration_token<S>(harness: &Harness<'_, S>, author_id: &str) -> serde_json::Value {
+    let raw = value_for(harness, author_id)
+        .unwrap_or_else(|| panic!("control '{author_id}' must publish a completion declaration"));
+    serde_json::from_str(&raw).unwrap_or_else(|error| {
+        panic!("control '{author_id}' declaration must be JSON: {error} ({raw})")
+    })
+}
+
+fn inner_json(token: &serde_json::Value, field: &str) -> serde_json::Value {
+    serde_json::from_str(
+        token[field]
+            .as_str()
+            .unwrap_or_else(|| panic!("token field '{field}' must be a JSON string: {token}")),
+    )
+    .unwrap_or_else(|error| panic!("token field '{field}' must parse: {error}"))
+}
+
+#[test]
+fn canvas_viewport_receipt_terminalizes_only_on_authoritative_refresh() {
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+
+    // The durable observers are addressable, both Ready.
+    let viewport_ready = observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID);
+    assert_eq!(viewport_ready["schema"], "handshake.click-completion/v1");
+    assert_eq!(viewport_ready["mode"], "observer");
+    assert_eq!(viewport_ready["state"], "ready");
+    assert_eq!(viewport_ready["effect"], "canvas-viewport");
+    let ready_generation = viewport_ready["generation"]
+        .as_u64()
+        .expect("observer generation");
+    assert!(
+        value_for(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID).is_some(),
+        "the placement-mutation observer must be addressable too"
+    );
+
+    // The zoom-in control declares a PERSISTENT observer target naming the board, the prior viewport
+    // revision/scale/offset and the exact requested post-state.
+    let declaration = declaration_token(&harness, ZOOM_IN_AUTHOR_ID);
+    assert_eq!(declaration["mode"], "observer");
+    assert_eq!(declaration["state"], "ready");
+    assert_eq!(declaration["persistent_target"], true);
+    assert_eq!(declaration["observer_author_id"], VIEWPORT_COMPLETION_AUTHOR_ID);
+    assert_eq!(declaration["generation"].as_u64(), Some(ready_generation));
+    let semantic = inner_json(&declaration, "semantic_value");
+    assert_eq!(semantic["schema_id"], "handshake.canvas-viewport-action/v1");
+    assert_eq!(semantic["board_id"], "canvas-1");
+    assert_eq!(semantic["action"], ZOOM_IN_AUTHOR_ID);
+    assert_eq!(semantic["prior"]["scale"].as_f64(), Some(1.0));
+    assert_eq!(semantic["requested"]["scale"].as_f64(), Some(1.25));
+
+    // Activating the control opens the binding: the observer goes Pending at generation + 1 and the
+    // persistent declaration advances by exactly one generation carrying the SAME semantic (the exact
+    // transition `crate::mcp::action` acknowledges against).
+    harness.get_by_label("Zoom in").click();
+    harness.run();
+    let pending = observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID);
+    assert_eq!(pending["state"], "pending");
+    assert_eq!(pending["generation"].as_u64(), Some(ready_generation + 1));
+    assert_eq!(pending["pending_target"], ZOOM_IN_AUTHOR_ID);
+    assert_eq!(pending["semantic_value"], declaration["semantic_value"]);
+    let advanced_declaration = declaration_token(&harness, ZOOM_IN_AUTHOR_ID);
+    assert_eq!(
+        advanced_declaration["generation"].as_u64(),
+        Some(ready_generation + 1)
+    );
+    assert_eq!(
+        advanced_declaration["semantic_value"],
+        declaration["semantic_value"]
+    );
+
+    // An optimistic in-widget zoom is NOT proof: the receipt stays pending until an authoritative
+    // projection delivers the persisted viewport.
+    assert_eq!(
+        observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID)["state"],
+        "pending",
+        "the local zoom step must never terminalize the viewport receipt"
+    );
+
+    // The authoritative refresh carrying the persisted viewport terminalizes it.
+    {
+        let mut b = board.lock().unwrap();
+        let placements = b.placements.clone();
+        b.set_board(placements, vec![], egui::Vec2::ZERO, 1.25);
+    }
+    harness.run();
+    let applied = observer_token(&harness, VIEWPORT_COMPLETION_AUTHOR_ID);
+    assert_eq!(applied["state"], "applied");
+    assert_eq!(applied["generation"].as_u64(), Some(ready_generation + 1));
+    let detail = inner_json(&applied, "terminal_detail");
+    assert_eq!(
+        detail["schema_id"],
+        "handshake.canvas-viewport-completion/v1"
+    );
+    assert_eq!(detail["authority"], "persisted");
+    assert_eq!(detail["board_id"], "canvas-1");
+    assert_eq!(detail["resulting"]["scale"].as_f64(), Some(1.25));
+    assert!(detail["persist_route"]
+        .as_str()
+        .is_some_and(|route| route.ends_with("/viewport")));
+    assert!(
+        detail["resulting"]["viewport_revision"].as_u64()
+            > semantic["prior"]["viewport_revision"].as_u64(),
+        "the resulting viewport revision must advance: {detail}"
+    );
+    assert!(
+        detail["resulting"]["board_generation"].as_u64()
+            > semantic["prior"]["board_generation"].as_u64(),
+        "the resulting board generation must be FRESH: {detail}"
+    );
+    println!(
+        "MT-026 V4: canvas.zoom-in receipt terminal={} authority={} scale={}",
+        applied["state"], detail["authority"], detail["resulting"]["scale"]
+    );
+}
+
+#[test]
+fn canvas_removal_receipt_requires_absence_and_source_block_retention() {
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+
+    let remove_author = placement_remove_author_id("p-001");
+    let declaration = declaration_token(&harness, &remove_author);
+    assert_eq!(declaration["mode"], "observer");
+    assert_eq!(declaration["flexible_target"], true);
+    assert_eq!(
+        declaration["observer_author_id"],
+        PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID
+    );
+    let semantic = inner_json(&declaration, "semantic_value");
+    assert_eq!(
+        semantic["schema_id"],
+        "handshake.canvas-placement-removal-action/v1"
+    );
+    assert_eq!(semantic["placement_id"], "p-001");
+    assert_eq!(semantic["block_id"], "block-001");
+    assert_eq!(semantic["board_id"], "canvas-1");
+    let ready_generation = observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID)
+        ["generation"]
+        .as_u64()
+        .expect("placement observer generation");
+
+    harness.get_by_label("Remove Block 1").click();
+    harness.run();
+    let pending = observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID);
+    assert_eq!(pending["state"], "pending");
+    assert_eq!(pending["pending_target"], remove_author);
+    assert_eq!(pending["generation"].as_u64(), Some(ready_generation + 1));
+
+    // The authoritative refresh proving the placement ABSENT is only half the proof — the receipt must
+    // NOT terminalize on target disappearance alone (the exact validation_v4 anti-pattern).
+    {
+        let mut b = board.lock().unwrap();
+        let kept: Vec<CanvasPlacementCard> = b
+            .placements
+            .iter()
+            .filter(|p| p.placement_id != "p-001")
+            .cloned()
+            .collect();
+        b.set_board(kept, vec![], egui::Vec2::ZERO, 1.0);
+    }
+    harness.run();
+    assert_eq!(
+        observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID)["state"],
+        "pending",
+        "placement disappearance alone must NOT terminalize the removal receipt"
+    );
+    assert_eq!(
+        board.lock().unwrap().retention_probe_block_ids(),
+        vec!["block-001".to_owned()],
+        "the board must ask the host to probe the removed placement's SOURCE block"
+    );
+
+    // The explicit source-block existence confirmation closes it.
+    {
+        let mut b = board.lock().unwrap();
+        assert!(b.apply_live_block_resolution(
+            "block-001",
+            &Ok((Some("Block 1".to_owned()), "note".to_owned(), None)),
+        ));
+    }
+    harness.run();
+    let applied = observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID);
+    assert_eq!(applied["state"], "applied");
+    assert_eq!(applied["generation"].as_u64(), Some(ready_generation + 1));
+    let detail = inner_json(&applied, "terminal_detail");
+    assert_eq!(
+        detail["schema_id"],
+        "handshake.canvas-placement-removal-completion/v1"
+    );
+    assert_eq!(detail["placement_id"], "p-001");
+    assert_eq!(detail["block_id"], "block-001");
+    assert_eq!(detail["placement_absent_after_refresh"], true);
+    assert_eq!(detail["source_block_present"], true);
+    assert_eq!(detail["source_block_content_type"], "note");
+    assert!(detail["backend"]["route"]
+        .as_str()
+        .is_some_and(|route| route.starts_with("DELETE /workspaces/") && route.ends_with("p-001")));
+    assert!(
+        detail["mutation_revision"]["refreshed_board_generation"].as_u64()
+            > semantic["prior_board_generation"].as_u64(),
+        "the removal receipt must bind a FRESH board generation: {detail}"
+    );
+    println!(
+        "MT-026 V4: placement-removal receipt terminal={} absent={} source_kept={}",
+        applied["state"],
+        detail["placement_absent_after_refresh"],
+        detail["source_block_present"]
+    );
+}
+
+#[test]
+fn canvas_removal_receipt_fails_closed_when_the_source_block_is_gone() {
+    // Red-team: a placement removal that ALSO destroyed its source block must produce a typed terminal
+    // FAILURE, never a silent Applied. This is the invariant MT-026 exists to protect.
+    let board = shared(seeded_board(2));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+    harness.get_by_label("Remove Block 1").click();
+    harness.run();
+    {
+        let mut b = board.lock().unwrap();
+        let kept: Vec<CanvasPlacementCard> = b
+            .placements
+            .iter()
+            .filter(|p| p.placement_id != "p-001")
+            .cloned()
+            .collect();
+        b.set_board(kept, vec![], egui::Vec2::ZERO, 1.0);
+        assert!(b.apply_live_block_resolution(
+            "block-001",
+            &Err(handshake_native::backend_client::LiveBlockResolveError::Missing),
+        ));
+    }
+    harness.run();
+    let failed = observer_token(&harness, PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID);
+    assert_eq!(failed["state"], "failed");
+    assert!(
+        failed["terminal_error"]
+            .as_str()
+            .is_some_and(|error| error.contains("source block is ABSENT")),
+        "a destroyed source block must be a typed terminal failure: {failed}"
+    );
+    let detail = inner_json(&failed, "terminal_detail");
+    assert_eq!(detail["source_block_present"], false);
+    println!("MT-026 V4: source-block loss fails the removal receipt closed (terminal Rejected)");
 }
 
 // ── AC10: empty board -> empty canvas, no panic, no "(stale reference)" text ──────────────────────

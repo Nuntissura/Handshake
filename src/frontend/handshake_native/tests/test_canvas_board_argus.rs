@@ -55,9 +55,41 @@ use handshake_native::backend_client::{
 use handshake_native::command_registry::CMD_VIEW_CANVAS;
 use handshake_native::graph::canvas_board::{
     placement_author_id, placement_remove_author_id, LoomCanvasBoard, ADD_CARD_AUTHOR_ID,
-    EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID, START_EDGE_AUTHOR_ID,
-    STATUS_AUTHOR_ID, ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+    EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
+    PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID, PLACEMENT_REMOVAL_DETAIL_SCHEMA,
+    PLACEMENT_REMOVAL_SEMANTIC_SCHEMA, START_EDGE_AUTHOR_ID, STATUS_AUTHOR_ID,
+    VIEWPORT_ACTION_SEMANTIC_SCHEMA, VIEWPORT_COMPLETION_AUTHOR_ID,
+    VIEWPORT_COMPLETION_DETAIL_SCHEMA, ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
 };
+
+/// The opt-in completion-token schema `crate::mcp::action` acknowledges (`handshake.click-completion/v1`).
+const CLICK_COMPLETION_SCHEMA: &str = "handshake.click-completion/v1";
+
+/// The exact action receipt for `receipt_id` inside a canonical `argus.inspect` tree.
+fn receipt_for(after: &serde_json::Value, receipt_id: u64) -> Option<&serde_json::Value> {
+    after["action_receipts"]
+        .as_array()?
+        .iter()
+        .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+}
+
+/// Parse the observer completion token a terminal receipt observed at acknowledgement.
+fn completion_token(receipt: &serde_json::Value) -> Option<serde_json::Value> {
+    serde_json::from_str(receipt["observed_value"].as_str()?).ok()
+}
+
+/// Parse a JSON-in-string token field (`semantic_value` / `terminal_detail`).
+fn nested_json(token: &serde_json::Value, field: &str) -> Option<serde_json::Value> {
+    serde_json::from_str(token[field].as_str()?).ok()
+}
+
+fn advanced(after: Option<u64>, before: Option<u64>) -> bool {
+    matches!((after, before), (Some(a), Some(b)) if a > b)
+}
+
+fn close(value: Option<f64>, expected: f64) -> bool {
+    value.is_some_and(|value| (value - expected).abs() < 1e-6)
+}
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
@@ -278,12 +310,25 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         );
     }
 
+    // Both durable completion observers must be addressable BEFORE any action: `crate::mcp::action`
+    // registers an observer-backed completion only when the declaration and its observer are both
+    // visible in the exact pre-dispatch tree.
+    for observer in [
+        VIEWPORT_COMPLETION_AUTHOR_ID,
+        PLACEMENT_MUTATION_COMPLETION_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&before, observer),
+            "canonical argus.inspect must see the durable completion observer '{observer}'"
+        );
+    }
+
     // (2) Safe control steer: zoom in through the real Argus transport; the placements remain addressable.
     let zoom = argus.click_and_reinspect(&mut harness, ZOOM_IN_AUTHOR_ID);
-    assert!(
-        matches!(zoom.receipt_status.as_str(), "applied" | "indeterminate"),
-        "the canonical zoom-in action receipt is terminal and non-rejected: {}",
-        zoom.receipt_status
+    assert_eq!(
+        zoom.receipt_status, "applied",
+        "MT-026 V4: the canonical zoom-in receipt must be TERMINAL and NON-INDETERMINATE — a plausible \
+         post-state is not causal proof (validation_v4 fail_report)"
     );
     assert!(
         zoom.agent_id
@@ -302,14 +347,94 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         "the canvas zoom-value control is addressable after the zoom action"
     );
 
-    // (3) Mutation steer: remove placement one through the real Argus transport, drive the host until the
-    // real DELETE + re-fetch drops it, then a FRESH canonical inspect re-observes the post-action state.
+    // MT-026 V4 remediation step 1 + 3: bind canonical completion to the TERMINAL VIEWPORT RECEIPT.
+    // The receipt must carry board ID, prior AND resulting viewport revision/scale/offset, the action
+    // id, and the authoritative persisted state — and the resulting board generation must be FRESH.
+    let zoom_receipt_id = zoom.receipt_id;
+    let zoom_board_id = canvas_id.clone();
+    let zoom_workspace_id = workspace_id.clone();
+    let zoom_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt026.viewport.terminal-receipt.zoom-in",
+        serde_json::json!({
+            "receipt_id": zoom_receipt_id,
+            "board_id": canvas_id,
+            "workspace_id": workspace_id,
+            "target": ZOOM_IN_AUTHOR_ID,
+            "zoom_step": 0.25,
+        }),
+        move |after| {
+            let Some(receipt) = receipt_for(after, zoom_receipt_id) else {
+                return false;
+            };
+            if receipt["status"].as_str() != Some("applied") {
+                return false;
+            }
+            let Some(token) = completion_token(receipt) else {
+                return false;
+            };
+            if token["schema"].as_str() != Some(CLICK_COMPLETION_SCHEMA)
+                || token["mode"].as_str() != Some("observer")
+                || token["state"].as_str() != Some("applied")
+                || token["effect"].as_str() != Some("canvas-viewport")
+                || token["pending_target"].as_str() != Some(ZOOM_IN_AUTHOR_ID)
+            {
+                return false;
+            }
+            let (Some(semantic), Some(detail)) = (
+                nested_json(&token, "semantic_value"),
+                nested_json(&token, "terminal_detail"),
+            ) else {
+                return false;
+            };
+            let Some(prior_scale) = semantic["prior"]["scale"].as_f64() else {
+                return false;
+            };
+            semantic["schema_id"].as_str() == Some(VIEWPORT_ACTION_SEMANTIC_SCHEMA)
+                && semantic["board_id"].as_str() == Some(zoom_board_id.as_str())
+                && semantic["workspace_id"].as_str() == Some(zoom_workspace_id.as_str())
+                && semantic["action"].as_str() == Some(ZOOM_IN_AUTHOR_ID)
+                && semantic["action_id"]
+                    .as_str()
+                    .is_some_and(|id| !id.is_empty())
+                && semantic["prior"]["offset_x"].as_f64().is_some()
+                && semantic["prior"]["offset_y"].as_f64().is_some()
+                && close(semantic["requested"]["scale"].as_f64(), prior_scale + 0.25)
+                && detail["schema_id"].as_str() == Some(VIEWPORT_COMPLETION_DETAIL_SCHEMA)
+                && detail["action_id"] == semantic["action_id"]
+                && detail["board_id"].as_str() == Some(zoom_board_id.as_str())
+                && detail["authority"].as_str() == Some("persisted")
+                && detail["persist_route"].as_str().is_some_and(|route| {
+                    route.starts_with("PUT /workspaces/") && route.ends_with("/viewport")
+                })
+                && close(detail["resulting"]["scale"].as_f64(), prior_scale + 0.25)
+                && detail["resulting"]["offset_x"].as_f64().is_some()
+                && detail["resulting"]["offset_y"].as_f64().is_some()
+                && advanced(
+                    detail["resulting"]["viewport_revision"].as_u64(),
+                    semantic["prior"]["viewport_revision"].as_u64(),
+                )
+                && advanced(
+                    detail["resulting"]["board_generation"].as_u64(),
+                    semantic["prior"]["board_generation"].as_u64(),
+                )
+        },
+    );
+    let zoom_observation = argus.latest_terminal_observation();
+    assert_ne!(
+        zoom_observation.receipt_status, "indeterminate",
+        "MT-026 V4: the persisted zoom receipt must not be indeterminate"
+    );
+
+    // (3) Mutation steer: remove placement one through the real Argus transport. The canonical driver
+    // now blocks until the receipt TERMINALIZES, which the product only does after (a) an authoritative
+    // refreshed board proves the placement absent at a NEW board generation and (b) an explicit
+    // getLoomBlock proves the SOURCE block survived. Target disappearance alone can never terminalize it.
     let remove_author = placement_remove_author_id(&placement_one);
     let remove = argus.click_and_reinspect(&mut harness, &remove_author);
-    assert!(
-        matches!(remove.receipt_status.as_str(), "applied" | "indeterminate"),
-        "the canonical remove action receipt is terminal and non-rejected: {}",
-        remove.receipt_status
+    assert_eq!(
+        remove.receipt_status, "applied",
+        "MT-026 V4: the canonical placement-removal receipt must be TERMINAL and NON-INDETERMINATE"
     );
     drive_until(
         &mut harness,
@@ -340,7 +465,89 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         "removing a placement must NOT delete its source LoomBlock (source retention)"
     );
 
-    // (4) Evidence: before/after canonical trees + a screenshot marker.
+    // MT-026 V4 remediation step 2 + 3: bind canonical completion to the TERMINAL PLACEMENT-REMOVAL
+    // RECEIPT. The receipt must carry workspace/board/placement/block ids, the mutation revision pair,
+    // the backend route correlation, the authoritative refreshed placement ABSENCE, and the EXPLICIT
+    // source-block existence confirmation.
+    let remove_receipt_id = remove.receipt_id;
+    let remove_target = remove_author.clone();
+    let remove_board_id = canvas_id.clone();
+    let remove_workspace_id = workspace_id.clone();
+    let removed_placement = placement_one.clone();
+    let removed_block = source_one.clone();
+    let author_one_gone = author_one.clone();
+    let author_two_kept = author_two.clone();
+    let remove_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt026.placement-removal.terminal-receipt",
+        serde_json::json!({
+            "receipt_id": remove_receipt_id,
+            "workspace_id": workspace_id,
+            "board_id": canvas_id,
+            "placement_id": placement_one,
+            "block_id": source_one,
+            "target": remove_author,
+        }),
+        move |after| {
+            let Some(receipt) = receipt_for(after, remove_receipt_id) else {
+                return false;
+            };
+            if receipt["status"].as_str() != Some("applied") {
+                return false;
+            }
+            let Some(token) = completion_token(receipt) else {
+                return false;
+            };
+            if token["schema"].as_str() != Some(CLICK_COMPLETION_SCHEMA)
+                || token["mode"].as_str() != Some("observer")
+                || token["state"].as_str() != Some("applied")
+                || token["effect"].as_str() != Some("canvas-placement-mutation")
+                || token["pending_target"].as_str() != Some(remove_target.as_str())
+            {
+                return false;
+            }
+            let (Some(semantic), Some(detail)) = (
+                nested_json(&token, "semantic_value"),
+                nested_json(&token, "terminal_detail"),
+            ) else {
+                return false;
+            };
+            semantic["schema_id"].as_str() == Some(PLACEMENT_REMOVAL_SEMANTIC_SCHEMA)
+                && semantic["workspace_id"].as_str() == Some(remove_workspace_id.as_str())
+                && semantic["board_id"].as_str() == Some(remove_board_id.as_str())
+                && semantic["placement_id"].as_str() == Some(removed_placement.as_str())
+                && semantic["block_id"].as_str() == Some(removed_block.as_str())
+                && detail["schema_id"].as_str() == Some(PLACEMENT_REMOVAL_DETAIL_SCHEMA)
+                && detail["action_id"] == semantic["action_id"]
+                && detail["placement_id"].as_str() == Some(removed_placement.as_str())
+                && detail["block_id"].as_str() == Some(removed_block.as_str())
+                && detail["backend"]["route"].as_str().is_some_and(|route| {
+                    route.starts_with("DELETE /workspaces/")
+                        && route.ends_with(removed_placement.as_str())
+                })
+                && detail["backend"]["source_probe_route"]
+                    .as_str()
+                    .is_some_and(|route| route.ends_with(removed_block.as_str()))
+                && detail["placement_absent_after_refresh"].as_bool() == Some(true)
+                && detail["source_block_present"].as_bool() == Some(true)
+                && detail["source_block_content_type"].as_str().is_some()
+                && advanced(
+                    detail["mutation_revision"]["refreshed_board_generation"].as_u64(),
+                    semantic["prior_board_generation"].as_u64(),
+                )
+                // The receipt is bound to a FRESH authoritative projection: the removed card is gone
+                // from the exact terminal tree while its sibling remains addressable.
+                && !json_has_author_id(after, &author_one_gone)
+                && json_has_author_id(after, &author_two_kept)
+        },
+    );
+    let remove_observation = argus.latest_terminal_observation();
+    assert_ne!(
+        remove_observation.receipt_status, "indeterminate",
+        "MT-026 V4: the placement-removal receipt must not be indeterminate"
+    );
+
+    // (4) Evidence: before/after canonical trees + the two terminal receipts + a screenshot marker.
     let tree_path = artifact_dir.join("mt026-mounted-canvas-argus.json");
     std::fs::write(
         &tree_path,
@@ -352,8 +559,12 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
             "before": before,
             "after_zoom": zoom.after,
             "after_remove": after_remove,
-            "zoom_receipt_status": zoom.receipt_status,
-            "remove_receipt_status": remove.receipt_status,
+            "zoom_receipt_status": zoom_observation.receipt_status,
+            "remove_receipt_status": remove_observation.receipt_status,
+            "zoom_terminal_receipt": receipt_for(&zoom_terminal, zoom_receipt_id),
+            "remove_terminal_receipt": receipt_for(&remove_terminal, remove_receipt_id),
+            "zoom_terminal_predicates": zoom_observation.terminal_predicates,
+            "remove_terminal_predicates": remove_observation.terminal_predicates,
             "source_one_status_after_remove": source_status,
         }))
         .expect("serialize canonical MT-026 canvas tree evidence"),
@@ -374,13 +585,14 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
          inspect(2 real-PG placements + controls) -> click({ZOOM_IN_AUTHOR_ID}) -> \
          click({remove_author}) -> reinspect(placement one gone, placement two present, source kept); \
          zoom_receipt={} remove_receipt={} screenshot={} tree={}",
-        zoom.receipt_status,
-        remove.receipt_status,
+        zoom_observation.receipt_status,
+        remove_observation.receipt_status,
         screenshot_marker,
         tree_path.display()
     );
 
-    argus.finish();
+    // STRICT: every canonical action must carry a terminal, NON-INDETERMINATE receipt.
+    argus.finish_require_no_indeterminate();
     cleanup.assert_cleaned();
     assert_no_local_artifact_dir();
 }
@@ -531,6 +743,25 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
         semantic_edges, 1,
         "canonical Argus semantic add-edge persisted exactly one real loom edge in PostgreSQL"
     );
+    // Bind the canonical action to a terminal re-observation. The CAUSAL proof for this action is the
+    // real-PG edge count asserted above (carried as evidence); the tree predicate pins that the exact
+    // endpoint cards and the dispatching control survive the mutation in the authoritative terminal tree.
+    let semantic_endpoint_one = placement_author_id(&placement_one);
+    let semantic_endpoint_two = placement_author_id(&placement_two);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt026.semantic-edge.persisted-in-real-pg",
+        serde_json::json!({
+            "loom_edges_in_real_pg": semantic_edges,
+            "source_block_one": source_one,
+            "source_block_two": source_two,
+        }),
+        move |after| {
+            json_has_author_id(after, &semantic_endpoint_one)
+                && json_has_author_id(after, &semantic_endpoint_two)
+                && json_has_author_id(after, "canvas.add-edge")
+        },
+    );
 
     // (2) VISUAL edge between the two PLACEMENTS via parameterized canonical Argus dispatch.
     let visual = argus.click_with_payload_and_reinspect(
@@ -564,6 +795,22 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     assert_eq!(
         visual_count, 1,
         "backend GET confirms exactly one persisted canvas visual edge: {board_json}"
+    );
+    let visual_endpoint_one = placement_author_id(&placement_one);
+    let visual_endpoint_two = placement_author_id(&placement_two);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt026.visual-edge.persisted-in-real-pg",
+        serde_json::json!({
+            "visual_edges_in_real_pg": visual_count,
+            "from_placement_id": placement_one,
+            "to_placement_id": placement_two,
+        }),
+        move |after| {
+            json_has_author_id(after, &visual_endpoint_one)
+                && json_has_author_id(after, &visual_endpoint_two)
+                && json_has_author_id(after, "canvas.add-edge")
+        },
     );
 
     let after = argus.inspect(&mut harness);
@@ -726,6 +973,22 @@ fn mt026_mounted_canvas_canonical_argus_move_placement() {
         std::thread::sleep(Duration::from_millis(25));
     };
 
+    // Bind the canonical move action to a terminal re-observation; the persisted x/y read back from an
+    // INDEPENDENT backend GET above is the causal evidence.
+    let moved_author = author.clone();
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt026.move-placement.persisted-in-real-pg",
+        serde_json::json!({
+            "placement_id": placement_id,
+            "persisted_x": persisted["x"],
+            "persisted_y": persisted["y"],
+            "requested_x": new_x,
+            "requested_y": new_y,
+        }),
+        move |after| json_has_author_id(after, &moved_author),
+    );
+
     let after = argus.inspect(&mut harness);
     assert!(
         json_has_author_id(&after, &author),
@@ -870,6 +1133,31 @@ fn mt026_mounted_canvas_canonical_argus_group_placements() {
     assert_eq!(
         g1, g2,
         "both placements persist the SAME group id in real PG"
+    );
+
+    // Bind the canonical group action to a terminal re-observation whose predicate is recomputable from
+    // the tree alone: BOTH placement cards must expose the exact PERSISTED group id in their AccessKit
+    // value (AC6 `data-group-id`), not merely still exist.
+    let grouped_author_one = placement_author_id(&placement_one);
+    let grouped_author_two = placement_author_id(&placement_two);
+    let expected_group_value = format!("group_id={g1}");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt026.group-placements.shared-group-id-in-tree",
+        serde_json::json!({
+            "persisted_group_id": g1,
+            "placement_one": placement_one,
+            "placement_two": placement_two,
+        }),
+        move |after| {
+            [&grouped_author_one, &grouped_author_two]
+                .iter()
+                .all(|author| {
+                    canonical_argus_driver::json_node_by_author_id(after, author)
+                        .and_then(|node| node["value"].as_str())
+                        == Some(expected_group_value.as_str())
+                })
+        },
     );
 
     let after = argus.inspect(&mut harness);

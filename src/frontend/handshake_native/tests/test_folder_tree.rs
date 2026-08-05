@@ -37,11 +37,16 @@ use egui_kittest::kittest::{NodeT, Queryable};
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
 
+#[cfg(feature = "integration")]
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
+
 use handshake_native::graph::folder_tree::{
-    build_tree, color_to_hex, move_target_author_id, node_author_id, parse_hex_color, FolderRow,
-    FolderTreeEvent, LeafBlock, LoomFolderTree, COLOR_AUTHOR_ID_PREFIX, CREATE_CANCEL_AUTHOR_ID,
-    CREATE_NAME_INPUT_AUTHOR_ID, CREATE_SUBMIT_AUTHOR_ID, DELETE_CANCEL_AUTHOR_ID,
-    DELETE_CONFIRM_AUTHOR_ID, NEW_FOLDER_AUTHOR_ID, NODE_AUTHOR_ID_PREFIX, RETRY_AUTHOR_ID,
+    build_tree, color_author_id, color_to_hex, move_target_author_id, node_author_id,
+    parse_hex_color, FolderRow, FolderTreeEvent, LeafBlock, LoomFolderTree, COLOR_AUTHOR_ID_PREFIX,
+    CREATE_CANCEL_AUTHOR_ID, CREATE_NAME_INPUT_AUTHOR_ID, CREATE_SUBMIT_AUTHOR_ID,
+    DELETE_CANCEL_AUTHOR_ID, DELETE_CONFIRM_AUTHOR_ID, INDENT_PER_LEVEL, NEW_FOLDER_AUTHOR_ID,
+    NODE_AUTHOR_ID_PREFIX, RETRY_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -205,7 +210,8 @@ fn proof2_accesskit_folder_nodes_present() {
         ids.contains("folder-tree.node.folder-002"),
         "AC6: 'folder-tree.node.folder-002' must be in the tree"
     );
-    // Each folder has a color swatch button id.
+    // Each folder has a stable, actionable swatch-button id. Its Click opens the explicitly controlled
+    // picker without being conflated with the folder row's primary Open action.
     assert!(
         ids.iter()
             .filter(|a| a.starts_with(COLOR_AUTHOR_ID_PREFIX))
@@ -231,7 +237,32 @@ fn proof2_accesskit_folder_nodes_present() {
         treeitem_found,
         "AC6: folder-tree.node.folder-001 not found for role check"
     );
-    println!("PROOF2 structural: {node_count} folder-tree.node.* nodes + swatch buttons present");
+    let red_author_id = color_author_id("folder-001");
+    let red_swatch = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(red_author_id.as_str()))
+        .expect("folder-001 color swatch state node");
+    let red_access = red_swatch.accesskit_node();
+    assert_eq!(format!("{:?}", red_access.role()), "Button");
+    assert_eq!(
+        red_access.data().color_value(),
+        Some(u32::from_be_bytes([255, 0, 0, 255]))
+    );
+    assert!(
+        red_access
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        "the actionable color swatch must advertise Click"
+    );
+    red_swatch.click();
+    harness.run();
+    harness.run();
+    assert!(
+        harness.query_by_label("Red #ff0000").is_some(),
+        "the swatch button's primary Click must open the explicitly controlled picker"
+    );
+    println!("PROOF2 structural: {node_count} folder-tree.node.* nodes + actionable swatch buttons present");
 }
 
 #[test]
@@ -242,11 +273,16 @@ fn folder_click_selects_exact_row_and_refetch_preserves_or_clears_selection() {
     harness.run();
     harness.get_by_label("Projects").click();
     harness.run();
+    assert!(
+        harness.query_by_label("Pick a folder color").is_none()
+            && harness.query_by_label("Red #ff0000").is_none(),
+        "a normal primary folder-row Open must never toggle the explicitly controlled color picker"
+    );
     assert_eq!(
         tree.lock().unwrap().selected_folder_id.as_deref(),
         Some("folder-001")
     );
-    assert!(events.lock().unwrap().iter().any(|event| matches!(event, FolderTreeEvent::OpenFolder { folder_id } if folder_id == "folder-001")));
+    assert!(events.lock().unwrap().iter().any(|event| matches!(event, FolderTreeEvent::OpenFolder { folder_id, action_generation: 1 } if folder_id == "folder-001")));
 
     tree.lock().unwrap().set_folders(&[
         FolderRow::new("folder-001", None, "Projects renamed", None),
@@ -504,6 +540,40 @@ fn proof3b_expanded_folder_renders_cached_children() {
         .filter(|c| ids.contains(&format!("folder-tree.node.{c}")))
         .count();
     assert_eq!(leaf_count, 3, "AC2: all 3 cached children render");
+    let parent_author = node_author_id("folder-001");
+    let child_author = node_author_id("child-001");
+    let parent_node = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(parent_author.as_str()))
+        .expect("expanded parent folder AccessKit node");
+    let child_node = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(child_author.as_str()))
+        .expect("rendered child leaf AccessKit node");
+    let child_access = child_node.accesskit_node();
+    assert!(
+        child_access
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        "leaf TreeItem remains directly openable"
+    );
+    assert!(
+        !child_access
+            .data()
+            .supports_action(egui::accesskit::Action::Expand)
+            && !child_access
+                .data()
+                .supports_action(egui::accesskit::Action::Collapse),
+        "leaf TreeItem must advertise Click only, never folder Expand/Collapse"
+    );
+    assert!(
+        child_node.rect().left() >= parent_node.rect().left() + INDENT_PER_LEVEL,
+        "child leaf must begin at least one indent step right of its parent label: parent={:?}, child={:?}",
+        parent_node.rect(),
+        child_node.rect()
+    );
     println!("PROOF3b: expanded folder renders 3 cached child leaves (no re-fetch)");
 }
 
@@ -827,10 +897,18 @@ struct LiveFolderBackend {
     workspace_id: String,
     client: reqwest::Client,
     runtime: tokio::runtime::Runtime,
+    /// Owns the ephemeral current-source backend, isolated PostgreSQL workspace, runtime roots, and
+    /// fixture lock. Its Drop performs bounded process/workspace/runtime cleanup after this wrapper.
+    _managed_backend: pg_proof_support::LiveBackend,
 }
 
 #[cfg(feature = "integration")]
 impl LiveFolderBackend {
+    /// Prove teardown of the fixture-owned workspace and backend process before publishing PASS.
+    fn assert_cleanup(&mut self) {
+        self._managed_backend.assert_cleanup();
+    }
+
     fn identity(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         request
             .header("x-hsk-actor-id", "mt022-live-pg")
@@ -931,14 +1009,10 @@ impl LiveFolderBackend {
 
 #[cfg(feature = "integration")]
 fn require_live_folder_backend() -> LiveFolderBackend {
-    let base = std::env::var("HSK_TEST_BASE")
-        .unwrap_or_else(|_| handshake_native::backend_client::BACKEND_BASE_URL.to_owned());
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
-        .expect("requires_pg: set HSK_TEST_WORKSPACE_ID to a real managed PostgreSQL workspace");
-    assert!(
-        !workspace_id.trim().is_empty(),
-        "requires_pg: HSK_TEST_WORKSPACE_ID must not be empty"
-    );
+    let managed_backend = pg_proof_support::require_live_backend();
+    let base = managed_backend.base.clone();
+    let workspace_id = managed_backend.workspace_id.clone();
+    assert!(!workspace_id.trim().is_empty(), "managed fixture workspace");
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -966,6 +1040,7 @@ fn require_live_folder_backend() -> LiveFolderBackend {
         workspace_id,
         client,
         runtime,
+        _managed_backend: managed_backend,
     }
 }
 
@@ -1243,7 +1318,8 @@ fn failed_recolor_and_failed_refetch_keep_prior_swatch_in_mounted_host() {
 }
 
 /// AC1-AC6 and PROOF2-5 against a REAL Handshake-managed PostgreSQL. The fixture is self-contained:
-/// the only pre-existing requirement is `HSK_TEST_WORKSPACE_ID` naming a real managed workspace.
+/// `pg_proof_support::require_live_backend` owns an ephemeral backend runtime and workspace, and this
+/// test owns its folder/block seed plus verified cleanup inside that workspace.
 /// Run with `cargo test -p handshake-native --features integration --test test_folder_tree
 /// folder_tree_live_pg_self_seeded_round_trip -- --nocapture`.
 #[test]
@@ -1252,7 +1328,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     use handshake_native::backend_client::{
         FolderChildrenCell, FolderListCell, FolderWriteCell, LoomFolderClient,
     };
-    let backend = require_live_folder_backend();
+    let mut backend = require_live_folder_backend();
     let mut cleanup = LiveFolderSeedCleanup {
         backend: &backend,
         folder_ids: Vec::new(),
@@ -1637,11 +1713,6 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     // Drive expansion + recolor through the REAL HandshakeApp host, not only the client/widget halves.
     // The host mounts the production pane factory, drains FolderTreeEvent, dispatches the bounded
     // LoomFolderClient requests, and applies their deliveries back to the same mounted tree.
-    assert_eq!(
-        backend.base,
-        handshake_native::backend_client::BACKEND_BASE_URL,
-        "requires_pg: the mounted production host proof must target its canonical backend base"
-    );
     let mut app = handshake_native::app::HandshakeApp::with_health(
         handshake_native::app::HealthDisplayState::Ok(
             handshake_native::backend_client::HealthInfo {
@@ -1652,6 +1723,7 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
         ),
     );
     app.set_runtime_handle(runtime.handle().clone());
+    app.set_folder_backend_base_url_for_test(backend.base.clone());
     app.bind_active_project_for_integration_test(backend.workspace_id.clone());
     mount_folder_pane_for_live_host(&mut app, &backend.workspace_id);
     let mounted_tree = app.mounted_folder_tree_for_test();
@@ -2141,6 +2213,13 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     cleanup
         .cleanup_and_verify()
         .expect("bounded cleanup removes every MT-022 live seed row");
+    drop(cleanup);
+
+    // Capture the proof identity before the managed fixture clears its workspace id, then require the
+    // owned workspace deletion and backend-process reap to complete before any PASS artifact exists.
+    let proof_backend_base = backend.base.clone();
+    let proof_workspace_id = backend.workspace_id.clone();
+    backend.assert_cleanup();
 
     // A durable, non-zero proof artifact carries the exact live seed identifiers and the completed
     // cleanup verdict for independent V2 validation. It is outside the repository and contains no
@@ -2150,8 +2229,8 @@ fn folder_tree_live_pg_self_seeded_round_trip() {
     let receipt_path = artifact_dir.join("MT-022-live-pg-seed.json");
     let receipt = serde_json::json!({
         "schema_id": "hsk.mt022.live_pg_proof@1",
-        "backend_base": backend.base.clone(),
-        "workspace_id": backend.workspace_id.clone(),
+        "backend_base": proof_backend_base,
+        "workspace_id": proof_workspace_id,
         "seed_ids": {
             "folder_ids": [primary_id, secondary_id],
             "block_ids": block_ids

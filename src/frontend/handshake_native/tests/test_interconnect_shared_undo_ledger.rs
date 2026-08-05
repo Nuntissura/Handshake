@@ -42,7 +42,10 @@ use handshake_native::rich_editor::document_model::node::BlockNode;
 use handshake_native::rich_editor::interop_adapter::{push_rich_edit_undo, RichSnapshotApplier};
 use handshake_native::rich_editor::renderer::rich_editor_widget::RichEditorState;
 
-use interconnect_support::{assert_no_local_artifact_dir, require_live_backend, ScenarioAttempt};
+use interconnect_support::{
+    assert_no_local_artifact_dir, require_live_backend, settle_incidental_fems_for_capture,
+    ScenarioAttempt,
+};
 
 fn pane(id: &str) -> PaneId {
     Arc::from(id)
@@ -299,7 +302,8 @@ fn run_supplemental_mt046_argus_undo(scenario_id: &str, edit_rich: bool, edit_co
             "ic18_rich_undo_count_value": if edit_rich && edit_code { Some("Undo (1)") } else { None },
         },
     });
-    let _ = harness.render_proof_frame(&format!("{scenario_id} mounted undo terminal"));
+    settle_incidental_fems_for_capture(&mut harness, scenario_id);
+    let _ = harness.render_settled_proof_frame(&format!("{scenario_id} mounted undo terminal"));
     assert!(harness.last_screenshot_outcome().is_some());
     argus.finish_require_no_indeterminate();
     let proof_dir = supplemental_mt046_tree_dir(scenario_id);

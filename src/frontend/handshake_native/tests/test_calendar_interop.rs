@@ -116,6 +116,291 @@ fn sha256_file(path: &Path) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
+fn mt067_candidate_source_identity() -> (String, serde_json::Value) {
+    const CANDIDATE_PATHS: [&str; 2] = [
+        "src/frontend/handshake_native/src/graph/daily_journal_panel.rs",
+        "src/frontend/handshake_native/tests/test_calendar_interop.rs",
+    ];
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate repository root");
+    let head = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("read MT-067 HEAD");
+    assert!(head.status.success(), "git rev-parse HEAD failed");
+    let head = String::from_utf8(head.stdout)
+        .expect("HEAD is UTF-8")
+        .trim()
+        .to_owned();
+    let diff = Command::new("git")
+        .arg("-C")
+        .arg(repo_root)
+        .arg("diff")
+        .arg("--")
+        .args(CANDIDATE_PATHS)
+        .output()
+        .expect("read exact MT-067 candidate diff");
+    assert!(
+        diff.status.success(),
+        "git diff for MT-067 candidate failed"
+    );
+    let identity = if diff.stdout.is_empty() {
+        head.clone()
+    } else {
+        let mut hash = Command::new("git")
+            .arg("hash-object")
+            .arg("--stdin")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("start git hash-object for MT-067 candidate diff");
+        hash.stdin
+            .as_mut()
+            .expect("git hash-object stdin")
+            .write_all(&diff.stdout)
+            .expect("write exact MT-067 diff to git hash-object");
+        let hash = hash
+            .wait_with_output()
+            .expect("wait for MT-067 candidate hash");
+        assert!(
+            hash.status.success(),
+            "git hash-object for MT-067 diff failed"
+        );
+        let diff_hash = String::from_utf8(hash.stdout)
+            .expect("MT-067 diff hash is UTF-8")
+            .trim()
+            .to_owned();
+        format!("{head}-worktree-{diff_hash}")
+    };
+    let files = CANDIDATE_PATHS
+        .iter()
+        .map(|relative| {
+            let canonical =
+                std::fs::canonicalize(repo_root.join(relative)).unwrap_or_else(|error| {
+                    panic!("canonicalize MT-067 candidate source {relative}: {error}")
+                });
+            serde_json::json!({
+                "repo_relative_path": relative,
+                "absolute_canonical_path": canonical.display().to_string(),
+                "sha256": sha256_file(&canonical),
+            })
+        })
+        .collect::<Vec<_>>();
+    (
+        identity,
+        serde_json::json!({
+            "head_sha": head,
+            "dirty": !diff.stdout.is_empty(),
+            "files": files,
+        }),
+    )
+}
+
+fn assert_mt067_matrix_source_identity() {
+    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .is_some_and(|run_id| !run_id.trim().is_empty())
+    {
+        let (expected, _) = mt067_candidate_source_identity();
+        assert_eq!(
+            std::env::var("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA")
+                .expect("MT-067 matrix requires candidate source identity"),
+            expected,
+            "MT-067 matrix source identity must bind the exact current candidate diff"
+        );
+    }
+}
+
+fn paired_screenshot_evidence<State>(
+    harness: &Harness<'_, State>,
+    expected_receipt_id: u64,
+) -> serde_json::Value {
+    let outcome = harness
+        .last_screenshot_outcome()
+        .cloned()
+        .expect("MT-067 proof frame must write a durable screenshot outcome");
+    if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
+        .ok()
+        .is_some_and(|run_id| !run_id.trim().is_empty())
+    {
+        assert_eq!(
+            outcome.status, "CAPTURED",
+            "an authoritative MT-067 matrix bundle requires one material terminal frame"
+        );
+        assert_eq!(
+            std::env::var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID")
+                .expect("matrix screenshot retains its canonical action receipt"),
+            expected_receipt_id.to_string(),
+            "terminal frame must be paired to the exact canonical action receipt"
+        );
+    }
+    let (frame_path, frame_sha256) = match outcome.frame_path.as_deref() {
+        Some(path) => {
+            let canonical = std::fs::canonicalize(path)
+                .unwrap_or_else(|error| panic!("canonicalize MT-067 frame {path}: {error}"));
+            assert!(
+                canonical.is_absolute(),
+                "MT-067 frame path must be absolute"
+            );
+            let hash = sha256_file(&canonical);
+            (Some(canonical.display().to_string()), Some(hash))
+        }
+        None => {
+            assert_eq!(
+                outcome.status, "DEFERRED",
+                "only a typed headless DEFERRED outcome may omit a frame path"
+            );
+            (None, None)
+        }
+    };
+    serde_json::json!({
+        "run_id": outcome.run_id,
+        "outcome_id": outcome.outcome_id,
+        "scenario_id": outcome.scenario_id,
+        "status": outcome.status,
+        "paired_action_receipt_id": expected_receipt_id,
+        "absolute_canonical_path": frame_path,
+        "sha256": frame_sha256,
+    })
+}
+
+fn write_mt067_proof_bundle(
+    proof_id: &str,
+    receipt_id: u64,
+    receipt_status: &str,
+    backend_identity: serde_json::Value,
+    authoritative_ids: serde_json::Value,
+    screenshot: serde_json::Value,
+) {
+    let Ok(run_id) = std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID") else {
+        return;
+    };
+    let (candidate_source_identity, candidate_source_files) = mt067_candidate_source_identity();
+    assert_eq!(
+        std::env::var("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA")
+            .expect("MT-067 proof bundle source identity"),
+        candidate_source_identity,
+        "MT-067 proof bundle rejects a stale or HEAD-only dirty-worktree source identity"
+    );
+    let artifact_root = PathBuf::from(
+        std::env::var_os("HANDSHAKE_PROOF_ARTIFACT_DIR")
+            .expect("MT-067 matrix bundle requires HANDSHAKE_PROOF_ARTIFACT_DIR"),
+    );
+    let run_dir = artifact_root.join(&run_id);
+    let trace_path = run_dir.join("canonical-argus-matrix.jsonl");
+    let trace_text = std::fs::read_to_string(&trace_path).unwrap_or_else(|error| {
+        panic!(
+            "read MT-067 canonical trace {}: {error}",
+            trace_path.display()
+        )
+    });
+    let trace_rows = trace_text
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line).expect("parse MT-067 trace row")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        trace_rows.len(),
+        1,
+        "each focused MT-067 proof bundle must contain exactly one canonical action"
+    );
+    assert_eq!(trace_rows[0]["receipt_id"].as_u64(), Some(receipt_id));
+    assert_eq!(
+        trace_rows[0]["receipt_status"].as_str(),
+        Some(receipt_status)
+    );
+    assert_eq!(trace_rows[0]["terminal_refreshed"].as_bool(), Some(true));
+    assert!(trace_rows[0]["terminal_predicates"]
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty() && rows.iter().all(|row| row["passed"] == true)));
+
+    let canonical_trace_path = std::fs::canonicalize(&trace_path).unwrap_or_else(|error| {
+        panic!(
+            "canonicalize MT-067 trace {}: {error}",
+            trace_path.display()
+        )
+    });
+    let bundle_path = run_dir.join(format!("mt067-{proof_id}-proof-bundle.json"));
+    let absolute_bundle_path = if bundle_path.is_absolute() {
+        bundle_path.clone()
+    } else {
+        std::env::current_dir()
+            .expect("current directory")
+            .join(&bundle_path)
+    };
+    let bundle = serde_json::json!({
+        "schema_id": "hsk.mt067.canonical_action_proof_bundle@1",
+        "mt_id": "MT-067",
+        "proof_id": proof_id,
+        "run_id": run_id,
+        "scenario_id": std::env::var("HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID")
+            .expect("MT-067 matrix scenario id"),
+        "source_sha": std::env::var("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA")
+            .expect("MT-067 matrix source SHA"),
+        "candidate_source": candidate_source_files,
+        "process_correlation_id": std::env::var("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID")
+            .expect("MT-067 matrix process correlation id"),
+        "proof_bundle_path": absolute_bundle_path.display().to_string(),
+        "canonical_argus_trace": {
+            "absolute_canonical_path": canonical_trace_path.display().to_string(),
+            "sha256": sha256_file(&canonical_trace_path),
+            "action_count": 1,
+        },
+        "canonical_action": {
+            "receipt_id": receipt_id,
+            "receipt_status": receipt_status,
+        },
+        "backend_identity": backend_identity,
+        "authoritative_ids": authoritative_ids,
+        "paired_screenshot": screenshot,
+    });
+    std::fs::create_dir_all(&run_dir).expect("create MT-067 proof bundle directory");
+    let temporary = run_dir.join(format!(".mt067-{proof_id}-{}.tmp", std::process::id()));
+    let mut bytes = serde_json::to_vec_pretty(&bundle).expect("serialize MT-067 proof bundle");
+    bytes.push(b'\n');
+    std::fs::write(&temporary, bytes).expect("write MT-067 proof bundle temporary");
+    std::fs::rename(&temporary, &bundle_path).expect("commit MT-067 proof bundle");
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&bundle_path)
+        .expect("open committed MT-067 proof bundle")
+        .sync_all()
+        .expect("flush committed MT-067 proof bundle");
+}
+
+fn replace_unrelated_sibling_panes_with_manual(app: &mut HandshakeApp, workspace_id: &str) {
+    let sibling_ids = [PaneId::from("pane-b"), PaneId::from("pane-c")];
+    {
+        let registry = app.pane_registry();
+        let mut registry = registry.lock().expect("MT-067 sibling pane registry");
+        for pane_id in &sibling_ids {
+            registry.insert(PaneRecord::new(
+                pane_id.clone(),
+                PaneType::UserManual,
+                workspace_id,
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        }
+    }
+    for pane_id in sibling_ids {
+        let bar = app
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .unwrap_or_else(|| panic!("MT-067 sibling tab bar {pane_id} exists"));
+        bar.tabs = vec![TabState::new(PaneType::UserManual)];
+        bar.active_index = 0;
+    }
+}
+
 struct LiveWorkspaceGuard<'a> {
     backend: &'a interconnect_support::LiveBackend,
     workspace_id: String,
@@ -175,6 +460,69 @@ impl LiveWorkspaceGuard<'_> {
         self.native_fr_event_ids.clear();
     }
 
+    fn cleanup_workspace_bridge_ledger_and_assert_zero(&self) {
+        // Workspace DELETE cascades loom_block_knowledge_bridge before this runs, releasing the
+        // bridge table's ON DELETE RESTRICT reference to its EventLedger receipt. Delete only the
+        // exact throwaway workspace's bridge receipts, then fail closed if any workspace-scoped
+        // EventLedger shape remains. This ordering preserves the primary native-FR -> workspace
+        // cleanup sequence while closing the post-cascade receipt leak.
+        let workspace = sql_literal(&self.workspace_id);
+        let bridge_run = sql_literal(&format!("LOOM-BRIDGE-{}", self.workspace_id));
+        let sql = format!(
+            "BEGIN; \
+             DELETE FROM kernel_event_ledger \
+             WHERE event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED' \
+               AND source_component = 'loom_block_knowledge_bridge' \
+               AND (payload->>'workspace_id' = {workspace} \
+                    OR payload #>> '{{envelope,workspace_id}}' = {workspace} \
+                    OR kernel_task_run_id = {bridge_run} \
+                    OR session_run_id = {bridge_run}); \
+             DO $mt067_scoped_zero$ \
+             DECLARE scoped_table RECORD; scoped_count BIGINT; \
+             BEGIN \
+               IF EXISTS (SELECT 1 FROM workspaces WHERE id = {workspace}) THEN \
+                 RAISE EXCEPTION 'MT-067 workspace cleanup left the exact workspace row'; \
+               END IF; \
+               FOR scoped_table IN \
+                 SELECT c.table_schema, c.table_name \
+                 FROM information_schema.columns c \
+                 JOIN information_schema.tables t \
+                   ON t.table_schema = c.table_schema AND t.table_name = c.table_name \
+                 WHERE c.table_schema = 'public' AND c.column_name = 'workspace_id' \
+                   AND t.table_type = 'BASE TABLE' \
+                 ORDER BY c.table_name \
+               LOOP \
+                 EXECUTE format('SELECT COUNT(*) FROM %I.%I WHERE workspace_id = $1', \
+                                scoped_table.table_schema, scoped_table.table_name) \
+                   INTO scoped_count USING {workspace}; \
+                 IF scoped_count <> 0 THEN \
+                   RAISE EXCEPTION 'MT-067 workspace cleanup left % row(s) in %.%', \
+                                   scoped_count, scoped_table.table_schema, scoped_table.table_name; \
+                 END IF; \
+               END LOOP; \
+               IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                          WHERE payload->>'workspace_id' = {workspace} \
+                             OR payload #>> '{{envelope,workspace_id}}' = {workspace} \
+                             OR kernel_task_run_id = {bridge_run} \
+                             OR session_run_id = {bridge_run}) THEN \
+                 RAISE EXCEPTION 'MT-067 workspace cleanup left scoped EventLedger residue'; \
+               END IF; \
+             END $mt067_scoped_zero$; \
+             COMMIT;"
+        );
+        self.backend
+            .run_fixture_sql("mt067-workspace-bridge-ledger-cleanup", &sql);
+        let flight_recorder_rows = self
+            .backend
+            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        assert!(
+            flight_recorder_rows
+                .as_array()
+                .is_some_and(|rows| rows.is_empty()),
+            "MT-067 workspace cleanup left scoped Flight Recorder residue: {flight_recorder_rows}"
+        );
+    }
+
     fn assert_cleanup(&mut self) {
         if self.cleaned {
             return;
@@ -182,14 +530,32 @@ impl LiveWorkspaceGuard<'_> {
         let ledger_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.cleanup_native_fr_ledger();
         }));
-        let status = self.backend.delete_workspace(&self.workspace_id);
+        let workspace_delete_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.backend.delete_workspace(&self.workspace_id)
+            }));
+        let bridge_ledger_result = match workspace_delete_result.as_ref() {
+            Ok(status) if (200..300).contains(status) || *status == 404 => {
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    self.cleanup_workspace_bridge_ledger_and_assert_zero();
+                }))
+            }
+            _ => Ok(()),
+        };
         self.cleaned = true;
+        if let Err(payload) = ledger_result {
+            std::panic::resume_unwind(payload);
+        }
+        let status = match workspace_delete_result {
+            Ok(status) => status,
+            Err(payload) => std::panic::resume_unwind(payload),
+        };
         assert!(
             (200..300).contains(&status) || status == 404,
             "MT-067 workspace cleanup {} returned {status}",
             self.workspace_id
         );
-        if let Err(payload) = ledger_result {
+        if let Err(payload) = bridge_ledger_result {
             std::panic::resume_unwind(payload);
         }
     }
@@ -407,6 +773,65 @@ fn assert_no_local_artifact_dir() {
              Handshake_Artifacts/handshake-test root only (found {})",
             p.display()
         );
+    }
+}
+
+fn argus_node_field_equals(
+    tree: &serde_json::Value,
+    author_id: &str,
+    field: &str,
+    expected: &str,
+) -> bool {
+    canonical_argus_driver::json_node_by_author_id(tree, author_id)
+        .and_then(|node| node.get(field))
+        .and_then(serde_json::Value::as_str)
+        == Some(expected)
+}
+
+fn argus_node_json_value_field_equals(
+    tree: &serde_json::Value,
+    author_id: &str,
+    field: &str,
+    expected: &str,
+) -> bool {
+    canonical_argus_driver::json_node_by_author_id(tree, author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok())
+        .and_then(|value| value.get(field).cloned())
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .as_deref()
+        == Some(expected)
+}
+
+/// Own the transient localhost server through unwind. A failed terminal predicate must not leave the
+/// listener or one of its scoped request workers alive after the test reports failure.
+struct TransientCalendarServerGuard {
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    handle: Option<std::thread::JoinHandle<()>>,
+}
+
+impl TransientCalendarServerGuard {
+    fn new(stop: Arc<std::sync::atomic::AtomicBool>, handle: std::thread::JoinHandle<()>) -> Self {
+        Self {
+            stop,
+            handle: Some(handle),
+        }
+    }
+}
+
+impl Drop for TransientCalendarServerGuard {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::Release);
+        if let Some(handle) = self.handle.take() {
+            if let Err(payload) = handle.join() {
+                if std::thread::panicking() {
+                    eprintln!("transient Calendar server also panicked during proof cleanup");
+                } else {
+                    std::panic::resume_unwind(payload);
+                }
+            }
+        }
     }
 }
 
@@ -950,12 +1375,23 @@ fn open_or_create_is_idempotent_and_delegates() {
 fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     use handshake_native::rich_editor::daily_notes::journal_store::ReqwestJournalBackend;
 
+    assert_mt067_matrix_source_identity();
     let _server_guard = mounted_server_test_guard();
     let _owned_backend_env = ForcedOwnedBackendEnv::install();
-    let backend_binary = PathBuf::from(
+    let backend_binary_from_env = PathBuf::from(
         std::env::var_os("HSK_TEST_BACKEND_BIN")
             .expect("exact-source proof requires HSK_TEST_BACKEND_BIN"),
     );
+    assert!(
+        backend_binary_from_env.is_absolute(),
+        "HSK_TEST_BACKEND_BIN must be an absolute path for canonical MT-067 proof"
+    );
+    let backend_binary = std::fs::canonicalize(&backend_binary_from_env).unwrap_or_else(|error| {
+        panic!(
+            "canonicalize HSK_TEST_BACKEND_BIN {}: {error}",
+            backend_binary_from_env.display()
+        )
+    });
     let binary_hash_before = sha256_file(&backend_binary);
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -975,11 +1411,22 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         .map(|path| (path.clone(), sha256_file(path)))
         .collect::<Vec<_>>();
     let live = interconnect_support::require_reachable_backend();
+    let owned_backend_binary = std::fs::canonicalize(live.owned_binary_path())
+        .expect("canonicalize fixture-owned backend binary");
+    assert_eq!(
+        owned_backend_binary, backend_binary,
+        "fixture-owned backend must be the exact canonical HSK_TEST_BACKEND_BIN"
+    );
     assert_eq!(
         sha256_file(&backend_binary),
         binary_hash_before,
         "the spawned backend executable identity cannot change during proof startup"
     );
+    let backend_identity = serde_json::json!({
+        "hsk_test_backend_bin_absolute_canonical_path": backend_binary.display().to_string(),
+        "hsk_test_backend_bin_sha256": binary_hash_before,
+        "owned_backend_run_listener": live.owned_backend_binding_receipt(),
+    });
     for (path, expected_hash) in source_hashes_before {
         assert_eq!(
             sha256_file(&path),
@@ -1182,10 +1629,23 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     bar.tabs = vec![tab];
     bar.active_index = 0;
     app.set_active_pane_for_test(Some(pane_id));
+    replace_unrelated_sibling_panes_with_manual(&mut app, &workspace_id);
+    // Keep the genuine mounted shell while making pane-a's Calendar content operator-readable in
+    // material proof frames. Test-owned sibling panes use the real User Manual factory so unrelated
+    // Runtime Chat/alias endpoint state cannot contaminate this Calendar proof.
+    let mut proof_layout = app.capture_layout_snapshot();
+    proof_layout.split_weights.vertical = 0.8;
+    proof_layout.drawers.project = false;
+    app.apply_layout_snapshot(
+        proof_layout,
+        egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1440.0, 900.0)),
+    )
+    .expect("apply valid MT-067 live visual proof layout");
     let mounted = app.mounted_daily_journal();
     mounted.lock().unwrap().prepare_date(date);
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(1100.0, 760.0))
+        .proof_mt_id("MT-067")
+        .with_size(egui::vec2(1440.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let mounted_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     loop {
@@ -1253,26 +1713,46 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
             "mounted date-nav author id {author_id} must be collision-free"
         );
     }
-    {
-        let mut argus = canonical_argus_driver::CanonicalArgusDriver::bind(
-            harness.state(),
-            "mt067-live-date-navigation",
-        );
-        let before = argus.inspect(&mut harness);
-        let observation = argus.click_from_snapshot_and_reinspect(
-            &mut harness,
-            DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.next_day,
-            before,
-        );
-        assert!(
-            matches!(
-                observation.receipt_status.as_str(),
-                "applied" | "indeterminate"
-            ),
-            "canonical date-navigation receipt is terminal: {observation:?}"
-        );
-        argus.finish();
-    }
+    // Project binding legitimately refreshes FEMS review state. This Calendar proof has no FEMS
+    // session, so clear only that unrelated ephemeral overlay after its delivery frame; persisted
+    // state and every Calendar error path remain untouched.
+    harness
+        .state_mut()
+        .clear_fems_overlay_for_integration_test();
+    harness.run_steps(2);
+    let mut date_nav_argus = canonical_argus_driver::CanonicalArgusDriver::bind(
+        harness.state(),
+        "mt067-live-date-navigation",
+    );
+    let date_nav_before = date_nav_argus.inspect(&mut harness);
+    assert!(
+        !canonical_argus_driver::json_has_author_id(
+            &date_nav_before,
+            handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        ) && !canonical_argus_driver::json_has_author_id(
+            &date_nav_before,
+            handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+        ) && !canonical_argus_driver::json_has_author_id(
+            &date_nav_before,
+            "wikilink-alias-local-only-banner",
+        ) && !canonical_argus_driver::json_has_author_id(
+            &date_nav_before,
+            handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+        ),
+        "unrelated FEMS, alias, and Runtime Chat states must not overlap the Calendar proof before navigation"
+    );
+    let date_nav_observation = date_nav_argus.click_from_snapshot_and_reinspect(
+        &mut harness,
+        DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.next_day,
+        date_nav_before,
+    );
+    assert!(
+        matches!(
+            date_nav_observation.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
+        "canonical date-navigation receipt remains provisional until date-B terminal proof: {date_nav_observation:?}"
+    );
     let second_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     loop {
         harness.run_steps(1);
@@ -1323,6 +1803,123 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     let span_id = second_span_id.clone();
     let date = second_date;
     let a = second_binding;
+
+    // Bind the next-day click to the exact backend effects before finishing its canonical action.
+    // These are the new date-B rows; the date-A event ids are explicitly excluded so a stale multi-day
+    // projection cannot satisfy the terminal predicate by coincidence.
+    let calendar_event_fr =
+        wait_for_calendar_fr(&live, &workspace_id, "calendar_event_bound", |row| {
+            row["payload"]["native_payload"]["calendar_event_id"].as_str()
+                == Some(event_id.as_str())
+                && row["payload"]["native_payload"]["date"].as_str()
+                    == Some(second_date_label.as_str())
+        });
+    let first_span_activity_fr =
+        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
+            row["payload"]["native_payload"]["calendar_event_id"].as_str()
+                == Some(event_id.as_str())
+                && row["payload"]["native_payload"]["activity_span_id"].as_str()
+                    == Some(first_span_id.as_str())
+                && row["event_id"].as_str() != Some(initial_first_span_fr_id.as_str())
+        });
+    let activity_fr =
+        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
+            row["payload"]["native_payload"]["calendar_event_id"].as_str()
+                == Some(event_id.as_str())
+                && row["payload"]["native_payload"]["activity_span_id"].as_str()
+                    == Some(span_id.as_str())
+                && row["event_id"].as_str() != Some(initial_second_span_fr_id.as_str())
+        });
+    cleanup.track_native_fr(&calendar_event_fr);
+    cleanup.track_native_fr(&first_span_activity_fr);
+    cleanup.track_native_fr(&activity_fr);
+
+    let expected_date_header = mounted.lock().unwrap().nav.current_display();
+    let expected_activity_doc = DocId("DOC-MT067-DAY-B".to_owned());
+    let expected_activity_author = activity_item_author_id(&expected_activity_doc);
+    let authoritative_ids = serde_json::json!({
+        "workspace_id": workspace_id,
+        "selected_date": second_date_label,
+        "date_header": expected_date_header,
+        "daily_note_doc_id": a.doc_id.as_str(),
+        "calendar_event_id": event_id,
+        "activity_span_id": span_id,
+        "activity_document_id": expected_activity_doc.as_str(),
+        "flight_recorder": {
+            "calendar_event_bound_event_id": calendar_event_fr["event_id"],
+            "first_activity_event_id": first_span_activity_fr["event_id"],
+            "selected_date_activity_event_id": activity_fr["event_id"],
+        },
+    });
+    let expected_doc_id = a.doc_id.as_str().to_owned();
+    let expected_event_id = event_id.clone();
+    let expected_date_value = expected_date_header.clone();
+    harness
+        .state_mut()
+        .clear_fems_overlay_for_integration_test();
+    harness.run_steps(2);
+    let _date_nav_frame = harness.render_proof_frame(
+        "MT-067 live date-B terminal frame must match the canonical next-day receipt",
+    );
+    let date_nav_screenshot = paired_screenshot_evidence(&harness, date_nav_observation.receipt_id);
+    let date_nav_evidence = serde_json::json!({
+        "authoritative_ids": authoritative_ids,
+        "backend_identity": backend_identity,
+        "paired_action_receipt_id": date_nav_observation.receipt_id,
+        "paired_screenshot": date_nav_screenshot,
+    });
+    let date_nav_terminal = date_nav_argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "date-b-journal-event-activity-and-ledger-authoritative",
+        date_nav_evidence,
+        |tree| {
+            argus_node_field_equals(
+                tree,
+                DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
+                "value",
+                &expected_date_value,
+            ) && argus_node_json_value_field_equals(
+                tree,
+                DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+                "calendar_event_id",
+                &expected_event_id,
+            ) && argus_node_json_value_field_equals(
+                tree,
+                DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+                "daily_note_doc_id",
+                &expected_doc_id,
+            ) && canonical_argus_driver::json_has_author_id(
+                tree,
+                DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
+            ) && canonical_argus_driver::json_has_author_id(tree, &expected_activity_author)
+                && !canonical_argus_driver::json_has_author_id(
+                    tree,
+                    handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                )
+                && !canonical_argus_driver::json_has_author_id(
+                    tree,
+                    handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                )
+                && !canonical_argus_driver::json_has_author_id(
+                    tree,
+                    "wikilink-alias-local-only-banner",
+                )
+                && !canonical_argus_driver::json_has_author_id(
+                    tree,
+                    handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+                )
+        },
+    );
+    assert!(argus_node_json_value_field_equals(
+        &date_nav_terminal,
+        DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+        "daily_note_doc_id",
+        &expected_doc_id,
+    ));
+    let date_nav_receipt_id = date_nav_observation.receipt_id;
+    let date_nav_receipt_status = date_nav_observation.receipt_status.clone();
+    date_nav_argus.finish();
+
     // The loop can observe the async delivery immediately after the frame rendered its cleared
     // in-flight state. Render once more so AccessKit reflects the newly delivered date-B chip before
     // driving it.
@@ -1370,32 +1967,6 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
     harness.get_by(|node| node.author_id() == Some(span_author_id.as_str()));
 
-    let calendar_event_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "calendar_event_bound", |row| {
-            row["payload"]["native_payload"]["calendar_event_id"].as_str()
-                == Some(event_id.as_str())
-                && row["payload"]["native_payload"]["date"].as_str()
-                    == Some(second_date_label.as_str())
-        });
-    let first_span_activity_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
-            row["payload"]["native_payload"]["calendar_event_id"].as_str()
-                == Some(event_id.as_str())
-                && row["payload"]["native_payload"]["activity_span_id"].as_str()
-                    == Some(first_span_id.as_str())
-                && row["event_id"].as_str() != Some(initial_first_span_fr_id.as_str())
-        });
-    let activity_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
-            row["payload"]["native_payload"]["calendar_event_id"].as_str()
-                == Some(event_id.as_str())
-                && row["payload"]["native_payload"]["activity_span_id"].as_str()
-                    == Some(span_id.as_str())
-                && row["event_id"].as_str() != Some(initial_second_span_fr_id.as_str())
-        });
-    cleanup.track_native_fr(&calendar_event_fr);
-    cleanup.track_native_fr(&first_span_activity_fr);
-    cleanup.track_native_fr(&activity_fr);
     assert_ne!(calendar_event_fr["event_id"], activity_fr["event_id"]);
     let bound_payload = &calendar_event_fr["payload"]["native_payload"];
     let date_label = date.format("%Y-%m-%d").to_string();
@@ -1484,6 +2055,14 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         "each exact seeded span must have one A receipt and one B receipt, with no other span ids"
     );
     cleanup.assert_cleanup();
+    write_mt067_proof_bundle(
+        "live-date-navigation",
+        date_nav_receipt_id,
+        &date_nav_receipt_status,
+        backend_identity,
+        authoritative_ids,
+        date_nav_screenshot,
+    );
     println!(
         "AC-1..3 LIVE OK: daily note {} idempotent; CalendarEvent {} resolved and navigated; \
          ActivitySpan {} reloaded read-only; both interop FR rows persisted",
@@ -1581,6 +2160,7 @@ fn mounted_host_retries_first_transient_calendar_read_without_unavailable_state(
 fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event() {
     use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 
+    assert_mt067_matrix_source_identity();
     let _server_guard = mounted_server_test_guard();
     let workspace_id = "WS-MT067-CANONICAL-ARGUS";
     let date = d(2026, 10, 25);
@@ -1589,6 +2169,7 @@ fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_
         date,
         MountedEventMode::NormalizedOverlap,
     );
+    let _server_cleanup = TransientCalendarServerGuard::new(stop, server);
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -1620,10 +2201,20 @@ fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_
     bar.tabs = vec![tab];
     bar.active_index = 0;
     app.set_active_pane_for_test(Some(pane_id));
+    replace_unrelated_sibling_panes_with_manual(&mut app, workspace_id);
+    let mut proof_layout = app.capture_layout_snapshot();
+    proof_layout.split_weights.vertical = 0.8;
+    proof_layout.drawers.project = false;
+    app.apply_layout_snapshot(
+        proof_layout,
+        egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1440.0, 900.0)),
+    )
+    .expect("apply valid MT-067 localhost visual proof layout");
     let mounted = app.mounted_daily_journal();
     mounted.lock().unwrap().prepare_date(date);
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(900.0, 620.0))
+        .proof_mt_id("MT-067")
+        .with_size(egui::vec2(1440.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
@@ -1643,10 +2234,27 @@ fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_
         );
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    harness.run_steps(1);
+    harness
+        .state_mut()
+        .clear_fems_overlay_for_integration_test();
+    harness.run_steps(2);
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt067-calendar-temporal");
     let before = argus.inspect(&mut harness);
+    assert!(
+        !json_has_author_id(
+            &before,
+            handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        ) && !json_has_author_id(
+            &before,
+            handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+        ) && !json_has_author_id(&before, "wikilink-alias-local-only-banner")
+            && !json_has_author_id(
+                &before,
+                handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+        ),
+        "unrelated FEMS, alias, and Runtime Chat states must not overlap the CalendarEvent proof before activation"
+    );
     assert!(
         json_has_author_id(&before, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID),
         "canonical argus.inspect sees the mounted CalendarEvent chip"
@@ -1684,10 +2292,90 @@ fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_
             .map(|tab| (&tab.pane_type, tab.content_id.as_deref())),
         Some((&PaneType::CalendarEvent, Some("EVENT-TRANSIENT-DATE-B")))
     );
+    harness
+        .state_mut()
+        .clear_fems_overlay_for_integration_test();
+    harness.run_steps(2);
+    let _terminal_frame = harness.render_proof_frame(
+        "MT-067 localhost terminal frame must show the exact CalendarEvent destination",
+    );
+    let terminal_screenshot = paired_screenshot_evidence(&harness, observation.receipt_id);
+    let authoritative_ids = serde_json::json!({
+        "workspace_id": workspace_id,
+        "selected_date": date.format("%Y-%m-%d").to_string(),
+        "calendar_event_id": "EVENT-TRANSIENT-DATE-B",
+        "pane_type": "CalendarEvent",
+        "content_id": "EVENT-TRANSIENT-DATE-B",
+    });
+    let mut transient_backend_identity = serde_json::json!({
+        "owned": true,
+        "kind": "test-owned-transient-calendar-http-server",
+        "base_url": base_url,
+        "workspace_id": workspace_id,
+        "process_id": std::process::id(),
+    });
+    let terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "calendar-event-exact-destination-and-normalization-authoritative",
+        serde_json::json!({
+            "authoritative_ids": authoritative_ids,
+            "backend_identity": transient_backend_identity,
+            "paired_action_receipt_id": observation.receipt_id,
+            "paired_screenshot": terminal_screenshot,
+        }),
+        |tree| {
+            json_has_author_id(tree, details_id)
+                && json_has_author_id(
+                    tree,
+                    handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_NORMALIZATION_BADGE_AUTHOR_ID,
+                )
+                && argus_node_field_equals(
+                    tree,
+                    handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+                    "value",
+                    "EVENT-TRANSIENT-DATE-B",
+                )
+                && canonical_argus_driver::json_node_by_author_id(tree, details_id)
+                    .and_then(|node| node.get("value"))
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|value| value.contains("Event ID: EVENT-TRANSIENT-DATE-B"))
+                && !json_has_author_id(
+                    tree,
+                    handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                )
+                && !json_has_author_id(
+                    tree,
+                    handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                )
+                && !json_has_author_id(tree, "wikilink-alias-local-only-banner")
+                && !json_has_author_id(
+                    tree,
+                    handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+                )
+        },
+    );
+    assert!(argus_node_field_equals(
+        &terminal,
+        handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+        "value",
+        "EVENT-TRANSIENT-DATE-B",
+    ));
+    let receipt_id = observation.receipt_id;
+    let receipt_status = observation.receipt_status.clone();
     argus.finish();
-
-    stop.store(true, std::sync::atomic::Ordering::Release);
-    server.join().expect("join canonical Argus Calendar server");
+    drop(_server_cleanup);
+    transient_backend_identity["teardown"] = serde_json::json!({
+        "stop_signalled": true,
+        "server_thread_joined": true,
+    });
+    write_mt067_proof_bundle(
+        "localhost-calendar-event",
+        receipt_id,
+        &receipt_status,
+        transient_backend_identity,
+        authoritative_ids,
+        terminal_screenshot,
+    );
 }
 
 #[test]
@@ -2621,6 +3309,66 @@ fn no_sqlite_no_backend_edit() {
         interop_src.contains(".get(&url)"),
         "AC-5: the calendar reads must issue a GET via the reqwest builder"
     );
+    // V4 regression: both canonical MT-067 proofs must refresh a terminal tree and assert a
+    // predicate before they finish. Keep this folded into the existing 20-test suite so the
+    // validator's canonical test-count contract remains stable.
+    let this_test_src = include_str!("test_calendar_interop.rs");
+    for (function_name, next_function_name) in [
+        (
+            "fn open_or_create_daily_note_is_idempotent_against_real_pg_live()",
+            "fn mounted_host_retries_first_transient_calendar_read_without_unavailable_state()",
+        ),
+        (
+            "fn canonical_localhost_argus_inspects_navigates_and_freshly_reobserves_calendar_event()",
+            "fn mounted_empty_event_list_finishes_as_no_event_with_one_journal_put()",
+        ),
+    ] {
+        let function_start = this_test_src
+            .find(function_name)
+            .unwrap_or_else(|| panic!("V4 proof function missing: {function_name}"));
+        let function_end = this_test_src[function_start..]
+            .find(next_function_name)
+            .map(|offset| function_start + offset)
+            .unwrap_or(this_test_src.len());
+        let function_src = &this_test_src[function_start..function_end];
+        let predicate_offset = function_src
+            .find("assert_latest_terminal_predicate")
+            .unwrap_or_else(|| panic!("{function_name} must assert a terminal predicate"));
+        let finish_offset = function_src
+            .find("argus.finish()")
+            .unwrap_or_else(|| panic!("{function_name} must finish its canonical Argus action"));
+        assert!(
+            predicate_offset < finish_offset,
+            "{function_name} must assert its freshly reobserved terminal predicate before finish"
+        );
+    }
+    // Teardown regression: native FR receipts are removed first, workspace deletion releases the
+    // bridge FK, and only then may exact workspace-owned KNOWLEDGE_LOOM_BLOCK_INDEXED receipts be
+    // deleted and the broad workspace EventLedger-zero assertion run.
+    let cleanup_start = this_test_src
+        .find("fn assert_cleanup(&mut self)")
+        .expect("MT-067 cleanup function exists");
+    let cleanup_end = this_test_src[cleanup_start..]
+        .find("impl Drop for LiveWorkspaceGuard")
+        .map(|offset| cleanup_start + offset)
+        .expect("MT-067 cleanup function boundary exists");
+    let cleanup_src = &this_test_src[cleanup_start..cleanup_end];
+    let native_fr_cleanup = cleanup_src
+        .find("self.cleanup_native_fr_ledger()")
+        .expect("MT-067 teardown cleans native FR receipts");
+    let workspace_delete = cleanup_src
+        .find("self.backend.delete_workspace(&self.workspace_id)")
+        .expect("MT-067 teardown deletes its exact workspace");
+    let bridge_ledger_cleanup = cleanup_src
+        .find("self.cleanup_workspace_bridge_ledger_and_assert_zero()")
+        .expect("MT-067 teardown cleans post-cascade bridge receipts");
+    assert!(native_fr_cleanup < workspace_delete && workspace_delete < bridge_ledger_cleanup);
+    assert!(
+        this_test_src.contains("event_type = 'KNOWLEDGE_LOOM_BLOCK_INDEXED'")
+            && this_test_src.contains("source_component = 'loom_block_knowledge_bridge'")
+            && this_test_src.contains("MT-067 workspace cleanup left scoped EventLedger residue"),
+        "MT-067 bridge cleanup must remain exact and fail closed on any workspace-scoped ledger row"
+    );
     println!("AC-5 OK: no sqlite/rusqlite/diesel, GET-only calendar reads, shared client and live backend routes reused");
 }
 
@@ -2631,6 +3379,7 @@ fn no_sqlite_no_backend_edit() {
 #[test]
 fn daily_journal_panel_accesskit_nodes_present() {
     let mut harness = Harness::builder()
+        .proof_mt_id("MT-067")
         .with_size(egui::vec2(440.0, 360.0))
         .wgpu()
         .build_ui(|ui| {
@@ -2662,6 +3411,12 @@ fn daily_journal_panel_accesskit_nodes_present() {
         role_of(&root, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID).as_deref(),
         Some("Button"),
         "PT-5: 'daily-journal-calendar-event-chip' must be Role::Button"
+    );
+    let event_chip_value = value_of(&root, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID)
+        .expect("the CalendarEvent chip exposes its exact structured identity");
+    assert!(
+        event_chip_value.contains("\"calendar_event_id\":\"E-1\""),
+        "PT-5: the event chip AccessKit value binds the exact CalendarEvent id: {event_chip_value}"
     );
     assert_eq!(
         role_of(&root, DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID).as_deref(),
@@ -2779,6 +3534,17 @@ fn role_of(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<String> {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author_id) {
             return Some(format!("{:?}", ak.role()));
+        }
+    }
+    None
+}
+
+/// The AccessKit value of the first node with `author_id`, if present.
+fn value_of(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<String> {
+    for node in root.children_recursive() {
+        let ak = node.accesskit_node();
+        if ak.author_id() == Some(author_id) {
+            return ak.value();
         }
     }
     None

@@ -52,6 +52,8 @@
 
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 
 use std::collections::VecDeque;
 use std::path::Path;
@@ -205,6 +207,7 @@ struct FoundNode {
     supports_focus: bool,
     focused: bool,
     selected: bool,
+    disabled: bool,
     flow_to: Vec<egui::accesskit::NodeId>,
     /// The node's custom-action capability descriptions (e.g. a canvas card's `delete` — AC-042-03).
     custom_actions: Vec<String>,
@@ -230,6 +233,7 @@ fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode
                 supports_focus: ak.data().supports_action(egui::accesskit::Action::Focus),
                 focused: ak.is_focused(),
                 selected: ak.is_selected().unwrap_or(false),
+                disabled: ak.is_disabled(),
                 flow_to: ak.data().flow_to().to_vec(),
                 custom_actions,
             });
@@ -989,7 +993,16 @@ fn graph_registry_rejects_stale_hidden_and_unregistered_offscreen_actions() {
         graph.iters_done = MAX_LAYOUT_ITERS;
     }
     events.lock().unwrap().clear();
+    // Let the product settle its normal post-layout auto-fit, then establish the exact viewport this
+    // bounded-registry case exercises: root on-screen at world origin, distant nodes off-screen.
+    // Without this explicit viewport, the 100k-wide synthetic coordinate range is correctly auto-fit
+    // and the case no longer tests the advertised on-screen/off-screen boundary.
     harness.run();
+    {
+        let mut graph = graph.lock().unwrap();
+        graph.pan = egui::Vec2::ZERO;
+        graph.zoom = 1.0;
+    }
     harness.run();
 
     assert!(
@@ -1035,9 +1048,17 @@ fn ac05_dispatch_canvas_place_block_emits_place_and_new_card() {
     h.harness.run();
     h.harness.run();
 
+    assert!(
+        h.canvas.lock().unwrap().place_block_input.is_empty(),
+        "precondition: the mouse-only place-block text field starts empty"
+    );
     let new_block = uuid::Uuid::new_v4().to_string();
     let place = find_node(&h.harness.root(), "canvas.place-block")
         .expect("canvas.place-block control present");
+    assert!(
+        !place.disabled,
+        "parameterized canvas.place-block remains steerable while the mouse-only text field is empty"
+    );
     let payload = format!(r#"{{"block_id":"{new_block}","x":100,"y":100}}"#);
     h.harness.event(click_event(place.node_id, Some(&payload)));
     h.harness.run();

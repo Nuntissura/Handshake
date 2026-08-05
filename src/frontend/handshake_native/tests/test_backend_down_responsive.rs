@@ -67,7 +67,11 @@ use handshake_native::diagnostics::{
     self, control_socket_name, launch_palmistry_at, ShutdownOutcome, BUFFER_CAP, ENV_PALMISTRY_EXE,
 };
 use handshake_native::layout_persistence::LayoutTransport;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::split_layout::SplitWeights;
+use handshake_native::tab_bar::TabState;
 
 const BACKEND_STATUS_AUTHOR_ID: &str = "shell.chrome.status-bar";
 
@@ -78,6 +82,12 @@ struct EnvGuard {
 
 impl EnvGuard {
     fn set_path(key: &'static str, value: &Path) -> Self {
+        let previous = std::env::var_os(key);
+        std::env::set_var(key, value);
+        Self { key, previous }
+    }
+
+    fn set_value(key: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
         let previous = std::env::var_os(key);
         std::env::set_var(key, value);
         Self { key, previous }
@@ -94,29 +104,29 @@ impl Drop for EnvGuard {
 }
 
 fn find_palmistry_binary() -> PathBuf {
-    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_EXE) {
-        let path = PathBuf::from(raw);
-        assert!(
-            path.is_file(),
-            "{ENV_PALMISTRY_EXE} must name the current-source palmistry binary: {}",
-            path.display()
-        );
-        return path;
-    }
     let executable = if cfg!(windows) {
         "palmistry.exe"
     } else {
         "palmistry"
     };
-    let target = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target");
-    let path = target.join("debug").join(executable);
-    assert!(
-        path.is_file(),
-        "integrated MT-088 proof requires a built Palmistry binary at {}; build the sibling palmistry \
-         crate or set {ENV_PALMISTRY_EXE}",
-        path.display()
-    );
-    path
+    let required = Path::new("../../../../Handshake_Artifacts/handshake-cargo-target")
+        .join("debug")
+        .join(executable);
+    let required = std::fs::canonicalize(&required).unwrap_or_else(|error| {
+        panic!(
+            "integrated MT-088 proof requires the canonical Palmistry binary at {}: {error}",
+            required.display()
+        )
+    });
+    if let Some(raw) = std::env::var_os(ENV_PALMISTRY_EXE) {
+        let supplied = std::fs::canonicalize(PathBuf::from(raw))
+            .unwrap_or_else(|error| panic!("canonicalize {ENV_PALMISTRY_EXE}: {error}"));
+        assert_eq!(
+            supplied, required,
+            "{ENV_PALMISTRY_EXE} cannot redirect MT-088 away from the reserved canonical target"
+        );
+    }
+    required
 }
 
 fn file_sha256(path: &Path) -> String {
@@ -134,6 +144,11 @@ fn file_sha256(path: &Path) -> String {
         hasher.update(&buffer[..read]);
     }
     format!("{:x}", hasher.finalize())
+}
+
+fn json_sha256(value: &serde_json::Value) -> String {
+    let bytes = serde_json::to_vec(value).expect("serialize JSON for SHA-256");
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 fn repo_root() -> PathBuf {
@@ -156,7 +171,9 @@ fn current_binary_provenance(
     binary: &Path,
     tracked_source_pathspecs: &[&str],
 ) -> serde_json::Value {
-    let metadata = std::fs::metadata(binary)
+    let binary = std::fs::canonicalize(binary)
+        .unwrap_or_else(|error| panic!("canonicalize binary {}: {error}", binary.display()));
+    let metadata = std::fs::metadata(&binary)
         .unwrap_or_else(|error| panic!("read binary metadata {}: {error}", binary.display()));
     let binary_modified = metadata
         .modified()
@@ -172,9 +189,10 @@ fn current_binary_provenance(
         "git ls-files failed for binary source pathspecs {tracked_source_pathspecs:?}"
     );
     let tracked = String::from_utf8(output.stdout).expect("tracked source paths are UTF-8");
-    let root = repo_root();
+    let root = std::fs::canonicalize(repo_root()).expect("canonicalize product repo root");
     let mut source_count = 0_usize;
     let mut newest_source: Option<(String, std::time::SystemTime)> = None;
+    let mut tracked_input_manifest = serde_json::Map::new();
     for repo_path in tracked.lines().filter(|path| !path.is_empty()) {
         let source = root.join(repo_path);
         let modified = std::fs::metadata(&source)
@@ -184,6 +202,20 @@ fn current_binary_provenance(
             .modified()
             .expect("tracked source modification time is available");
         source_count += 1;
+        let canonical_source = std::fs::canonicalize(&source).unwrap_or_else(|error| {
+            panic!(
+                "canonicalize tracked binary input {}: {error}",
+                source.display()
+            )
+        });
+        tracked_input_manifest.insert(
+            repo_path.replace('\\', "/"),
+            serde_json::json!({
+                "repo_path": repo_path.replace('\\', "/"),
+                "canonical_path": canonical_source,
+                "sha256": file_sha256(&source),
+            }),
+        );
         if newest_source
             .as_ref()
             .map(|(_, newest)| modified > *newest)
@@ -206,14 +238,15 @@ fn current_binary_provenance(
             .as_millis()
     };
     serde_json::json!({
-        "path": binary,
-        "sha256": file_sha256(binary),
+        "canonical_path": binary.display().to_string(),
+        "sha256": file_sha256(&binary),
         "size_bytes": metadata.len(),
         "modified_unix_millis": unix_millis(binary_modified),
         "tracked_source_count": source_count,
         "newest_tracked_source": newest_source_path,
         "newest_tracked_source_modified_unix_millis": unix_millis(newest_source_modified),
         "not_older_than_all_tracked_sources": true,
+        "tracked_inputs": tracked_input_manifest,
     })
 }
 
@@ -1056,17 +1089,35 @@ const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
     "../../../justfile",
     "../../../.cargo/config.toml",
     ".cargo/config.toml",
+    "Cargo.toml",
     "tests/test_backend_down_responsive.rs",
     "tests/pg_proof_support/mod.rs",
     "tests/native_gui_support/canonical_argus_driver.rs",
+    "tests/native_gui_support/screenshot_harness.rs",
+    "tests/native_gui_support/screenshot_marker.rs",
     "src/app.rs",
     "src/backend_client.rs",
     "src/settings_dialog.rs",
     "src/diagnostics/recorder.rs",
+    "src/diagnostics/mod.rs",
     "src/diagnostics/palmistry_launch.rs",
+    "diag_ring/Cargo.toml",
+    "diag_ring/src/lib.rs",
     "diag_ring/src/ring.rs",
     "diag_ring/src/schema.rs",
     "src/mcp/server.rs",
+    "src/mcp/binding.rs",
+    "src/mcp/action.rs",
+    "src/mcp/mod.rs",
+    "src/mcp/argus.rs",
+    "src/mcp/tools.rs",
+    "src/mcp/session.rs",
+    "src/mcp/attribution.rs",
+    "src/top_menu_bar.rs",
+    "src/pane_registry.rs",
+    "src/tab_bar.rs",
+    "src/layout_persistence.rs",
+    "../palmistry/Cargo.toml",
     "../palmistry/src/main.rs",
     "../palmistry/src/lifecycle.rs",
     "../palmistry/src/freeze_detect.rs",
@@ -1074,7 +1125,7 @@ const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
     "tests/test_manual_content.rs",
 ];
 
-fn current_source_sha() -> String {
+fn current_head_sha() -> String {
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()
@@ -1105,79 +1156,151 @@ fn repo_relative_tracked_path(path: &str) -> String {
     paths[0].to_owned()
 }
 
-fn git_blob_at_head(repo_path: &str) -> String {
-    let object = format!("HEAD:{repo_path}");
-    let output = std::process::Command::new("git")
-        .args(["rev-parse", &object])
+fn current_integrated_source_provenance() -> (String, serde_json::Value) {
+    let head_sha = current_head_sha();
+    let root = std::fs::canonicalize(repo_root()).expect("canonicalize product repo root");
+    let mut files = serde_json::Map::new();
+    for path in MT088_INTEGRATED_PROOF_PATHS {
+        let repo_path = repo_relative_tracked_path(path).replace('\\', "/");
+        let canonical_path = std::fs::canonicalize(path)
+            .unwrap_or_else(|error| panic!("canonicalize MT-088 proof path {path}: {error}"));
+        assert!(
+            canonical_path.starts_with(&root),
+            "proof input {} must remain inside the product repo {}",
+            canonical_path.display(),
+            root.display()
+        );
+        let sha256 = file_sha256(&canonical_path);
+        files.insert(
+            repo_path.clone(),
+            serde_json::json!({
+                "repo_path": repo_path,
+                "canonical_path": canonical_path,
+                "sha256": sha256,
+            }),
+        );
+    }
+
+    // Bind the proof to the entire current candidate, not only the proof-driving file manifest above.
+    // `git diff HEAD` includes staged and unstaged tracked changes. Untracked files are added as sorted
+    // path/content-hash records so a same-HEAD proof cannot be replayed against a different dirty tree.
+    let tracked_diff = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["diff", "--binary", "HEAD", "--", "."])
         .output()
-        .unwrap_or_else(|error| panic!("resolve committed MT-088 proof blob {object}: {error}"));
+        .expect("read whole tracked MT-088 worktree diff");
+    assert!(tracked_diff.status.success(), "git diff HEAD failed");
+    let tracked_diff_sha256 = format!("{:x}", Sha256::digest(&tracked_diff.stdout));
+
+    let untracked_output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["ls-files", "--others", "--exclude-standard", "-z"])
+        .output()
+        .expect("list whole untracked MT-088 worktree candidate");
     assert!(
-        output.status.success(),
-        "git rev-parse failed for committed proof path {object}"
+        untracked_output.status.success(),
+        "git ls-files --others failed"
     );
-    String::from_utf8(output.stdout)
-        .expect("committed proof blob is UTF-8")
-        .trim()
-        .to_owned()
-}
+    let mut untracked_paths = untracked_output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| String::from_utf8(path.to_vec()).expect("untracked repo path is UTF-8"))
+        .collect::<Vec<_>>();
+    untracked_paths.sort();
 
-fn current_integrated_proof_blobs() -> serde_json::Value {
-    let blobs = MT088_INTEGRATED_PROOF_PATHS
-        .iter()
-        .map(|path| {
-            let repo_path = repo_relative_tracked_path(path);
-            let output = std::process::Command::new("git")
-                .args(["hash-object", path])
-                .output()
-                .unwrap_or_else(|error| panic!("hash current MT-088 proof path {path}: {error}"));
-            assert!(output.status.success(), "git hash-object failed for {path}");
-            let blob = String::from_utf8(output.stdout)
-                .expect("proof blob is UTF-8")
-                .trim()
-                .to_owned();
-            let head_blob = git_blob_at_head(&repo_path);
-            (
-                repo_path.clone(),
-                serde_json::json!({
-                    "repo_path": repo_path,
-                    "head_blob": head_blob,
-                    "worktree_blob": blob,
-                    "matches_head": blob == head_blob,
-                }),
+    let mut candidate_material = Vec::new();
+    candidate_material.extend_from_slice(b"tracked-diff\0");
+    candidate_material.extend_from_slice(&tracked_diff.stdout);
+    let mut untracked_files = serde_json::Map::new();
+    for repo_path in untracked_paths {
+        let path = root.join(&repo_path);
+        let canonical_path = std::fs::canonicalize(&path).unwrap_or_else(|error| {
+            panic!(
+                "canonicalize untracked candidate {}: {error}",
+                path.display()
             )
-        })
-        .collect::<serde_json::Map<_, _>>();
-    serde_json::Value::Object(blobs)
+        });
+        assert!(
+            canonical_path.starts_with(&root),
+            "untracked candidate {} must remain inside {}",
+            canonical_path.display(),
+            root.display()
+        );
+        let sha256 = file_sha256(&canonical_path);
+        candidate_material.extend_from_slice(b"\0untracked\0");
+        candidate_material.extend_from_slice(repo_path.as_bytes());
+        candidate_material.push(0);
+        candidate_material.extend_from_slice(sha256.as_bytes());
+        untracked_files.insert(
+            repo_path.clone(),
+            serde_json::json!({
+                "repo_path": repo_path,
+                "canonical_path": canonical_path,
+                "sha256": sha256,
+            }),
+        );
+    }
+
+    let mut hash_object = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["hash-object", "--stdin"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn git hash-object for whole worktree identity");
+    hash_object
+        .stdin
+        .as_mut()
+        .expect("git hash-object stdin is piped")
+        .write_all(&candidate_material)
+        .expect("write whole worktree identity material");
+    let hash_output = hash_object
+        .wait_with_output()
+        .expect("wait for git hash-object");
+    assert!(hash_output.status.success(), "git hash-object failed");
+    let candidate_git_blob_oid = String::from_utf8(hash_output.stdout)
+        .expect("candidate git object id is UTF-8")
+        .trim()
+        .to_owned();
+    assert!(!candidate_git_blob_oid.is_empty());
+    let candidate_sha256 = format!("{:x}", Sha256::digest(&candidate_material));
+    let identity = format!("{head_sha}-worktree-{candidate_git_blob_oid}");
+    (
+        identity.clone(),
+        serde_json::json!({
+            "identity": identity,
+            "head_sha": head_sha,
+            "worktree_diff_git_blob_oid": candidate_git_blob_oid,
+            "candidate_sha256": candidate_sha256,
+            "tracked_diff_sha256": tracked_diff_sha256,
+            "tracked_diff_bytes": tracked_diff.stdout.len(),
+            "untracked_files": untracked_files,
+            "proof_driving_files": files,
+        }),
+    )
 }
 
-fn integrated_proof_paths_clean() -> bool {
-    let worktree_matches_head = std::process::Command::new("git")
-        .arg("diff")
-        .arg("--quiet")
-        .arg("HEAD")
-        .arg("--")
-        .args(MT088_INTEGRATED_PROOF_PATHS.iter().copied())
-        .status()
-        .expect("check MT-088 proof path provenance")
-        .success();
-    let index_matches_head = std::process::Command::new("git")
-        .args(["diff", "--cached", "--quiet", "HEAD", "--"])
-        .args(MT088_INTEGRATED_PROOF_PATHS.iter().copied())
-        .status()
-        .expect("check staged MT-088 proof path provenance")
-        .success();
-    let every_blob_matches_head = MT088_INTEGRATED_PROOF_PATHS.iter().all(|path| {
-        let repo_path = repo_relative_tracked_path(path);
-        let output = std::process::Command::new("git")
-            .args(["hash-object", path])
-            .output()
-            .unwrap_or_else(|error| panic!("hash current MT-088 proof path {path}: {error}"));
-        output.status.success()
-            && String::from_utf8(output.stdout)
-                .map(|blob| blob.trim() == git_blob_at_head(&repo_path))
-                .unwrap_or(false)
-    });
-    worktree_matches_head && index_matches_head && every_blob_matches_head
+fn running_test_binary_provenance() -> serde_json::Value {
+    let executable = std::fs::canonicalize(
+        std::env::current_exe().expect("resolve running MT-088 test executable"),
+    )
+    .expect("canonicalize running MT-088 test executable");
+    let target = std::fs::canonicalize("../../../../Handshake_Artifacts/handshake-cargo-target")
+        .expect("canonicalize reserved Cargo target for running MT-088 test executable");
+    assert!(
+        executable.starts_with(&target),
+        "running MT-088 test executable {} must come from reserved target {}",
+        executable.display(),
+        target.display()
+    );
+    let mut provenance = current_binary_provenance(&executable, &["."]);
+    provenance["reserved_target"] = serde_json::json!(target);
+    provenance["process_id"] = serde_json::json!(std::process::id());
+    provenance
 }
 
 fn json_author_value<'a>(
@@ -1240,6 +1363,207 @@ fn save_integrated_surface(
         "MT-088 {state} screenshot must be a non-empty external artifact"
     );
     path
+}
+
+fn validate_integrated_screenshot_markers(
+    artifact_dir: &Path,
+    run_id: &str,
+    source_identity: &str,
+    owner_session: &str,
+    direct_frames: [(&Path, &str); 3],
+    action_receipts: [Option<u64>; 3],
+) -> (PathBuf, String, Vec<serde_json::Value>) {
+    let marker_path = artifact_dir.join("screenshot_marker.jsonl");
+    let marker_bytes = std::fs::read(&marker_path).unwrap_or_else(|error| {
+        panic!(
+            "read MT-088 screenshot marker {}: {error}",
+            marker_path.display()
+        )
+    });
+    let rows = String::from_utf8(marker_bytes.clone())
+        .expect("MT-088 screenshot marker is UTF-8")
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line)
+                .expect("decode MT-088 screenshot marker row")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rows.len(), 3, "exactly three MT-088 frames must be marked");
+
+    let artifact_dir =
+        std::fs::canonicalize(artifact_dir).expect("canonicalize MT-088 marker artifact directory");
+    let mut previous_sequence = None;
+    for (index, row) in rows.iter().enumerate() {
+        assert_eq!(row["schema_id"], "hsk.native_gui.screenshot_marker@5");
+        assert_eq!(row["mt_id"], "MT-088");
+        assert_eq!(row["run_id"], run_id);
+        assert_eq!(row["source_sha"], source_identity);
+        assert_eq!(row["process_correlation_id"], owner_session);
+        assert_eq!(
+            row["process_scenario_id"],
+            "backend_down_responsive_real_pg_palmistry_argus"
+        );
+        assert_eq!(row["process_id"], u64::from(std::process::id()));
+        assert_eq!(row["status"], "CAPTURED");
+        assert_eq!(row["action_receipt_id"].as_u64(), action_receipts[index]);
+
+        let marker_frame = PathBuf::from(
+            row["frame_path"]
+                .as_str()
+                .expect("CAPTURED marker has frame path"),
+        );
+        let marker_frame = std::fs::canonicalize(&marker_frame).unwrap_or_else(|error| {
+            panic!(
+                "canonicalize MT-088 marker frame {}: {error}",
+                marker_frame.display()
+            )
+        });
+        assert!(
+            marker_frame.starts_with(&artifact_dir),
+            "marker frame {} must remain under {}",
+            marker_frame.display(),
+            artifact_dir.display()
+        );
+        assert_eq!(
+            file_sha256(&marker_frame),
+            direct_frames[index].1,
+            "marker frame {index} pixels must hash-match its operator-facing direct PNG {}",
+            direct_frames[index].0.display()
+        );
+        let sequence = row["proof_event_sequence"]
+            .as_u64()
+            .expect("marker has monotonic proof sequence");
+        if let Some(previous) = previous_sequence {
+            assert!(
+                sequence > previous,
+                "MT-088 screenshot marker proof sequences must be strictly increasing"
+            );
+        }
+        previous_sequence = Some(sequence);
+    }
+    assert!(
+        rows[0]["proof_event_sequence"].as_u64() < rows[1]["proof_event_sequence"].as_u64(),
+        "the connected pre-action marker must precede the first receipt-bound marker"
+    );
+
+    let marker_path = std::fs::canonicalize(&marker_path)
+        .expect("canonicalize MT-088 screenshot marker artifact");
+    (
+        marker_path,
+        format!("{:x}", Sha256::digest(marker_bytes)),
+        rows,
+    )
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+struct LivePhaseSample {
+    phase: String,
+    step: usize,
+    frame_elapsed_micros: u64,
+    heartbeat_counter: u64,
+}
+
+fn step_until_with_ring_samples(
+    harness: &mut Harness<'_, HandshakeApp>,
+    ring: &DiagRingReader,
+    phase: &str,
+    timeout: Duration,
+    predicate: impl Fn(&HandshakeApp) -> bool,
+) -> Vec<LivePhaseSample> {
+    let deadline = Instant::now() + timeout;
+    let mut previous_heartbeat = ring
+        .read_heartbeat()
+        .unwrap_or_else(|| panic!("{phase}: ring heartbeat exists before stepping"))
+        .counter;
+    let mut samples = Vec::new();
+    loop {
+        let started = Instant::now();
+        harness.step();
+        let elapsed = started.elapsed();
+        let heartbeat = ring
+            .read_heartbeat()
+            .unwrap_or_else(|| panic!("{phase}: ring heartbeat remains readable"))
+            .counter;
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "{phase}: frame {} exceeded the MT-088 500ms responsiveness ceiling: {elapsed:?}",
+            samples.len()
+        );
+        assert!(
+            heartbeat > previous_heartbeat,
+            "{phase}: heartbeat must strictly advance on every sampled frame (previous={previous_heartbeat}, current={heartbeat})"
+        );
+        previous_heartbeat = heartbeat;
+        samples.push(LivePhaseSample {
+            phase: phase.to_owned(),
+            step: samples.len(),
+            frame_elapsed_micros: u64::try_from(elapsed.as_micros()).unwrap_or(u64::MAX),
+            heartbeat_counter: heartbeat,
+        });
+        if predicate(harness.state()) {
+            return samples;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{phase}: terminal predicate did not resolve within {timeout:?}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn replace_unrelated_sibling_panes_with_manual(app: &mut HandshakeApp, workspace_id: &str) {
+    let sibling_ids = [PaneId::from("pane-b"), PaneId::from("pane-c")];
+    {
+        let registry = app.pane_registry();
+        let mut registry = registry.lock().expect("MT-088 sibling pane registry");
+        for pane_id in &sibling_ids {
+            registry.insert(PaneRecord::new(
+                pane_id.clone(),
+                PaneType::UserManual,
+                workspace_id,
+                None,
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        }
+    }
+    for pane_id in sibling_ids {
+        let bar = app
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .unwrap_or_else(|| panic!("MT-088 sibling tab bar {pane_id} exists"));
+        bar.tabs = vec![TabState::new(PaneType::UserManual)];
+        bar.active_index = 0;
+    }
+}
+
+fn scroll_settings_diagnostics_to_events(harness: &mut Harness<'_, HandshakeApp>) {
+    harness.event(egui::Event::PointerMoved(egui::pos2(720.0, 720.0)));
+    harness.step();
+    for _ in 0..12 {
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Line,
+            delta: egui::vec2(0.0, -4.0),
+            modifiers: egui::Modifiers::default(),
+        });
+        harness.step();
+    }
+}
+
+fn incident_survivor_files(dir: &Path) -> Vec<PathBuf> {
+    let mut files = std::fs::read_dir(dir)
+        .unwrap_or_else(|error| panic!("read survivor store {}: {error}", dir.display()))
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("survivor-") && name.ends_with(".json"))
+        })
+        .collect::<Vec<_>>();
+    files.sort();
+    files
 }
 
 /// Fail if a repo-local `test_output/` OR `tests/screenshots/` dir exists — artifacts must go to the
@@ -1543,26 +1867,45 @@ fn frame_path_has_no_ui_thread_block_on() {
         "ui() drives the layout persistence lifecycle (so the off-thread audit above covers the frame path)"
     );
 
-    // Inventory every production `Runtime::block_on` in app.rs. A newly introduced call fails this audit
-    // until its reachability and completion guard are reviewed explicitly.
+    // MT-088 V4 inventory: name every production `Runtime::block_on` owner and prove its invocation
+    // phase, thread exposure, awaited operation, guard, and bound. A newly introduced call fails this
+    // audit until all five properties are reviewed explicitly; a numeric count alone is not evidence.
     let production_end = app_src
         .find("mod mt066_stage_route_admission_tests")
         .expect("app.rs production code precedes the trailing test modules");
     let production_app_src = &app_src[..production_end];
     assert_eq!(
         production_app_src.matches(".block_on(").count(),
-        4,
-        "every production app.rs block_on call must remain in the explicit MT-088 frame-safety inventory"
+        5,
+        "every production app.rs block_on call must remain in the explicit named MT-088 frame-safety inventory"
     );
     let workspace_poll = extract_fn_body(&app_src, "fn poll_workspaces(&mut self)")
         .expect("app.rs declares poll_workspaces");
+    let workspace_finished = workspace_poll
+        .find("is_finished()")
+        .expect("workspace poll checks terminal state");
+    let workspace_take = workspace_poll
+        .find("self.workspaces_handle.take()")
+        .expect("workspace poll takes the terminal handle");
+    let workspace_block_on = workspace_poll
+        .find(".block_on(handle)")
+        .expect("workspace poll drains the terminal handle");
     assert!(
-        workspace_poll.contains("is_finished()") && workspace_poll.contains(".block_on(handle)"),
-        "workspace polling may only drain an already-finished backend task"
+        workspace_finished < workspace_take && workspace_take < workspace_block_on,
+        "poll_workspaces: frame-path/UI-thread drain awaits the workspace JoinHandle only after the exact is_finished guard, so its bound is an already-terminal handle"
     );
+    let health_finished = poll_health_fn
+        .find("is_finished()")
+        .expect("health poll checks terminal state");
+    let health_take = poll_health_fn
+        .find("self.health_handle.take()")
+        .expect("health poll takes the terminal handle");
+    let health_block_on = poll_health_fn
+        .find(".block_on(handle)")
+        .expect("health poll drains the terminal handle");
     assert!(
-        poll_health_fn.contains("is_finished()") && poll_health_fn.contains(".block_on(handle)"),
-        "health polling may only drain an already-finished backend task"
+        health_finished < health_take && health_take < health_block_on,
+        "poll_health: frame-path/UI-thread drain awaits the health JoinHandle only after the exact is_finished guard, so its bound is an already-terminal handle"
     );
     let abort_drain = extract_fn_body(&app_src, "fn abort_and_drain_runtime_task<T>(")
         .expect("app.rs declares abort_and_drain_runtime_task");
@@ -1570,19 +1913,264 @@ fn frame_path_has_no_ui_thread_block_on() {
         .find(".abort()")
         .expect("task-drain helper aborts the old task");
     let drain_position = abort_drain
-        .find(".block_on(handle)")
+        .find(".block_on(")
         .expect("task-drain helper drains the cancelled handle");
     assert!(
-        abort_position < drain_position,
-        "task replacement must abort before draining the cancelled handle"
+        abort_position < drain_position
+            && abort_drain.contains("tokio::time::timeout(timeout, handle).await"),
+        "abort_and_drain_runtime_task: shutdown aborts first and wraps the cancellation drain in the caller's remaining aggregate bound"
     );
+    assert_eq!(
+        abort_drain.matches(".block_on(").count(),
+        1,
+        "abort_and_drain_runtime_task owns exactly one inventoried cancellation drain"
+    );
+
+    let loss_sensitive_drain = extract_fn_body(&app_src, "fn drain_runtime_task<T>(")
+        .expect("app.rs declares drain_runtime_task");
+    assert!(
+        loss_sensitive_drain.contains("tokio::time::timeout(timeout, handle).await"),
+        "drain_runtime_task: shutdown-only await gives loss-sensitive settings/preference writes an explicit caller-supplied bound"
+    );
+    let shutdown_runtime_tasks = extract_fn_body(
+        &app_src,
+        "fn shutdown_background_runtime_tasks(&mut self, deadline: std::time::Instant)",
+    )
+    .expect("app.rs declares shutdown_background_runtime_tasks");
+    assert_eq!(
+        production_app_src
+            .matches("Self::abort_and_drain_runtime_task")
+            .count(),
+        2,
+        "abort+await is shutdown-only and covers exactly health + workspace tasks"
+    );
+    for (slot, intended, forbidden) in [
+        (
+            "if let Some(handle) = self.health_handle.take() {",
+            "Self::abort_and_drain_runtime_task",
+            "Self::drain_runtime_task",
+        ),
+        (
+            "if let Some(handle) = self.workspaces_handle.take() {",
+            "Self::abort_and_drain_runtime_task",
+            "Self::drain_runtime_task",
+        ),
+        (
+            "if let Some(handle) = self.settings_io_handle.take() {",
+            "Self::drain_runtime_task",
+            "Self::abort_and_drain_runtime_task",
+        ),
+        (
+            "if let Some(handle) = self.preference_io_handle.take() {",
+            "Self::drain_runtime_task",
+            "Self::abort_and_drain_runtime_task",
+        ),
+    ] {
+        let branch = extract_braced_region(shutdown_runtime_tasks, slot)
+            .unwrap_or_else(|| panic!("shutdown owns exact branch {slot}"));
+        assert_eq!(
+            branch.matches(intended).count(),
+            1,
+            "shutdown maps {slot} to exactly one {intended}"
+        );
+        assert_eq!(
+            branch.matches(forbidden).count(),
+            0,
+            "shutdown must not map {slot} to {forbidden}"
+        );
+    }
+    assert_eq!(
+        shutdown_runtime_tasks
+            .matches("Self::abort_and_drain_runtime_task")
+            .count(),
+        2,
+        "shutdown body contains exactly the health + workspace abort drains"
+    );
+    assert_eq!(
+        shutdown_runtime_tasks
+            .matches("Self::drain_runtime_task")
+            .count(),
+        2,
+        "the bounded loss-sensitive drain is confined to explicit app shutdown and covers exactly settings + preference writes"
+    );
+    assert!(
+        shutdown_runtime_tasks.contains("deadline.saturating_duration_since")
+            && shutdown_runtime_tasks.matches("remaining").count() >= 4,
+        "settings + preference drains must share one aggregate shutdown deadline, not receive a fresh per-handle allowance"
+    );
+    let layout_settlement = extract_fn_body(
+        &app_src,
+        "fn wait_for_layout_workers_to_settle(&mut self, deadline: std::time::Instant)",
+    )
+    .expect("layout settlement accepts the aggregate runtime deadline");
+    assert!(
+        layout_settlement.contains("deadline.saturating_duration_since")
+            && layout_settlement.contains("remaining.min(BACKGROUND_WORKER_SHUTDOWN_TIMEOUT)"),
+        "layout-worker settlement consumes only the aggregate deadline remainder"
+    );
+    let health_replacement = extract_fn_body(&app_src, "fn replace_health_handle(")
+        .expect("app.rs declares replace_health_handle");
+    assert!(
+        health_replacement.contains("old.abort()")
+            && health_replacement.contains("drop(old)")
+            && !health_replacement.contains("block_on")
+            && !health_replacement.contains("abort_and_drain_runtime_task"),
+        "frame-reachable health replacement must abort+release without awaiting cancellation"
+    );
+    for (owner, signature) in [
+        (
+            "flush_preference_write_now",
+            "fn flush_preference_write_now(&mut self)",
+        ),
+        (
+            "flush_settings_save_now",
+            "fn flush_settings_save_now(&mut self)",
+        ),
+        (
+            "drive_settings_dialog",
+            "fn drive_settings_dialog(&mut self, ctx: &egui::Context)",
+        ),
+    ] {
+        let body = extract_fn_body(&app_src, signature)
+            .unwrap_or_else(|| panic!("app.rs declares {owner}"));
+        assert!(
+            !body.contains("drain_runtime_task") && !body.contains("block_on"),
+            "{owner}: the frame path must release an already-published predecessor without synchronously joining it"
+        );
+    }
     let mcp_startup = extract_fn_body(&app_src, "fn spawn_mcp_server(&mut self)")
         .expect("app.rs declares spawn_mcp_server");
     assert!(
         mcp_startup.contains("SwarmMcpServer::bind")
             && !mcp_startup.contains("fetch_health")
             && !mcp_startup.contains("load_layout"),
-        "the remaining startup-only block_on is the local MCP bind, not backend I/O"
+        "spawn_mcp_server: constructor-only/UI-construction-thread await is the local MCP bind, not backend I/O"
+    );
+    let constructor = extract_fn_body(&app_src, "pub fn new(cc: &eframe::CreationContext<'_>)")
+        .expect("app.rs declares the production constructor");
+    assert!(
+        constructor.contains("app.spawn_mcp_server()"),
+        "the MCP bind is invoked only during construction, before any eframe update/frame callback"
+    );
+    assert_eq!(
+        production_app_src.matches(".spawn_mcp_server()").count(),
+        1,
+        "production invokes the startup MCP bind exactly once"
+    );
+    let mcp_server_src = strip_line_comments(include_str!("../src/mcp/server.rs"));
+    let mcp_bind = extract_fn_body(&mcp_server_src, "async fn bind_with_safety_mode(")
+        .expect("mcp/server.rs declares bind_with_safety_mode");
+    assert!(
+        mcp_bind.contains("TcpListener::bind((\"127.0.0.1\", 0)).await")
+            && mcp_bind.contains("binding::write_binding(&binding)")
+            && !mcp_bind.contains("reqwest")
+            && !mcp_bind.contains("fetch_health")
+            && !mcp_bind.contains("load_layout"),
+        "startup MCP await is an ephemeral loopback listener bind plus local discovery publication and performs no remote/backend request"
+    );
+    let mcp_binding_src = strip_line_comments(include_str!("../src/mcp/binding.rs"));
+    let binding_lock = extract_fn_body(&mcp_binding_src, "fn acquire_binding_lock(")
+        .expect("mcp/binding.rs declares acquire_binding_lock");
+    assert!(
+        binding_lock.contains("const LOCK_TIMEOUT")
+            && binding_lock.contains("Duration::from_secs(5)")
+            && binding_lock.contains("file.try_lock()")
+            && binding_lock.contains("Instant::now() < deadline"),
+        "startup discovery publication coordinates through a try_lock loop with an explicit five-second deadline"
+    );
+
+    let handshake_drop_src = app_src
+        .split_once("impl Drop for HandshakeApp")
+        .map(|(_, tail)| tail)
+        .expect("app.rs implements Drop for HandshakeApp");
+    let app_drop = extract_fn_body(handshake_drop_src, "fn drop(&mut self)")
+        .expect("HandshakeApp implements bounded Drop teardown");
+    assert!(
+        app_drop.contains("shutdown_runtime_once()"),
+        "Drop must use the single idempotent bounded runtime shutdown path"
+    );
+    let shutdown_once = extract_fn_body(&app_src, "fn shutdown_runtime_once(&mut self)")
+        .expect("app.rs owns one idempotent runtime shutdown path");
+    assert!(
+        shutdown_once.contains("if self.rt.is_none()")
+            && shutdown_once.contains("background_runtime_shutdown_timeout")
+            && shutdown_once.contains("shutdown_background_runtime_tasks(runtime_deadline)")
+            && shutdown_once.contains("self.rt.take()")
+            && shutdown_once.contains("rt.shutdown_timeout(remaining)"),
+        "the single shutdown path must consume Tokio with the remaining aggregate deadline and become a no-op on a second call"
+    );
+    let on_exit = extract_fn_body(&app_src, "fn on_exit(&mut self)")
+        .expect("eframe app owns an explicit on_exit path");
+    assert!(
+        on_exit.contains("shutdown_runtime_once()"),
+        "eframe on_exit and Drop must share the same idempotent bounded runtime shutdown path"
+    );
+
+    for (owner, body) in [
+        ("spawn_mcp_server", mcp_startup),
+        ("poll_workspaces", workspace_poll),
+        ("abort_and_drain_runtime_task", abort_drain),
+        ("drain_runtime_task", loss_sensitive_drain),
+        ("poll_health", poll_health_fn),
+    ] {
+        assert_eq!(
+            body.matches(".block_on(").count(),
+            1,
+            "{owner} owns exactly one explicitly inventoried production block_on"
+        );
+    }
+
+    // Runtime regression, not source inference: a loss-sensitive spawn_blocking transport is
+    // deliberately wedged beyond all request-timeout assumptions. The real eframe on_exit path must
+    // consume one injected aggregate budget; Drop must then be an idempotent no-op for the runtime.
+    let entered = Arc::new(AtomicBool::new(false));
+    let release = Arc::new(AtomicBool::new(false));
+    let exited = Arc::new(AtomicBool::new(false));
+    let shutdown_bound = Duration::from_millis(20);
+    let scheduler_slack = Duration::from_millis(100);
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Loading);
+    app.set_background_runtime_shutdown_timeout_for_test(shutdown_bound);
+    app.spawn_blocked_loss_sensitive_runtime_task_for_test(
+        entered.clone(),
+        release.clone(),
+        exited.clone(),
+    );
+    let entered_deadline = Instant::now() + Duration::from_secs(2);
+    while !entered.load(Ordering::SeqCst) {
+        assert!(
+            Instant::now() < entered_deadline,
+            "deliberately blocked loss-sensitive worker starts within two seconds"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let shutdown_started = Instant::now();
+    eframe::App::on_exit(&mut app);
+    let on_exit_elapsed = shutdown_started.elapsed();
+    assert!(
+        on_exit_elapsed <= shutdown_bound + scheduler_slack,
+        "blocked loss-sensitive task cannot freeze eframe on_exit: {on_exit_elapsed:?} must remain within {shutdown_bound:?} + {scheduler_slack:?} scheduler slack"
+    );
+    release.store(true, Ordering::SeqCst);
+    let exit_deadline = Instant::now() + Duration::from_secs(2);
+    while !exited.load(Ordering::SeqCst)
+        || HandshakeApp::active_blocked_runtime_workers_for_test() != 0
+    {
+        assert!(
+            Instant::now() < exit_deadline,
+            "released blocked runtime worker reaps within two seconds"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let drop_started = Instant::now();
+    drop(app);
+    let drop_elapsed = drop_started.elapsed();
+    assert!(
+        drop_elapsed <= scheduler_slack,
+        "Drop after on_exit must be runtime-idempotent, got {drop_elapsed:?}"
+    );
+    assert!(
+        on_exit_elapsed + drop_elapsed <= shutdown_bound + scheduler_slack,
+        "on_exit + idempotent Drop must consume one shutdown budget plus scheduler slack"
     );
 
     assert_no_local_artifact_dir();
@@ -2026,7 +2614,7 @@ fn recovery_fires_recovered_event() {
     assert_no_local_artifact_dir();
 }
 
-/// V2 remediation gate: one exact current-source run binds every previously separate proof surface.
+/// V4 remediation gate: one exact current-source run binds every previously separate proof surface.
 /// It starts the real managed-PostgreSQL `handshake_core`, mounts the real `HandshakeApp`, launches the
 /// real out-of-process Palmistry watcher on the app's exact diagnostics ring, then suspends ONLY the
 /// fixture-owned backend process. Suspension leaves the real listener/sockets present but prevents the
@@ -2034,41 +2622,98 @@ fn recovery_fires_recovered_event() {
 /// The mounted app must remain responsive, emit one down edge, and expose the degraded status through
 /// canonical localhost Argus. The process is resumed and replaced by the current-source backend on the
 /// same listener; the same app must recover, emit one recovered edge, and expose the reconnected status.
+fn delegate_integrated_proof_to_fresh_test_process() -> bool {
+    const CHILD_ENV: &str = "HANDSHAKE_MT088_INTEGRATED_CHILD";
+    if std::env::var(CHILD_ENV).ok().as_deref() == Some("1") {
+        return false;
+    }
+
+    // The recorder is intentionally process-global and other tests exercise it before this ignored test
+    // in an `--include-ignored` profile. Re-exec the exact same current-source test binary with an exact
+    // single-test filter so the headline live proof always owns a fresh recorder/ring process. This also
+    // makes the governed exact-live command and the 23-test full profile exercise the identical isolation
+    // boundary instead of allowing test order to decide whether Palmistry can see the ring.
+    let executable =
+        std::env::current_exe().expect("resolve current MT-088 test executable for re-exec");
+    let mut command = std::process::Command::new(&executable);
+    command
+        .arg("backend_down_responsive_real_pg_palmistry_argus")
+        .args(["--ignored", "--exact", "--nocapture", "--test-threads=1"])
+        .env(CHILD_ENV, "1");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW (HBR-QUIET)
+    }
+    let status = command.status().unwrap_or_else(|error| {
+        panic!(
+            "launch exact isolated MT-088 test process {}: {error}",
+            executable.display()
+        )
+    });
+    assert!(
+        status.success(),
+        "exact isolated MT-088 test process failed: {status}"
+    );
+    true
+}
+
 #[test]
-#[ignore = "LIVE MT-088 V3 proof: requires current-source handshake_core + palmistry binaries, isolated \
+#[ignore = "LIVE MT-088 V4 proof: requires current-source handshake_core + palmistry binaries, isolated \
             real PostgreSQL, and canonical Argus. Run the exact governed command documented in the \
             UserManual; missing live prerequisites hard-fail and never silently skip."]
 fn backend_down_responsive_real_pg_palmistry_argus() {
+    if delegate_integrated_proof_to_fresh_test_process() {
+        return;
+    }
     let _guard = lock_backend_event_tests();
     assert_no_local_artifact_dir();
-    assert!(
-        integrated_proof_paths_clean(),
-        "MT-088 integrated proof must run from committed proof sources"
-    );
+    let (source_identity, source_provenance) = current_integrated_source_provenance();
+    let running_test_binary = running_test_binary_provenance();
 
     let run_id = uuid::Uuid::new_v4().simple().to_string();
     let run_started_unix_millis = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("proof start is after epoch")
         .as_millis();
-    let owner_session = format!("mt088-v3-{run_id}");
+    let owner_session = format!("mt088-v4-{run_id}");
     let artifact_dir =
         external_artifact_dir(&format!("wp-kernel-012-mt-088/integrated/run-{run_id}"));
     std::fs::create_dir_all(&artifact_dir)
         .expect("create MT-088 integrated external artifact directory");
+    let artifact_dir = std::fs::canonicalize(&artifact_dir)
+        .expect("canonicalize MT-088 integrated external artifact directory");
     let survivor_dir = artifact_dir.join("survivors");
     std::fs::create_dir_all(&survivor_dir).expect("create scoped Palmistry survivor directory");
     let _survivor_env = EnvGuard::set_path(diagnostics::ENV_PALMISTRY_SURVIVOR_DIR, &survivor_dir);
+    let matrix_run_id = format!("run-{run_id}");
+    let _matrix_run = EnvGuard::set_value("HANDSHAKE_ARGUS_MATRIX_RUN_ID", &matrix_run_id);
+    let _screenshot_run = EnvGuard::set_value("HANDSHAKE_SCREENSHOT_RUN_ID", &matrix_run_id);
+    let _proof_mt = EnvGuard::set_value("HANDSHAKE_PROOF_MT_ID", "MT-088");
+    let _proof_scenario = EnvGuard::set_value(
+        "HANDSHAKE_PROOF_PROCESS_SCENARIO_ID",
+        "backend_down_responsive_real_pg_palmistry_argus",
+    );
+    let _clear_action_receipt = EnvGuard::set_value("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", "");
+    let _matrix_scenario = EnvGuard::set_value(
+        "HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID",
+        "backend_down_responsive_real_pg_palmistry_argus",
+    );
+    let _matrix_surface =
+        EnvGuard::set_value("HANDSHAKE_ARGUS_MATRIX_SURFACE", "settings-diagnostics");
+    let _matrix_edge = EnvGuard::set_value("HANDSHAKE_ARGUS_MATRIX_EDGE_STATE", "down-recovered");
+    let _matrix_source = EnvGuard::set_value("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA", &source_identity);
+    let _matrix_correlation =
+        EnvGuard::set_value("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID", &owner_session);
+    let _matrix_artifacts = EnvGuard::set_path(
+        "HANDSHAKE_PROOF_ARTIFACT_DIR",
+        artifact_dir
+            .parent()
+            .expect("integrated run directory has an artifact parent"),
+    );
 
     let palmistry_exe = find_palmistry_binary();
-    let palmistry_binary_provenance = current_binary_provenance(
-        &palmistry_exe,
-        &[
-            "../palmistry/src",
-            "../palmistry/Cargo.toml",
-            "../palmistry/Cargo.lock",
-        ],
-    );
+    let palmistry_binary_provenance = current_binary_provenance(&palmistry_exe, &["../palmistry"]);
     let session_id = uuid::Uuid::new_v4().to_string();
     let ring_path = artifact_dir.join(format!("handshake-diag-{session_id}.ring"));
     let ring_writer = DiagRingWriter::create(&ring_path, handshake_diag_ring::DEFAULT_CAPACITY)
@@ -2105,12 +2750,9 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     let mut backend = pg_proof_support::require_live_backend();
     let backend_binary_provenance = current_binary_provenance(
         backend.owned_binary_path(),
-        &[
-            "../../backend/handshake_core/src",
-            "../../backend/handshake_core/Cargo.toml",
-            "../../backend/handshake_core/Cargo.lock",
-        ],
+        &["../../backend/handshake_core"],
     );
+    let initial_backend_binding_receipt = backend.owned_backend_binding_receipt();
     let original_backend_pid = backend.owned_process_id();
     let backend_base = backend.base.clone();
     let backend_workspace_id = backend.workspace_id.clone();
@@ -2119,11 +2761,12 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "the integrated mounted proof requires a real PostgreSQL-backed workspace"
     );
     let mut harness: Harness<HandshakeApp> = Harness::builder()
-        .with_size(egui::vec2(1440.0, 900.0))
+        .with_size(egui::vec2(1600.0, 1100.0))
         .build_eframe(|cc| {
             let mut app = HandshakeApp::new(cc);
             app.bind_managed_backend_for_test(&backend_base);
             app.set_active_project_id_for_test(backend_workspace_id.clone());
+            replace_unrelated_sibling_panes_with_manual(&mut app, &backend_workspace_id);
             app
         });
     assert_eq!(
@@ -2131,11 +2774,24 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         Some(&session),
         "the mounted app must reuse the exact diagnostics ring Palmistry watches"
     );
-    step_until(&mut harness, Duration::from_secs(20), |app| {
-        !app.backend_is_down()
-            && app.status_bar_health_text().contains("Backend: OK")
-            && app.layout_workers_in_flight_for_test() == 0
-    });
+    assert_eq!(
+        harness.state().active_project_id(),
+        backend_workspace_id,
+        "mounted proof workspace remains bound to the managed PostgreSQL fixture"
+    );
+    let ring =
+        DiagRingReader::open(&session.ring_path).expect("Palmistry-shared MT-088 ring is readable");
+    let connected_phase_samples = step_until_with_ring_samples(
+        &mut harness,
+        &ring,
+        "connected-baseline",
+        Duration::from_secs(20),
+        |app| {
+            !app.backend_is_down()
+                && app.status_bar_health_text().contains("Backend: OK")
+                && app.layout_workers_in_flight_for_test() == 0
+        },
+    );
     harness
         .state_mut()
         .clear_fems_overlay_for_integration_test();
@@ -2164,11 +2820,20 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "a managed-backend proof cannot leave mounted consumers visibly bound to the production \
          default endpoint; tree={live_json}"
     );
+    for unrelated in [
+        handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+        "wikilink-alias-local-only-banner",
+        handshake_native::runtime_chat::RUNTIME_CHAT_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            !json_has_author_id(&live_inspect, unrelated),
+            "connected baseline must be free of unrelated error surface {unrelated}"
+        );
+    }
     let live_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "connected-before");
     let live_screenshot_sha256 = file_sha256(&live_screenshot);
 
-    let ring =
-        DiagRingReader::open(&session.ring_path).expect("Palmistry-shared MT-088 ring is readable");
     let heartbeat_live = ring
         .read_heartbeat()
         .expect("mounted app publishes a heartbeat before fault injection");
@@ -2197,22 +2862,18 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         harness.state().layout_load_ownership_for_test().2,
         "real suspended-backend phase must begin with a fresh layout worker in flight"
     );
-    let fault_deadline = Instant::now() + CLIENT_REQUEST_TIMEOUT + Duration::from_secs(8);
-    let mut worst_fault_frame = Duration::ZERO;
-    while (!harness.state().backend_is_down()
-        || harness.state().layout_workers_in_flight_for_test() != 0)
-        && Instant::now() < fault_deadline
-    {
-        let started = Instant::now();
-        harness.step();
-        let elapsed = started.elapsed();
-        worst_fault_frame = worst_fault_frame.max(elapsed);
-        assert!(
-            elapsed < Duration::from_millis(500),
-            "a suspended real backend must not stall a mounted UI frame"
-        );
-        std::thread::sleep(Duration::from_millis(20));
-    }
+    let fault_phase_samples = step_until_with_ring_samples(
+        &mut harness,
+        &ring,
+        "backend-suspended",
+        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(8),
+        |app| app.backend_is_down() && app.layout_workers_in_flight_for_test() == 0,
+    );
+    let worst_fault_frame_micros = fault_phase_samples
+        .iter()
+        .map(|sample| sample.frame_elapsed_micros)
+        .max()
+        .expect("suspended phase samples at least one frame");
     assert!(
         harness.state().backend_is_down(),
         "suspended real backend must resolve to finite degraded state within the request deadline"
@@ -2247,20 +2908,32 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         json_has_author_id(&operator_menu.after, "menu.operator.settings"),
         "canonical Argus must expose OPERATOR -> Open Settings before navigating"
     );
-    let _settings_open_inspect = argus
-        .click_and_reinspect(&mut harness, "menu.operator.settings")
-        .after;
+    let operator_menu_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "operator-menu-open-exposes-settings",
+        |tree| json_has_author_id(tree, "menu.operator.settings"),
+    );
+    let settings_open = argus.click_and_reinspect(&mut harness, "menu.operator.settings");
     assert!(
         harness.state().settings_open(),
         "canonical Argus OPERATOR -> Open Settings must open the real Settings overlay"
     );
-    let down_diagnostics_inspect = argus
-        .set_value_and_reinspect(
-            &mut harness,
-            handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
-            "diagnostics",
-        )
-        .after;
+    let settings_open_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "settings-open-exposes-search",
+        |tree| {
+            json_has_author_id(
+                tree,
+                handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
+            )
+        },
+    );
+    let down_search = argus.set_value_and_reinspect(
+        &mut harness,
+        handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
+        "diagnostics",
+    );
+    let down_diagnostics_inspect = down_search.after.clone();
     assert_eq!(
         json_author_value(
             &down_diagnostics_inspect,
@@ -2296,9 +2969,13 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         down_diagnostics_json.contains("Shared-memory ring active"),
         "canonical Argus Settings diagnostics tree must expose Tier-3 ring visibility"
     );
-    step_until(&mut harness, Duration::from_secs(15), |app| {
-        app.settings_persist_error().is_some()
-    });
+    let down_settings_phase_samples = step_until_with_ring_samples(
+        &mut harness,
+        &ring,
+        "down-settings-terminal",
+        Duration::from_secs(15),
+        |app| app.settings_persist_error().is_some(),
+    );
     let down_settings_error = harness
         .state()
         .settings_persist_error()
@@ -2309,10 +2986,57 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
          {down_settings_error:?}"
     );
     assert!(
+        down_settings_error.contains(&backend_workspace_id),
+        "the mounted Settings failure must identify the exact managed workspace, got {down_settings_error:?}"
+    );
+    assert!(
         !down_settings_error.contains(handshake_native::backend_client::BACKEND_BASE_URL),
         "the mounted Settings failure cannot come from the unrelated production default endpoint"
     );
-    let down_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "disconnected");
+    scroll_settings_diagnostics_to_events(&mut harness);
+    let down_identity_bound = harness.state().diag_session() == Some(&session)
+        && harness.state().active_project_id() == backend_workspace_id
+        && harness.state().backend_is_down();
+    let expected_down_endpoint = backend_base.clone();
+    let expected_down_workspace = backend_workspace_id.clone();
+    let expected_down_session = session.session_id.clone();
+    let down_terminal_inspect = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "degraded-diagnostics-exact-session-endpoint-workspace",
+        serde_json::json!({
+            "endpoint": expected_down_endpoint,
+            "workspace_id": expected_down_workspace,
+            "diagnostics_session_id": expected_down_session,
+            "expected_status": "Disconnected — UI responsive",
+            "expected_event": "BackendUnreachable",
+            "expected_ring": "Shared-memory ring active",
+        }),
+        |tree| {
+            let json = serde_json::to_string(tree).expect("serialize terminal down tree");
+            down_identity_bound
+                && json_has_author_id(tree, BACKEND_STATUS_AUTHOR_ID)
+                && json_has_author_id(tree, diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID)
+                && json_has_author_id(tree, diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID)
+                && json_has_author_id(tree, diagnostics::DIAGNOSTICS_PALMISTRY_AUTHOR_ID)
+                && json_has_author_id(
+                    tree,
+                    handshake_native::settings_dialog::SETTINGS_PERSIST_ERROR_AUTHOR_ID,
+                )
+                && json.contains("Disconnected")
+                && json.contains("UI responsive")
+                && json.contains("BackendUnreachable")
+                && json.contains("Shared-memory ring active")
+                && json.contains(&backend_base)
+                && json.contains(&backend_workspace_id)
+        },
+    );
+    let down_screenshot = {
+        let _action_receipt = EnvGuard::set_value(
+            "HANDSHAKE_PROOF_ACTION_RECEIPT_ID",
+            down_search.receipt_id.to_string(),
+        );
+        save_integrated_surface(&mut harness, &artifact_dir, "disconnected")
+    };
     let down_screenshot_sha256 = file_sha256(&down_screenshot);
     assert_ne!(
         down_screenshot_sha256, live_screenshot_sha256,
@@ -2370,9 +3094,13 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         restarted_backend_pid, original_backend_pid,
         "real backend restart must replace the exact process"
     );
-    step_until(&mut harness, Duration::from_secs(20), |app| {
-        !app.backend_is_down() && app.status_bar_health_text().contains("Backend: OK")
-    });
+    let recovery_backend_phase_samples = step_until_with_ring_samples(
+        &mut harness,
+        &ring,
+        "backend-restarted",
+        Duration::from_secs(20),
+        |app| !app.backend_is_down() && app.status_bar_health_text().contains("Backend: OK"),
+    );
     assert!(
         process_is_running(palmistry_pid),
         "out-of-process Palmistry must survive through backend restart and reconnect"
@@ -2389,11 +3117,63 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "canonical Argus must dispatch the visible Settings recovery action, got {}",
         settings_retry.receipt_status
     );
-    step_until(&mut harness, Duration::from_secs(15), |app| {
-        app.settings_persist_error().is_none()
-    });
-
-    let recovered_inspect = argus.inspect(&mut harness);
+    let recovery_settings_phase_samples = step_until_with_ring_samples(
+        &mut harness,
+        &ring,
+        "recovered-settings-terminal",
+        Duration::from_secs(15),
+        |app| app.settings_persist_error().is_none(),
+    );
+    let ring_recovered_events = ring.read_last_n(64);
+    let ring_recovered_event = ring_recovered_events
+        .iter()
+        .filter(|event| {
+            event.event_code == DiagEventCode::BackendRecovered.as_u16()
+                && event.counter_a == backend_port
+                && event.phase_marker == DiagPhase::Recovered.as_u8()
+                && event.severity == DiagSeverity::Info.as_u8()
+                && event.timestamp_nanos >= recovery_started_nanos
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        ring_recovered_event.len(),
+        1,
+        "same-run ring must contain exactly one newly timestamped BackendRecovered edge for real port \
+         {backend_port}; events={ring_recovered_events:?}"
+    );
+    let recovered_identity_bound = harness.state().diag_session() == Some(&session)
+        && harness.state().active_project_id() == backend_workspace_id
+        && !harness.state().backend_is_down()
+        && restarted_backend_pid != original_backend_pid;
+    let recovered_inspect = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "recovered-diagnostics-exact-session-endpoint-workspace",
+        serde_json::json!({
+            "endpoint": backend_base,
+            "workspace_id": backend_workspace_id,
+            "diagnostics_session_id": session.session_id,
+            "restarted_backend_pid": restarted_backend_pid,
+            "expected_status": "Backend: OK",
+            "expected_event": "BackendRecovered",
+            "expected_ring": "Shared-memory ring active",
+            "settings_error_absent": true,
+        }),
+        |tree| {
+            let json = serde_json::to_string(tree).expect("serialize terminal recovered tree");
+            recovered_identity_bound
+                && json_has_author_id(tree, BACKEND_STATUS_AUTHOR_ID)
+                && json_has_author_id(tree, diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID)
+                && json_has_author_id(tree, diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID)
+                && json_has_author_id(tree, diagnostics::DIAGNOSTICS_PALMISTRY_AUTHOR_ID)
+                && !json_has_author_id(
+                    tree,
+                    handshake_native::settings_dialog::SETTINGS_PERSIST_ERROR_AUTHOR_ID,
+                )
+                && json.contains("Backend: OK")
+                && json.contains("BackendRecovered")
+                && json.contains("Shared-memory ring active")
+        },
+    );
     let recovered_status = json_author_value(&recovered_inspect, BACKEND_STATUS_AUTHOR_ID)
         .expect("canonical Argus recovered status has text")
         .to_owned();
@@ -2427,7 +3207,13 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "the mounted Settings recovery action must clear its degraded-state error before the \
          reconnected capture"
     );
-    let recovered_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "reconnected");
+    let recovered_screenshot = {
+        let _action_receipt = EnvGuard::set_value(
+            "HANDSHAKE_PROOF_ACTION_RECEIPT_ID",
+            settings_retry.receipt_id.to_string(),
+        );
+        save_integrated_surface(&mut harness, &artifact_dir, "reconnected")
+    };
     let recovered_screenshot_sha256 = file_sha256(&recovered_screenshot);
     assert_ne!(
         recovered_screenshot_sha256, down_screenshot_sha256,
@@ -2440,23 +3226,6 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         heartbeat_recovered.counter > heartbeat_down.counter,
         "the exact Palmistry-shared heartbeat must advance after reconnect"
     );
-    let ring_recovered_events = ring.read_last_n(64);
-    let ring_recovered_event = ring_recovered_events
-        .iter()
-        .filter(|event| {
-            event.event_code == DiagEventCode::BackendRecovered.as_u16()
-                && event.counter_a == backend_port
-                && event.phase_marker == DiagPhase::Recovered.as_u8()
-                && event.severity == DiagSeverity::Info.as_u8()
-                && event.timestamp_nanos >= recovery_started_nanos
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        ring_recovered_event.len(),
-        1,
-        "same-run ring must contain exactly one newly timestamped BackendRecovered edge for real port \
-         {backend_port}; events={ring_recovered_events:?}"
-    );
     let (unreachable_after, recovered_after) = count_backend_events();
     assert_eq!(unreachable_after - unreachable_before, 1);
     assert_eq!(
@@ -2465,7 +3234,101 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "real backend restart/reconnect emits exactly one BackendRecovered"
     );
 
+    let incident_ring_events = ring
+        .read_last_n(128)
+        .into_iter()
+        .filter(|event| {
+            matches!(
+                event.event_code,
+                code if code == DiagEventCode::FreezeSuspected.as_u16()
+                    || code == DiagEventCode::CrashDetected.as_u16()
+            )
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        incident_ring_events.is_empty(),
+        "advancing heartbeat must not produce a false freeze/crash ring incident: {incident_ring_events:?}"
+    );
+    let receipt_ids = [
+        operator_menu.receipt_id,
+        settings_open.receipt_id,
+        down_search.receipt_id,
+        settings_retry.receipt_id,
+    ];
+    assert_eq!(
+        receipt_ids
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        4,
+        "all four governed Argus actions must carry unique receipts"
+    );
+    assert_eq!(
+        harness.state().layout_workers_in_flight_for_test(),
+        0,
+        "all app-owned layout workers must be reaped before Argus/app teardown"
+    );
+    let down_terminal_tree_sha256 = json_sha256(&down_terminal_inspect);
+    let recovered_terminal_tree_sha256 = json_sha256(&recovered_inspect);
+    let (screenshot_marker_path, screenshot_marker_sha256, screenshot_marker_rows) =
+        validate_integrated_screenshot_markers(
+            &artifact_dir,
+            &matrix_run_id,
+            &source_identity,
+            &owner_session,
+            [
+                (&live_screenshot, &live_screenshot_sha256),
+                (&down_screenshot, &down_screenshot_sha256),
+                (&recovered_screenshot, &recovered_screenshot_sha256),
+            ],
+            [
+                None,
+                Some(down_search.receipt_id),
+                Some(settings_retry.receipt_id),
+            ],
+        );
     argus.finish();
+    let canonical_trace_path = artifact_dir.join("canonical-argus-matrix.jsonl");
+    let canonical_trace_bytes = std::fs::read(&canonical_trace_path).unwrap_or_else(|error| {
+        panic!(
+            "read canonical Argus trace {} after finish: {error}",
+            canonical_trace_path.display()
+        )
+    });
+    let canonical_trace_rows = String::from_utf8(canonical_trace_bytes.clone())
+        .expect("canonical Argus trace is UTF-8")
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line).expect("decode Argus trace row")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        canonical_trace_rows.len(),
+        4,
+        "trace contains all four actions"
+    );
+    for (index, row) in canonical_trace_rows.iter().enumerate() {
+        assert_eq!(row["receipt_id"], receipt_ids[index]);
+        assert_eq!(row["terminal_refreshed"], true);
+        assert_eq!(row["run_id"], matrix_run_id);
+        assert_eq!(row["source_sha"], source_identity);
+        assert_eq!(row["process_correlation_id"], owner_session);
+        assert!(
+            row["terminal_predicates"]
+                .as_array()
+                .is_some_and(|predicates| {
+                    !predicates.is_empty()
+                        && predicates
+                            .iter()
+                            .all(|predicate| predicate["passed"] == true)
+                }),
+            "trace row {index} must carry a passing terminal predicate: {row}"
+        );
+    }
+    let canonical_trace_path =
+        std::fs::canonicalize(&canonical_trace_path).expect("canonicalize finished Argus trace");
+    let canonical_trace_sha256 = format!("{:x}", Sha256::digest(&canonical_trace_bytes));
     drop(harness);
     let palmistry_shutdown = palmistry.request_shutdown_and_wait(Duration::from_secs(10));
     match palmistry_shutdown {
@@ -2495,16 +3358,49 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     );
     assert_eq!(survivor_json["abnormal_parent_exit"], false);
     assert_eq!(survivor_json["shutdown_received"], true);
+    assert_eq!(survivor_json["parent_exit_code"], serde_json::Value::Null);
+    assert_eq!(
+        survivor_json["parent_pid"],
+        std::process::id(),
+        "Palmistry lifecycle survivor must bind to this exact test parent"
+    );
+    let palmistry_survivor = std::fs::canonicalize(&palmistry_survivor)
+        .expect("canonicalize Palmistry lifecycle survivor");
+    let palmistry_survivor_sha256 = file_sha256(&palmistry_survivor);
+    let incident_survivors = incident_survivor_files(&survivor_dir);
+    assert!(
+        incident_survivors.is_empty(),
+        "healthy advancing heartbeat must produce zero Freeze/Crash/ChildStall incident survivors: {incident_survivors:?}"
+    );
+    let restarted_backend_binding_receipt = backend.owned_backend_binding_receipt();
+    let backend_runtime_roots = backend.owned_runtime_roots_for_proof();
     backend.assert_cleanup();
     assert!(
         !process_is_running(restarted_backend_pid),
         "backend cleanup must reap the exact restarted proof-owned child"
     );
+    drop(backend);
+    for runtime_root in &backend_runtime_roots {
+        assert!(
+            !runtime_root.exists(),
+            "backend runtime root must be removed before evidence publication: {}",
+            runtime_root.display()
+        );
+    }
+    let canonical_ring_path = std::fs::canonicalize(&session.ring_path)
+        .expect("canonicalize same-run diagnostics ring after child teardown");
 
     let evidence_path = artifact_dir.join("mt088-integrated-canonical-evidence.json");
     let evidence = serde_json::json!({
-        "schema_id": "handshake.mt088-integrated-proof.v1",
-        "run_id": run_id,
+        "schema_id": "handshake.mt088-integrated-proof.v4",
+        "run_id": matrix_run_id,
+        "argus_teardown_verified": true,
+        "runtime_binding": {
+            "workspace_id": backend_workspace_id,
+            "diagnostics_session_id": session.session_id,
+            "ring_canonical_path": canonical_ring_path,
+            "control_socket": control_socket,
+        },
         "ownership": {
             "owner_session": owner_session,
             "owner_wp": "WP-KERNEL-012",
@@ -2515,22 +3411,27 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
             "backend_child_reaped": true,
             "orphan_reclamation_verified": true,
         },
-        "source_sha": current_source_sha(),
-        "proof_source_blobs": current_integrated_proof_blobs(),
-        "proof_paths_clean_against_source_sha": true,
+        "source_identity": source_identity,
+        "source_provenance": source_provenance,
+        "running_test_binary": running_test_binary,
         "managed_postgresql": true,
         "current_source_backend": {
             "base_url": backend_base,
+            "workspace_id": backend_workspace_id,
             "binary": backend_binary_provenance,
+            "initial_binding_receipt": initial_backend_binding_receipt,
+            "restarted_binding_receipt": restarted_backend_binding_receipt,
             "suspended_pid": original_backend_pid,
             "restarted_pid": restarted_backend_pid,
             "restart_reused_exact_listener": old_base == new_base,
             "cleanup_verified": true,
+            "runtime_roots": backend_runtime_roots,
+            "runtime_roots_deleted_before_evidence": true,
         },
         "fault": {
             "mechanism": "OS suspension of the fixture-owned current-source handshake_core process",
             "network_effect": "real listener remains present while accepted requests receive no application bytes until the bounded client deadline",
-            "slowest_ui_frame_millis": worst_fault_frame.as_millis(),
+            "slowest_ui_frame_micros": worst_fault_frame_micros,
             "request_deadline_millis": CLIENT_REQUEST_TIMEOUT.as_millis(),
             "fresh_layout_generation": fault_layout_generation,
             "fresh_layout_worker_drained": true,
@@ -2543,6 +3444,9 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
             "heartbeat_reconnected": heartbeat_recovered.counter,
             "backend_unreachable_delta": unreachable_after - unreachable_before,
             "backend_recovered_delta": recovered_after - recovered_before,
+            "backend_unreachable_ring_records": ring_down_event,
+            "backend_recovered_ring_records": ring_recovered_event,
+            "false_freeze_crash_ring_events": incident_ring_events,
         },
         "palmistry": {
             "binary": palmistry_binary_provenance,
@@ -2550,12 +3454,67 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
             "handshake_acked": true,
             "alive_during_backend_suspension": true,
             "alive_after_backend_restart": true,
-            "survivor_receipt": palmistry_survivor,
+            "parent_pid": std::process::id(),
+            "survivor_receipt": {
+                "canonical_path": palmistry_survivor,
+                "sha256": palmistry_survivor_sha256,
+            },
             "survivor": survivor_json,
+            "incident_survivor_count": incident_survivors.len(),
+            "incident_survivors": incident_survivors,
+            "no_false_freeze_crash_child_stall": true,
         },
         "canonical_argus": {
             "transport": "SwarmMcpServer localhost JSON-RPC",
             "author_id": BACKEND_STATUS_AUTHOR_ID,
+            "trace": {
+                "canonical_path": canonical_trace_path,
+                "sha256": canonical_trace_sha256,
+                "row_count": canonical_trace_rows.len(),
+            },
+            "actions": [
+                {
+                    "ordinal": 1,
+                    "target": handshake_native::top_menu_bar::MenuId::Operator.author_id(),
+                    "receipt_id": operator_menu.receipt_id,
+                    "receipt_status": operator_menu.receipt_status,
+                    "terminal_tree_sha256": json_sha256(&operator_menu_terminal),
+                    "terminal_predicate": "operator-menu-open-exposes-settings",
+                },
+                {
+                    "ordinal": 2,
+                    "target": "menu.operator.settings",
+                    "receipt_id": settings_open.receipt_id,
+                    "receipt_status": settings_open.receipt_status,
+                    "terminal_tree_sha256": json_sha256(&settings_open_terminal),
+                    "terminal_predicate": "settings-open-exposes-search",
+                },
+                {
+                    "ordinal": 3,
+                    "target": handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,
+                    "value": "diagnostics",
+                    "receipt_id": down_search.receipt_id,
+                    "receipt_status": down_search.receipt_status,
+                    "terminal_tree_sha256": down_terminal_tree_sha256,
+                    "terminal_predicate": "degraded-diagnostics-exact-session-endpoint-workspace",
+                    "paired_frame": {
+                        "path": down_screenshot,
+                        "sha256": down_screenshot_sha256,
+                    },
+                },
+                {
+                    "ordinal": 4,
+                    "target": handshake_native::settings_dialog::SETTINGS_PERSIST_RETRY_AUTHOR_ID,
+                    "receipt_id": settings_retry.receipt_id,
+                    "receipt_status": settings_retry.receipt_status,
+                    "terminal_tree_sha256": recovered_terminal_tree_sha256,
+                    "terminal_predicate": "recovered-diagnostics-exact-session-endpoint-workspace",
+                    "paired_frame": {
+                        "path": recovered_screenshot,
+                        "sha256": recovered_screenshot_sha256,
+                    },
+                },
+            ],
             "connected_before": {"status": live_status, "inspect": live_inspect},
             "disconnected": {
                 "status": down_status,
@@ -2565,11 +3524,29 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
             "reconnected": {"status": recovered_status, "inspect": recovered_inspect},
             "teardown_verified": true,
         },
+        "frame_heartbeat_samples": {
+            "per_frame_ceiling_micros": 500_000,
+            "strict_heartbeat_advance": true,
+            "connected_baseline": connected_phase_samples,
+            "backend_suspended": fault_phase_samples,
+            "down_settings_terminal": down_settings_phase_samples,
+            "backend_restarted": recovery_backend_phase_samples,
+            "recovered_settings_terminal": recovery_settings_phase_samples,
+        },
         "mounted_surface_renders": [
             {"state": "connected-before", "path": live_screenshot, "sha256": live_screenshot_sha256},
             {"state": "disconnected-settings-diagnostics", "path": down_screenshot, "sha256": down_screenshot_sha256},
             {"state": "reconnected-settings-diagnostics", "path": recovered_screenshot, "sha256": recovered_screenshot_sha256},
         ],
+        "screenshot_markers": {
+            "canonical_path": screenshot_marker_path,
+            "sha256": screenshot_marker_sha256,
+            "row_count": screenshot_marker_rows.len(),
+            "rows": screenshot_marker_rows,
+            "pre_action_marker_has_no_receipt": true,
+            "receipt_bound_markers": [down_search.receipt_id, settings_retry.receipt_id],
+            "marker_frames_hash_match_operator_pngs": true,
+        },
     });
     std::fs::write(
         &evidence_path,

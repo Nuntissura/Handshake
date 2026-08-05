@@ -1742,10 +1742,21 @@ impl FindInFilesPanelState {
         }
     }
 
+    /// Publish a TYPED terminal failure for the Search action.
+    ///
+    /// The message is sanitized and enveloped before it enters the completion token. A raw backend or
+    /// `regex` crate error is frequently MULTI-LINE, and a control character makes the whole
+    /// `handshake.click-completion/v1` token invalid — which silently degrades an honest typed failure
+    /// into an `indeterminate` receipt (and poisons the baseline for the NEXT search too). The
+    /// product-owned `"<effect> failed: "` envelope also lets an external verifier bind the exact
+    /// failing effect without depending on platform-specific transport text.
     fn fail_search_action(&mut self, error: String) {
         if self.search_action_state == crate::mcp::action::ClickCompletionState::Pending {
             self.search_action_state = crate::mcp::action::ClickCompletionState::Failed;
-            self.search_action_error = Some(error);
+            self.search_action_error = Some(bounded_token_field(
+                &format!("{SEARCH_COMPLETION_EFFECT} failed: {error}"),
+                512,
+            ));
         }
     }
 

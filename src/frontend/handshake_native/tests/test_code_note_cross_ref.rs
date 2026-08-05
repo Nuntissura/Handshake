@@ -69,8 +69,9 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
 use handshake_native::rich_editor::slash_commands::{
-    code_symbol_search::CodeSymbolSearchState, render_code_symbol_search_dialog,
-    CODE_SYMBOL_SEARCH_AUTHOR_ID, CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
+    code_symbol_result_author_id, code_symbol_search::CodeSymbolSearchState,
+    render_code_symbol_search_dialog, CODE_SYMBOL_SEARCH_AUTHOR_ID,
+    CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
 };
 use handshake_native::rich_editor::wikilinks::inline_view::{code_ref_chip_author_id, EditorEvent};
 use handshake_native::rich_editor::wikilinks::parser::parse_wikilink;
@@ -178,29 +179,188 @@ fn canonical_action_proof(
     target: &str,
     observation: &ArgusObservation,
     terminal_predicate: &str,
-    terminal: &serde_json::Value,
 ) -> serde_json::Value {
+    use sha2::Digest as _;
+
+    let receipt = observation.after["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .unwrap_or_else(|| panic!("action {target} retains receipt {}", observation.receipt_id));
+    assert_eq!(
+        observation.receipt_status, "applied",
+        "MT-034 V4 requires an action-specific Applied receipt: {receipt}"
+    );
+    assert!(
+        observation.terminal_refreshed,
+        "serialized MT-034 proof must use the persisted terminal observation"
+    );
+    let predicate = observation
+        .terminal_predicates
+        .iter()
+        .find(|predicate| predicate.predicate_id == terminal_predicate)
+        .unwrap_or_else(|| panic!("action {target} retains predicate {terminal_predicate}"));
+    assert!(predicate.passed);
+    let completion_token = receipt["observed_value"]
+        .as_str()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .expect("Applied receipt carries a parseable completion token");
+    let product_detail = completion_token["terminal_detail"]
+        .as_str()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .expect("Applied receipt carries parseable MT-034 product identity detail");
+    assert!(
+        !observation.correlation_id.trim().is_empty(),
+        "every canonical action must carry a non-empty per-request correlation id"
+    );
+    if target == "editor.rich.insert-slash-command" {
+        let generation_before = product_detail["dialog_generation_before"]
+            .as_u64()
+            .expect("slash completion retains its pre-action dialog generation");
+        let generation_after = product_detail["dialog_generation_after"]
+            .as_u64()
+            .expect("slash completion retains its post-action dialog generation");
+        assert!(
+            generation_after > generation_before,
+            "slash completion requires a fresh production dialog generation"
+        );
+    }
+    let hash = |value: &serde_json::Value| {
+        format!(
+            "{:x}",
+            sha2::Sha256::digest(
+                serde_json::to_vec(value).expect("serialize Argus tree for SHA-256")
+            )
+        )
+    };
     serde_json::json!({
-        "target": target,
+        "requested_action": "argus.click",
+        "correlation_id": observation.correlation_id,
+        "stable_author_id": target,
+        "binding_identity": observation.agent_id,
+        "receipt": receipt,
+        "completion_token": completion_token,
+        "product_detail": product_detail,
         "observation": {
             "before": observation.before,
-            "post_action_initial": observation.after,
+            "after": observation.after,
+            "before_tree_hash": hash(&observation.before),
+            "after_tree_hash": hash(&observation.after),
+            "before_generation": observation.before["captured_at_utc"],
+            "after_generation": observation.after["captured_at_utc"],
             "receipt_id": observation.receipt_id,
             "receipt_status": observation.receipt_status,
+            "correlation_id": observation.correlation_id,
             "agent_id": observation.agent_id,
-            "initial_post_action_observed_sequence": observation.terminal_observed_sequence,
+            "terminal_observed_sequence": observation.terminal_observed_sequence,
             "target_selected_before": observation.target_selected_before,
-            "target_selected_after": observation.target_selected_after
+            "target_selected_after": observation.target_selected_after,
+            "terminal_refreshed": observation.terminal_refreshed
         },
-        "terminal_observation": {
-            "refreshed": true,
-            "predicate": {
-                "id": terminal_predicate,
-                "passed": true
-            },
-            "tree": terminal
-        }
+        "terminal_predicate": predicate,
+        "terminal": observation.after
     })
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn sha256_file(path: &Path) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(std::fs::read(path).expect("read MT-034 proof artifact"))
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn current_source_candidate_identity() -> (String, serde_json::Value) {
+    use sha2::Digest as _;
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("manifest nested below repository root");
+    let head = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve MT-034 proof HEAD");
+    assert!(head.status.success());
+    let head_sha = String::from_utf8(head.stdout)
+        .expect("HEAD is UTF-8")
+        .trim()
+        .to_owned();
+    let diff = std::process::Command::new("git")
+        .args(["diff", "--binary", "HEAD", "--", "."])
+        .current_dir(repo_root)
+        .output()
+        .expect("read MT-034 source-candidate diff");
+    assert!(diff.status.success());
+    let diff_sha256 = format!("{:x}", sha2::Sha256::digest(&diff.stdout));
+    let identity = format!("{head_sha}-worktree-{}", &diff_sha256[..16]);
+    (
+        identity.clone(),
+        serde_json::json!({
+            "identity": identity,
+            "head_sha": head_sha,
+            "tracked_diff_sha256": diff_sha256,
+            "tracked_diff_bytes": diff.stdout.len()
+        }),
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn assert_clean_mt034_success_tree(tree: &serde_json::Value, phase: &str) {
+    let serialized = serde_json::to_string(tree)
+        .expect("serialize MT-034 success tree")
+        .to_ascii_lowercase();
+    for forbidden in [
+        "load failed:",
+        "404 not found",
+        "endpointmissing",
+        "endpoint missing",
+        "local-only alias",
+        "alias resolution is running local-only",
+        "wikilink-alias-local-only-banner",
+    ] {
+        assert!(
+            !serialized.contains(forbidden),
+            "MT-034 {phase} success tree contains unexpected error state {forbidden:?}"
+        );
+    }
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn assert_clean_mt034_success_frame_tree(tree: &serde_json::Value, phase: &str) {
+    assert_clean_mt034_success_tree(tree, phase);
+    let serialized = serde_json::to_string(tree)
+        .expect("serialize MT-034 success frame tree")
+        .to_ascii_lowercase();
+    assert!(
+        !serialized.contains("alias resolution is running local-only")
+            && !serialized.contains("wikilink-alias-local-only-banner"),
+        "MT-034 {phase} success frame must not contain the editing-only alias authority warning"
+    );
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn select_visible_reading_mode(harness: &mut Harness<'_, HandshakeApp>, expected_store_key: &str) {
+    let target = author_ids(harness)
+        .into_iter()
+        .find(|author_id| author_id.starts_with("rich-reading-mode-reading"))
+        .expect("mounted rich editor exposes its production Reading mode control");
+    harness
+        .get_by(|node| node.author_id() == Some(target.as_str()))
+        .click();
+    harness.run_steps(2);
+    assert_eq!(
+        handshake_native::rich_editor::reading_mode::reading_mode_store(&harness.ctx)
+            .get(expected_store_key),
+        handshake_native::rich_editor::reading_mode::ViewMode::Reading,
+        "production Reading control must persist the exact mounted document key"
+    );
 }
 
 #[cfg(feature = "wgpu_screenshots")]
@@ -244,7 +404,9 @@ fn role_for<S>(harness: &Harness<'_, S>, author_id: &str) -> Option<String> {
 /// A live shell with the mounted code pane and mounted Notes/rich pane present. This mirrors the
 /// host-mount proof shape, but stays in the MT-034-owned test file so the code-ref route proof is
 /// co-located with the code<->note contract.
-fn code_note_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+fn code_note_editor_shell_with_runtime(
+    bind_runtime: bool,
+) -> (HandshakeApp, tokio::runtime::Runtime) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -255,11 +417,19 @@ fn code_note_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
-    app.set_runtime_handle(runtime.handle().clone());
+    if bind_runtime {
+        app.set_runtime_handle(runtime.handle().clone());
+    }
 
     {
         let registry = app.pane_registry();
         let mut guard = registry.lock().expect("registry");
+        // Canonical MT-034 success evidence is a deliberately isolated two-pane editor workspace.
+        // Runtime Chat is a separate product surface whose honest baseline is EndpointMissing until
+        // its backend route ships; retaining that unrelated default pane would contaminate these
+        // code<->note success frames. Remove the actual pane from this proof workspace (rather than
+        // hiding its error text) so every rendered status belongs to the feature under test.
+        guard.remove(&PaneId::from("pane-c"));
         guard.insert(PaneRecord::new(
             PaneId::from("pane-a"),
             PaneType::CodeSymbol,
@@ -279,8 +449,13 @@ fn code_note_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
             PaneAuthority::System,
         ));
     }
+    app.tab_bar_states_mut().remove(&PaneId::from("pane-c"));
 
     (app, runtime)
+}
+
+fn code_note_editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    code_note_editor_shell_with_runtime(true)
 }
 
 fn code_symbol_response_body(
@@ -500,6 +675,13 @@ fn spawn_argus_code_symbol_server(
                 }
                 Err(error) => panic!("accept MT-034 Argus request: {error}"),
             };
+            // Windows may inherit the listener's non-blocking mode on an accepted socket. Requests
+            // arrive in small header fragments, so make this owned connection blocking before the
+            // bounded header read; otherwise a transient WSAEWOULDBLOCK kills the fixture and turns
+            // the shell's next legitimate ProjectTree read into a misleading visible load failure.
+            stream
+                .set_nonblocking(false)
+                .expect("set MT-034 Argus connection blocking");
             let mut request = Vec::new();
             let mut buf = [0_u8; 2048];
             loop {
@@ -518,6 +700,21 @@ fn spawn_argus_code_symbol_server(
             let is_symbol_lookup = request_text.contains("GET /knowledge/code/symbols?");
             let is_document_load = request_text.contains("GET /knowledge/documents/DOC-ARGUS-34 ");
             let is_document_list = request_text.contains("GET /knowledge/documents?");
+            let is_canvas_list = request_text.contains("GET /workspaces/default-project/canvases ");
+            let is_pins_list = request_text
+                .contains("GET /workspaces/default-project/loom/views/pins?limit=100&offset=0 ");
+            let is_memory_proposals = request_text
+                .contains("GET /workspaces/default-project/memory/proposals?limit=200 ");
+            let is_loom_search =
+                request_text.contains("POST /workspaces/default-project/loom/search-v2 ");
+            let is_flight_recorder =
+                request_text.contains("GET /api/flight_recorder?wsid=default-project ");
+            let is_native_editor_event =
+                request_text.contains("POST /api/flight_recorder/native_editor_event ");
+            let is_document_draft =
+                request_text.contains("GET /knowledge/documents/DOC-ARGUS-34/draft ");
+            let is_document_backlinks =
+                request_text.contains("GET /knowledge/documents/DOC-ARGUS-34/backlinks ");
             let symbol = serde_json::json!({
                 "symbol_entity_id": symbol_id,
                 "symbol_key": format!("rust:{file_path}#{symbol_name}"),
@@ -593,6 +790,59 @@ fn spawn_argus_code_symbol_server(
                 )
             } else if is_document_list {
                 ("200 OK", "[]".to_owned())
+            } else if is_canvas_list {
+                // The mounted ProjectTree performs this production read during shell startup. An
+                // explicit empty collection is a valid loaded state; returning 404 would poison the
+                // supposedly-successful MT-034 Argus frame with a genuine ProjectTree load failure.
+                ("200 OK", "[]".to_owned())
+            } else if is_pins_list {
+                // `fetch_bookmarks` requires the real Loom pins envelope, not a bare array.
+                (
+                    "200 OK",
+                    serde_json::json!({"view_type": "pins", "blocks": []}).to_string(),
+                )
+            } else if is_memory_proposals {
+                // The mounted FEMS proposal panel consumes the backend's array projection.
+                ("200 OK", "[]".to_owned())
+            } else if is_loom_search {
+                // The mounted Loom search panel performs its initial empty-query search. Return the
+                // complete production response envelope so deserialization remains exercised.
+                (
+                    "200 OK",
+                    serde_json::json!({
+                        "hits": [],
+                        "content_type_facets": {},
+                        "semantic_available": false,
+                        "total": 0
+                    })
+                    .to_string(),
+                )
+            } else if is_flight_recorder {
+                // `flight_recorder_rows_from_json` consumes an array of event rows.
+                ("200 OK", "[]".to_owned())
+            } else if is_native_editor_event {
+                // The production event transport requires only an HTTP success status.
+                ("204 No Content", String::new())
+            } else if is_document_draft {
+                (
+                    "200 OK",
+                    serde_json::json!({
+                        "rich_document_id": "DOC-ARGUS-34",
+                        "current_doc_version": 1,
+                        "current_content_sha256": "mt034-argus-fixture",
+                        "draft": null
+                    })
+                    .to_string(),
+                )
+            } else if is_document_backlinks {
+                (
+                    "200 OK",
+                    serde_json::json!({
+                        "source_document_id": "DOC-ARGUS-34",
+                        "backlinks": []
+                    })
+                    .to_string(),
+                )
             } else {
                 (
                     "404 Not Found",
@@ -1571,9 +1821,11 @@ fn mt034_canonical_argus_create_open_and_reveal() {
 
     let (base_url, server) =
         spawn_argus_code_symbol_server(symbol_id, symbol_name, &file_path, line_start_one_based);
-    let (mut app, runtime) = code_note_editor_shell();
+    // Keep the create phase isolated from unrelated wikilink persistence: only the code-ref runtime
+    // is installed until the chip exists. The full shell backend is bound before navigation, then the
+    // visible rich pane enters Reading mode through its production control.
+    let (mut app, runtime) = code_note_editor_shell_with_runtime(false);
     app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
-    app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     let rich_state = app.mounted_rich_state();
     {
         let mut state = rich_state.lock().expect("seed MT-034 Argus rich state");
@@ -1583,7 +1835,7 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     }
 
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(1280.0, 800.0))
+        .with_size(egui::vec2(1920.0, 1000.0))
         .wgpu()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(4);
@@ -1592,37 +1844,108 @@ fn mt034_canonical_argus_create_open_and_reveal() {
         .clear_fems_overlay_for_integration_test();
     harness.run_steps(2);
 
-    let proof_dir = external_artifact_dir("wp-kernel-012-mt-034/canonical-argus");
+    let (source_candidate_id, source_candidate) = current_source_candidate_identity();
+    let run_nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after epoch")
+        .as_nanos();
+    let run_id = format!(
+        "run-v4-{}-{run_nonce}-{}",
+        std::process::id(),
+        &source_candidate_id[source_candidate_id.len().saturating_sub(16)..]
+    );
+    let proof_dir =
+        external_artifact_dir(&format!("wp-kernel-012-mt-034/canonical-argus-v4/{run_id}"));
     std::fs::create_dir_all(&proof_dir).expect("create MT-034 canonical Argus proof directory");
     let mut argus =
         CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-034-create-open-reveal");
-    let initial = argus.inspect(&mut harness);
+    let initial_deadline = Instant::now() + Duration::from_secs(5);
+    let initial = loop {
+        let tree = argus.inspect(&mut harness);
+        let text = serde_json::to_string(&tree).expect("serialize initial MT-034 tree");
+        if !text.contains("Loading…") && !text.contains("Loading...") {
+            break tree;
+        }
+        assert!(
+            Instant::now() < initial_deadline,
+            "ProjectTree must finish its explicitly seeded startup reads before MT-034 success proof"
+        );
+        harness.step();
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_clean_mt034_success_tree(&initial, "initial");
     assert!(json_has_author_id(&initial, "editor.rich.text"));
     assert!(json_has_author_id(
         &initial,
         "editor.rich.insert-slash-command"
     ));
 
-    // CREATE: the canonical parameterized slash action inserts the exact existing hsLink atom. This
-    // avoids keyboard simulation and a transient popup while still exercising the product's real
-    // RichDispatch::InsertSlashCommand payload path.
+    // CREATE: activate the production `/code-ref` registry/executor path. The attributable action is
+    // terminal only when the previously absent code-symbol dialog is freshly visible.
     let create_payload = serde_json::json!({
-        "kind": "wikilink",
-        "ref_kind": "code",
-        "ref_value": symbol_id,
-        "label": symbol_name
+        "kind": "slash_command",
+        "command_id": "code-ref"
     });
-    let create = argus.click_with_payload_and_reinspect(
+    assert!(!json_has_author_id(&initial, CODE_SYMBOL_SEARCH_AUTHOR_ID));
+    let _create_action = argus.click_with_payload_expect_applied_and_reinspect(
         &mut harness,
         "editor.rich.insert-slash-command",
         create_payload.clone(),
     );
-    let chip_id = code_ref_chip_author_id(symbol_id);
-    let create_terminal = argus.assert_latest_terminal_predicate(
+    let _ = argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
-        "exact-code-ref-chip-created",
-        |tree| json_has_author_id(tree, &chip_id),
+        "fresh-code-symbol-search-visible",
+        serde_json::json!({
+            "command_id": "code-ref",
+            "dialog_author_id": CODE_SYMBOL_SEARCH_AUTHOR_ID
+        }),
+        |tree| json_has_author_id(tree, CODE_SYMBOL_SEARCH_AUTHOR_ID),
     );
+    let create = argus.latest_terminal_observation();
+    assert_clean_mt034_success_frame_tree(&create.after, "slash-dialog");
+
+    // Continue through the real result-row selection path to produce the chip used by the second
+    // canonical action. The three required canonical receipts remain slash/chip/note-row.
+    {
+        let mut state = rich_state
+            .lock()
+            .expect("seed live code-symbol dialog client");
+        let dialog = state
+            .code_symbol_search
+            .as_mut()
+            .expect("/code-ref action opened production code-symbol search");
+        dialog.runtime = Some(runtime.handle().clone());
+        dialog.client = CodeNavClient::new(base_url.clone());
+        dialog.query = symbol_name.to_owned();
+        dialog.spawn_lookup();
+    }
+    let result_id = code_symbol_result_author_id(symbol_id);
+    let result_deadline = Instant::now() + Duration::from_secs(5);
+    while !author_ids(&harness).contains(&result_id) {
+        assert!(Instant::now() < result_deadline, "{}", {
+            let state = rich_state.lock().expect("inspect failed /code-ref lookup");
+            let dialog = state
+                .code_symbol_search
+                .as_ref()
+                .expect("failed lookup retains dialog state");
+            format!(
+                "production /code-ref lookup must expose exact result {result_id}; loading={} error={:?} results={} runtime={}",
+                dialog.loading,
+                dialog.error,
+                dialog.results.len(),
+                dialog.runtime.is_some()
+            )
+        });
+        harness.step();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    harness
+        .get_by(|node| node.author_id() == Some(result_id.as_str()))
+        .click();
+    harness.run_steps(3);
+
+    let chip_id = code_ref_chip_author_id(symbol_id);
+    assert!(author_ids(&harness).contains(&chip_id));
     let created_content = rich_state
         .lock()
         .expect("inspect agent-created code ref")
@@ -1638,9 +1961,18 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     assert_eq!(created_links[0]["attrs"]["refValue"], symbol_id);
     assert_eq!(created_links[0]["attrs"]["label"], symbol_name);
 
+    harness
+        .state_mut()
+        .set_backend_base_url_for_test(&base_url, runtime.handle().clone());
+    harness.run_steps(2);
+    select_visible_reading_mode(&mut harness, "pane:pane-b");
+    harness.run_steps(2);
+    let pre_open = argus.inspect(&mut harness);
+    assert_clean_mt034_success_frame_tree(&pre_open, "pre-code-open");
+
     // OPEN: click the exact chip through canonical Argus, then wait for the real shell resolver to
     // fetch the symbol projection, mount the canonical file-backed code tab, and land on its line.
-    let open = argus.click_and_reinspect(&mut harness, &chip_id);
+    let _open_action = argus.click_expect_applied_and_reinspect(&mut harness, &chip_id);
     let navigation_deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < navigation_deadline {
         let panel = harness.state().active_mounted_code_panel();
@@ -1666,7 +1998,11 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     // Mount the real dwell -> exact reverse lookup -> NoteRefs pipeline on that newly opened code tab.
     code_panel.set_runtime(runtime.handle().clone());
     code_panel.set_workspace_id(DEFAULT_PROJECT_ID);
-    code_panel.set_code_nav_client(CodeNavClient::new(base_url));
+    code_panel.set_code_nav_client(CodeNavClient::new(base_url.clone()));
+    // Keep the exact source and NoteRefs surfaces visible without sacrificing the code text to
+    // auxiliary columns. This mirrors an operator disabling Outline/Minimap from the code toolbar.
+    code_panel.set_show_outline(false);
+    code_panel.set_show_minimap(false);
     code_panel.set_find_notes_backend(std::sync::Arc::new(ArgusFindNotes {
         symbol_entity_id: symbol_id.to_owned(),
     }));
@@ -1694,20 +2030,38 @@ fn mt034_canonical_argus_create_open_and_reveal() {
         std::thread::sleep(Duration::from_millis(25));
     }
     harness.step();
+    harness.event(egui::Event::PointerMoved(egui::pos2(10.0, 10.0)));
+    harness.run_steps(2);
+    code_panel.close_hover();
+    harness.step();
     let code_text_author = code_panel.text_author_id();
     assert!(
         code_text_author.starts_with(CODE_EDITOR_TEXT_AUTHOR_ID),
         "file-backed tabs retain the canonical code text author-id prefix"
     );
-    let open_terminal = argus.assert_latest_terminal_predicate(
+    let visible_line_range = code_panel.last_visible_range();
+    let _ = argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
         "canonical-source-line-and-note-ref-visible",
+        serde_json::json!({
+            "symbol_entity_id": symbol_id,
+            "source_id": "KSRC-MT034-ARGUS",
+            "canonical_source_path": file_path,
+            "expected_line_one_based": line_start_one_based,
+            "actual_visible_line_zero_based": {
+                "start": visible_line_range.start,
+                "end": visible_line_range.end
+            },
+            "note_document_id": "DOC-ARGUS-34"
+        }),
         |tree| {
             json_has_author_id_prefix(tree, &code_text_author)
                 && json_has_author_id(tree, NOTE_REFS_PANEL_AUTHOR_ID)
                 && json_has_author_id(tree, &note_row)
         },
     );
+    let open = argus.latest_terminal_observation();
+    assert_clean_mt034_success_frame_tree(&open.after, "code-open");
 
     let code_png = proof_dir.join("MT-034-code-symbol-open-note-refs.png");
     let code_image = harness
@@ -1717,11 +2071,12 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     code_image
         .save(&code_png)
         .expect("save MT-034 code/NoteRefs screenshot");
+    let code_png_sha256 = sha256_file(&code_png);
 
     // REVEAL: the exact NoteRefs row routes through the existing open-document command and focuses the
     // canonical rich-document tab. The action remains fully inspect -> click -> attributed receipt ->
     // fresh terminal inspection.
-    let reveal = argus.click_and_reinspect(&mut harness, &note_row);
+    let _reveal_action = argus.click_expect_applied_and_reinspect(&mut harness, &note_row);
     let reveal_deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < reveal_deadline {
         let exact_document_active = harness
@@ -1742,15 +2097,28 @@ fn mt034_canonical_argus_create_open_and_reveal() {
         harness.step();
         std::thread::sleep(Duration::from_millis(10));
     }
-    let reveal_terminal = argus.assert_latest_terminal_predicate(
+    select_visible_reading_mode(&mut harness, "DOC-ARGUS-34");
+    harness.event(egui::Event::PointerMoved(egui::pos2(10.0, 10.0)));
+    harness.run_steps(2);
+    code_panel.close_hover();
+    harness.step();
+    let _ = argus.assert_latest_terminal_predicate_with_evidence(
         &mut harness,
         "referencing-rich-document-revealed",
+        serde_json::json!({
+            "symbol_key": format!("rust:{file_path}#{symbol_name}"),
+            "rich_document_id": "DOC-ARGUS-34",
+            "document_revision": 1,
+            "expected_pane_type": "loom-wiki-page"
+        }),
         |tree| {
             json_has_author_id_prefix(tree, "editor.rich.text")
                 && serde_json::to_string(tree)
                     .is_ok_and(|serialized| serialized.contains("DOC-ARGUS-34"))
         },
     );
+    let reveal = argus.latest_terminal_observation();
+    assert_clean_mt034_success_frame_tree(&reveal.after, "note-reveal");
     let active_tab = harness
         .state()
         .active_pane()
@@ -1768,14 +2136,45 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     reveal_image
         .save(&reveal_png)
         .expect("save MT-034 revealed-note screenshot");
+    let reveal_png_sha256 = sha256_file(&reveal_png);
+
+    let correlation_ids = [
+        create.correlation_id.as_str(),
+        open.correlation_id.as_str(),
+        reveal.correlation_id.as_str(),
+    ];
+    assert_eq!(
+        correlation_ids
+            .into_iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        correlation_ids.len(),
+        "each canonical Argus action requires a distinct correlation id"
+    );
+
+    let (source_candidate_after_id, source_candidate_after) = current_source_candidate_identity();
+    assert_eq!(
+        source_candidate_after_id, source_candidate_id,
+        "MT-034 source candidate changed during the canonical Argus run"
+    );
 
     let proof_path = proof_dir.join("MT-034-create-open-reveal.json");
     std::fs::write(
         &proof_path,
         serde_json::to_vec_pretty(&serde_json::json!({
-            "schema_id": "hsk.mt034-canonical-argus-proof@1",
+            "schema_id": "hsk.mt034-canonical-argus-proof@3",
             "microtask": "MT-034",
+            "validation_round": "v4",
+            "run_id": run_id,
+            "source_candidate_id": source_candidate_id,
+            "source_candidate": source_candidate,
+            "source_candidate_after": source_candidate_after,
             "flow": "create-open-reveal",
+            "correlation_ids": [
+                create.correlation_id.clone(),
+                open.correlation_id.clone(),
+                reveal.correlation_id.clone()
+            ],
             "symbol": {
                 "symbol_entity_id": symbol_id,
                 "display_name": symbol_name,
@@ -1796,37 +2195,54 @@ fn mt034_canonical_argus_create_open_and_reveal() {
                     "proof": canonical_action_proof(
                         "editor.rich.insert-slash-command",
                         &create,
-                        "exact-code-ref-chip-created",
-                        &create_terminal
+                        "fresh-code-symbol-search-visible"
                     )
                 },
-                canonical_action_proof(
-                    &chip_id,
-                    &open,
-                    "canonical-source-line-and-note-ref-visible",
-                    &open_terminal
-                ),
-                canonical_action_proof(
-                    &note_row,
-                    &reveal,
-                    "referencing-rich-document-revealed",
-                    &reveal_terminal
-                )
+                {
+                    "payload": serde_json::Value::Null,
+                    "proof": canonical_action_proof(
+                        &chip_id,
+                        &open,
+                        "canonical-source-line-and-note-ref-visible"
+                    )
+                },
+                {
+                    "payload": serde_json::Value::Null,
+                    "proof": canonical_action_proof(
+                        &note_row,
+                        &reveal,
+                        "referencing-rich-document-revealed"
+                    )
+                }
             ],
             "initial": initial,
-            "terminal": reveal_terminal,
+            "terminal": reveal.after,
             "screenshots": [
                 {
                     "path": code_png,
+                    "sha256": code_png_sha256,
                     "dimensions": code_dimensions,
                     "capture_method": "mounted_wgpu_harness_after_fresh_argus_terminal",
-                    "bound_to_action_target": chip_id
+                    "bound_to_action_target": chip_id,
+                    "bound_to_receipt_id": open.receipt_id,
+                    "bound_to_terminal_tree_hash": canonical_action_proof(
+                        &chip_id,
+                        &open,
+                        "canonical-source-line-and-note-ref-visible"
+                    )["observation"]["after_tree_hash"]
                 },
                 {
                     "path": reveal_png,
+                    "sha256": reveal_png_sha256,
                     "dimensions": reveal_dimensions,
                     "capture_method": "mounted_wgpu_harness_after_fresh_argus_terminal",
-                    "bound_to_action_target": note_row
+                    "bound_to_action_target": note_row,
+                    "bound_to_receipt_id": reveal.receipt_id,
+                    "bound_to_terminal_tree_hash": canonical_action_proof(
+                        &note_row,
+                        &reveal,
+                        "referencing-rich-document-revealed"
+                    )["observation"]["after_tree_hash"]
                 }
             ]
         }))
@@ -1834,7 +2250,7 @@ fn mt034_canonical_argus_create_open_and_reveal() {
     )
     .expect("write MT-034 canonical Argus proof");
 
-    argus.finish();
+    argus.finish_require_no_indeterminate();
     let requests = server.join().expect("join MT-034 canonical Argus server");
     assert!(
         requests
@@ -1853,6 +2269,41 @@ fn mt034_canonical_argus_create_open_and_reveal() {
             .iter()
             .any(|request| request.contains("GET /knowledge/documents/DOC-ARGUS-34 ")),
         "NoteRefs reveal must load the exact rich-document route: {requests:?}"
+    );
+    assert!(
+        requests
+            .iter()
+            .any(|request| { request.contains("GET /workspaces/default-project/canvases ") }),
+        "ProjectTree must use the explicitly seeded canvases route: {requests:?}"
+    );
+    assert!(
+        requests.iter().any(|request| {
+            request.contains("GET /workspaces/default-project/loom/views/pins?limit=100&offset=0 ")
+        }),
+        "ProjectTree must use the explicitly seeded pins route: {requests:?}"
+    );
+    let unhandled_requests = requests
+        .iter()
+        .filter(|request| {
+            !(request.contains("GET /knowledge/code/symbols/KEN-MT034-ARGUS ")
+                || request.contains("GET /knowledge/code/symbols?")
+                || request.contains("GET /knowledge/documents/DOC-ARGUS-34 ")
+                || request.contains("GET /knowledge/documents?")
+                || request.contains("GET /workspaces/default-project/canvases ")
+                || request.contains(
+                    "GET /workspaces/default-project/loom/views/pins?limit=100&offset=0 ",
+                )
+                || request.contains("GET /workspaces/default-project/memory/proposals?limit=200 ")
+                || request.contains("POST /workspaces/default-project/loom/search-v2 ")
+                || request.contains("GET /api/flight_recorder?wsid=default-project ")
+                || request.contains("POST /api/flight_recorder/native_editor_event ")
+                || request.contains("GET /knowledge/documents/DOC-ARGUS-34/draft ")
+                || request.contains("GET /knowledge/documents/DOC-ARGUS-34/backlinks "))
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        unhandled_requests.is_empty(),
+        "MT-034 canonical fixture received unhandled routes: {unhandled_requests:?}"
     );
     assert_no_local_artifact_dir();
     drop(harness);
@@ -2937,14 +3388,14 @@ mod live_backend {
 
         let receipt_dir = external_artifact_dir("wp-kernel-012-mt-034");
         std::fs::create_dir_all(&receipt_dir).expect("create external receipt directory");
-        let receipt_path = receipt_dir.join(format!("{unique}-v3-receipt.json"));
+        let receipt_path = receipt_dir.join(format!("{unique}-v4-receipt.json"));
         let note_row_id = row_author_id(&document_id);
         std::fs::write(
             &receipt_path,
             serde_json::to_vec_pretty(&serde_json::json!({
                 "schema_id": "hsk.mt034-live-postgresql-proof@1",
                 "microtask": "MT-034",
-                "remediation_version": "V3",
+                "remediation_version": "V4",
                 "workspace_id": workspace_id,
                 "symbol_entity_id": symbol_id,
                 "symbol_key": symbol_key,

@@ -735,11 +735,18 @@ fn folder_tree_host_drains_expand_recolor_retry_and_open_events() {
         "MT-022 host: Retry sets the mounted tree into the bounded loading state before re-fetch"
     );
 
+    let open_generation = folder_tree
+        .lock()
+        .unwrap()
+        .find_folder_mut("folder-host")
+        .expect("host folder")
+        .begin_open_action();
     folder_events
         .lock()
         .unwrap()
         .push(FolderTreeEvent::OpenFolder {
             folder_id: "folder-host".to_owned(),
+            action_generation: open_generation,
         });
     harness.run_steps(1);
     assert_eq!(
@@ -1287,7 +1294,7 @@ fn folder_tree_same_folder_latest_child_sequence_wins_after_rebuild() {
             .find_folder_mut("folder-race")
             .expect("seed race folder");
         node.expanded = true;
-        node.loading = true;
+        node.bind_disclosure_request(22);
     }
     let epoch = harness.state().folder_request_identity_for_test().0;
     harness
@@ -1319,7 +1326,168 @@ fn folder_tree_same_folder_latest_child_sequence_wins_after_rebuild() {
 }
 
 #[test]
-fn folder_tree_open_folder_registers_current_child_delivery_and_clears_loading() {
+fn folder_tree_exact_latest_child_delivery_cannot_mutate_a_rebuilt_unbound_node() {
+    use handshake_native::graph::folder_tree::{FolderRow, LeafBlock};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::UserManual)]);
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.set_folders(&[FolderRow::new(
+            "folder-rebuilt",
+            None,
+            "Before rebuild",
+            None,
+        )]);
+        tree.find_folder_mut("folder-rebuilt")
+            .expect("original node")
+            .bind_disclosure_request(77);
+        // Rebuild the exact same folder id before the in-flight response arrives. The replacement node
+        // intentionally has no request binding even though the app-level latest map still says 77.
+        tree.set_folders(&[FolderRow::new(
+            "folder-rebuilt",
+            None,
+            "After rebuild",
+            None,
+        )]);
+    }
+    harness
+        .state()
+        .set_folder_child_latest_sequence_for_test("folder-rebuilt", 77);
+    let epoch = harness.state().folder_request_identity_for_test().0;
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-rebuilt",
+        epoch,
+        77,
+        Ok(vec![LeafBlock::new(
+            "must-not-apply",
+            "Must not apply",
+            "note",
+        )]),
+    );
+    harness.run_steps(1);
+
+    let mut tree = folder_tree.lock().unwrap();
+    let node = tree
+        .find_folder_mut("folder-rebuilt")
+        .expect("replacement node remains mounted");
+    assert_eq!(node.title, "After rebuild");
+    assert!(
+        node.child_blocks.is_none() && !node.loading && node.child_error.is_none(),
+        "an app-level latest sequence cannot mutate a rebuilt node without the node-owned binding"
+    );
+}
+
+#[test]
+fn folder_tree_cross_folder_success_cannot_hide_another_live_child_failure() {
+    use handshake_native::graph::folder_tree::{FolderRow, LeafBlock};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::UserManual)]);
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.set_folders(&[
+            FolderRow::new("folder-a", None, "Folder A", None),
+            FolderRow::new("folder-b", None, "Folder B", None),
+        ]);
+        tree.find_folder_mut("folder-a")
+            .expect("folder A")
+            .bind_disclosure_request(101);
+        tree.find_folder_mut("folder-b")
+            .expect("folder B")
+            .bind_disclosure_request(202);
+    }
+    let epoch = harness.state().folder_request_identity_for_test().0;
+    harness
+        .state()
+        .set_folder_child_latest_sequence_for_test("folder-a", 101);
+    harness
+        .state()
+        .set_folder_child_latest_sequence_for_test("folder-b", 202);
+
+    // B fails first and owns the visible global child-error projection.
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-b",
+        epoch,
+        202,
+        Err("folder B child load failed".to_owned()),
+    );
+    harness.run_steps(1);
+    assert_eq!(
+        folder_tree.lock().unwrap().child_error_banner.as_deref(),
+        Some("folder B child load failed")
+    );
+
+    // A's later exact success must not clear B's still-live node-owned failure/banner.
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-a",
+        epoch,
+        101,
+        Ok(vec![LeafBlock::new("child-a", "Child A", "note")]),
+    );
+    harness.run_steps(1);
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        assert_eq!(
+            tree.child_error_banner.as_deref(),
+            Some("folder B child load failed"),
+            "folder A success cannot hide folder B's live failure"
+        );
+        assert_eq!(
+            tree.find_folder_mut("folder-b")
+                .expect("folder B")
+                .child_error
+                .as_deref(),
+            Some("folder B child load failed")
+        );
+    }
+
+    // A fresh exact B retry/success clears B's node error and therefore the recursive banner.
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.find_folder_mut("folder-b")
+            .expect("folder B")
+            .bind_disclosure_request(203);
+        tree.refresh_child_error_banner();
+    }
+    harness
+        .state()
+        .set_folder_child_latest_sequence_for_test("folder-b", 203);
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-b",
+        epoch,
+        203,
+        Ok(vec![LeafBlock::new("child-b", "Child B", "note")]),
+    );
+    harness.run_steps(1);
+    let mut tree = folder_tree.lock().unwrap();
+    assert!(
+        tree.child_error_banner.is_none()
+            && tree
+                .find_folder_mut("folder-b")
+                .expect("folder B")
+                .child_error
+                .is_none(),
+        "folder B's exact retry success clears its node-owned and projected child failure"
+    );
+}
+
+#[test]
+fn folder_tree_repeated_open_binds_fresh_sequence_and_rejects_stale_in_flight_delivery() {
     use handshake_native::graph::folder_tree::{FolderRow, FolderTreeEvent, LeafBlock};
 
     let (mut app, _rt) = secondary_shell();
@@ -1335,25 +1503,86 @@ fn folder_tree_open_folder_registers_current_child_delivery_and_clears_loading()
         "Open Folder",
         None,
     )]);
+    folder_tree
+        .lock()
+        .unwrap()
+        .find_folder_mut("folder-open")
+        .expect("open folder")
+        .child_blocks = Some(vec![LeafBlock::new("cached-child", "Cached Child", "note")]);
 
+    let first_action_generation = folder_tree
+        .lock()
+        .unwrap()
+        .find_folder_mut("folder-open")
+        .expect("open folder")
+        .begin_open_action();
     folder_events
         .lock()
         .unwrap()
         .push(FolderTreeEvent::OpenFolder {
             folder_id: "folder-open".to_owned(),
+            action_generation: first_action_generation,
         });
     harness.run_steps(1);
-    let sequence = harness
+    let first_sequence = harness
         .state()
         .folder_child_latest_sequence_for_test("folder-open")
-        .expect("OpenFolder registers its child request as the current sequence");
+        .expect("first OpenFolder registers its child request sequence");
+
+    let second_action_generation = folder_tree
+        .lock()
+        .unwrap()
+        .find_folder_mut("folder-open")
+        .expect("open folder")
+        .begin_open_action();
+    folder_events
+        .lock()
+        .unwrap()
+        .push(FolderTreeEvent::OpenFolder {
+            folder_id: "folder-open".to_owned(),
+            action_generation: second_action_generation,
+        });
+    harness.run_steps(1);
+    let second_sequence = harness
+        .state()
+        .folder_child_latest_sequence_for_test("folder-open")
+        .expect("repeated OpenFolder registers a fresh child request sequence");
+    assert!(
+        second_sequence > first_sequence,
+        "a repeated row Open must revalidate cached children with a fresh backend request"
+    );
     let epoch = harness.state().folder_request_identity_for_test().0;
     harness.state().discard_folder_child_cells_for_test();
+
     harness.state().deliver_folder_children_for_test(
         DEFAULT_PROJECT_ID,
         "folder-open",
         epoch,
-        sequence,
+        first_sequence,
+        Ok(vec![LeafBlock::new("stale-child", "Stale Child", "note")]),
+    );
+    harness.run_steps(1);
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        let node = tree
+            .find_folder_mut("folder-open")
+            .expect("opened folder remains mounted");
+        assert!(
+            node.loading,
+            "an older in-flight response cannot terminate the repeated Open action"
+        );
+        assert_eq!(
+            node.child_blocks.as_ref().unwrap()[0].block_id,
+            "cached-child",
+            "an older in-flight response cannot overwrite the visible cache"
+        );
+    }
+
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-open",
+        epoch,
+        second_sequence,
         Ok(vec![LeafBlock::new("child-open", "Current Child", "note")]),
     );
     harness.run_steps(1);
@@ -1364,7 +1593,10 @@ fn folder_tree_open_folder_registers_current_child_delivery_and_clears_loading()
         .find_folder_mut("folder-open")
         .expect("opened folder remains mounted");
     assert!(node.expanded, "OpenFolder leaves the folder expanded");
-    assert!(!node.loading, "current child delivery clears loading");
+    assert!(
+        !node.loading,
+        "the exact repeated-action child delivery clears loading"
+    );
     let children = node
         .child_blocks
         .as_ref()
@@ -1686,6 +1918,297 @@ fn tags_hub_delivery_queue_preserves_newer_valid_result_before_stale_reject() {
 }
 
 #[test]
+fn tags_back_to_list_retires_pending_receipt_and_allows_fresh_exact_navigation() {
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, TagsPaneEvent, TAGS_PANE_LABEL,
+    };
+    use handshake_native::graph::tags_panel::{
+        tag_row_author_id, HubMember, TAG_NAVIGATION_OBSERVER_AUTHOR_ID,
+    };
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let events = app.mounted_tags_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let (a_generation, a_sequence) = harness
+        .state()
+        .prepare_tag_navigation_for_test(DEFAULT_PROJECT_ID, "hub-a");
+    events.lock().unwrap().push(TagsPaneEvent::BackToList);
+    harness.run_steps(2);
+    assert!(
+        tags_hub.lock().unwrap().is_none(),
+        "the production BackToList event drain removes the abandoned hub"
+    );
+
+    // The exact late A delivery remains latest for A, but Back retired its observer binding and there
+    // is no mounted A hub to receive it. It therefore cannot resurrect or acknowledge the old action.
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_sequence_for_test(
+            DEFAULT_PROJECT_ID,
+            "hub-a",
+            a_sequence,
+            Ok((
+                "Late Hub A".to_owned(),
+                vec![HubMember::new("late-a", "Late A", "note")],
+            )),
+        );
+    harness.run_steps(2);
+    assert!(tags_hub.lock().unwrap().is_none());
+
+    let (b_generation, b_sequence) = harness
+        .state()
+        .prepare_tag_navigation_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    assert_eq!(
+        b_generation,
+        a_generation + 1,
+        "Back settles A at its advanced generation so B can declare the next generation"
+    );
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_sequence_for_test(
+            DEFAULT_PROJECT_ID,
+            "hub-b",
+            b_sequence,
+            Ok((
+                "Current Hub B".to_owned(),
+                vec![HubMember::new("member-b", "Member B", "note")],
+            )),
+        );
+    harness.run_steps(3);
+
+    {
+        let hub_guard = tags_hub.lock().unwrap();
+        let hub = hub_guard.as_ref().expect("fresh B hub remains mounted");
+        assert_eq!(hub.title, "Current Hub B");
+        assert_eq!(hub.members[0].block_id, "member-b");
+    }
+
+    let observer_value = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(TAG_NAVIGATION_OBSERVER_AUTHOR_ID))
+        .and_then(|node| node.accesskit_node().value())
+        .expect("mounted tag navigation observer remains addressable");
+    let observer: serde_json::Value =
+        serde_json::from_str(&observer_value).expect("strict observer token JSON");
+    assert_eq!(observer["state"].as_str(), Some("applied"));
+    assert_eq!(
+        observer["pending_target"].as_str(),
+        Some(tag_row_author_id("hub-b").as_str())
+    );
+    assert_eq!(observer["generation"].as_u64(), Some(b_generation));
+}
+
+#[test]
+fn tags_pane_mount_back_wins_over_same_frame_hub_member_event() {
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, TagsPaneEvent, TagsPaneMount, TAGS_PANE_LABEL,
+    };
+    use handshake_native::graph::tags_panel::{
+        hub_member_author_id, HubMember, LoomTagHubPanel, LoomTagsPanel,
+    };
+    use handshake_native::pane_registry::{
+        DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRenderContext,
+    };
+    use handshake_native::theme::HsPalette;
+
+    struct Fixture {
+        mount: TagsPaneMount,
+        record: PaneRecord,
+    }
+
+    let tags = std::sync::Arc::new(std::sync::Mutex::new(LoomTagsPanel::new(
+        DEFAULT_PROJECT_ID,
+    )));
+    let mut hub_panel = LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-a");
+    hub_panel.set_detail(
+        "Hub A",
+        vec![HubMember::new("member-a", "Member A", "note")],
+    );
+    let hub = std::sync::Arc::new(std::sync::Mutex::new(Some(hub_panel)));
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mount = TagsPaneMount::new(
+        tags,
+        hub,
+        std::sync::Arc::new(std::sync::Mutex::new(HsPalette::dark())),
+        std::sync::Arc::clone(&events),
+    );
+    let record = PaneRecord::new(
+        PaneId::from("tags-race-pane"),
+        placeholder_pane_type(TAGS_PANE_LABEL),
+        DEFAULT_PROJECT_ID,
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    );
+    let fixture = Fixture { mount, record };
+    let mut harness = Harness::builder().build_state(
+        |ctx, fixture: &mut Fixture| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                fixture.mount.render(
+                    ui,
+                    &PaneRenderContext {
+                        record: &fixture.record,
+                        egui_id: egui::Id::new("tags-race-pane"),
+                    },
+                );
+            });
+        },
+        fixture,
+    );
+    harness.run_steps(2);
+
+    let back_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("tags.back-to-list"))
+        .expect("mounted factory exposes Back")
+        .accesskit_node()
+        .id();
+    let member_author = hub_member_author_id("member-a");
+    let member_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(member_author.as_str()))
+        .expect("mounted factory exposes the hub member")
+        .accesskit_node()
+        .id();
+    for target in [back_id, member_id] {
+        harness
+            .input_mut()
+            .events
+            .push(egui::Event::AccessKitActionRequest(
+                egui::accesskit::ActionRequest {
+                    action: egui::accesskit::Action::Click,
+                    target,
+                    data: None,
+                },
+            ));
+    }
+    harness.run_steps(1);
+
+    let queued = events.lock().unwrap();
+    assert_eq!(queued.len(), 1, "the mount emits one deterministic event");
+    assert!(
+        matches!(queued.first(), Some(TagsPaneEvent::BackToList)),
+        "Back/cancellation owns the frame and cannot be overwritten by an abandoned hub event"
+    );
+}
+
+#[test]
+fn tags_count_enrichment_cannot_supersede_bound_navigation_request() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::{
+        HubMember, TagEntry, TAG_NAVIGATION_OBSERVER_AUTHOR_ID,
+    };
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_panel = app.mounted_tags_panel_for_test();
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    tags_panel
+        .lock()
+        .unwrap()
+        .set_tags(vec![TagEntry::new("hub-a", "Hub A", None)]);
+
+    let (navigation_generation, navigation_sequence) = harness
+        .state()
+        .prepare_tag_navigation_for_test(DEFAULT_PROJECT_ID, "hub-a");
+    let epoch = harness.state().tags_workspace_epoch_for_test();
+    let count_sequence = harness
+        .state()
+        .register_tag_count_request_for_test(DEFAULT_PROJECT_ID, "hub-a");
+    harness
+        .state()
+        .deliver_tag_count_detail_with_identity_for_test(
+            DEFAULT_PROJECT_ID,
+            epoch,
+            "hub-a",
+            count_sequence,
+            Ok((
+                "Count-only Hub A".to_owned(),
+                vec![
+                    HubMember::new("count-member-1", "Count 1", "note"),
+                    HubMember::new("count-member-2", "Count 2", "note"),
+                ],
+            )),
+        );
+    harness.run_steps(2);
+
+    assert_eq!(
+        tags_panel.lock().unwrap().tags[0].member_count,
+        Some(2),
+        "count-only delivery updates the list badge"
+    );
+    {
+        let hub_guard = tags_hub.lock().unwrap();
+        let hub = hub_guard
+            .as_ref()
+            .expect("bound navigation hub remains mounted");
+        assert!(
+            hub.loading,
+            "count-only delivery cannot populate the mounted hub"
+        );
+        assert!(hub.members.is_empty());
+    }
+    let pending_value = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(TAG_NAVIGATION_OBSERVER_AUTHOR_ID))
+        .and_then(|node| node.accesskit_node().value())
+        .expect("mounted tag navigation observer remains addressable");
+    let pending: serde_json::Value = serde_json::from_str(&pending_value).unwrap();
+    assert_eq!(pending["state"].as_str(), Some("pending"));
+    assert_eq!(pending["generation"].as_u64(), Some(navigation_generation));
+
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_sequence_for_test(
+            DEFAULT_PROJECT_ID,
+            "hub-a",
+            navigation_sequence,
+            Ok((
+                "Authoritative Hub A".to_owned(),
+                vec![HubMember::new("member-a", "Member A", "note")],
+            )),
+        );
+    harness.run_steps(3);
+
+    {
+        let hub_guard = tags_hub.lock().unwrap();
+        let hub = hub_guard
+            .as_ref()
+            .expect("exact navigation hub remains mounted");
+        assert_eq!(hub.title, "Authoritative Hub A");
+        assert_eq!(hub.members[0].block_id, "member-a");
+    }
+    let applied_value = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(TAG_NAVIGATION_OBSERVER_AUTHOR_ID))
+        .and_then(|node| node.accesskit_node().value())
+        .expect("mounted tag navigation observer remains addressable");
+    let applied: serde_json::Value = serde_json::from_str(&applied_value).unwrap();
+    assert_eq!(applied["state"].as_str(), Some("applied"));
+    assert_eq!(applied["generation"].as_u64(), Some(navigation_generation));
+}
+
+#[test]
 fn tags_member_count_delivery_updates_list_without_open_hub() {
     use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
     use handshake_native::graph::tags_panel::{HubMember, TagEntry};
@@ -1812,7 +2335,7 @@ fn tags_edge_same_hub_superseded_error_does_not_surface() {
 #[test]
 fn tags_edge_newer_failure_survives_older_success_without_refetch() {
     use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
-    use handshake_native::graph::tags_panel::LoomTagHubPanel;
+    use handshake_native::graph::tags_panel::{HubMember, LoomTagHubPanel};
 
     let (mut app, _rt) = secondary_shell();
     retype_panes(
@@ -1826,9 +2349,18 @@ fn tags_edge_newer_failure_survives_older_success_without_refetch() {
     {
         let mut hub = tags_hub.lock().unwrap();
         let mut current = LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-b");
+        current.set_detail(
+            "Hub B",
+            vec![HubMember::new(
+                "member-before-failure",
+                "Visible before failure",
+                "note",
+            )],
+        );
         current.add_tag_in_flight = true;
         *hub = Some(current);
     }
+    let members_before_failure = tags_hub.lock().unwrap().as_ref().unwrap().members.clone();
     let epoch = harness.state().tags_workspace_epoch_for_test();
     let old_sequence = harness
         .state()
@@ -1860,6 +2392,10 @@ fn tags_edge_newer_failure_survives_older_success_without_refetch() {
     let hub = tags_hub.lock().unwrap();
     let hub = hub.as_ref().expect("current hub remains open");
     assert_eq!(hub.error.as_deref(), Some("newest add failed"));
+    assert_eq!(
+        hub.members, members_before_failure,
+        "a failed tag add preserves the prior authoritative visible membership"
+    );
     assert!(
         !hub.add_tag_in_flight,
         "latest receipt releases the mutation gate"
@@ -3404,5 +3940,157 @@ fn loom_block_and_kernel_dcc_navigation_is_not_hijacked() {
         !ids.contains(MODE_LOCAL_AUTHOR_ID),
         "collision regression: a KernelDcc pane must NOT render the graph view ('{MODE_LOCAL_AUTHOR_ID}') \
          — the content-blind hijack is retired"
+    );
+}
+
+/// WP-KERNEL-012 MT-024 FAIL_V4 (failing branch of the canonical completion predicate).
+///
+/// `validation_v4` required that the pin-removal completion "wait for either terminal success plus
+/// authoritative refreshed pin absence OR terminal typed failure plus the original pin preserved;
+/// target disappearance alone must never count as success". The success branch is proven by
+/// `test_sidebar_panel_argus::mt024_mounted_sidebar_canonical_argus_inspect_steer_reobserve` against
+/// real PostgreSQL. This proof owns the FAILING branch: a real backend write failure must
+///   * roll the optimistically removed pin back into the mounted list (the original pin preserved),
+///   * leave the exact `sidebar.pin.{id}.remove` control mounted, and
+///   * publish a TERMINAL typed `failed` completion carrying the same authoritative operation-receipt
+///     shape — never an `applied` state and never a bare string.
+#[test]
+fn mt024_failed_pin_removal_rolls_back_and_publishes_terminal_typed_failure() {
+    use handshake_native::app::MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID;
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, SIDEBAR_PANE_LABEL};
+    use handshake_native::graph::sidebar_panel::{
+        pin_remove_author_id, pin_row_author_id, SectionKind, SidebarBlock, SidebarEvent,
+    };
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build mt024 rollback runtime");
+    app.set_runtime_handle(runtime.handle().clone());
+    // A closed port is a REAL transport failure against a real client; no mock, stub, or injected
+    // result stands in for the backend boundary.
+    app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:1");
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(SIDEBAR_PANE_LABEL))],
+    );
+    let panel = app.mounted_sidebar_panel_for_test();
+    let events = app.mounted_sidebar_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    {
+        let mut guard = panel.lock().unwrap();
+        guard.set_pins(vec![
+            SidebarBlock::new("block-001", "Design doc", "note"),
+            SidebarBlock::new("block-002", "Roadmap", "note"),
+        ]);
+    }
+    harness.run_steps(2);
+
+    let remove_target = pin_remove_author_id("block-001");
+    events.lock().unwrap().push(SidebarEvent::RemovePin {
+        block_id: "block-001".to_owned(),
+    });
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    loop {
+        harness.run_steps(2);
+        let rolled_back = panel
+            .lock()
+            .map(|panel| {
+                panel.pins.iter().any(|block| block.block_id == "block-001")
+                    && panel.error_section.contains_key(&SectionKind::Pins)
+            })
+            .unwrap_or(false);
+        if rolled_back {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "timed out waiting for the failed pin removal to roll back"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+
+    {
+        let guard = panel.lock().unwrap();
+        assert_eq!(
+            guard.pins.first().map(|block| block.block_id.as_str()),
+            Some("block-001"),
+            "MT-024 V4: a failed write restores the original pin at its position"
+        );
+        assert_eq!(guard.pins.len(), 2, "no pin is lost by the failed removal");
+    }
+
+    let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert!(
+        snapshot
+            .find_unique_by_author_id(&pin_row_author_id("block-001"))
+            .is_some(),
+        "MT-024 V4: the preserved pin row is addressable again after the rollback"
+    );
+    assert!(
+        snapshot.find_unique_by_author_id(&remove_target).is_some(),
+        "MT-024 V4: the exact Remove control stays mounted on the failing branch"
+    );
+    let observer = snapshot
+        .find_unique_by_author_id(MT024_SIDEBAR_PIN_REMOVAL_COMPLETION_AUTHOR_ID)
+        .expect("the durable pin-removal completion observer is projected into the tree");
+    let token: serde_json::Value = serde_json::from_str(
+        observer
+            .value
+            .as_deref()
+            .expect("the completion observer carries a machine-readable token"),
+    )
+    .expect("the completion observer token is JSON");
+    assert_eq!(token["schema"], "handshake.click-completion/v1");
+    assert_eq!(token["mode"], "observer");
+    assert_eq!(
+        token["state"], "failed",
+        "MT-024 V4: a failed write must terminalize as a TYPED failure, never applied: {token}"
+    );
+    assert_eq!(token["pending_target"], remove_target);
+    assert!(
+        token["terminal_error"]
+            .as_str()
+            .is_some_and(|error| !error.is_empty()),
+        "the terminal failure carries a typed error: {token}"
+    );
+    let detail: serde_json::Value = serde_json::from_str(
+        token["terminal_detail"]
+            .as_str()
+            .expect("the terminal failure carries the authoritative receipt detail"),
+    )
+    .expect("terminal detail is JSON");
+    let receipt = &detail["operation_receipt"];
+    assert_eq!(
+        receipt["schema_id"], "hsk.wp_kernel_012.mt_024.sidebar_mutation_receipt@1",
+        "the failing branch carries the SAME authoritative receipt shape: {detail}"
+    );
+    assert_eq!(receipt["operation"], "sidebar.remove-pin");
+    assert_eq!(receipt["outcome"], "failed");
+    assert_eq!(receipt["block_id"], "block-001");
+    assert!(
+        receipt["failure"]
+            .as_str()
+            .is_some_and(|failure| !failure.is_empty()),
+        "the failing receipt records the backend failure: {receipt}"
+    );
+    assert!(
+        detail["authoritative_refresh_contains_block"].is_null(),
+        "no authoritative refresh evidence may be claimed for a write that never persisted"
+    );
+
+    println!(
+        "MT-024 V4 failing branch: real transport failure -> pin preserved, remove control mounted, \
+         terminal typed failure receipt outcome={} error={:?}",
+        receipt["outcome"], token["terminal_error"]
     );
 }

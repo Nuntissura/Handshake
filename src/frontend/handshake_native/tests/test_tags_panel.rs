@@ -263,9 +263,9 @@ fn ac3_tag_click_fires_open_tag() {
     harness.run();
 
     let ev = events.lock().unwrap().clone();
-    let opened = ev
-        .iter()
-        .any(|e| matches!(e, TagsPanelEvent::OpenTag { block_id } if block_id == "tag-hub-003"));
+    let opened = ev.iter().any(
+        |e| matches!(e, TagsPanelEvent::OpenTag { block_id, .. } if block_id == "tag-hub-003"),
+    );
     assert!(
         opened,
         "AC3: clicking '#python' must fire OpenTag{{block_id:'tag-hub-003'}} (got {ev:?})"
@@ -764,7 +764,23 @@ fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
         DirtyState, LockState, PaneAuthority, PaneId, PaneRecord,
     };
 
-    let live = interconnect_support::require_reachable_backend();
+    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-023");
+    let receipt_path = receipt_dir.join("MT-023-live-pg-seed.json");
+    match std::fs::remove_file(&receipt_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => panic!(
+            "remove stale MT-023 owned live receipt {} before proof: {error}",
+            receipt_path.display()
+        ),
+    }
+    assert!(
+        !receipt_path.exists(),
+        "MT-023 live proof starts without its stale owned receipt"
+    );
+    let proof_started = std::time::SystemTime::now();
+
+    let mut live = interconnect_support::require_reachable_backend();
     let unique = format!(
         "mt023-{}-{}",
         std::process::id(),
@@ -1089,11 +1105,14 @@ fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
     assert!(await_tag_list(&loss_cell, "mt023-backend-loss").is_err());
 
     cleanup.assert_cleaned();
-    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-023");
+    drop(cleanup);
+    live.assert_cleanup();
+
+    // Publish the single owned receipt only after workspace/backend cleanup has succeeded.
     std::fs::create_dir_all(&receipt_dir).expect("create external MT-023 receipt directory");
-    let receipt_path = receipt_dir.join("MT-023-live-pg-seed.json");
     let receipt = serde_json::json!({
         "schema_id": "hsk.wp_kernel_012.mt_023.live_pg_receipt@1",
+        "proof_run_id": unique,
         "workspace_id": workspace_id,
         "tag_hub_ids": [rust_hub, rustaceans_hub, python_hub],
         "document_block_ids": [first_note, second_note],
@@ -1109,6 +1128,32 @@ fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
         serde_json::to_vec_pretty(&receipt).expect("serialize MT-023 live receipt"),
     )
     .expect("write external MT-023 live receipt");
+    let published: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&receipt_path).expect("read freshly published MT-023 live receipt"),
+    )
+    .expect("freshly published MT-023 live receipt is valid JSON");
+    assert_eq!(
+        published["proof_run_id"].as_str(),
+        Some(unique.as_str()),
+        "published live receipt belongs to this exact proof run"
+    );
+    assert_eq!(
+        published["workspace_id"].as_str(),
+        Some(workspace_id.as_str()),
+        "published live receipt carries the exact cleaned workspace"
+    );
+    let modified = std::fs::metadata(&receipt_path)
+        .and_then(|metadata| metadata.modified())
+        .unwrap_or_else(|error| {
+            panic!(
+                "read publication timestamp for {}: {error}",
+                receipt_path.display()
+            )
+        });
+    assert!(
+        modified >= proof_started,
+        "owned MT-023 live receipt was freshly published after proof start"
+    );
     println!(
         "MT-023 LIVE PG PASS workspace={workspace_id} hubs=[{rust_hub},{rustaceans_hub},{python_hub}] \
          documents=[{first_note},{second_note}] seeded_edge={seeded_edge_id} add_count=2 final_count=1 \

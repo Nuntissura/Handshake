@@ -75,6 +75,8 @@
 
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 
 use std::fs::OpenOptions;
 use std::io::Write as _;

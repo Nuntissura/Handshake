@@ -26,10 +26,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "pg_proof_support/mod.rs"]
 mod pg_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::event_emitter::{
@@ -40,12 +43,13 @@ use handshake_native::event_emitter::{
 };
 use handshake_native::flight_recorder_pane::{
     fr_event_row_author_id, FlightRecorderPane, FlightRecorderQuery, FlightRecorderQueryRows,
-    FlightRecorderRow, FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
-    FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX, FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
+    FlightRecorderRow, FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
+    FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID, FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX,
+    FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID, FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
     FLIGHT_RECORDER_PANE_AUTHOR_ID, FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
-    FLIGHT_RECORDER_REFRESH_AUTHOR_ID, MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ,
-    MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ, MT036_FLIGHT_RECORDER_LOAD_START_SEQ,
-    MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
+    FLIGHT_RECORDER_REFRESH_AUTHOR_ID, FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+    MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ, MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ,
+    MT036_FLIGHT_RECORDER_LOAD_START_SEQ, MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
 };
 use handshake_native::interop::interaction_bus::SharedSelection;
 use handshake_native::quick_switcher::ShellNavigator;
@@ -88,6 +92,80 @@ fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> 
     ids
 }
 
+const MT036_CAPTURE_WIDTH: f64 = 1400.0;
+const MT036_CAPTURE_HEIGHT: f64 = 900.0;
+
+fn bounds_are_in_mt036_viewport(bounds: egui::accesskit::Rect) -> bool {
+    bounds.width() > 0.0
+        && bounds.height() > 0.0
+        && bounds.x0 >= 0.0
+        && bounds.y0 >= 0.0
+        && bounds.x1 <= MT036_CAPTURE_WIDTH
+        && bounds.y1 <= MT036_CAPTURE_HEIGHT
+}
+
+fn live_author_is_visible_in_mt036_viewport<S>(harness: &Harness<'_, S>, author_id: &str) -> bool {
+    harness.root().children_recursive().any(|node| {
+        let access = node.accesskit_node();
+        access.author_id() == Some(author_id)
+            && access
+                .bounding_box()
+                .or_else(|| access.raw_bounds())
+                .is_some_and(bounds_are_in_mt036_viewport)
+    })
+}
+
+fn live_author_bounds<S>(
+    harness: &Harness<'_, S>,
+    author_id: &str,
+) -> Vec<(Option<egui::accesskit::Rect>, Option<egui::accesskit::Rect>)> {
+    harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| {
+            let access = node.accesskit_node();
+            (access.author_id() == Some(author_id))
+                .then(|| (access.bounding_box(), access.raw_bounds()))
+        })
+        .collect()
+}
+
+fn live_selected_flight_recorder_tab_is_visible<S>(harness: &Harness<'_, S>) -> bool {
+    harness.root().children_recursive().any(|node| {
+        let access = node.accesskit_node();
+        access.role() == egui::accesskit::Role::Tab
+            && access.is_selected().unwrap_or(false)
+            && access.label().as_deref() == Some("Flight Recorder")
+            && access
+                .bounding_box()
+                .or_else(|| access.raw_bounds())
+                .is_some_and(bounds_are_in_mt036_viewport)
+    })
+}
+
+fn live_visible_dialogs<S>(harness: &Harness<'_, S>) -> Vec<Option<String>> {
+    harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| {
+            let access = node.accesskit_node();
+            (access.role() == egui::accesskit::Role::Dialog
+                && access
+                    .bounding_box()
+                    .or_else(|| access.raw_bounds())
+                    .is_some_and(bounds_are_in_mt036_viewport))
+            .then(|| access.author_id().map(str::to_owned))
+        })
+        .collect()
+}
+
+const MT036_FORBIDDEN_FEMS_CAPTURE_AUTHOR_IDS: [&str; 4] = [
+    handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+    handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+    handshake_native::fems::FEMS_REVIEW_STATUS_AUTHOR_ID,
+    handshake_native::fems::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID,
+];
+
 fn diag_seen(counter_a: u64, sequence_id: u64, phase: handshake_diag_ring::DiagPhase) -> bool {
     handshake_native::diagnostics::snapshot_last_n(handshake_native::diagnostics::BUFFER_CAP)
         .iter()
@@ -97,6 +175,287 @@ fn diag_seen(counter_a: u64, sequence_id: u64, phase: handshake_diag_ring::DiagP
                 && event.sequence_id == sequence_id
                 && event.phase_marker == phase.as_u8()
         })
+}
+
+#[cfg(windows)]
+struct SuspendedProcessGuard {
+    handle: windows_sys::Win32::Foundation::HANDLE,
+    resumed: bool,
+}
+
+#[cfg(windows)]
+impl SuspendedProcessGuard {
+    fn suspend(pid: u32) -> Self {
+        use windows_sys::Win32::System::Threading::OpenProcess;
+        const PROCESS_SUSPEND_RESUME: u32 = 0x0800;
+        #[link(name = "ntdll")]
+        extern "system" {
+            fn NtSuspendProcess(process_handle: windows_sys::Win32::Foundation::HANDLE) -> i32;
+        }
+        let handle = unsafe { OpenProcess(PROCESS_SUSPEND_RESUME, 0, pid) };
+        assert!(
+            !handle.is_null(),
+            "open owned backend pid {pid}: {}",
+            std::io::Error::last_os_error()
+        );
+        let status = unsafe { NtSuspendProcess(handle) };
+        if status != 0 {
+            unsafe {
+                let _ = windows_sys::Win32::Foundation::CloseHandle(handle);
+            }
+            panic!("NtSuspendProcess({pid}) failed with NTSTATUS {status:#x}");
+        }
+        Self {
+            handle,
+            resumed: false,
+        }
+    }
+    fn resume(mut self) {
+        self.try_resume()
+            .unwrap_or_else(|status| panic!("NtResumeProcess failed with NTSTATUS {status:#x}"));
+    }
+    fn try_resume(&mut self) -> Result<(), i32> {
+        if self.resumed {
+            return Ok(());
+        }
+        #[link(name = "ntdll")]
+        extern "system" {
+            fn NtResumeProcess(process_handle: windows_sys::Win32::Foundation::HANDLE) -> i32;
+        }
+        let status = unsafe { NtResumeProcess(self.handle) };
+        if status != 0 {
+            return Err(status);
+        }
+        self.resumed = true;
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl Drop for SuspendedProcessGuard {
+    fn drop(&mut self) {
+        let _ = self.try_resume();
+        unsafe {
+            let _ = windows_sys::Win32::Foundation::CloseHandle(self.handle);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+struct SuspendedProcessGuard {
+    pid: u32,
+    resumed: bool,
+}
+#[cfg(not(windows))]
+impl SuspendedProcessGuard {
+    fn suspend(pid: u32) -> Self {
+        let status = std::process::Command::new("kill")
+            .args(["-STOP", &pid.to_string()])
+            .status()
+            .expect("suspend owned backend");
+        assert!(status.success());
+        Self {
+            pid,
+            resumed: false,
+        }
+    }
+    fn resume(mut self) {
+        self.try_resume().expect("resume owned backend");
+    }
+    fn try_resume(&mut self) -> Result<(), String> {
+        if self.resumed {
+            return Ok(());
+        }
+        let status = std::process::Command::new("kill")
+            .args(["-CONT", &self.pid.to_string()])
+            .status()
+            .map_err(|e| e.to_string())?;
+        if !status.success() {
+            return Err(format!("kill -CONT failed: {status}"));
+        }
+        self.resumed = true;
+        Ok(())
+    }
+}
+#[cfg(not(windows))]
+impl Drop for SuspendedProcessGuard {
+    fn drop(&mut self) {
+        let _ = self.try_resume();
+    }
+}
+
+fn receipt_for(observation: &canonical_argus_driver::ArgusObservation) -> serde_json::Value {
+    observation.after["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .cloned()
+        .expect("terminal observation retains its exact receipt")
+}
+
+fn product_terminal_detail(
+    observation: &canonical_argus_driver::ArgusObservation,
+) -> serde_json::Value {
+    let receipt = receipt_for(observation);
+    let token: serde_json::Value = serde_json::from_str(
+        receipt["observed_value"]
+            .as_str()
+            .expect("terminal receipt carries observer token"),
+    )
+    .expect("parse observer token");
+    serde_json::from_str(
+        token["terminal_detail"]
+            .as_str()
+            .expect("observer token carries product terminal detail"),
+    )
+    .expect("parse product terminal detail")
+}
+
+fn tree_product_terminal_detail(
+    tree: &serde_json::Value,
+    observer_author_id: &str,
+) -> Option<serde_json::Value> {
+    let node = json_node_by_author_id(tree, observer_author_id)?;
+    let token: serde_json::Value = serde_json::from_str(node["value"].as_str()?).ok()?;
+    serde_json::from_str(token["terminal_detail"].as_str()?).ok()
+}
+
+fn tree_node_json_value(tree: &serde_json::Value, author_id: &str) -> Option<serde_json::Value> {
+    serde_json::from_str(json_node_by_author_id(tree, author_id)?["value"].as_str()?).ok()
+}
+
+fn mt036_diag_rows_after(baseline_timestamp_nanos: u64) -> Vec<serde_json::Value> {
+    handshake_native::diagnostics::snapshot_last_n(handshake_native::diagnostics::BUFFER_CAP)
+        .into_iter()
+        .filter(|event| {
+            event.event_code == handshake_diag_ring::DiagEventCode::Other.as_u16()
+                && event.counter_a == MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER
+                && event.timestamp_nanos > baseline_timestamp_nanos
+        })
+        .map(|event| {
+            serde_json::json!({
+                "sequence_id": event.sequence_id,
+                "phase_marker": event.phase_marker,
+                "severity": event.severity,
+                "request_generation": event.counter_b,
+                "metric_micros": event.metric_micros,
+                "timestamp_nanos": event.timestamp_nanos,
+            })
+        })
+        .collect()
+}
+
+fn file_sha256(path: &Path) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(std::fs::read(path).expect("read proof artifact"))
+    )
+}
+
+fn json_sha256(value: &serde_json::Value) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(serde_json::to_vec(value).expect("encode tree for hash"))
+    )
+}
+
+fn mt036_candidate_identity() -> serde_json::Value {
+    use sha2::Digest as _;
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("handshake_native manifest is three levels below repo root");
+    let head = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo_root)
+        .output()
+        .expect("read source HEAD");
+    assert!(head.status.success());
+    let diff = std::process::Command::new("git")
+        .args(["diff", "--binary", "HEAD", "--", "."])
+        .current_dir(repo_root)
+        .output()
+        .expect("read whole tracked worktree candidate");
+    assert!(diff.status.success());
+    serde_json::json!({
+        "head": String::from_utf8_lossy(&head.stdout).trim(),
+        "whole_tracked_diff_sha256": format!("{:x}", sha2::Sha256::digest(&diff.stdout)),
+        "whole_tracked_diff_bytes": diff.stdout.len(),
+    })
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn capture_mt036_full_shell(
+    harness: &mut Harness<'_, handshake_native::app::HandshakeApp>,
+    argus: &mut CanonicalArgusDriver,
+    proof_dir: &Path,
+    label: &str,
+    required_visible_author_ids: &[&str],
+) -> serde_json::Value {
+    // ActionChannel can terminalize from the isolated authoritative snapshot after an async delivery
+    // while WGPU still holds the preceding live frame. Advance the mounted shell once before every
+    // capture so the live AccessKit geometry and PNG paint the same terminal state as the next
+    // inspection. The strict full-containment checks below then reject genuinely clipped/offscreen
+    // witnesses rather than weakening a snapshot/live timing race into viewport intersection.
+    harness.run_steps(1);
+    let tree = argus.inspect(harness);
+    assert!(
+        json_has_author_id(&tree, FLIGHT_RECORDER_PANE_AUTHOR_ID),
+        "MT-036 {label} capture requires the semantic Flight Recorder Region"
+    );
+    for author_id in MT036_FORBIDDEN_FEMS_CAPTURE_AUTHOR_IDS {
+        assert!(
+            !json_has_author_id(&tree, author_id),
+            "MT-036 {label} capture must not contain unrelated FEMS overlay node {author_id}"
+        );
+    }
+    assert!(
+        live_author_is_visible_in_mt036_viewport(harness, "pane-c"),
+        "MT-036 {label} capture requires outer pane-c to have nonzero in-viewport bounds"
+    );
+    assert!(
+        live_selected_flight_recorder_tab_is_visible(harness),
+        "MT-036 {label} capture requires a visible selected Flight Recorder tab"
+    );
+    assert!(
+        live_visible_dialogs(harness).is_empty(),
+        "MT-036 {label} capture must not be obscured by a visible dialog; dialogs={:?}",
+        live_visible_dialogs(harness)
+    );
+    for author_id in required_visible_author_ids {
+        assert!(
+            live_author_is_visible_in_mt036_viewport(harness, author_id),
+            "MT-036 {label} capture requires state witness {author_id} to have nonzero in-viewport bounds; witness_bounds={:?}; pane_c_bounds={:?}",
+            live_author_bounds(harness, author_id),
+            live_author_bounds(harness, "pane-c"),
+        );
+    }
+    let tree_path = proof_dir.join(format!("{label}-tree.json"));
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&tree).expect("encode tree"),
+    )
+    .expect("write tree");
+    let image = harness
+        .render()
+        .expect("render full mounted Handshake shell");
+    assert_eq!((image.width(), image.height()), (1400, 900));
+    let png_path = proof_dir.join(format!("{label}-full-shell.png"));
+    image.save(&png_path).expect("save full-shell PNG");
+    serde_json::json!({
+        "label": label,
+        "tree": tree_path,
+        "tree_sha256": file_sha256(&tree_path),
+        "png": png_path,
+        "png_sha256": file_sha256(&png_path),
+        "width": image.width(),
+        "height": image.height(),
+    })
 }
 
 // ── Test doubles ──────────────────────────────────────────────────────────────────────────────────
@@ -236,6 +595,14 @@ struct InjectedQuery(Result<FlightRecorderQueryRows, String>);
 impl FlightRecorderQuery for InjectedQuery {
     fn rows(&self) -> Result<FlightRecorderQueryRows, String> {
         self.0.clone()
+    }
+}
+
+#[derive(Clone)]
+struct MutableInjectedQuery(Arc<Mutex<Result<FlightRecorderQueryRows, String>>>);
+impl FlightRecorderQuery for MutableInjectedQuery {
+    fn rows(&self) -> Result<FlightRecorderQueryRows, String> {
+        self.0.lock().expect("mutable query lock").clone()
     }
 }
 
@@ -402,10 +769,10 @@ fn registry_dispatches_to_mock_surface() {
 fn flight_recorder_pane_lists_event() {
     let row = FlightRecorderRow {
         event_id: "FR-EVT-001".to_owned(),
-        action: "document_saved".to_owned(),
-        event_code: None,
-        actor_id: native_editor_actor_id("pane-rich"),
-        ts_utc: "2026-06-23T00:00:00Z".to_owned(),
+        action: "canvas_node_placed".to_owned(),
+        event_code: Some("FR-EVT-NATIVE-001".to_owned()),
+        actor_id: handshake_native::event_emitter::DEFAULT_ACTOR_ID.to_owned(),
+        ts_utc: "2026-08-02T06:35:12.123456789Z".to_owned(),
     };
     let query = Arc::new(InjectedRows(vec![row.clone()]));
     let mut pane = FlightRecorderPane::new(query, ErrorRing::new());
@@ -414,7 +781,7 @@ fn flight_recorder_pane_lists_event() {
     let pane = Arc::new(pane);
     let pane_ui = Arc::clone(&pane);
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(720.0, 320.0))
+        .with_size(egui::vec2(488.0, 320.0))
         .build_ui(move |ui| {
             let pal = HsTheme::Dark.palette();
             pane_ui.show(ui, &pal);
@@ -435,13 +802,17 @@ fn flight_recorder_pane_lists_event() {
     // Verify the roles are field-correct (Region root + ListItem rows).
     let mut region_role = String::new();
     let mut row_role = String::new();
+    let mut row_bounds = None;
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         match ak.author_id() {
             Some(a) if a == FLIGHT_RECORDER_PANE_AUTHOR_ID => {
                 region_role = format!("{:?}", ak.role())
             }
-            Some(a) if a == expected_row_id => row_role = format!("{:?}", ak.role()),
+            Some(a) if a == expected_row_id => {
+                row_role = format!("{:?}", ak.role());
+                row_bounds = ak.bounding_box().or_else(|| ak.raw_bounds());
+            }
             _ => {}
         }
     }
@@ -452,6 +823,15 @@ fn flight_recorder_pane_lists_event() {
     assert_eq!(
         row_role, "ListItem",
         "fr-event-* row must be Role::ListItem"
+    );
+    let row_bounds = row_bounds.expect("fr-event-* row has consumer-visible bounds");
+    assert!(
+        row_bounds.x0 >= 0.0 && row_bounds.x1 <= 488.0,
+        "long production-shaped event row must stay within the narrow pane viewport; bounds={row_bounds:?}"
+    );
+    assert!(
+        row_bounds.height() > 15.0,
+        "long production-shaped event row must wrap to readable lines; bounds={row_bounds:?}"
     );
     println!("AC-7: FlightRecorderPane lists '{expected_row_id}' (ListItem) under '{FLIGHT_RECORDER_PANE_AUTHOR_ID}' (Region)");
 }
@@ -477,7 +857,7 @@ fn flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids() {
         quarantined: vec!["bad-fems-row: event_code mismatch".to_owned()],
     })));
     let mut pane = FlightRecorderPane::new(query, ring);
-    pane.begin_loading();
+    pane.begin_loading(1);
     assert!(
         diag_seen(
             MT036_FLIGHT_RECORDER_PANE_DIAG_COUNTER,
@@ -504,6 +884,7 @@ fn flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids() {
     let ids = author_ids(&harness);
     for expected in [
         FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+        FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
         FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
         FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
         &format!("{FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX}0"),
@@ -533,7 +914,66 @@ fn flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids() {
     failure_harness.run();
     let failed_ids = author_ids(&failure_harness);
     assert!(failed_ids.contains(FLIGHT_RECORDER_REFRESH_AUTHOR_ID));
+    assert!(failed_ids.contains(FLIGHT_RECORDER_RETRY_AUTHOR_ID));
+    assert!(failed_ids.contains(FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID));
     assert!(failed_ids.contains(FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID));
+
+    // The durable action observer must preserve its exact AccessKit node identity while the pane's
+    // state-dependent layout changes around it. ActionChannel rejects a changed node_id as observer
+    // identity drift, even if author_id and completion token are otherwise correct.
+    let result = Arc::new(Mutex::new(Ok(FlightRecorderQueryRows::default())));
+    let pane = Arc::new(Mutex::new(FlightRecorderPane::new(
+        Arc::new(MutableInjectedQuery(Arc::clone(&result))),
+        ErrorRing::new(),
+    )));
+    pane.lock().expect("pane lock").begin_loading(1);
+    let pane_ui = Arc::clone(&pane);
+    let mut harness = Harness::builder().build_ui(move |ui| {
+        pane_ui
+            .lock()
+            .expect("pane UI lock")
+            .show(ui, &HsTheme::Dark.palette());
+    });
+    let observer_node_id = |harness: &Harness<'_, ()>| {
+        harness
+            .root()
+            .children_recursive()
+            .find(|node| {
+                node.accesskit_node().author_id()
+                    == Some(FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID)
+            })
+            .map(|node| node.accesskit_node().id())
+            .expect("durable Flight Recorder action observer")
+    };
+
+    harness.run();
+    let loading_id = observer_node_id(&harness);
+
+    *result.lock().expect("mutable query result") = Ok(FlightRecorderQueryRows {
+        rows: vec![FlightRecorderRow {
+            event_id: "stable-observer-row".to_owned(),
+            action: "document_saved".to_owned(),
+            event_code: None,
+            actor_id: "native_editor_human".to_owned(),
+            ts_utc: "2026-08-02T00:00:00Z".to_owned(),
+        }],
+        quarantined: Vec::new(),
+    });
+    pane.lock().expect("pane lock").load_now();
+    harness.run();
+    let loaded_id = observer_node_id(&harness);
+
+    *result.lock().expect("mutable query result") = Err("closed-loopback refused".to_owned());
+    {
+        let mut pane = pane.lock().expect("pane lock");
+        pane.begin_loading(2);
+        pane.load_now();
+    }
+    harness.run();
+    let failed_id = observer_node_id(&harness);
+
+    assert_eq!(loading_id, loaded_id, "Loading -> Loaded observer node_id");
+    assert_eq!(loading_id, failed_id, "Loading -> Failed observer node_id");
 }
 
 #[test]
@@ -1448,7 +1888,9 @@ fn no_repo_local_artifact_dir() {
 
 #[test]
 fn event_emitter_native_editor_round_trip() {
-    let managed_backend = pg_proof_support::require_reachable_backend();
+    let mut managed_backend = pg_proof_support::require_reachable_backend();
+    let backend_binding = managed_backend.owned_backend_binding_receipt();
+    let backend_pid = managed_backend.owned_process_id();
     let base = managed_backend.base.clone();
     let marker = uuid::Uuid::new_v4().to_string();
     let session_id = uuid::Uuid::new_v4().to_string();
@@ -1550,6 +1992,7 @@ fn event_emitter_native_editor_round_trip() {
                 .to_owned(),
         )
     });
+    managed_backend.workspace_id = workspace.clone();
     use handshake_native::app::{HandshakeApp, HealthDisplayState};
     use handshake_native::backend_client::HealthInfo;
     use handshake_native::graph::canvas_board::PLACE_BLOCK_AUTHOR_ID;
@@ -1579,15 +2022,16 @@ fn event_emitter_native_editor_round_trip() {
     );
     let captured_ctx = Arc::new(Mutex::new(None::<egui::Context>));
     let captured_ctx_ui = Arc::clone(&captured_ctx);
-    let mut app_harness = Harness::builder()
-        .with_size(egui::vec2(1280.0, 800.0))
-        .build_state(
-            move |ctx, app: &mut HandshakeApp| {
-                *captured_ctx_ui.lock().expect("capture app context") = Some(ctx.clone());
-                app.ui(ctx);
-            },
-            app,
-        );
+    let app_builder = Harness::builder().with_size(egui::vec2(1400.0, 900.0));
+    #[cfg(feature = "wgpu_screenshots")]
+    let app_builder = app_builder.wgpu();
+    let mut app_harness = app_builder.build_state(
+        move |ctx, app: &mut HandshakeApp| {
+            *captured_ctx_ui.lock().expect("capture app context") = Some(ctx.clone());
+            app.ui(ctx);
+        },
+        app,
+    );
     for _ in 0..400 {
         app_harness.run_steps(1);
         let ready = canvas_board
@@ -1773,7 +2217,7 @@ fn event_emitter_native_editor_round_trip() {
         "mounted app Edit > Undo dispatch fires the real unified undo path"
     );
 
-    let event_ids = runtime.block_on(async {
+    let (event_ids, trace_id, ledger_rows) = runtime.block_on(async {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
         let matching = loop {
             let response = reqwest::Client::builder()
@@ -1845,35 +2289,371 @@ fn event_emitter_native_editor_round_trip() {
                 && row["payload"]["schema"] == NATIVE_EDITOR_SCHEMA_VERSION
                 && row["payload"]["workspace_id"] == workspace
         }));
-        matching
+        let event_ids = matching
             .iter()
             .map(|row| row["event_id"].as_str().unwrap().to_owned())
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+        (event_ids, trace_id.to_owned(), matching)
     });
 
-    // Open the real operator route. The mounted pane itself requests GET /flight_recorder through the
-    // app driver and renders the returned rows; no test cell, parser delivery, or standalone pane is
-    // substituted.
-    assert!(app_harness
-        .state_mut()
-        .dispatch_palette_action_for_test("flightrecorder.open"));
-    let pane_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    // The managed-workspace bind starts MT-064's canonical pending-review refresh. Wait for that
+    // background work to terminalize, then clear only its incidental notice/retry so it cannot obscure
+    // this cross-feature visual proof. The seam refuses to cancel any live proposal or review action.
+    let fems_notice_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     loop {
         app_harness.run_steps(1);
-        let ids = author_ids(&app_harness);
-        if event_ids
-            .iter()
-            .all(|event_id| ids.contains(&fr_event_row_author_id(event_id)))
+        if app_harness
+            .state_mut()
+            .clear_incidental_fems_notice_for_integration_test()
         {
             break;
         }
         assert!(
+            std::time::Instant::now() < fems_notice_deadline,
+            "timed out waiting for incidental FEMS pending-review refresh to terminalize"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    app_harness.run_steps(1);
+    let live_ids_after_fems_clear = author_ids(&app_harness);
+    for author_id in MT036_FORBIDDEN_FEMS_CAPTURE_AUTHOR_IDS {
+        assert!(
+            !live_ids_after_fems_clear.contains(author_id),
+            "incidental FEMS overlay node remained mounted before MT-036 proof: {author_id}"
+        );
+    }
+
+    // Pane-b is intentionally narrow in the default layout. Select the existing wide pane-c before
+    // operator navigation; the menu action still performs the actual Flight Recorder open and the
+    // mounted open observer must bind it to this active pane.
+    app_harness.state_mut().set_active_pane_for_test(Some(
+        handshake_native::pane_registry::PaneId::from("pane-c"),
+    ));
+    app_harness.run_steps(1);
+
+    // Canonical V4 matrix: real localhost Argus drives operator open, Refresh, bounded failure,
+    // repeated-failure Retry, and recovery against this one mounted shell and fixture-owned backend.
+    let proof_run_id = format!("{}-{}", std::process::id(), uuid::Uuid::new_v4().simple());
+    let proof_dir = external_artifact_dir(&format!("wp-kernel-012-mt-036-v4/{proof_run_id}"));
+    assert!(!proof_dir.exists(), "V4 proof directory must be unique");
+    std::fs::create_dir_all(&proof_dir).expect("create unique V4 proof directory");
+
+    let expected_row_ids = event_ids
+        .iter()
+        .map(|event_id| fr_event_row_author_id(event_id))
+        .collect::<Vec<_>>();
+    let rows_visible = |tree: &serde_json::Value| {
+        json_has_author_id(tree, FLIGHT_RECORDER_PANE_AUTHOR_ID)
+            && expected_row_ids
+                .iter()
+                .all(|author_id| json_has_author_id(tree, author_id))
+    };
+    let diag_baseline_timestamp_nanos =
+        handshake_native::diagnostics::snapshot_last_n(handshake_native::diagnostics::BUFFER_CAP)
+            .iter()
+            .map(|event| event.timestamp_nanos)
+            .max()
+            .unwrap_or(0);
+    let candidate_identity_before = mt036_candidate_identity();
+    let test_executable = std::fs::canonicalize(std::env::current_exe().expect("current test exe"))
+        .expect("canonical test exe");
+    let test_executable_identity = serde_json::json!({
+        "canonical_path": test_executable,
+        "sha256": file_sha256(&test_executable),
+        "size_bytes": std::fs::metadata(&test_executable).expect("test exe metadata").len(),
+    });
+    let mut argus = CanonicalArgusDriver::bind(app_harness.state(), "mt036-v4-round-trip");
+    let mut action_proof = Vec::new();
+
+    argus.click_expect_applied_and_reinspect(&mut app_harness, "menu-operator");
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "operator-menu-exposes-flight-recorder",
+        |tree| json_has_author_id(tree, "menu.operator.flight-recorder"),
+    );
+    action_proof.push(argus.latest_terminal_observation());
+
+    let open_suspended = SuspendedProcessGuard::suspend(backend_pid);
+    argus.click_expect_applied_and_reinspect(&mut app_harness, "menu.operator.flight-recorder");
+    let live_loading_deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        app_harness.run_steps(1);
+        let live_ids = author_ids(&app_harness);
+        let visible_dialogs = live_visible_dialogs(&app_harness);
+        if live_author_is_visible_in_mt036_viewport(&app_harness, "pane-c")
+            && live_author_is_visible_in_mt036_viewport(
+                &app_harness,
+                FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID,
+            )
+            && live_selected_flight_recorder_tab_is_visible(&app_harness)
+            && matches!(
+                app_harness.state().flight_recorder_state_for_test().4,
+                handshake_native::flight_recorder_pane::LoadState::Loading
+            )
+            && visible_dialogs.is_empty()
+            && MT036_FORBIDDEN_FEMS_CAPTURE_AUTHOR_IDS
+                .iter()
+                .all(|author_id| !live_ids.contains(*author_id))
+            && !live_ids.contains("menu.operator.flight-recorder")
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < live_loading_deadline,
+            "live mounted shell must close OPERATOR and visibly render the active pane-c Flight Recorder Loading without dialogs before capture; live_ids={live_ids:?}; visible_dialogs={visible_dialogs:?}; lifecycle={:?}",
+            app_harness.state().flight_recorder_state_for_test(),
+        );
+    }
+    argus.assert_latest_terminal_predicate(
+        &mut app_harness,
+        "operator-open-mounted-real-loading-state",
+        |tree| {
+            json_has_author_id(tree, FLIGHT_RECORDER_PANE_AUTHOR_ID)
+                && json_has_author_id(tree, FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID)
+                && MT036_FORBIDDEN_FEMS_CAPTURE_AUTHOR_IDS
+                    .iter()
+                    .all(|author_id| !json_has_author_id(tree, author_id))
+        },
+    );
+    let open_observation = argus.latest_terminal_observation();
+    let open_generation = tree_node_json_value(
+        &open_observation.after,
+        FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID,
+    )
+    .expect("parse loading status JSON")["active_request_generation"]
+        .as_u64()
+        .expect("open Loading tree exposes exact active request generation");
+    action_proof.push(open_observation);
+    #[cfg(feature = "wgpu_screenshots")]
+    let loading_capture = capture_mt036_full_shell(
+        &mut app_harness,
+        &mut argus,
+        &proof_dir,
+        "loading",
+        &[FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID],
+    );
+    open_suspended.resume();
+    let pane_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    while !expected_row_ids
+        .iter()
+        .all(|author_id| author_ids(&app_harness).contains(author_id))
+    {
+        app_harness.run_steps(1);
+        assert!(
             std::time::Instant::now() < pane_deadline,
-            "mounted production Flight Recorder pane did not expose {event_ids:?}; lifecycle={:?}",
+            "canonical open did not render exact rows; lifecycle={:?}",
             app_harness.state().flight_recorder_state_for_test(),
         );
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
+    let open_loaded_tree = argus.inspect(&mut app_harness);
+    assert!(
+        rows_visible(&open_loaded_tree),
+        "same resumed real-backend open request renders all exact rows"
+    );
+
+    let refresh_provisional = argus
+        .click_expect_applied_and_reinspect(&mut app_harness, FLIGHT_RECORDER_REFRESH_AUTHOR_ID);
+    let refresh_generation = product_terminal_detail(&refresh_provisional)["request_generation"]
+        .as_u64()
+        .expect("successful Refresh request generation");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut app_harness,
+        "refresh-applied-exact-event-rows",
+        serde_json::json!({
+            "exact_row_author_ids": expected_row_ids,
+            "request_generation": refresh_generation,
+        }),
+        |tree| {
+            rows_visible(tree)
+                && tree_product_terminal_detail(tree, FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID)
+                    .and_then(|detail| detail["request_generation"].as_u64())
+                    == Some(refresh_generation)
+        },
+    );
+    let refresh = argus.latest_terminal_observation();
+    let refresh_detail = product_terminal_detail(&refresh);
+    assert_eq!(refresh_detail["row_count"], 3);
+    action_proof.push(refresh);
+
+    #[cfg(feature = "wgpu_screenshots")]
+    let refreshed_capture = {
+        let required_visible = expected_row_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        capture_mt036_full_shell(
+            &mut app_harness,
+            &mut argus,
+            &proof_dir,
+            "refreshed",
+            &required_visible,
+        )
+    };
+
+    let closed_listener = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("allocate closed-loopback failure address");
+    let closed_addr = closed_listener
+        .local_addr()
+        .expect("closed-loopback address");
+    drop(closed_listener);
+    assert!(
+        std::net::TcpStream::connect_timeout(&closed_addr, std::time::Duration::from_millis(250))
+            .is_err(),
+        "closed-loopback failure address must refuse connections"
+    );
+    let closed_base = format!("http://{closed_addr}");
+    app_harness
+        .state_mut()
+        .set_backend_base_url_for_test(&closed_base, runtime.handle().clone());
+    let failed_refresh_provisional = argus.click_expect_typed_rejected_and_reinspect(
+        &mut app_harness,
+        FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+        "error sending request",
+    );
+    let failed_refresh_generation = product_terminal_detail(&failed_refresh_provisional)
+        ["request_generation"]
+        .as_u64()
+        .expect("failed Refresh request generation");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut app_harness,
+        "refresh-failed-bounded-and-retry-visible",
+        serde_json::json!({"request_generation": failed_refresh_generation}),
+        |tree| {
+            json_has_author_id(tree, FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID)
+                && json_has_author_id(tree, FLIGHT_RECORDER_RETRY_AUTHOR_ID)
+                && tree_product_terminal_detail(tree, FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID)
+                    .and_then(|detail| detail["request_generation"].as_u64())
+                    == Some(failed_refresh_generation)
+        },
+    );
+    let failed_refresh = argus.latest_terminal_observation();
+    let failed_refresh_detail = product_terminal_detail(&failed_refresh);
+    assert_eq!(failed_refresh_detail["load_state"], "failed");
+    action_proof.push(failed_refresh);
+
+    #[cfg(feature = "wgpu_screenshots")]
+    let failed_capture = capture_mt036_full_shell(
+        &mut app_harness,
+        &mut argus,
+        &proof_dir,
+        "failed-retry",
+        &[
+            FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
+            FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+        ],
+    );
+
+    let failed_retry_provisional = argus.click_expect_typed_rejected_and_reinspect(
+        &mut app_harness,
+        FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+        "error sending request",
+    );
+    let failed_retry_generation = product_terminal_detail(&failed_retry_provisional)
+        ["request_generation"]
+        .as_u64()
+        .expect("failed Retry request generation");
+    assert!(
+        !json_has_author_id(
+            &failed_retry_provisional.after,
+            FLIGHT_RECORDER_RETRY_AUTHOR_ID
+        ),
+        "the authoritative Retry failure acknowledgement snapshot suppresses the transient target"
+    );
+    let failed_retry_terminal_ack = failed_retry_provisional.clone();
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut app_harness,
+        "retry-rejected-fresh-tree-remounts-recovery-target",
+        serde_json::json!({"request_generation": failed_retry_generation}),
+        |tree| {
+            json_has_author_id(tree, FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID)
+                && json_has_author_id(tree, FLIGHT_RECORDER_RETRY_AUTHOR_ID)
+                && tree_product_terminal_detail(tree, FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID)
+                    .and_then(|detail| detail["request_generation"].as_u64())
+                    == Some(failed_retry_generation)
+        },
+    );
+    let failed_retry = argus.latest_terminal_observation();
+    let failed_retry_detail = product_terminal_detail(&failed_retry);
+    assert_eq!(failed_retry_detail["load_state"], "failed");
+    action_proof.push(failed_retry);
+
+    app_harness.run_steps(1);
+    let retry_remounted = argus.inspect(&mut app_harness);
+    assert!(
+        json_has_author_id(&retry_remounted, FLIGHT_RECORDER_RETRY_AUTHOR_ID),
+        "fresh inspect after terminal acknowledgement discovers a new Retry"
+    );
+
+    app_harness
+        .state_mut()
+        .set_backend_base_url_for_test(&base, runtime.handle().clone());
+    let recovered_provisional =
+        argus.click_expect_applied_and_reinspect(&mut app_harness, FLIGHT_RECORDER_RETRY_AUTHOR_ID);
+    let recovered_generation = product_terminal_detail(&recovered_provisional)
+        ["request_generation"]
+        .as_u64()
+        .expect("successful Retry request generation");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut app_harness,
+        "retry-recovered-exact-event-rows",
+        serde_json::json!({
+            "exact_row_author_ids": expected_row_ids,
+            "request_generation": recovered_generation,
+        }),
+        |tree| {
+            rows_visible(tree)
+                && tree_product_terminal_detail(tree, FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID)
+                    .and_then(|detail| detail["request_generation"].as_u64())
+                    == Some(recovered_generation)
+        },
+    );
+    let recovered = argus.latest_terminal_observation();
+    let recovered_detail = product_terminal_detail(&recovered);
+    assert_eq!(recovered_detail["row_count"], 3);
+    action_proof.push(recovered);
+
+    #[cfg(feature = "wgpu_screenshots")]
+    let recovered_capture = {
+        let required_visible = expected_row_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        capture_mt036_full_shell(
+            &mut app_harness,
+            &mut argus,
+            &proof_dir,
+            "recovered",
+            &required_visible,
+        )
+    };
+
+    let diagnostic_rows = mt036_diag_rows_after(diag_baseline_timestamp_nanos);
+    for detail in [
+        &refresh_detail,
+        &failed_refresh_detail,
+        &failed_retry_detail,
+        &recovered_detail,
+    ] {
+        let generation = detail["request_generation"]
+            .as_u64()
+            .expect("terminal detail request generation");
+        assert!(diagnostic_rows.iter().any(|row| {
+            row["request_generation"].as_u64() == Some(generation)
+                && row["sequence_id"].as_u64() == Some(MT036_FLIGHT_RECORDER_LOAD_START_SEQ)
+        }));
+        let terminal_sequence = if detail["load_state"] == "failed" {
+            MT036_FLIGHT_RECORDER_LOAD_FAILED_SEQ
+        } else {
+            MT036_FLIGHT_RECORDER_LOAD_RECOVERED_SEQ
+        };
+        assert!(diagnostic_rows.iter().any(|row| {
+            row["request_generation"].as_u64() == Some(generation)
+                && row["sequence_id"].as_u64() == Some(terminal_sequence)
+        }));
+    }
+
+    argus.finish_require_no_indeterminate();
 
     runtime.block_on(async {
         let cleanup = reqwest::Client::builder()
@@ -1889,4 +2669,200 @@ fn event_emitter_native_editor_round_trip() {
             .expect("cleanup isolated workspace");
         assert!(cleanup.status().is_success(), "isolated workspace cleanup");
     });
+    managed_backend.assert_cleanup();
+    let candidate_identity_after = mt036_candidate_identity();
+    assert_eq!(
+        candidate_identity_after, candidate_identity_before,
+        "whole tracked worktree candidate must not change during canonical proof"
+    );
+    let action_targets = [
+        (
+            "open-operator-menu",
+            "menu-operator",
+            serde_json::json!({
+                "status": "NOT_APPLICABLE",
+                "reason": "opens dropdown only; no backend request",
+            }),
+        ),
+        (
+            "open-flight-recorder",
+            "menu.operator.flight-recorder",
+            serde_json::json!({"status": "APPLICABLE", "request_generation": open_generation}),
+        ),
+        (
+            "refresh-loaded",
+            FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+            serde_json::json!({"status": "APPLICABLE", "request_generation": refresh_generation}),
+        ),
+        (
+            "refresh-rejected",
+            FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+            serde_json::json!({"status": "APPLICABLE", "request_generation": failed_refresh_generation}),
+        ),
+        (
+            "retry-rejected",
+            FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+            serde_json::json!({"status": "APPLICABLE", "request_generation": failed_retry_generation}),
+        ),
+        (
+            "retry-recovered",
+            FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+            serde_json::json!({"status": "APPLICABLE", "request_generation": recovered_generation}),
+        ),
+    ];
+    assert_eq!(action_proof.len(), action_targets.len());
+    let action_records = action_proof
+        .iter()
+        .zip(action_targets)
+        .map(
+            |(observation, (action_kind, stable_target, request_binding))| {
+                let request_generation = request_binding["request_generation"].as_u64();
+                let diagnostic_pair = request_generation
+                    .map(|generation| {
+                        diagnostic_rows
+                            .iter()
+                            .filter(|row| row["request_generation"].as_u64() == Some(generation))
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                if request_generation.is_some() {
+                    assert_eq!(
+                        diagnostic_pair.len(),
+                        2,
+                        "each load action has one fresh Start plus one exact terminal diagnostic"
+                    );
+                }
+                serde_json::json!({
+                    "action_kind": action_kind,
+                    "stable_target": stable_target,
+                    "agent_id": observation.agent_id,
+                    "correlation_id": observation.correlation_id,
+                    "receipt_id": observation.receipt_id,
+                    "receipt_status": observation.receipt_status,
+                    "before_tree_sha256": json_sha256(&observation.before),
+                    "after_tree_sha256": json_sha256(&observation.after),
+                    "before_generation": observation.before["captured_at_utc"],
+                    "after_generation": observation.after["captured_at_utc"],
+                    "terminal_predicates": observation.terminal_predicates,
+                    "terminal_refreshed": observation.terminal_refreshed,
+                    "workspace_id": workspace,
+                    "trace_id": trace_id,
+                    "exact_event_ids_newest_first": event_ids,
+                    "request_generation_binding": request_binding,
+                    "diagnostic_pair": diagnostic_pair,
+                    "raw_observation": observation,
+                })
+            },
+        )
+        .collect::<Vec<_>>();
+    #[cfg(feature = "wgpu_screenshots")]
+    {
+        let mut captures = vec![
+            loading_capture,
+            refreshed_capture,
+            failed_capture,
+            recovered_capture,
+        ];
+        for (capture, (action_index, predicate_id)) in captures.iter_mut().zip([
+            (1usize, "operator-open-mounted-real-loading-state"),
+            (2usize, "refresh-applied-exact-event-rows"),
+            (3usize, "refresh-failed-bounded-and-retry-visible"),
+            (5usize, "retry-recovered-exact-event-rows"),
+        ]) {
+            capture["preceding_action"] = serde_json::json!({
+                "receipt_id": action_records[action_index]["receipt_id"],
+                "correlation_id": action_records[action_index]["correlation_id"],
+                "receipt_status": action_records[action_index]["receipt_status"],
+                "terminal_predicate_id": predicate_id,
+                "terminal_predicate_passed": true,
+            });
+        }
+        assert_eq!(
+            captures
+                .iter()
+                .map(|capture| capture["label"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["loading", "refreshed", "failed-retry", "recovered"]
+        );
+        assert!(captures
+            .iter()
+            .all(|capture| capture["width"] == 1400 && capture["height"] == 900));
+        let proof_bundle = serde_json::json!({
+            "schema_version": "hsk.mt036-v4-proof@1",
+            "run_id": proof_run_id,
+            "source_before": candidate_identity_before,
+            "source_after": candidate_identity_after,
+            "test_executable": test_executable_identity,
+            "invocation": {
+                "argv": std::env::args().collect::<Vec<_>>(),
+                "test": "event_emitter_native_editor_round_trip",
+                "features": ["integration", "wgpu_screenshots"],
+                "declared_cargo_command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration,wgpu_screenshots --test test_event_emitter -- --nocapture --test-threads=1",
+            },
+            "environment_bindings": {
+                "cargo_target_dir": std::env::var("CARGO_TARGET_DIR").ok(),
+                "artifact_root": external_artifact_dir(""),
+                "owned_backend_base": base,
+                "closed_loopback_failure_base": closed_base,
+            },
+            "backend_binding": backend_binding,
+            "backend_cleanup": {"assert_cleanup": true, "owned_backend_reaped": true},
+            "workspace_cleanup": {"workspace_id": workspace, "deleted": true},
+            "trace_id": trace_id,
+            "event_ids_newest_first": event_ids,
+            "ledger_rows_newest_first": ledger_rows,
+            "expected_row_author_ids": expected_row_ids,
+            "actions": action_records,
+            "failed_retry_terminal_ack": failed_retry_terminal_ack,
+            "retry_remounted_tree": retry_remounted,
+            "open_loaded_tree": open_loaded_tree,
+            "diagnostic_rows": diagnostic_rows,
+            "diagnostic_tiers": {
+                "tier_1": {
+                    "posture": "WIRED",
+                    "authority": "Flight Recorder/EventLedger",
+                    "trace_id": trace_id,
+                    "exact_event_ids_newest_first": event_ids,
+                },
+                "tier_2": {
+                    "posture": "WIRED",
+                    "authority": "internal_diagnostics",
+                    "correlation": "each load action record carries its request_generation-matched Start plus Recovered/Failed diagnostic pair",
+                },
+                "tier_3": {
+                    "posture": "WIRED-through-shared-ring",
+                    "authority": "Palmistry",
+                    "same_rows": diagnostic_rows,
+                    "payload_copy": false,
+                },
+            },
+            "captures": captures,
+            "zero_indeterminate": true,
+            "zero_unresolved": true,
+        });
+        let bundle_path = proof_dir.join("proof-bundle.json");
+        std::fs::write(
+            &bundle_path,
+            serde_json::to_vec_pretty(&proof_bundle).expect("encode V4 proof bundle"),
+        )
+        .expect("publish V4 proof bundle after cleanup");
+        println!("MT-036 V4 proof bundle: {}", bundle_path.display());
+    }
+    #[cfg(not(feature = "wgpu_screenshots"))]
+    {
+        let incomplete = serde_json::json!({
+            "schema_version": "hsk.mt036-v4-incomplete@1",
+            "run_id": proof_run_id,
+            "reason": "wgpu_screenshots feature is required for V4 visual closure",
+            "source": candidate_identity_after,
+            "test_executable": test_executable_identity,
+        });
+        std::fs::write(
+            proof_dir.join("incomplete-proof.json"),
+            serde_json::to_vec_pretty(&incomplete).expect("encode incomplete proof"),
+        )
+        .expect("write typed incomplete proof");
+    }
+    assert_no_local_artifact_dir();
 }

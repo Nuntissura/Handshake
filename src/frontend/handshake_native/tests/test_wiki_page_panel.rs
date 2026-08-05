@@ -58,6 +58,8 @@ use screenshot_harness::ScreenshotHarness as Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 #[cfg(feature = "integration")]
 use handshake_native::backend_client::HealthInfo;
+#[cfg(feature = "integration")]
+use handshake_native::backend_client::WikiOverlay;
 use handshake_native::backend_client::{LoomWikiClient, WikiProjection};
 use handshake_native::graph::wiki_page_panel::{
     cancel_author_id, content_author_id, edit_area_author_id, edit_author_id, error_author_id,
@@ -158,9 +160,39 @@ fn seeded_projection() -> WikiProjection {
                 .to_owned(),
         staleness_hash: "h1".to_owned(),
         rebuild_status: "fresh".to_owned(),
+        created_at: "2026-06-19T00:00:00Z".to_owned(),
+        updated_at: "2026-06-19T00:00:00Z".to_owned(),
         page_type: Some("concept".to_owned()),
         overlays: Vec::new(),
         staleness_verdict: serde_json::json!({ "state": "fresh" }),
+    }
+}
+
+#[cfg(feature = "integration")]
+fn overlay_from_json(row: &serde_json::Value) -> WikiOverlay {
+    WikiOverlay {
+        overlay_id: row["overlay_id"].as_str().expect("overlay id").to_owned(),
+        projection_id: row["projection_id"]
+            .as_str()
+            .expect("overlay projection id")
+            .to_owned(),
+        workspace_id: row["workspace_id"]
+            .as_str()
+            .expect("overlay workspace id")
+            .to_owned(),
+        annotation: row["annotation"]
+            .as_str()
+            .expect("overlay annotation")
+            .to_owned(),
+        anchor: row["anchor"].as_str().map(str::to_owned),
+        created_at: row["created_at"]
+            .as_str()
+            .expect("overlay created_at")
+            .to_owned(),
+        updated_at: row["updated_at"]
+            .as_str()
+            .expect("overlay updated_at")
+            .to_owned(),
     }
 }
 
@@ -286,10 +318,31 @@ fn proof3_edit_save_fires_event_and_returns_to_read_only() {
         "AC7: the Cancel button is present in edit mode"
     );
 
-    // Set the overlay annotation via the public surface (the typing pathway is exercised by the lib
-    // unit tests; here we drive the same state the TextEdit mutates, then click the real Save button).
-    panel.lock().unwrap().set_edit_buffer("NEW CONTENT");
-    harness.run();
+    // Author through the live model-facing editor node. The canonical Argus route rejects SetValue
+    // unless the real node advertises it, and this proves the dispatched request mutates the same
+    // bounded buffer used by keyboard input.
+    let edit_area = harness.get_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+        n.author_id() == Some(edit_area_author_id("projection-fixture").as_str())
+    });
+    assert!(
+        edit_area
+            .accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "AC7: the enabled wiki edit area must advertise SetValue"
+    );
+    let edit_area_node_id = edit_area.accesskit_node().id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::SetValue,
+            target: edit_area_node_id,
+            data: Some(egui::accesskit::ActionData::Value(
+                "NEW CONTENT".to_owned().into_boxed_str(),
+            )),
+        },
+    ));
+    harness.run_steps(2);
+    assert_eq!(panel.lock().unwrap().edit_buffer, "NEW CONTENT");
 
     let save_target = save_author_id("projection-fixture");
     harness
@@ -303,7 +356,7 @@ fn proof3_edit_save_fires_event_and_returns_to_read_only() {
     let ev = events.lock().unwrap().clone();
     assert!(
         ev.iter().any(
-            |e| matches!(e, WikiPageEvent::Save { annotation } if annotation == "NEW CONTENT")
+            |e| matches!(e, WikiPageEvent::Save { annotation, .. } if annotation == "NEW CONTENT")
         ),
         "PROOF3/AC3: Save click must fire Save{{annotation:'NEW CONTENT'}} (got {ev:?})"
     );
@@ -617,14 +670,14 @@ struct LiveWikiFixture {
     correlation_id: String,
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
+    backend: interconnect_support::LiveBackend,
 }
 
 #[cfg(feature = "integration")]
 impl LiveWikiFixture {
     fn new() -> Self {
-        let reachable = interconnect_support::require_reachable_backend();
-        let base = reachable.base.clone();
-        drop(reachable);
+        let backend = interconnect_support::require_reachable_backend();
+        let base = backend.base.clone();
         let nonce = format!(
             "{}-{}",
             std::process::id(),
@@ -650,6 +703,7 @@ impl LiveWikiFixture {
                 .enable_all()
                 .build()
                 .expect("build live-wiki runtime"),
+            backend,
         }
     }
 
@@ -1024,7 +1078,7 @@ fn write_live_receipt(receipt: &serde_json::Value, dir: &std::path::Path) -> std
 fn wiki_page_panel_live_pg_self_seeded_round_trip() {
     use handshake_native::backend_client::WikiProjectionCell;
 
-    let live = LiveWikiFixture::new();
+    let mut live = LiveWikiFixture::new();
     let receipt_dir = prepare_live_receipt_dir(&live.run_id);
     let workspace_id = live.create_workspace();
     let mut cleanup = LiveWorkspaceCleanup {
@@ -1188,6 +1242,7 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
         migration_version: None,
     }));
     app.set_runtime_handle(live.rt.handle().clone());
+    app.set_wiki_backend_base_url_for_test(live.base.clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     let binding = app.mounted_wiki_binding_for_test();
     *binding.lock().unwrap() = Some((
@@ -1362,13 +1417,16 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
     // write receipt into the mounted host while its wiki transport points at a one-shot 500 server. The
     // recovery control must enqueue only ReloadAfterSave (GET), never another overlay POST.
     let partial_annotation = format!("{} saved-before-reload-failure", live.run_id);
-    let partial_identity = {
+    let (partial_identity, partial_action_generation) = {
         let mut current = binding.lock().unwrap();
         let (identity, panel) = current.as_mut().expect("mounted wiki binding");
         assert!(panel.begin_edit());
         panel.set_edit_buffer(&partial_annotation);
-        assert!(panel.begin_save().is_some());
-        identity.clone()
+        let (action_generation, sent) = panel
+            .begin_observed_save_for_test()
+            .expect("observed Save starts");
+        assert_eq!(sent, partial_annotation);
+        (identity.clone(), action_generation)
     };
     let partial_client = LoomWikiClient::new(live.base.clone(), live.rt.handle().clone());
     let partial_save: handshake_native::backend_client::ScmReceiptCell = Arc::new(Mutex::new(None));
@@ -1393,12 +1451,22 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
         2,
         "exactly one additional canonical overlay was inserted"
     );
+    let partial_overlay = overlays_after_partial_save
+        .as_array()
+        .expect("overlay list")
+        .iter()
+        .find(|row| row["annotation"] == partial_annotation)
+        .map(overlay_from_json)
+        .expect("partial overlay persisted row");
 
     let (reload_500_base, reload_500_join) = one_shot_http_500();
     host.state()
         .set_wiki_backend_base_url_for_test(reload_500_base);
-    host.state()
-        .deliver_wiki_save_for_test(partial_identity, Ok(()));
+    host.state().deliver_wiki_save_for_test(
+        partial_identity,
+        partial_action_generation,
+        Ok(partial_overlay),
+    );
     step_host_until(
         &mut host,
         "saved overlay with failed follow-up reload",
@@ -1666,8 +1734,19 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
         handshake_native::backend_client::WikiProjectionOperation::Load,
         Ok(loaded.clone()),
     );
-    host.state()
-        .deliver_wiki_save_for_test(identity_a_first.clone(), Ok(()));
+    host.state().deliver_wiki_save_for_test(
+        identity_a_first.clone(),
+        u64::MAX,
+        Ok(WikiOverlay {
+            overlay_id: "stale-overlay".to_owned(),
+            projection_id: identity_a_first.projection_id.clone(),
+            workspace_id: identity_a_first.workspace_id.clone(),
+            annotation: "stale".to_owned(),
+            anchor: None,
+            created_at: "2026-06-19T00:00:00Z".to_owned(),
+            updated_at: "2026-06-19T00:00:00Z".to_owned(),
+        }),
+    );
     host.step();
     {
         let current = binding.lock().unwrap();
@@ -1717,6 +1796,9 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
     );
 
     let cleanup_status = cleanup.assert_cleaned();
+    drop(cleanup);
+    let backend_binding = live.backend.owned_backend_binding_receipt();
+    live.backend.assert_cleanup();
     let receipt = serde_json::json!({
         "schema_id": "hsk.mt025.managed_pg_proof_receipt@2",
         "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1755,6 +1837,8 @@ fn wiki_page_panel_live_pg_self_seeded_round_trip() {
         "cleanup_http_status": cleanup_status,
         "cleanup_absence_confirmed_by_fresh_workspace_list": true,
         "cleanup_completed_before_receipt": true,
+        "owned_backend_binding": backend_binding,
+        "owned_backend_reaped_before_receipt": true,
         "canonical_current_receipt": true,
         "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration --test test_wiki_page_panel wiki_page_panel_live_pg_self_seeded_round_trip -- --nocapture"
     });

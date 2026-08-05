@@ -1,32 +1,13 @@
-//! WP-KERNEL-012 E3 MT-025 remediation (FAIL_V2): canonical Argus inspect /
-//! safe-steer / re-observe proof for the MOUNTED wiki-page projection overlay
-//! edit/save/reload surface.
+//! MT-025 V4 canonical Argus proof for the mounted wiki projection overlay editor.
 //!
-//! `validation_v2` failed MT-025 in part because "the mounted edit/save/reload
-//! surface has no current canonical Argus inspect/steer/re-observe proof". The
-//! isolated `test_wiki_page_panel.rs` kittest coverage drives the wiki WIDGET
-//! (and a live-PG mounted host via plain AccessKit clicks), but never the mounted
-//! `HandshakeApp` through the real localhost `SwarmMcpServer` transport the way an
-//! out-of-process swarm agent does. This test closes that exact gap:
-//!
-//!   1. mounts the production `HandshakeApp` shell with the Wiki Page pane bound
-//!      to a seeded projection (no backend — the binding is pre-seeded with a
-//!      panel that already has its page, so the factory never issues a GET),
-//!   2. binds the CANONICAL Argus driver (real localhost JSON-RPC) to the app,
-//!   3. `argus.inspect` proves the read-only view's stable author_ids (title,
-//!      metadata, content, edit) are addressable in the live tree,
-//!   4. drives the edit/save/reload SURFACE through Argus: click `wiki.edit.*`
-//!      -> FRESH inspect re-observes the edit overlay (`wiki.edit-area.*`,
-//!      `wiki.save.*`, `wiki.cancel.*`), then click `wiki.cancel.*` -> FRESH
-//!      inspect re-observes the return to the read-only content view (reversible,
-//!      no backend mutation), and
-//!   5. writes the before/after tree evidence externally + a screenshot marker
-//!      (headless DEFERRED is an acceptable typed outcome).
-//!
-//! Artifact hygiene (CX-212E): every artifact is written ONLY under the EXTERNAL
-//! `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-025/` root.
+//! This is deliberately a managed-PostgreSQL/current-source product proof, not a direct-seeded panel
+//! harness. It creates source Loom blocks and a wiki projection through the production HTTP API, lets
+//! `WikiPagePaneMount` load that projection through `LoomWikiClient`, and drives Edit, SetValue, Cancel,
+//! Edit, SetValue, and Save through the localhost canonical Argus transport. Save is accepted only after
+//! the POST overlay receipt is confirmed by the follow-up GET and the unchanged source projection.
 
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
@@ -34,274 +15,588 @@ use screenshot_harness::ScreenshotHarness as Harness;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
+use sha2::{Digest, Sha256};
+
+#[cfg(feature = "integration")]
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
-use handshake_native::backend_client::{HealthInfo, WikiProjection};
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::editor_pane_factories::{placeholder_pane_type, WIKI_PAGE_PANE_LABEL};
 use handshake_native::graph::wiki_page_panel::{
-    cancel_author_id, content_author_id, edit_area_author_id, edit_author_id, metadata_author_id,
-    save_author_id, title_author_id,
+    action_status_author_id, cancel_author_id, content_author_id, edit_area_author_id,
+    edit_author_id, metadata_author_id, overlay_author_id, save_author_id, title_author_id,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 
-const WS: &str = "ws-argus-mt025";
-const PROJ: &str = "proj-argus-mt025";
-
-fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
-}
-
 fn assert_no_local_artifact_dir() {
     for local in ["test_output", "tests/screenshots"] {
-        let p = Path::new(local);
+        let path = Path::new(local);
         assert!(
-            !p.exists(),
-            "CX-212E: no repo-local '{local}' artifact dir may exist (found {})",
-            p.display()
+            !path.exists(),
+            "CX-212E: no repo-local '{local}' artifact directory may exist: {}",
+            path.display()
         );
     }
 }
 
-fn collect_author_ids(value: &serde_json::Value, out: &mut Vec<String>) {
-    match value {
-        serde_json::Value::Object(map) => {
-            if let Some(id) = map.get("author_id").and_then(|v| v.as_str()) {
-                out.push(id.to_owned());
-            }
-            for v in map.values() {
-                collect_author_ids(v, out);
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for v in items {
-                collect_author_ids(v, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn seeded_projection() -> WikiProjection {
-    WikiProjection {
-        projection_id: PROJ.to_owned(),
-        workspace_id: WS.to_owned(),
-        title: "Ownership model".to_owned(),
-        source_block_ids: vec!["blk-1".to_owned(), "blk-2".to_owned(), "blk-3".to_owned()],
-        rendered_content:
-            "# Ownership model\nThe borrow checker enforces aliasing rules at compile time."
-                .to_owned(),
-        staleness_hash: "h1".to_owned(),
-        rebuild_status: "fresh".to_owned(),
-        page_type: Some("concept".to_owned()),
-        overlays: Vec::new(),
-        staleness_verdict: serde_json::json!({ "state": "fresh" }),
-    }
-}
-
-/// A live shell with `pane-a` re-typed to the Wiki Page pane (content_id = PROJ)
-/// and the active workspace bound to WS. On the first frame the wiki factory binds
-/// its own panel for PROJ and (with no runtime) marks it errored; the test then
-/// seeds the projection directly onto that bound panel (`set_page` clears the
-/// error), so the read-only view renders with no backend GET. Because the factory
-/// created the binding identity from the session workspace, it never rebinds again
-/// and the seed survives.
-fn wiki_shell() -> HandshakeApp {
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
-        status: "ok".to_string(),
-        db_status: "ok".to_string(),
-        migration_version: Some(1),
-    }));
-    app.bind_active_project_for_integration_test(WS);
-    retype_pane_a_to_wiki(&mut app);
-    app
-}
-
-/// Seed the projection onto whatever panel the mounted wiki factory bound for
-/// `pane-a`. Returns the bound projection_id (its author_ids key). Panics if the
-/// factory has not bound a panel yet (run frames first).
-fn seed_bound_wiki_page(harness: &mut Harness<'_, HandshakeApp>) -> String {
-    let binding = harness.state().mounted_wiki_binding_for_test();
-    let mut guard = binding.lock().unwrap();
-    let (identity, panel) = guard
-        .as_mut()
-        .expect("wiki factory must have bound a panel for pane-a");
-    let projection_id = identity.projection_id.clone();
-    let mut page = seeded_projection();
-    page.projection_id = projection_id.clone();
-    page.workspace_id = identity.workspace_id.clone();
-    panel.set_page(page);
-    projection_id
-}
-
-fn retype_pane_a_to_wiki(app: &mut HandshakeApp) {
-    let ty: PaneType = placeholder_pane_type(WIKI_PAGE_PANE_LABEL);
+fn retype_pane_a_to_wiki(app: &mut HandshakeApp, projection_id: &str) {
+    let pane_type: PaneType = placeholder_pane_type(WIKI_PAGE_PANE_LABEL);
     {
         let registry = app.pane_registry();
-        let mut guard = registry.lock().expect("registry");
-        guard.insert(PaneRecord::new(
+        registry.lock().expect("registry").insert(PaneRecord::new(
             PaneId::from("pane-a"),
-            ty.clone(),
+            pane_type.clone(),
             DEFAULT_PROJECT_ID,
-            Some(PROJ.to_owned()),
+            Some(projection_id.to_owned()),
             LockState::Unlocked,
             DirtyState::Clean,
             PaneAuthority::System,
         ));
     }
-    let bars = app.tab_bar_states_mut();
-    if let Some(bar) = bars.get_mut(&PaneId::from("pane-a")) {
-        let mut tab = handshake_native::tab_bar::TabState::new(ty);
-        tab.content_id = Some(PROJ.to_owned());
+    if let Some(bar) = app.tab_bar_states_mut().get_mut(&PaneId::from("pane-a")) {
+        let mut tab = handshake_native::tab_bar::TabState::new(pane_type);
+        tab.content_id = Some(projection_id.to_owned());
         bar.tabs = vec![tab];
         bar.active_index = 0;
     }
 }
 
+#[cfg(feature = "integration")]
+fn wait_for_loaded_wiki(harness: &mut Harness<'_, HandshakeApp>, projection_id: &str) {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        harness.run_steps(1);
+        let loaded = harness
+            .state()
+            .mounted_wiki_binding_for_test()
+            .lock()
+            .ok()
+            .and_then(|bound| {
+                bound.as_ref().map(|(identity, panel)| {
+                    identity.projection_id == projection_id
+                        && panel.page.is_some()
+                        && panel.error.is_none()
+                })
+            })
+            .unwrap_or(false);
+        if loaded {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "mounted wiki projection did not load from the current-source backend"
+        );
+        std::thread::yield_now();
+    }
+}
+
+fn receipt<'a>(snapshot: &'a serde_json::Value, receipt_id: u64) -> &'a serde_json::Value {
+    snapshot["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+        })
+        .expect("fresh Argus inspection contains the action receipt")
+}
+
+fn terminal_detail(receipt: &serde_json::Value) -> serde_json::Value {
+    let observer: serde_json::Value = serde_json::from_str(
+        receipt["observed_value"]
+            .as_str()
+            .expect("terminal receipt carries the exact observer token"),
+    )
+    .expect("observer token is JSON");
+    serde_json::from_str(
+        observer["terminal_detail"]
+            .as_str()
+            .expect("observer token carries terminal detail"),
+    )
+    .expect("terminal detail is deterministic JSON")
+}
+
+fn sha256_bytes(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
+}
+
+fn sha256_file(path: &Path) -> String {
+    let bytes = std::fs::read(path)
+        .unwrap_or_else(|error| panic!("read proof input {}: {error}", path.display()));
+    sha256_bytes(&bytes)
+}
+
+fn modified_unix_ms(path: &Path) -> u128 {
+    std::fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .unwrap_or(SystemTime::UNIX_EPOCH)
+        .duration_since(UNIX_EPOCH)
+        .expect("proof artifact mtime is after Unix epoch")
+        .as_millis()
+}
+
+fn exact_action_terminal(
+    tree: &serde_json::Value,
+    receipt_id: u64,
+    action: &str,
+    workspace_id: &str,
+    projection_id: &str,
+) -> bool {
+    let action_receipt = receipt(tree, receipt_id);
+    if action_receipt["status"] != "applied" {
+        return false;
+    }
+    let detail = terminal_detail(action_receipt);
+    detail["schema"] == "handshake.wiki-action-terminal/v1"
+        && detail["outcome"] == "applied"
+        && detail["action"] == action
+        && detail["workspace_id"] == workspace_id
+        && detail["projection_id"] == projection_id
+        && detail["pane_generation"].as_u64().is_some()
+        && detail["edit_mode_generation"].as_u64().is_some()
+        && detail["action_generation"].as_u64().is_some()
+        && detail["draft_identity"]
+            .as_str()
+            .is_some_and(|identity| identity.starts_with("wiki-draft:"))
+        && detail["draft_sha256"].as_str().map(str::len) == Some(64)
+        && detail["source_content_sha256"].as_str().map(str::len) == Some(64)
+        && detail["source_projection_revision"].as_str().is_some()
+        && detail["source_staleness_hash"].as_str().is_some()
+}
+
+fn exact_value(tree: &serde_json::Value, author_id: &str, value: &str) -> bool {
+    json_node_by_author_id(tree, author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        == Some(value)
+}
+
+fn write_atomic(path: &Path, bytes: &[u8]) {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("atomic evidence path has a UTF-8 file name");
+    let temporary = path.with_file_name(format!(".{file_name}.tmp"));
+    std::fs::write(&temporary, bytes)
+        .unwrap_or_else(|error| panic!("write temporary proof {}: {error}", temporary.display()));
+    std::fs::rename(&temporary, path).unwrap_or_else(|error| {
+        panic!(
+            "atomically publish proof {} -> {}: {error}",
+            temporary.display(),
+            path.display()
+        )
+    });
+}
+
 #[test]
-fn mt025_mounted_wiki_canonical_argus_edit_save_reload_surface() {
-    let app = wiki_shell();
+#[cfg(feature = "integration")]
+fn mt025_mounted_wiki_current_source_pg_gpu_argus_edit_cancel_save_readback() {
+    let mut live = pg_proof_support::require_live_backend();
+    let run_id = format!("run-{}", uuid::Uuid::new_v4());
+    let backend_binding = live.owned_backend_binding_receipt();
+    let workspace_id = live.workspace_id.clone();
+    let source_title = format!("MT-025 Argus source {}", uuid::Uuid::new_v4());
+    let source = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/blocks"),
+        &serde_json::json!({"content_type": "note", "title": source_title}),
+    );
+    let source_id = source["block_id"]
+        .as_str()
+        .expect("created source block has block_id")
+        .to_owned();
+    let compiled = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/wiki"),
+        &serde_json::json!({
+            "title": "MT-025 canonical Argus projection",
+            "block_ids": [&source_id]
+        }),
+    );
+    let projection_id = compiled["projection_id"]
+        .as_str()
+        .expect("compiled projection has projection_id")
+        .to_owned();
+    let projection_path = format!("/workspaces/{workspace_id}/loom/wiki/{projection_id}");
+    let overlays_path = format!("{projection_path}/overlays");
+    let source_before = live.get_json(&projection_path);
+    assert_eq!(source_before["projection_id"], projection_id);
+    assert!(source_before["rendered_content"]
+        .as_str()
+        .is_some_and(|content| content.contains(&source_title)));
+    assert_eq!(
+        live.get_json(&overlays_path).as_array().map(Vec::len),
+        Some(0)
+    );
+
+    let runtime = tokio::runtime::Runtime::new().expect("wiki app runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: None,
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    app.set_wiki_backend_base_url_for_test(live.base.clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    retype_pane_a_to_wiki(&mut app, &projection_id);
 
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(900.0, 820.0))
+        .with_size(egui::vec2(1100.0, 850.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    // First frames: the factory binds its own panel for PROJ (no runtime -> error).
-    harness.run_steps(3);
-    // Seed the projection onto the bound panel (clears the no-runtime error).
-    let bound_proj = seed_bound_wiki_page(&mut harness);
-    assert_eq!(
-        bound_proj, PROJ,
-        "the factory bound the pane's content_id projection"
-    );
-    harness.run_steps(2);
+    wait_for_loaded_wiki(&mut harness, &projection_id);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-025-v4");
 
-    // Guard: the mounted binding now holds the seeded page in read-only mode and
-    // the factory did not wipe it with a rebind/GET. If this fails the mounting
-    // assumptions drifted.
-    {
-        let bound = harness.state().mounted_wiki_binding_for_test();
-        let guard = bound.lock().unwrap();
-        let page_present = guard
-            .as_ref()
-            .map(|(_, panel)| panel.page.is_some() && !panel.edit_mode)
-            .unwrap_or(false);
-        assert!(
-            page_present,
-            "mounted wiki pane must render the seeded page in read-only mode (no backend GET)"
-        );
-    }
-
-    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-025/canonical-argus");
-    std::fs::create_dir_all(&artifact_dir).expect("create external MT-025 Argus artifact dir");
-
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-025-wiki");
-
-    // (1) Canonical inspect: the read-only view's stable author_ids are addressable.
     let before = argus.inspect(&mut harness);
     for author in [
-        title_author_id(PROJ),
-        metadata_author_id(PROJ),
-        content_author_id(PROJ),
-        edit_author_id(PROJ),
+        title_author_id(&projection_id),
+        metadata_author_id(&projection_id),
+        content_author_id(&projection_id),
+        edit_author_id(&projection_id),
+        action_status_author_id(&projection_id),
     ] {
         assert!(
             json_has_author_id(&before, &author),
-            "canonical argus.inspect must see the mounted read-only node '{author}'"
-        );
-    }
-    // Edit overlay controls are NOT present until Edit is clicked.
-    assert!(
-        !json_has_author_id(&before, &edit_area_author_id(PROJ)),
-        "the edit area must NOT be present in the read-only view"
-    );
-
-    // (2) Safe steer #1: enter the edit overlay through the real Argus transport.
-    let edit = edit_author_id(PROJ);
-    let enter = argus.click_and_reinspect(&mut harness, &edit);
-    assert!(
-        matches!(enter.receipt_status.as_str(), "applied" | "indeterminate"),
-        "the canonical edit-enter receipt is terminal and non-rejected: {}",
-        enter.receipt_status
-    );
-    assert!(
-        enter
-            .agent_id
-            .contains(":client:wp-kernel-012-mt-025-wiki-agent"),
-        "the canonical receipt retains the external caller attribution: {}",
-        enter.agent_id
-    );
-    // (3) Fresh re-observation: the edit overlay's save/cancel/edit-area controls
-    // are now addressable (the edit/save SURFACE the V2 report demanded).
-    for author in [
-        edit_area_author_id(PROJ),
-        save_author_id(PROJ),
-        cancel_author_id(PROJ),
-    ] {
-        assert!(
-            json_has_author_id(&enter.after, &author),
-            "fresh re-inspection after Edit must observe the overlay control '{author}'"
+            "canonical Argus must see mounted node {author}"
         );
     }
 
-    // (4) Safe steer #2: cancel back to read-only (reversible, no backend write).
-    let cancel = cancel_author_id(PROJ);
-    let back = argus.click_and_reinspect(&mut harness, &cancel);
-    assert!(
-        matches!(back.receipt_status.as_str(), "applied" | "indeterminate"),
-        "the canonical cancel receipt is terminal and non-rejected: {}",
-        back.receipt_status
+    // Cancel is a first-class no-write terminal action, not an indeterminate local state change.
+    let enter_cancel = argus.click_and_reinspect(&mut harness, &edit_author_id(&projection_id));
+    assert_eq!(enter_cancel.receipt_status, "applied");
+    harness.run_steps(1);
+    let edit_cancel_terminal =
+        argus.assert_latest_terminal_predicate(&mut harness, "edit-open-before-cancel", |tree| {
+            exact_action_terminal(
+                tree,
+                enter_cancel.receipt_id,
+                "edit",
+                &workspace_id,
+                &projection_id,
+            ) && json_has_author_id(tree, &edit_area_author_id(&projection_id))
+                && json_has_author_id(tree, &cancel_author_id(&projection_id))
+                && json_has_author_id(tree, &save_author_id(&projection_id))
+        });
+    let cancelled_draft = "MT-025 exact cancelled draft";
+    let cancel_value = argus.set_value_and_reinspect(
+        &mut harness,
+        &edit_area_author_id(&projection_id),
+        cancelled_draft,
     );
-    assert!(
-        json_has_author_id(&back.after, &content_author_id(PROJ)),
-        "cancel returns to the read-only content view"
+    let cancel_value_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "cancel-draft-exact-value-visible",
+        |tree| {
+            matches!(
+                receipt(tree, cancel_value.receipt_id)["status"].as_str(),
+                Some("applied" | "indeterminate")
+            ) && exact_value(tree, &edit_area_author_id(&projection_id), cancelled_draft)
+        },
     );
-    let mut after_ids = Vec::new();
-    collect_author_ids(&back.after, &mut after_ids);
-    assert!(
-        !after_ids.iter().any(|id| id == &edit_area_author_id(PROJ)),
-        "after Cancel the edit area is gone from the AccessKit tree; got {:?}",
-        after_ids
-            .iter()
-            .filter(|id| id.starts_with("wiki."))
-            .collect::<Vec<_>>()
+    let cancelled = argus.click_and_reinspect(&mut harness, &cancel_author_id(&projection_id));
+    assert_eq!(cancelled.receipt_status, "applied");
+    harness.run_steps(1);
+    let cancel_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "cancel-discards-draft-without-write",
+        |tree| {
+            exact_action_terminal(
+                tree,
+                cancelled.receipt_id,
+                "cancel",
+                &workspace_id,
+                &projection_id,
+            ) && !json_has_author_id(tree, &edit_area_author_id(&projection_id))
+                && json_has_author_id(tree, &content_author_id(&projection_id))
+                && terminal_detail(receipt(tree, cancelled.receipt_id))["write_count"] == 0
+                && terminal_detail(receipt(tree, cancelled.receipt_id))["no_write"] == true
+                && terminal_detail(receipt(tree, cancelled.receipt_id))["extra"]["draft_discarded"]
+                    == true
+                && terminal_detail(receipt(tree, cancelled.receipt_id))["extra"]["edit_closed"]
+                    == true
+        },
     );
+    let cancel_detail = terminal_detail(receipt(&cancel_terminal, cancelled.receipt_id));
+    assert_eq!(cancel_detail["action"], "cancel");
+    assert_eq!(cancel_detail["write_count"], 0);
+    assert_eq!(cancel_detail["no_write"], true);
+    assert_eq!(cancel_detail["extra"]["draft_discarded"], true);
+    assert_eq!(cancel_detail["extra"]["edit_closed"], true);
+    assert_eq!(
+        live.get_json(&overlays_path).as_array().map(Vec::len),
+        Some(0),
+        "Cancel performs no canonical write"
+    );
+    let source_after_cancel = live.get_json(&projection_path);
+    for field in ["updated_at", "staleness_hash", "rendered_content"] {
+        assert_eq!(
+            source_after_cancel[field], source_before[field],
+            "Cancel leaves original source field {field} authoritative"
+        );
+    }
 
-    // (5) Evidence: before/after canonical trees + a screenshot marker.
-    let tree_path = artifact_dir.join("mt025-mounted-wiki-argus.json");
-    std::fs::write(
-        &tree_path,
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "read_only_before": before,
-            "edit_overlay_after": enter.after,
-            "cancelled_read_only_after": back.after,
-            "edit_receipt": { "id": enter.receipt_id, "status": enter.receipt_status, "agent": enter.agent_id },
-            "cancel_receipt": { "id": back.receipt_id, "status": back.receipt_status, "agent": back.agent_id },
-        }))
-        .expect("serialize canonical MT-025 wiki tree evidence"),
-    )
-    .expect("write canonical MT-025 wiki tree evidence externally");
-    assert!(tree_path.is_file());
-
-    let screenshot_marker = match harness.render() {
-        Ok(image) => {
-            let path = artifact_dir.join("mt025-mounted-wiki.png");
-            image.save(&path).expect("save mounted wiki screenshot");
-            format!("CAPTURED {}", path.display())
-        }
-        Err(deferred) => format!("DEFERRED (headless): {deferred}"),
-    };
-    println!(
-        "MT-025 canonical Argus mounted wiki: inspect(title+metadata+content+edit) -> \
-         click({edit}) -> reinspect(edit-area+save+cancel) -> click({cancel}) -> \
-         reinspect(content; edit-area gone); edit_receipt={} cancel_receipt={} screenshot={} tree={}",
-        enter.receipt_status,
-        back.receipt_status,
-        screenshot_marker,
-        tree_path.display()
+    // Save must terminate Applied only after the POST receipt is found unchanged in a fresh GET.
+    harness.run_steps(1);
+    let enter_save = argus.click_and_reinspect(&mut harness, &edit_author_id(&projection_id));
+    assert_eq!(enter_save.receipt_status, "applied");
+    harness.run_steps(1);
+    let edit_save_terminal =
+        argus.assert_latest_terminal_predicate(&mut harness, "edit-open-before-save", |tree| {
+            exact_action_terminal(
+                tree,
+                enter_save.receipt_id,
+                "edit",
+                &workspace_id,
+                &projection_id,
+            ) && json_has_author_id(tree, &edit_area_author_id(&projection_id))
+                && json_has_author_id(tree, &cancel_author_id(&projection_id))
+                && json_has_author_id(tree, &save_author_id(&projection_id))
+        });
+    let saved_draft = format!("MT-025 persisted Argus overlay {}", uuid::Uuid::new_v4());
+    let save_value = argus.set_value_and_reinspect(
+        &mut harness,
+        &edit_area_author_id(&projection_id),
+        &saved_draft,
     );
+    let save_value_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "save-draft-exact-value-visible",
+        |tree| {
+            matches!(
+                receipt(tree, save_value.receipt_id)["status"].as_str(),
+                Some("applied" | "indeterminate")
+            ) && exact_value(tree, &edit_area_author_id(&projection_id), &saved_draft)
+        },
+    );
+    let saved = argus.click_and_reinspect(&mut harness, &save_author_id(&projection_id));
+    assert_eq!(
+        saved.receipt_status, "applied",
+        "Save is Applied only after canonical persisted readback"
+    );
+    let overlays = live.get_json(&overlays_path);
+    let overlay = overlays
+        .as_array()
+        .and_then(|rows| rows.iter().find(|row| row["annotation"] == saved_draft))
+        .expect("fresh backend GET contains the exact saved overlay");
+    let overlay_id = overlay["overlay_id"].as_str().expect("overlay id");
+    let source_after_save = live.get_json(&projection_path);
+    for field in ["updated_at", "staleness_hash", "rendered_content"] {
+        assert_eq!(
+            source_after_save[field], source_before[field],
+            "overlay Save leaves original source field {field} immutable"
+        );
+    }
+
+    harness.run_steps(1);
+    let save_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "save-persisted-readback-and-source-immutable",
+        |tree| {
+            exact_action_terminal(
+                tree,
+                saved.receipt_id,
+                "save",
+                &workspace_id,
+                &projection_id,
+            ) && json_has_author_id(tree, &content_author_id(&projection_id))
+                && json_has_author_id(tree, &overlay_author_id(overlay_id))
+                && terminal_detail(receipt(tree, saved.receipt_id))["write_count"] == 1
+                && terminal_detail(receipt(tree, saved.receipt_id))["overlay_id"]
+                    == overlay["overlay_id"]
+                && terminal_detail(receipt(tree, saved.receipt_id))["overlay_readback_revision"]
+                    == overlay["updated_at"]
+                && terminal_detail(receipt(tree, saved.receipt_id))["extra"]
+                    ["persisted_and_read_back"]
+                    == true
+        },
+    );
+    let save_receipt = receipt(&save_terminal, saved.receipt_id);
+    let save_detail = terminal_detail(save_receipt);
+    assert_eq!(save_detail["action"], "save");
+    assert_eq!(save_detail["workspace_id"], workspace_id);
+    assert_eq!(save_detail["projection_id"], projection_id);
+    assert!(save_detail["pane_generation"].as_u64().is_some());
+    assert!(save_detail["action_generation"].as_u64().is_some());
+    assert!(save_detail["edit_mode_generation"].as_u64().is_some());
+    assert_eq!(save_detail["draft_sha256"].as_str().map(str::len), Some(64));
+    assert_eq!(
+        save_detail["source_projection_revision"],
+        source_before["updated_at"]
+    );
+    assert_eq!(
+        save_detail["source_staleness_hash"],
+        source_before["staleness_hash"]
+    );
+    assert_eq!(save_detail["write_count"], 1);
+    assert_eq!(save_detail["overlay_id"], overlay["overlay_id"]);
+    assert_eq!(save_detail["overlay_created_at"], overlay["created_at"]);
+    assert_eq!(
+        save_detail["overlay_persisted_revision"],
+        overlay["updated_at"]
+    );
+    assert_eq!(
+        save_detail["overlay_readback_revision"],
+        overlay["updated_at"]
+    );
+    assert_eq!(save_detail["extra"]["persisted_and_read_back"], true);
+
+    let source_content_sha256 = sha256_bytes(
+        source_before["rendered_content"]
+            .as_str()
+            .expect("source rendered_content")
+            .as_bytes(),
+    );
+    assert_eq!(save_detail["source_content_sha256"], source_content_sha256);
+
+    let artifact_dir = pg_proof_support::external_artifact_root()
+        .join("wp-kernel-012-mt-025")
+        .join("canonical-argus-v4-runs")
+        .join(&run_id);
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-025 artifact directory");
+    let screenshot_path = artifact_dir.join("mt025-wiki-save-readback.png");
+    let screenshot_image = harness
+        .render()
+        .expect("MT-025 canonical proof requires an actual WGPU frame");
+    let screenshot_dimensions = [screenshot_image.width(), screenshot_image.height()];
+    screenshot_image
+        .save(&screenshot_path)
+        .expect("save canonical GPU frame");
+    let screenshot_bytes = std::fs::read(&screenshot_path).expect("reread canonical GPU PNG");
+    assert!(
+        screenshot_bytes.starts_with(&[137, 80, 78, 71, 13, 10, 26, 10]),
+        "canonical GPU frame has the exact PNG signature"
+    );
+    let screenshot_sha256 = sha256_bytes(&screenshot_bytes);
+    let screenshot_mtime_unix_ms = modified_unix_ms(&screenshot_path);
+    let screenshot_outcome = harness
+        .last_screenshot_outcome()
+        .expect("screenshot harness exposes the durable GPU outcome")
+        .clone();
+    assert_eq!(screenshot_outcome.status, "CAPTURED");
+    assert!(screenshot_outcome.gpu_screenshot_enabled);
 
     argus.finish();
+    live.assert_cleanup();
+
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let source_files = [
+        "src/graph/wiki_page_panel.rs",
+        "src/backend_client.rs",
+        "src/mcp/action.rs",
+        "tests/test_wiki_page_panel_argus.rs",
+    ];
+    let source_hashes = source_files
+        .into_iter()
+        .map(|relative| {
+            let path = manifest_dir.join(relative);
+            (
+                relative.to_owned(),
+                serde_json::Value::String(sha256_file(&path)),
+            )
+        })
+        .collect::<serde_json::Map<String, serde_json::Value>>();
+    let evidence = serde_json::json!({
+        "schema": "handshake.mt025-canonical-argus-v4-evidence.v1",
+        "run_id": run_id,
+        "backend_binding": backend_binding,
+        "source_files_sha256": source_hashes,
+        "source_content_sha256": source_content_sha256,
+        "workspace_id": workspace_id,
+        "projection_id": projection_id,
+        "terminal_trees": {
+            "read_only_before": before,
+            "edit_before_cancel": edit_cancel_terminal,
+            "cancel_draft_value": cancel_value_terminal,
+            "cancel": cancel_terminal,
+            "edit_before_save": edit_save_terminal,
+            "save_draft_value": save_value_terminal,
+            "save": save_terminal,
+        },
+        "receipts": {
+            "edit_before_cancel": receipt(&edit_cancel_terminal, enter_cancel.receipt_id),
+            "cancel_draft_value": receipt(&cancel_value_terminal, cancel_value.receipt_id),
+            "cancel": receipt(&cancel_terminal, cancelled.receipt_id),
+            "edit_before_save": receipt(&edit_save_terminal, enter_save.receipt_id),
+            "save_draft_value": receipt(&save_value_terminal, save_value.receipt_id),
+            "save": save_receipt,
+        },
+        "cancel_terminal_detail": cancel_detail,
+        "save_terminal_detail": save_detail,
+        "canonical_overlay": overlay,
+        "source_before": source_before,
+        "source_after_cancel": source_after_cancel,
+        "source_after_save": source_after_save,
+        "screenshot": {
+            "path": screenshot_path,
+            "sha256": screenshot_sha256,
+            "mtime_unix_ms": screenshot_mtime_unix_ms,
+            "png_signature_hex": "89504e470d0a1a0a",
+            "dimensions": screenshot_dimensions,
+            "harness_run_id": screenshot_outcome.run_id,
+            "outcome_id": screenshot_outcome.outcome_id,
+            "scenario_id": screenshot_outcome.scenario_id,
+            "status": screenshot_outcome.status,
+            "gpu_screenshot_enabled": screenshot_outcome.gpu_screenshot_enabled,
+            "harness_frame_path": screenshot_outcome.frame_path,
+        },
+        "cleanup": {
+            "argus_finished": true,
+            "workspace_deleted": true,
+            "owned_backend_reaped": true,
+        },
+    });
+    let evidence_path = artifact_dir.join("mt025-wiki-terminal-receipts.json");
+    write_atomic(
+        &evidence_path,
+        &serde_json::to_vec_pretty(&evidence).expect("serialize MT-025 canonical evidence"),
+    );
+    let evidence_bytes = std::fs::read(&evidence_path).expect("reread published MT-025 evidence");
+    let evidence_reread: serde_json::Value =
+        serde_json::from_slice(&evidence_bytes).expect("published MT-025 evidence is valid JSON");
+    assert_eq!(evidence_reread["run_id"], run_id);
+    assert_eq!(evidence_reread["screenshot"]["sha256"], screenshot_sha256);
+    assert_eq!(evidence_reread["receipts"]["cancel"]["status"], "applied");
+    assert_eq!(evidence_reread["receipts"]["save"]["status"], "applied");
+
+    let evidence_sha256 = sha256_bytes(&evidence_bytes);
+    let evidence_mtime_unix_ms = modified_unix_ms(&evidence_path);
+    let manifest_path = artifact_dir.join("manifest.json");
+    let manifest = serde_json::json!({
+        "schema": "handshake.mt025-canonical-argus-v4-manifest.v1",
+        "run_id": run_id,
+        "evidence_path": evidence_path,
+        "evidence_sha256": evidence_sha256,
+        "evidence_mtime_unix_ms": evidence_mtime_unix_ms,
+        "screenshot_path": screenshot_path,
+        "screenshot_sha256": screenshot_sha256,
+        "screenshot_mtime_unix_ms": screenshot_mtime_unix_ms,
+        "png_signature_hex": "89504e470d0a1a0a",
+        "backend_binary_sha256": backend_binding["backend_binary_sha256"],
+        "published_after_argus_finish_and_pg_cleanup": true,
+    });
+    write_atomic(
+        &manifest_path,
+        &serde_json::to_vec_pretty(&manifest).expect("serialize MT-025 proof manifest"),
+    );
+    let manifest_reread: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&manifest_path).expect("reread MT-025 proof manifest"),
+    )
+    .expect("published MT-025 manifest is valid JSON");
+    assert_eq!(manifest_reread["run_id"], run_id);
+    assert_eq!(manifest_reread["evidence_sha256"], evidence_sha256);
+    assert_eq!(manifest_reread["screenshot_sha256"], screenshot_sha256);
+
+    println!(
+        "MT-025 V4 current-source PG Argus: run={} cancel={} save={} overlay={} screenshot={} evidence={} manifest={}",
+        run_id,
+        cancelled.receipt_status,
+        saved.receipt_status,
+        overlay_id,
+        screenshot_path.display(),
+        evidence_path.display(),
+        manifest_path.display(),
+    );
     assert_no_local_artifact_dir();
 }

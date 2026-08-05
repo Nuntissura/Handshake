@@ -350,6 +350,10 @@ fn manual_documents_runtime_chat_endpoint_missing_surface() {
         "runtime-chat-status",
         "runtime-chat-input",
         "runtime-chat-send",
+        "runtime-chat-cancel",
+        "Cancelled",
+        "ignores any late completion",
+        "input ready for a new send",
     ] {
         assert!(
             all_text.contains(needle),
@@ -939,11 +943,13 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
             "stage-embed-back-status",
             handshake_native::app::NOTES_LOAD_RETRY_AUTHOR_ID,
             handshake_native::fems::memory_proposal::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID,
+            handshake_native::runtime_chat::RUNTIME_CHAT_CANCEL_AUTHOR_ID,
         ]
         .contains(&row.author_id)
         {
-            // Truthful conditional status/retry nodes are absent from the healthy default tree. Their
-            // focused recovery-path tests prove the mounted nodes instead of seeding static identities.
+            // Truthful conditional status/retry/action nodes are absent from the healthy default tree.
+            // Focused recovery-path tests (including MT-098's in-flight canonical Cancel proof) prove
+            // the mounted nodes instead of seeding static identities.
             continue;
         }
         if !live.contains(row.author_id) {

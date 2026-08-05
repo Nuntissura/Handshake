@@ -39,15 +39,19 @@
 //!   `undo-count-{pane_id}` with the correct count in a kittest AccessKit dump, and the live pane header
 //!   reads the same shared `InteractionBus` depth in the mounted shell.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use egui_kittest::kittest::NodeT;
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
+#[cfg(feature = "integration")]
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
-use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{ArgusObservation, CanonicalArgusDriver};
 use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
@@ -66,6 +70,26 @@ use handshake_native::stage_pane::{
 use handshake_native::undo_stack::{
     PaneUndoRing, UndoAction, UndoResult, UnifiedUndoScope, CROSS_PANE_RING_CAP, PANE_RING_CAP,
 };
+
+#[cfg(feature = "wgpu_screenshots")]
+static MT035_WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(feature = "wgpu_screenshots")]
+struct Mt035AsyncTaskGuard {
+    active_tasks: Arc<std::sync::atomic::AtomicUsize>,
+    dropped_tx: Option<std::sync::mpsc::Sender<()>>,
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+impl Drop for Mt035AsyncTaskGuard {
+    fn drop(&mut self) {
+        self.active_tasks
+            .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        if let Some(tx) = self.dropped_tx.take() {
+            let _ = tx.send(());
+        }
+    }
+}
 
 // ── Artifact-hygiene helpers (CX-212E / CX-212F): artifacts go to the EXTERNAL root ONLY ──────────────
 
@@ -622,7 +646,7 @@ fn rich_pane_ctrl_z_reverts_through_bus() {
     // A focused rich editor blink-repaints every frame, so `harness.run()` would exceed max_steps on the
     // never-settling caret animation. EVERY step here is a single-frame `harness.step()` (the established
     // pattern for the focused editor — see `tests/test_daily_notes.rs`).
-    harness.step();
+    harness.run_steps(2);
 
     // The SAME shared bus the mounted widget retrieves from egui app data (so we can read the unified
     // scope's per-pane ring depth — the proof that the rich edit recorded on the bus, not a side stack).
@@ -926,6 +950,272 @@ fn code_pane_backspace_records_undo_and_shell_undo_reverts_live() {
         before,
         "AC-1 LIVE: shell-routed Undo reverted the live Backspace edit"
     );
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_external_artifact_dir(subdir: &str) -> PathBuf {
+    let approved_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(4)
+        .expect("handshake_native manifest is nested below the Handshake Worktrees root")
+        .join("Handshake_Artifacts");
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| approved_root.clone());
+    assert!(root.is_absolute());
+    assert_eq!(root, approved_root);
+    root.join("handshake-test").join(subdir)
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_sha256_file(path: &Path) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(std::fs::read(path).expect("read MT-035 proof artifact"))
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_sha256_json(value: &serde_json::Value) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(
+            serde_json::to_vec(value).expect("serialize MT-035 Argus tree for SHA-256")
+        )
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_source_candidate_identity() -> (String, serde_json::Value) {
+    use sha2::Digest as _;
+
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("handshake_native manifest is nested below the repository root");
+    let head = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve MT-035 proof HEAD");
+    assert!(head.status.success());
+    let head_sha = String::from_utf8(head.stdout)
+        .expect("HEAD is UTF-8")
+        .trim()
+        .to_owned();
+    let diff = std::process::Command::new("git")
+        .args(["diff", "--binary", "HEAD", "--", "."])
+        .current_dir(repo_root)
+        .output()
+        .expect("read MT-035 source-candidate diff");
+    assert!(diff.status.success());
+    let diff_sha256 = format!("{:x}", sha2::Sha256::digest(&diff.stdout));
+    let identity = format!("{head_sha}-worktree-{}", &diff_sha256[..16]);
+    (
+        identity.clone(),
+        serde_json::json!({
+            "identity": identity,
+            "head_sha": head_sha,
+            "tracked_diff_sha256": diff_sha256,
+            "tracked_diff_bytes": diff.stdout.len()
+        }),
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_node_by_author_id<'a>(
+    value: &'a serde_json::Value,
+    author_id: &str,
+) -> Option<&'a serde_json::Value> {
+    match value {
+        serde_json::Value::Object(map) => {
+            if map.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                return Some(value);
+            }
+            map.values()
+                .find_map(|child| mt035_node_by_author_id(child, author_id))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|child| mt035_node_by_author_id(child, author_id)),
+        _ => None,
+    }
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_node_json_value(tree: &serde_json::Value, author_id: &str) -> Option<serde_json::Value> {
+    let raw = mt035_node_by_author_id(tree, author_id)?["value"].as_str()?;
+    serde_json::from_str(raw).ok()
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_node_value(tree: &serde_json::Value, author_id: &str) -> Option<String> {
+    mt035_node_by_author_id(tree, author_id)?["value"]
+        .as_str()
+        .map(ToOwned::to_owned)
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_node_is_enabled(tree: &serde_json::Value, author_id: &str) -> bool {
+    mt035_node_by_author_id(tree, author_id)
+        .is_some_and(|node| node["disabled"].as_bool() == Some(false))
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_pending_observer_author_ids(tree: &serde_json::Value) -> Vec<String> {
+    fn visit(value: &serde_json::Value, pending: &mut Vec<String>) {
+        match value {
+            serde_json::Value::Object(map) => {
+                let author_id = map.get("author_id").and_then(serde_json::Value::as_str);
+                let observer_pending = author_id.is_some_and(|id| {
+                    id.ends_with(".argus-action-completion")
+                        && map
+                            .get("value")
+                            .and_then(serde_json::Value::as_str)
+                            .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+                            .is_some_and(|token| token["state"] == "pending")
+                });
+                if observer_pending {
+                    pending.push(author_id.expect("checked observer author id").to_owned());
+                }
+                for child in map.values() {
+                    visit(child, pending);
+                }
+            }
+            serde_json::Value::Array(values) => {
+                for child in values {
+                    visit(child, pending);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut pending = Vec::new();
+    visit(tree, &mut pending);
+    pending.sort();
+    pending.dedup();
+    pending
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_live_has_author_id(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> bool {
+    harness
+        .root()
+        .children_recursive()
+        .any(|node| node.accesskit_node().author_id() == Some(author_id))
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_live_json_value(
+    harness: &Harness<'_, HandshakeApp>,
+    author_id: &str,
+) -> Option<serde_json::Value> {
+    serde_json::from_str(&shell_indicator_value(harness, author_id)?).ok()
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_terminal_detail(tree: &serde_json::Value, author_id: &str) -> Option<serde_json::Value> {
+    let token = mt035_node_json_value(tree, author_id)?;
+    let raw = token["terminal_detail"].as_str()?;
+    serde_json::from_str(raw).ok()
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_action_proof(
+    target: &str,
+    observation: &ArgusObservation,
+    predicate_id: &str,
+) -> serde_json::Value {
+    let receipt = observation.after["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "MT-035 action {target} retains receipt {}",
+                observation.receipt_id
+            )
+        });
+    assert!(matches!(
+        observation.receipt_status.as_str(),
+        "applied" | "rejected"
+    ));
+    assert!(observation.terminal_refreshed);
+    let predicate = observation
+        .terminal_predicates
+        .iter()
+        .find(|predicate| predicate.predicate_id == predicate_id)
+        .unwrap_or_else(|| panic!("MT-035 action {target} retains predicate {predicate_id}"));
+    assert!(predicate.passed);
+    let completion_token = receipt["observed_value"]
+        .as_str()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok());
+    let terminal_detail = completion_token
+        .as_ref()
+        .and_then(|token| token["terminal_detail"].as_str())
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok());
+    let requested_command_id = match target {
+        "menu-edit" => "menu.edit.open",
+        "menu.edit.undo-cross-pane" => {
+            handshake_native::command_registry::CMD_EDITOR_EDIT_UNDO_CROSS_PANE
+        }
+        "menu.edit.undo" => handshake_native::command_registry::CMD_EDITOR_EDIT_UNDO,
+        _ => target,
+    };
+    serde_json::json!({
+        "requested_action": "argus.click",
+        "requested_command_id": requested_command_id,
+        "stable_author_id": target,
+        "binding_identity": observation.agent_id,
+        "receipt": receipt,
+        "completion_token": completion_token,
+        "terminal_detail": terminal_detail,
+        "correlation_id": observation.correlation_id,
+        "compensation_action_id": terminal_detail
+            .as_ref()
+            .and_then(|detail| detail["action_id"].as_str()),
+        "before_tree": observation.before,
+        "after_tree": observation.after,
+        "before_tree_sha256": mt035_sha256_json(&observation.before),
+        "after_tree_sha256": mt035_sha256_json(&observation.after),
+        "receipt_id": observation.receipt_id,
+        "receipt_status": observation.receipt_status,
+        "terminal_observed_sequence": observation.terminal_observed_sequence,
+        "target_selected_before": observation.target_selected_before,
+        "target_selected_after": observation.target_selected_after,
+        "terminal_predicate": predicate
+    })
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_capture_frame(
+    harness: &mut Harness<'_, HandshakeApp>,
+    proof_dir: &Path,
+    filename: &str,
+) -> serde_json::Value {
+    let path = proof_dir.join(filename);
+    harness.step();
+    let image = harness.render().expect("MT-035 mounted WGPU proof frame");
+    let dimensions = [image.width(), image.height()];
+    assert_eq!(
+        dimensions,
+        [1400, 900],
+        "MT-035 proof frame pixels must match the declared mounted viewport"
+    );
+    image.save(&path).expect("save mounted MT-035 proof frame");
+    serde_json::json!({
+        "path": path,
+        "sha256": mt035_sha256_file(&path),
+        "dimensions": dimensions,
+        "viewport": [1400, 900],
+        "capture_method": "mounted_wgpu_harness"
+    })
 }
 
 fn mt035_bus_counts(ctx: &egui::Context, pane_id: &PaneId) -> (usize, usize, bool) {
@@ -1257,20 +1547,44 @@ fn backend_touching_cross_pane_transitions_are_serialized_until_reconciled() {
 }
 
 #[test]
-fn mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_and_restart_empty() {
+#[cfg(feature = "wgpu_screenshots")]
+fn mt035_v4_canonical_argus_proves_undo_interruption_settlement_and_mounted_restart_empty() {
+    use handshake_native::interop::interaction_bus::UndoTransitionOperation;
+    use handshake_native::undo_stack::AsyncUndoDirection;
+
+    let _wgpu_guard = MT035_WGPU_SERIAL_GUARD
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let run_id = format!(
+        "mt035-v4-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock is after epoch")
+            .as_nanos()
+    );
+    let proof_dir = mt035_external_artifact_dir(&format!("wp-kernel-012-mt-035-v4/{run_id}"));
+    assert!(
+        !proof_dir.exists(),
+        "MT-035 V4 run directory must be unique"
+    );
+    std::fs::create_dir_all(&proof_dir).expect("create unique MT-035 V4 artifact directory");
+    let (source_candidate_id, source_candidate) = mt035_source_candidate_identity();
+    const COMPENSATION_ACTION_ID: &str = "mt035-v4-canvas-compensation";
+
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
         .build()
-        .expect("MT-035 V3 mounted runtime");
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        .expect("MT-035 V4 mounted runtime");
+    let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
-    app.set_runtime_handle(runtime.handle().clone());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
+        .wgpu()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(2);
     let ctx = harness.ctx.clone();
@@ -1289,12 +1603,35 @@ fn mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_a
         .expect("the mounted code editor owns the active pane");
 
     let local_log = Arc::new(Mutex::new(Vec::<String>::new()));
-    let pending_async: handshake_native::undo_stack::UndoAsyncFn = Arc::new(|| {
-        Box::pin(async {
-            std::future::pending::<()>().await;
-            UndoResult::ok()
+    let (release_tx, release_rx) = tokio::sync::oneshot::channel::<()>();
+    let release_rx = Arc::new(Mutex::new(Some(release_rx)));
+    let active_compensation_tasks = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let (future_dropped_tx, future_dropped_rx) = std::sync::mpsc::channel::<()>();
+    let pending_async: handshake_native::undo_stack::UndoAsyncFn = {
+        let release_rx = Arc::clone(&release_rx);
+        let active_compensation_tasks = Arc::clone(&active_compensation_tasks);
+        Arc::new(move || {
+            let release_rx = release_rx
+                .lock()
+                .expect("lock MT-035 async release receiver")
+                .take()
+                .expect("MT-035 compensation future is dispatched once");
+            active_compensation_tasks.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let task_guard = Mt035AsyncTaskGuard {
+                active_tasks: Arc::clone(&active_compensation_tasks),
+                dropped_tx: Some(future_dropped_tx.clone()),
+            };
+            Box::pin(async move {
+                let _task_guard = task_guard;
+                release_rx
+                    .await
+                    .expect("MT-035 compensation release sender remains live");
+                UndoResult::ok()
+            })
         })
-    });
+    };
+    let safe_redo_async: handshake_native::undo_stack::UndoAsyncFn =
+        Arc::new(|| Box::pin(async { UndoResult::ok() }));
     {
         let bus = InteractionBus::get_or_init(&harness.ctx);
         InteractionBus::with_try_lock(&bus, |bus| {
@@ -1306,15 +1643,15 @@ fn mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_a
                 sync_action("focused-code-local", local_log.clone()),
             );
             bus.push_undo_cross_pane(UndoAction::async_compensating(
-                "mt035-v3-interrupted-canvas",
+                COMPENSATION_ACTION_ID,
                 "canvas: interrupted placement compensation",
                 Arc::new(UndoResult::ok),
                 Arc::new(UndoResult::ok),
-                Arc::clone(&pending_async),
                 pending_async,
+                safe_redo_async,
             ));
         })
-        .expect("seed MT-035 V3 undo state");
+        .expect("seed MT-035 V4 undo state");
     }
     assert_eq!(
         mt035_bus_counts(&harness.ctx, &code_pane),
@@ -1322,54 +1659,191 @@ fn mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_a
         "pre-Argus state has one focused local entry and one cross-pane compensation entry"
     );
 
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt035-v3-undo-interruption");
-    let menu_open = argus.click_and_reinspect(&mut harness, "menu-edit");
-    assert!(
-        json_has_author_id(&menu_open.after, "menu.edit.undo-cross-pane"),
-        "fresh Argus re-observation after opening EDIT exposes the cross-pane undo leaf"
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt035-v4-undo-interruption");
+    let initial_tree = argus.inspect(&mut harness);
+    let indicator_author_id = undo_count_author_id(code_pane.as_ref());
+    assert_eq!(
+        mt035_node_value(&initial_tree, &indicator_author_id).as_deref(),
+        Some("Undo (1)"),
+        "the mounted focused code pane exposes its exact initial local undo depth"
     );
-    let cross_undo = argus.click_and_reinspect(&mut harness, "menu.edit.undo-cross-pane");
-    assert!(
-        cross_undo
-            .agent_id
-            .ends_with("mt035-v3-undo-interruption-agent"),
-        "canonical Argus action keeps client attribution"
+    let initial_frame = mt035_capture_frame(&mut harness, &proof_dir, "01-before.png");
+    assert_eq!(
+        shell_indicator_value(&harness, &indicator_author_id).as_deref(),
+        Some("Undo (1)"),
+        "before frame is captured from the live local-depth-1 state"
     );
+
+    let menu_open = argus.click_expect_applied_and_reinspect(&mut harness, "menu-edit");
+    assert!(
+        mt035_node_by_author_id(&menu_open.before, "menu.edit.undo-cross-pane").is_none(),
+        "Edit leaf is not stale before opening the dropdown"
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "edit-menu-freshly-open-with-enabled-undo-leaves",
+        serde_json::json!({
+            "required_leaf": "menu.edit.undo-cross-pane",
+            "focused_pane_id": code_pane.as_ref(),
+        }),
+        |tree| {
+            mt035_node_is_enabled(tree, "menu.edit.undo-cross-pane")
+                && mt035_node_is_enabled(tree, "menu.edit.undo")
+        },
+    );
+    let menu_open = argus.latest_terminal_observation();
+    let menu_open_frame = mt035_capture_frame(&mut harness, &proof_dir, "02-edit-open.png");
+    assert!(
+        mt035_live_has_author_id(&harness, "menu.edit.undo-cross-pane"),
+        "Edit-open frame is captured only while its cross-pane Undo leaf is live"
+    );
+
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu.edit.undo-cross-pane");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "cross-pane-undo-is-exactly-pending-and-local-depth-is-unchanged",
+        serde_json::json!({
+            "compensation_action_id": COMPENSATION_ACTION_ID,
+            "focused_pane_id": code_pane.as_ref(),
+            "expected_local_before": 1,
+            "expected_local_after": 1,
+        }),
+        |tree| {
+            let detail = mt035_terminal_detail(
+                tree,
+                handshake_native::app::MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+            );
+            let state =
+                mt035_node_json_value(tree, handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID);
+            detail.as_ref().is_some_and(|detail| {
+                detail["operation"] == "cross_pane_undo"
+                    && detail["action_id"] == COMPENSATION_ACTION_ID
+                    && detail["focused_pane_id"] == code_pane.as_ref()
+                    && detail["local_before"] == 1
+                    && detail["local_after"] == 1
+                    && detail["pending"] == true
+                    && detail["pending_action_id"] == COMPENSATION_ACTION_ID
+            }) && state.as_ref().is_some_and(|state| {
+                state["pending"] == true
+                    && state["pending_action_id"] == COMPENSATION_ACTION_ID
+                    && state["focused_local_count"] == 1
+                    && state["cross_undo_count"] == 0
+            })
+        },
+    );
+    let cross_undo = argus.latest_terminal_observation();
     assert_eq!(
         mt035_bus_counts(&harness.ctx, &code_pane),
         (1, 0, true),
         "Argus menu action dispatched the async cross-pane undo and left focused local undo intact"
     );
-
-    let blocked = {
-        let bus = InteractionBus::get_or_init(&harness.ctx);
-        InteractionBus::with_try_lock(&bus, |bus| {
-            bus.undo_cross_pane()
-                .expect("in-flight cross-pane retry returns a typed result")
-        })
-        .expect("retry cross-pane undo")
-    };
-    assert!(!blocked.ok);
-    assert!(
-        blocked
-            .error
-            .as_deref()
-            .is_some_and(|error| error.contains("already in flight")),
-        "a simultaneous cross-pane undo cannot reorder compensation: {blocked:?}"
+    let cross_pending_frame =
+        mt035_capture_frame(&mut harness, &proof_dir, "03-cross-pane-pending.png");
+    let live_cross_pending =
+        mt035_live_json_value(&harness, handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID)
+            .expect("cross-pending frame has structured live status");
+    assert_eq!(live_cross_pending["pending"], true);
+    assert_eq!(
+        live_cross_pending["pending_action_id"],
+        COMPENSATION_ACTION_ID
     );
 
-    let local = {
-        let bus = InteractionBus::get_or_init(&harness.ctx);
-        InteractionBus::with_try_lock(&bus, |bus| {
-            bus.undo(&code_pane)
-                .expect("focused local undo remains available during async compensation")
-        })
-        .expect("focused local undo")
-    };
+    let retry_menu = argus.click_expect_applied_and_reinspect(&mut harness, "menu-edit");
     assert!(
-        local.ok,
-        "focused local undo succeeds while cross-pane compensation is pending"
+        mt035_node_by_author_id(&retry_menu.before, "menu.edit.undo-cross-pane").is_none(),
+        "the cross-pane leaf closed after the preceding action"
     );
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "edit-menu-reopened-for-blocked-retry",
+        |tree| mt035_node_is_enabled(tree, "menu.edit.undo-cross-pane"),
+    );
+    let retry_menu = argus.latest_terminal_observation();
+
+    argus.click_expect_typed_rejected_and_reinspect(
+        &mut harness,
+        "menu.edit.undo-cross-pane",
+        "already in flight",
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "blocked-retry-is-typed-and-keeps-the-same-pending-operation",
+        serde_json::json!({
+            "compensation_action_id": COMPENSATION_ACTION_ID,
+            "expected_error_fragment": "already in flight",
+        }),
+        |tree| {
+            let detail = mt035_terminal_detail(
+                tree,
+                handshake_native::app::MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+            );
+            let state =
+                mt035_node_json_value(tree, handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID);
+            detail.as_ref().is_some_and(|detail| {
+                detail["operation"] == "cross_pane_undo"
+                    && detail["action_id"] == COMPENSATION_ACTION_ID
+                    && detail["pending"] == true
+                    && detail["pending_action_id"] == COMPENSATION_ACTION_ID
+                    && detail["error"]
+                        .as_str()
+                        .is_some_and(|error| error.contains("already in flight"))
+            }) && state.as_ref().is_some_and(|state| {
+                state["pending"] == true
+                    && state["pending_action_id"] == COMPENSATION_ACTION_ID
+                    && state["focused_local_count"] == 1
+            })
+        },
+    );
+    let blocked = argus.latest_terminal_observation();
+    assert_eq!(
+        mt035_bus_counts(&harness.ctx, &code_pane),
+        (1, 0, true),
+        "typed blocked retry cannot mutate local depth or pending compensation identity"
+    );
+
+    let local_menu = argus.click_expect_applied_and_reinspect(&mut harness, "menu-edit");
+    assert!(
+        mt035_node_by_author_id(&local_menu.before, "menu.edit.undo").is_none(),
+        "the local Undo leaf closed after the preceding action"
+    );
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "edit-menu-reopened-for-independent-local-undo",
+        |tree| mt035_node_is_enabled(tree, "menu.edit.undo"),
+    );
+    let local_menu = argus.latest_terminal_observation();
+
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu.edit.undo");
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "focused-local-undo-decrements-only-local-depth-and-keeps-pending-identity",
+        serde_json::json!({
+            "compensation_action_id": COMPENSATION_ACTION_ID,
+            "focused_pane_id": code_pane.as_ref(),
+            "expected_local_before": 1,
+            "expected_local_after": 0,
+        }),
+        |tree| {
+            let detail = mt035_terminal_detail(
+                tree,
+                handshake_native::app::MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID,
+            );
+            let state =
+                mt035_node_json_value(tree, handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID);
+            detail.as_ref().is_some_and(|detail| {
+                detail["operation"] == "local_undo"
+                    && detail["focused_pane_id"] == code_pane.as_ref()
+                    && detail["local_before"] == 1
+                    && detail["local_after"] == 0
+                    && detail["pending_action_id"] == COMPENSATION_ACTION_ID
+            }) && state.as_ref().is_some_and(|state| {
+                state["pending"] == true
+                    && state["pending_action_id"] == COMPENSATION_ACTION_ID
+                    && state["focused_local_count"] == 0
+            })
+        },
+    );
+    let local = argus.latest_terminal_observation();
     assert_eq!(
         local_log.lock().unwrap().as_slice(),
         ["focused-code-local"],
@@ -1380,22 +1854,290 @@ fn mt035_v3_argus_cross_pane_undo_blocks_reentry_preserves_focused_local_scope_a
         (0, 0, true),
         "local focused history drains independently while the interrupted compensation remains pending"
     );
+    let local_pending_frame = mt035_capture_frame(
+        &mut harness,
+        &proof_dir,
+        "04-local-undone-cross-pending.png",
+    );
+    assert_eq!(
+        shell_indicator_value(&harness, &indicator_author_id).as_deref(),
+        Some("Undo (0)"),
+        "local-undone frame is captured from the live local-depth-0 state"
+    );
+    assert_eq!(
+        mt035_live_json_value(&harness, handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID,)
+            .expect("local-undone frame has structured live status")["pending"],
+        true
+    );
+
+    release_tx
+        .send(())
+        .expect("release the exact MT-035 async compensation task");
+    future_dropped_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("the spawned compensation future is dropped after terminal completion");
+    assert_eq!(
+        active_compensation_tasks.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "no compensation future remains active before canonical settlement"
+    );
+    harness.state().deliver_canvas_compensation_for_test(
+        COMPENSATION_ACTION_ID,
+        AsyncUndoDirection::Undo,
+        "mt035-v4-proof-workspace",
+        "mt035-v4-proof-canvas",
+        Ok(()),
+    );
+    harness.run_steps(3);
+
+    let settlement_tree = argus.inspect(&mut harness);
+    let settlement_state = mt035_node_json_value(
+        &settlement_tree,
+        handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID,
+    )
+    .expect("settlement state is persistently observable");
+    let settlement_pending_observers = mt035_pending_observer_author_ids(&settlement_tree);
+    assert!(
+        settlement_pending_observers.is_empty(),
+        "strict settlement cannot retain any pending click-completion observer: {settlement_pending_observers:?}"
+    );
+    assert_eq!(settlement_state["pending"], false);
+    assert_eq!(
+        settlement_state["pending_action_id"],
+        serde_json::Value::Null
+    );
+    assert_eq!(settlement_state["last_operation"], "compensation_settled");
+    assert_eq!(settlement_state["last_action_id"], COMPENSATION_ACTION_ID);
+    assert_eq!(
+        mt035_bus_counts(&harness.ctx, &code_pane),
+        (0, 0, false),
+        "canonical completion drain settles the exact compensation with no residual history"
+    );
+    let settlement_transition =
+        InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |bus| {
+            bus.last_undo_transition().cloned()
+        })
+        .expect("inspect settlement transition")
+        .expect("settlement transition exists");
+    assert_eq!(
+        settlement_transition.operation,
+        UndoTransitionOperation::CompensationSettled
+    );
+    assert_eq!(
+        settlement_transition.action_id.as_deref(),
+        Some(COMPENSATION_ACTION_ID)
+    );
+    assert!(settlement_transition.pending_after.is_none());
+    let settlement_frame =
+        mt035_capture_frame(&mut harness, &proof_dir, "05-compensation-settled.png");
+    assert_eq!(
+        mt035_live_json_value(&harness, handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID,)
+            .expect("settlement frame has structured live status")["pending"],
+        false
+    );
+    argus.finish_require_no_indeterminate();
 
     drop(harness);
-    let mut restarted = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    let restarted = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
-    restarted.set_runtime_handle(runtime.handle().clone());
-    let restarted_harness = Harness::builder()
+    let mut restarted_harness = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
+        .wgpu()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), restarted);
+    restarted_harness.run_steps(2);
+    let restarted_ctx = restarted_harness.ctx.clone();
+    assert!(
+        restarted_harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(&restarted_ctx, "view.code-editor"),
+        "restart proof opens a real code editor through the product command route"
+    );
+    restarted_harness.run_steps(4);
+    focus_code_text_surface(&restarted_harness);
+    restarted_harness.run_steps(1);
+    let restarted_code_pane = restarted_harness
+        .state()
+        .active_pane()
+        .cloned()
+        .expect("fresh mounted code editor owns the active pane");
+    let restarted_indicator_author_id = undo_count_author_id(restarted_code_pane.as_ref());
     assert_eq!(
-        mt035_bus_counts(&restarted_harness.ctx, &code_pane),
+        mt035_bus_counts(&restarted_harness.ctx, &restarted_code_pane),
         (0, 0, false),
         "restart recovery model: undo history and interrupted in-memory compensation state are empty"
     );
+    assert!(
+        InteractionBus::with_try_lock(
+            &InteractionBus::get_or_init(&restarted_harness.ctx),
+            |bus| bus.undo_scope().is_empty(),
+        )
+        .expect("inspect the complete restarted undo scope"),
+        "fresh mounted restart has no local/cross undo or redo history"
+    );
+    let mut restart_argus =
+        CanonicalArgusDriver::bind(restarted_harness.state(), "mt035-v4-mounted-restart-empty");
+    let restart_tree = restart_argus.inspect(&mut restarted_harness);
+    assert_eq!(
+        mt035_node_value(&restart_tree, &restarted_indicator_author_id).as_deref(),
+        Some("Undo (0)"),
+        "fresh mounted pane exposes its own exact empty undo count"
+    );
+    let restart_state = mt035_node_json_value(
+        &restart_tree,
+        handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID,
+    )
+    .expect("fresh restart state is persistently observable");
+    let restart_pending_observers = mt035_pending_observer_author_ids(&restart_tree);
+    assert!(
+        restart_pending_observers.is_empty(),
+        "strict restart cannot retain any pending click-completion observer: {restart_pending_observers:?}"
+    );
+    assert_eq!(restart_state["pending"], false);
+    assert_eq!(restart_state["focused_local_count"], 0);
+    assert_eq!(restart_state["cross_undo_count"], 0);
+    assert_eq!(restart_state["transition"], serde_json::Value::Null);
+    assert!(mt035_node_by_author_id(&restart_tree, CODE_EDITOR_TEXT_AUTHOR_ID).is_some());
+    assert!(mt035_node_by_author_id(&restart_tree, "menu-edit").is_some());
+    let restart_frame =
+        mt035_capture_frame(&mut restarted_harness, &proof_dir, "06-restart-empty.png");
+    assert_eq!(
+        shell_indicator_value(&restarted_harness, &restarted_indicator_author_id).as_deref(),
+        Some("Undo (0)"),
+        "restart frame is captured from the fresh mounted pane's live empty state"
+    );
+    assert_eq!(
+        mt035_live_json_value(
+            &restarted_harness,
+            handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID,
+        )
+        .expect("restart frame has structured live status")["pending"],
+        false
+    );
+    restart_argus.finish_require_no_indeterminate();
+
+    let correlation_ids = [
+        menu_open.correlation_id.as_str(),
+        cross_undo.correlation_id.as_str(),
+        retry_menu.correlation_id.as_str(),
+        blocked.correlation_id.as_str(),
+        local_menu.correlation_id.as_str(),
+        local.correlation_id.as_str(),
+    ];
+    assert!(
+        correlation_ids.iter().all(|value| !value.trim().is_empty()),
+        "every canonical Argus action must retain a non-empty correlation identity"
+    );
+    assert_eq!(
+        correlation_ids
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        correlation_ids.len(),
+        "each canonical Argus mutation must have its own correlation identity"
+    );
+    let (source_candidate_after_id, source_candidate_after) = mt035_source_candidate_identity();
+    assert_eq!(
+        source_candidate_after_id, source_candidate_id,
+        "all MT-035 V4 trees and frames must come from one unchanged source candidate"
+    );
+
+    let actions = vec![
+        mt035_action_proof(
+            "menu-edit",
+            &menu_open,
+            "edit-menu-freshly-open-with-enabled-undo-leaves",
+        ),
+        mt035_action_proof(
+            "menu.edit.undo-cross-pane",
+            &cross_undo,
+            "cross-pane-undo-is-exactly-pending-and-local-depth-is-unchanged",
+        ),
+        mt035_action_proof(
+            "menu-edit",
+            &retry_menu,
+            "edit-menu-reopened-for-blocked-retry",
+        ),
+        mt035_action_proof(
+            "menu.edit.undo-cross-pane",
+            &blocked,
+            "blocked-retry-is-typed-and-keeps-the-same-pending-operation",
+        ),
+        mt035_action_proof(
+            "menu-edit",
+            &local_menu,
+            "edit-menu-reopened-for-independent-local-undo",
+        ),
+        mt035_action_proof(
+            "menu.edit.undo",
+            &local,
+            "focused-local-undo-decrements-only-local-depth-and-keeps-pending-identity",
+        ),
+    ];
+    let proof = serde_json::json!({
+        "schema_id": "hsk.mt035-canonical-argus-proof@2",
+        "work_packet": "WP-KERNEL-012",
+        "microtask": "MT-035",
+        "validation_round": "v4",
+        "run_id": run_id,
+        "source_candidate_id": source_candidate_id,
+        "source_candidate": source_candidate,
+        "source_candidate_after": source_candidate_after,
+        "compensation_action_id": COMPENSATION_ACTION_ID,
+        "focused_pane_id": code_pane.as_ref(),
+        "restarted_focused_pane_id": restarted_code_pane.as_ref(),
+        "actions": actions,
+        "checkpoints": {
+            "initial": {
+                "tree": initial_tree,
+                "tree_sha256": mt035_sha256_json(&initial_tree),
+                "counts": {"local": 1, "cross": 1, "pending": false},
+                "indicator_author_id": indicator_author_id,
+            },
+            "settlement": {
+                "tree": settlement_tree,
+                "tree_sha256": mt035_sha256_json(&settlement_tree),
+                "status": settlement_state,
+                "compensation_future_dropped_before_fifo_drain": true,
+                "active_compensation_futures_before_fifo_drain": 0,
+                "pending_after": false,
+                "pending_click_completion_observers": settlement_pending_observers,
+            },
+            "restart": {
+                "tree": restart_tree,
+                "tree_sha256": mt035_sha256_json(&restart_tree),
+                "status": restart_state,
+                "counts": {"local": 0, "cross": 0, "pending": false},
+                "indicator_author_id": restarted_indicator_author_id,
+                "pending_click_completion_observers": restart_pending_observers,
+            }
+        },
+        "frames": [
+            {"phase": "before", "capture": initial_frame, "tree_sha256": mt035_sha256_json(&initial_tree)},
+            {"phase": "edit-open", "capture": menu_open_frame, "tree_sha256": mt035_sha256_json(&menu_open.after)},
+            {"phase": "cross-pane-pending", "capture": cross_pending_frame, "tree_sha256": mt035_sha256_json(&cross_undo.after)},
+            {"phase": "local-undone-cross-pending", "capture": local_pending_frame, "tree_sha256": mt035_sha256_json(&local.after)},
+            {"phase": "compensation-settled", "capture": settlement_frame, "tree_sha256": mt035_sha256_json(&settlement_tree)},
+            {"phase": "restart-empty", "capture": restart_frame, "tree_sha256": mt035_sha256_json(&restart_tree)},
+        ],
+        "strict_finish": {
+            "indeterminate_actions": 0,
+            "unresolved_actions": 0,
+            "pending_compensations": 0,
+            "compensation_futures_in_flight": 0,
+            "pending_click_completion_observers": 0,
+        }
+    });
+    let proof_path = proof_dir.join("mt035-v4-canonical-argus-proof.json");
+    std::fs::write(
+        &proof_path,
+        serde_json::to_vec_pretty(&proof).expect("serialize MT-035 V4 proof"),
+    )
+    .expect("write MT-035 V4 proof artifact after strict finish");
+    assert_no_local_artifact_dir();
 }
 
 #[test]
@@ -1749,14 +2491,15 @@ fn canvas_compensating_undo_uses_verified_delete_route() {
 fn canvas_placement_undo_round_trip_live_pg() {
     use handshake_native::backend_client::{CanvasBoardClient, CreatedCanvasPlacement};
 
+    let mut managed_backend = pg_proof_support::require_reachable_backend();
+    let backend_binding = managed_backend.owned_backend_binding_receipt();
+    println!("MT-035 owned backend binding: {backend_binding}");
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
         .build()
         .expect("MT-035 integration runtime");
-    let base = std::env::var("HSK_TEST_BASE")
-        .or_else(|_| std::env::var("HANDSHAKE_TEST_DB_URL"))
-        .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let base = managed_backend.base.clone();
     let http = reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(2))
         .timeout(std::time::Duration::from_secs(10))
@@ -1935,6 +2678,11 @@ fn canvas_placement_undo_round_trip_live_pg() {
 
     drop(harness);
     runtime.block_on(cleanup.cleanup(&http));
+    let owned_backend_pid = backend_binding["backend_pid"]
+        .as_u64()
+        .expect("owned backend binding carries exact PID");
+    managed_backend.assert_cleanup();
+    println!("MT-035 owned backend PID {owned_backend_pid} stopped and reaped");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

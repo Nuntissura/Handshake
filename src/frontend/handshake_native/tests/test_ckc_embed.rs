@@ -88,26 +88,283 @@ fn canonical_action_proof(
     target: &str,
     observation: &ArgusObservation,
     terminal_predicate: &str,
-    terminal: &serde_json::Value,
 ) -> serde_json::Value {
+    use sha2::Digest as _;
+
+    let receipt = observation.after["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .unwrap_or_else(|| panic!("action {target} retains receipt {}", observation.receipt_id));
+    assert_ne!(
+        observation.receipt_status, "indeterminate",
+        "MT-033 V4 prohibits indeterminate canonical action receipts"
+    );
+    assert!(
+        matches!(observation.receipt_status.as_str(), "applied" | "rejected"),
+        "MT-033 V4 requires a terminal Applied or typed-Rejected receipt: {receipt}"
+    );
+    assert_eq!(
+        receipt["status"].as_str(),
+        Some(observation.receipt_status.as_str()),
+        "serialized receipt status must come from the exact terminal tree"
+    );
+    assert!(
+        observation.terminal_refreshed,
+        "MT-033 proof must serialize the driver's persisted terminal observation"
+    );
+    let predicate_result = observation
+        .terminal_predicates
+        .iter()
+        .find(|predicate| predicate.predicate_id == terminal_predicate)
+        .unwrap_or_else(|| {
+            panic!("action {target} terminal observation retains predicate {terminal_predicate}")
+        });
+    assert!(
+        predicate_result.passed,
+        "serialized terminal predicate must have passed against observation.after"
+    );
+    let completion_token = receipt["observed_value"]
+        .as_str()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .expect("terminal action receipt carries a parseable completion token");
+    let product_detail = completion_token["terminal_detail"]
+        .as_str()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok());
+    let hash = |value: &serde_json::Value| {
+        format!(
+            "{:x}",
+            sha2::Sha256::digest(serde_json::to_vec(value).expect("serialize Argus observation"))
+        )
+    };
     serde_json::json!({
-        "target": target,
+        "requested_action": "argus.click",
+        "stable_author_id": target,
+        "binding_identity": observation.agent_id,
+        "receipt": receipt,
+        "completion_token": completion_token,
+        "product_detail": product_detail,
         "observation": {
             "before": observation.before,
             "after": observation.after,
+            "before_tree_hash": hash(&observation.before),
+            "after_tree_hash": hash(&observation.after),
+            "before_generation": observation.before["captured_at_utc"],
+            "after_generation": observation.after["captured_at_utc"],
             "receipt_id": observation.receipt_id,
             "receipt_status": observation.receipt_status,
             "agent_id": observation.agent_id,
             "terminal_observed_sequence": observation.terminal_observed_sequence,
             "target_selected_before": observation.target_selected_before,
             "target_selected_after": observation.target_selected_after,
-            "terminal_refreshed": true
+            "terminal_refreshed": observation.terminal_refreshed
         },
-        "terminal_predicate": {
-            "id": terminal_predicate,
-            "passed": true
-        },
-        "terminal": terminal
+        "terminal_predicate": predicate_result,
+        "terminal": observation.after
+    })
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn canonical_product_detail(observation: &ArgusObservation) -> serde_json::Value {
+    let receipt = observation.after["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .expect("terminal observation retains exact receipt");
+    let token: serde_json::Value = serde_json::from_str(
+        receipt["observed_value"]
+            .as_str()
+            .expect("terminal receipt completion token"),
+    )
+    .expect("parse terminal completion token");
+    serde_json::from_str(
+        token["terminal_detail"]
+            .as_str()
+            .expect("observer terminal detail"),
+    )
+    .expect("parse observer product detail")
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn sha256_file(path: &Path) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(std::fs::read(path).expect("read proof artifact for SHA-256"))
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn sha256_json(value: &serde_json::Value) -> String {
+    use sha2::Digest as _;
+    format!(
+        "{:x}",
+        sha2::Sha256::digest(serde_json::to_vec(value).expect("serialize JSON for SHA-256"))
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn current_head_sha() -> String {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(3)
+                .unwrap(),
+        )
+        .output()
+        .expect("resolve current HEAD for V4 proof");
+    assert!(output.status.success(), "git rev-parse HEAD must pass");
+    String::from_utf8(output.stdout)
+        .expect("HEAD is UTF-8")
+        .trim()
+        .to_owned()
+}
+
+/// Bind a visual proof to the complete dirty worktree, not merely its HEAD. This deliberately mirrors
+/// the hardened MT-088 candidate algorithm: the binary tracked diff plus sorted untracked path/content
+/// hashes form one deterministic identity material stream.
+#[cfg(feature = "wgpu_screenshots")]
+fn current_worktree_candidate_identity() -> (String, serde_json::Value) {
+    use sha2::Digest as _;
+    use std::io::Write as _;
+
+    let head_sha = current_head_sha();
+    let root = std::fs::canonicalize(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+            .expect("handshake_native manifest is nested below the repository root"),
+    )
+    .expect("canonicalize MT-033 product repository root");
+    let tracked_diff = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["diff", "--binary", "HEAD", "--", "."])
+        .output()
+        .expect("read complete tracked MT-033 worktree diff");
+    assert!(tracked_diff.status.success(), "git diff HEAD must pass");
+    let tracked_diff_sha256 = format!("{:x}", sha2::Sha256::digest(&tracked_diff.stdout));
+
+    let untracked_output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["ls-files", "--others", "--exclude-standard", "-z"])
+        .output()
+        .expect("list complete untracked MT-033 worktree candidate");
+    assert!(
+        untracked_output.status.success(),
+        "git ls-files --others must pass"
+    );
+    let mut untracked_paths = untracked_output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .map(|path| String::from_utf8(path.to_vec()).expect("untracked repo path is UTF-8"))
+        .collect::<Vec<_>>();
+    untracked_paths.sort();
+
+    let mut candidate_material = Vec::new();
+    candidate_material.extend_from_slice(b"tracked-diff\0");
+    candidate_material.extend_from_slice(&tracked_diff.stdout);
+    let mut untracked_files = serde_json::Map::new();
+    for repo_path in untracked_paths {
+        let path = root.join(&repo_path);
+        let canonical_path = std::fs::canonicalize(&path).unwrap_or_else(|error| {
+            panic!(
+                "canonicalize untracked candidate {}: {error}",
+                path.display()
+            )
+        });
+        assert!(
+            canonical_path.starts_with(&root),
+            "untracked candidate {} must remain inside {}",
+            canonical_path.display(),
+            root.display()
+        );
+        let sha256 = sha256_file(&canonical_path);
+        candidate_material.extend_from_slice(b"\0untracked\0");
+        candidate_material.extend_from_slice(repo_path.as_bytes());
+        candidate_material.push(0);
+        candidate_material.extend_from_slice(sha256.as_bytes());
+        untracked_files.insert(
+            repo_path.clone(),
+            serde_json::json!({
+                "repo_path": repo_path,
+                "canonical_path": canonical_path,
+                "sha256": sha256,
+            }),
+        );
+    }
+
+    let mut hash_object = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&root)
+        .args(["hash-object", "--stdin"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn git hash-object for complete MT-033 candidate");
+    hash_object
+        .stdin
+        .as_mut()
+        .expect("git hash-object stdin is piped")
+        .write_all(&candidate_material)
+        .expect("write complete MT-033 candidate identity material");
+    let hash_output = hash_object
+        .wait_with_output()
+        .expect("wait for git hash-object");
+    assert!(hash_output.status.success(), "git hash-object must pass");
+    let candidate_git_blob_oid = String::from_utf8(hash_output.stdout)
+        .expect("candidate git object id is UTF-8")
+        .trim()
+        .to_owned();
+    assert!(!candidate_git_blob_oid.is_empty());
+    let candidate_sha256 = format!("{:x}", sha2::Sha256::digest(&candidate_material));
+    let identity = format!("{head_sha}-worktree-{candidate_git_blob_oid}");
+    (
+        identity.clone(),
+        serde_json::json!({
+            "identity": identity,
+            "head_sha": head_sha,
+            "worktree_diff_git_blob_oid": candidate_git_blob_oid,
+            "candidate_sha256": candidate_sha256,
+            "tracked_diff_sha256": tracked_diff_sha256,
+            "tracked_diff_bytes": tracked_diff.stdout.len(),
+            "untracked_files": untracked_files,
+        }),
+    )
+}
+
+#[cfg(feature = "wgpu_screenshots")]
+fn running_test_executable_provenance() -> serde_json::Value {
+    let executable = std::fs::canonicalize(
+        std::env::current_exe().expect("resolve running MT-033 test executable"),
+    )
+    .expect("canonicalize running MT-033 test executable");
+    let configured_target = std::fs::canonicalize(PathBuf::from(
+        std::env::var_os("CARGO_TARGET_DIR")
+            .expect("V4 proof requires an explicit isolated CARGO_TARGET_DIR"),
+    ))
+    .expect("canonicalize isolated MT-033 Cargo target");
+    assert!(
+        executable.starts_with(&configured_target),
+        "running test executable {} must be inside isolated target {}",
+        executable.display(),
+        configured_target.display()
+    );
+    serde_json::json!({
+        "canonical_path": executable,
+        "sha256": sha256_file(&executable),
+        "configured_target": configured_target,
+        "process_id": std::process::id(),
     })
 }
 
@@ -1520,6 +1777,8 @@ fn atelier_panel_screenshot() {
     };
 
     let _guard = wgpu_guard();
+    let (candidate_identity_before, candidate_before) = current_worktree_candidate_identity();
+    let test_executable = running_test_executable_provenance();
     let (mut app, runtime) = live_rich_shell("DOC-ARGUS-33");
     *app.atelier_side_panel_mut() = seeded_panel();
     let rich_state = app.mounted_rich_state();
@@ -1534,30 +1793,51 @@ fn atelier_panel_screenshot() {
     harness
         .state_mut()
         .clear_fems_overlay_for_integration_test();
+    // `live_rich_shell` deliberately binds a dead backend because this GPU proof seeds its CKC rows
+    // directly. Once the expected asynchronous explorer failure has settled, clear that unrelated
+    // test-only state so the accepted frame proves Atelier/Stage without presenting a false product
+    // failure beside it. `set_content` is the ProjectTree-owned non-HTTP seed path and cancels no
+    // product operation used by this proof.
+    harness
+        .state_mut()
+        .left_rail_mut()
+        .project_tree
+        .set_content(Vec::new(), Vec::new());
     harness.run_steps(2);
-    let ext_dir = external_artifact_dir("wp-kernel-012-mt-033/canonical-argus");
+    let run_id = format!("run-{}", uuid::Uuid::new_v4().simple());
+    let head_sha = candidate_before["head_sha"]
+        .as_str()
+        .expect("candidate provenance carries HEAD")
+        .to_owned();
+    let invocation = "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features wgpu_screenshots --test test_ckc_embed atelier_panel_screenshot -- --exact --nocapture --test-threads=1";
+    let started_at_utc = chrono::Utc::now().to_rfc3339();
+    let ext_dir =
+        external_artifact_dir(&format!("wp-kernel-012-mt-033/canonical-argus-v4/{run_id}"));
     std::fs::create_dir_all(&ext_dir).expect("create external MT-033 canonical Argus directory");
-    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-033-success");
+    let mut argus = CanonicalArgusDriver::bind(
+        harness.state(),
+        &format!("mt033-success-{}", uuid::Uuid::new_v4().simple()),
+    );
 
     let initial = argus.inspect(&mut harness);
     assert!(json_has_author_id(&initial, "menu-view"));
     assert!(json_has_author_id(&initial, "editor.rich.text"));
     assert!(!json_has_author_id(&initial, PANEL_AUTHOR_ID));
 
-    let open_view = argus.click_and_reinspect(&mut harness, "menu-view");
-    let view_terminal = argus.assert_latest_terminal_predicate(
-        &mut harness,
-        "atelier-toggle-discoverable",
-        |tree| json_has_author_id(tree, "menu.view.toggle-atelier"),
-    );
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu-view");
+    argus.assert_latest_terminal_predicate(&mut harness, "atelier-toggle-discoverable", |tree| {
+        json_has_author_id(tree, "menu.view.toggle-atelier")
+    });
+    let open_view = argus.latest_terminal_observation();
+    let view_terminal = open_view.after.clone();
     assert!(json_has_author_id(
         &view_terminal,
         "menu.view.toggle-atelier"
     ));
 
-    let open_panel = argus.click_and_reinspect(&mut harness, "menu.view.toggle-atelier");
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu.view.toggle-atelier");
     let item_author = item_author_id("item-aaa");
-    let panel_terminal = argus.assert_latest_terminal_predicate(
+    argus.assert_latest_terminal_predicate(
         &mut harness,
         "atelier-panel-and-item-mounted",
         |tree| {
@@ -1567,15 +1847,26 @@ fn atelier_panel_screenshot() {
                 && json_has_author_id(tree, "atelier-moodboard-list-blocker")
         },
     );
+    let open_panel = argus.latest_terminal_observation();
+    let panel_terminal = open_panel.after.clone();
     assert!(json_has_author_id(&panel_terminal, PANEL_AUTHOR_ID));
 
-    let insert = argus.click_and_reinspect(&mut harness, &item_author);
+    let (insert_before_revision, insert_before_hash) = {
+        let state = rich_state.lock().unwrap();
+        (
+            state.doc_revision(),
+            sha256_json(&state.current_content_json()),
+        )
+    };
+    argus.click_expect_applied_and_reinspect(&mut harness, &item_author);
     let chip_prefix = chip_author_id("item-aaa");
-    let insert_terminal = argus.assert_latest_terminal_predicate(
+    argus.assert_latest_terminal_predicate(
         &mut harness,
         "atelier-click-fallback-inserts-exact-hslink",
         |tree| json_has_author_id_prefix(tree, &chip_prefix),
     );
+    let insert = argus.latest_terminal_observation();
+    let insert_terminal = insert.after.clone();
     assert!(
         json_has_author_id_prefix(&insert_terminal, &chip_prefix),
         "fresh canonical Argus inspection must expose the exact inserted CKC hsLink"
@@ -1584,6 +1875,20 @@ fn atelier_panel_screenshot() {
         first_hs_link(&rich_state.lock().unwrap().current_content_json()),
         Some(("media".to_owned(), "item-aaa".to_owned()))
     );
+    let (insert_after_revision, insert_after_hash) = {
+        let state = rich_state.lock().unwrap();
+        (
+            state.doc_revision(),
+            sha256_json(&state.current_content_json()),
+        )
+    };
+    assert!(insert_after_revision > insert_before_revision);
+    assert_ne!(insert_after_hash, insert_before_hash);
+    let insert_detail = canonical_product_detail(&insert);
+    assert_eq!(insert_detail["ref_kind"], "media");
+    assert_eq!(insert_detail["ref_value"], "item-aaa");
+    assert_eq!(insert_detail["after_revision"], insert_after_revision);
+    assert_eq!(insert_detail["after_content_hash"], insert_after_hash);
 
     {
         let mut state = rich_state.lock().unwrap();
@@ -1596,19 +1901,25 @@ fn atelier_panel_screenshot() {
             Some("Hello".to_owned())
         );
     }
-    let open_editors = argus.click_and_reinspect(&mut harness, "menu-editors");
-    let editors_terminal = argus.assert_latest_terminal_predicate(
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu-editors");
+    argus.assert_latest_terminal_predicate(
         &mut harness,
         "route-to-stage-control-discoverable",
         |tree| json_has_author_id(tree, "menu.editors.route-to-stage"),
     );
+    let open_editors = argus.latest_terminal_observation();
+    let editors_terminal = open_editors.after.clone();
     assert!(json_has_author_id(
         &editors_terminal,
         "menu.editors.route-to-stage"
     ));
 
-    let route = argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
-    let route_terminal = argus.assert_latest_terminal_predicate(
+    argus.click_expect_applied_and_reinspect(&mut harness, "menu.editors.route-to-stage");
+    // The leaf action closes egui's popup memory in its dispatch frame. Advance one production frame
+    // before the authoritative terminal inspection so the GPU paint and AccessKit tree prove the
+    // same popup-free state; the exact route receipt remains attached to this action observation.
+    harness.run_steps(1);
+    argus.assert_latest_terminal_predicate(
         &mut harness,
         "routed-selection-visible-in-stage",
         |tree| {
@@ -1618,11 +1929,55 @@ fn atelier_panel_screenshot() {
                 .is_some_and(|value| value.contains("DOC-ARGUS-33") && value.contains("Hello"))
         },
     );
+    let route = argus.latest_terminal_observation();
+    let route_terminal = route.after.clone();
     assert!(json_has_author_id(
         &route_terminal,
         STAGE_ROUTED_CONTENT_AUTHOR_ID
     ));
+    let route_detail = canonical_product_detail(&route);
+    assert_eq!(route_detail["flight_recorder_action"], "route_to_stage");
+    assert!(route_detail["route_receipt_event_id"]
+        .as_str()
+        .is_some_and(|value| !value.is_empty()));
+    assert!(route_detail["causal_action_id"]
+        .as_str()
+        .is_some_and(|value| value.starts_with("stage-route-")));
+    let success_action_statuses = [
+        open_view.receipt_status.as_str(),
+        open_panel.receipt_status.as_str(),
+        insert.receipt_status.as_str(),
+        open_editors.receipt_status.as_str(),
+        route.receipt_status.as_str(),
+    ];
+    assert_eq!(
+        success_action_statuses, ["applied"; 5],
+        "success branch must retain exactly five Applied canonical actions"
+    );
 
+    assert!(
+        !json_has_author_id_prefix(&route_terminal, "menu."),
+        "final success capture must not contain an open top-menu popup"
+    );
+    assert!(
+        !json_has_author_id(&route_terminal, "command-palette.dialog"),
+        "final success capture must not contain an open command-palette overlay"
+    );
+    assert_eq!(
+        route_terminal, route.after,
+        "success capture must be bound to the exact terminal tree persisted for the route action"
+    );
+    assert!(
+        handshake_native::top_menu_bar::open_menu(&harness.ctx).is_none(),
+        "the live egui context must have no top-level popup before success capture"
+    );
+    let success_terminal_tree_sha256 = sha256_json(&route.after);
+    let success_capture_event_sequence =
+        screenshot_harness::screenshot_marker::next_proof_event_sequence();
+    assert!(
+        success_capture_event_sequence > route.terminal_observed_sequence,
+        "success capture event must follow the bound terminal observation"
+    );
     let image = harness
         .render()
         .expect("HBR-VIS screenshot rendering is a required proof");
@@ -1632,11 +1987,19 @@ fn atelier_panel_screenshot() {
     image
         .save(&png)
         .unwrap_or_else(|error| panic!("save required screenshot {}: {error}", png.display()));
+    let png_sha256 = sha256_file(&png);
     let success_tree = ext_dir.join("MT-033-atelier-stage-success.json");
     std::fs::write(
         &success_tree,
         serde_json::to_vec_pretty(&serde_json::json!({
             "schema_id": "hsk.mt033-canonical-argus-proof@1",
+            "run_id": run_id,
+            "head_sha": head_sha,
+            "candidate_before": candidate_before,
+            "test_executable": test_executable,
+            "invocation": invocation,
+            "started_at_utc": started_at_utc,
+            "completed_at_utc": chrono::Utc::now().to_rfc3339(),
             "state": "success",
             "targets": [
                 "menu-view",
@@ -1647,18 +2010,25 @@ fn atelier_panel_screenshot() {
                 STAGE_ROUTED_CONTENT_AUTHOR_ID
             ],
             "actions": [
-                canonical_action_proof("menu-view", &open_view, "atelier-toggle-discoverable", &view_terminal),
-                canonical_action_proof("menu.view.toggle-atelier", &open_panel, "atelier-panel-and-item-mounted", &panel_terminal),
-                canonical_action_proof(&item_author, &insert, "atelier-click-fallback-inserts-exact-hslink", &insert_terminal),
-                canonical_action_proof("menu-editors", &open_editors, "route-to-stage-control-discoverable", &editors_terminal),
-                canonical_action_proof("menu.editors.route-to-stage", &route, "routed-selection-visible-in-stage", &route_terminal)
+                canonical_action_proof("menu-view", &open_view, "atelier-toggle-discoverable"),
+                canonical_action_proof("menu.view.toggle-atelier", &open_panel, "atelier-panel-and-item-mounted"),
+                canonical_action_proof(&item_author, &insert, "atelier-click-fallback-inserts-exact-hslink"),
+                canonical_action_proof("menu-editors", &open_editors, "route-to-stage-control-discoverable"),
+                canonical_action_proof("menu.editors.route-to-stage", &route, "routed-selection-visible-in-stage")
             ],
             "initial": initial,
             "terminal": route_terminal,
             "screenshot": {
                 "path": png,
+                "sha256": png_sha256,
                 "capture_method": "mounted_wgpu_harness_render_after_fresh_argus_terminal",
-                "bound_to_action_target": "menu.editors.route-to-stage"
+                "bound_to_action_target": "menu.editors.route-to-stage",
+                "bound_to_receipt_id": route.receipt_id,
+                "bound_to_terminal_observed_sequence": route.terminal_observed_sequence,
+                "bound_to_terminal_tree_sha256": success_terminal_tree_sha256,
+                "capture_event_sequence": success_capture_event_sequence,
+                "harness_run_steps_after_terminal_inspection": 0,
+                "open_menu_or_popup_overlay": false
             }
         }))
         .expect("serialize MT-033 success tree"),
@@ -1671,7 +2041,7 @@ fn atelier_panel_screenshot() {
         png.display(),
         success_tree.display()
     );
-    argus.finish();
+    argus.finish_require_no_indeterminate();
     drop(harness);
     runtime.shutdown_timeout(std::time::Duration::from_secs(2));
 
@@ -1683,18 +2053,21 @@ fn atelier_panel_screenshot() {
         .wgpu()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
     failure_harness.run_steps(3);
-    let mut failure_argus =
-        CanonicalArgusDriver::bind(failure_harness.state(), "wp-kernel-012-mt-033-failure");
+    let mut failure_argus = CanonicalArgusDriver::bind(
+        failure_harness.state(),
+        &format!("mt033-failure-{}", uuid::Uuid::new_v4().simple()),
+    );
     let failure_initial = failure_argus.inspect(&mut failure_harness);
-    let failure_menu = failure_argus.click_and_reinspect(&mut failure_harness, "menu-operator");
-    let failure_menu_terminal = failure_argus.assert_latest_terminal_predicate(
+    failure_argus.click_expect_applied_and_reinspect(&mut failure_harness, "menu-operator");
+    failure_argus.assert_latest_terminal_predicate(
         &mut failure_harness,
         "command-palette-control-visible",
         |tree| json_has_author_id(tree, "menu.operator.command-palette"),
     );
-    let open_palette =
-        failure_argus.click_and_reinspect(&mut failure_harness, "menu.operator.command-palette");
-    let palette_terminal = failure_argus.assert_latest_terminal_predicate(
+    let failure_menu = failure_argus.latest_terminal_observation();
+    failure_argus
+        .click_expect_applied_and_reinspect(&mut failure_harness, "menu.operator.command-palette");
+    failure_argus.assert_latest_terminal_predicate(
         &mut failure_harness,
         "route-command-visible-without-rich-document",
         |tree| {
@@ -1702,11 +2075,16 @@ fn atelier_panel_screenshot() {
                 && json_has_author_id(tree, "command-palette.option.hs-stage-palette-route")
         },
     );
-    let unavailable = failure_argus.click_and_reinspect(
+    let open_palette = failure_argus.latest_terminal_observation();
+    failure_argus.click_expect_typed_rejected_and_reinspect(
         &mut failure_harness,
         "command-palette.option.hs-stage-palette-route",
+        "activate a saved rich document first",
     );
-    let unavailable_terminal = failure_argus.assert_latest_terminal_predicate(
+    // As on the applied route path, inspect only after the leaf-dismissal frame has repainted. This
+    // keeps the rejected receipt, terminal tree, and captured pixels on one popup-free state.
+    failure_harness.run_steps(1);
+    failure_argus.assert_latest_terminal_predicate(
         &mut failure_harness,
         "route-unavailable-is-visible-and-typed",
         |tree| {
@@ -1716,6 +2094,8 @@ fn atelier_panel_screenshot() {
                 .is_some_and(|value| value.contains("activate a saved rich document first"))
         },
     );
+    let unavailable = failure_argus.latest_terminal_observation();
+    let unavailable_terminal = unavailable.after.clone();
     assert!(
         json_node_by_author_id(&unavailable_terminal, STAGE_ROUTED_CONTENT_AUTHOR_ID)
             .and_then(|node| node.get("value"))
@@ -1723,17 +2103,64 @@ fn atelier_panel_screenshot() {
             == Some("(nothing routed to Stage)"),
         "typed unavailable terminal must preserve the explicit empty routed-content state"
     );
+    assert!(
+        !json_has_author_id_prefix(&unavailable_terminal, "menu."),
+        "typed-unavailable capture must not contain an open top-menu popup"
+    );
+    assert!(
+        !json_has_author_id(&unavailable_terminal, "command-palette.dialog"),
+        "typed-unavailable capture must not contain an open command-palette overlay"
+    );
+    assert_eq!(
+        unavailable_terminal, unavailable.after,
+        "typed-unavailable capture must use the exact persisted rejected-action terminal tree"
+    );
+    assert!(
+        handshake_native::top_menu_bar::open_menu(&failure_harness.ctx).is_none(),
+        "the live egui context must have no top-level popup before typed-unavailable capture"
+    );
+    let failure_terminal_tree_sha256 = sha256_json(&unavailable.after);
+    let failure_capture_event_sequence =
+        screenshot_harness::screenshot_marker::next_proof_event_sequence();
+    assert!(
+        failure_capture_event_sequence > unavailable.terminal_observed_sequence,
+        "typed-unavailable capture event must follow the bound terminal observation"
+    );
     let failure_png = ext_dir.join("MT-033-route-unavailable.png");
     failure_harness
         .render()
         .expect("typed unavailable state requires a material render")
         .save(&failure_png)
         .expect("save MT-033 unavailable screenshot");
+    let failure_png_sha256 = sha256_file(&failure_png);
+    let unavailable_detail = canonical_product_detail(&unavailable);
+    assert_eq!(unavailable_detail["typed_outcome"], "route_unavailable");
+    assert_eq!(unavailable_detail["stage_content"], "empty");
+    assert_eq!(
+        unavailable_detail["stage_visible_value"],
+        "(nothing routed to Stage)"
+    );
+    assert_eq!(
+        [
+            failure_menu.receipt_status.as_str(),
+            open_palette.receipt_status.as_str(),
+            unavailable.receipt_status.as_str(),
+        ],
+        ["applied", "applied", "rejected"],
+        "typed-unavailable branch must retain exactly two Applied actions and one typed Rejected action"
+    );
     let failure_tree = ext_dir.join("MT-033-route-unavailable.json");
     std::fs::write(
         &failure_tree,
         serde_json::to_vec_pretty(&serde_json::json!({
             "schema_id": "hsk.mt033-canonical-argus-proof@1",
+            "run_id": run_id,
+            "head_sha": head_sha,
+            "candidate_before": candidate_before,
+            "test_executable": test_executable,
+            "invocation": invocation,
+            "started_at_utc": started_at_utc,
+            "completed_at_utc": chrono::Utc::now().to_rfc3339(),
             "state": "route_unavailable",
             "targets": [
                 "menu-operator",
@@ -1742,16 +2169,23 @@ fn atelier_panel_screenshot() {
                 STAGE_ROUTE_STATUS_AUTHOR_ID
             ],
             "actions": [
-                canonical_action_proof("menu-operator", &failure_menu, "command-palette-control-visible", &failure_menu_terminal),
-                canonical_action_proof("menu.operator.command-palette", &open_palette, "route-command-visible-without-rich-document", &palette_terminal),
-                canonical_action_proof("command-palette.option.hs-stage-palette-route", &unavailable, "route-unavailable-is-visible-and-typed", &unavailable_terminal)
+                canonical_action_proof("menu-operator", &failure_menu, "command-palette-control-visible"),
+                canonical_action_proof("menu.operator.command-palette", &open_palette, "route-command-visible-without-rich-document"),
+                canonical_action_proof("command-palette.option.hs-stage-palette-route", &unavailable, "route-unavailable-is-visible-and-typed")
             ],
             "initial": failure_initial,
             "terminal": unavailable_terminal,
             "screenshot": {
                 "path": failure_png,
+                "sha256": failure_png_sha256,
                 "capture_method": "mounted_wgpu_harness_render_after_fresh_argus_terminal",
-                "bound_to_action_target": "command-palette.option.hs-stage-palette-route"
+                "bound_to_action_target": "command-palette.option.hs-stage-palette-route",
+                "bound_to_receipt_id": unavailable.receipt_id,
+                "bound_to_terminal_observed_sequence": unavailable.terminal_observed_sequence,
+                "bound_to_terminal_tree_sha256": failure_terminal_tree_sha256,
+                "capture_event_sequence": failure_capture_event_sequence,
+                "harness_run_steps_after_terminal_inspection": 0,
+                "open_menu_or_popup_overlay": false
             }
         }))
         .expect("serialize MT-033 unavailable tree"),
@@ -1762,7 +2196,49 @@ fn atelier_panel_screenshot() {
         failure_png.display(),
         failure_tree.display()
     );
-    failure_argus.finish();
+    failure_argus.finish_require_no_indeterminate();
+    let (candidate_identity_after, candidate_after) = current_worktree_candidate_identity();
+    assert_eq!(
+        candidate_identity_after, candidate_identity_before,
+        "MT-033 source candidate must remain byte-identical throughout the canonical V4 run"
+    );
+    let run_manifest = ext_dir.join("MT-033-canonical-argus-v4-run-manifest.json");
+    std::fs::write(
+        &run_manifest,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.mt033-canonical-argus-v4-run@1",
+            "run_id": run_id,
+            "invocation": invocation,
+            "started_at_utc": started_at_utc,
+            "completed_at_utc": chrono::Utc::now().to_rfc3339(),
+            "candidate_identity_before": candidate_identity_before,
+            "candidate_identity_after": candidate_identity_after,
+            "candidate_identity_unchanged": true,
+            "candidate_before": candidate_before,
+            "candidate_after": candidate_after,
+            "test_executable": test_executable,
+            "terminal_receipt_summary": {
+                "applied": 7,
+                "rejected": 1,
+                "indeterminate": 0,
+                "success_branch_applied": 5,
+                "typed_unavailable_branch_applied": 2,
+                "typed_unavailable_branch_rejected": 1,
+            },
+            "artifacts": {
+                "success_png": { "path": png, "sha256": png_sha256 },
+                "success_json": { "path": success_tree, "sha256": sha256_file(&success_tree) },
+                "typed_unavailable_png": { "path": failure_png, "sha256": failure_png_sha256 },
+                "typed_unavailable_json": { "path": failure_tree, "sha256": sha256_file(&failure_tree) },
+            }
+        }))
+        .expect("serialize MT-033 V4 run manifest"),
+    )
+    .expect("write external MT-033 V4 run manifest");
+    println!(
+        "HBR-VIS: source-bound V4 run manifest={}",
+        run_manifest.display()
+    );
     assert_no_local_artifact_dir();
 }
 

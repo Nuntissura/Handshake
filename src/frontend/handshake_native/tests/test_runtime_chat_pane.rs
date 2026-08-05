@@ -7,9 +7,10 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use egui_kittest::kittest::NodeT;
+use sha2::{Digest, Sha256};
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
@@ -18,7 +19,7 @@ mod argus_surface_proof;
 use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 #[path = "native_gui_support/canonical_argus_driver.rs"]
 mod canonical_argus_driver;
-use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use canonical_argus_driver::{json_has_author_id, json_node_by_author_id, CanonicalArgusDriver};
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
@@ -28,8 +29,9 @@ use handshake_native::mcp::{
 use handshake_native::pane_registry::PaneType;
 use handshake_native::runtime_chat::{
     runtime_chat_turn_body_author_id, runtime_chat_turn_role_author_id, ChatRole, ChatSendError,
-    RuntimeChatClient, RuntimeChatPanel, RUNTIME_CHAT_INPUT_AUTHOR_ID,
-    RUNTIME_CHAT_PANEL_AUTHOR_ID, RUNTIME_CHAT_SEND_AUTHOR_ID, RUNTIME_CHAT_STATUS_AUTHOR_ID,
+    RuntimeChatClient, RuntimeChatPanel, RUNTIME_CHAT_CANCEL_AUTHOR_ID,
+    RUNTIME_CHAT_INPUT_AUTHOR_ID, RUNTIME_CHAT_PANEL_AUTHOR_ID, RUNTIME_CHAT_SEND_AUTHOR_ID,
+    RUNTIME_CHAT_STATUS_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
 
@@ -264,7 +266,10 @@ fn spawn_chat_probe_server_with_responses(responses: Vec<ChatProbeResponse>) -> 
     let thread_shutdown = Arc::clone(&shutdown);
     let server_thread = thread::spawn(move || {
         for response in responses {
-            let accept_deadline = Instant::now() + Duration::from_secs(2);
+            // Canonical Argus performs source binding, localhost MCP setup, and pre-send focus/draft
+            // actions before the first HTTP request. Keep the fake server bounded, but do not let its
+            // accept window expire while that authoritative setup is still progressing.
+            let accept_deadline = Instant::now() + Duration::from_secs(10);
             let mut stream = loop {
                 if thread_shutdown.load(Ordering::Acquire) {
                     return;
@@ -273,10 +278,10 @@ fn spawn_chat_probe_server_with_responses(responses: Vec<ChatProbeResponse>) -> 
                     Ok((stream, _)) => break stream,
                     Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                         if Instant::now() >= accept_deadline {
-                            let _ =
-                                request_tx
-                                    .send(Err("controlled Runtime Chat server accept timed out"
-                                        .to_owned()));
+                            let _ = request_tx.send(Err(
+                                "controlled Runtime Chat server accept timed out after 10s"
+                                    .to_owned(),
+                            ));
                             return;
                         }
                         thread::sleep(Duration::from_millis(5));
@@ -815,6 +820,7 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
     let _guard = WGPU_SERIAL_GUARD.lock().unwrap_or_else(|p| p.into_inner());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
+        .proof_mt_id("MT-098")
         .wgpu()
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
     harness.run_steps(4);
@@ -878,6 +884,29 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
         !nodes.contains_key("divider-horizontal"),
         "three-column default should not expose a bottom-row divider"
     );
+    assert_eq!(
+        nodes
+            .get(&runtime_chat_turn_role_author_id(0))
+            .and_then(|(_role, label, _disabled)| label.as_deref()),
+        Some("System:"),
+        "fresh-default screenshot must retain the seeded System turn"
+    );
+    assert!(
+        !nodes.contains_key(&runtime_chat_turn_role_author_id(1))
+            && !nodes.contains_key(&runtime_chat_turn_body_author_id(1)),
+        "fresh-default screenshot provenance requires zero user turns before capture"
+    );
+    assert_eq!(
+        harness
+            .state()
+            .mounted_runtime_chat_panel_for_test()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .turns_for_test()
+            .len(),
+        1,
+        "fresh app panel state must contain exactly the seeded System turn before capture"
+    );
 
     let pane_a = rect_for(&harness, "pane-a");
     let pane_b = rect_for(&harness, "pane-b");
@@ -900,6 +929,11 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
     let image = harness
         .render()
         .expect("wgpu render succeeds for MT-098 Runtime Chat screenshot");
+    let proof_frame_path = harness
+        .last_screenshot_outcome()
+        .and_then(|outcome| outcome.frame_path.as_deref())
+        .expect("MT-098 screenshot harness publishes a unique centralized proof frame")
+        .to_owned();
     assert!(
         image.width() > 0 && image.height() > 0,
         "non-empty screenshot"
@@ -910,7 +944,57 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
     image
         .save(&png_path)
         .expect("save MT-098 Runtime Chat screenshot");
-    println!("MT-098 screenshot: {}", png_path.display());
+    let mut tree_author_ids = nodes.keys().cloned().collect::<Vec<_>>();
+    tree_author_ids.sort();
+    let tree_sha256 = format!(
+        "{:x}",
+        Sha256::digest(
+            serde_json::to_vec(&tree_author_ids)
+                .expect("serialize fresh-default AccessKit author-id inventory")
+        )
+    );
+    let head_output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("run git for fresh-default screenshot provenance");
+    assert!(
+        head_output.status.success(),
+        "git rev-parse HEAD must succeed for fresh-default screenshot provenance"
+    );
+    let provenance_path = Path::new(&proof_frame_path)
+        .parent()
+        .expect("unique proof frame has a parent directory")
+        .join("mt098-fresh-default-proof.json");
+    std::fs::write(
+        &provenance_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.mt098-fresh-default-proof@1",
+            "head_sha": String::from_utf8(head_output.stdout)
+                .expect("HEAD is UTF-8")
+                .trim(),
+            "source_sha256": {
+                "src/runtime_chat/panel.rs": sha256_file(
+                    &Path::new(env!("CARGO_MANIFEST_DIR")).join("src/runtime_chat/panel.rs")
+                ),
+                "tests/test_runtime_chat_pane.rs": sha256_file(
+                    &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/test_runtime_chat_pane.rs")
+                )
+            },
+            "unique_proof_frame": proof_frame_path.clone(),
+            "stable_alias": png_path.display().to_string(),
+            "tree_author_ids_sha256": tree_sha256,
+            "system_turn_count": 1,
+            "user_turn_count": 0
+        }))
+        .expect("serialize fresh-default screenshot provenance"),
+    )
+    .expect("write fresh-default screenshot provenance beside unique frame");
+    println!(
+        "MT-098 fresh-default screenshot: unique_proof_frame={proof_frame_path} stable_alias={} provenance={}",
+        png_path.display(),
+        provenance_path.display()
+    );
 }
 
 // ── WP-KERNEL-012 MT-098 remediation (FAIL_V2): CANONICAL Argus inspect / safe-steer / re-observe over ──
@@ -927,14 +1011,12 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
 // pane resolves to the typed `EndpointMissing` blocker with NO fabricated assistant reply — the real
 // route posture, not a mock.
 //
-// The material chat STEER (Send) is driven by a canonical `argus.click` on `runtime-chat-send` (a typed
-// receipt over the real transport); the draft is seeded on the SAME mounted panel behind the factory (a
-// setup step, not the material state). Cancellation uses the panel's real cancel path (a transport rebind
-// aborts the in-flight send) and is re-observed through canonical Argus. Every material state is freshly
-// re-inspected through `argus.inspect`.
+// Drafts are driven through canonical `argus.set_value` and each material Send through canonical
+// `argus.click`. Cancellation uses the panel's real cancel path (a transport rebind aborts the in-flight
+// send). Every action is rebound to one fresh, state-specific terminal predicate before `finish`.
 //
 // Artifact hygiene (CX-212E): evidence is written ONLY under the EXTERNAL
-// `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-098/canonical-argus/` root.
+// `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-098/canonical-argus-v4-runs/` root.
 
 /// The `label` (falling back to `value`) of the first node carrying `author_id` anywhere in a canonical
 /// Argus inspect tree.
@@ -969,33 +1051,37 @@ fn argus_any_label_equals(tree: &serde_json::Value, label: &str) -> bool {
     }
 }
 
+fn argus_chat_action_state(tree: &serde_json::Value) -> Option<serde_json::Value> {
+    let raw = json_node_by_author_id(tree, RUNTIME_CHAT_STATUS_AUTHOR_ID)?
+        .get("value")?
+        .as_str()?;
+    serde_json::from_str(raw).ok()
+}
+
+fn sha256_file(path: &Path) -> String {
+    let bytes = std::fs::read(path)
+        .unwrap_or_else(|error| panic!("read source-bound proof file {}: {error}", path.display()));
+    format!("{:x}", Sha256::digest(bytes))
+}
+
 /// Drive live frames (which render the mounted chat pane -> `drain_deliveries`) until the visible
 /// `runtime-chat-status` label contains `needle`, or panic with a bounded deadline.
 fn drive_chat_until_status(harness: &mut Harness<'_, HandshakeApp>, needle: &str) {
-    for _ in 0..300 {
+    let mut last_status = None;
+    for _ in 0..600 {
         harness.run();
         let label = live_author_nodes(harness)
             .get(RUNTIME_CHAT_STATUS_AUTHOR_ID)
             .and_then(|(_role, label, _disabled)| label.clone());
-        if label.is_some_and(|label| label.contains(needle)) {
+        if label.as_deref().is_some_and(|label| label.contains(needle)) {
             return;
         }
+        last_status = label;
         thread::sleep(Duration::from_millis(5));
     }
-    panic!("mounted Runtime Chat status did not reach '{needle}' within the bounded deadline");
-}
-
-/// Seed a draft on the SAME mounted panel the factory renders, then run one frame so the live Send button
-/// reflects the enabled state before the canonical `argus.click` steer.
-fn seed_chat_draft(
-    harness: &mut Harness<'_, HandshakeApp>,
-    chat: &Arc<Mutex<RuntimeChatPanel>>,
-    draft: &str,
-) {
-    chat.lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .set_draft_for_test(draft);
-    harness.run();
+    panic!(
+        "mounted Runtime Chat status did not reach '{needle}' within the bounded deadline; last status={last_status:?}"
+    );
 }
 
 #[test]
@@ -1013,13 +1099,46 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     app.set_runtime_chat_base_url_for_test(absent.base_url());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1400.0, 900.0))
+        .proof_mt_id("MT-098")
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(4);
     let chat = harness.state().mounted_runtime_chat_panel_for_test();
 
-    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-098/canonical-argus");
+    let run_id = format!(
+        "mt098-v4-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock is after Unix epoch")
+            .as_millis()
+    );
+    let artifact_dir = external_artifact_dir(&format!(
+        "wp-kernel-012-mt-098/canonical-argus-v4-runs/{run_id}"
+    ));
     std::fs::create_dir_all(&artifact_dir)
         .expect("create external MT-098 canonical-Argus artifact dir");
+    let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = crate_root
+        .ancestors()
+        .nth(3)
+        .expect("handshake_native manifest is nested below the repository root");
+    let head_output = std::process::Command::new("git")
+        .args(["-C", &repo_root.to_string_lossy(), "rev-parse", "HEAD"])
+        .output()
+        .expect("read current repository HEAD for source-bound proof");
+    assert!(
+        head_output.status.success(),
+        "git rev-parse HEAD must succeed for source-bound proof"
+    );
+    let source_head_sha = String::from_utf8(head_output.stdout)
+        .expect("HEAD SHA is UTF-8")
+        .trim()
+        .to_owned();
+    let source_files = serde_json::json!({
+        "src/runtime_chat/panel.rs": sha256_file(&crate_root.join("src/runtime_chat/panel.rs")),
+        "src/runtime_chat/mod.rs": sha256_file(&crate_root.join("src/runtime_chat/mod.rs")),
+        "tests/test_runtime_chat_pane.rs": sha256_file(&crate_root.join("tests/test_runtime_chat_pane.rs")),
+        "tests/native_gui_support/canonical_argus_driver.rs": sha256_file(&crate_root.join("tests/native_gui_support/canonical_argus_driver.rs"))
+    });
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-098-chat");
 
@@ -1052,11 +1171,53 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
         "the canonical receipt retains the external caller attribution: {}",
         focus.agent_id
     );
+    let focus_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "runtime-chat-input-reached-without-transcript-mutation",
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            json_has_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                && json_has_author_id(tree, RUNTIME_CHAT_SEND_AUTHOR_ID)
+                && json_has_author_id(tree, &runtime_chat_turn_body_author_id(0))
+                && !json_has_author_id(tree, &runtime_chat_turn_body_author_id(1))
+                && state.as_ref().is_some_and(|state| {
+                    state["pane_author_id"] == RUNTIME_CHAT_PANEL_AUTHOR_ID
+                        && state["focus_owner_author_id"] == RUNTIME_CHAT_INPUT_AUTHOR_ID
+                        && state["active_request_generation"].is_null()
+                        && state["last_started_generation"] == 0
+                        && state["turn_count"] == 1
+                        && state["assistant_turn_count"] == 0
+                })
+        },
+    );
 
-    // (3) SEND: seed a draft on the mounted panel, then canonical Argus CLICK send (the material steer).
-    // The user's typed message appears as a real transcript turn in the fresh re-inspection.
-    seed_chat_draft(&mut harness, &chat, "argus send one");
+    // (3) SEND: canonical SetValue binds the exact draft without transcript mutation; the following
+    // canonical Click is the material steer.
+    let draft_one =
+        argus.set_value_and_reinspect(&mut harness, RUNTIME_CHAT_INPUT_AUTHOR_ID, "argus send one");
+    let draft_one_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "runtime-chat-first-draft-exact-and-unsent",
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            json_node_by_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("argus send one")
+                && !json_has_author_id(tree, &runtime_chat_turn_body_author_id(1))
+                && state.as_ref().is_some_and(|state| {
+                    state["pane_author_id"] == RUNTIME_CHAT_PANEL_AUTHOR_ID
+                        && state["last_started_generation"] == 0
+                        && state["active_request_generation"].is_null()
+                        && state["turn_count"] == 1
+                })
+        },
+    );
     let send_one = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    let send_one_generation = chat
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .last_started_generation_for_test();
     assert!(
         matches!(
             send_one.receipt_status.as_str(),
@@ -1094,11 +1255,67 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
         !argus_any_label_equals(&unavailable, "Assistant:"),
         "EndpointMissing must not fabricate an assistant transcript turn (no-mock Spec-Realism gate)"
     );
+    let send_one_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "runtime-chat-first-send-terminal-endpoint-missing",
+        serde_json::json!({
+            "request_generation": send_one_generation,
+            "expected_user_turn": 1,
+            "expected_body": "argus send one",
+            "typed_error": "EndpointMissing",
+            "probed_path": "/chat"
+        }),
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            argus_label_for(tree, &runtime_chat_turn_body_author_id(1)).as_deref()
+                == Some("argus send one")
+                && argus_label_for(tree, RUNTIME_CHAT_STATUS_AUTHOR_ID).is_some_and(|status| {
+                    status.contains("EndpointMissing")
+                        && status.contains("/chat")
+                        && !status.contains("Probing")
+                })
+                && !argus_any_label_equals(tree, "Assistant:")
+                && state.as_ref().is_some_and(|state| {
+                    state["pane_author_id"] == RUNTIME_CHAT_PANEL_AUTHOR_ID
+                        && state["active_request_generation"].is_null()
+                        && state["last_started_generation"] == send_one_generation
+                        && state["terminal_request_generation"] == send_one_generation
+                        && state["terminal_outcome"] == "endpoint_missing"
+                        && state["turn_count"] == 2
+                        && state["assistant_turn_count"] == 0
+                })
+        },
+    );
 
-    // (5) RETRY: seed a fresh draft and canonical Argus CLICK send again — a SECOND real user turn appends
-    // and the retry resolves to EndpointMissing again (still no fabricated assistant reply).
-    seed_chat_draft(&mut harness, &chat, "argus send two retry");
+    // (5) RETRY: a second canonical SetValue + Click owns a distinct request generation and user turn.
+    let draft_two = argus.set_value_and_reinspect(
+        &mut harness,
+        RUNTIME_CHAT_INPUT_AUTHOR_ID,
+        "argus send two retry",
+    );
+    let draft_two_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "runtime-chat-retry-draft-exact-and-unsent",
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            json_node_by_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("argus send two retry")
+                && !json_has_author_id(tree, &runtime_chat_turn_body_author_id(2))
+                && state.as_ref().is_some_and(|state| {
+                    state["last_started_generation"] == send_one_generation
+                        && state["terminal_request_generation"] == send_one_generation
+                        && state["terminal_outcome"] == "endpoint_missing"
+                        && state["turn_count"] == 2
+                })
+        },
+    );
     let send_two = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    let send_two_generation = chat
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .last_started_generation_for_test();
     assert!(
         matches!(
             send_two.receipt_status.as_str(),
@@ -1122,11 +1339,42 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
         !argus_any_label_equals(&retried, "Assistant:"),
         "retry must not fabricate an assistant transcript turn"
     );
+    let send_two_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "runtime-chat-retry-terminal-endpoint-missing",
+        serde_json::json!({
+            "request_generation": send_two_generation,
+            "previous_generation": send_one_generation,
+            "expected_user_turn": 2,
+            "expected_body": "argus send two retry",
+            "typed_error": "EndpointMissing"
+        }),
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            send_two_generation > send_one_generation
+                && argus_label_for(tree, &runtime_chat_turn_body_author_id(1)).as_deref()
+                    == Some("argus send one")
+                && argus_label_for(tree, &runtime_chat_turn_body_author_id(2)).as_deref()
+                    == Some("argus send two retry")
+                && argus_label_for(tree, RUNTIME_CHAT_STATUS_AUTHOR_ID).is_some_and(|status| {
+                    status.contains("EndpointMissing") && !status.contains("Probing")
+                })
+                && !argus_any_label_equals(tree, "Assistant:")
+                && state.as_ref().is_some_and(|state| {
+                    state["active_request_generation"].is_null()
+                        && state["last_started_generation"] == send_two_generation
+                        && state["terminal_request_generation"] == send_two_generation
+                        && state["terminal_outcome"] == "endpoint_missing"
+                        && state["turn_count"] == 3
+                        && state["assistant_turn_count"] == 0
+                })
+        },
+    );
 
     // (6) CANCELLATION: point the chat client at a DELAYED probe server, seed a draft, canonical Argus
-    // CLICK send -> the send is in-flight (status "Probing"). Then cancel via the panel's real cancel path
-    // (a transport rebind aborts the active send). FRESH canonical inspect proves the pane recovered off
-    // the in-flight/Probing state (no perpetual spinner, send usable again).
+    // CLICK send -> the send is in-flight (status "Probing"). Then cancel through the panel's real,
+    // operator-facing Cancel control. FRESH canonical inspect proves the pane recovered off the
+    // in-flight/Probing state (no perpetual spinner, send usable again).
     let delayed = spawn_chat_probe_server_with_body_and_delay(
         "404 Not Found",
         None,
@@ -1136,8 +1384,34 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     harness
         .state_mut()
         .set_runtime_chat_base_url_for_test(delayed.base_url());
-    seed_chat_draft(&mut harness, &chat, "argus cancel me");
+    let cancel_draft = argus.set_value_and_reinspect(
+        &mut harness,
+        RUNTIME_CHAT_INPUT_AUTHOR_ID,
+        "argus cancel me",
+    );
+    let cancel_draft_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "runtime-chat-cancel-draft-exact-and-unsent",
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            json_node_by_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("argus cancel me")
+                && !json_has_author_id(tree, &runtime_chat_turn_body_author_id(3))
+                && state.as_ref().is_some_and(|state| {
+                    state["last_started_generation"] == send_two_generation
+                        && state["terminal_request_generation"].is_null()
+                        && state["terminal_outcome"].is_null()
+                        && state["turn_count"] == 3
+                })
+        },
+    );
     let cancel_send = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    let cancel_generation = chat
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .last_started_generation_for_test();
     assert!(
         matches!(
             cancel_send.receipt_status.as_str(),
@@ -1153,17 +1427,40 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
         probing_status.contains("Probing"),
         "the in-flight send is observably Probing over the canonical transport: {probing_status}"
     );
-    // Real cancellation: rebinding the transport aborts the active send (cancel_active_send).
-    harness
-        .state_mut()
-        .set_runtime_chat_base_url_for_test(absent.base_url());
-    harness.run_steps(2);
-    let cancelled = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&probing, RUNTIME_CHAT_CANCEL_AUTHOR_ID),
+        "the active request exposes its stable model-facing Cancel action"
+    );
+    let in_flight_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "runtime-chat-cancellable-generation-in-flight",
+        serde_json::json!({ "request_generation": cancel_generation }),
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            json_has_author_id(tree, RUNTIME_CHAT_CANCEL_AUTHOR_ID)
+                && argus_label_for(tree, RUNTIME_CHAT_STATUS_AUTHOR_ID)
+                    .is_some_and(|status| status.contains("Probing"))
+                && argus_label_for(tree, &runtime_chat_turn_body_author_id(3)).as_deref()
+                    == Some("argus cancel me")
+                && state.as_ref().is_some_and(|state| {
+                    state["active_request_generation"] == cancel_generation
+                        && state["last_started_generation"] == cancel_generation
+                        && state["terminal_request_generation"].is_null()
+                        && state["terminal_outcome"].is_null()
+                        && state["turn_count"] == 4
+                        && state["assistant_turn_count"] == 0
+                })
+        },
+    );
+    // Real operator/model cancellation: click the mounted stable Cancel control. The target disappears
+    // only after it aborts the exact active generation, so the fresh terminal state is causally bound.
+    let cancel_action = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_CANCEL_AUTHOR_ID);
+    let cancelled = cancel_action.after.clone();
     let cancelled_status = argus_label_for(&cancelled, RUNTIME_CHAT_STATUS_AUTHOR_ID)
         .expect("canonical inspect exposes the cancelled chat status");
     assert!(
-        !cancelled_status.contains("Probing"),
-        "cancellation returns the pane off the in-flight state (no perpetual spinner): {cancelled_status}"
+        cancelled_status.contains("Cancelled") && cancelled_status.contains(&cancel_generation.to_string()),
+        "cancellation reports the exact generation and returns off the in-flight state: {cancelled_status}"
     );
     assert!(
         !chat
@@ -1172,11 +1469,93 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
             .send_in_flight_for_test(),
         "cancellation cleared the active in-flight send"
     );
+    // A late delivery from the cancelled generation is deliberately injected after ownership was
+    // cleared; the mounted drain must ignore it and keep the cancellation terminal state unchanged.
+    chat.lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .inject_delivery_for_test(cancel_generation, Ok(()));
+    harness.run_steps(2);
+    let cancellation_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "runtime-chat-cancelled-generation-cannot-publish-late",
+        serde_json::json!({
+            "cancelled_generation": cancel_generation,
+            "late_delivery_injected": true,
+            "expected_user_turn": 3,
+            "expected_body": "argus cancel me"
+        }),
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            argus_label_for(tree, &runtime_chat_turn_body_author_id(3)).as_deref()
+                == Some("argus cancel me")
+                && argus_label_for(tree, RUNTIME_CHAT_STATUS_AUTHOR_ID).is_some_and(|status| {
+                    status.contains("Cancelled")
+                        && status.contains(&cancel_generation.to_string())
+                        && !status.contains("Probing")
+                })
+                && !json_has_author_id(tree, RUNTIME_CHAT_CANCEL_AUTHOR_ID)
+                && json_node_by_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                    .and_then(|node| node.get("disabled"))
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(false)
+                && json_node_by_author_id(tree, RUNTIME_CHAT_SEND_AUTHOR_ID)
+                    .and_then(|node| node.get("disabled"))
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                && !argus_any_label_equals(tree, "Assistant:")
+                && state.as_ref().is_some_and(|state| {
+                    state["active_request_generation"].is_null()
+                        && state["last_started_generation"] == cancel_generation
+                        && state["terminal_request_generation"] == cancel_generation
+                        && state["terminal_outcome"] == "cancelled"
+                        && state["turn_count"] == 4
+                        && state["assistant_turn_count"] == 0
+                })
+        },
+    );
+    assert!(
+        !chat
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .send_in_flight_for_test(),
+        "a late cancelled-generation delivery cannot reacquire active ownership"
+    );
 
     // (7) RECOVERY: after cancellation the pane is usable again — seed a draft, canonical Argus CLICK send,
     // and a NEW real user turn appends + resolves to the typed state (backend-recovery to a usable send).
-    seed_chat_draft(&mut harness, &chat, "argus recovery send");
+    harness
+        .state_mut()
+        .set_runtime_chat_base_url_for_test(absent.base_url());
+    harness.run_steps(2);
+    let recovery_draft = argus.set_value_and_reinspect(
+        &mut harness,
+        RUNTIME_CHAT_INPUT_AUTHOR_ID,
+        "argus recovery send",
+    );
+    let recovery_draft_terminal = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "runtime-chat-recovery-draft-exact-and-unsent",
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            json_node_by_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                .and_then(|node| node.get("value"))
+                .and_then(serde_json::Value::as_str)
+                == Some("argus recovery send")
+                && !json_has_author_id(tree, &runtime_chat_turn_body_author_id(4))
+                && state.as_ref().is_some_and(|state| {
+                    state["pane_author_id"] == RUNTIME_CHAT_PANEL_AUTHOR_ID
+                        && state["last_started_generation"] == cancel_generation
+                        && state["active_request_generation"].is_null()
+                        && state["terminal_request_generation"].is_null()
+                        && state["turn_count"] == 4
+                })
+        },
+    );
     let recovery = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    let recovery_generation = chat
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .last_started_generation_for_test();
     assert!(
         matches!(
             recovery.receipt_status.as_str(),
@@ -1203,6 +1582,58 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
         recovered_status.contains("EndpointMissing"),
         "the recovery send resolves through the typed route posture: {recovered_status}"
     );
+    let recovery_terminal = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "runtime-chat-recovery-generation-wins",
+        serde_json::json!({
+            "request_generation": recovery_generation,
+            "cancelled_generation": cancel_generation,
+            "expected_user_turn": 4,
+            "expected_body": "argus recovery send",
+            "recovery_kind": "client_state_recovery_endpoint_still_absent"
+        }),
+        |tree| {
+            let state = argus_chat_action_state(tree);
+            recovery_generation > cancel_generation
+                && argus_label_for(tree, &runtime_chat_turn_body_author_id(4)).as_deref()
+                    == Some("argus recovery send")
+                && !json_has_author_id(tree, &runtime_chat_turn_body_author_id(5))
+                && argus_label_for(tree, RUNTIME_CHAT_STATUS_AUTHOR_ID).is_some_and(|status| {
+                    status.contains("EndpointMissing") && !status.contains("Probing")
+                })
+                && json_node_by_author_id(tree, RUNTIME_CHAT_INPUT_AUTHOR_ID)
+                    .and_then(|node| node.get("disabled"))
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(false)
+                && json_node_by_author_id(tree, RUNTIME_CHAT_SEND_AUTHOR_ID)
+                    .and_then(|node| node.get("disabled"))
+                    .and_then(serde_json::Value::as_bool)
+                    == Some(true)
+                && !argus_any_label_equals(tree, "Assistant:")
+                && state.as_ref().is_some_and(|state| {
+                    state["active_request_generation"].is_null()
+                        && state["last_started_generation"] == recovery_generation
+                        && state["terminal_request_generation"] == recovery_generation
+                        && state["terminal_outcome"] == "endpoint_missing"
+                        && state["turn_count"] == 5
+                        && state["assistant_turn_count"] == 0
+                })
+        },
+    );
+    assert!(
+        !chat
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .send_in_flight_for_test(),
+        "recovery generation is terminal and releases worker ownership"
+    );
+
+    // The canonical gate is publication-first: no evidence is written and no success line is emitted
+    // until every queued action is rebound to a fresh, passed predicate and the driver teardown passes.
+    argus.finish();
+    drop(delayed);
+    absent.join();
+    let argus_teardown_verified = true;
 
     // (8) Evidence: the before/after canonical trees for every material state + a screenshot marker
     // (headless DEFERRED is an acceptable typed outcome per the screenshot harness contract).
@@ -1210,15 +1641,37 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
     std::fs::write(
         &tree_path,
         serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.mt098-canonical-argus-proof@2",
+            "run_id": run_id,
+            "source_state": {
+                "head_sha": source_head_sha,
+                "file_sha256": source_files
+            },
+            "argus_teardown_verified": argus_teardown_verified,
             "navigation_mounted": mounted,
-            "focus_receipt": { "id": focus.receipt_id, "status": focus.receipt_status, "agent": focus.agent_id },
-            "send_after": send_one.after,
+            "ordered_actions": [
+                { "kind": "click", "target": RUNTIME_CHAT_INPUT_AUTHOR_ID, "receipt_id": focus.receipt_id, "receipt_status": focus.receipt_status, "terminal_predicate": { "id": "runtime-chat-input-reached-without-transcript-mutation", "passed": true }, "terminal_tree": focus_terminal },
+                { "kind": "set_value", "target": RUNTIME_CHAT_INPUT_AUTHOR_ID, "value": "argus send one", "receipt_id": draft_one.receipt_id, "receipt_status": draft_one.receipt_status, "terminal_predicate": { "id": "runtime-chat-first-draft-exact-and-unsent", "passed": true }, "terminal_tree": draft_one_terminal },
+                { "kind": "click", "target": RUNTIME_CHAT_SEND_AUTHOR_ID, "request_generation": send_one_generation, "receipt_id": send_one.receipt_id, "receipt_status": send_one.receipt_status, "terminal_predicate": { "id": "runtime-chat-first-send-terminal-endpoint-missing", "passed": true, "evidence": { "request_generation": send_one_generation, "typed_error": "EndpointMissing", "probed_path": "/chat" } }, "terminal_tree": send_one_terminal },
+                { "kind": "set_value", "target": RUNTIME_CHAT_INPUT_AUTHOR_ID, "value": "argus send two retry", "receipt_id": draft_two.receipt_id, "receipt_status": draft_two.receipt_status, "terminal_predicate": { "id": "runtime-chat-retry-draft-exact-and-unsent", "passed": true }, "terminal_tree": draft_two_terminal },
+                { "kind": "click", "target": RUNTIME_CHAT_SEND_AUTHOR_ID, "request_generation": send_two_generation, "receipt_id": send_two.receipt_id, "receipt_status": send_two.receipt_status, "terminal_predicate": { "id": "runtime-chat-retry-terminal-endpoint-missing", "passed": true, "evidence": { "request_generation": send_two_generation, "previous_generation": send_one_generation, "typed_error": "EndpointMissing" } }, "terminal_tree": send_two_terminal },
+                { "kind": "set_value", "target": RUNTIME_CHAT_INPUT_AUTHOR_ID, "value": "argus cancel me", "receipt_id": cancel_draft.receipt_id, "receipt_status": cancel_draft.receipt_status, "terminal_predicate": { "id": "runtime-chat-cancel-draft-exact-and-unsent", "passed": true }, "terminal_tree": cancel_draft_terminal },
+                { "kind": "click", "target": RUNTIME_CHAT_SEND_AUTHOR_ID, "request_generation": cancel_generation, "receipt_id": cancel_send.receipt_id, "receipt_status": cancel_send.receipt_status, "terminal_predicate": { "id": "runtime-chat-cancellable-generation-in-flight", "passed": true, "evidence": { "request_generation": cancel_generation } }, "terminal_tree": in_flight_terminal },
+                { "kind": "click", "target": RUNTIME_CHAT_CANCEL_AUTHOR_ID, "request_generation": cancel_generation, "receipt_id": cancel_action.receipt_id, "receipt_status": cancel_action.receipt_status, "terminal_predicate": { "id": "runtime-chat-cancelled-generation-cannot-publish-late", "passed": true, "evidence": { "cancelled_generation": cancel_generation, "late_delivery_injected": true } }, "terminal_tree": cancellation_terminal },
+                { "kind": "set_value", "target": RUNTIME_CHAT_INPUT_AUTHOR_ID, "value": "argus recovery send", "receipt_id": recovery_draft.receipt_id, "receipt_status": recovery_draft.receipt_status, "terminal_predicate": { "id": "runtime-chat-recovery-draft-exact-and-unsent", "passed": true }, "terminal_tree": recovery_draft_terminal },
+                { "kind": "click", "target": RUNTIME_CHAT_SEND_AUTHOR_ID, "request_generation": recovery_generation, "receipt_id": recovery.receipt_id, "receipt_status": recovery.receipt_status, "terminal_predicate": { "id": "runtime-chat-recovery-generation-wins", "passed": true, "evidence": { "request_generation": recovery_generation, "cancelled_generation": cancel_generation, "recovery_kind": "client_state_recovery_endpoint_still_absent" } }, "terminal_tree": recovery_terminal }
+            ],
             "unavailable_status": unavailable_status,
-            "retry_after": send_two.after,
             "probing_status": probing_status,
             "cancelled_status": cancelled_status,
-            "recovery_after": recovery.after,
             "recovered_status": recovered_status,
+            "transcript": [
+                { "index": 1, "role": "user", "text": "argus send one", "request_generation": send_one_generation },
+                { "index": 2, "role": "user", "text": "argus send two retry", "request_generation": send_two_generation },
+                { "index": 3, "role": "user", "text": "argus cancel me", "request_generation": cancel_generation, "disposition": "cancelled_late_delivery_ignored" },
+                { "index": 4, "role": "user", "text": "argus recovery send", "request_generation": recovery_generation, "disposition": "client_state_recovered_endpoint_still_absent" }
+            ],
+            "assistant_turn_count": 0,
         }))
         .expect("serialize canonical MT-098 chat state evidence"),
     )
@@ -1241,14 +1694,10 @@ fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
         tree_path.display()
     );
 
-    argus.finish();
     for local in ["test_output", "tests/screenshots"] {
         assert!(
             !Path::new(local).exists(),
             "CX-212E: no repo-local '{local}' artifact dir may exist"
         );
     }
-    // Bounded teardown of the controlled probe servers.
-    drop(delayed);
-    absent.join();
 }

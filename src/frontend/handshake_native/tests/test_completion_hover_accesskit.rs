@@ -31,7 +31,8 @@ use handshake_native::code_editor::code_nav::{
 #[cfg(feature = "integration")]
 use handshake_native::code_editor::editor_view::CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX;
 use handshake_native::code_editor::editor_view::{
-    CodeNavigationLocation, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID, CODE_EDITOR_HOVER_AUTHOR_ID,
+    CodeNavigationLocation, CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID,
+    CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID, CODE_EDITOR_HOVER_AUTHOR_ID,
 };
 #[cfg(feature = "integration")]
 use handshake_native::code_editor::lsp_client::{LspClient, LspServerConfig};
@@ -427,6 +428,14 @@ fn ac005_completion_keyboard_select_and_accept_inserts() {
     harness.run();
     panel.open_completion(synthetic_completions());
     harness.run();
+    let observer_ready_value = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id() == Some(CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID)
+        })
+        .and_then(|node| node.accesskit_node().value())
+        .expect("completion observer exposes its Ready generation");
 
     // Selection starts at 0 ('add'); ArrowDown moves to 1 ('adder').
     assert_eq!(panel.completion_state().unwrap().selected_index, 0);
@@ -445,6 +454,19 @@ fn ac005_completion_keyboard_select_and_accept_inserts() {
     assert!(
         text.contains("adder"),
         "AC-005: the accepted item text was inserted; got {text:?}"
+    );
+    harness.run_steps(2);
+    let observer_after_keyboard = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id() == Some(CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID)
+        })
+        .and_then(|node| node.accesskit_node().value())
+        .expect("completion observer remains mounted after keyboard acceptance");
+    assert_eq!(
+        observer_after_keyboard, observer_ready_value,
+        "keyboard acceptance must not acknowledge an external completion-row Click"
     );
     println!("PT-005 keyboard: ArrowDown->'adder', Enter inserted it (buffer now {text:?})");
 }
@@ -484,6 +506,22 @@ fn ac005_accesskit_click_accepts_completion_and_post_action_state_is_observable(
         }),
         "fresh post-action inspection shows the popup closed"
     );
+    let observer_value = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id() == Some(CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID)
+        })
+        .and_then(|node| node.accesskit_node().value())
+        .expect("completion observer remains mounted after the row click");
+    let observer: serde_json::Value = serde_json::from_str(&observer_value)
+        .expect("completion observer Applied value is strict JSON");
+    assert_eq!(observer["state"].as_str(), Some("applied"));
+    assert_eq!(
+        observer["pending_target"].as_str(),
+        Some("code_editor_completion_item_0")
+    );
+    assert_eq!(observer["semantic_value"].as_str(), Some("add"));
 }
 
 // ── AC-006 / PT-006: hover tooltip node contains the identifier ────────────────────────────────────
@@ -1343,6 +1381,33 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         }
     }
 
+    fn json_has_exact_role_value(
+        value: &serde_json::Value,
+        expected_role: &str,
+        expected_value: &str,
+    ) -> bool {
+        match value {
+            serde_json::Value::Object(object) => {
+                (object.get("role").and_then(serde_json::Value::as_str) == Some(expected_role)
+                    && object.get("value").and_then(serde_json::Value::as_str)
+                        == Some(expected_value))
+                    || object.values().any(|value| {
+                        json_has_exact_role_value(value, expected_role, expected_value)
+                    })
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .any(|value| json_has_exact_role_value(value, expected_role, expected_value)),
+            _ => false,
+        }
+    }
+
+    fn text_sha256(text: &str) -> String {
+        use sha2::{Digest, Sha256};
+
+        format!("{:x}", Sha256::digest(text.as_bytes()))
+    }
+
     fn process_alive(pid: u32) -> bool {
         #[cfg(windows)]
         {
@@ -1372,6 +1437,18 @@ fn mt008_mounted_real_lsp_canonical_argus() {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         false
+    }
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-008/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-008 Argus artifact dir");
+    let completion_before_path = artifact_dir.join("mt008-mounted-real-lsp-completion-before.json");
+    let screenshot_path = artifact_dir.join("mt008-mounted-real-lsp-before-click.png");
+    let tree_path = artifact_dir.join("mt008-mounted-real-lsp-tree.json");
+    for artifact_path in [&completion_before_path, &screenshot_path, &tree_path] {
+        if artifact_path.exists() {
+            std::fs::remove_file(artifact_path)
+                .expect("remove prior owned MT-008 proof artifact before the new run");
+        }
     }
 
     let unique = uuid::Uuid::new_v4().simple().to_string();
@@ -1513,10 +1590,16 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         "real clangd hover reached the mounted panel"
     );
 
-    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-008/canonical-argus");
-    std::fs::create_dir_all(&artifact_dir).expect("create external MT-008 Argus artifact dir");
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt008-mounted-real-lsp");
-    let hover_tree = argus.inspect(&mut harness);
+    let mut hover_tree = argus.inspect(&mut harness);
+    for _ in 0..40 {
+        if json_has_author_id(&hover_tree, CODE_EDITOR_HOVER_AUTHOR_ID) {
+            break;
+        }
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        hover_tree = argus.inspect(&mut harness);
+    }
     let hover_node = json_author(&hover_tree, CODE_EDITOR_HOVER_AUTHOR_ID)
         .expect("canonical argus.inspect sees the mounted real-LSP hover Tooltip");
     assert!(
@@ -1543,10 +1626,10 @@ fn mt008_mounted_real_lsp_canonical_argus() {
     for _ in 0..400 {
         harness.run_steps(1);
         if panel.completion_state().is_some_and(|state| {
-            state
-                .items
-                .iter()
-                .any(|item| item.label.contains("add_numbers"))
+            state.items.iter().any(|item| {
+                item.insert_text == "add_numbers"
+                    && item.label.trim_start().starts_with("add_numbers(")
+            })
         }) {
             break;
         }
@@ -1558,10 +1641,12 @@ fn mt008_mounted_real_lsp_canonical_argus() {
     let completion_index = completion
         .items
         .iter()
-        .position(|item| item.label.contains("add_numbers"))
+        .position(|item| {
+            item.insert_text == "add_numbers" && item.label.trim_start().starts_with("add_numbers(")
+        })
         .unwrap_or_else(|| {
             panic!(
-                "mounted real completion lacks add_numbers: {:?}",
+                "mounted real completion lacks exact add_numbers signature/insert identity: {:?}",
                 completion.items
             )
         });
@@ -1574,11 +1659,73 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID
     ));
     assert!(json_has_author_id(&completion_before, &completion_item_id));
-    let completion_item_bounds = json_author(&completion_before, &completion_item_id)
-        .and_then(|node| node.get("bounds"))
+    let completion_item_before = json_author(&completion_before, &completion_item_id)
+        .expect("canonical completion item is present in the pre-screenshot tree");
+    assert_eq!(
+        completion_item_before["role"], "ListBoxOption",
+        "the selected completion target has the exact actionable semantic role"
+    );
+    let completion_target_token_raw = completion_item_before["value"]
+        .as_str()
+        .expect("canonical completion target carries an observer-backed token")
+        .to_owned();
+    let completion_target_token: serde_json::Value =
+        serde_json::from_str(&completion_target_token_raw)
+            .expect("canonical completion target token is strict JSON");
+    assert_eq!(
+        completion_target_token["schema"],
+        "handshake.click-completion/v1"
+    );
+    assert_eq!(completion_target_token["mode"], "observer");
+    assert_eq!(completion_target_token["effect"], "code-completion-accept");
+    assert_eq!(completion_target_token["state"], "ready");
+    assert_eq!(
+        completion_target_token["observer_author_id"].as_str(),
+        Some(CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID)
+    );
+    assert_eq!(
+        completion_target_token["semantic_value"].as_str(),
+        Some(expected_insert.as_str())
+    );
+    let completion_observer_context = completion_target_token["context"]
+        .as_str()
+        .expect("canonical completion target token carries its document context")
+        .to_owned();
+    let completion_observer_ready_generation = completion_target_token["generation"]
+        .as_u64()
+        .expect("canonical completion target token carries its observer generation");
+    let completion_observer_before = json_author(
+        &completion_before,
+        CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID,
+    )
+    .expect("canonical tree carries the durable completion observer");
+    assert_eq!(completion_observer_before["role"], "Status");
+    let completion_observer_ready_raw = completion_observer_before["value"]
+        .as_str()
+        .expect("durable completion observer carries its ready token")
+        .to_owned();
+    let completion_observer_ready: serde_json::Value =
+        serde_json::from_str(&completion_observer_ready_raw)
+            .expect("durable completion observer ready token is strict JSON");
+    assert_eq!(completion_observer_ready["mode"], "observer");
+    assert_eq!(
+        completion_observer_ready["effect"],
+        "code-completion-accept"
+    );
+    assert_eq!(completion_observer_ready["state"], "ready");
+    assert_eq!(
+        completion_observer_ready["context"].as_str(),
+        Some(completion_observer_context.as_str())
+    );
+    assert_eq!(
+        completion_observer_ready["generation"].as_u64(),
+        Some(completion_observer_ready_generation)
+    );
+    let completion_item_bounds = completion_item_before
+        .get("bounds")
         .expect("canonical completion item carries screenshot-space bounds");
     std::fs::write(
-        artifact_dir.join("mt008-mounted-real-lsp-completion-before.json"),
+        &completion_before_path,
         serde_json::to_vec_pretty(&completion_before)
             .expect("serialize pre-action canonical completion tree"),
     )
@@ -1586,7 +1733,8 @@ fn mt008_mounted_real_lsp_canonical_argus() {
 
     // `argus.inspect` renders its production capture pass into an isolated context. Refresh the
     // ordinary paint frame before the GPU capture so the PNG and canonical tree represent the same
-    // still-open popup state; retain `completion_before` as the exact action snapshot.
+    // still-open popup state. A second inspect immediately before dispatch below is the authoritative
+    // action snapshot; the screenshot snapshot is deliberately not reused across this paint frame.
     harness.run_steps(1);
     assert!(
         panel.is_completion_open(),
@@ -1618,27 +1766,130 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         "the canonical completion row is visibly painted in its own tree bounds; found only \
          {visible_foreground_pixels} foreground pixels"
     );
-    let screenshot_path = artifact_dir.join("mt008-mounted-real-lsp-before-click.png");
     screenshot
         .save(&screenshot_path)
         .expect("save canonical mounted completion screenshot");
 
+    let completion_action_snapshot = argus.inspect(&mut harness);
+    let completion_action_item = json_author(&completion_action_snapshot, &completion_item_id)
+        .expect("fresh pre-dispatch Argus tree still resolves the exact completion row author id");
+    assert_eq!(
+        completion_action_item["role"], "ListBoxOption",
+        "fresh pre-dispatch completion target retains its exact semantic role"
+    );
+    assert_eq!(
+        completion_action_item["value"].as_str(),
+        Some(completion_target_token_raw.as_str()),
+        "fresh pre-dispatch completion target retains the exact observer declaration"
+    );
+    assert_eq!(
+        json_author(
+            &completion_action_snapshot,
+            CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID,
+        )
+        .and_then(|node| node["value"].as_str()),
+        Some(completion_observer_ready_raw.as_str()),
+        "fresh pre-dispatch tree retains the exact ready observer generation"
+    );
+
     let text_before = panel.buffer().to_string();
+    let text_before_sha256 = text_sha256(&text_before);
     let expected_text_after = format!(
         "{}{}{}",
         &text_before[..completion_offset],
         expected_insert,
         &text_before[completion_offset..]
     );
+    let expected_text_after_sha256 = text_sha256(&expected_text_after);
+    let expected_inserted_line = expected_text_after
+        .lines()
+        .nth(6)
+        .expect("generated C++ completion target remains on line seven")
+        .to_owned();
+    let version_before = panel.buffer_version_for_test();
     let observation = argus.click_from_snapshot_and_reinspect(
         &mut harness,
         &completion_item_id,
-        completion_before.clone(),
+        completion_action_snapshot.clone(),
     );
-    assert!(matches!(
-        observation.receipt_status.as_str(),
-        "applied" | "indeterminate"
-    ));
+    let action_generation = completion_action_snapshot["captured_at_utc"]
+        .as_str()
+        .expect("fresh completion action snapshot carries its generation");
+    let action_node_id = completion_action_item["node_id"]
+        .as_u64()
+        .expect("fresh completion action row carries its stable node id");
+    let action_receipt = observation.after["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .expect("provisional post-action tree retains the exact completion click receipt")
+        .clone();
+    assert_eq!(
+        action_receipt["target"].as_str(),
+        Some(completion_item_id.as_str()),
+        "completion receipt targets the exact fresh author id"
+    );
+    assert_eq!(
+        action_receipt["expected_generation"].as_str(),
+        Some(action_generation),
+        "completion receipt is bound to the exact fresh pre-dispatch generation"
+    );
+    assert_eq!(
+        action_receipt["expected_node_id"].as_u64(),
+        Some(action_node_id),
+        "completion receipt is bound to the exact fresh pre-dispatch node id"
+    );
+    assert_eq!(
+        action_receipt["expected_role"].as_str(),
+        Some("ListBoxOption"),
+        "completion receipt is bound to the exact fresh semantic role"
+    );
+    assert_eq!(
+        observation.receipt_status, "applied",
+        "observer-backed completion click must carry a causally proven Applied receipt"
+    );
+    assert_eq!(action_receipt["status"].as_str(), Some("applied"));
+    let completion_observer_applied_raw = action_receipt["observed_value"]
+        .as_str()
+        .expect("Applied completion receipt carries the exact observer token")
+        .to_owned();
+    let completion_observer_applied: serde_json::Value =
+        serde_json::from_str(&completion_observer_applied_raw)
+            .expect("Applied completion observer token is strict JSON");
+    assert_eq!(completion_observer_applied["mode"], "observer");
+    assert_eq!(
+        completion_observer_applied["effect"],
+        "code-completion-accept"
+    );
+    assert_eq!(completion_observer_applied["state"], "applied");
+    assert_eq!(
+        completion_observer_applied["context"].as_str(),
+        Some(completion_observer_context.as_str())
+    );
+    assert_eq!(
+        completion_observer_applied["generation"].as_u64(),
+        completion_observer_ready_generation.checked_add(1)
+    );
+    assert_eq!(
+        completion_observer_applied["pending_target"].as_str(),
+        Some(completion_item_id.as_str())
+    );
+    assert_eq!(
+        completion_observer_applied["semantic_value"].as_str(),
+        Some(expected_insert.as_str())
+    );
+    assert_eq!(
+        json_author(
+            &observation.after,
+            CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID,
+        )
+        .and_then(|node| node["value"].as_str()),
+        Some(completion_observer_applied_raw.as_str()),
+        "fresh post-action tree retains the exact Applied observer token"
+    );
     assert!(
         observation
             .agent_id
@@ -1659,17 +1910,29 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         text_after, expected_text_after,
         "the exact clicked semantic completion was inserted at the mounted caret"
     );
+    let text_after_sha256 = text_sha256(&text_after);
+    assert_eq!(
+        text_after_sha256, expected_text_after_sha256,
+        "the mounted buffer hash binds the click to the exact expected full text"
+    );
     assert!(
         !json_has_author_id(&observation.after, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID),
         "fresh canonical reinspection observes the post-action popup closure"
     );
     let changed_version = panel.buffer_version_for_test();
+    assert_eq!(
+        changed_version,
+        version_before
+            .checked_add(1)
+            .expect("mounted buffer version can advance once"),
+        "one canonical completion click advances the authoritative buffer version exactly once"
+    );
     for _ in 0..400 {
         harness.run_steps(1);
         if harness
             .state()
             .lsp_doc_sync_watermark()
-            .is_some_and(|(_, version)| version == changed_version)
+            .is_some_and(|(uri, version)| uri == opened_uri && version == changed_version)
         {
             break;
         }
@@ -1679,27 +1942,112 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         harness
             .state()
             .lsp_doc_sync_watermark()
-            .is_some_and(|(_, version)| version == changed_version),
-        "production app frame pump completed didChange after the Argus editor action"
+            .is_some_and(|(uri, version)| uri == opened_uri && version == changed_version),
+        "production app frame pump scheduled didChange for the exact opened URI and changed version"
+    );
+    let changed_watermark = harness
+        .state()
+        .lsp_doc_sync_watermark()
+        .expect("changed document retains its exact URI/version watermark");
+
+    // The app watermark is intentionally eager, so it cannot by itself prove that clangd consumed the
+    // spawned didChange write. Pump and retry the generation-gated request because its first attempt
+    // can race the spawned sync task before that task acquires the per-document lock. The old server
+    // text has no token at this position; exact hover docs prove clangd processed the inserted buffer.
+    let inserted_symbol_offset = completion_offset
+        + expected_insert
+            .find("add_numbers")
+            .expect("selected completion inserts the expected real-clangd symbol")
+        + 3;
+    let inserted_symbol_prefix = &text_after[..inserted_symbol_offset];
+    let inserted_symbol_position = lsp_types::Position::new(
+        inserted_symbol_prefix
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count() as u32,
+        inserted_symbol_prefix
+            .rsplit_once('\n')
+            .map_or(inserted_symbol_prefix, |(_, line)| line)
+            .encode_utf16()
+            .count() as u32,
+    );
+    let mut post_sync_hover = None;
+    let mut last_post_sync_hover = None;
+    for _ in 0..80 {
+        harness.run_steps(1);
+        if let Some(hover) =
+            runtime.block_on(client.hover_after_sync(&opened_uri, inserted_symbol_position))
+        {
+            if hover.value.contains("add_numbers") && hover.value.contains("Add two integers") {
+                post_sync_hover = Some(hover);
+                break;
+            }
+            last_post_sync_hover = Some(hover);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    let post_sync_hover = post_sync_hover.unwrap_or_else(|| {
+        panic!(
+            "real clangd never resolved exact hover docs for the inserted add_numbers token; last hover: {:?}",
+            last_post_sync_hover.map(|hover| hover.value)
+        )
+    });
+
+    let terminal_tree = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt008-completion-click-applied-to-mounted-editor",
+        serde_json::json!({
+            "receipt_id": observation.receipt_id,
+            "raw_receipt_status": observation.receipt_status,
+            "agent_id": observation.agent_id,
+            "completion_item_author_id": completion_item_id,
+            "completion_item_role": "ListBoxOption",
+            "completion_target_token": completion_target_token_raw,
+            "completion_observer_ready_token": completion_observer_ready_raw,
+            "completion_observer_applied_token": completion_observer_applied_raw,
+            "completion_semantic_value": expected_insert,
+            "text_before_sha256": text_before_sha256,
+            "text_after_sha256": text_after_sha256,
+            "expected_text_after_sha256": expected_text_after_sha256,
+            "expected_inserted_text_run": expected_inserted_line,
+            "opened_uri": opened_uri,
+            "version_before": version_before,
+            "changed_version": changed_version,
+            "changed_watermark": {
+                "uri": changed_watermark.0,
+                "version": changed_watermark.1,
+            },
+            "post_sync_hover_position": {
+                "line": inserted_symbol_position.line,
+                "character": inserted_symbol_position.character,
+            },
+            "post_sync_hover_value": post_sync_hover.value,
+        }),
+        |tree| {
+            !json_has_author_id(tree, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID)
+                && !json_has_author_id(tree, &completion_item_id)
+                && json_author(tree, CODE_EDITOR_COMPLETION_OBSERVER_AUTHOR_ID)
+                    .and_then(|node| node["value"].as_str())
+                    == Some(completion_observer_applied_raw.as_str())
+                && json_has_author_id(tree, "code_editor_panel")
+                && json_has_author_id(tree, "code-editor.lsp-status")
+                && json_has_exact_role_value(tree, "TextRun", &expected_inserted_line)
+        },
+    );
+    let terminal_receipt = terminal_tree["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(observation.receipt_id))
+        })
+        .expect("authoritative terminal tree retains the exact completion click receipt");
+    assert_eq!(
+        terminal_receipt, &action_receipt,
+        "authoritative terminal reinspection retains the identical generation-bound receipt"
     );
 
-    let tree_path = artifact_dir.join("mt008-mounted-real-lsp-tree.json");
-    std::fs::write(
-        &tree_path,
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "hover": hover_tree,
-            "completion_before": completion_before,
-            "completion_after": observation.after,
-            "receipt_id": observation.receipt_id,
-            "receipt_status": observation.receipt_status,
-            "agent_id": observation.agent_id,
-            "lsp_pid": lsp_pid,
-        }))
-        .expect("serialize canonical MT-008 tree evidence"),
-    )
-    .expect("write canonical MT-008 tree evidence externally");
     assert!(screenshot_path.is_file());
-    assert!(tree_path.is_file());
     argus.finish();
 
     client.shutdown_for_host();
@@ -1708,4 +2056,47 @@ fn mt008_mounted_real_lsp_canonical_argus() {
         "mounted host cleanup reaps exact clangd PID {lsp_pid}"
     );
     assert_no_local_test_output();
+    let final_tree_evidence = serde_json::json!({
+        "artifact_publication_phase": "after-argus-finish-and-runtime-cleanup",
+        "terminal_predicate_id": "mt008-completion-click-applied-to-mounted-editor",
+        "terminal_predicate_passed": true,
+        "hover": hover_tree,
+        "completion_before_screenshot": completion_before,
+        "completion_before_action": completion_action_snapshot,
+        "completion_after_provisional": observation.after,
+        "completion_terminal": terminal_tree,
+        "receipt_id": observation.receipt_id,
+        "receipt_status": observation.receipt_status,
+        "agent_id": observation.agent_id,
+        "completion_item_author_id": completion_item_id,
+        "completion_item_role": "ListBoxOption",
+        "completion_target_token": completion_target_token_raw,
+        "completion_observer_ready_token": completion_observer_ready_raw,
+        "completion_observer_applied_token": completion_observer_applied_raw,
+        "completion_semantic_value": expected_insert,
+        "text_before_sha256": text_before_sha256,
+        "text_after_sha256": text_after_sha256,
+        "expected_text_after_sha256": expected_text_after_sha256,
+        "expected_inserted_text_run": expected_inserted_line,
+        "opened_uri": opened_uri,
+        "opened_version": opened_version,
+        "changed_version": changed_version,
+        "changed_watermark": {
+            "uri": changed_watermark.0,
+            "version": changed_watermark.1,
+        },
+        "post_sync_hover_position": {
+            "line": inserted_symbol_position.line,
+            "character": inserted_symbol_position.character,
+        },
+        "post_sync_hover_value": post_sync_hover.value,
+        "lsp_pid": lsp_pid,
+    });
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&final_tree_evidence)
+            .expect("serialize canonical MT-008 terminal tree evidence"),
+    )
+    .expect("publish canonical MT-008 terminal tree evidence after all proof gates succeed");
+    assert!(tree_path.is_file());
 }

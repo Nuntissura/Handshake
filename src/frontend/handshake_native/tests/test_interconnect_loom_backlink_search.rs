@@ -1035,7 +1035,7 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
     }
 
     let initial_frame =
-        harness.render_proof_frame("IC-14 mounted shell before quick-switcher open");
+        harness.render_settled_proof_frame("IC-14 mounted shell before quick-switcher open");
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt046-ic14-quick-switcher");
     argus.inspect(&mut harness);
     argus.click_and_reinspect(&mut harness, "menu-view");
@@ -1055,7 +1055,7 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
     );
     assert!(json_has_author_id(&opened_tree, SWITCHER_DIALOG_AUTHOR_ID));
     assert!(json_has_author_id(&opened_tree, SWITCHER_SEARCH_AUTHOR_ID));
-    let dialog_frame = harness.render_proof_frame("IC-14 mounted quick-switcher dialog");
+    let dialog_frame = harness.render_settled_proof_frame("IC-14 mounted quick-switcher dialog");
     let query_before_rejected = json_node_by_author_id(&opened_tree, SWITCHER_SEARCH_AUTHOR_ID)
         .and_then(|node| node.get("value"))
         .cloned()
@@ -1150,7 +1150,8 @@ fn supplemental_mt046_argus_ic14_quick_switcher_search() {
         json_has_author_id(&terminal_tree, &seeded_result_author_id),
         "IC-14 receipt-bound terminal tree must retain the exact seeded result row {seeded_result_author_id}"
     );
-    let terminal_frame = harness.render_proof_frame("IC-14 quick-switcher terminal result tree");
+    let terminal_frame =
+        harness.render_settled_proof_frame("IC-14 quick-switcher terminal result tree");
     argus.finish_require_no_indeterminate();
 
     assert!(initial_frame.is_some() && dialog_frame.is_some() && terminal_frame.is_some());

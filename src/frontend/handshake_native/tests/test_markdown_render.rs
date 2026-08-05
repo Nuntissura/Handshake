@@ -136,6 +136,8 @@ fn markdown_projection(rendered: &str) -> WikiProjection {
         rendered_content: rendered.to_owned(),
         staleness_hash: "h1".to_owned(),
         rebuild_status: "fresh".to_owned(),
+        created_at: "2026-06-19T00:00:00Z".to_owned(),
+        updated_at: "2026-06-19T00:00:00Z".to_owned(),
         page_type: Some("concept".to_owned()),
         overlays: Vec::new(),
         staleness_verdict: serde_json::json!({ "state": "fresh" }),

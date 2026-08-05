@@ -51,9 +51,13 @@ use pg_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::app::{
+    MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID, MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+};
 use handshake_native::fems::memory_proposal::{
-    canonical_memory_write_proposal_hash, fems_class_author_id, MemoryClass,
-    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID,
+    canonical_memory_write_proposal_hash, content_hash_of_selection, fems_class_author_id,
+    MemoryClass, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+    FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID,
 };
 use handshake_native::pane_registry::{PaneId, PaneType};
 use handshake_native::tab_bar::TabState;
@@ -64,6 +68,20 @@ const MENU_EDIT_SELECT_ALL: &str = "menu.edit.select-all";
 const MENU_GO: &str = "menu-go";
 const MENU_GO_COMMAND_PALETTE: &str = "menu.go.command-palette";
 const FEMS_PALETTE_ROW_AUTHOR_ID: &str = "command-palette.option.hs-fems-palette-propose-to-memory";
+const COMMAND_PALETTE_DIALOG_AUTHOR_ID: &str = "command-palette.dialog";
+
+/// The exact seven canonical actions this mounted proof drives, in order. `validation_v4` failed
+/// because all seven receipts terminated `indeterminate`; every one of them is now bound to an
+/// action-specific completion predicate and MUST end `applied`.
+const CANONICAL_FLOW_TARGETS: [&str; 7] = [
+    MENU_EDIT,
+    MENU_EDIT_SELECT_ALL,
+    MENU_GO,
+    MENU_GO_COMMAND_PALETTE,
+    FEMS_PALETTE_ROW_AUTHOR_ID,
+    "fems-class-procedural",
+    FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+];
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
@@ -157,6 +175,7 @@ fn tree_value(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<String> 
     })
 }
 
+#[allow(dead_code)]
 fn tree_label(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<String> {
     root.children_recursive().find_map(|node| {
         let ak = node.accesskit_node();
@@ -167,6 +186,7 @@ fn tree_label(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<String> 
 }
 
 /// True if the live AccessKit tree currently carries a node with `author_id`.
+#[allow(dead_code)]
 fn tree_has_author_id(root: &egui_kittest::Node<'_>, author_id: &str) -> bool {
     root.children_recursive()
         .any(|node| node.accesskit_node().author_id() == Some(author_id))
@@ -352,55 +372,97 @@ fn argus_click(
     argus.click_from_snapshot_and_reinspect(harness, author_id, before)
 }
 
-/// Establish a live editor selection through canonical Edit -> Select All. The mounted code pane is the
-/// shell's explicit active pane, so the command routes to that editor without an unsupported Argus focus
-/// action and publishes the selection into the WP-011 SharedSelection substrate.
-fn establish_selection(argus: &mut CanonicalArgusDriver, harness: &mut Harness<'_, HandshakeApp>) {
-    harness.run_steps(3);
-    argus_click(argus, harness, MENU_EDIT);
-    harness.run_steps(1);
-    argus_click(argus, harness, MENU_EDIT_SELECT_ALL);
-    harness.run_steps(2);
+/// The exact receipt row for `receipt_id` inside a canonical tree.
+fn receipt_in<'a>(tree: &'a serde_json::Value, receipt_id: u64) -> &'a serde_json::Value {
+    tree["action_receipts"]
+        .as_array()
+        .and_then(|receipts| {
+            receipts
+                .iter()
+                .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+        })
+        .unwrap_or_else(|| panic!("canonical tree retains receipt {receipt_id}"))
 }
 
-/// Open the "Propose to Memory" dialog through the command palette (in-process SETUP path). The FEMS
-/// review queue does a one-shot background refresh on workspace bind; opening a proposal while that
-/// refresh is in flight is intentionally reentry-blocked, so this settles the queue (pumps frames with
-/// real time for the async list to complete + drain) then opens, with a bounded retry on reentry-block.
-fn open_propose_dialog(argus: &mut CanonicalArgusDriver, harness: &mut Harness<'_, HandshakeApp>) {
-    for _attempt in 0..12 {
-        // Let the one-shot review-queue refresh complete + drain (empty workspace → fast).
-        for _ in 0..15 {
-            harness.run_steps(1);
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        argus_click(argus, harness, MENU_GO);
-        harness.run_steps(2);
-        argus_click(argus, harness, MENU_GO_COMMAND_PALETTE);
-        harness.run_steps(2);
-        argus_click(argus, harness, FEMS_PALETTE_ROW_AUTHOR_ID);
-        for _ in 0..40 {
-            harness.run_steps(1);
-            if tree_has_author_id(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(25));
-        }
-        let status = tree_value(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID);
-        let reentry_blocked = status
-            .as_deref()
-            .and_then(|value| structured_field(value, "outcome"))
-            == Some("reentry_blocked");
-        assert!(
-            reentry_blocked,
-            "propose dialog did not open and the block was not the transient review-queue reentry; \
-             fems-propose-status={status:?}"
-        );
-    }
-    panic!(
-        "propose dialog did not open after settling the FEMS review queue; last status={:?}",
-        tree_value(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID)
+/// The `observed_value` an action receipt terminalized with, parsed as the durable observer's
+/// `handshake.click-completion/v1` token.
+fn receipt_observed_token(tree: &serde_json::Value, receipt_id: u64) -> serde_json::Value {
+    let observed = receipt_in(tree, receipt_id)["observed_value"]
+        .as_str()
+        .unwrap_or_else(|| {
+            panic!("receipt {receipt_id} must carry an observed_value proving its own effect")
+        })
+        .to_owned();
+    serde_json::from_str(&observed)
+        .unwrap_or_else(|error| panic!("receipt {receipt_id} observed_value is a typed token: {error} ({observed})"))
+}
+
+/// The bounded action-specific `terminal_detail` the durable observer published for `receipt_id`.
+fn receipt_terminal_detail(tree: &serde_json::Value, receipt_id: u64) -> serde_json::Value {
+    let token = receipt_observed_token(tree, receipt_id);
+    let detail = token["terminal_detail"]
+        .as_str()
+        .unwrap_or_else(|| panic!("receipt {receipt_id} observer token carries terminal_detail"))
+        .to_owned();
+    serde_json::from_str(&detail)
+        .unwrap_or_else(|error| panic!("receipt {receipt_id} terminal_detail is typed JSON: {error} ({detail})"))
+}
+
+/// Drive ONE canonical action, then bind it to an action-specific completion predicate evaluated
+/// against the FIRST fresh authoritative tree captured after the receipt terminalized. The receipt is
+/// additionally required to be `applied` — an indeterminate receipt is never accepted here, which is
+/// exactly what `validation_v4` found missing.
+fn steer_and_bind(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+    predicate_id: &str,
+    evidence: serde_json::Value,
+    predicate: impl FnOnce(&serde_json::Value) -> bool,
+) -> ArgusObservation {
+    let dispatched = argus_click(argus, harness, author_id);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        harness,
+        predicate_id,
+        evidence,
+        predicate,
     );
+    let observation = argus.latest_terminal_observation();
+    assert_eq!(
+        observation.receipt_status, "applied",
+        "canonical action '{author_id}' must terminalize APPLIED against its own completion \
+         predicate '{predicate_id}', not '{}'; receipt={}",
+        observation.receipt_status,
+        receipt_in(&observation.after, dispatched.receipt_id)
+    );
+    observation
+}
+
+/// Settle the canonical FEMS review queue deterministically before the flow's canonical clicks.
+///
+/// A managed-workspace bind starts a one-shot background review-queue refresh; opening a proposal
+/// while that refresh is in flight is intentionally reentry-blocked. The previous shape of this proof
+/// retried the whole three-click palette sequence, which multiplied the canonical action receipts. The
+/// product exposes an explicit terminal gate for exactly this: it returns `false` until every FEMS
+/// in-flight/operator-owned surface is settled, so each canonical action below runs EXACTLY ONCE.
+fn settle_fems_review_queue(harness: &mut Harness<'_, HandshakeApp>) {
+    let deadline = Instant::now() + Duration::from_secs(90);
+    loop {
+        harness.run_steps(1);
+        if harness
+            .state_mut()
+            .clear_incidental_fems_notice_for_integration_test()
+        {
+            harness.run_steps(2);
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the canonical FEMS review queue never settled; last status={:?}",
+            tree_value(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID)
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 #[test]
@@ -478,25 +540,135 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(4);
 
-    // (1) Establish a live editor selection through the production focus + Edit -> Select All path (the
-    // host boundary that publishes the code selection into the WP-011 SharedSelection substrate the FEMS
-    // command reads), then open the propose dialog through the command palette. Every action in this
-    // setup and the dialog submit below goes through canonical localhost argus.inspect/argus.click.
-    establish_selection(&mut argus, &mut harness);
-    open_propose_dialog(&mut argus, &mut harness);
-
     let artifact_dir = external_artifact_dir(&format!(
         "wp-kernel-012-mt-064/canonical-argus/run-{}",
         uuid::Uuid::new_v4().simple()
     ));
     std::fs::create_dir_all(&artifact_dir).expect("create external MT-064 Argus artifact dir");
 
-    // (2) CANONICAL INSPECT: the mounted dialog's stable author_ids are addressable in the live JSON-RPC
-    // snapshot — the exact evidence FAIL_V2 said was missing for the proposal UI.
     let episodic = fems_class_author_id(MemoryClass::Episodic);
     let semantic = fems_class_author_id(MemoryClass::Semantic);
     let procedural = fems_class_author_id(MemoryClass::Procedural);
-    let before = inspect_until(&mut argus, &mut harness, FEMS_PROPOSE_DIALOG_AUTHOR_ID, 20);
+    let expected_document_len = content.len();
+    let expected_document_hash = content_hash_of_selection(content);
+
+    // Settle the one-shot review-queue refresh BEFORE any canonical click, so each of the seven
+    // canonical actions below runs EXACTLY ONCE (a retried palette sequence would multiply the
+    // canonical receipts the finish gate has to account for).
+    settle_fems_review_queue(&mut harness);
+
+    let before = argus.inspect(&mut harness);
+
+    // ── (1) menu-edit ────────────────────────────────────────────────────────────────────────────
+    // `validation_v4`: "menu targets have no completion predicate". The same-target menu-open token
+    // now terminalizes this receipt, and the predicate requires the Edit menu's INTENDED child/action
+    // surface to be addressable in the first fresh authoritative tree.
+    steer_and_bind(
+        &mut argus,
+        &mut harness,
+        MENU_EDIT,
+        "mt064.menu-edit.child-action-surface-open",
+        serde_json::json!({ "expected_child_action": MENU_EDIT_SELECT_ALL }),
+        |after| json_has_author_id(after, MENU_EDIT_SELECT_ALL),
+    );
+
+    // ── (2) menu.edit.select-all ─────────────────────────────────────────────────────────────────
+    // `validation_v4`: "transient menu targets disappear before the effect is rebound". Completion is
+    // now bound to the AUTHORITATIVE selection-state node: the shared selection must have CHANGED to
+    // the exact full-document range whose loom content hash equals the mounted document's hash.
+    let select_all_observation = steer_and_bind(
+        &mut argus,
+        &mut harness,
+        MENU_EDIT_SELECT_ALL,
+        "mt064.select-all.authoritative-full-document-selection",
+        serde_json::json!({
+            "selection_state_author_id": MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+            "expected_start": 0,
+            "expected_end": expected_document_len,
+            "expected_content_hash": expected_document_hash,
+        }),
+        |after| {
+            let Some(value) = json_author_value(after, MT064_SHARED_SELECTION_STATE_AUTHOR_ID)
+            else {
+                return false;
+            };
+            structured_field(&value, "start") == Some("0")
+                && structured_field(&value, "end") == Some(&expected_document_len.to_string())
+                && structured_field(&value, "len") == Some(&expected_document_len.to_string())
+                && structured_field(&value, "content_hash") == Some(expected_document_hash.as_str())
+        },
+    );
+    {
+        let detail =
+            receipt_terminal_detail(&select_all_observation.after, select_all_observation.receipt_id);
+        assert_ne!(
+            detail["prior_selection_state"], detail["observed_selection_state"],
+            "the select-all receipt must prove the selection CHANGED, not that it was already full"
+        );
+        assert_eq!(detail["document_content_hash"], expected_document_hash);
+    }
+
+    // ── (3) menu-go ──────────────────────────────────────────────────────────────────────────────
+    steer_and_bind(
+        &mut argus,
+        &mut harness,
+        MENU_GO,
+        "mt064.menu-go.child-action-surface-open",
+        serde_json::json!({ "expected_child_action": MENU_GO_COMMAND_PALETTE }),
+        |after| json_has_author_id(after, MENU_GO_COMMAND_PALETTE),
+    );
+
+    // ── (4) menu.go.command-palette ──────────────────────────────────────────────────────────────
+    // Bound to a fresh snapshot showing the command-palette SURFACE open, including the exact FEMS
+    // row the next canonical action addresses.
+    steer_and_bind(
+        &mut argus,
+        &mut harness,
+        MENU_GO_COMMAND_PALETTE,
+        "mt064.command-palette.surface-open",
+        serde_json::json!({
+            "expected_dialog": COMMAND_PALETTE_DIALOG_AUTHOR_ID,
+            "expected_row": FEMS_PALETTE_ROW_AUTHOR_ID,
+        }),
+        |after| {
+            json_has_author_id(after, COMMAND_PALETTE_DIALOG_AUTHOR_ID)
+                && json_has_author_id(after, FEMS_PALETTE_ROW_AUTHOR_ID)
+        },
+    );
+
+    // ── (5) command-palette.option.hs-fems-palette-propose-to-memory ─────────────────────────────
+    // Bound to a fresh snapshot containing `fems-propose-dialog` and ALL required class/confirm
+    // author_ids; the product side additionally requires a FRESH proposal operation identity, so a
+    // dialog opened by any other command can never satisfy this receipt.
+    let dialog_open_observation = {
+        let episodic = episodic.clone();
+        let semantic = semantic.clone();
+        let procedural = procedural.clone();
+        steer_and_bind(
+            &mut argus,
+            &mut harness,
+            FEMS_PALETTE_ROW_AUTHOR_ID,
+            "mt064.propose-dialog.mounted-with-required-author-ids",
+            serde_json::json!({
+                "expected_dialog": FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                "expected_class_state": FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                "expected_confirm": FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+                "expected_classes": [episodic.clone(), semantic.clone(), procedural.clone()],
+            }),
+            move |after| {
+                [
+                    FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                    FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                    FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+                    episodic.as_str(),
+                    semantic.as_str(),
+                    procedural.as_str(),
+                ]
+                .into_iter()
+                .all(|author| json_has_author_id(after, author))
+            },
+        )
+    };
     for author in [
         FEMS_PROPOSE_DIALOG_AUTHOR_ID,
         episodic.as_str(),
@@ -505,22 +677,48 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
     ] {
         assert!(
-            json_has_author_id(&before, author),
+            json_has_author_id(&dialog_open_observation.after, author),
             "canonical argus.inspect must see the mounted propose-dialog node '{author}' in the live tree"
         );
     }
 
-    // (4) CANONICAL STEER on the mounted dialog over the real localhost transport: select the Procedural
-    // class (always review-gated) via argus.click, and observe the receipt + caller attribution.
-    let class_steer = argus_click(&mut argus, &mut harness, &procedural);
-    assert!(
-        matches!(
-            class_steer.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical class-select receipt is terminal and non-rejected: {}",
-        class_steer.receipt_status
-    );
+    // ── (6) fems-class-procedural ────────────────────────────────────────────────────────────────
+    // `validation_v4`: "receipt 6 ... exposes no action-specific completion predicate". The radio's
+    // selected state is now exposed through AccessKit (`fems-propose-class-state`) and the predicate
+    // requires THAT exact radio selected AND the previewed proposal class to be procedural.
+    let class_steer = {
+        let procedural_for_predicate = procedural.clone();
+        steer_and_bind(
+            &mut argus,
+            &mut harness,
+            &procedural,
+            "mt064.class-procedural.selected-and-previewed",
+            serde_json::json!({
+                "class_state_author_id": FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                "expected_selected_class": "procedural",
+                "radio_author_id": procedural_for_predicate,
+            }),
+            |after| {
+                let Some(value) = json_author_value(after, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID)
+                else {
+                    return false;
+                };
+                structured_field(&value, "selected_class") == Some("procedural")
+                    && structured_field(&value, "proposal_class") == Some("procedural")
+                    && structured_field(&value, "procedural") == Some("true")
+                    && structured_field(&value, "episodic") == Some("false")
+                    && structured_field(&value, "semantic") == Some("false")
+            },
+        )
+    };
+    {
+        // Receipt 6 must END completed WITH an observed_value proving the selection.
+        let detail = receipt_terminal_detail(&class_steer.after, class_steer.receipt_id);
+        assert_eq!(detail["selected_class"], "procedural");
+        assert_eq!(detail["previewed_proposal_class"], "procedural");
+        assert_eq!(detail["review_gated"], true);
+        assert_eq!(detail["target_author_id"], procedural.as_str());
+    }
     assert!(
         class_steer
             .agent_id
@@ -529,49 +727,42 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         class_steer.agent_id
     );
 
-    // (5) CANONICAL CONFIRM over the same localhost transport. This must drive the mounted host's actual
-    // dialog -> off-frame submit -> durable-status path; a direct helper POST would be a false-green UI
-    // proof because it could pass while the canonical confirm control is disconnected.
-    let confirm_steer = argus_click(&mut argus, &mut harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
-    assert!(
-        matches!(
-            confirm_steer.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical confirm receipt is terminal and non-rejected: {}",
-        confirm_steer.receipt_status
+    // ── (7) fems-propose-confirm ─────────────────────────────────────────────────────────────────
+    // `validation_v4`: "receipt 7 ... the click target disappeared before its effect could be
+    // observed". The confirm now declares an observer-backed SUCCESSOR predicate ACROSS target
+    // disappearance: the durable observer terminalizes only when `fems-propose-status` reports
+    // `state=completed;outcome=event_persisted` for THIS operation with non-empty ids. A partial /
+    // failed / blocked terminal status publishes a typed FAILURE instead.
+    let confirm_steer = steer_and_bind(
+        &mut argus,
+        &mut harness,
+        FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+        "mt064.confirm.successor-terminal-status-event-persisted",
+        serde_json::json!({
+            "status_author_id": FEMS_PROPOSE_STATUS_AUTHOR_ID,
+            "expected_state": "completed",
+            "expected_outcome": "event_persisted",
+        }),
+        |after| {
+            // The confirm button is GONE by now; the successor status node is the binding surface.
+            !json_has_author_id(after, FEMS_PROPOSE_CONFIRM_AUTHOR_ID)
+                && json_author_value(after, FEMS_PROPOSE_STATUS_AUTHOR_ID).is_some_and(|value| {
+                    structured_field(&value, "state") == Some("completed")
+                        && structured_field(&value, "outcome") == Some("event_persisted")
+                        && structured_field(&value, "proposal_id")
+                            .is_some_and(|id| !id.is_empty() && id != "none")
+                        && structured_field(&value, "event_id")
+                            .is_some_and(|id| !id.is_empty() && id != "none")
+                })
+        },
     );
     assert_eq!(
         confirm_steer.agent_id, class_steer.agent_id,
         "class selection and confirmation retain one canonical external caller"
     );
 
-    // Pump the real mounted host until its structured AccessKit status reports the backend's durable
-    // proposal + Flight Recorder identities. The dialog is closed by confirmation; the status surface is
-    // the canonical terminal re-observation point documented in UserManual.
-    let terminal_deadline = Instant::now() + Duration::from_secs(30);
-    let terminal_status = loop {
-        harness.run_steps(1);
-        if let Some(value) = tree_value(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID) {
-            if structured_field(&value, "outcome") == Some("event_persisted") {
-                break value;
-            }
-            assert!(
-                !matches!(
-                    structured_field(&value, "state"),
-                    Some("failed" | "blocked" | "partial")
-                ),
-                "mounted proposal submit reached a non-success terminal status: {value}; label={:?}",
-                tree_label(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID)
-            );
-        }
-        assert!(
-            Instant::now() < terminal_deadline,
-            "mounted canonical confirm did not reach outcome=event_persisted; last status={:?}",
-            tree_value(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID)
-        );
-        std::thread::sleep(Duration::from_millis(50));
-    };
+    let terminal_status = json_author_value(&confirm_steer.after, FEMS_PROPOSE_STATUS_AUTHOR_ID)
+        .expect("the terminal confirm tree carries fems-propose-status");
     let proposal_id = structured_field(&terminal_status, "proposal_id")
         .filter(|value| !value.is_empty() && *value != "none")
         .expect("terminal mounted status carries durable proposal_id")
@@ -580,6 +771,14 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         .filter(|value| !value.is_empty() && *value != "none")
         .expect("terminal mounted status carries durable event_id")
         .to_owned();
+    {
+        // The confirm receipt's own terminal detail must carry the SAME ids the status node reports;
+        // the live PostgreSQL / Flight Recorder readback below then proves those exact ids persisted.
+        let detail = receipt_terminal_detail(&confirm_steer.after, confirm_steer.receipt_id);
+        assert_eq!(detail["proposal_id"], proposal_id);
+        assert_eq!(detail["event_id"], event_id);
+        assert_eq!(detail["status_value"], terminal_status);
+    }
 
     // FRESH canonical re-inspection must see the terminal status and its exact IDs. This is the
     // inspect -> steer -> re-observe contract, not an in-process-only assertion.
@@ -713,6 +912,50 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         fr_row["payload"]
     );
 
+    // (8) EVERY canonical action receipt in this exact flow is terminal `applied` and bound to its own
+    // fresh authoritative snapshot. `validation_v4` failed because all seven were `indeterminate`.
+    let final_receipts = after["action_receipts"]
+        .as_array()
+        .expect("the terminal canonical tree carries action_receipts")
+        .clone();
+    let flow_receipts: Vec<&serde_json::Value> = final_receipts
+        .iter()
+        .filter(|receipt| {
+            receipt["target"]
+                .as_str()
+                .is_some_and(|target| CANONICAL_FLOW_TARGETS.contains(&target))
+        })
+        .collect();
+    assert_eq!(
+        flow_receipts.len(),
+        CANONICAL_FLOW_TARGETS.len(),
+        "the mounted flow drives EXACTLY the seven canonical actions once each: {final_receipts:#?}"
+    );
+    for (receipt, expected_target) in flow_receipts.iter().zip(CANONICAL_FLOW_TARGETS) {
+        assert_eq!(
+            receipt["target"].as_str(),
+            Some(expected_target),
+            "canonical action order is fixed: {final_receipts:#?}"
+        );
+        assert_eq!(
+            receipt["status"].as_str(),
+            Some("applied"),
+            "canonical action '{expected_target}' must terminalize applied, never indeterminate or \
+             rejected: {receipt}"
+        );
+    }
+    let receipt_summary: Vec<serde_json::Value> = flow_receipts
+        .iter()
+        .map(|receipt| {
+            serde_json::json!({
+                "receipt_id": receipt["receipt_id"],
+                "target": receipt["target"],
+                "status": receipt["status"],
+                "observed_value": receipt["observed_value"],
+            })
+        })
+        .collect();
+
     // (9) Evidence: before/after canonical trees + live rows + a screenshot marker (headless DEFERRED ok).
     let tree_path = artifact_dir.join("mt064-mounted-propose-dialog-argus.json");
     std::fs::write(
@@ -724,10 +967,23 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
             "proposal_readback": readback,
             "proposal_artifact": proposal_artifact,
             "fr_event": fr_row,
+            "canonical_flow_targets": CANONICAL_FLOW_TARGETS,
+            "canonical_flow_receipts": receipt_summary,
             "class_steer_receipt_id": class_steer.receipt_id,
             "class_steer_receipt_status": class_steer.receipt_status,
             "confirm_steer_receipt_id": confirm_steer.receipt_id,
             "confirm_steer_receipt_status": confirm_steer.receipt_status,
+            "confirm_terminal_detail": receipt_terminal_detail(&after, confirm_steer.receipt_id),
+            "class_terminal_detail": receipt_terminal_detail(&after, class_steer.receipt_id),
+            "flow_completion_observer": json_author_value(
+                &after,
+                MT064_FEMS_PROPOSAL_FLOW_COMPLETION_AUTHOR_ID,
+            ),
+            "shared_selection_state": json_author_value(
+                &after,
+                MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+            ),
+            "class_state": json_author_value(&after, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID),
             "agent_id": confirm_steer.agent_id,
             "terminal_status": canonical_terminal_status,
         }))
@@ -747,19 +1003,19 @@ fn mt064_mounted_propose_dialog_canonical_argus_inspect_submit_reobserve() {
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
-        "MT-064 canonical Argus mounted propose dialog: inspect(dialog+3 classes+confirm) -> \
-         argus.click(procedural) -> argus.click(confirm) -> live PG proposal {proposal_id} persisted + \
-         FR-EVT-MEM-001 correlated -> reinspect(terminal status); class_receipt={} confirm_receipt={} \
-         agent={} \
-         screenshot={} tree={}",
-        class_steer.receipt_status,
-        confirm_steer.receipt_status,
+        "MT-064 canonical Argus mounted propose dialog: menu-edit -> select-all -> menu-go -> \
+         command-palette -> propose-to-memory row -> procedural radio -> confirm; live PG proposal \
+         {proposal_id} persisted + FR-EVT-MEM-001 {event_id} correlated -> reinspect(terminal status); \
+         canonical receipts={} agent={} screenshot={} tree={}",
+        serde_json::to_string(&receipt_summary).unwrap_or_else(|_| "<unserializable>".to_owned()),
         confirm_steer.agent_id,
         screenshot_marker,
         tree_path.display()
     );
 
-    argus.finish();
+    // STRICT finish: zero indeterminate receipts, every canonical action rebound to an authoritative
+    // terminal snapshot carrying a passing action-specific predicate.
+    argus.finish_require_no_indeterminate();
     assert_no_local_artifact_dir();
     drop(app_rt);
 }
