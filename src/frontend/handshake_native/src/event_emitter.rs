@@ -960,8 +960,21 @@ impl RuntimeChatLedgerTransport {
         }
     }
 
-    fn url(&self) -> String {
-        format!("{}/api/flight_recorder/native_editor_event", self.base_url)
+    /// MT-111: the ingest route is WORKSPACE-SCOPED.
+    ///
+    /// MT-109 removed the unauthenticated unscoped `POST /api/flight_recorder/native_editor_event`
+    /// and replaced it with `POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event`,
+    /// so the PATH itself is the workspace authority and is validated against a real canonical
+    /// workspace row before any durable write. The old unscoped URL no longer exists, so continuing to
+    /// post to it would silently stop every native-editor event from reaching the Flight Recorder.
+    ///
+    /// The workspace therefore comes from the EVENT rather than from construction time, because a
+    /// single transport instance serves whichever workspace the event belongs to.
+    fn url_for(&self, event: &NativeEditorEvent) -> String {
+        format!(
+            "{}/api/workspaces/{}/flight_recorder/native_editor_event",
+            self.base_url, event.workspace_id
+        )
     }
 
     /// The session id this transport stamps on every event (a non-nil UUID string).
@@ -993,7 +1006,7 @@ impl EventLedgerTransport for RuntimeChatLedgerTransport {
         event: NativeEditorEvent,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>> {
         let client = self.client.clone();
-        let url = self.url();
+        let url = self.url_for(&event);
         let body = self.build_post_body(&event);
         Box::pin(async move {
             let resp = client

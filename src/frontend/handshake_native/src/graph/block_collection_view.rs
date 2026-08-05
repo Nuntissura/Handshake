@@ -727,6 +727,25 @@ impl CollectionActionObserver {
         self.terminal_error = None;
     }
 
+    /// Retire a TERMINAL record, leaving an in-flight one untouched.
+    ///
+    /// While a record is published, [`Self::declaration`] republishes its ORIGINAL semantic for the
+    /// target it belongs to — `crate::mcp::action` requires a persistent target's post-action
+    /// declaration to carry an unchanged semantic. That republish must therefore outlive the action
+    /// itself, which means two CONSECUTIVE actions on the SAME target would otherwise declare the first
+    /// action's semantic while the second action's binding stores a fresh one, and the exact-semantic
+    /// acknowledgement would fail. Rebinding the pane to a different saved view is the authoritative
+    /// point at which a completed record can no longer describe the current surface, so it is retired
+    /// here rather than after a tuned frame count.
+    fn settle_if_terminal(&mut self) {
+        if matches!(
+            self.phase,
+            CollectionObserverPhase::Applied | CollectionObserverPhase::Failed
+        ) {
+            self.settle();
+        }
+    }
+
     /// The generation the NEXT action on this observer will own, so a declaration can name its own
     /// `action_id` before dispatch.
     fn next_generation(&self) -> u64 {
@@ -989,6 +1008,10 @@ impl BlockCollectionView {
         workspace_id: impl Into<String>,
         view_block_id: impl Into<String>,
     ) {
+        // MT-027 V5: a completed action record describes the PREVIOUS binding and must not keep
+        // republishing its semantic once this pane points at another saved view. An in-flight record is
+        // deliberately preserved: the host calls this while performing the very Retry it is proving.
+        self.action_observer.settle_if_terminal();
         self.workspace_id = workspace_id.into();
         self.view_block_id = view_block_id.into();
         self.definition = None;

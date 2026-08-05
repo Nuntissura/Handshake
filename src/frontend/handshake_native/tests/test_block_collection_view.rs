@@ -2144,6 +2144,25 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => panic!("remove stale MT-027 success receipt before proof: {error}"),
     }
+    // MT-109 landed fail-closed capability middleware over the whole flight-recorder route group, so a
+    // recorder read now requires a GENUINE native-MCP session: a 64-hex token that matches the on-disk
+    // binding file, written by a live process whose birth identity still matches. This proof therefore
+    // presents a real binding rather than weakening the gate.
+    //
+    // Both processes must resolve the SAME binding file. `LOCALAPPDATA` is pointed at a contained root
+    // BEFORE the backend is spawned (so the child inherits it) and the backend's explicit
+    // `HANDSHAKE_STAGE_BINDING_FILE` override is pinned to the exact same path.
+    let stage_binding_root = std::env::var_os("HANDSHAKE_ARGUS_BINDING_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| external_artifact_dir("wp-kernel-012-mt-027").join("argus-binding"))
+        .join("mt027-session");
+    std::fs::create_dir_all(stage_binding_root.join("handshake"))
+        .expect("create contained MT-027 native-MCP binding root");
+    let stage_binding_file = stage_binding_root
+        .join("handshake")
+        .join("swarm_mcp_binding.json");
+    std::env::set_var("LOCALAPPDATA", &stage_binding_root);
+    std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &stage_binding_file);
     let live = interconnect_support::require_reachable_backend();
     let backend_binding = live.owned_backend_binding_receipt();
     let unique = format!(
@@ -2540,9 +2559,19 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     let mut app_harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     app_harness.step();
-    let mut argus = CanonicalArgusDriver::bind(
+    // Bind in the CURRENT app-data root (no scoped LOCALAPPDATA override) so the genuine binding this
+    // server publishes is the exact file the owned backend authenticates the recorder read against.
+    let stage_session_token = handshake_native::mcp::SessionToken::generate();
+    let stage_session_hex = stage_session_token.as_hex().to_owned();
+    let mut argus = CanonicalArgusDriver::bind_in_current_app_data(
         app_harness.state(),
         "wp-kernel-012-mt-027-block-collections",
+        stage_session_token,
+    );
+    assert!(
+        stage_binding_file.is_file(),
+        "the canonical Argus server must publish a real native-MCP binding at {}",
+        stage_binding_file.display()
     );
     let error_tree = argus.inspect(&mut app_harness);
     assert!(
@@ -3322,6 +3351,10 @@ fn block_collection_views_live_pg_self_seed_full_round_trip() {
     let attributed_events = rt.block_on(async {
         let response = handshake_native::backend_client::build_backend_client()
             .get(&recorder_url)
+            // MT-109 fail-closed recorder capability gate: present the GENUINE published session
+            // token. The backend re-reads the binding file and re-verifies the publishing process's
+            // birth identity, so this is a real authenticated read, not a bypass.
+            .header("x-hsk-session-token", stage_session_hex.as_str())
             .header("x-hsk-actor-id", "mt046-live-pg")
             .header("x-hsk-kernel-task-run-id", "mt046-live-pg-run")
             .header("x-hsk-session-run-id", "mt046-live-pg-sess")

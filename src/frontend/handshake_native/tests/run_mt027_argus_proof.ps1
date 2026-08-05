@@ -233,6 +233,21 @@ foreach ($containedRoot in @($stageBindingRoot, $runtimeArtifactsRoot, $argusBin
     New-Item -ItemType Directory -Path $containedRoot | Out-Null
     Assert-NoReparsePointEscape -Path $containedRoot -Root $artifactSibling
 }
+# The fixture spawns the owned backend with its runtime directory as the child's WORKING DIRECTORY.
+# `CreateProcessW`'s `lpCurrentDirectory` is MAX_PATH-bound and does not accept `\\?\` extended paths,
+# so an over-long RunId produces a cryptic `os error 267` at spawn instead of a legible failure. The
+# fixture appends a FIXED-LENGTH suffix under HANDSHAKE_ARTIFACTS_ROOT:
+#   \wp-kernel-012\backend-runtime\r-<16 hex>\s-<16 hex>\<36-char uuid>
+$backendRuntimeSuffixLength =
+    '\wp-kernel-012\backend-runtime\r-'.Length + 16 + '\s-'.Length + 16 + 1 + 36
+$projectedBackendRunRootLength = $runtimeArtifactsRoot.Length + $backendRuntimeSuffixLength
+$maxSpawnableDirectoryLength = 248
+if ($projectedBackendRunRootLength -gt $maxSpawnableDirectoryLength) {
+    $overflow = $projectedBackendRunRootLength - $maxSpawnableDirectoryLength
+    throw ("MT-027 proof RunId '{0}' makes the fixture backend working directory {1} characters, " +
+        "over the {2}-character CreateProcess limit; shorten RunId by at least {3} characters" -f
+        $RunId, $projectedBackendRunRootLength, $maxSpawnableDirectoryLength, $overflow)
+}
 
 function Format-CanonicalUtc {
     param([Parameter(Mandatory = $true)]$Value)
