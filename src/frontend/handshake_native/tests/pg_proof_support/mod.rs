@@ -1393,6 +1393,26 @@ impl LiveBackend {
             .unwrap_or_else(|error| panic!("GET {path} response not JSON ({error}): {text}"))
     }
 
+    /// GET a route whose capability middleware requires an authenticated native-MCP session
+    /// (WP-KERNEL-012 MT-109 made the whole Flight Recorder route group fail-closed).
+    ///
+    /// This presents the SAME `x-hsk-session-token` credential the mounted native client presents,
+    /// read from the proof's own real on-disk binding. It does not weaken, bypass, or stub the
+    /// authorization: an absent, forged, or stale binding still fails closed at the middleware.
+    pub fn get_json_with_session_token(
+        &self,
+        path: &str,
+        session_token: &str,
+    ) -> serde_json::Value {
+        let text = self.request_text(
+            self.ident(self.client.get(format!("{}{path}", self.base)))
+                .header("x-hsk-session-token", session_token),
+            &format!("GET {path}"),
+        );
+        serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("GET {path} response not JSON ({error}): {text}"))
+    }
+
     pub fn get_text(&self, path: &str) -> String {
         self.request_text(
             self.ident(self.client.get(format!("{}{path}", self.base))),
