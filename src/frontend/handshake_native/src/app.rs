@@ -346,6 +346,126 @@ struct Mt028LoomSearchRouted {
     pane_type_label: String,
 }
 
+/// MT-029 V5: the shell-owned durable observer that terminalises Find-in-Files RESULT NAVIGATION.
+///
+/// Activating a result row routes the target onto the ORIGIN pane, which replaces the Find surface, so
+/// the clicked row is a transient target whose acknowledgement must outlive it. This observer is
+/// projected into the MCP snapshot (outside the pane) and terminalises ONLY when the exact routed
+/// content identity is mounted as a tab on the exact origin pane — never on the click being consumed
+/// and never on the row disappearing.
+#[derive(Debug, Clone)]
+struct Mt029FindResultOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    target: Option<String>,
+    semantic: Option<String>,
+    expected: Option<Mt029FindResultRouted>,
+    terminal_detail: Option<String>,
+}
+
+/// The exact routed identity a dispatched Find-in-Files navigation must produce.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Mt029FindResultRouted {
+    pane_id: String,
+    pane_type_label: String,
+    /// `None` for the code-symbol route, which MT-034 deliberately leaves without a symbol-id tab.
+    content_id: Option<String>,
+}
+
+impl Default for Mt029FindResultOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            target: None,
+            semantic: None,
+            expected: None,
+            terminal_detail: None,
+        }
+    }
+}
+
+impl Mt029FindResultOpenCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    fn binding(&self) -> crate::find_in_files::FindResultOpenCompletionBinding {
+        crate::find_in_files::FindResultOpenCompletionBinding {
+            generation: self.generation,
+            ready: !self.is_pending(),
+        }
+    }
+
+    fn begin(&mut self, target: String, semantic: String) {
+        if self.is_pending() {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.target = Some(target);
+        self.semantic = Some(semantic);
+        self.expected = None;
+        self.terminal_detail = None;
+    }
+
+    fn record_dispatch(&mut self, routed: Mt029FindResultRouted) {
+        if self.is_pending() && self.expected.is_none() {
+            self.expected = Some(routed);
+        }
+    }
+
+    fn complete_if_routed(&mut self, mounted: bool) {
+        if !self.is_pending() || !mounted {
+            return;
+        }
+        let Some(expected) = self.expected.clone() else {
+            return;
+        };
+        self.state = crate::mcp::action::ClickCompletionState::Applied;
+        self.terminal_detail = Some(
+            serde_json::json!({
+                "routed_pane_id": expected.pane_id,
+                "routed_pane_type": expected.pane_type_label,
+                "routed_content_id": expected.content_id,
+                "mounted": true,
+            })
+            .to_string(),
+        );
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    crate::find_in_files::RESULT_OPEN_COMPLETION_EFFECT,
+                    crate::find_in_files::RESULT_OPEN_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.state,
+                    (self.state == crate::mcp::action::ClickCompletionState::Pending)
+                        .then(|| self.target.as_deref())
+                        .flatten(),
+                    (self.state == crate::mcp::action::ClickCompletionState::Pending)
+                        .then(|| self.semantic.as_deref())
+                        .flatten(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    crate::find_in_files::RESULT_OPEN_COMPLETION_EFFECT,
+                    crate::find_in_files::RESULT_OPEN_COMPLETION_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Mt028LoomSearchOpenCompletion {
     generation: u64,
@@ -4960,6 +5080,10 @@ pub struct HandshakeApp {
     mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion,
     /// WP-KERNEL-012 MT-028: shell-owned durable observer for Notes-Search result navigation.
     mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion,
+    /// MT-029 V5: shell-owned durable observer for Find-in-Files result navigation.
+    mt029_find_result_open_completion: Mt029FindResultOpenCompletion,
+    /// The exact routed identity of the navigation currently awaiting acknowledgement.
+    mt029_find_result_routed: Option<Mt029FindResultRouted>,
     /// The exact navigation the MT-028 open queue last performed (block, content type, routed pane).
     mt028_loom_search_routed: Option<Mt028LoomSearchRouted>,
     /// MT-064 V5: the shared-selection fingerprint published by the PREVIOUS snapshot projection. A
@@ -6660,6 +6784,8 @@ impl HandshakeApp {
             mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion::default(),
             mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion::default(),
             mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion::default(),
+            mt029_find_result_open_completion: Mt029FindResultOpenCompletion::default(),
+            mt029_find_result_routed: None,
             mt028_loom_search_routed: None,
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
@@ -9673,6 +9799,81 @@ impl HandshakeApp {
         }
     }
 
+    /// MT-029 V5: project the shell-owned Find-in-Files result-navigation observer into the
+    /// authoritative MCP snapshot. `begin` binds the exact dispatched row + its pre-dispatch semantic;
+    /// the terminal transition requires the routed content identity to be mounted on the origin pane.
+    fn project_mt029_find_result_open_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        if !self.mt029_find_result_open_completion.is_pending() {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((target, _payload, Some(semantic))) = activation {
+                if target.starts_with(crate::find_in_files::RESULT_AUTHOR_ID_PREFIX)
+                    && semantic.contains("\"open-find-result\"")
+                {
+                    self.mt029_find_result_open_completion
+                        .begin(target, semantic);
+                }
+            }
+        }
+
+        if let Some(routed) = self.mt029_find_result_routed.clone() {
+            self.mt029_find_result_open_completion
+                .record_dispatch(routed);
+        }
+        let mounted = self
+            .mt029_find_result_open_completion
+            .expected
+            .clone()
+            .is_some_and(|expected| {
+                self.tab_bar_states.iter().any(|(pane_id, bar)| {
+                    pane_id.as_ref() == expected.pane_id
+                        && bar.tabs.iter().any(|tab| {
+                            tab.pane_type.label() == expected.pane_type_label
+                                && match expected.content_id.as_deref() {
+                                    Some(content_id) => {
+                                        tab.content_id.as_deref() == Some(content_id)
+                                    }
+                                    None => true,
+                                }
+                        })
+                })
+            });
+        self.mt029_find_result_open_completion
+            .complete_if_routed(mounted);
+
+        if let Some(value) = self.mt029_find_result_open_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: crate::find_in_files::RESULT_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(
+                        crate::find_in_files::RESULT_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    ),
+                    node_id: egui::Id::new(
+                        crate::find_in_files::RESULT_OPEN_COMPLETION_AUTHOR_ID,
+                    )
+                    .value(),
+                    role: "Status".to_owned(),
+                    label: Some(
+                        "MT-029 Find-in-Files result navigation completion".to_owned(),
+                    ),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
     fn project_mt046_ckc_module_completion(
         &mut self,
         snapshot: &mut crate::accessibility::UiTreeSnapshot,
@@ -9779,6 +9980,7 @@ impl HandshakeApp {
             self.project_mt024_sidebar_pin_removal_completion(&mut snapshot);
             self.project_mt064_fems_proposal_flow_completion(&mut snapshot);
             self.project_mt028_loom_search_open_completion(&mut snapshot);
+            self.project_mt029_find_result_open_completion(&mut snapshot);
             match self.mcp_action_channel.lock() {
                 Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
                 Err(poisoned) => poisoned.into_inner().acknowledge_after_render(&snapshot),
@@ -10094,6 +10296,8 @@ impl HandshakeApp {
             mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion::default(),
             mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion::default(),
             mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion::default(),
+            mt029_find_result_open_completion: Mt029FindResultOpenCompletion::default(),
+            mt029_find_result_routed: None,
             mt028_loom_search_routed: None,
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
@@ -10635,6 +10839,63 @@ impl HandshakeApp {
         }
     }
 
+    /// The exact `(pane, pane_type, content_id)` a Find-in-Files navigation target must mount. The
+    /// code-symbol route deliberately leaves no symbol-id tab (MT-034), so its content id is `None`
+    /// and only the routed pane type is required.
+    fn mt029_routed_identity(
+        pane_id: &PaneId,
+        target: &crate::quick_switcher::QuickSwitcherTarget,
+    ) -> Option<Mt029FindResultRouted> {
+        use crate::quick_switcher::QuickSwitcherTarget;
+
+        let (pane_type_label, content_id) = match target {
+            QuickSwitcherTarget::Document { document_id } => (
+                PaneType::LoomWikiPage.label().to_owned(),
+                Some(document_id.clone()),
+            ),
+            QuickSwitcherTarget::LoomBlock { block_id } => (
+                PaneType::LoomBlock.label().to_owned(),
+                Some(block_id.clone()),
+            ),
+            QuickSwitcherTarget::BlockCollectionView { view_block_id } => (
+                Self::block_collections_pane_type().label().to_owned(),
+                Some(view_block_id.clone()),
+            ),
+            QuickSwitcherTarget::WikiPage { projection_id } => (
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::WIKI_PAGE_PANE_LABEL,
+                )
+                .label()
+                .to_owned(),
+                Some(projection_id.clone()),
+            ),
+            QuickSwitcherTarget::UserManual { slug } => (
+                PaneType::UserManual.label().to_owned(),
+                Some(slug.clone()),
+            ),
+            QuickSwitcherTarget::WorkPacket { wp_id } => (
+                PaneType::KernelDcc.label().to_owned(),
+                Some(format!("WP:{wp_id}")),
+            ),
+            QuickSwitcherTarget::MicroTask { mt_id, wp_id } => (
+                PaneType::KernelDcc.label().to_owned(),
+                Some(format!(
+                    "MT:{}:{mt_id}",
+                    wp_id.clone().unwrap_or_default()
+                )),
+            ),
+            QuickSwitcherTarget::CodeSymbol { .. } => {
+                (PaneType::CodeSymbol.label().to_owned(), None)
+            }
+            QuickSwitcherTarget::Unsupported => return None,
+        };
+        Some(Mt029FindResultRouted {
+            pane_id: pane_id.as_ref().to_owned(),
+            pane_type_label,
+            content_id,
+        })
+    }
+
     /// Drain the exact shared queue populated by the mounted Find-in-Files pane. Each request is
     /// fail-closed against its captured workspace and origin pane before exact-pane dispatch.
     fn drain_find_in_files_open_requests(&mut self) -> usize {
@@ -10659,9 +10920,18 @@ impl HandshakeApp {
                 continue;
             }
             if let Some(target) = crate::find_in_files::shell_open_target_from_hit(&request.hit) {
-                dispatched += usize::from(
-                    self.dispatch_find_in_files_target_on_pane(&request.origin_pane_id, &target),
-                );
+                // MT-029 V5: capture the EXACT routed identity this dispatch must produce, so the
+                // shell-owned navigation observer terminalises on the mounted tab and never on the
+                // click merely being consumed.
+                let routed = Self::mt029_routed_identity(&request.origin_pane_id, &target);
+                let opened =
+                    self.dispatch_find_in_files_target_on_pane(&request.origin_pane_id, &target);
+                if opened {
+                    if let Some(routed) = routed {
+                        self.mt029_find_result_routed = Some(routed);
+                    }
+                }
+                dispatched += usize::from(opened);
             }
         }
         dispatched
@@ -31814,6 +32084,9 @@ impl HandshakeApp {
             }
             // MT-029: mirror the same per-frame push into the Find-in-Files pane's shared cell so its
             // search targets the active workspace and its highlight tracks the live theme.
+            // MT-029 V5: the shell-owned result-navigation completion binding must reach the pane
+            // BEFORE it renders, so a result row declares the exact current observer generation.
+            let find_result_open_completion = self.mt029_find_result_open_completion.binding();
             if let Ok(mut shared) = self.find_in_files_shared.lock() {
                 if shared.workspace_id != workspace_id {
                     shared.workspace_generation = shared.workspace_generation.wrapping_add(1);
@@ -31823,6 +32096,7 @@ impl HandshakeApp {
                 shared.workspace_id = workspace_id.clone();
                 shared.palette = palette.clone();
                 shared.active_pane_id = self.active_pane.clone();
+                shared.result_open_completion = find_result_open_completion;
             }
             // MT-098: keep Runtime Chat visually aligned with the live app theme. This is a pure palette
             // overwrite; send attempts remain a real off-thread `/chat` probe with typed failure states.

@@ -159,6 +159,33 @@ pub const BOOKMARK_COMPLETION_AUTHOR_ID: &str = "find-in-files.bookmark-completi
 /// Durable action-completion observer for the bookmark-load Retry control.
 pub const BOOKMARK_LOAD_COMPLETION_AUTHOR_ID: &str = "find-in-files.bookmark-load-completion";
 
+/// Shell-owned durable observer for RESULT NAVIGATION. Activating a result row REPLACES this whole
+/// surface with the routed editor, so the row is a TRANSIENT observer target bound to an observer the
+/// shell projects outside the pane — the acknowledgement therefore survives the row's disappearance.
+pub const RESULT_OPEN_COMPLETION_AUTHOR_ID: &str = "find-in-files.result-open-completion";
+/// See [`RESULT_OPEN_COMPLETION_AUTHOR_ID`].
+pub const RESULT_OPEN_COMPLETION_EFFECT: &str = "find-in-files.result-open";
+/// See [`RESULT_OPEN_COMPLETION_AUTHOR_ID`].
+pub const RESULT_OPEN_COMPLETION_CONTEXT: &str = "find-in-files.result-open:shell";
+
+/// The shell's current result-navigation observer generation. `ready` is false while a routed
+/// navigation is still in flight, which WITHHOLDS the declaration instead of publishing a stale one.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FindResultOpenCompletionBinding {
+    pub generation: u64,
+    pub ready: bool,
+}
+
+/// The exact pre-dispatch semantic identity of one result-row navigation.
+pub fn open_result_semantic(source_kind: &str, ref_id: &str) -> String {
+    serde_json::json!({
+        "effect": "open-find-result",
+        "source_kind": source_kind,
+        "ref_id": ref_id,
+    })
+    .to_string()
+}
+
 const PREVIEW_COMPLETION_EFFECT: &str = "find-in-files.preview-replace";
 const APPLY_COMPLETION_EFFECT: &str = "find-in-files.apply";
 const CANCEL_COMPLETION_EFFECT: &str = "find-in-files.cancel";
@@ -1256,6 +1283,18 @@ impl ActionCompletion {
         self.state == crate::mcp::action::ClickCompletionState::Pending
     }
 
+    /// Release a standing terminal result WITHOUT rewinding the generation, so the next declaration and
+    /// the observer stay on the same monotonic counter.
+    fn reset_ready(&mut self) {
+        if self.state != crate::mcp::action::ClickCompletionState::Pending {
+            self.state = crate::mcp::action::ClickCompletionState::Ready;
+            self.target = None;
+            self.semantic = None;
+            self.error = None;
+            self.detail = None;
+        }
+    }
+
     /// Declaration for a control that stays mounted through its own action (Search/Preview/Apply/
     /// Cancel/Bookmark Search). A disabled-while-in-flight target is explicitly allowed by the MCP
     /// boundary for the persistent + Pending case.
@@ -1267,6 +1306,25 @@ impl ActionCompletion {
         semantic: &str,
     ) -> Option<String> {
         crate::mcp::action::serialize_persistent_observer_click_target(
+            effect,
+            context,
+            self.generation,
+            observer,
+            semantic,
+        )
+    }
+
+    /// Declaration for a control that is WITHDRAWN by its own action (the destructive Apply). The MCP
+    /// boundary requires such a transient target to be absent at acknowledgement, which is exactly the
+    /// production shape once the applied plans are consumed.
+    fn observer_declaration(
+        &self,
+        effect: &str,
+        context: &str,
+        observer: &str,
+        semantic: &str,
+    ) -> Option<String> {
+        crate::mcp::action::serialize_observer_click_target(
             effect,
             context,
             self.generation,
@@ -1511,6 +1569,9 @@ pub struct FindInFilesPanelState {
     /// toggles, result rows, preview rows, bookmark Restore). Keyed by the UNSCOPED author id, because
     /// the state itself is already per-pane.
     same_target_activations: BTreeMap<String, u64>,
+    /// Shell-owned result-navigation completion binding, pushed per frame by the pane factory. The
+    /// unbound compatibility `show()` path has `ready == false` and falls back to a same-target token.
+    result_open_completion: FindResultOpenCompletionBinding,
     /// Durable observers for the asynchronous actions.
     preview_action: ActionCompletion,
     apply_action: ActionCompletion,
@@ -1595,6 +1656,7 @@ impl FindInFilesPanelState {
             path_filter_set_value_generation: 0,
             path_filter_set_value_applied: None,
             same_target_activations: BTreeMap::new(),
+            result_open_completion: FindResultOpenCompletionBinding::default(),
             preview_action: ActionCompletion::new(),
             apply_action: ActionCompletion::new(),
             cancel_action: ActionCompletion::new(),
@@ -1786,6 +1848,27 @@ impl FindInFilesPanelState {
             .entry(base_author_id.to_owned())
             .or_insert(0);
         *entry = entry.wrapping_add(1);
+    }
+
+    /// Push the shell's current result-navigation observer binding before this pane renders, so a
+    /// result row declares the exact current observer generation.
+    pub fn set_result_open_completion_binding(&mut self, binding: FindResultOpenCompletionBinding) {
+        self.result_open_completion = binding;
+    }
+
+    /// True once the DESTRUCTIVE Apply action has published a terminal success and its plans were
+    /// consumed. The Apply control is withdrawn in that state (and while its own execution is in
+    /// flight) and returns with the next preview, which is what makes its canonical acknowledgement a
+    /// transient-target completion rather than an unprovable disabled-target one.
+    fn apply_control_withdrawn(&self) -> bool {
+        matches!(
+            self.apply_action.state,
+            crate::mcp::action::ClickCompletionState::Pending
+        ) || (self.preview_plans.is_empty()
+            && matches!(
+                self.apply_action.state,
+                crate::mcp::action::ClickCompletionState::Applied
+            ))
     }
 
     /// Stable semantic identity for the Preview action (what is previewed, never the mutated result).
@@ -2307,6 +2390,12 @@ impl FindInFilesPanelState {
                         })
                     })
                     .collect();
+                // A fresh preview restores the withdrawn Apply control (its previous terminal result no
+                // longer stands). The generation is deliberately NOT rewound: the next Apply
+                // declaration must still advance monotonically from the observer's current value.
+                if !self.apply_action.is_pending() {
+                    self.apply_action.reset_ready();
+                }
                 self.preview_action.complete(bounded_token_field(
                     &serde_json::json!({
                         "kind": "preview",
@@ -3213,24 +3302,32 @@ fn show_with_author_scope(
             fire_preview = true;
         }
 
-        let apply_btn = ui.add_enabled(
-            state.can_apply() && !state.preview_in_flight() && !state.apply_in_flight(),
-            egui::Button::new("Apply"),
-        );
-        accessibility::emit_interactive_node(ui.ctx(), apply_btn.id, &apply_author_id);
-        let apply_declaration = state.apply_action.persistent_declaration(
-            APPLY_COMPLETION_EFFECT,
-            &apply_completion_context,
-            &apply_completion_author_id,
-            &state.apply_action_semantic_value(),
-        );
-        ui.ctx().accesskit_node_builder(apply_btn.id, |node| {
-            if let Some(value) = apply_declaration {
-                node.set_value(value);
+        // The DESTRUCTIVE Apply control is withdrawn while its own execution is in flight and while a
+        // terminal success stands with its plans consumed; it returns with the next preview. That makes
+        // it an exact TRANSIENT observer target (present+enabled at dispatch, absent at terminal), which
+        // is the only shape the MCP acknowledgement boundary can prove for a control that can never be
+        // re-enabled by its own completion. Outside that window it renders normally (disabled until a
+        // non-stale preview exists), so the AC-8 gate is unchanged.
+        if !state.apply_control_withdrawn() {
+            let apply_btn = ui.add_enabled(
+                state.can_apply() && !state.preview_in_flight() && !state.apply_in_flight(),
+                egui::Button::new("Apply"),
+            );
+            accessibility::emit_interactive_node(ui.ctx(), apply_btn.id, &apply_author_id);
+            let apply_declaration = state.apply_action.observer_declaration(
+                APPLY_COMPLETION_EFFECT,
+                &apply_completion_context,
+                &apply_completion_author_id,
+                &state.apply_action_semantic_value(),
+            );
+            ui.ctx().accesskit_node_builder(apply_btn.id, |node| {
+                if let Some(value) = apply_declaration {
+                    node.set_value(value);
+                }
+            });
+            if apply_btn.clicked() {
+                fire_apply = true;
             }
-        });
-        if apply_btn.clicked() {
-            fire_apply = true;
         }
 
         let cancel_btn = ui.button("Cancel");
@@ -3499,6 +3596,7 @@ fn show_with_author_scope(
         // Borrow `results` (not all of `state`) so the row closure only holds the shared read it needs.
         let results = &state.results;
         let same_target_activations = &state.same_target_activations;
+        let result_open_completion = state.result_open_completion;
         // Uniform slot height so `show_rows` lays out ONLY the on-screen rows (title line + excerpt line +
         // Frame::group padding) instead of materializing every row in a large paginated result set.
         let row_height = ui.text_style_height(&egui::TextStyle::Body) * 2.0 + 18.0;
@@ -3529,24 +3627,36 @@ fn show_with_author_scope(
                     let row_base_author_id = result_author_id(&hit.source_kind, &hit.ref_id);
                     let row_scoped_author_id = scoped(&row_base_author_id);
                     accessibility::emit_interactive_node(ui.ctx(), row.id, &row_scoped_author_id);
-                    // Result navigation is dispatched synchronously by this panel and the row stays
-                    // mounted, so the row carries its own causal same-target acknowledgement. The
-                    // routed tab identity is deliberately NOT projected into AccessKit, so the proof
-                    // binds it through the terminal predicate's app evidence instead.
-                    let row_activation_count = same_target_activations
-                        .get(&row_base_author_id)
-                        .copied()
-                        .unwrap_or(0);
-                    let row_completion = crate::mcp::action::serialize_same_target_click_completion(
-                        RESULT_COMPLETION_EFFECT,
-                        &row_scoped_author_id,
-                        row_activation_count,
-                        if row_activation_count == 0 {
-                            crate::mcp::action::ClickCompletionState::Ready
-                        } else {
-                            crate::mcp::action::ClickCompletionState::Applied
-                        },
-                    );
+                    // Under the shell, activating a row REPLACES this surface with the routed editor,
+                    // so the row is a TRANSIENT observer target bound to the shell-owned navigation
+                    // observer: the acknowledgement survives the row (and this whole panel)
+                    // disappearing, and it terminalises only on the exact routed tab identity. The
+                    // unbound compatibility `show()` path never routes away, so it keeps a plain
+                    // same-target token instead of declaring an observer that does not exist.
+                    let row_completion = if result_open_completion.ready {
+                        crate::mcp::action::serialize_observer_click_target(
+                            RESULT_OPEN_COMPLETION_EFFECT,
+                            RESULT_OPEN_COMPLETION_CONTEXT,
+                            result_open_completion.generation,
+                            RESULT_OPEN_COMPLETION_AUTHOR_ID,
+                            &open_result_semantic(&hit.source_kind, &hit.ref_id),
+                        )
+                    } else {
+                        let row_activation_count = same_target_activations
+                            .get(&row_base_author_id)
+                            .copied()
+                            .unwrap_or(0);
+                        crate::mcp::action::serialize_same_target_click_completion(
+                            RESULT_COMPLETION_EFFECT,
+                            &row_scoped_author_id,
+                            row_activation_count,
+                            if row_activation_count == 0 {
+                                crate::mcp::action::ClickCompletionState::Ready
+                            } else {
+                                crate::mcp::action::ClickCompletionState::Applied
+                            },
+                        )
+                    };
                     ui.ctx().accesskit_node_builder(row.id, |node| {
                         if let Some(value) = row_completion {
                             node.set_value(value);
@@ -3828,6 +3938,9 @@ pub struct FindInFilesPaneShared {
     /// Bookmark mount bindings are pane-local: two Find panes must each load their workspace bookmarks
     /// without one pane suppressing the other's mount effect.
     pub(crate) bookmarks_loaded_for: BTreeMap<PaneId, (Option<String>, u64)>,
+    /// Shell-owned result-navigation completion binding, pushed per frame BEFORE the pane renders so a
+    /// result row can declare the exact current observer generation.
+    pub result_open_completion: FindResultOpenCompletionBinding,
 }
 
 /// A result-navigation request retaining the exact mounted origin and workspace binding.
@@ -3847,6 +3960,7 @@ impl FindInFilesPaneShared {
             active_pane_id: None,
             open_requests: Vec::new(),
             bookmarks_loaded_for: BTreeMap::new(),
+            result_open_completion: FindResultOpenCompletionBinding::default(),
         }
     }
 }
@@ -3983,12 +4097,13 @@ impl PaneFactory for FindInFilesPaneFactory {
     }
 
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
-        let (workspace_id, workspace_generation, palette) = {
+        let (workspace_id, workspace_generation, palette, result_open_completion) = {
             let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             (
                 guard.workspace_id.clone(),
                 guard.workspace_generation,
                 guard.palette.clone(),
+                guard.result_open_completion,
             )
         };
         let secondary_pane_id = {
@@ -4015,6 +4130,7 @@ impl PaneFactory for FindInFilesPaneFactory {
         let state = states
             .get_mut(&ctx.record.pane_id)
             .expect("pane state inserted immediately above");
+        state.set_result_open_completion_binding(result_open_completion);
         if state.bind_workspace(workspace_id.as_deref(), workspace_generation) {
             let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
             guard
