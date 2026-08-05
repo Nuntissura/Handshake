@@ -244,9 +244,10 @@ $projectedBackendRunRootLength = $runtimeArtifactsRoot.Length + $backendRuntimeS
 $maxSpawnableDirectoryLength = 248
 if ($projectedBackendRunRootLength -gt $maxSpawnableDirectoryLength) {
     $overflow = $projectedBackendRunRootLength - $maxSpawnableDirectoryLength
-    throw ("MT-027 proof RunId '{0}' makes the fixture backend working directory {1} characters, " +
-        "over the {2}-character CreateProcess limit; shorten RunId by at least {3} characters" -f
-        $RunId, $projectedBackendRunRootLength, $maxSpawnableDirectoryLength, $overflow)
+    $maxRunId = $RunId.Length - $overflow
+    throw ("MT-027 proof RunId '$RunId' makes the fixture backend working directory " +
+        "$projectedBackendRunRootLength characters, over the $maxSpawnableDirectoryLength-character " +
+        "CreateProcess working-directory budget; use a RunId of at most $maxRunId characters")
 }
 
 function Format-CanonicalUtc {
