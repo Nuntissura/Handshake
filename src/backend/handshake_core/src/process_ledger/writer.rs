@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
@@ -41,6 +41,15 @@ use super::table::{
 pub const FR_EVT_LEDGER_OVERFLOW: &str = "FR_EVT_LEDGER_OVERFLOW";
 const PROCESS_LEDGER_SOURCE_COMPONENT: &str = "process_ledger_writer";
 const PROCESS_LEDGER_AUTHORITY_LOCK_TIMEOUT: &str = "2000ms";
+
+/// Upper bound on the writer's in-flight START identity index.
+///
+/// One entry exists per process whose START row was accepted by the writer and
+/// whose STOP row has not been accepted yet, so the steady-state size is the
+/// number of live Handshake-owned processes. The cap only protects against an
+/// unbounded leak of never-stopped lifecycles; reaching it is logged, never
+/// silent.
+const PROCESS_LEDGER_START_INDEX_CAPACITY: usize = 65_536;
 
 static GLOBAL_DEGRADED_WRITERS: AtomicUsize = AtomicUsize::new(0);
 
@@ -239,6 +248,23 @@ impl LedgerOverflowEvent {
     }
 }
 
+/// The identity bookkeeping a queued row triggers once the writer has actually
+/// accepted it: a START publishes its identity for the eventual terminal owner,
+/// a STOP releases it.
+enum AcceptedEventIdentity {
+    Start(Box<ProcessStart>),
+    Stop(Uuid),
+}
+
+impl AcceptedEventIdentity {
+    fn of(event: &LedgerEvent) -> Self {
+        match event {
+            LedgerEvent::Start(start) => Self::Start(Box::new(start.clone())),
+            LedgerEvent::Stop(stop) => Self::Stop(stop.process_uuid),
+        }
+    }
+}
+
 /// One accepted writer row plus an optional acknowledgement that resolves only
 /// after the row's complete store batch has committed successfully.
 struct LedgerWriteRequest {
@@ -345,6 +371,18 @@ pub struct ProcessLedgerWriter {
     /// even though a `LedgerBatcher` clone is still held alive inside
     /// `AppState.llm_client`.
     close_notify: Arc<Notify>,
+    /// START rows this writer accepted whose matching STOP row has not been
+    /// accepted yet, keyed by `process_uuid`.
+    ///
+    /// The authoritative STOP upsert only updates a lifecycle row when every
+    /// immutable identity column of the STOP is byte-identical to the persisted
+    /// START (see `PROCESS_STOP_UPSERT_SQL`). A terminal owner that did not
+    /// author the START therefore cannot synthesize a valid STOP from its own
+    /// defaults: `started_at`, `wp_id`/`mt_id` lineage, and `metadata_jsonb`
+    /// diverge and PostgreSQL rejects the row as a STOP identity conflict. This
+    /// index makes the accepted START identity retrievable so the terminal path
+    /// can derive a symmetric STOP instead of inventing a conflicting one.
+    recorded_starts: Arc<std::sync::Mutex<HashMap<Uuid, ProcessStart>>>,
 }
 
 /// Capacity reserved for one complete resource lifecycle before that resource
@@ -693,6 +731,7 @@ impl ProcessLedgerWriter {
             flush_failed_rows: Arc::clone(&flush_failed_rows),
             capacity: config.capacity,
             close_notify: Arc::clone(&close_notify),
+            recorded_starts: Arc::new(std::sync::Mutex::new(HashMap::new())),
         };
         let join = tokio::spawn(run_writer(
             receiver,
@@ -741,6 +780,7 @@ impl ProcessLedgerWriter {
             // The manual drain path runs no `run_writer` task, so this signal is
             // never awaited; it exists only to satisfy the struct shape.
             close_notify: Arc::new(Notify::new()),
+            recorded_starts: Arc::new(std::sync::Mutex::new(HashMap::new())),
         };
         let drain = ProcessLedgerDrain {
             receiver: Mutex::new(receiver),
@@ -902,12 +942,61 @@ impl ProcessLedgerWriter {
         self.flush_failed_rows.load(Ordering::SeqCst)
     }
 
+    /// The START identity the writer accepted for `process_uuid`, if its STOP
+    /// row has not been accepted yet.
+    ///
+    /// Terminal owners that did not author the START use this to derive a STOP
+    /// whose immutable identity columns match the persisted lifecycle row,
+    /// instead of synthesizing one the authoritative upsert must reject.
+    pub fn recorded_start(&self, process_uuid: Uuid) -> Option<ProcessStart> {
+        self.recorded_starts
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&process_uuid)
+            .cloned()
+    }
+
+    /// Track the accepted START identity, or release it once its STOP row has
+    /// been accepted. Called only after the row is actually in the queue, so a
+    /// dropped row never leaves a phantom identity behind.
+    fn index_accepted_event(&self, indexed: AcceptedEventIdentity) {
+        let mut recorded = self
+            .recorded_starts
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match indexed {
+            AcceptedEventIdentity::Start(start) => {
+                let process_uuid = start.process_uuid;
+                if recorded.len() >= PROCESS_LEDGER_START_INDEX_CAPACITY
+                    && !recorded.contains_key(&process_uuid)
+                {
+                    tracing::warn!(
+                        target: PROCESS_LEDGER_SOURCE_COMPONENT,
+                        event = "ledger_start_index_saturated",
+                        process_uuid = %process_uuid,
+                        capacity = PROCESS_LEDGER_START_INDEX_CAPACITY,
+                        "in-flight START identity index is saturated; this lifecycle's terminal owner must supply its own START identity"
+                    );
+                    return;
+                }
+                recorded.insert(process_uuid, *start);
+            }
+            AcceptedEventIdentity::Stop(process_uuid) => {
+                recorded.remove(&process_uuid);
+            }
+        }
+    }
+
     fn enqueue(&self, event: LedgerEvent) -> Result<(), ProcessLedgerError> {
+        let indexed = AcceptedEventIdentity::of(&event);
         match self
             .sender
             .try_send(LedgerWriteRequest::unacknowledged(event))
         {
-            Ok(()) => Ok(()),
+            Ok(()) => {
+                self.index_accepted_event(indexed);
+                Ok(())
+            }
             Err(TrySendError::Full(request)) | Err(TrySendError::Closed(request)) => {
                 mark_degraded(&self.degraded);
                 emit_overflow(
@@ -924,12 +1013,27 @@ impl ProcessLedgerWriter {
     fn enqueue_lossless(&self, event: LedgerEvent) -> Result<(), ProcessLedgerError> {
         let event_kind = event.kind();
         let process_uuid = event.process_uuid();
+        let indexed = AcceptedEventIdentity::of(&event);
         match self
             .sender
             .try_send(LedgerWriteRequest::unacknowledged(event))
         {
-            Ok(()) => Ok(()),
-            Err(TrySendError::Full(request)) | Err(TrySendError::Closed(request)) => {
+            Ok(()) => {
+                self.index_accepted_event(indexed);
+                Ok(())
+            }
+            Err(error) => {
+                // A full queue and a closed queue are different operational
+                // faults: the first is backpressure against a live writer, the
+                // second means no ledger consumer exists at all. Reporting both
+                // as "capacity N" sends operators after phantom backpressure.
+                let (request, cause) = match error {
+                    TrySendError::Full(request) => (request, "ledger writer queue is full"),
+                    TrySendError::Closed(request) => (
+                        request,
+                        "ledger writer channel is closed; no ledger consumer is running",
+                    ),
+                };
                 mark_degraded(&self.degraded);
                 emit_overflow(
                     self.overflow_sink.as_ref(),
@@ -938,7 +1042,7 @@ impl ProcessLedgerWriter {
                     request.event,
                 )?;
                 Err(ProcessLedgerError::EnqueueDropped(format!(
-                    "{} row for process_uuid {process_uuid} was not accepted by ledger writer capacity {}",
+                    "{} row for process_uuid {process_uuid} was not accepted by ledger writer capacity {}: {cause}",
                     event_kind.as_str(),
                     self.capacity
                 )))
@@ -953,9 +1057,11 @@ impl ProcessLedgerWriter {
     ) -> Result<(), ProcessLedgerError> {
         let event_kind = event.kind();
         let process_uuid = event.process_uuid();
+        let indexed = AcceptedEventIdentity::of(&event);
         match time::timeout(timeout, self.sender.reserve()).await {
             Ok(Ok(permit)) => {
                 permit.send(LedgerWriteRequest::unacknowledged(event));
+                self.index_accepted_event(indexed);
                 Ok(())
             }
             outcome => {

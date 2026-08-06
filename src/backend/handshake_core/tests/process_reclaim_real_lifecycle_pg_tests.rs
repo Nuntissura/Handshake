@@ -455,9 +455,28 @@ async fn concurrent_reclaimers_produce_exactly_one_kill_and_one_stop() {
                     == Some(handshake_core::process_ledger::LedgerEventKind::Stop)
         })
         .count();
+    // Surface WHAT the reclaimers actually reported. A bare `0 != 1` cannot
+    // distinguish "neither reclaimer saw the process at all" from "both saw it
+    // but declined to kill" from "one killed it but wrote no STOP" - three
+    // different defects with three different fixes. The counts alone sent an
+    // earlier investigation down the wrong path.
+    let observed: Vec<String> = [&report_a, &report_b]
+        .iter()
+        .flat_map(|report| report.processes_reclaimed.iter())
+        .map(|reclaimed| {
+            format!(
+                "{{uuid={}, kill={:?}, stop={:?}}}",
+                reclaimed.process_uuid, reclaimed.kill_result, reclaimed.stop_event_kind
+            )
+        })
+        .collect();
     assert_eq!(
         killed_with_stop, 1,
-        "exactly one reclaimer may kill + STOP the shared process (no double-STOP)"
+        "exactly one reclaimer may kill + STOP the shared process (no double-STOP). \
+         target process_uuid={process_uuid}, real child pid={}. \
+         Reclaimed entries observed across BOTH reclaimers: {observed:?} \
+         (an empty list means neither reclaimer selected this process as reclaimable at all)",
+        spawned.pid
     );
 
     assert!(

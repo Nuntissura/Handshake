@@ -52,6 +52,7 @@ pub mod ids;
 pub mod model_lane;
 pub mod operator_chat;
 pub mod production_factory;
+pub mod resource_scope;
 pub mod routing;
 pub mod schedule;
 pub mod state;

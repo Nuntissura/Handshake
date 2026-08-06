@@ -187,6 +187,17 @@ pub struct PtySpawnConfig {
     pub args: Vec<String>,
     pub cwd: Option<std::path::PathBuf>,
     pub env: Vec<(String, String)>,
+    /// Drop the parent environment before applying [`Self::env`], so the child
+    /// sees ONLY the explicitly supplied variables.
+    ///
+    /// Defaults to `false`, which is the historical inherit-the-parent-env
+    /// behaviour every existing caller relies on. The official-CLI interactive
+    /// login sets it so the PTY child gets exactly the same scrubbed
+    /// environment the non-interactive CLI-bridge spawn path already builds
+    /// (`env_clear()` + the explicit allow-listed CLI data variables); without
+    /// it, routing that login through a PTY would silently widen the child's
+    /// environment compared with the console launch it replaces.
+    pub env_clear: bool,
     pub rows: u16,
     pub cols: u16,
     pub scrollback_bytes: usize,
@@ -200,6 +211,7 @@ impl Default for PtySpawnConfig {
             args: Vec::new(),
             cwd: None,
             env: Vec::new(),
+            env_clear: false,
             rows: 24,
             cols: 80,
             scrollback_bytes: DEFAULT_SCROLLBACK_BYTES,
@@ -228,6 +240,8 @@ pub struct PtySession {
     exit_latch: Arc<ExitLatch>,
     reader_handle: Mutex<Option<std::thread::JoinHandle<()>>>,
     waiter_handle: Mutex<Option<std::thread::JoinHandle<()>>>,
+    /// OS pid of the spawned child, captured at spawn time.
+    child_pid: Option<u32>,
 }
 
 impl std::fmt::Debug for PtySession {
@@ -264,6 +278,11 @@ impl PtySession {
         if let Some(cwd) = &cfg.cwd {
             builder.cwd(cwd);
         }
+        // Clear BEFORE applying the explicit variables, so `env_clear` never
+        // discards the caller's own allow-listed values.
+        if cfg.env_clear {
+            builder.env_clear();
+        }
         for (k, v) in &cfg.env {
             builder.env(k, v);
         }
@@ -272,6 +291,11 @@ impl PtySession {
             .slave
             .spawn_command(builder)
             .map_err(|e| PtyError::Spawn(e.to_string()))?;
+        // Captured once here: `portable_pty::Child::process_id` is only
+        // reachable before the child moves into the waiter thread, and the pid
+        // is the identity the process ledger, the OS attestation, and the
+        // quiet-mode audit all key on.
+        let child_pid = child.process_id();
 
         // Drop the slave so EOF propagates to the reader on child exit. This is
         // the documented portable-pty idiom and the fix for the "blocking
@@ -423,7 +447,16 @@ impl PtySession {
             exit_latch,
             reader_handle: Mutex::new(Some(handle)),
             waiter_handle: Mutex::new(Some(waiter)),
+            child_pid,
         })
+    }
+
+    /// OS pid of the PTY child, when the platform reported one.
+    ///
+    /// Stable for the life of the session: it is captured at spawn, before the
+    /// child moves into the waiter thread.
+    pub fn child_pid(&self) -> Option<u32> {
+        self.child_pid
     }
 
     /// Block until the child exits (or `timeout` elapses), returning the exit
@@ -676,13 +709,30 @@ fn resolve_windows_default_shell_from_path(path_var: Option<&OsStr>) -> String {
         for dir in std::env::split_paths(paths) {
             for candidate in CANDIDATES {
                 let path = dir.join(candidate);
-                if path.is_file() {
-                    return path.to_string_lossy().to_string();
+                if !path.is_file() {
+                    continue;
+                }
+                // FAIL CLOSED on a path that cannot round-trip to UTF-8.
+                //
+                // `to_string_lossy()` would substitute U+FFFD for any non-UTF-8
+                // byte in the PATH entry and hand back a string that no longer
+                // names the file we just verified with `is_file()`. Spawning
+                // that is not a cosmetic defect: the resolved-and-checked
+                // executable and the executable actually launched would differ,
+                // which is exactly the identity guarantee the CLI-bridge spawn
+                // path exists to hold. Skip the candidate instead and keep
+                // searching; a corrupted path must never reach a spawn.
+                match path.to_str() {
+                    Some(valid) => return valid.to_string(),
+                    None => continue,
                 }
             }
         }
     }
 
+    // Bare name, resolved by the OS at spawn time. Reached when PATH is unset or
+    // holds no UTF-8-representable shell, so it is a safe last resort rather
+    // than a guess at a specific location.
     "cmd.exe".to_string()
 }
 

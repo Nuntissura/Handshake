@@ -158,6 +158,15 @@ name = "focus-audit-probe"
 path = "src/bin/focus-audit-probe.rs"
 test = false
 
+# WP-1: real spawn target for the operator-selected-cwd proof. The product
+# denylists generic interpreters (cmd/powershell/sh/node/...) as CLI
+# entrypoints, so proving "the child really ran in the operator's directory"
+# needs a genuine non-interpreter executable that reports its own cwd.
+[[bin]]
+name = "cwd-probe"
+path = "src/bin/cwd-probe.rs"
+test = false
+
 [dependencies]
 axum = { version = "0.7", features = ["ws"] }
 serde = { version = "1", features = ["derive"] }
@@ -319,6 +328,11 @@ path = "tests/model_registry_persistence_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]
+name = "model_lane_resource_scope_pg_tests"
+path = "tests/model_lane_resource_scope_pg_tests.rs"
+required-features = ["test-utils"]
+
+[[test]]
 name = "model_runtime_registry_api_tests"
 path = "tests/model_runtime_registry_api_tests.rs"
 required-features = ["test-utils"]
@@ -341,6 +355,14 @@ required-features = ["os-keychain"]
 [[test]]
 name = "model_access_route_tests"
 path = "tests/model_access_route_tests.rs"
+required-features = ["test-utils"]
+
+# MT-015 v5: HBR-QUIET-001 negative proofs for the in-app official-CLI login.
+# Needs `test-utils` for `LiveCliSpawner::launch_interactive_login_for_tests`,
+# which exposes the REAL production launch path to an integration test.
+[[test]]
+name = "cli_bridge_login_quiet_tests"
+path = "tests/cli_bridge_login_quiet_tests.rs"
 required-features = ["test-utils"]
 
 [[test]]

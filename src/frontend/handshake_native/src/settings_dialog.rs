@@ -242,6 +242,112 @@ pub fn cloud_cli_status_author_id(provider: &str) -> String {
     format!("settings.cloud.cli.{provider}.status")
 }
 
+// ── In-app official-CLI login panel (MT-015 v5, HBR-QUIET-001) ─────────────────────────────────────
+//
+// The login used to be launched into a NEW OS console window that could take focus. It now runs in a
+// Handshake-hosted pseudo-terminal in the backend and is driven from THIS panel: the provider's own
+// prompt is rendered here and the operator types the device code / answer here. Every control carries
+// a stable per-provider author_id so Argus can read the prompt and type the answer out-of-process.
+
+/// Author_id for the live login transcript: `settings.cloud.cli.{provider}.login.transcript`.
+pub fn cloud_cli_login_transcript_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.transcript")
+}
+/// Author_id for the login session status line: `settings.cloud.cli.{provider}.login.state`.
+pub fn cloud_cli_login_state_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.state")
+}
+/// Author_id for the operator's answer field: `settings.cloud.cli.{provider}.login.input`.
+pub fn cloud_cli_login_input_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.input")
+}
+/// Author_id for the Send button: `settings.cloud.cli.{provider}.login.send`.
+pub fn cloud_cli_login_send_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.send")
+}
+/// Author_id for the Stop-login button: `settings.cloud.cli.{provider}.login.stop`.
+pub fn cloud_cli_login_stop_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.stop")
+}
+/// Author_id for the Close-panel button: `settings.cloud.cli.{provider}.login.close`.
+pub fn cloud_cli_login_close_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.close")
+}
+/// The STABLE egui widget id for the login answer field, so its egui state (cursor + undo history)
+/// can be reset when the panel closes. The answer is a provider-issued one-time prompt response, not
+/// a Handshake credential, but it is still cleared rather than left in widget memory.
+pub fn cloud_cli_login_input_egui_id(provider: &str) -> egui::Id {
+    egui::Id::new(("settings.cloud.cli.login.input", provider))
+}
+
+/// Typed state of the in-app official-CLI login session, mirroring the backend
+/// `CliLoginSessionStatus` wire enum. Handshake never guesses a state it cannot prove.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloudCliLoginState {
+    /// The session was started but the provider has not printed anything yet.
+    Pending,
+    /// The provider has printed output and the login process is still running.
+    AwaitingInput,
+    Succeeded,
+    Failed,
+    /// The bounded login window elapsed and the backend terminated the process.
+    TimedOut,
+    Cancelled,
+}
+
+impl CloudCliLoginState {
+    pub fn from_wire(value: &str) -> Self {
+        match value {
+            "pending" => Self::Pending,
+            "awaiting_input" => Self::AwaitingInput,
+            "succeeded" => Self::Succeeded,
+            "failed" => Self::Failed,
+            "timed_out" => Self::TimedOut,
+            _ => Self::Cancelled,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Pending => "Starting the provider's login…",
+            Self::AwaitingInput => "Waiting for you — read the prompt below and answer it here.",
+            Self::Succeeded => "Login finished successfully.",
+            Self::Failed => "The provider's login exited with an error.",
+            Self::TimedOut => "Login timed out and was stopped.",
+            Self::Cancelled => "Login stopped.",
+        }
+    }
+
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            Self::Succeeded | Self::Failed | Self::TimedOut | Self::Cancelled
+        )
+    }
+}
+
+/// Shell-owned state for ONE live in-app login session (at most one at a time).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CloudCliLoginPanel {
+    pub provider: String,
+    pub label: String,
+    /// Backend-issued session id; empty until the start request answers.
+    pub session_id: String,
+    pub state: CloudCliLoginState,
+    /// The provider's own terminal output (ANSI already stripped by the backend).
+    pub transcript: String,
+    /// The operator's in-progress answer to the provider's prompt.
+    pub input: String,
+    /// Transient transport error, if the last request failed.
+    pub error: Option<String>,
+}
+
+impl Default for CloudCliLoginState {
+    fn default() -> Self {
+        Self::Pending
+    }
+}
+
 // ── Cloud consent / export posture (WP-1 MT-021 AC-2) ──────────────────────────────────────────────
 //
 // The operator needs to see, per configured provider lane, whether cloud escalation is CONSENTED and
@@ -301,7 +407,8 @@ pub struct CloudByokRow {
 }
 
 /// One non-secret CLI-bridge provider row from the backend enumeration, carrying the provider's OWN
-/// official login command (launched operator-initiated in a visible terminal).
+/// official login command (started operator-initiated in a Handshake-hosted in-app terminal session;
+/// no OS console window and no focus change).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CloudCliAuthStatus {
     LoggedIn,
@@ -365,6 +472,9 @@ pub struct CloudModelsSettingsState {
     /// Per-provider transient status message (e.g. "Saved", "Removed", an error).
     messages: Vec<(String, String)>,
     pending_cli_login_confirmation: Option<String>,
+    /// MT-015 v5: the live in-app official-CLI login session, when one is open.
+    /// At most one at a time, matching the backend's one-session-per-provider rule.
+    login_panel: Option<CloudCliLoginPanel>,
 }
 
 impl CloudModelsSettingsState {
@@ -481,6 +591,61 @@ impl CloudModelsSettingsState {
         self.message_for(provider)
     }
 
+    /// Open (or replace) the in-app login panel for a provider.
+    pub fn open_login_panel(&mut self, provider: &str, label: &str) {
+        self.login_panel = Some(CloudCliLoginPanel {
+            provider: provider.to_owned(),
+            label: label.to_owned(),
+            ..CloudCliLoginPanel::default()
+        });
+    }
+
+    /// The live in-app login panel, if one is open (for the shell + tests).
+    pub fn login_panel(&self) -> Option<&CloudCliLoginPanel> {
+        self.login_panel.as_ref()
+    }
+
+    /// Mutable access for the shell's async delivery pump.
+    pub fn login_panel_mut(&mut self) -> Option<&mut CloudCliLoginPanel> {
+        self.login_panel.as_mut()
+    }
+
+    /// Close the in-app login panel. The shell separately resets the answer
+    /// field's egui state so no typed answer survives in widget memory.
+    pub fn close_login_panel(&mut self) -> Option<CloudCliLoginPanel> {
+        self.login_panel.take()
+    }
+
+    /// Wipe a half-typed answer without dismissing the panel or disturbing the
+    /// live backend session.
+    pub fn clear_login_input(&mut self) {
+        if let Some(panel) = self.login_panel.as_mut() {
+            panel.input.clear();
+        }
+    }
+
+    /// Apply one backend login-session snapshot to the open panel.
+    pub fn apply_login_snapshot(
+        &mut self,
+        session_id: &str,
+        state: CloudCliLoginState,
+        transcript: String,
+    ) {
+        if let Some(panel) = self.login_panel.as_mut() {
+            panel.session_id = session_id.to_owned();
+            panel.state = state;
+            panel.transcript = transcript;
+            panel.error = None;
+        }
+    }
+
+    /// Record a transport failure against the open login panel.
+    pub fn set_login_error(&mut self, error: impl Into<String>) {
+        if let Some(panel) = self.login_panel.as_mut() {
+            panel.error = Some(error.into());
+        }
+    }
+
     /// The CLI-bridge login command for a provider, if present in the snapshot.
     pub fn cli_login_command(&self, provider: &str) -> Option<(String, Vec<String>)> {
         self.snapshot
@@ -541,9 +706,18 @@ pub enum SettingsOutcome {
     /// MT-015: Remove/Rotate clicked for a BYOK provider. The shell calls
     /// `DELETE /model-access/byok/{provider}/key` (idempotent).
     CloudByokKeyRemoveRequested { provider: String },
-    /// MT-015: Log-in clicked for a CLI-bridge provider. The shell launches the provider's OWN official
-    /// login command in a visible terminal (operator-initiated). Handshake stores no credential.
+    /// MT-015: Log-in clicked for a CLI-bridge provider. The shell asks the backend to start the
+    /// provider's OWN official login inside a Handshake-hosted pseudo-terminal (operator-initiated)
+    /// and opens the in-app login panel. No OS console window is opened and focus does not move.
+    /// Handshake stores no credential.
     CliBridgeLoginRequested { provider: String },
+    /// MT-015 v5: the operator answered the provider's prompt in the in-app login panel. The shell
+    /// POSTs the answer to the running login process's stdin.
+    CliBridgeLoginInputSubmitted { provider: String, input: String },
+    /// MT-015 v5: Stop clicked in the in-app login panel. The shell cancels the running login process.
+    CliBridgeLoginStopRequested { provider: String },
+    /// MT-015 v5: Close clicked on a finished in-app login panel. Dismisses the panel only.
+    CliBridgeLoginPanelClosed { provider: String },
     /// MT-015: the modal header's "Pop out" control was clicked. The shell detaches the settings surface
     /// into its own OS window (Argus `popout-settings`) and STOPS rendering the modal, so the surface has
     /// exactly one host at a time.
@@ -1020,6 +1194,26 @@ fn clear_cloud_key_state(ctx: &egui::Context, cloud: &mut CloudModelsSettingsSta
         );
     }
     cloud.clear_key_drafts();
+    // MT-015 v5: wipe the login ANSWER field (buffer + egui cursor/undo history) for
+    // the same reason the key fields are wiped — a half-typed provider prompt answer
+    // should not survive in widget memory across a close/reopen or a window
+    // transition.
+    //
+    // The PANEL itself is deliberately NOT dropped here. It is shell-owned state
+    // over a LIVE backend login session, and this helper also runs on `PopOut` /
+    // `Redock`, where settings stays open. Dropping it would strand a running
+    // device/OAuth login: the child would keep running under its bounded window
+    // with no surface left to answer its prompt. The panel is dismissed only by an
+    // explicit operator action — `Stop login` (which cancels the session) or
+    // `Close` on a finished one.
+    if let Some(provider) = cloud.login_panel().map(|panel| panel.provider.clone()) {
+        cloud.clear_login_input();
+        egui::TextEdit::store_state(
+            ctx,
+            cloud_cli_login_input_egui_id(&provider),
+            egui::text_edit::TextEditState::default(),
+        );
+    }
 }
 
 /// Render every settings section in order, threading `outcome` so the first interaction this frame wins
@@ -1335,10 +1529,19 @@ fn render_sections(
                 // `ActionChannel` the running MCP/Argus transport drains, so it bounds how many queued
                 // actions N concurrent agents are admitted per frame from the next frame on.
                 //
-                // The coordinator's own `max_concurrent` spawn budget lives in the BACKEND
-                // (`swarm_orchestration::RunBudget`) with no route to read or set it, so it is NOT what
-                // this control drives — and the two fixed interval rows above now say why they cannot
-                // be controlled either, instead of only that they are "not yet wired".
+                // The coordinator's own `max_concurrent` SPAWN budget is a DIFFERENT quantity and is NOT
+                // what this control drives. This row bounds queued shell actions per frame; that one
+                // bounds live model sessions. They are deliberately not merged: one is a UI-responsiveness
+                // knob, the other admits real processes, and a single "concurrency" slider driving both
+                // would be the misleading control AC-3 exists to remove.
+                //
+                // That backend budget is no longer unreachable — MT-021 added
+                // `GET`/`PUT /operator-chat/swarm/max-concurrent` (`api::operator_chat`), where lowering
+                // is cooperative and converges rather than killing running sessions. It has no Settings
+                // row yet: a second control also labelled "concurrency" needs its own Argus author_id and
+                // before/after proof under AC-4/AC-6, so it is recorded as a follow-up rather than added
+                // here untested. The two fixed interval rows above still say why they cannot be
+                // controlled at all, instead of only that they are "not yet wired".
                 //
                 // APPENDED at the END of the section body deliberately: inserting it above the existing
                 // rows would push every later widget (and the Terminal / Layout sections) down in the
@@ -1854,9 +2057,14 @@ fn render_cloud_models_body(
             .map(|row| row.label.as_str())
             .unwrap_or(provider.as_str());
         ui.group(|ui| {
-            ui.label(format!(
-                "Start {label} official CLI login in a new terminal? The terminal may take focus."
-            ));
+            let prompt = cloud_cli_login_confirmation_line(label);
+            let prompt_row = ui.label(&prompt);
+            set_author_id_and_label(
+                ui,
+                prompt_row.id,
+                &cloud_cli_login_confirm_prompt_author_id(&provider),
+                &prompt,
+            );
             ui.horizontal(|ui| {
                 let confirm = ui.button("Start login");
                 let confirm_author = cloud_cli_login_confirm_author_id(&provider);
@@ -1878,6 +2086,140 @@ fn render_cloud_models_body(
             });
         });
     }
+
+    if outcome == SettingsOutcome::None {
+        if let Some(panel_outcome) = render_cli_login_panel(ui, cloud) {
+            outcome = panel_outcome;
+        }
+    } else {
+        render_cli_login_panel(ui, cloud);
+    }
+
+    outcome
+}
+
+/// The operator-facing confirmation line for starting an official-CLI login.
+///
+/// HONESTY CONTRACT (HBR-QUIET-001): this text used to warn that a new terminal window would open
+/// and might take focus. That is no longer what happens — the backend runs the provider's login in a
+/// Handshake-hosted pseudo-terminal and this dialog renders it — so the text says what the product
+/// actually does. If the launch mechanism ever regresses to an OS console, this line and
+/// `render_cli_login_panel` are the two places that must change back.
+pub fn cloud_cli_login_confirmation_line(provider_label: &str) -> String {
+    format!(
+        "Start the official {provider_label} login inside Handshake? It runs in an in-app terminal \
+         session here in Settings — no new window opens, nothing takes focus, and you answer the \
+         provider's prompt in this panel. Handshake stores no credential."
+    )
+}
+
+/// Author_id for the confirmation prompt line: `settings.cloud.cli.{provider}.login.prompt`.
+pub fn cloud_cli_login_confirm_prompt_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.prompt")
+}
+
+/// Render the live in-app official-CLI login panel.
+///
+/// This is the surface that makes the quiet launch USABLE: hiding the console without it would turn
+/// "steals focus" into "hangs invisibly with no prompt". The provider's own output is rendered
+/// read-only, the operator's answer goes back to the login process's stdin, and every node carries a
+/// stable author_id so Argus can read the prompt and type the answer out-of-process.
+fn render_cli_login_panel(
+    ui: &mut egui::Ui,
+    cloud: &mut CloudModelsSettingsState,
+) -> Option<SettingsOutcome> {
+    let panel = cloud.login_panel.as_mut()?;
+    let provider = panel.provider.clone();
+    let mut outcome: Option<SettingsOutcome> = None;
+
+    ui.add_space(8.0);
+    ui.group(|ui| {
+        ui.label(
+            egui::RichText::new(format!("{} login (in Handshake)", panel.label))
+                .small()
+                .strong(),
+        );
+
+        let state_line = panel.state.label();
+        let state_row = ui.label(egui::RichText::new(state_line).small());
+        set_author_id_and_label(
+            ui,
+            state_row.id,
+            &cloud_cli_login_state_author_id(&provider),
+            state_line,
+        );
+
+        // The provider's own terminal output. Read-only and monospaced so a device code or URL is
+        // copyable and unambiguous. Explicitly labelled for AccessKit: plain labels are not
+        // auto-emitted into an embedded (detached-window) viewport's tree.
+        let transcript_text = if panel.transcript.trim().is_empty() {
+            "(no output from the provider yet)".to_string()
+        } else {
+            panel.transcript.clone()
+        };
+        egui::ScrollArea::vertical()
+            .max_height(180.0)
+            .id_salt(("settings.cloud.cli.login.transcript", provider.as_str()))
+            .show(ui, |ui| {
+                let transcript = ui.label(egui::RichText::new(&transcript_text).monospace().small());
+                set_author_id_and_label(
+                    ui,
+                    transcript.id,
+                    &cloud_cli_login_transcript_author_id(&provider),
+                    &transcript_text,
+                );
+            });
+
+        if !panel.state.is_terminal() {
+            ui.horizontal(|ui| {
+                let field = ui.add(
+                    egui::TextEdit::singleline(&mut panel.input)
+                        .id(cloud_cli_login_input_egui_id(&provider))
+                        .desired_width(240.0)
+                        .hint_text("Answer the prompt above"),
+                );
+                set_author_id(ui, field.id, &cloud_cli_login_input_author_id(&provider));
+
+                let submitted_with_enter =
+                    field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                let send = ui.button("Send");
+                let send_author = cloud_cli_login_send_author_id(&provider);
+                set_author_id(ui, send.id, &send_author);
+                if (send.clicked() || submitted_with_enter) && outcome.is_none() {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &send_author);
+                    let input = std::mem::take(&mut panel.input);
+                    outcome = Some(SettingsOutcome::CliBridgeLoginInputSubmitted {
+                        provider: provider.clone(),
+                        input,
+                    });
+                }
+
+                let stop = ui.button("Stop login");
+                let stop_author = cloud_cli_login_stop_author_id(&provider);
+                set_author_id(ui, stop.id, &stop_author);
+                if stop.clicked() && outcome.is_none() {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &stop_author);
+                    outcome = Some(SettingsOutcome::CliBridgeLoginStopRequested {
+                        provider: provider.clone(),
+                    });
+                }
+            });
+        } else {
+            let close = ui.button("Close");
+            let close_author = cloud_cli_login_close_author_id(&provider);
+            set_author_id(ui, close.id, &close_author);
+            if close.clicked() && outcome.is_none() {
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &close_author);
+                outcome = Some(SettingsOutcome::CliBridgeLoginPanelClosed {
+                    provider: provider.clone(),
+                });
+            }
+        }
+
+        if let Some(error) = panel.error.as_deref() {
+            ui.label(egui::RichText::new(error).small().weak());
+        }
+    });
 
     outcome
 }

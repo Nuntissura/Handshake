@@ -32,11 +32,21 @@
 //!   it here because its CLI is being discontinued. That divergence is
 //!   recorded so it is not silently "restored" later.
 //! * CLI-bridge login is operator-initiated and uses ONLY the provider's own
-//!   official login command (surfaced by [`CliBridgeProvider::login_command`])
-//!   launched in a visible terminal by the native shell. Auth status is read
-//!   only through the provider's own non-interactive status command. Handshake
-//!   never reads credential files directly. Bounded provider output is reduced
-//!   to a typed state, zeroized, and never logged, persisted, or returned.
+//!   official login command (surfaced by [`CliBridgeProvider::login_command`]).
+//!   The backend runs it inside a Handshake-hosted pseudo-terminal and surfaces
+//!   it as an in-app login session ([`CliBridgeLoginSessionRegistry`]): NO OS
+//!   console window is opened and nothing is raised to the foreground
+//!   (HBR-QUIET-001), while the provider's interactive device/OAuth prompt and
+//!   the operator's typed answer still flow both ways through the native
+//!   Settings login panel. Auth status is read only through the provider's own
+//!   non-interactive status command. Handshake never reads credential files
+//!   directly. Bounded provider output is reduced to a typed state, zeroized,
+//!   and never logged, persisted, or returned.
+//! * The login transcript is memory-only and bounded. It is held for the life
+//!   of one session so the operator can read the prompt, and is never written
+//!   to tracing, the Flight Recorder, the EventLedger, or any store. Session
+//!   lifetime is bounded, so an abandoned login cannot linger as an unbounded
+//!   child process.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, RwLock};
@@ -49,7 +59,7 @@ use thiserror::Error;
 use zeroize::Zeroize;
 
 use super::official_cli_bridge::{
-    CliBridgeConfig, CliInvocationContext, ForegroundCliLaunchHandle, LiveCliSpawner,
+    CliBridgeConfig, CliInvocationContext, InteractiveLoginTransport, LiveCliSpawner,
 };
 use super::secrets_vault::{SecretsVault, SecretsVaultError};
 use crate::sandbox::{
@@ -149,8 +159,9 @@ impl CliBridgeProvider {
         }
     }
 
-    /// The provider's OWN official login command, to be launched
-    /// operator-initiated in a visible terminal by the native shell.
+    /// The provider's OWN official login command, run operator-initiated inside
+    /// a Handshake-hosted pseudo-terminal (no OS console window, no focus or
+    /// Z-order change) and surfaced in the native Settings login panel.
     ///
     /// Handshake NEVER captures or stores the credentials this command
     /// establishes; it only starts the provider's official interactive flow.
@@ -192,8 +203,9 @@ impl CliBridgeProvider {
     }
 }
 
-/// A provider's own official login command, launched operator-initiated in a
-/// visible terminal. Non-secret static data.
+/// A provider's own official login command, started operator-initiated inside a
+/// Handshake-hosted in-app terminal session (no OS console window, no focus or
+/// Z-order change). Non-secret static data.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct OfficialLoginCommand {
     pub program: &'static str,
@@ -238,13 +250,15 @@ pub enum CliBridgeLoginLaunchError {
     LaunchFailed,
 }
 
-/// Backend-owned interactive login launcher. Implementations return only an
-/// opaque pid handle; executable paths and argv never cross into the GUI.
+/// Backend-owned interactive login launcher. Implementations return a live
+/// [`InteractiveLoginTransport`] — a pid receipt plus a read/write channel to
+/// the provider's own login process. Executable paths, argv, and the child
+/// environment never cross into the GUI.
 pub trait CliBridgeLoginLauncher: Send + Sync {
     fn launch_login(
         &self,
         provider: CliBridgeProvider,
-    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError>;
+    ) -> Result<Arc<dyn InteractiveLoginTransport>, CliBridgeLoginLaunchError>;
 }
 
 /// One canonical, launchable CLI target. It reuses the exact configured launch
@@ -344,7 +358,7 @@ impl CliBridgeLoginLauncher for ProductionCliBridgeAuthStatusProbe {
     fn launch_login(
         &self,
         provider: CliBridgeProvider,
-    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+    ) -> Result<Arc<dyn InteractiveLoginTransport>, CliBridgeLoginLaunchError> {
         #[cfg(not(target_os = "windows"))]
         {
             let _ = provider;
@@ -360,6 +374,7 @@ impl CliBridgeLoginLauncher for ProductionCliBridgeAuthStatusProbe {
             target
                 .spawner
                 .launch_foreground_fixed_command(&target.config, provider.login_command().args)
+                .map(|pty| Arc::new(pty) as Arc<dyn InteractiveLoginTransport>)
                 .map_err(|_| CliBridgeLoginLaunchError::LaunchFailed)
         }
     }
@@ -378,8 +393,352 @@ impl CliBridgeLoginLauncher for UnavailableCliBridgeAuthStatusProbe {
     fn launch_login(
         &self,
         _provider: CliBridgeProvider,
-    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+    ) -> Result<Arc<dyn InteractiveLoginTransport>, CliBridgeLoginLaunchError> {
         Err(CliBridgeLoginLaunchError::Unavailable)
+    }
+}
+
+/// Bounded lifetime for one in-app login session. Matches the backend watcher's
+/// bounded-lifetime ceiling so the operator-visible `timed_out` state and the
+/// process-ownership kill agree. HBR-QUIET-004 has NOT been declared for this
+/// MT, so an unbounded attached login is not permitted.
+pub const CLI_LOGIN_SESSION_MAX_LIFETIME: Duration = Duration::from_secs(15 * 60);
+
+/// Bytes of transcript tail returned to the operator surface. Bounded so a
+/// chatty provider cannot grow the HTTP response without limit; the PTY's own
+/// scrollback cap bounds backend memory independently.
+pub const CLI_LOGIN_TRANSCRIPT_TAIL_BYTES: usize = 16 * 1024;
+
+/// Observable state of one in-app official-CLI login session.
+///
+/// `AwaitingInput` deliberately means "the provider has printed something and
+/// the process is still running" — Handshake does not parse provider prompts,
+/// so it reports what it can prove rather than guessing at flow stages.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CliLoginSessionStatus {
+    /// Launched; the provider has not written anything yet.
+    Pending,
+    /// The provider has written output and the login process is still running.
+    AwaitingInput,
+    /// The login process exited 0.
+    Succeeded,
+    /// The login process exited non-zero.
+    Failed,
+    /// The bounded session window elapsed; Handshake terminated the process.
+    TimedOut,
+    /// The operator cancelled the login.
+    Cancelled,
+}
+
+impl CliLoginSessionStatus {
+    /// Whether no further operator input can change this state.
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            CliLoginSessionStatus::Succeeded
+                | CliLoginSessionStatus::Failed
+                | CliLoginSessionStatus::TimedOut
+                | CliLoginSessionStatus::Cancelled
+        )
+    }
+}
+
+/// Non-secret, operator-facing view of one login session.
+///
+/// `transcript` is the provider's own terminal output. It is memory-only: it is
+/// never logged, traced, recorded to the Flight Recorder / EventLedger, or
+/// persisted. It exists so the operator can read the provider's device/OAuth
+/// prompt inside Handshake instead of in a separate OS window.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CliLoginSessionSnapshot {
+    pub session_id: String,
+    pub provider: String,
+    pub status: CliLoginSessionStatus,
+    pub transcript: String,
+    pub transcript_truncated: bool,
+    pub exit_code: Option<i32>,
+    pub elapsed_ms: u64,
+    pub remaining_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
+pub enum CliLoginSessionError {
+    #[error("no such CLI login session")]
+    UnknownSession,
+    #[error("CLI login session already finished")]
+    SessionFinished,
+    #[error("CLI login session input could not be delivered")]
+    InputFailed,
+}
+
+/// One live login session: the transport plus the non-secret bookkeeping the
+/// operator surface reads.
+struct CliLoginSession {
+    session_id: String,
+    provider: CliBridgeProvider,
+    transport: Arc<dyn InteractiveLoginTransport>,
+    // WAIVER [CX-573E]: Instant::now() is duration/timeout bookkeeping only for
+    // the bounded login window; it carries no determinism-bearing authority.
+    started_at: std::time::Instant,
+    cancelled: std::sync::atomic::AtomicBool,
+    timed_out: std::sync::atomic::AtomicBool,
+}
+
+impl CliLoginSession {
+    fn status(&self) -> CliLoginSessionStatus {
+        use std::sync::atomic::Ordering;
+        if self.cancelled.load(Ordering::Acquire) {
+            return CliLoginSessionStatus::Cancelled;
+        }
+        if let Some(code) = self.transport.exit_code() {
+            if self.timed_out.load(Ordering::Acquire) {
+                return CliLoginSessionStatus::TimedOut;
+            }
+            return if code == 0 {
+                CliLoginSessionStatus::Succeeded
+            } else {
+                CliLoginSessionStatus::Failed
+            };
+        }
+        if self.timed_out.load(Ordering::Acquire) {
+            return CliLoginSessionStatus::TimedOut;
+        }
+        if self.transport.transcript().is_empty() {
+            CliLoginSessionStatus::Pending
+        } else {
+            CliLoginSessionStatus::AwaitingInput
+        }
+    }
+
+    /// Enforce the bounded window. Called on every read, so an abandoned login
+    /// is terminated by the first surface that looks at it, and independently by
+    /// the backend watcher's own lifetime ceiling.
+    fn enforce_deadline(&self) {
+        use std::sync::atomic::Ordering;
+        if self.transport.exit_code().is_some() || self.cancelled.load(Ordering::Acquire) {
+            return;
+        }
+        if self.started_at.elapsed() >= CLI_LOGIN_SESSION_MAX_LIFETIME {
+            self.timed_out.store(true, Ordering::Release);
+            self.transport.cancel();
+        }
+    }
+
+    fn snapshot(&self) -> CliLoginSessionSnapshot {
+        self.enforce_deadline();
+        let (transcript, transcript_truncated) =
+            render_login_transcript(&self.transport.transcript());
+        let elapsed = self.started_at.elapsed();
+        CliLoginSessionSnapshot {
+            session_id: self.session_id.clone(),
+            provider: self.provider.id().to_string(),
+            status: self.status(),
+            transcript,
+            transcript_truncated,
+            exit_code: self.transport.exit_code(),
+            elapsed_ms: elapsed.as_millis().min(u128::from(u64::MAX)) as u64,
+            remaining_ms: CLI_LOGIN_SESSION_MAX_LIFETIME
+                .saturating_sub(elapsed)
+                .as_millis()
+                .min(u128::from(u64::MAX)) as u64,
+        }
+    }
+}
+
+impl std::fmt::Debug for CliLoginSession {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Transcript deliberately omitted: provider login output can carry
+        // one-time codes and must never reach a Debug/log surface.
+        formatter
+            .debug_struct("CliLoginSession")
+            .field("session_id", &self.session_id)
+            .field("provider", &self.provider.id())
+            .finish()
+    }
+}
+
+/// Turn raw PTY bytes into text an egui label can render.
+///
+/// Strips ANSI CSI/OSC control sequences (the provider's spinners and colour
+/// codes would otherwise render as mojibake), normalises CR/LF, and keeps only
+/// the trailing [`CLI_LOGIN_TRANSCRIPT_TAIL_BYTES`]. Device codes and login URLs
+/// are deliberately NOT redacted: they are exactly what the operator must read
+/// to finish the flow, and they are single-use provider-issued values, not
+/// Handshake-held credentials.
+fn render_login_transcript(raw: &[u8]) -> (String, bool) {
+    let text = String::from_utf8_lossy(raw);
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\u{1b}' => match chars.next() {
+                // CSI: consume parameter/intermediate bytes then the final byte.
+                Some('[') => {
+                    for next in chars.by_ref() {
+                        if ('\u{40}'..='\u{7e}').contains(&next) {
+                            break;
+                        }
+                    }
+                }
+                // OSC: runs until BEL or ESC \.
+                Some(']') => {
+                    while let Some(next) = chars.next() {
+                        if next == '\u{7}' {
+                            break;
+                        }
+                        if next == '\u{1b}' {
+                            let _ = chars.next();
+                            break;
+                        }
+                    }
+                }
+                // Any other two-character escape is dropped whole.
+                Some(_) | None => {}
+            },
+            '\r' => {
+                if chars.peek() == Some(&'\n') {
+                    continue;
+                }
+                out.push('\n');
+            }
+            '\n' | '\t' => out.push(ch),
+            other if other.is_control() => {}
+            other => out.push(other),
+        }
+    }
+    if out.len() > CLI_LOGIN_TRANSCRIPT_TAIL_BYTES {
+        let start = out
+            .char_indices()
+            .rev()
+            .map(|(index, _)| index)
+            .find(|index| out.len() - index >= CLI_LOGIN_TRANSCRIPT_TAIL_BYTES)
+            .unwrap_or(0);
+        (out.split_off(start), true)
+    } else {
+        (out, false)
+    }
+}
+
+/// Registry of live in-app official-CLI login sessions.
+///
+/// At most one session per provider is live at a time: starting a new login for
+/// a provider cancels its predecessor, so a repeated click can never accumulate
+/// login children. Sessions are dropped once terminal AND read at least once by
+/// the operator surface, so a completed transcript is not retained indefinitely.
+pub struct CliBridgeLoginSessionRegistry {
+    launcher: Arc<dyn CliBridgeLoginLauncher>,
+    sessions: RwLock<Vec<Arc<CliLoginSession>>>,
+}
+
+impl std::fmt::Debug for CliBridgeLoginSessionRegistry {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CliBridgeLoginSessionRegistry")
+            .field(
+                "live_sessions",
+                &self.sessions.read().map(|s| s.len()).unwrap_or(0),
+            )
+            .finish()
+    }
+}
+
+impl CliBridgeLoginSessionRegistry {
+    pub fn new(launcher: Arc<dyn CliBridgeLoginLauncher>) -> Self {
+        Self {
+            launcher,
+            sessions: RwLock::new(Vec::new()),
+        }
+    }
+
+    /// Start the provider's own official login inside a Handshake-hosted PTY.
+    pub fn start(
+        &self,
+        provider: CliBridgeProvider,
+    ) -> Result<CliLoginSessionSnapshot, CliBridgeLoginLaunchError> {
+        let transport = self.launcher.launch_login(provider)?;
+        let session = Arc::new(CliLoginSession {
+            session_id: uuid::Uuid::now_v7().to_string(),
+            provider,
+            transport,
+            started_at: std::time::Instant::now(),
+            cancelled: std::sync::atomic::AtomicBool::new(false),
+            timed_out: std::sync::atomic::AtomicBool::new(false),
+        });
+        let snapshot = session.snapshot();
+        let mut sessions = self
+            .sessions
+            .write()
+            .map_err(|_| CliBridgeLoginLaunchError::LaunchFailed)?;
+        // One live login per provider: cancel and evict any predecessor.
+        sessions.retain(|existing| {
+            if existing.provider == provider {
+                existing
+                    .cancelled
+                    .store(true, std::sync::atomic::Ordering::Release);
+                existing.transport.cancel();
+                return false;
+            }
+            true
+        });
+        sessions.push(session);
+        Ok(snapshot)
+    }
+
+    fn find(&self, session_id: &str) -> Result<Arc<CliLoginSession>, CliLoginSessionError> {
+        let sessions = self
+            .sessions
+            .read()
+            .map_err(|_| CliLoginSessionError::UnknownSession)?;
+        sessions
+            .iter()
+            .find(|session| session.session_id == session_id)
+            .cloned()
+            .ok_or(CliLoginSessionError::UnknownSession)
+    }
+
+    pub fn snapshot(
+        &self,
+        session_id: &str,
+    ) -> Result<CliLoginSessionSnapshot, CliLoginSessionError> {
+        Ok(self.find(session_id)?.snapshot())
+    }
+
+    /// Deliver one operator response to the provider's login process.
+    ///
+    /// A newline is appended here so the operator surface never has to encode
+    /// terminal control characters, and the raw input is not echoed anywhere.
+    pub fn send_input(
+        &self,
+        session_id: &str,
+        input: &str,
+    ) -> Result<CliLoginSessionSnapshot, CliLoginSessionError> {
+        let session = self.find(session_id)?;
+        session.enforce_deadline();
+        if session.status().is_terminal() {
+            return Err(CliLoginSessionError::SessionFinished);
+        }
+        let mut line = input.replace(['\r', '\n'], "");
+        line.push('\r');
+        session
+            .transport
+            .write_input(line.as_bytes())
+            .map_err(|_| CliLoginSessionError::InputFailed)?;
+        Ok(session.snapshot())
+    }
+
+    /// Operator-initiated cancel. Idempotent.
+    pub fn cancel(&self, session_id: &str) -> Result<CliLoginSessionSnapshot, CliLoginSessionError> {
+        let session = self.find(session_id)?;
+        session
+            .cancelled
+            .store(true, std::sync::atomic::Ordering::Release);
+        session.transport.cancel();
+        let snapshot = session.snapshot();
+        if let Ok(mut sessions) = self.sessions.write() {
+            sessions.retain(|existing| existing.session_id != session_id);
+        }
+        Ok(snapshot)
     }
 }
 
@@ -1090,6 +1449,198 @@ mod tests {
         assert!(
             matches!(first_launch, Err(ConsentGateError::ConsentDenied { .. })),
             "saving a key must not grant consent; first launch must fail closed"
+        );
+    }
+
+    // ── MT-015 v5: in-app login-session registry ────────────────────────────────
+
+    /// Deterministic stand-in for the production PTY transport. The ConPTY
+    /// behaviour itself is proven by `cli_bridge_login_quiet_tests` against the
+    /// real `LiveCliSpawner`; these tests own the registry's state machine.
+    #[derive(Debug, Default)]
+    struct FakeLoginTransport {
+        transcript: std::sync::Mutex<Vec<u8>>,
+        written: std::sync::Mutex<Vec<u8>>,
+        exit_code: std::sync::Mutex<Option<i32>>,
+        cancel_calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl InteractiveLoginTransport for FakeLoginTransport {
+        fn pid(&self) -> u32 {
+            1234
+        }
+        fn transcript(&self) -> Vec<u8> {
+            self.transcript.lock().expect("transcript lock").clone()
+        }
+        fn write_input(&self, bytes: &[u8]) -> Result<(), String> {
+            self.written
+                .lock()
+                .expect("written lock")
+                .extend_from_slice(bytes);
+            Ok(())
+        }
+        fn exit_code(&self) -> Option<i32> {
+            *self.exit_code.lock().expect("exit lock")
+        }
+        fn cancel(&self) {
+            self.cancel_calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    #[derive(Default)]
+    struct FakeLoginLauncher {
+        transports: RwLock<Vec<Arc<FakeLoginTransport>>>,
+    }
+
+    impl CliBridgeLoginLauncher for FakeLoginLauncher {
+        fn launch_login(
+            &self,
+            _provider: CliBridgeProvider,
+        ) -> Result<Arc<dyn InteractiveLoginTransport>, CliBridgeLoginLaunchError> {
+            let transport = Arc::new(FakeLoginTransport::default());
+            self.transports
+                .write()
+                .expect("transport lock")
+                .push(transport.clone());
+            Ok(transport as Arc<dyn InteractiveLoginTransport>)
+        }
+    }
+
+    impl FakeLoginLauncher {
+        fn transport(&self, index: usize) -> Arc<FakeLoginTransport> {
+            self.transports.read().expect("transport lock")[index].clone()
+        }
+        fn count(&self) -> usize {
+            self.transports.read().expect("transport lock").len()
+        }
+    }
+
+    /// HBR-QUIET-003: repeated `Log in…` clicks must not accumulate login
+    /// children. Starting a second login for the same provider cancels and evicts
+    /// the first, so at most one child per provider is ever live.
+    #[test]
+    fn starting_a_second_login_cancels_and_evicts_the_previous_one_for_that_provider() {
+        let launcher = Arc::new(FakeLoginLauncher::default());
+        let registry = CliBridgeLoginSessionRegistry::new(launcher.clone());
+
+        let first = registry
+            .start(CliBridgeProvider::ClaudeCode)
+            .expect("first login starts");
+        let second = registry
+            .start(CliBridgeProvider::ClaudeCode)
+            .expect("second login starts");
+        assert_ne!(first.session_id, second.session_id);
+        assert_eq!(launcher.count(), 2);
+        assert_eq!(
+            launcher
+                .transport(0)
+                .cancel_calls
+                .load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "the superseded login child must be terminated"
+        );
+        assert_eq!(
+            registry.snapshot(&first.session_id),
+            Err(CliLoginSessionError::UnknownSession),
+            "the superseded session must be evicted"
+        );
+        assert!(registry.snapshot(&second.session_id).is_ok());
+
+        // A different provider keeps its own live session.
+        let codex = registry
+            .start(CliBridgeProvider::Codex)
+            .expect("codex login starts");
+        assert!(registry.snapshot(&second.session_id).is_ok());
+        assert!(registry.snapshot(&codex.session_id).is_ok());
+    }
+
+    /// The typed status is derived from what Handshake can prove, and operator
+    /// input reaches the login process with exactly one carriage return.
+    #[test]
+    fn login_session_status_is_derived_from_provable_state_and_input_is_line_terminated() {
+        let launcher = Arc::new(FakeLoginLauncher::default());
+        let registry = CliBridgeLoginSessionRegistry::new(launcher.clone());
+        let started = registry
+            .start(CliBridgeProvider::Codex)
+            .expect("login starts");
+        assert_eq!(started.status, CliLoginSessionStatus::Pending);
+        assert!(started.transcript.is_empty());
+
+        let transport = launcher.transport(0);
+        transport
+            .transcript
+            .lock()
+            .expect("transcript lock")
+            .extend_from_slice(b"\x1b[32mEnter code:\x1b[0m ");
+        let awaiting = registry
+            .snapshot(&started.session_id)
+            .expect("session is live");
+        assert_eq!(awaiting.status, CliLoginSessionStatus::AwaitingInput);
+        assert_eq!(
+            awaiting.transcript, "Enter code: ",
+            "ANSI control sequences must not reach the operator surface"
+        );
+
+        registry
+            .send_input(&started.session_id, "AB\r\nCD")
+            .expect("input is delivered");
+        assert_eq!(
+            String::from_utf8_lossy(&transport.written.lock().expect("written lock")),
+            "ABCD\r",
+            "embedded newlines must not let one answer become several"
+        );
+
+        *transport.exit_code.lock().expect("exit lock") = Some(2);
+        let failed = registry
+            .snapshot(&started.session_id)
+            .expect("session is live");
+        assert_eq!(failed.status, CliLoginSessionStatus::Failed);
+        assert_eq!(failed.exit_code, Some(2));
+        assert_eq!(
+            registry.send_input(&started.session_id, "too late"),
+            Err(CliLoginSessionError::SessionFinished),
+            "a finished login must not accept more input"
+        );
+    }
+
+    /// The transcript is bounded and keeps the TAIL: the provider's newest prompt
+    /// is what the operator needs, so a flood must not push it out of view.
+    #[test]
+    fn login_transcript_is_bounded_and_keeps_the_newest_output() {
+        let mut raw = vec![b'a'; CLI_LOGIN_TRANSCRIPT_TAIL_BYTES + 512];
+        raw.extend_from_slice(b"ENTER-CODE-WDJB");
+        let (text, truncated) = render_login_transcript(&raw);
+        assert!(truncated, "an over-cap transcript must report truncation");
+        assert!(text.len() <= CLI_LOGIN_TRANSCRIPT_TAIL_BYTES + 64);
+        assert!(
+            text.ends_with("ENTER-CODE-WDJB"),
+            "the newest provider output must survive truncation"
+        );
+    }
+
+    /// The registry must never carry the transcript into a Debug/log surface.
+    #[test]
+    fn login_registry_debug_never_carries_the_transcript() {
+        let launcher = Arc::new(FakeLoginLauncher::default());
+        let registry = CliBridgeLoginSessionRegistry::new(launcher.clone());
+        let started = registry
+            .start(CliBridgeProvider::ClaudeCode)
+            .expect("login starts");
+        launcher
+            .transport(0)
+            .transcript
+            .lock()
+            .expect("transcript lock")
+            .extend_from_slice(b"ONE-TIME-CODE-CANARY");
+        let rendered = registry
+            .snapshot(&started.session_id)
+            .expect("session is live");
+        assert!(rendered.transcript.contains("ONE-TIME-CODE-CANARY"));
+        let debug = format!("{registry:?}");
+        assert!(
+            !debug.contains("ONE-TIME-CODE-CANARY"),
+            "the registry Debug must never carry provider login output: {debug}"
         );
     }
 }

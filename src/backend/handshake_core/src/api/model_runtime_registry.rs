@@ -21,6 +21,7 @@ use sha2::{Digest, Sha256};
 use sqlx::Row;
 use uuid::Uuid;
 
+use crate::api::account_scope::RequestAccountScope;
 use crate::{
     llm::{
         ModelRuntimeControlAction, ModelRuntimeControlReceipt, ModelRuntimeControlRequest,
@@ -52,6 +53,9 @@ pub const MODEL_RUNTIME_CONTROL_REJECTED_CODE: &str = "MODEL_RUNTIME_CONTROL_REJ
 pub const MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE: &str =
     "MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR";
 pub const MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE: &str = "MODEL_RUNTIME_REGISTRY_UNAVAILABLE";
+/// HBR-PRIV-002 default-deny at the registry read boundary. The body carries
+/// only the stable `ScopeDenied::reason_code`, never the withheld row.
+pub const MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE: &str = "MODEL_RUNTIME_REGISTRY_SCOPE_DENIED";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -196,6 +200,16 @@ impl ModelRuntimeRegistryApiError {
 
 impl From<ModelRegistryPersistenceError> for ModelRuntimeRegistryApiError {
     fn from(error: ModelRegistryPersistenceError) -> Self {
+        // HBR-PRIV-002/004: a scope denial is a 403 carrying only the stable
+        // reason code. It must not fall into the generic arm below, which
+        // renders the full error string.
+        if let ModelRegistryPersistenceError::ScopeDenied(denied) = &error {
+            return Self {
+                status: StatusCode::FORBIDDEN,
+                code: MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE,
+                detail: denied.reason_code().to_owned(),
+            };
+        }
         let status = match &error {
             ModelRegistryPersistenceError::AuthorityUnavailable(_)
             | ModelRegistryPersistenceError::Database(_) => StatusCode::SERVICE_UNAVAILABLE,
@@ -224,8 +238,9 @@ impl IntoResponse for ModelRuntimeRegistryApiError {
 
 async fn list_registry(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
 ) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
-    Ok(Json(build_registry_projection(&state).await?))
+    Ok(Json(build_registry_projection(&state, &scope).await?))
 }
 
 async fn get_process_ownership_record(
@@ -291,9 +306,14 @@ async fn get_process_ownership_record(
 
 async fn build_registry_projection(
     state: &AppState,
+    scope: &RequestAccountScope,
 ) -> Result<ModelRuntimeRegistryProjection, ModelRuntimeRegistryApiError> {
     let generated_at_utc = Utc::now();
-    let store = ModelRegistryStore::new(state.postgres_pool.clone());
+    // Read-only, account-scoped: the durable registry rows and the active
+    // selection receipts below are filtered to this owner in SQL and
+    // re-authorized after decode (HBR-PRIV-002).
+    let store =
+        ModelRegistryStore::new_for_owner(state.postgres_pool.clone(), scope.query().clone());
     let durable_rows = store.list_recoverable().await?;
     let active_selections = store.list_active_selections().await?;
     let ownership_rows = sqlx::query(
@@ -693,6 +713,7 @@ fn last_call_age(value: &ModelRuntimeValue<String>, now: &DateTime<Utc>) -> Mode
 
 async fn select_ready_model(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Json(request): Json<SelectReadyModelRequest>,
 ) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
     let target_model_id = bounded_token("target_model_id", &request.target_model_id, 128)?;
@@ -700,7 +721,7 @@ async fn select_ready_model(
     let reason = bounded_token("reason", &request.reason, 512)?;
     // Complete every fallible authority/projection/target check before the
     // durable swap commits and publishes the current-boot router projection.
-    let mut projection = build_registry_projection(&state).await?;
+    let mut projection = build_registry_projection(&state, &scope).await?;
     let current_row = projection
         .rows
         .iter()

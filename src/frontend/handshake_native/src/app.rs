@@ -80,6 +80,12 @@ pub const LAYOUT_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_
 /// 500ms per the MT implementation note. A dialog close FLUSHES any pending save immediately (MC2).
 pub const SETTINGS_SAVE_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(500);
 
+/// MT-015 v5: how often the shell polls a live in-app official-CLI login session
+/// for new provider output. Fast enough that a device-code prompt appears
+/// promptly, slow enough that an open panel is not a busy loop; a single-flight
+/// guard means a slow backend never queues more than one request.
+pub const CLI_LOGIN_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(600);
+
 /// A generous default all-monitors extent for the restore-time pop-out clamp before egui reports the
 /// real monitor size. Large enough that a legitimate position is never clamped on the first frame.
 const DEFAULT_MONITOR_EXTENT: egui::Rect =
@@ -353,8 +359,15 @@ pub struct HandshakeApp {
     /// launch request).
     last_cli_login_launch: Option<(String, Vec<String>)>,
     /// MT-015: when true, a CLI-bridge login records the launch intent but does
-    /// not call the backend (tests use this so no foreground console opens).
+    /// not call the backend (tests use this so no login child is spawned).
     suppress_cli_login_launch: bool,
+    /// MT-015 v5: the last operator answer submitted through the in-app login
+    /// panel (observability; lets a test assert the answer routed to the session
+    /// without a backend). Cleared with the panel.
+    last_cli_login_input: Option<(String, String)>,
+    /// MT-015 v5: single-flight guard for the in-app login session poll, so a
+    /// slow backend cannot accumulate one request per rendered frame.
+    cli_login_poll_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// A pending theme flip to apply at the START of the next frame, BEFORE any panel renders (red-team
     /// R4/MC4): applying egui `Visuals` mid-frame would leave already-rendered widgets on the old theme
     /// for one frame. The settings ComboBox / the menu toggle set this; `ui()` applies it at the top.
@@ -894,6 +907,8 @@ impl HandshakeApp {
             cloud_access_refresh_pending: false,
             last_cli_login_launch: None,
             suppress_cli_login_launch: false,
+            last_cli_login_input: None,
+            cli_login_poll_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -1256,9 +1271,11 @@ impl HandshakeApp {
             cloud_access_cell: Arc::new(Mutex::new(Vec::new())),
             cloud_access_refresh_pending: false,
             last_cli_login_launch: None,
-            // Headless test shells suppress the terminal launch by default so a login click never opens a
-            // focus-stealing console during `cargo test`.
+            // Headless test shells suppress the backend login request by default so a login click never
+            // spawns a provider CLI child during `cargo test`.
             suppress_cli_login_launch: true,
+            last_cli_login_input: None,
+            cli_login_poll_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -2897,6 +2914,21 @@ impl HandshakeApp {
         &self.cloud_models
     }
 
+    /// MT-015 v5 test helper: apply one backend login-session snapshot to the open in-app login panel,
+    /// so the panel's live rendering (the provider's prompt) and its answer routing are drivable
+    /// headlessly with no backend and no login child. This is the SAME entry the async delivery pump
+    /// uses, so a test exercises the real panel state machine rather than a parallel one.
+    #[doc(hidden)]
+    pub fn apply_cli_login_snapshot_for_test(
+        &mut self,
+        session_id: &str,
+        state: crate::settings_dialog::CloudCliLoginState,
+        transcript: impl Into<String>,
+    ) {
+        self.cloud_models
+            .apply_login_snapshot(session_id, state, transcript.into());
+    }
+
     /// MT-015 test helper: seed the non-secret cloud-access enumeration snapshot directly so the Cloud
     /// Models section renders provider rows with no live backend.
     #[doc(hidden)]
@@ -2916,6 +2948,12 @@ impl HandshakeApp {
     /// MT-015 accessor: the last CLI-bridge official-login command launched (program, args).
     pub fn last_cli_login_launch(&self) -> Option<&(String, Vec<String>)> {
         self.last_cli_login_launch.as_ref()
+    }
+
+    /// MT-015 v5: the last operator answer submitted through the in-app login
+    /// panel (provider id + answer text), for tests and diagnostics.
+    pub fn last_cli_login_input(&self) -> Option<&(String, String)> {
+        self.last_cli_login_input.as_ref()
     }
 
     /// MT-015 test helper: control whether a CLI-bridge login actually spawns a terminal. Tests keep this
@@ -3243,6 +3281,19 @@ impl HandshakeApp {
                 self.launch_cli_bridge_login(&provider);
                 true
             }
+            O::CliBridgeLoginInputSubmitted { provider, input } => {
+                self.send_cli_bridge_login_input(&provider, input);
+                true
+            }
+            O::CliBridgeLoginStopRequested { provider } => {
+                self.cancel_cli_bridge_login(&provider);
+                true
+            }
+            O::CliBridgeLoginPanelClosed { provider } => {
+                self.cloud_models.close_login_panel();
+                self.cloud_models.set_message(&provider, "");
+                true
+            }
         }
     }
 
@@ -3329,10 +3380,12 @@ impl HandshakeApp {
         }
     }
 
-    /// MT-015: ask the backend to launch the CLI provider's exact pinned graph in
-    /// a visible terminal. The GUI records only the fixed intent and receives an
-    /// opaque pid handle; it never resolves PATH, invokes a shell, or receives
-    /// the executable path. Headless shells suppress the request.
+    /// MT-015 v5: ask the backend to start the CLI provider's exact pinned graph
+    /// as an IN-APP pseudo-terminal login session (HBR-QUIET-001: no OS console
+    /// window is opened, nothing is raised to the foreground). The GUI records
+    /// only the fixed intent and receives a backend-owned session snapshot; it
+    /// never resolves PATH, invokes a shell, or receives the executable path.
+    /// Headless shells suppress the request.
     fn launch_cli_bridge_login(&mut self, provider: &str) {
         let Some((program, args)) = allowlisted_cli_login_command(provider) else {
             self.cloud_models
@@ -3343,9 +3396,18 @@ impl HandshakeApp {
             program.to_owned(),
             args.iter().map(|arg| (*arg).to_owned()).collect(),
         ));
+        let label = self
+            .cloud_models
+            .snapshot()
+            .cli_bridge
+            .iter()
+            .find(|row| row.provider == provider)
+            .map(|row| row.label.clone())
+            .unwrap_or_else(|| provider.to_owned());
+        self.cloud_models.open_login_panel(provider, &label);
         self.cloud_models.set_message(
             provider,
-            "Launching the provider's official login in a terminal…",
+            "Starting the provider's official login inside Handshake…",
         );
         if self.suppress_cli_login_launch {
             return;
@@ -3358,24 +3420,155 @@ impl HandshakeApp {
                 let provider_owned = provider.to_owned();
                 let cell = self.cloud_access_cell.clone();
                 handle.spawn(async move {
-                    let message = match client.launch_cli_login(&provider_owned).await {
-                        Ok(pid) => format!("Official login launched (handle {pid})."),
-                        Err(error) => format!("Could not launch official login: {error}"),
+                    let delivery = match client.launch_cli_login(&provider_owned).await {
+                        Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession {
+                            provider: provider_owned,
+                            snapshot,
+                        },
+                        Err(error) => crate::backend_client::CloudAccessDelivery::LoginError {
+                            provider: provider_owned,
+                            message: format!("Could not start the official login: {error}"),
+                        },
                     };
                     if let Ok(mut slot) = cell.lock() {
-                        slot.push(crate::backend_client::CloudAccessDelivery::OpResult {
-                            provider: provider_owned,
-                            message,
-                            snapshot: None,
-                        });
+                        slot.push(delivery);
                     }
                 });
             }
             _ => {
                 self.cloud_models
-                    .set_message(provider, "Backend not reachable — login not launched.");
+                    .set_login_error("Backend not reachable — login not started.");
+                self.cloud_models
+                    .set_message(provider, "Backend not reachable — login not started.");
             }
         }
+    }
+
+    /// MT-015 v5: deliver the operator's answer to the provider's prompt, typed
+    /// in the in-app login panel, to the running login process's stdin.
+    fn send_cli_bridge_login_input(&mut self, provider: &str, input: String) {
+        let Some(session_id) = self
+            .cloud_models
+            .login_panel()
+            .map(|panel| panel.session_id.clone())
+            .filter(|id| !id.is_empty())
+        else {
+            self.cloud_models
+                .set_login_error("No live login session to answer.");
+            return;
+        };
+        self.last_cli_login_input = Some((provider.to_owned(), input.clone()));
+        match (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) {
+            (Some(client), Some(handle)) => {
+                let provider_owned = provider.to_owned();
+                let cell = self.cloud_access_cell.clone();
+                handle.spawn(async move {
+                    let delivery = match client.send_cli_login_input(&session_id, &input).await {
+                        Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession {
+                            provider: provider_owned,
+                            snapshot,
+                        },
+                        Err(error) => crate::backend_client::CloudAccessDelivery::LoginError {
+                            provider: provider_owned,
+                            message: format!("Could not send your answer: {error}"),
+                        },
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(delivery);
+                    }
+                });
+            }
+            _ => self
+                .cloud_models
+                .set_login_error("Backend not reachable — answer not sent."),
+        }
+    }
+
+    /// MT-015 v5: stop the running in-app login process.
+    fn cancel_cli_bridge_login(&mut self, provider: &str) {
+        let Some(session_id) = self
+            .cloud_models
+            .login_panel()
+            .map(|panel| panel.session_id.clone())
+            .filter(|id| !id.is_empty())
+        else {
+            self.cloud_models.close_login_panel();
+            return;
+        };
+        match (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) {
+            (Some(client), Some(handle)) => {
+                let provider_owned = provider.to_owned();
+                let cell = self.cloud_access_cell.clone();
+                handle.spawn(async move {
+                    let delivery = match client.cancel_cli_login(&session_id).await {
+                        Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession {
+                            provider: provider_owned,
+                            snapshot,
+                        },
+                        Err(error) => crate::backend_client::CloudAccessDelivery::LoginError {
+                            provider: provider_owned,
+                            message: format!("Could not stop the login: {error}"),
+                        },
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(delivery);
+                    }
+                });
+            }
+            _ => {
+                self.cloud_models.close_login_panel();
+            }
+        }
+    }
+
+    /// MT-015 v5: poll the live in-app login session so the provider's prompt
+    /// appears in the panel without operator action. Called once per settings
+    /// frame while a non-terminal session is open; a single in-flight poll is
+    /// enforced so a slow backend cannot queue a request storm.
+    fn poll_cli_bridge_login(&mut self) {
+        let Some((provider, session_id)) = self
+            .cloud_models
+            .login_panel()
+            .filter(|panel| !panel.state.is_terminal() && !panel.session_id.is_empty())
+            .map(|panel| (panel.provider.clone(), panel.session_id.clone()))
+        else {
+            return;
+        };
+        if self.cli_login_poll_in_flight.load(std::sync::atomic::Ordering::Acquire) {
+            return;
+        }
+        let (Some(client), Some(handle)) = (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) else {
+            return;
+        };
+        self.cli_login_poll_in_flight
+            .store(true, std::sync::atomic::Ordering::Release);
+        let cell = self.cloud_access_cell.clone();
+        let in_flight = self.cli_login_poll_in_flight.clone();
+        handle.spawn(async move {
+            let delivery = match client.poll_cli_login(&session_id).await {
+                Ok(snapshot) => crate::backend_client::CloudAccessDelivery::LoginSession {
+                    provider,
+                    snapshot,
+                },
+                Err(error) => crate::backend_client::CloudAccessDelivery::LoginError {
+                    provider,
+                    message: format!("Login session unreachable: {error}"),
+                },
+            };
+            if let Ok(mut slot) = cell.lock() {
+                slot.push(delivery);
+            }
+            in_flight.store(false, std::sync::atomic::Ordering::Release);
+        });
     }
 
     /// Drive one frame of the open settings surface in its ROOT-viewport modal host (MT-018): pump the
@@ -3629,8 +3822,42 @@ impl HandshakeApp {
                         self.cloud_models.set_snapshot(snapshot);
                     }
                 }
+                crate::backend_client::CloudAccessDelivery::LoginSession { provider, snapshot } => {
+                    // Only apply to the panel that is still open for this provider, so a
+                    // late reply from a cancelled session cannot resurrect its transcript.
+                    if self
+                        .cloud_models
+                        .login_panel()
+                        .is_some_and(|panel| panel.provider == provider)
+                    {
+                        self.cloud_models.apply_login_snapshot(
+                            &snapshot.session_id,
+                            snapshot.state,
+                            snapshot.transcript,
+                        );
+                    }
+                }
+                crate::backend_client::CloudAccessDelivery::LoginError { provider, message } => {
+                    if self
+                        .cloud_models
+                        .login_panel()
+                        .is_some_and(|panel| panel.provider == provider)
+                    {
+                        self.cloud_models.set_login_error(message);
+                    }
+                }
             }
             ctx.request_repaint();
+        }
+        // MT-015 v5: keep the in-app login panel live while a session is running, so
+        // the provider's device/OAuth prompt appears without operator action.
+        self.poll_cli_bridge_login();
+        if self
+            .cloud_models
+            .login_panel()
+            .is_some_and(|panel| !panel.state.is_terminal())
+        {
+            ctx.request_repaint_after(CLI_LOGIN_POLL_INTERVAL);
         }
         if self.cloud_access_refresh_pending {
             self.cloud_access_refresh_pending = false;

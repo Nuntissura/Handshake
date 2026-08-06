@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::diagnostics::{
     DiagFilter, Diagnostic, DiagnosticInput, DiagnosticSeverity, DiagnosticSurface, ProblemGroup,
 };
+use crate::api::account_scope::RequestAccountScope;
 use crate::swarm_orchestration::model_lane::{ModelLaneDiagnosticsProjection, ModelLaneStore};
 use crate::AppState;
 
@@ -121,48 +122,67 @@ async fn create_diagnostic(
     Ok(Json(diagnostic))
 }
 
+/// Scoped store for a diagnostics read. `new_for_owner` is read-only by
+/// construction, so a header can never mint ownership.
+fn model_lane_store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
+    ModelLaneStore::new_for_owner(state.postgres_pool.clone(), scope.query().clone())
+}
+
 async fn latest_model_lane_diagnostics(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
 ) -> Result<Json<ModelLaneDiagnosticsProjection>, ModelLaneDiagnosticsApiError> {
-    let run_id = sqlx::query_scalar::<_, String>(
-        "SELECT run_id FROM model_lane_runs ORDER BY event_ledger_seq DESC LIMIT 1",
-    )
-    .fetch_optional(&state.postgres_pool)
-    .await
-    .map_err(ModelLaneDiagnosticsApiError::authority_unavailable)?
-    .ok_or_else(|| ModelLaneDiagnosticsApiError::not_found("no model lane runs recorded"))?;
-    let store = ModelLaneStore::new(state.postgres_pool.clone());
+    // The inline "globally newest run" probe that used to live here disclosed
+    // another account's run id before any store-level scoping applied. Resolving
+    // "latest" now happens inside the scoped store, so "latest" means "latest
+    // that this account owns".
+    let store = model_lane_store(&state, &scope);
     let model_catalog = state.llm_client.model_catalog();
     let projection = store
-        .diagnostics_projection_with_model_catalog(&run_id, model_catalog.as_deref())
+        .latest_diagnostics_projection_with_model_catalog(model_catalog.as_deref())
         .await
-        .map_err(ModelLaneDiagnosticsApiError::integrity)?;
+        .map_err(map_model_lane_diagnostics_error)?;
     Ok(Json(projection))
 }
 
 async fn get_model_lane_diagnostics(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(run_id): Path<String>,
 ) -> Result<Json<ModelLaneDiagnosticsProjection>, ModelLaneDiagnosticsApiError> {
-    let exists = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM model_lane_runs WHERE run_id = $1)",
-    )
-    .bind(&run_id)
-    .fetch_one(&state.postgres_pool)
-    .await
-    .map_err(ModelLaneDiagnosticsApiError::authority_unavailable)?;
-    if !exists {
-        return Err(ModelLaneDiagnosticsApiError::not_found(format!(
-            "model lane run {run_id} not found"
-        )));
-    }
-    let store = ModelLaneStore::new(state.postgres_pool.clone());
+    // The previous inline `SELECT EXISTS(... WHERE run_id = $1)` probe was an
+    // unscoped existence oracle: it told any caller whether a run id belonged to
+    // somebody. Existence is now decided by the scoped store, which reports a
+    // run this account may not read as absent.
+    let store = model_lane_store(&state, &scope);
     let model_catalog = state.llm_client.model_catalog();
     let projection = store
         .diagnostics_projection_with_model_catalog(&run_id, model_catalog.as_deref())
         .await
-        .map_err(ModelLaneDiagnosticsApiError::integrity)?;
+        .map_err(map_model_lane_diagnostics_error)?;
     Ok(Json(projection))
+}
+
+/// Map a store error to an API error without letting a scope denial leak the
+/// withheld resource's metadata (HBR-PRIV-004).
+fn map_model_lane_diagnostics_error(
+    error: crate::swarm_orchestration::model_lane::ModelLaneError,
+) -> ModelLaneDiagnosticsApiError {
+    use crate::swarm_orchestration::model_lane::ModelLaneError;
+    match error {
+        ModelLaneError::NotFound(_) => {
+            ModelLaneDiagnosticsApiError::not_found("model lane run not found")
+        }
+        ModelLaneError::ScopeDenied(denied) => ModelLaneDiagnosticsApiError::scope_denied(&denied),
+        // A database that is unreachable is NOT an integrity failure. Routing it
+        // to 500 (as this did after the scoped-store change removed the inline
+        // SQL probes) tells the caller "this server is broken" when the truthful
+        // answer is "the authority store is unavailable, retry" - and it makes a
+        // transient outage indistinguishable from a real corruption bug, which is
+        // the one distinction an operator staring at diagnostics needs most.
+        ModelLaneError::Sqlx(err) => ModelLaneDiagnosticsApiError::authority_unavailable(err),
+        other => ModelLaneDiagnosticsApiError::integrity(other),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -187,6 +207,10 @@ impl ModelLaneDiagnosticsApiError {
         }
     }
 
+    /// The storage-unavailable contract. The two ModelLane handlers no longer
+    /// run their own inline SQL probes (those probes were the unscoped
+    /// disclosure the scoped-store change removed), so this is now reached
+    /// through `map_model_lane_diagnostics_error`'s `Sqlx` arm instead.
     fn authority_unavailable(error: sqlx::Error) -> Self {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
@@ -200,6 +224,16 @@ impl ModelLaneDiagnosticsApiError {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             code: "MODEL_LANE_DIAGNOSTICS_INTEGRITY_FAILURE",
             detail: error.to_string(),
+        }
+    }
+
+    /// The denial reason code only. `ScopeDenied`'s own Display carries no
+    /// identifiers, and the stored owner is never echoed.
+    fn scope_denied(denied: &crate::swarm_orchestration::resource_scope::ScopeDenied) -> Self {
+        Self {
+            status: StatusCode::FORBIDDEN,
+            code: "MODEL_LANE_DIAGNOSTICS_SCOPE_DENIED",
+            detail: denied.reason_code().to_owned(),
         }
     }
 }

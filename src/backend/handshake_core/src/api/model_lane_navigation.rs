@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use crate::swarm_orchestration::model_lane::{
     ModelLaneError, ModelLaneNavigationLookup, ModelLaneNavigationProjection, ModelLaneStore,
 };
+use crate::api::account_scope::RequestAccountScope;
 use crate::AppState;
 
 #[derive(Debug, Deserialize, Default)]
@@ -36,8 +37,13 @@ pub struct DiagnosticNavigationQuery {
     pub mt_id: Option<String>,
 }
 
-fn store(state: &AppState) -> ModelLaneStore {
-    ModelLaneStore::new(state.postgres_pool.clone())
+/// Build a store that can only read the caller-declared account scope.
+///
+/// This is the pre-KERNEL-006 seam described in [`crate::api::account_scope`].
+/// Note the constructor: `new_for_owner` yields a READ-ONLY scoped store, so a
+/// navigation route cannot mint ownership from a header even by accident.
+fn store(state: &AppState, scope: &RequestAccountScope) -> ModelLaneStore {
+    ModelLaneStore::new_for_owner(state.postgres_pool.clone(), scope.query().clone())
 }
 
 type ApiError = (StatusCode, Json<Value>);
@@ -56,6 +62,16 @@ fn model_lane_api_error(err: ModelLaneError) -> ApiError {
             StatusCode::CONFLICT,
             Json(json!({"error": "ambiguous_lookup", "detail": detail})),
         ),
+        // HBR-PRIV-002/004. The SQL predicate normally makes a cross-account row
+        // simply absent (404, which is also what keeps existence from being an
+        // oracle). Reaching here means the second, post-deserialization layer
+        // caught something the predicate did not, so it is reported explicitly —
+        // as the stable reason code only, with no identifiers and no row
+        // contents, so the denial cannot become a metadata side channel.
+        ModelLaneError::ScopeDenied(denied) => (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "resource_scope_denied", "detail": denied.reason_code()})),
+        ),
         other => {
             tracing::error!(target: "handshake_core::model_lane_navigation", error = %other, "model_lane_navigation_api_error");
             (
@@ -68,9 +84,10 @@ fn model_lane_api_error(err: ModelLaneError) -> ApiError {
 
 async fn navigation_run(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(run_id): Path<String>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_run(&run_id)
         .await
         .map(Json)
@@ -79,9 +96,10 @@ async fn navigation_run(
 
 async fn navigation_lane(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(lane_id): Path<String>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_lane(&lane_id)
         .await
         .map(Json)
@@ -90,9 +108,10 @@ async fn navigation_lane(
 
 async fn navigation_message(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(message_id): Path<String>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_message(&message_id)
         .await
         .map(Json)
@@ -101,10 +120,11 @@ async fn navigation_message(
 
 async fn navigation_artifact_context(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Query(query): Query<ArtifactNavigationQuery>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
     let artifact_ref = artifact_selector(&query).map_err(model_lane_api_error)?;
-    store(&state)
+    store(&state, &scope)
         .navigation_by_artifact_or_context(
             artifact_ref.as_deref(),
             query.context_bundle_id.as_deref(),
@@ -117,10 +137,11 @@ async fn navigation_artifact_context(
 
 async fn navigation_trace(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(trace_id): Path<String>,
     Query(query): Query<TraceNavigationQuery>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_trace(&trace_id, query.span_id.as_deref())
         .await
         .map(Json)
@@ -129,10 +150,11 @@ async fn navigation_trace(
 
 async fn navigation_diagnostics(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(run_id): Path<String>,
     Query(query): Query<DiagnosticNavigationQuery>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_diagnostics(
             &run_id,
             query.behavior_id.as_deref(),
@@ -146,9 +168,10 @@ async fn navigation_diagnostics(
 
 async fn navigation_recovery(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Path(run_id): Path<String>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_recovery(&run_id)
         .await
         .map(Json)
@@ -157,9 +180,10 @@ async fn navigation_recovery(
 
 async fn navigation_lookup(
     State(state): State<AppState>,
+    scope: RequestAccountScope,
     Query(query): Query<ModelLaneNavigationLookup>,
 ) -> Result<Json<ModelLaneNavigationProjection>, ApiError> {
-    store(&state)
+    store(&state, &scope)
         .navigation_by_lookup(query)
         .await
         .map(Json)

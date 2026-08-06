@@ -805,7 +805,16 @@ async fn recover_model_lanes_at_core_boot_with_timeout(
     pool: sqlx::PgPool,
     timeout: Duration,
 ) -> Result<usize, std::io::Error> {
-    let store = handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new(pool);
+    // Restart recovery is the one ModelLane read that is legitimately
+    // cross-owner: it runs before any account has authenticated and must not
+    // strand another account's abandoned run. The authority is therefore named
+    // explicitly rather than left as an unscoped store (HBR-PRIV-002).
+    let store =
+        handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new_system_authority(
+            pool,
+            handshake_core::swarm_orchestration::resource_scope::SystemScopeAuthority::boot_recovery(
+            ),
+        );
     match tokio::time::timeout(timeout, store.recover_restartable_runs_at_boot()).await {
         Ok(Ok(recovered)) => Ok(recovered.len()),
         Ok(Err(error)) => Err(std::io::Error::other(format!(

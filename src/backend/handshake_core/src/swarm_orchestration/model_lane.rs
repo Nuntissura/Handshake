@@ -46,6 +46,11 @@ use crate::storage::{knowledge_crdt, StorageError};
 use super::error::SwarmError;
 use super::factory::LiveSession;
 use super::ids::{ByokCloudProvider, SpawnRequest};
+use super::resource_scope::{
+    stored_resource_scope_from_row, AccountBoundAuthority, ResourceAccessContext, ResourceScope,
+    ResourceScopeQuery, ScopeColumnValues, ScopeDenied, SystemScopeAuthority,
+    RESOURCE_SCOPE_INSERT_COLUMNS, RESOURCE_SCOPE_SELECT_COLUMNS,
+};
 
 const SOURCE_COMPONENT: &str = "dexterity_model_lane";
 const MAX_CONTEXT_BUNDLE_LOOM_REFS: usize = 64;
@@ -57,6 +62,11 @@ pub enum ModelLaneError {
     InvalidInput(String),
     #[error("model lane authority denied: {0}")]
     AuthorityDenied(String),
+    /// HBR-PRIV-002 default-deny. Carries only the stable denial reason code and
+    /// no identifiers or row contents, so surfacing it can never become a
+    /// metadata side channel for the resource that was withheld.
+    #[error("model lane resource scope denied: {0}")]
+    ScopeDenied(#[from] ScopeDenied),
     #[error("model lane idempotency conflict: {0}")]
     IdempotencyConflict(String),
     #[error("model lane ambiguous lookup: {0}")]
@@ -76,11 +86,76 @@ pub type ModelLaneResult<T> = Result<T, ModelLaneError>;
 #[derive(Debug, Clone)]
 pub struct ModelLaneStore {
     pool: PgPool,
+    /// HBR-PRIV-001/002. Every write stamps this context onto the five scope
+    /// columns migration 0363 added, and every enforced read filters on it — in
+    /// SQL first, so a denied row never leaves PostgreSQL, and again in Rust
+    /// after deserialization, because HBR-PRIV-002 says hiding a row in one
+    /// layer is never sufficient.
+    access: ResourceAccessContext,
 }
 
 impl ModelLaneStore {
+    /// Legacy constructor for call sites that predate account identity.
+    ///
+    /// It yields a store holding [`SystemScopeAuthority::legacy_unscoped_call_site`]:
+    /// reads are NOT account-filtered and writes are stamped with a NULL
+    /// `owner_account_id`. Those unattributed rows are unreadable by every
+    /// account-scoped reader, so this constructor cannot be used to smuggle a
+    /// row into someone's account — but it is a real read bypass and is the
+    /// residual seam WP-KERNEL-006 MT-014/016 closes with PostgreSQL RLS.
+    ///
+    /// New code, and every HTTP boundary, MUST use [`Self::new_for_owner`] or
+    /// [`Self::new_scoped`].
     pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+        Self::new_with_access(
+            pool,
+            ResourceAccessContext::system(SystemScopeAuthority::legacy_unscoped_call_site()),
+        )
+    }
+
+    /// Store bound to one owning account for reads and writes.
+    pub fn new_scoped(pool: PgPool, scope: ResourceScope) -> Self {
+        Self::new_with_access(pool, ResourceAccessContext::for_account(scope))
+    }
+
+    /// Read-only store bound to one owning account. Writes through this store
+    /// are unattributed by construction, which is what a read boundary that
+    /// carries an account but no actor Principal must be able to guarantee.
+    pub fn new_for_owner(pool: PgPool, query: ResourceScopeQuery) -> Self {
+        Self::new_with_access(pool, ResourceAccessContext::for_reader(query))
+    }
+
+    /// Store with an explicit, named cross-owner authority.
+    pub fn new_system_authority(pool: PgPool, authority: SystemScopeAuthority) -> Self {
+        Self::new_with_access(pool, ResourceAccessContext::system(authority))
+    }
+
+    pub fn new_with_access(pool: PgPool, access: ResourceAccessContext) -> Self {
+        Self { pool, access }
+    }
+
+    pub fn access(&self) -> &ResourceAccessContext {
+        &self.access
+    }
+
+    /// The scope stamped onto rows written through this store, if any.
+    pub(crate) fn write_scope(&self) -> Option<&ResourceScope> {
+        self.access.write_scope()
+    }
+
+    fn scope_columns(&self) -> ScopeColumnValues<'_> {
+        self.access.insert_columns()
+    }
+
+    /// Require an explicitly named cross-owner authority for an operation that
+    /// is genuinely system-wide (restart recovery). An account-scoped store must
+    /// not be able to reach it, or "recovery" becomes a disclosure route.
+    fn require_system_authority(&self, operation: &str) -> ModelLaneResult<SystemScopeAuthority> {
+        self.access.system_authority().ok_or_else(|| {
+            ModelLaneError::AuthorityDenied(format!(
+                "{operation} is a cross-owner system operation and requires an explicit SystemScopeAuthority"
+            ))
+        })
     }
 
     pub(crate) fn postgres_pool(&self) -> PgPool {
@@ -187,7 +262,7 @@ impl ModelLaneStore {
                 &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
             )
             .await?;
-            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &check).await {
+            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await {
                 tx.rollback().await?;
                 return self
                     .deny_cloud_launch(
@@ -197,8 +272,8 @@ impl ModelLaneStore {
                     .await;
             }
         }
-        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1).await?;
-        let stored_lane = record_lane_tx(&mut tx, records.1).await?;
+        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
+        let stored_lane = record_lane_tx(&mut tx, records.1, self.scope_columns()).await?;
         tx.commit().await?;
         Ok((stored_run, stored_lane))
     }
@@ -222,11 +297,11 @@ impl ModelLaneStore {
             &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
         )
         .await?;
-        ensure_cloud_launch_authority_tx(&mut tx, &check).await?;
+        ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await?;
         entered.notify_one();
         release.notified().await;
-        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1).await?;
-        let stored_lane = record_lane_tx(&mut tx, records.1).await?;
+        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1, &self.access).await?;
+        let stored_lane = record_lane_tx(&mut tx, records.1, self.scope_columns()).await?;
         tx.commit().await?;
         Ok((stored_run, stored_lane))
     }
@@ -241,7 +316,7 @@ impl ModelLaneStore {
     pub async fn record_run(&self, input: NewModelLaneRun) -> ModelLaneResult<ModelLaneRunRecord> {
         validate_run(&input)?;
         let mut tx = self.pool.begin().await?;
-        let stored = record_run_tx(&mut tx, input).await?;
+        let stored = record_run_tx(&mut tx, input, self.scope_columns()).await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -260,7 +335,7 @@ impl ModelLaneStore {
                 &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
             )
             .await?;
-            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &check).await {
+            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await {
                 tx.rollback().await?;
                 return self
                     .deny_cloud_launch(
@@ -270,7 +345,7 @@ impl ModelLaneStore {
                     .await;
             }
         }
-        let stored = record_lane_tx(&mut tx, input).await?;
+        let stored = record_lane_tx(&mut tx, input, self.scope_columns()).await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -281,7 +356,7 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         validate_message(&input)?;
         let mut tx = self.pool.begin().await?;
-        let stored = Self::record_message_tx(&mut tx, input).await?;
+        let stored = Self::record_message_tx(&mut tx, input, self.scope_columns()).await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -295,9 +370,13 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         validate_message(&input)?;
         let mut tx = self.pool.begin().await?;
-        let stored =
-            Self::record_message_tx_with_crdt_pause(&mut tx, input, Some((entered, release)))
-                .await?;
+        let stored = Self::record_message_tx_with_crdt_pause(
+            &mut tx,
+            input,
+            Some((entered, release)),
+            self.scope_columns(),
+        )
+        .await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -312,8 +391,13 @@ impl ModelLaneStore {
         binding: NewModelLaneContextBundleArtifactBinding,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         let mut tx = self.pool.begin().await?;
-        let stored_message =
-            Self::record_message_with_payload_binding_tx(&mut tx, message, binding).await?;
+        let stored_message = Self::record_message_with_payload_binding_tx(
+            &mut tx,
+            message,
+            binding,
+            self.scope_columns(),
+        )
+        .await?;
         tx.commit().await?;
         Ok(stored_message)
     }
@@ -322,28 +406,31 @@ impl ModelLaneStore {
         tx: &mut Transaction<'_, Postgres>,
         message: NewModelLaneMessage,
         binding: NewModelLaneContextBundleArtifactBinding,
+        scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         validate_message(&message)?;
         validate_context_bundle_artifact_binding(&binding)?;
         validate_message_payload_binding_pair(&message, &binding)?;
-        let stored_message = Self::record_message_tx(tx, message).await?;
-        Self::record_context_bundle_artifact_binding_tx(tx, binding).await?;
+        let stored_message = Self::record_message_tx(tx, message, scope).await?;
+        Self::record_context_bundle_artifact_binding_tx(tx, binding, scope).await?;
         Ok(stored_message)
     }
 
     pub(crate) async fn record_context_bundle_artifact_binding_with_validation_tx(
         tx: &mut Transaction<'_, Postgres>,
         binding: NewModelLaneContextBundleArtifactBinding,
+        scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
         validate_context_bundle_artifact_binding(&binding)?;
-        Self::record_context_bundle_artifact_binding_tx(tx, binding).await
+        Self::record_context_bundle_artifact_binding_tx(tx, binding, scope).await
     }
 
     async fn record_message_tx(
         tx: &mut Transaction<'_, Postgres>,
         input: NewModelLaneMessage,
+        scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
-        Self::record_message_tx_with_crdt_pause(tx, input, None).await
+        Self::record_message_tx_with_crdt_pause(tx, input, None, scope).await
     }
 
     async fn record_message_tx_with_crdt_pause(
@@ -353,6 +440,7 @@ impl ModelLaneStore {
             std::sync::Arc<tokio::sync::Notify>,
             std::sync::Arc<tokio::sync::Notify>,
         )>,
+        scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
         if let Some(existing) = message_by_idempotency_key_tx(tx, &input.idempotency_key).await? {
@@ -506,7 +594,7 @@ impl ModelLaneStore {
             inner: input,
         };
 
-        let inserted = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_messages (
                 message_id, run_id, trace_id, message_span_id, from_lane_id,
@@ -515,35 +603,40 @@ impl ModelLaneStore {
                 payload_sha256, replay_order_key, authority,
                 event_ledger_stream_id, event_ledger_event_id,
                 event_ledger_seq, event_stream_version, transaction_seq,
-                record_json
+                record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
-            "#,
-        )
-        .bind(&record.message_id)
-        .bind(&record.run_id)
-        .bind(&record.trace_id)
-        .bind(&record.message_span_id)
-        .bind(&record.from_lane_id)
-        .bind(&record.coordinator_session_id)
-        .bind(record.work_packet_id.as_deref())
-        .bind(record.micro_task_id.as_deref())
-        .bind(record.task_board_id.as_deref())
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.payload_sha256)
-        .bind(&record.replay_order_key)
-        .bind(record.authority.as_str())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut **tx)
-        .await?;
+            "#
+        );
+        let inserted = scope
+            .bind(
+                sqlx::query(&insert_sql)
+                    .bind(&record.message_id)
+                    .bind(&record.run_id)
+                    .bind(&record.trace_id)
+                    .bind(&record.message_span_id)
+                    .bind(&record.from_lane_id)
+                    .bind(&record.coordinator_session_id)
+                    .bind(record.work_packet_id.as_deref())
+                    .bind(record.micro_task_id.as_deref())
+                    .bind(record.task_board_id.as_deref())
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.payload_sha256)
+                    .bind(&record.replay_order_key)
+                    .bind(record.authority.as_str())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_optional(&mut **tx)
+            .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
@@ -580,6 +673,11 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneCloudProjectionPlanRecord> {
         canonicalize_cloud_consent_targets(&mut input.target_bindings);
         validate_cloud_projection_plan(&input)?;
+        ensure_authority_matches_write_scope(
+            "ProjectionPlan.export_delegation.source_scope",
+            &input.export_delegation.source_scope,
+            &self.access,
+        )?;
         let target_bindings_hash =
             cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
         let projection_plan_hash = cloud_projection_plan_hash(&input)?;
@@ -634,7 +732,12 @@ impl ModelLaneStore {
         )
         .await?;
 
-        let inserted = sqlx::query(
+        // HBR-PRIV-001: a cloud ProjectionPlan is a durable product resource and
+        // must carry its owning account before it is discoverable. Migration 0363
+        // added the five scope columns to this table; stamping them here is what
+        // makes `sql_predicate`/`authorize_row` able to keep one account's export
+        // plan away from another account.
+        let projection_insert_sql = format!(
             r#"
             INSERT INTO model_lane_cloud_projection_plans (
                 projection_plan_id, run_id, trace_id, lane_id,
@@ -648,55 +751,61 @@ impl ModelLaneStore {
                 task_board_id, owner_session, idempotency_key,
                 created_at_utc, user_manual_behavior_ref, diagnostic_payload,
                 projection_plan_hash, event_ledger_event_id, event_ledger_seq,
-                event_stream_version, transaction_seq, record_json
+                event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                 $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33,$34,$35,$36
+                $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
-            "#,
-        )
-        .bind(&record.projection_plan_id)
-        .bind(&record.run_id)
-        .bind(&record.trace_id)
-        .bind(record.lane_id.as_deref())
-        .bind(record.model_session_id.as_deref())
-        .bind(record.provider_kind.as_deref())
-        .bind(record.requested_model_id.as_deref())
-        .bind(&record.scope_hash)
-        .bind(serde_json::to_value(&record.source_artifact_refs)?)
-        .bind(&record.payload_artifact_ref)
-        .bind(&record.payload_sha256)
-        .bind(&record.redaction_policy_ref)
-        .bind(&record.redaction_summary)
-        .bind(record.retention_policy.as_str())
-        .bind(record.export_posture.as_str())
-        .bind(&record.provider_profile_ref)
-        .bind(serde_json::to_value(&record.fan_out_targets)?)
-        .bind(record.consent_scope.as_str())
-        .bind(serde_json::to_value(&record.target_bindings)?)
-        .bind(record.target_bindings_hash.as_deref())
-        .bind(record.status.as_str())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.created_at_utc)
-        .bind(&record.user_manual_behavior_ref)
-        .bind(&record.diagnostic_payload)
-        .bind(&record.projection_plan_hash)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut *tx)
-        .await?;
+            "#
+        );
+        let inserted = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&projection_insert_sql)
+                    .bind(&record.projection_plan_id)
+                    .bind(&record.run_id)
+                    .bind(&record.trace_id)
+                    .bind(record.lane_id.as_deref())
+                    .bind(record.model_session_id.as_deref())
+                    .bind(record.provider_kind.as_deref())
+                    .bind(record.requested_model_id.as_deref())
+                    .bind(&record.scope_hash)
+                    .bind(serde_json::to_value(&record.source_artifact_refs)?)
+                    .bind(&record.payload_artifact_ref)
+                    .bind(&record.payload_sha256)
+                    .bind(&record.redaction_policy_ref)
+                    .bind(&record.redaction_summary)
+                    .bind(record.retention_policy.as_str())
+                    .bind(record.export_posture.as_str())
+                    .bind(&record.provider_profile_ref)
+                    .bind(serde_json::to_value(&record.fan_out_targets)?)
+                    .bind(record.consent_scope.as_str())
+                    .bind(serde_json::to_value(&record.target_bindings)?)
+                    .bind(record.target_bindings_hash.as_deref())
+                    .bind(record.status.as_str())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.created_at_utc)
+                    .bind(&record.user_manual_behavior_ref)
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.projection_plan_hash)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
@@ -731,6 +840,11 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneCloudConsentReceiptRecord> {
         canonicalize_cloud_consent_targets(&mut input.target_bindings);
         validate_cloud_consent_receipt(&input)?;
+        ensure_authority_matches_write_scope(
+            "ConsentReceipt.approver",
+            &input.approver,
+            &self.access,
+        )?;
         let target_bindings_hash =
             cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
         let consent_receipt_hash = cloud_consent_receipt_hash(&input)?;
@@ -746,7 +860,7 @@ impl ModelLaneStore {
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?;
 
-        let projection = cloud_projection_plan_by_id_tx(&mut tx, &prepared.projection_plan_id)
+        let projection = cloud_projection_plan_by_id_tx(&mut tx, &self.access, &prepared.projection_plan_id)
             .await?
             .ok_or_else(|| {
                 ModelLaneError::AuthorityDenied(format!(
@@ -800,7 +914,10 @@ impl ModelLaneStore {
         )
         .await?;
 
-        let inserted = sqlx::query(
+        // HBR-PRIV-001/005: same stamping as the ProjectionPlan above. A consent
+        // receipt is the authorization artifact for a third-party export, so an
+        // unowned one is exactly the row that must not be readable or reusable.
+        let consent_insert_sql = format!(
             r#"
             INSERT INTO model_lane_cloud_consent_receipts (
                 consent_receipt_id, projection_plan_id, projection_plan_hash,
@@ -814,59 +931,65 @@ impl ModelLaneStore {
                 idempotency_key, created_at_utc, user_manual_behavior_ref,
                 diagnostic_payload, consent_receipt_hash, event_ledger_event_id,
                 event_ledger_seq, event_stream_version, transaction_seq,
-                record_json
+                record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                 $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33,$34,$35,$36,$37,$38,$39,$40
+                $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
-            "#,
-        )
-        .bind(&record.consent_receipt_id)
-        .bind(&record.projection_plan_id)
-        .bind(&record.projection_plan_hash)
-        .bind(&record.run_id)
-        .bind(&record.trace_id)
-        .bind(record.lane_id.as_deref())
-        .bind(record.model_session_id.as_deref())
-        .bind(record.provider_kind.as_deref())
-        .bind(record.requested_model_id.as_deref())
-        .bind(&record.scope_hash)
-        .bind(record.consent_scope.as_str())
-        .bind(serde_json::to_value(&record.target_bindings)?)
-        .bind(record.target_bindings_hash.as_deref())
-        .bind(record.retention_policy.as_str())
-        .bind(record.export_posture.as_str())
-        .bind(serde_json::to_value(&record.fan_out_targets)?)
-        .bind(record.approved)
-        .bind(&record.approved_by_ref)
-        .bind(&record.approved_at_utc)
-        .bind(&record.valid_from_utc)
-        .bind(&record.valid_until_utc)
-        .bind(record.revoked_at_utc.as_deref())
-        .bind(record.revocation_ref.as_deref())
-        .bind(record.revocation_input_hash.as_deref())
-        .bind(record.status.as_str())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.created_at_utc)
-        .bind(&record.user_manual_behavior_ref)
-        .bind(&record.diagnostic_payload)
-        .bind(&record.consent_receipt_hash)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut *tx)
-        .await?;
+            "#
+        );
+        let inserted = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&consent_insert_sql)
+                    .bind(&record.consent_receipt_id)
+                    .bind(&record.projection_plan_id)
+                    .bind(&record.projection_plan_hash)
+                    .bind(&record.run_id)
+                    .bind(&record.trace_id)
+                    .bind(record.lane_id.as_deref())
+                    .bind(record.model_session_id.as_deref())
+                    .bind(record.provider_kind.as_deref())
+                    .bind(record.requested_model_id.as_deref())
+                    .bind(&record.scope_hash)
+                    .bind(record.consent_scope.as_str())
+                    .bind(serde_json::to_value(&record.target_bindings)?)
+                    .bind(record.target_bindings_hash.as_deref())
+                    .bind(record.retention_policy.as_str())
+                    .bind(record.export_posture.as_str())
+                    .bind(serde_json::to_value(&record.fan_out_targets)?)
+                    .bind(record.approved)
+                    .bind(&record.approved_by_ref)
+                    .bind(&record.approved_at_utc)
+                    .bind(&record.valid_from_utc)
+                    .bind(&record.valid_until_utc)
+                    .bind(record.revoked_at_utc.as_deref())
+                    .bind(record.revocation_ref.as_deref())
+                    .bind(record.revocation_input_hash.as_deref())
+                    .bind(record.status.as_str())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.created_at_utc)
+                    .bind(&record.user_manual_behavior_ref)
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.consent_receipt_hash)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
@@ -904,41 +1027,46 @@ impl ModelLaneStore {
         sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
-        let projection_plans = sqlx::query(
+        // HBR-PRIV-002: the cloud authority replay is a read boundary like any
+        // other. Before this it enumerated every plan/receipt for a run id
+        // regardless of who owned it, which made "replay the cloud consent
+        // authority" a disclosure route for another account's export policy,
+        // audience list and redaction summary.
+        let projection_predicate = self.access.sql_predicate(2);
+        let projection_sql = format!(
             r#"
-            SELECT record_json
+            SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
             FROM model_lane_cloud_projection_plans
-            WHERE run_id = $1
+            WHERE run_id = $1{}
             ORDER BY event_ledger_seq ASC
             "#,
-        )
-        .bind(run_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneCloudProjectionPlanRecord>>>()?;
+            projection_predicate.clause()
+        );
+        let projection_plans = projection_predicate
+            .bind(sqlx::query(&projection_sql).bind(run_id))
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .map(|row| authorize_and_decode_row(&self.access, row))
+            .collect::<ModelLaneResult<Vec<ModelLaneCloudProjectionPlanRecord>>>()?;
 
-        let consent_receipts = sqlx::query(
+        let consent_predicate = self.access.sql_predicate(2);
+        let consent_sql = format!(
             r#"
-            SELECT record_json
+            SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
             FROM model_lane_cloud_consent_receipts
-            WHERE run_id = $1
+            WHERE run_id = $1{}
             ORDER BY event_ledger_seq ASC
             "#,
-        )
-        .bind(run_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneCloudConsentReceiptRecord>>>()?;
+            consent_predicate.clause()
+        );
+        let consent_receipts = consent_predicate
+            .bind(sqlx::query(&consent_sql).bind(run_id))
+            .fetch_all(&mut *tx)
+            .await?
+            .into_iter()
+            .map(|row| authorize_and_decode_row(&self.access, row))
+            .collect::<ModelLaneResult<Vec<ModelLaneCloudConsentReceiptRecord>>>()?;
 
         for plan in &projection_plans {
             validate_cloud_projection_authority_tx(&mut tx, plan)
@@ -1045,13 +1173,13 @@ impl ModelLaneStore {
             &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
         )
         .await?;
-        let existing = cloud_consent_receipt_by_id_tx(&mut tx, consent_receipt_id)
+        let existing = cloud_consent_receipt_by_id_tx(&mut tx, &self.access, consent_receipt_id)
             .await?
             .ok_or_else(|| {
                 ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
             })?;
         validate_cloud_consent_authority_tx(&mut tx, &existing).await?;
-        let projection = cloud_projection_plan_by_id_tx(&mut tx, &existing.projection_plan_id)
+        let projection = cloud_projection_plan_by_id_tx(&mut tx, &self.access, &existing.projection_plan_id)
             .await?
             .ok_or_else(|| {
                 ModelLaneError::AuthorityDenied(format!(
@@ -1223,6 +1351,12 @@ impl ModelLaneStore {
 
         let mut receipt_inner = existing.inner.clone();
         receipt_inner.status = ModelLaneCloudConsentReceiptStatus::Revoked;
+        // A revoked receipt must not keep claiming `approved: true`. Leaving the
+        // flag set produced a durable authorization record that simultaneously
+        // said "approved" and "revoked" — the same class of dishonest record as
+        // the self-minted approver this MT removes. The launch gate already
+        // fails closed either way; this makes the stored row agree with it.
+        receipt_inner.approved = false;
         receipt_inner.revoked_at_utc = Some(Utc::now().to_rfc3339());
         receipt_inner.revocation_ref = Some(revoked_by_ref.to_string());
         receipt_inner.revocation_input_hash = Some(revocation_input_hash.clone());
@@ -1329,7 +1463,7 @@ impl ModelLaneStore {
             &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
         )
         .await?;
-        let revoked_receipt = cloud_consent_receipt_by_id_tx(&mut tx, consent_receipt_id)
+        let revoked_receipt = cloud_consent_receipt_by_id_tx(&mut tx, &self.access, consent_receipt_id)
             .await?
             .ok_or_else(|| {
                 ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
@@ -1449,41 +1583,49 @@ impl ModelLaneStore {
                 }),
             )
             .await?;
-            sqlx::query(
+            // The scope columns are only supplied on INSERT. The DO UPDATE arm
+            // deliberately leaves ownership untouched: a cancellation must never
+            // be able to re-home an existing lane onto a different account.
+            let revocation_lane_sql = format!(
                 r#"
                 INSERT INTO model_lanes (
                     lane_id, run_id, trace_id, lane_span_id, kind,
                     runtime_binding, launch_authority, status, work_packet_id,
                     micro_task_id, task_board_id, owner_session, event_ledger_stream_id,
-                    event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor
+                    event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor,
+                    {RESOURCE_SCOPE_INSERT_COLUMNS}
                 )
-                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
                 ON CONFLICT (lane_id) DO UPDATE
                 SET status = EXCLUDED.status,
                     event_ledger_event_id = EXCLUDED.event_ledger_event_id,
                     event_ledger_seq = EXCLUDED.event_ledger_seq,
                     record_json = EXCLUDED.record_json,
                     updated_at = NOW()
-                "#,
-            )
-            .bind(&record.lane_id)
-            .bind(&record.run_id)
-            .bind(&record.trace_id)
-            .bind(&record.lane_span_id)
-            .bind(record.kind.as_str())
-            .bind(record.runtime_binding.as_str())
-            .bind(record.launch_authority.as_str())
-            .bind(record.status.as_str())
-            .bind(record.work_packet_id.as_deref())
-            .bind(record.micro_task_id.as_deref())
-            .bind(record.task_board_id.as_deref())
-            .bind(&record.owner_session)
-            .bind(&record.event_ledger_stream_id)
-            .bind(&record.event_ledger_event_id)
-            .bind(record.event_ledger_seq)
-            .bind(serde_json::to_value(&record)?)
-            .bind(Option::<String>::None)
-            .execute(&mut *tx)
+                "#
+            );
+            self.scope_columns()
+                .bind(
+                    sqlx::query(&revocation_lane_sql)
+                        .bind(&record.lane_id)
+                        .bind(&record.run_id)
+                        .bind(&record.trace_id)
+                        .bind(&record.lane_span_id)
+                        .bind(record.kind.as_str())
+                        .bind(record.runtime_binding.as_str())
+                        .bind(record.launch_authority.as_str())
+                        .bind(record.status.as_str())
+                        .bind(record.work_packet_id.as_deref())
+                        .bind(record.micro_task_id.as_deref())
+                        .bind(record.task_board_id.as_deref())
+                        .bind(&record.owner_session)
+                        .bind(&record.event_ledger_stream_id)
+                        .bind(&record.event_ledger_event_id)
+                        .bind(record.event_ledger_seq)
+                        .bind(serde_json::to_value(&record)?)
+                        .bind(Option::<String>::None),
+                )
+                .execute(&mut *tx)
             .await?;
             cancelled.push(record);
         }
@@ -1732,7 +1874,9 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
         validate_context_bundle_artifact_binding(&input)?;
         let mut tx = self.pool.begin().await?;
-        let stored = Self::record_context_bundle_artifact_binding_tx(&mut tx, input).await?;
+        let stored =
+            Self::record_context_bundle_artifact_binding_tx(&mut tx, input, self.scope_columns())
+                .await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -1740,6 +1884,7 @@ impl ModelLaneStore {
     async fn record_context_bundle_artifact_binding_tx(
         tx: &mut Transaction<'_, Postgres>,
         input: NewModelLaneContextBundleArtifactBinding,
+        scope: ScopeColumnValues<'_>,
     ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
         lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
         run_by_id_tx(tx, &input.run_id).await?;
@@ -1791,7 +1936,7 @@ impl ModelLaneStore {
         )
         .await?;
 
-        let inserted = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_context_bundle_artifacts (
                 artifact_binding_id, run_id, trace_id, artifact_ref,
@@ -1801,16 +1946,21 @@ impl ModelLaneStore {
                 task_board_id, owner_session, idempotency_key,
                 artifact_binding_hash, event_ledger_event_id,
                 event_ledger_seq, event_stream_version, transaction_seq,
-                record_json
+                record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-                $13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+                $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,
+                $23,$24,$25,$26,$27
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
-            "#,
-        )
+            "#
+        );
+        let inserted = scope
+            .bind(
+                sqlx::query(&insert_sql)
         .bind(&record.artifact_binding_id)
         .bind(&record.run_id)
         .bind(&record.trace_id)
@@ -1832,9 +1982,10 @@ impl ModelLaneStore {
         .bind(record.event_ledger_seq)
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut **tx)
-        .await?;
+        .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_optional(&mut **tx)
+            .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
@@ -1910,7 +2061,7 @@ impl ModelLaneStore {
         )
         .await?;
 
-        let inserted = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_context_bundle_handoffs (
                 handoff_id, context_bundle_id, run_id, trace_id, handoff_span_id,
@@ -1920,16 +2071,22 @@ impl ModelLaneStore {
                 work_packet_id, micro_task_id, task_board_id, owner_session,
                 idempotency_key, context_bundle_hash, event_ledger_stream_id,
                 event_ledger_event_id, event_ledger_seq, event_stream_version,
-                transaction_seq, record_json
+                transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
-                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,
+                $30,$31,$32,$33,$34
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
-            "#,
-        )
+            "#
+        );
+        let inserted = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
         .bind(&record.handoff_id)
         .bind(&record.context_bundle_id)
         .bind(&record.run_id)
@@ -1958,9 +2115,10 @@ impl ModelLaneStore {
         .bind(record.event_ledger_seq)
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_optional(&mut *tx)
-        .await?;
+        .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
 
         let stored = if let Some(row) = inserted {
             serde_json::from_value(row_to_json(row, "record_json")?)?
@@ -2253,40 +2411,59 @@ impl ModelLaneStore {
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
 
+    /// Replay one run. This is the widest ModelLane read funnel — transcript,
+    /// diagnostics, palmistry, and all eight navigation routes reach durable
+    /// rows through here — so it is the primary HBR-PRIV-002 chokepoint.
+    ///
+    /// Two enforcement layers, both required:
+    ///   1. the owner predicate is pushed into every `WHERE`, so a denied row is
+    ///      never transferred out of PostgreSQL at all; and
+    ///   2. the scope columns are read back and re-authorized after
+    ///      deserialization, so a future query edit that drops the predicate
+    ///      still fails closed instead of silently disclosing.
     pub async fn replay_run(&self, run_id: &str) -> ModelLaneResult<ModelLaneReplay> {
         require_token("run_id", run_id)?;
         validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
+        let predicate = self.access.sql_predicate(2);
         let mut tx = self.pool.begin().await?;
-        let run = sqlx::query("SELECT record_json FROM model_lane_runs WHERE run_id = $1")
-            .bind(run_id)
+
+        let run_sql = format!(
+            "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_runs WHERE run_id = $1{}",
+            predicate.clause()
+        );
+        let run_row = predicate
+            .bind(sqlx::query(&run_sql).bind(run_id))
             .fetch_optional(&mut *tx)
             .await?
-            .map(|row| row_to_json(row, "record_json"))
-            .transpose()?
+            // A run the reader may not see is reported as absent, not as
+            // "forbidden": existence itself is metadata (HBR-PRIV-004).
             .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id}")))?;
+        self.access
+            .authorize_row(&stored_resource_scope_from_row(&run_row)?)?;
+        let run = row_to_json(run_row, "record_json")?;
 
-        let lanes = sqlx::query(
-            "SELECT record_json FROM model_lanes WHERE run_id = $1 ORDER BY event_ledger_seq ASC",
-        )
-        .bind(run_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneRecord>>>()?;
+        let lanes_sql = format!(
+            "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lanes WHERE run_id = $1{} ORDER BY event_ledger_seq ASC",
+            predicate.clause()
+        );
+        let lanes = self
+            .authorize_and_decode_rows::<ModelLaneRecord>(
+                predicate
+                    .bind(sqlx::query(&lanes_sql).bind(run_id))
+                    .fetch_all(&mut *tx)
+                    .await?,
+            )?;
 
-        let messages = sqlx::query(
-            "SELECT record_json FROM model_lane_messages WHERE run_id = $1 ORDER BY event_ledger_seq ASC",
-        )
-        .bind(run_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into)))
-        .collect::<ModelLaneResult<Vec<ModelLaneMessageRecord>>>()?;
+        let messages_sql = format!(
+            "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_messages WHERE run_id = $1{} ORDER BY event_ledger_seq ASC",
+            predicate.clause()
+        );
+        let messages = self.authorize_and_decode_rows::<ModelLaneMessageRecord>(
+            predicate
+                .bind(sqlx::query(&messages_sql).bind(run_id))
+                .fetch_all(&mut *tx)
+                .await?,
+        )?;
 
         for message in &messages {
             validate_stored_crdt_message_authority_tx(&mut tx, message).await?;
@@ -2300,15 +2477,41 @@ impl ModelLaneStore {
         })
     }
 
+    /// Second enforcement layer for a multi-row read: re-authorize every row's
+    /// stored scope after the SQL predicate already filtered.
+    fn authorize_and_decode_rows<T>(
+        &self,
+        rows: Vec<sqlx::postgres::PgRow>,
+    ) -> ModelLaneResult<Vec<T>>
+    where
+        T: DeserializeOwned,
+    {
+        rows.into_iter()
+            .map(|row| {
+                self.access
+                    .authorize_row(&stored_resource_scope_from_row(&row)?)?;
+                row_to_json(row, "record_json")
+                    .and_then(|value| serde_json::from_value(value).map_err(Into::into))
+            })
+            .collect()
+    }
+
+    /// "The newest run **this reader owns**", not "the newest run on the node".
+    /// Before scoping, this handed whoever asked the globally newest run's full
+    /// diagnostics projection.
     pub async fn latest_diagnostics_projection(
         &self,
     ) -> ModelLaneResult<ModelLaneDiagnosticsProjection> {
-        let run_id: String = sqlx::query_scalar(
-            "SELECT run_id FROM model_lane_runs ORDER BY event_ledger_seq DESC LIMIT 1",
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or_else(|| ModelLaneError::NotFound("no model lane runs recorded".into()))?;
+        let predicate = self.access.sql_predicate(1);
+        let latest_sql = format!(
+            "SELECT run_id FROM model_lane_runs WHERE TRUE{} ORDER BY event_ledger_seq DESC LIMIT 1",
+            predicate.clause()
+        );
+        let run_id: String = predicate
+            .bind_scalar(sqlx::query_scalar(&latest_sql))
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or_else(|| ModelLaneError::NotFound("no model lane runs recorded".into()))?;
         self.diagnostics_projection(&run_id).await
     }
 
@@ -2387,7 +2590,7 @@ impl ModelLaneStore {
             .map(|lease| lease.lease_id.clone())
             .collect::<Vec<_>>();
         let routing_executions =
-            super::routing_execution::ModelLaneRoutingExecutionStore::new(self.pool.clone())
+            super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(self.pool.clone(), self.access.clone())
                 .diagnostics_for_run(run_id)
                 .await
                 .map_err(ModelLaneError::InvalidInput)?;
@@ -2684,6 +2887,7 @@ impl ModelLaneStore {
         require_token("lane_id", lane_id)?;
         let lane = select_record_by_column::<ModelLaneRecord>(
             &self.pool,
+            &self.access,
             "model_lanes",
             "lane_id",
             lane_id,
@@ -2722,6 +2926,7 @@ impl ModelLaneStore {
         require_token("message_id", message_id)?;
         let message = select_record_by_column::<ModelLaneMessageRecord>(
             &self.pool,
+            &self.access,
             "model_lane_messages",
             "message_id",
             message_id,
@@ -2791,6 +2996,7 @@ impl ModelLaneStore {
         let context_run = if let Some(value) = context_bundle_id {
             select_record_by_json_field::<ModelLaneRunRecord>(
                 &self.pool,
+                &self.access,
                 "model_lane_runs",
                 "context_bundle_id",
                 value,
@@ -2904,6 +3110,7 @@ impl ModelLaneStore {
         }
         let run = select_record_by_column::<ModelLaneRunRecord>(
             &self.pool,
+            &self.access,
             "model_lane_runs",
             "trace_id",
             trace_id,
@@ -2913,6 +3120,7 @@ impl ModelLaneStore {
             run.run_id.clone()
         } else if let Some(lane) = select_record_by_column::<ModelLaneRecord>(
             &self.pool,
+            &self.access,
             "model_lanes",
             "trace_id",
             trace_id,
@@ -2922,6 +3130,7 @@ impl ModelLaneStore {
             lane.run_id.clone()
         } else if let Some(message) = select_record_by_column::<ModelLaneMessageRecord>(
             &self.pool,
+            &self.access,
             "model_lane_messages",
             "trace_id",
             trace_id,
@@ -3037,6 +3246,7 @@ impl ModelLaneStore {
             "run_id" => lookup_ref.clone(),
             "lane_id" => select_record_by_column::<ModelLaneRecord>(
                 &self.pool,
+                &self.access,
                 "model_lanes",
                 "lane_id",
                 &lookup_ref,
@@ -3046,6 +3256,7 @@ impl ModelLaneStore {
             .ok_or_else(|| ModelLaneError::NotFound(format!("lane_id {lookup_ref}")))?,
             "message_id" => select_record_by_column::<ModelLaneMessageRecord>(
                 &self.pool,
+                &self.access,
                 "model_lane_messages",
                 "message_id",
                 &lookup_ref,
@@ -3151,6 +3362,7 @@ impl ModelLaneStore {
         // recovery tables carry it as physical columns.
         if let Some(row) = select_record_by_json_field::<ModelLaneRecord>(
             &self.pool,
+            &self.access,
             "model_lanes",
             "model_session_id",
             value,
@@ -3161,6 +3373,7 @@ impl ModelLaneStore {
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_events",
             "model_session_id",
             value,
@@ -3171,6 +3384,7 @@ impl ModelLaneStore {
         }
         select_record_by_column::<ModelLaneRecoveryCheckpointRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_checkpoints",
             "model_session_id",
             value,
@@ -3184,6 +3398,7 @@ impl ModelLaneStore {
         // tables carry it as physical columns.
         if let Some(row) = select_record_by_json_field::<ModelLaneRecord>(
             &self.pool,
+            &self.access,
             "model_lanes",
             "session_id",
             value,
@@ -3194,6 +3409,7 @@ impl ModelLaneStore {
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_events",
             "session_id",
             value,
@@ -3204,6 +3420,7 @@ impl ModelLaneStore {
         }
         select_record_by_column::<ModelLaneRecoveryCheckpointRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_checkpoints",
             "session_id",
             value,
@@ -3214,17 +3431,18 @@ impl ModelLaneStore {
 
     async fn run_id_by_work_packet_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids =
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "work_packet_id", value)
+            select_run_ids_by_column(&self.pool, &self.access, "model_lane_runs", "work_packet_id", value)
                 .await?;
         unique_run_id_for_lookup("wp_id", value, run_ids)
     }
 
     async fn run_id_by_micro_task_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let mut run_ids =
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "micro_task_id", value).await?;
+            select_run_ids_by_column(&self.pool, &self.access, "model_lane_runs", "micro_task_id", value).await?;
         run_ids.extend(
             select_run_ids_by_column(
                 &self.pool,
+                &self.access,
                 "model_lane_mt_runtime_statuses",
                 "micro_task_id",
                 value,
@@ -3236,10 +3454,11 @@ impl ModelLaneStore {
 
     async fn run_id_by_task_board_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let mut run_ids =
-            select_run_ids_by_column(&self.pool, "model_lane_runs", "task_board_id", value).await?;
+            select_run_ids_by_column(&self.pool, &self.access, "model_lane_runs", "task_board_id", value).await?;
         run_ids.extend(
             select_run_ids_by_column(
                 &self.pool,
+                &self.access,
                 "model_lane_mt_runtime_statuses",
                 "task_board_id",
                 value,
@@ -3250,7 +3469,7 @@ impl ModelLaneStore {
     }
 
     async fn run_id_by_artifact_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
-        let mut run_ids = select_records_by_any_artifact_ref(&self.pool, value)
+        let mut run_ids = select_records_by_any_artifact_ref(&self.pool, &self.access, value)
             .await?
             .into_iter()
             // MT-003 unblock (out-of-scope, pre-existing WIP commit 0adac5d8):
@@ -3262,11 +3481,11 @@ impl ModelLaneStore {
         // `payload_ref` is stored only inside record_json; `payload_sha256` is a
         // physical column on model_lane_messages.
         run_ids.extend(
-            select_run_ids_by_json_field(&self.pool, "model_lane_messages", "payload_ref", value)
+            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_messages", "payload_ref", value)
                 .await?,
         );
         run_ids.extend(
-            select_run_ids_by_column(&self.pool, "model_lane_messages", "payload_sha256", value)
+            select_run_ids_by_column(&self.pool, &self.access, "model_lane_messages", "payload_sha256", value)
                 .await?,
         );
         unique_run_id_for_lookup("artifact_ref", value, run_ids)
@@ -3276,11 +3495,12 @@ impl ModelLaneStore {
         // `model_lane_runs` carries context_bundle_id only inside record_json; the
         // handoff table exposes it as a physical column.
         let mut run_ids =
-            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "context_bundle_id", value)
+            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "context_bundle_id", value)
                 .await?;
         run_ids.extend(
             select_run_ids_by_column(
                 &self.pool,
+                &self.access,
                 "model_lane_context_bundle_handoffs",
                 "context_bundle_id",
                 value,
@@ -3292,14 +3512,14 @@ impl ModelLaneStore {
 
     async fn run_id_by_memory_pack_ref(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids =
-            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "memory_pack_ref", value)
+            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "memory_pack_ref", value)
                 .await?;
         unique_run_id_for_lookup("memory_pack_ref", value, run_ids)
     }
 
     async fn run_id_by_memory_pack_hash(&self, value: &str) -> ModelLaneResult<Option<String>> {
         let run_ids =
-            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "memory_pack_hash", value)
+            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "memory_pack_hash", value)
                 .await?;
         unique_run_id_for_lookup("memory_pack_hash", value, run_ids)
     }
@@ -3307,6 +3527,7 @@ impl ModelLaneStore {
     async fn run_id_by_trace_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         if let Some(row) = select_record_by_column::<ModelLaneRunRecord>(
             &self.pool,
+            &self.access,
             "model_lane_runs",
             "trace_id",
             value,
@@ -3316,13 +3537,14 @@ impl ModelLaneStore {
             return Ok(Some(row.run_id.clone()));
         }
         if let Some(row) =
-            select_record_by_column::<ModelLaneRecord>(&self.pool, "model_lanes", "trace_id", value)
+            select_record_by_column::<ModelLaneRecord>(&self.pool, &self.access, "model_lanes", "trace_id", value)
                 .await?
         {
             return Ok(Some(row.run_id.clone()));
         }
         select_record_by_column::<ModelLaneMessageRecord>(
             &self.pool,
+            &self.access,
             "model_lane_messages",
             "trace_id",
             value,
@@ -3334,6 +3556,7 @@ impl ModelLaneStore {
     async fn run_id_by_span_id(&self, value: &str) -> ModelLaneResult<Option<String>> {
         if let Some(row) = select_record_by_column::<ModelLaneRunRecord>(
             &self.pool,
+            &self.access,
             "model_lane_runs",
             "run_span_id",
             value,
@@ -3344,6 +3567,7 @@ impl ModelLaneStore {
         }
         if let Some(row) = select_record_by_column::<ModelLaneRecord>(
             &self.pool,
+            &self.access,
             "model_lanes",
             "lane_span_id",
             value,
@@ -3354,6 +3578,7 @@ impl ModelLaneStore {
         }
         if let Some(row) = select_record_by_column::<ModelLaneMessageRecord>(
             &self.pool,
+            &self.access,
             "model_lane_messages",
             "message_span_id",
             value,
@@ -3364,6 +3589,7 @@ impl ModelLaneStore {
         }
         select_record_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_events",
             "span_id",
             value,
@@ -3377,17 +3603,18 @@ impl ModelLaneStore {
         // run/lane failstate_code lives only inside record_json.
         let mut run_ids = select_run_ids_by_column(
             &self.pool,
+            &self.access,
             "model_lane_recovery_events",
             "error_code",
             value,
         )
         .await?;
         run_ids.extend(
-            select_run_ids_by_json_field(&self.pool, "model_lane_runs", "failstate_code", value)
+            select_run_ids_by_json_field(&self.pool, &self.access, "model_lane_runs", "failstate_code", value)
                 .await?,
         );
         run_ids.extend(
-            select_run_ids_by_json_field(&self.pool, "model_lanes", "failstate_code", value)
+            select_run_ids_by_json_field(&self.pool, &self.access, "model_lanes", "failstate_code", value)
                 .await?,
         );
         unique_run_id_for_lookup("error_code", value, run_ids)
@@ -3518,6 +3745,7 @@ impl ModelLaneStore {
         let replay = self.replay_run(run_id).await?;
         let artifacts = select_records_by_column::<ModelLaneContextBundleArtifactBindingRecord>(
             &self.pool,
+            &self.access,
             "model_lane_context_bundle_artifacts",
             "run_id",
             run_id,
@@ -3525,6 +3753,7 @@ impl ModelLaneStore {
         .await?;
         let context_handoffs = select_records_by_column::<ModelLaneContextBundleHandoffRecord>(
             &self.pool,
+            &self.access,
             "model_lane_context_bundle_handoffs",
             "run_id",
             run_id,
@@ -3532,6 +3761,7 @@ impl ModelLaneStore {
         .await?;
         let recovery_checkpoints = select_records_by_column::<ModelLaneRecoveryCheckpointRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_checkpoints",
             "run_id",
             run_id,
@@ -3539,6 +3769,7 @@ impl ModelLaneStore {
         .await?;
         let recovery_events = select_records_by_column::<ModelLaneRecoveryEventRecord>(
             &self.pool,
+            &self.access,
             "model_lane_recovery_events",
             "run_id",
             run_id,
@@ -3546,6 +3777,7 @@ impl ModelLaneStore {
         .await?;
         let leases = select_records_by_column::<ModelLaneLeaseRecord>(
             &self.pool,
+            &self.access,
             "model_lane_leases",
             "run_id",
             run_id,
@@ -3553,6 +3785,7 @@ impl ModelLaneStore {
         .await?;
         let diagnostic_tiers = select_records_by_column::<ModelLaneDiagnosticTierStatusRecord>(
             &self.pool,
+            &self.access,
             "model_lane_diagnostic_tier_statuses",
             "run_id",
             run_id,
@@ -3560,6 +3793,7 @@ impl ModelLaneStore {
         .await?;
         let mt_runtime_statuses = select_records_by_column::<ModelLaneMtRuntimeStatusRecord>(
             &self.pool,
+            &self.access,
             "model_lane_mt_runtime_statuses",
             "run_id",
             run_id,
@@ -3607,7 +3841,7 @@ impl ModelLaneStore {
         &self,
         value: &str,
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleArtifactBindingRecord>> {
-        select_records_by_any_artifact_ref(&self.pool, value).await
+        select_records_by_any_artifact_ref(&self.pool, &self.access, value).await
     }
 
     async fn context_handoffs_by_context(
@@ -3616,6 +3850,7 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
         select_records_by_column::<ModelLaneContextBundleHandoffRecord>(
             &self.pool,
+            &self.access,
             "model_lane_context_bundle_handoffs",
             "context_bundle_id",
             context_bundle_id,
@@ -3627,7 +3862,7 @@ impl ModelLaneStore {
         &self,
         value: &str,
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
-        select_records_by_any_handoff_artifact_ref(&self.pool, value).await
+        select_records_by_any_handoff_artifact_ref(&self.pool, &self.access, value).await
     }
 
     pub async fn record_recovery_checkpoint(
@@ -3702,7 +3937,7 @@ impl ModelLaneStore {
             recovery_checkpoint_event_payload(&record),
         )
         .await?;
-        let row = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_recovery_checkpoints (
                 checkpoint_id, run_id, lane_id, session_id, model_session_id,
@@ -3712,12 +3947,17 @@ impl ModelLaneStore {
                 event_ledger_stream_id, work_packet_id, micro_task_id,
                 task_board_id, owner_session, idempotency_key, created_at_utc,
                 recovery_hint_ref, diagnostic_payload, event_ledger_event_id,
-                event_ledger_seq, event_stream_version, transaction_seq, record_json
+                event_ledger_seq, event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::timestamptz,$22,$23,$24,$25,$26,$27,$28)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::timestamptz,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33)
             RETURNING record_json
-            "#,
-        )
+            "#
+        );
+        let row = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
         .bind(&record.checkpoint_id)
         .bind(&record.run_id)
         .bind(record.lane_id.as_deref())
@@ -3745,9 +3985,10 @@ impl ModelLaneStore {
         .bind(record.event_ledger_seq)
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_one(&mut *tx)
-        .await?;
+        .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_one(&mut *tx)
+            .await?;
         tx.commit().await?;
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
@@ -3833,7 +4074,7 @@ impl ModelLaneStore {
             recovery_event_event_payload(&record),
         )
         .await?;
-        let row = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_recovery_events (
                 recovery_event_id, run_id, lane_id, trace_id, span_id,
@@ -3845,12 +4086,17 @@ impl ModelLaneStore {
                 event_ledger_stream_id, work_packet_id, micro_task_id,
                 task_board_id, owner_session, idempotency_key,
                 recovery_hint_ref, diagnostic_payload, event_ledger_event_id,
-                event_ledger_seq, event_stream_version, transaction_seq, record_json
+                event_ledger_seq, event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40)
             RETURNING record_json
-            "#,
-        )
+            "#
+        );
+        let row = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
         .bind(&record.recovery_event_id)
         .bind(&record.run_id)
         .bind(record.lane_id.as_deref())
@@ -3885,9 +4131,10 @@ impl ModelLaneStore {
         .bind(record.event_ledger_seq)
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_one(&mut **tx)
-        .await?;
+        .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_one(&mut **tx)
+            .await?;
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
 
@@ -3949,7 +4196,7 @@ impl ModelLaneStore {
             lane_lease_event_payload(&record),
         )
         .await?;
-        let row = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_leases (
                 lease_id, run_id, lane_id, scope, scope_ref, holder_actor_id,
@@ -3957,12 +4204,17 @@ impl ModelLaneStore {
                 state, event_ledger_stream_id, work_packet_id, micro_task_id,
                 task_board_id, owner_session, idempotency_key, recovery_hint_ref,
                 diagnostic_payload, event_ledger_event_id, event_ledger_seq,
-                event_stream_version, transaction_seq, record_json
+                event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamptz,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8::timestamptz,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
             RETURNING record_json
-            "#,
-        )
+            "#
+        );
+        let row = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
         .bind(&record.lease_id)
         .bind(&record.run_id)
         .bind(record.lane_id.as_deref())
@@ -3985,9 +4237,10 @@ impl ModelLaneStore {
         .bind(record.event_ledger_seq)
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_one(&mut *tx)
-        .await?;
+        .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_one(&mut *tx)
+            .await?;
         tx.commit().await?;
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
@@ -4047,41 +4300,47 @@ impl ModelLaneStore {
             diagnostic_tier_event_payload(&record),
         )
         .await?;
-        let row = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_diagnostic_tier_statuses (
                 diagnostic_status_id, behavior_id, run_id, tier, state, reason,
                 evidence_ref, follow_up_ref, event_ledger_stream_id,
                 work_packet_id, micro_task_id, task_board_id, owner_session,
                 idempotency_key, diagnostic_payload, event_ledger_event_id,
-                event_ledger_seq, event_stream_version, transaction_seq, record_json
+                event_ledger_seq, event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
             RETURNING record_json
-            "#,
-        )
-        .bind(&record.diagnostic_status_id)
-        .bind(&record.behavior_id)
-        .bind(&record.run_id)
-        .bind(record.tier.as_str())
-        .bind(record.state.as_str())
-        .bind(&record.reason)
-        .bind(&record.evidence_ref)
-        .bind(record.follow_up_ref.as_deref())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.diagnostic_payload)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_one(&mut *tx)
-        .await?;
+            "#
+        );
+        let row = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
+                    .bind(&record.diagnostic_status_id)
+                    .bind(&record.behavior_id)
+                    .bind(&record.run_id)
+                    .bind(record.tier.as_str())
+                    .bind(record.state.as_str())
+                    .bind(&record.reason)
+                    .bind(&record.evidence_ref)
+                    .bind(record.follow_up_ref.as_deref())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_one(&mut *tx)
+            .await?;
         tx.commit().await?;
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
@@ -4093,25 +4352,30 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneDiagnosticTierPosture> {
         require_token("run_id", run_id)?;
         require_token("behavior_id", behavior_id)?;
-        let tiers = sqlx::query(
+        // HBR-PRIV-004/005: diagnostic tier records carry reasons, evidence
+        // refs, and diagnostic payloads for a run, so an unscoped read here is a
+        // cross-account side channel even when `replay_run` above it is scoped.
+        // Both enforcement layers apply, exactly as on every other model-lane
+        // read: the owner predicate keeps denied rows inside PostgreSQL, and the
+        // stored scope columns are re-authorized after deserialization so a
+        // future edit that drops the predicate still fails closed.
+        let predicate = self.access.sql_predicate(3);
+        let sql = format!(
             r#"
-            SELECT DISTINCT ON (tier) record_json
+            SELECT DISTINCT ON (tier) record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
             FROM model_lane_diagnostic_tier_statuses
             WHERE run_id = $1
-              AND behavior_id = $2
+              AND behavior_id = $2{}
             ORDER BY tier, event_ledger_seq DESC
             "#,
-        )
-        .bind(run_id)
-        .bind(behavior_id)
-        .fetch_all(&self.pool)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneDiagnosticTierStatusRecord>>>()?;
+            predicate.clause()
+        );
+        let tiers = self.authorize_and_decode_rows::<ModelLaneDiagnosticTierStatusRecord>(
+            predicate
+                .bind(sqlx::query(&sql).bind(run_id).bind(behavior_id))
+                .fetch_all(&self.pool)
+                .await?,
+        )?;
         Ok(ModelLaneDiagnosticTierPosture {
             run_id: run_id.to_string(),
             behavior_id: behavior_id.to_string(),
@@ -4229,7 +4493,7 @@ impl ModelLaneStore {
             mt_runtime_status_event_payload(&record),
         )
         .await?;
-        let row = sqlx::query(
+        let insert_sql = format!(
             r#"
             INSERT INTO model_lane_mt_runtime_statuses (
                 mt_status_id, run_id, work_packet_id, micro_task_id,
@@ -4238,36 +4502,42 @@ impl ModelLaneStore {
                 last_recovery_event_ref, last_runtime_status_ref,
                 event_ledger_stream_id, owner_session, idempotency_key,
                 diagnostic_payload, event_ledger_event_id, event_ledger_seq,
-                event_stream_version, transaction_seq, record_json
+                event_stream_version, transaction_seq, record_json,
+                {RESOURCE_SCOPE_INSERT_COLUMNS}
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
             RETURNING record_json
-            "#,
-        )
-        .bind(&record.mt_status_id)
-        .bind(&record.run_id)
-        .bind(&record.work_packet_id)
-        .bind(&record.micro_task_id)
-        .bind(&record.task_board_id)
-        .bind(record.status.as_str())
-        .bind(record.claimed_by_ref.as_deref())
-        .bind(record.blocker_ref.as_deref())
-        .bind(record.missing_resource_ref.as_deref())
-        .bind(record.proof_status_ref.as_deref())
-        .bind(record.hbr_status_ref.as_deref())
-        .bind(record.last_recovery_event_ref.as_deref())
-        .bind(record.last_runtime_status_ref.as_deref())
-        .bind(&record.event_ledger_stream_id)
-        .bind(&record.owner_session)
-        .bind(&record.idempotency_key)
-        .bind(&record.diagnostic_payload)
-        .bind(&record.event_ledger_event_id)
-        .bind(record.event_ledger_seq)
-        .bind(record.event_stream_version)
-        .bind(record.transaction_seq)
-        .bind(serde_json::to_value(&record)?)
-        .fetch_one(&mut *tx)
-        .await?;
+            "#
+        );
+        let row = self
+            .scope_columns()
+            .bind(
+                sqlx::query(&insert_sql)
+                    .bind(&record.mt_status_id)
+                    .bind(&record.run_id)
+                    .bind(&record.work_packet_id)
+                    .bind(&record.micro_task_id)
+                    .bind(&record.task_board_id)
+                    .bind(record.status.as_str())
+                    .bind(record.claimed_by_ref.as_deref())
+                    .bind(record.blocker_ref.as_deref())
+                    .bind(record.missing_resource_ref.as_deref())
+                    .bind(record.proof_status_ref.as_deref())
+                    .bind(record.hbr_status_ref.as_deref())
+                    .bind(record.last_recovery_event_ref.as_deref())
+                    .bind(record.last_runtime_status_ref.as_deref())
+                    .bind(&record.event_ledger_stream_id)
+                    .bind(&record.owner_session)
+                    .bind(&record.idempotency_key)
+                    .bind(&record.diagnostic_payload)
+                    .bind(&record.event_ledger_event_id)
+                    .bind(record.event_ledger_seq)
+                    .bind(record.event_stream_version)
+                    .bind(record.transaction_seq)
+                    .bind(serde_json::to_value(&record)?),
+            )
+            .fetch_one(&mut *tx)
+            .await?;
         tx.commit().await?;
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
@@ -4275,9 +4545,24 @@ impl ModelLaneStore {
     /// Recover every latest checkpoint whose EventLedger authority remains
     /// restartable/reclaimable. The production core boot path invokes this
     /// before exposing backend routes or the managed runtime.
+    /// INTENTIONALLY CROSS-OWNER, and the only ModelLane read that is.
+    ///
+    /// Restart recovery has to reclaim runs abandoned by a crashed process
+    /// before anybody has authenticated, so there is no account context to scope
+    /// it by and scoping it would silently strand other accounts' runs. Rather
+    /// than leaving that as an unmarked unscoped query, the store must be
+    /// holding an explicit [`SystemScopeAuthority`]; an account-scoped store is
+    /// refused here, so "recovery" can never be used as a disclosure route by a
+    /// caller that does hold an account context.
     pub async fn recover_restartable_runs_at_boot(
         &self,
     ) -> ModelLaneResult<Vec<ModelLaneRecoveredRun>> {
+        let authority = self.require_system_authority("recover_restartable_runs_at_boot")?;
+        tracing::info!(
+            target: "handshake_core::model_lane",
+            system_scope_authority = authority.reason(),
+            "model_lane_boot_recovery_cross_owner_scan"
+        );
         let run_ids = sqlx::query_scalar::<_, String>(
             r#"
             SELECT run_id
@@ -4336,7 +4621,7 @@ impl ModelLaneStore {
         run_id: &str,
     ) -> ModelLaneResult<ModelLaneRecoveredRun> {
         validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
-        let canonical_run = canonical_run_for_recovery(&self.pool, run_id).await?;
+        let canonical_run = canonical_run_for_recovery(&self.pool, &self.access, run_id).await?;
         let checkpoint =
             latest_recovery_checkpoint(&self.pool, run_id, &canonical_run.event_ledger_stream_id)
                 .await?;
@@ -4597,7 +4882,7 @@ impl ModelLaneStore {
         check: CloudLaunchAuthorityCheck,
     ) -> ModelLaneResult<()> {
         let mut tx = self.pool.begin().await?;
-        let result = ensure_cloud_launch_authority_tx(&mut tx, &check).await;
+        let result = ensure_cloud_launch_authority_tx(&mut tx, &self.access, &check).await;
         match result {
             Ok(()) => {
                 tx.commit().await?;
@@ -4734,19 +5019,35 @@ async fn record_or_extend_run_tx(
     tx: &mut Transaction<'_, Postgres>,
     input: NewModelLaneRun,
     lane: &NewModelLane,
+    access: &ResourceAccessContext,
 ) -> ModelLaneResult<ModelLaneRunRecord> {
+    // Transaction-local marker so pg_stat_activity names the CALL SITE holding
+    // this salt-0 advisory key, not just the SQL text. `true` scopes it to the
+    // transaction, so it reverts on commit/rollback and cannot leak across a
+    // pooled connection. set_config is used instead of `SET LOCAL` because it
+    // accepts a bind parameter; interpolating run_id into SET would be an
+    // injection seam.
+    sqlx::query("SELECT set_config('application_name', $1, true)")
+        .bind(format!("hsk:record_or_extend_run_tx:{}", input.run_id))
+        .execute(&mut **tx)
+        .await?;
     sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
         .bind(&input.run_id)
         .execute(&mut **tx)
         .await?;
-    let existing =
-        sqlx::query("SELECT record_json FROM model_lane_runs WHERE run_id = $1 FOR UPDATE")
-            .bind(&input.run_id)
-            .fetch_optional(&mut **tx)
-            .await?;
+    let existing = sqlx::query(&format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_runs WHERE run_id = $1 FOR UPDATE"
+    ))
+    .bind(&input.run_id)
+    .fetch_optional(&mut **tx)
+    .await?;
     let Some(existing) = existing else {
-        return record_run_tx(tx, input).await;
+        return record_run_tx(tx, input, access.insert_columns()).await;
     };
+    // HBR-PRIV-002: attaching a lane to an existing run is a WRITE against that
+    // run's row. An account-scoped writer must not be able to extend a run it
+    // does not own, or "extend" becomes a cross-account write channel.
+    access.authorize_row(&stored_resource_scope_from_row(&existing)?)?;
     let existing: ModelLaneRunRecord =
         serde_json::from_value(row_to_json(existing, "record_json")?)?;
     let stable_match = existing.trace_id == input.trace_id
@@ -4851,6 +5152,7 @@ async fn record_or_extend_run_tx(
 async fn record_run_tx(
     tx: &mut Transaction<'_, Postgres>,
     input: NewModelLaneRun,
+    scope: ScopeColumnValues<'_>,
 ) -> ModelLaneResult<ModelLaneRunRecord> {
     let payload = json!({
         "schema_id": "hsk.model_lane_run@1",
@@ -4874,35 +5176,40 @@ async fn record_run_tx(
         event_ledger_seq: stored_event.event_sequence,
         inner: input,
     };
-    let inserted = sqlx::query(
+    let insert_sql = format!(
         r#"
         INSERT INTO model_lane_runs (
             run_id, trace_id, run_span_id, coordinator_session_id,
             work_packet_id, micro_task_id, task_board_id, owner_session,
             idempotency_key, replay_order_key, event_ledger_stream_id,
-            event_ledger_event_id, event_ledger_seq, record_json
+            event_ledger_event_id, event_ledger_seq, record_json,
+            {RESOURCE_SCOPE_INSERT_COLUMNS}
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
         ON CONFLICT (run_id) DO NOTHING
         RETURNING record_json
-        "#,
-    )
-    .bind(&record.run_id)
-    .bind(&record.trace_id)
-    .bind(&record.run_span_id)
-    .bind(&record.coordinator_session_id)
-    .bind(record.work_packet_id.as_deref())
-    .bind(record.micro_task_id.as_deref())
-    .bind(record.task_board_id.as_deref())
-    .bind(&record.owner_session)
-    .bind(&record.idempotency_key)
-    .bind(&record.replay_order_key)
-    .bind(&record.event_ledger_stream_id)
-    .bind(&record.event_ledger_event_id)
-    .bind(record.event_ledger_seq)
-    .bind(serde_json::to_value(&record)?)
-    .fetch_optional(&mut **tx)
-    .await?;
+        "#
+    );
+    let inserted = scope
+        .bind(
+            sqlx::query(&insert_sql)
+                .bind(&record.run_id)
+                .bind(&record.trace_id)
+                .bind(&record.run_span_id)
+                .bind(&record.coordinator_session_id)
+                .bind(record.work_packet_id.as_deref())
+                .bind(record.micro_task_id.as_deref())
+                .bind(record.task_board_id.as_deref())
+                .bind(&record.owner_session)
+                .bind(&record.idempotency_key)
+                .bind(&record.replay_order_key)
+                .bind(&record.event_ledger_stream_id)
+                .bind(&record.event_ledger_event_id)
+                .bind(record.event_ledger_seq)
+                .bind(serde_json::to_value(&record)?),
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
 
     if let Some(row) = inserted {
         return serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into);
@@ -4922,6 +5229,7 @@ async fn record_run_tx(
 async fn record_lane_tx(
     tx: &mut Transaction<'_, Postgres>,
     input: NewModelLane,
+    scope: ScopeColumnValues<'_>,
 ) -> ModelLaneResult<ModelLaneRecord> {
     let event_idempotency_key = format!("model-lane:{}:{}", input.run_id, input.lane_id);
     let model_stable_anchor = resolve_lane_stable_anchor_tx(tx, &input).await?;
@@ -4949,38 +5257,43 @@ async fn record_lane_tx(
         inner: input,
     };
 
-    let inserted = sqlx::query(
+    let insert_sql = format!(
         r#"
         INSERT INTO model_lanes (
             lane_id, run_id, trace_id, lane_span_id, kind,
             runtime_binding, launch_authority, status, work_packet_id,
             micro_task_id, task_board_id, owner_session, event_ledger_stream_id,
-            event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor
+            event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor,
+            {RESOURCE_SCOPE_INSERT_COLUMNS}
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
         ON CONFLICT (lane_id) DO NOTHING
         RETURNING record_json
-        "#,
-    )
-    .bind(&record.lane_id)
-    .bind(&record.run_id)
-    .bind(&record.trace_id)
-    .bind(&record.lane_span_id)
-    .bind(record.kind.as_str())
-    .bind(record.runtime_binding.as_str())
-    .bind(record.launch_authority.as_str())
-    .bind(record.status.as_str())
-    .bind(record.work_packet_id.as_deref())
-    .bind(record.micro_task_id.as_deref())
-    .bind(record.task_board_id.as_deref())
-    .bind(&record.owner_session)
-    .bind(&record.event_ledger_stream_id)
-    .bind(&record.event_ledger_event_id)
-    .bind(record.event_ledger_seq)
-    .bind(serde_json::to_value(&record)?)
-    .bind(model_stable_anchor.as_deref())
-    .fetch_optional(&mut **tx)
-    .await?;
+        "#
+    );
+    let inserted = scope
+        .bind(
+            sqlx::query(&insert_sql)
+                .bind(&record.lane_id)
+                .bind(&record.run_id)
+                .bind(&record.trace_id)
+                .bind(&record.lane_span_id)
+                .bind(record.kind.as_str())
+                .bind(record.runtime_binding.as_str())
+                .bind(record.launch_authority.as_str())
+                .bind(record.status.as_str())
+                .bind(record.work_packet_id.as_deref())
+                .bind(record.micro_task_id.as_deref())
+                .bind(record.task_board_id.as_deref())
+                .bind(&record.owner_session)
+                .bind(&record.event_ledger_stream_id)
+                .bind(&record.event_ledger_event_id)
+                .bind(record.event_ledger_seq)
+                .bind(serde_json::to_value(&record)?)
+                .bind(model_stable_anchor.as_deref()),
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
 
     if let Some(row) = inserted {
         return serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into);
@@ -7993,6 +8306,35 @@ impl ModelLaneCloudExportPosture {
     }
 }
 
+/// HBR-PRIV-007 remote/SaaS delegation record carried by every ProjectionPlan.
+///
+/// A cloud projection is a delegation of the operator's local data to a third
+/// party. HBR-PRIV-007 requires that delegation to carry (a) an audience-bound
+/// scope, (b) the local visibility it was derived from, and (c) the
+/// authorization receipt that permits it. Without (b) there is nothing to
+/// compare a remote export against, so "the export did not widen local
+/// visibility" is unprovable rather than true.
+///
+/// `audience_refs` is validated as a SUBSET of the plan's `fan_out_targets`, so
+/// the audience can never name a destination the plan did not already disclose.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CloudExportDelegation {
+    /// The exact third-party endpoints this projection may reach. Must be a
+    /// subset of the plan's `fan_out_targets`.
+    pub audience_refs: Vec<String>,
+    /// The LOCAL account-bound visibility this export is derived from. A remote
+    /// export may not exceed it, and a reader from another account may not use
+    /// it. `Unattributed` means the export was produced without any
+    /// authenticated account context and is therefore unusable as authority.
+    pub source_scope: AccountBoundAuthority,
+    /// The `consent_receipt_id` that authorizes this delegation, when the plan
+    /// and receipt are minted as a 1:1 pair. Optional because a plan is durable
+    /// evidence in its own right and is recorded BEFORE its receipt; when it is
+    /// present it is enforced to match in [`validate_cloud_authority_pair`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authorization_receipt_ref: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewModelLaneCloudProjectionPlan {
     pub projection_plan_id: String,
@@ -8016,6 +8358,8 @@ pub struct NewModelLaneCloudProjectionPlan {
     pub export_posture: ModelLaneCloudExportPosture,
     pub provider_profile_ref: String,
     pub fan_out_targets: Vec<String>,
+    /// HBR-PRIV-007. See [`CloudExportDelegation`].
+    pub export_delegation: CloudExportDelegation,
     pub consent_scope: ModelLaneCloudConsentScope,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub target_bindings: Vec<ModelLaneCloudConsentTargetBinding>,
@@ -8075,6 +8419,43 @@ pub struct NewModelLaneCloudConsentReceipt {
     pub export_posture: ModelLaneCloudExportPosture,
     pub fan_out_targets: Vec<String>,
     pub approved: bool,
+    /// HBR-PRIV-005/007: the ONLY authorization surface on this receipt.
+    ///
+    /// Every gate that decides "may this receipt authorize a cloud export"
+    /// consults this typed value and nothing else. It cannot be a formatted
+    /// string, because a string is what let the operator-chat path mint
+    /// `operator://<governance_role_label>/cloud-selection` and call it an
+    /// operator approval.
+    pub approver: AccountBoundAuthority,
+    /// PROVENANCE ONLY — **not** authorization.
+    ///
+    /// # What happened to the legacy self-minted value, and why
+    ///
+    /// The operator-chat path used to write
+    /// `format!("operator://{}/cloud-selection", owner_session)` here, where
+    /// `owner_session` is a governance ROLE LABEL. Two options were available:
+    /// reject every legacy-shaped value at write time, or retain the field for
+    /// provenance and refuse to treat it as authorization.
+    ///
+    /// Both were taken, in the narrowest defensible split:
+    ///
+    /// * **Retained for provenance.** Real deployed receipts and the existing
+    ///   proof corpus carry human-meaningful refs (`operator://mt006/approval`,
+    ///   ticket ids, UI action refs). Deleting the column would destroy real
+    ///   lineage and would rewrite history to pretend the self-issued receipts
+    ///   never existed. It is kept, and it is kept honest by being demoted: no
+    ///   gate reads it.
+    /// * **Rejected at write time, but only for the self-issuance shape.**
+    ///   [`reject_self_minted_approver`] refuses a value whose identity
+    ///   component IS this row's own `owner_session` — i.e. exactly
+    ///   `operator://{owner_session}/...`. That is the shape that carries no
+    ///   information, because the subject and the issuer are the same label. A
+    ///   blanket ban on `operator://` would have been theatre: it would reject
+    ///   honest refs while a caller could still self-issue under any other
+    ///   scheme, and the real fix (the typed `approver`) is what closes that.
+    ///
+    /// Nothing here is silently trusted: the typed `approver` is required, and
+    /// an `Unattributed` approver cannot satisfy any account-scoped gate.
     pub approved_by_ref: String,
     pub approved_at_utc: String,
     pub valid_from_utc: String,
@@ -8684,11 +9065,40 @@ fn validate_cloud_authority_pair(
             consent.consent_receipt_id, projection.projection_plan_id
         )));
     }
+
+    // HBR-PRIV-007: the export's declared local source scope and the account that
+    // approved it must be the SAME account. Otherwise account A could approve an
+    // export of account B's data, which is precisely the delegation-without-
+    // authorization case the pillar names. Checked separately from the coherence
+    // chain above so the denial says which invariant broke.
+    if !projection
+        .export_delegation
+        .source_scope
+        .same_owner_as(&consent.approver)
+    {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 ConsentReceipt {} approver account does not own the ProjectionPlan {} export source scope",
+            consent.consent_receipt_id, projection.projection_plan_id
+        )));
+    }
+
+    // When the plan names the receipt that authorizes it, that binding is
+    // enforced rather than decorative: a plan may not be paired with a receipt it
+    // did not name.
+    if let Some(authorized_by) = projection.export_delegation.authorization_receipt_ref.as_deref() {
+        if authorized_by != consent.consent_receipt_id {
+            return Err(ModelLaneError::AuthorityDenied(format!(
+                "CX-MM-007 ProjectionPlan {} is authorized by {authorized_by}, not by ConsentReceipt {}",
+                projection.projection_plan_id, consent.consent_receipt_id
+            )));
+        }
+    }
     Ok(())
 }
 
 async fn ensure_cloud_launch_authority_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     check: &CloudLaunchAuthorityCheck,
 ) -> ModelLaneResult<()> {
     require_token("cloud.run_id", &check.run_id)?;
@@ -8705,14 +9115,14 @@ async fn ensure_cloud_launch_authority_tx(
         require_optional_token("projection_plan_ref", check.projection_plan_ref.as_deref())?;
     let consent_receipt_id =
         require_optional_token("consent_receipt_ref", check.consent_receipt_ref.as_deref())?;
-    let projection = cloud_projection_plan_by_id_tx(tx, &projection_plan_id)
+    let projection = cloud_projection_plan_by_id_tx(tx, access, &projection_plan_id)
         .await?
         .ok_or_else(|| {
             ModelLaneError::InvalidInput(format!(
                 "ProjectionPlan {projection_plan_id} is not durable"
             ))
         })?;
-    let consent = cloud_consent_receipt_by_id_tx(tx, &consent_receipt_id)
+    let consent = cloud_consent_receipt_by_id_tx(tx, access, &consent_receipt_id)
         .await?
         .ok_or_else(|| {
             ModelLaneError::InvalidInput(format!(
@@ -8736,14 +9146,23 @@ async fn ensure_cloud_launch_authority_tx(
         &check.run_id,
     )?;
     ensure_cloud_authority_target("ProjectionPlan", &projection.inner, check)?;
+    // Revocation is checked BEFORE the approval flag so the denial names the
+    // true cause. Previously a revoked receipt fell out of the `!approved`
+    // branch as "ConsentReceipt is not approved", which is both misleading (it
+    // was approved — and then withdrawn) and made the "ConsentReceipt is
+    // revoked" error that the in-product UserManual documents unreachable on the
+    // revocation path. Both orderings fail closed; only one is honest.
+    if consent.revoked_at_utc.is_some()
+        || consent.revocation_ref.is_some()
+        || consent.status == ModelLaneCloudConsentReceiptStatus::Revoked
+    {
+        return Err(ModelLaneError::InvalidInput(
+            "ConsentReceipt is revoked".into(),
+        ));
+    }
     if consent.status != ModelLaneCloudConsentReceiptStatus::Approved || !consent.approved {
         return Err(ModelLaneError::InvalidInput(
             "ConsentReceipt is not approved".into(),
-        ));
-    }
-    if consent.revoked_at_utc.is_some() || consent.revocation_ref.is_some() {
-        return Err(ModelLaneError::InvalidInput(
-            "ConsentReceipt is revoked".into(),
         ));
     }
     require_equal(
@@ -8753,6 +9172,27 @@ async fn ensure_cloud_launch_authority_tx(
         &check.run_id,
     )?;
     ensure_cloud_consent_receipt_target("ConsentReceipt", &consent.inner, check)?;
+
+    // HBR-PRIV-005/007: WHO approved is decided by the typed `approver`, never by
+    // `approved_by_ref`. `approved_by_ref` is not read anywhere in this gate, and
+    // that is the point: the string is provenance, the typed value is authority.
+    //
+    // A `System` access context has no account to check against; that is the
+    // documented pre-WP-KERNEL-006 residual bypass shared by every WP-1 table
+    // (see `SystemScopeAuthority::legacy_unscoped_call_site`), not a special
+    // exemption invented for cloud consent. As soon as a launch carries an
+    // account context, an `Unattributed` receipt cannot authorize it and neither
+    // can another account's receipt.
+    if let Some(query) = access.read_query() {
+        consent.approver.authorizes(query).map_err(|denied| {
+            ModelLaneError::AuthorityDenied(format!(
+                "CX-MM-007 ConsentReceipt {} carries no approval usable by this account: {}",
+                consent.consent_receipt_id,
+                denied.reason_code()
+            ))
+        })?;
+    }
+
     let now = Utc::now();
     let valid_from = parse_utc("ConsentReceipt.valid_from_utc", &consent.valid_from_utc)?;
     let valid_until = parse_utc("ConsentReceipt.valid_until_utc", &consent.valid_until_utc)?;
@@ -9114,12 +9554,18 @@ async fn mt_runtime_status_by_idempotency_key_tx(
 
 async fn canonical_run_for_recovery(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     run_id: &str,
 ) -> ModelLaneResult<ModelLaneRunRecord> {
-    let run =
-        select_record_by_column::<ModelLaneRunRecord>(pool, "model_lane_runs", "run_id", run_id)
-            .await?
-            .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id}")))?;
+    let run = select_record_by_column::<ModelLaneRunRecord>(
+        pool,
+        access,
+        "model_lane_runs",
+        "run_id",
+        run_id,
+    )
+    .await?
+    .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id}")))?;
     let ledger_session_run_id: String = sqlx::query_scalar(
         r#"
         SELECT session_run_id
@@ -9789,6 +10235,23 @@ async fn validate_diagnostics_row_eventledger_authority(
         "run_id",
     )
     .await?;
+    // Artifact projections were the one durable ModelLane surface no replay,
+    // diagnostics, or recovery read ever proved against the EventLedger, so a
+    // row could be edited in place and every reader accepted it. The stage
+    // output payload lives here, which makes it the highest-value row to tamper
+    // and the only one that was unguarded.
+    validate_diagnostics_row_eventledger_authority_for::<
+        ModelLaneContextBundleArtifactBindingRecord,
+        NewModelLaneContextBundleArtifactBinding,
+    >(
+        pool,
+        run_id,
+        "model_lane_context_bundle_artifact",
+        "model_lane_context_bundle_artifacts",
+        "artifact_binding_id",
+        "run_id",
+    )
+    .await?;
     validate_diagnostics_row_eventledger_authority_for::<ModelLaneLeaseRecord, NewModelLaneLease>(
         pool,
         run_id,
@@ -9892,7 +10355,8 @@ where
         "model_lane_messages"
         | "model_lane_leases"
         | "model_lane_diagnostic_tier_statuses"
-        | "model_lane_mt_runtime_statuses" => {
+        | "model_lane_mt_runtime_statuses"
+        | "model_lane_context_bundle_artifacts" => {
             "rows.event_stream_version AS row_event_stream_version,
                rows.transaction_seq AS row_transaction_seq,"
         }
@@ -9973,7 +10437,7 @@ where
         let row_record: R = serde_json::from_value(record_json.clone())?;
         if row_record.deref() != &ledger_record {
             return Err(ModelLaneError::InvalidInput(format!(
-                "{aggregate_type} {row_id} diagnostics projection row drift: mutable row does not match kernel_event_ledger payload"
+                "{aggregate_type} {row_id} diagnostics projection row drift: mutable row does not match its EventLedger payload in kernel_event_ledger"
             )));
         }
         if aggregate_type == "model_lane_message" {
@@ -10096,8 +10560,23 @@ fn validate_optional_record_json_i64_metadata(
     }
 }
 
+/// Re-authorize one row's stored scope and decode it. Every generic navigation
+/// helper funnels through here so the second (post-deserialization) enforcement
+/// layer cannot be forgotten at an individual call site.
+fn authorize_and_decode_row<T>(
+    access: &ResourceAccessContext,
+    row: sqlx::postgres::PgRow,
+) -> ModelLaneResult<T>
+where
+    T: DeserializeOwned,
+{
+    access.authorize_row(&stored_resource_scope_from_row(&row)?)?;
+    row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
+}
+
 async fn select_record_by_column<T>(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     table_name: &'static str,
     column_name: &'static str,
     value: &str,
@@ -10105,17 +10584,16 @@ async fn select_record_by_column<T>(
 where
     T: DeserializeOwned,
 {
+    let predicate = access.sql_predicate(2);
     let sql = format!(
-        "SELECT record_json FROM {table_name} WHERE {column_name} = $1 ORDER BY event_ledger_seq ASC LIMIT 1"
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table_name} WHERE {column_name} = $1{} ORDER BY event_ledger_seq ASC LIMIT 1",
+        predicate.clause()
     );
-    sqlx::query(&sql)
-        .bind(value)
+    predicate
+        .bind(sqlx::query(&sql).bind(value))
         .fetch_optional(pool)
         .await?
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
+        .map(|row| authorize_and_decode_row(access, row))
         .transpose()
 }
 
@@ -10128,6 +10606,7 @@ where
 /// the JSONB text accessor keeps a valid query from ever 500-ing.
 async fn select_record_by_json_field<T>(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     table_name: &'static str,
     json_field: &'static str,
     value: &str,
@@ -10135,17 +10614,16 @@ async fn select_record_by_json_field<T>(
 where
     T: DeserializeOwned,
 {
+    let predicate = access.sql_predicate(2);
     let sql = format!(
-        "SELECT record_json FROM {table_name} WHERE record_json->>'{json_field}' = $1 ORDER BY event_ledger_seq ASC LIMIT 1"
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table_name} WHERE record_json->>'{json_field}' = $1{} ORDER BY event_ledger_seq ASC LIMIT 1",
+        predicate.clause()
     );
-    sqlx::query(&sql)
-        .bind(value)
+    predicate
+        .bind(sqlx::query(&sql).bind(value))
         .fetch_optional(pool)
         .await?
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
+        .map(|row| authorize_and_decode_row(access, row))
         .transpose()
 }
 
@@ -10155,15 +10633,22 @@ where
 /// into the JSONB payload.
 async fn select_run_ids_by_json_field(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     table_name: &'static str,
     json_field: &'static str,
     value: &str,
 ) -> ModelLaneResult<Vec<String>> {
+    let predicate = access.sql_predicate(2);
+    // These helpers project only `run_id`, so there is no row to re-authorize
+    // afterwards. The SQL predicate is therefore the enforcement point, and the
+    // run id it yields is re-checked by `replay_run` before any row is
+    // disclosed — that is the second layer for this path.
     let sql = format!(
-        "SELECT DISTINCT run_id FROM {table_name} WHERE record_json->>'{json_field}' = $1 ORDER BY run_id ASC"
+        "SELECT DISTINCT run_id FROM {table_name} WHERE record_json->>'{json_field}' = $1{} ORDER BY run_id ASC",
+        predicate.clause()
     );
-    sqlx::query_scalar::<_, String>(&sql)
-        .bind(value)
+    predicate
+        .bind_scalar(sqlx::query_scalar::<_, String>(&sql).bind(value))
         .fetch_all(pool)
         .await
         .map_err(Into::into)
@@ -10171,15 +10656,18 @@ async fn select_run_ids_by_json_field(
 
 async fn select_run_ids_by_column(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     table_name: &'static str,
     column_name: &'static str,
     value: &str,
 ) -> ModelLaneResult<Vec<String>> {
+    let predicate = access.sql_predicate(2);
     let sql = format!(
-        "SELECT DISTINCT run_id FROM {table_name} WHERE {column_name} = $1 ORDER BY run_id ASC"
+        "SELECT DISTINCT run_id FROM {table_name} WHERE {column_name} = $1{} ORDER BY run_id ASC",
+        predicate.clause()
     );
-    sqlx::query_scalar::<_, String>(&sql)
-        .bind(value)
+    predicate
+        .bind_scalar(sqlx::query_scalar::<_, String>(&sql).bind(value))
         .fetch_all(pool)
         .await
         .map_err(Into::into)
@@ -10206,6 +10694,7 @@ fn unique_run_id_for_lookup(
 
 async fn select_records_by_column<T>(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     table_name: &'static str,
     column_name: &'static str,
     value: &str,
@@ -10213,70 +10702,73 @@ async fn select_records_by_column<T>(
 where
     T: DeserializeOwned,
 {
+    let predicate = access.sql_predicate(2);
     let sql = format!(
-        "SELECT record_json FROM {table_name} WHERE {column_name} = $1 ORDER BY event_ledger_seq ASC"
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table_name} WHERE {column_name} = $1{} ORDER BY event_ledger_seq ASC",
+        predicate.clause()
     );
-    sqlx::query(&sql)
-        .bind(value)
+    predicate
+        .bind(sqlx::query(&sql).bind(value))
         .fetch_all(pool)
         .await?
         .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
+        .map(|row| authorize_and_decode_row(access, row))
         .collect()
 }
 
 async fn select_records_by_any_artifact_ref(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     value: &str,
 ) -> ModelLaneResult<Vec<ModelLaneContextBundleArtifactBindingRecord>> {
-    sqlx::query(
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
         r#"
-        SELECT record_json
+        SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
         FROM model_lane_context_bundle_artifacts
-        WHERE artifact_ref = $1
+        WHERE (artifact_ref = $1
            OR artifact_payload_ref = $1
            OR artifact_manifest_ref = $1
            OR artifact_binding_id = $1
            OR artifact_sha256 = $1
-           OR content_hash = $1
+           OR content_hash = $1){}
         ORDER BY event_ledger_seq ASC
         "#,
-    )
-    .bind(value)
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .collect()
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(value))
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(|row| authorize_and_decode_row(access, row))
+        .collect()
 }
 
 async fn select_records_by_any_handoff_artifact_ref(
     pool: &PgPool,
+    access: &ResourceAccessContext,
     value: &str,
 ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
-    sqlx::query(
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
         r#"
-        SELECT record_json
+        SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS}
         FROM model_lane_context_bundle_handoffs
-        WHERE artifact_ref = $1
+        WHERE (artifact_ref = $1
            OR artifact_sha256 = $1
-           OR content_hash = $1
+           OR content_hash = $1){}
         ORDER BY event_ledger_seq ASC
         "#,
-    )
-    .bind(value)
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .collect()
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(value))
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(|row| authorize_and_decode_row(access, row))
+        .collect()
 }
 
 fn dedupe_context_handoffs(rows: &mut Vec<ModelLaneContextBundleHandoffRecord>) {
@@ -11216,20 +11708,32 @@ fn validate_message_payload_binding_pair(
     Ok(())
 }
 
+/// HBR-PRIV-002 default-deny lookup for a cloud ProjectionPlan.
+///
+/// This is the "cannot REUSE another account's authority" boundary, not just the
+/// "cannot read it" one: every cloud launch gate resolves its ProjectionPlan
+/// through here, so an account-scoped store simply cannot see another account's
+/// plan and the launch fails closed with `is not durable`.
+///
+/// Enforcement is in both layers per HBR-PRIV-002 — the owner predicate keeps the
+/// row inside PostgreSQL, and the stored scope columns are re-authorized after
+/// deserialization in case a future edit drops the predicate.
 async fn cloud_projection_plan_by_id_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     projection_plan_id: &str,
 ) -> ModelLaneResult<Option<ModelLaneCloudProjectionPlanRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_cloud_projection_plans WHERE projection_plan_id = $1 FOR UPDATE",
-    )
-    .bind(projection_plan_id)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_cloud_projection_plans WHERE projection_plan_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(projection_plan_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()
 }
 
 async fn cloud_projection_plan_by_idempotency_key_tx(
@@ -11248,20 +11752,26 @@ async fn cloud_projection_plan_by_idempotency_key_tx(
     .transpose()
 }
 
+/// HBR-PRIV-002 default-deny lookup for a cloud ConsentReceipt. See
+/// [`cloud_projection_plan_by_id_tx`] — same two-layer contract, and the same
+/// consequence: another account's consent receipt is not resolvable, so it
+/// cannot be reused to authorize a launch or to drive a revocation.
 async fn cloud_consent_receipt_by_id_tx(
     tx: &mut Transaction<'_, Postgres>,
+    access: &ResourceAccessContext,
     consent_receipt_id: &str,
 ) -> ModelLaneResult<Option<ModelLaneCloudConsentReceiptRecord>> {
-    sqlx::query(
-        "SELECT record_json FROM model_lane_cloud_consent_receipts WHERE consent_receipt_id = $1 FOR UPDATE",
-    )
-    .bind(consent_receipt_id)
-    .fetch_optional(&mut **tx)
-    .await?
-    .map(|row| {
-        row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into))
-    })
-    .transpose()
+    let predicate = access.sql_predicate(2);
+    let sql = format!(
+        "SELECT record_json, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_cloud_consent_receipts WHERE consent_receipt_id = $1{} FOR UPDATE",
+        predicate.clause()
+    );
+    predicate
+        .bind(sqlx::query(&sql).bind(consent_receipt_id))
+        .fetch_optional(&mut **tx)
+        .await?
+        .map(|row| authorize_and_decode_row(access, row))
+        .transpose()
 }
 
 async fn cloud_consent_receipt_by_idempotency_key_tx(
@@ -12319,6 +12829,7 @@ fn validate_cloud_projection_plan(input: &NewModelLaneCloudProjectionPlan) -> Mo
     for target in &input.fan_out_targets {
         require_token("fan_out_targets[]", target)?;
     }
+    validate_cloud_export_delegation(&input.export_delegation, &input.fan_out_targets)?;
     require_token("event_ledger_stream_id", &input.event_ledger_stream_id)?;
     require_token("work_packet_id", &input.work_packet_id)?;
     require_token("micro_task_id", &input.micro_task_id)?;
@@ -12328,6 +12839,127 @@ fn validate_cloud_projection_plan(input: &NewModelLaneCloudProjectionPlan) -> Mo
     parse_utc("created_at_utc", &input.created_at_utc)?;
     require_token("user_manual_behavior_ref", &input.user_manual_behavior_ref)?;
     ensure_object_payload("diagnostic_payload", &input.diagnostic_payload)
+}
+
+/// HBR-PRIV-007 non-widening gate for the remote/SaaS delegation record.
+///
+/// The audience is checked as a subset of the plan's disclosed `fan_out_targets`
+/// rather than as free text. Subset, not equality, because a plan may legitimately
+/// disclose more possible destinations than one projection actually delegates to —
+/// but it may never delegate to a destination it never disclosed.
+fn validate_cloud_export_delegation(
+    delegation: &CloudExportDelegation,
+    fan_out_targets: &[String],
+) -> ModelLaneResult<()> {
+    if delegation.audience_refs.is_empty() {
+        return Err(ModelLaneError::InvalidInput(
+            "export_delegation requires audience_refs".into(),
+        ));
+    }
+    // Duplicates are deliberately NOT rejected. A broadcast plan's fan-out list
+    // legitimately repeats one provider endpoint when several lanes target it,
+    // and the audience is derived from that list — requiring the audience to be
+    // stricter than the list it must be a subset of would be an invented
+    // constraint. A repeated destination cannot widen visibility; naming an
+    // undisclosed destination can, and that is what is checked below.
+    for audience in &delegation.audience_refs {
+        require_token("export_delegation.audience_refs[]", audience)?;
+        reject_hidden_provider_ref("export_delegation.audience_refs[]", audience)?;
+        if !fan_out_targets.iter().any(|target| target == audience) {
+            return Err(ModelLaneError::InvalidInput(format!(
+                "export_delegation.audience_refs must not widen beyond fan_out_targets: {audience} is not a disclosed fan-out target"
+            )));
+        }
+    }
+    validate_account_bound_authority("export_delegation.source_scope", &delegation.source_scope)?;
+    if let Some(receipt_ref) = delegation.authorization_receipt_ref.as_deref() {
+        require_token("export_delegation.authorization_receipt_ref", receipt_ref)?;
+    }
+    Ok(())
+}
+
+/// Reject an identity that is structurally incapable of naming anybody.
+///
+/// A nil UUID is the "I had to put something here" value; accepting it would
+/// reintroduce the exact failure mode this pillar exists to stop, one layer
+/// deeper. An `Unattributed` authority must carry a stable reason so every
+/// unattributed row is enumerable by an auditor.
+fn validate_account_bound_authority(
+    field: &str,
+    authority: &AccountBoundAuthority,
+) -> ModelLaneResult<()> {
+    match authority {
+        AccountBoundAuthority::Account {
+            owner_account_id,
+            actor_principal_id,
+            ..
+        } => {
+            if owner_account_id.as_uuid().is_nil() {
+                return Err(ModelLaneError::InvalidInput(format!(
+                    "{field}.owner_account_id must not be the nil UUID"
+                )));
+            }
+            if actor_principal_id.as_uuid().is_nil() {
+                return Err(ModelLaneError::InvalidInput(format!(
+                    "{field}.actor_principal_id must not be the nil UUID"
+                )));
+            }
+            Ok(())
+        }
+        AccountBoundAuthority::Unattributed { reason } => {
+            require_token(&format!("{field}.reason"), reason)
+        }
+    }
+}
+
+/// Refuse an `approved_by_ref` whose identity component is the row's own
+/// governance role label — the self-issuance shape
+/// `operator://{owner_session}/...` that the operator-chat cloud path used to
+/// mint.
+///
+/// This is deliberately narrow. It rejects the shape that carries zero
+/// information (issuer == subject) without pretending that string shape is where
+/// authorization lives; the typed `approver` is the actual gate. Scoping it this
+/// way also means an honest reference that merely happens to use the `operator://`
+/// scheme is untouched, so no real lineage is destroyed to satisfy a lint.
+/// A durable authorization record must name the account the store is actually
+/// writing as.
+///
+/// Without this, `approver` would be one more client-asserted value with a nicer
+/// type: a caller could stamp any account id it liked into it and the row would
+/// look account-bound. The account comes from the store's
+/// [`ResourceAccessContext`], which is derived from the request seam
+/// (`X-Handshake-Owner-Account` today, an authenticated session after
+/// WP-KERNEL-006) — never from the payload.
+///
+/// A legacy/system store has no write scope, so on that path only an
+/// `Unattributed` authority is accepted: an unscoped call site cannot mint an
+/// account-bound approval at all.
+fn ensure_authority_matches_write_scope(
+    field: &str,
+    authority: &AccountBoundAuthority,
+    access: &ResourceAccessContext,
+) -> ModelLaneResult<()> {
+    let permitted = AccountBoundAuthority::from_access(access);
+    if authority.owner_account_id() != permitted.owner_account_id() {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 {field} names an owning account this store is not authorized to write as"
+        )));
+    }
+    Ok(())
+}
+
+fn reject_self_minted_approver(approved_by_ref: &str, owner_session: &str) -> ModelLaneResult<()> {
+    let Some((_scheme, rest)) = approved_by_ref.split_once("://") else {
+        return Ok(());
+    };
+    let authority = rest.split('/').next().unwrap_or_default();
+    if !authority.is_empty() && authority == owner_session.trim() {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "approved_by_ref {approved_by_ref} is self-issued: its identity component is this row's own owner_session governance role label, which authorizes nothing. Record a typed approver instead."
+        )));
+    }
+    Ok(())
 }
 
 fn validate_cloud_consent_receipt(input: &NewModelLaneCloudConsentReceipt) -> ModelLaneResult<()> {
@@ -12353,7 +12985,9 @@ fn validate_cloud_consent_receipt(input: &NewModelLaneCloudConsentReceipt) -> Mo
     for target in &input.fan_out_targets {
         require_token("fan_out_targets[]", target)?;
     }
+    validate_account_bound_authority("approver", &input.approver)?;
     require_token("approved_by_ref", &input.approved_by_ref)?;
+    reject_self_minted_approver(&input.approved_by_ref, &input.owner_session)?;
     parse_utc("approved_at_utc", &input.approved_at_utc)?;
     let valid_from = parse_utc("valid_from_utc", &input.valid_from_utc)?;
     let valid_until = parse_utc("valid_until_utc", &input.valid_until_utc)?;

@@ -7,8 +7,13 @@
 //! * Gemini is NEVER offered (no `gemini*` author_id or provider row);
 //! * a BYOK key typed into the password field is CLEARED from the shell buffer after Save is dispatched
 //!   (the key never lingers in the UI — the security-critical native invariant);
-//! * a CLI-bridge Log-in click records the provider's OWN official login command (operator-initiated),
-//!   with the terminal launch suppressed so no console steals focus during the headless run.
+//! * a CLI-bridge Log-in click records the provider's OWN official login command (operator-initiated)
+//!   and opens the IN-APP login panel, with the backend login request suppressed so the headless run
+//!   spawns no provider CLI child. The launch itself no longer opens an OS console at all: it runs
+//!   under a Handshake-hosted pseudo-terminal (HBR-QUIET-001), and the panel proven here is what keeps
+//!   that quiet launch completable — the operator reads the provider's prompt and types the answer in
+//!   Settings. The runtime quiet proof (no new window, no foreground change) is
+//!   `handshake_core/tests/cli_bridge_login_quiet_tests.rs`.
 //!
 //! The backend leak proof (key stored only in the OS keychain, never in the settings PUT / logs / FR /
 //! EventLedger / audit rows) is `handshake_core/tests/cloud_byok_access_config_leak_tests.rs`.
@@ -212,8 +217,9 @@ fn typing_and_saving_a_byok_key_clears_the_ui_buffer() {
 // ── A CLI-bridge Log-in records the provider's OWN official login command (operator-initiated). ──────
 //
 // This exercises the live button's click -> outcome -> launch wiring through `login.clicked()` and
-// `drive_settings_dialog`. The terminal spawn stays suppressed (with_health default) so no console
-// steals focus.
+// `drive_settings_dialog`. The backend login request stays suppressed (with_health default) so the
+// headless run spawns no provider CLI child. The test name still reads "without stealing focus" and
+// that is still exactly what it proves — the launch it drives no longer opens an OS console at all.
 #[test]
 fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
     let mut harness = open_with_snapshot();
@@ -238,7 +244,7 @@ fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
 
     assert!(
         harness.state().last_cli_login_launch().is_none(),
-        "the first click only opens the foreground-window confirmation"
+        "the first click only opens the in-app login confirmation"
     );
     harness
         .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
@@ -260,6 +266,302 @@ fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
         "launched the provider's OWN official CLI"
     );
     assert_eq!(launch.1, vec!["auth".to_string(), "login".to_string()]);
+}
+
+// ── A live login must not be stranded by ordinary settings-window actions. ─────────────────────────
+//
+// The panel is the ONLY surface that can answer the provider's prompt now that the login is quiet, so
+// dismissing it while the backend session is still running would strand a real device/OAuth flow: the
+// child would keep running under its bounded window with no way to finish it. Escape/close must wipe
+// the half-typed answer (same discipline as the BYOK key fields) WITHOUT dropping the panel.
+#[test]
+fn a_live_login_panel_survives_closing_and_reopening_settings_but_loses_the_typed_answer() {
+    use handshake_native::settings_dialog::CloudCliLoginState;
+
+    let mut harness = open_with_snapshot();
+    for author in [
+        "settings.cloud.cli.codex.login",
+        "settings.cloud.cli.codex.login.confirm",
+    ] {
+        harness
+            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(author))
+            .next()
+            .unwrap_or_else(|| panic!("{author} addressable"))
+            .click_accesskit();
+        harness.run();
+        harness.run();
+    }
+    harness.state_mut().apply_cli_login_snapshot_for_test(
+        "0192f000-0000-7000-8000-0000000000bb",
+        CloudCliLoginState::AwaitingInput,
+        "Enter code: ",
+    );
+    harness.run();
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.codex.login.input")
+        })
+        .next()
+        .expect("login answer field addressable")
+        .focus();
+    harness.run();
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.codex.login.input")
+        })
+        .next()
+        .expect("login answer field addressable")
+        .type_text("HALF-TYPED");
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .cloud_models()
+            .login_panel()
+            .map(|panel| panel.input.as_str()),
+        Some("HALF-TYPED")
+    );
+
+    // Close settings (Escape), then reopen.
+    harness.key_press(egui::Key::Escape);
+    harness.run();
+    harness.run();
+    assert!(
+        !harness.state().settings_open(),
+        "precondition: Escape closed the settings dialog"
+    );
+    harness.state_mut().open_settings();
+    harness.run();
+    harness.run();
+
+    let panel = harness
+        .state()
+        .cloud_models()
+        .login_panel()
+        .cloned()
+        .expect("a LIVE login session must survive closing and reopening settings");
+    assert_eq!(panel.session_id, "0192f000-0000-7000-8000-0000000000bb");
+    assert_eq!(panel.state, CloudCliLoginState::AwaitingInput);
+    assert!(
+        panel.transcript.contains("Enter code:"),
+        "the provider's prompt must still be readable after a reopen: {panel:?}"
+    );
+    assert_eq!(
+        panel.input, "",
+        "the half-typed answer must be wiped like the BYOK key buffers"
+    );
+    let ids = all_author_ids(&harness);
+    assert!(
+        ids.iter()
+            .any(|id| id == "settings.cloud.cli.codex.login.send"),
+        "the reopened panel must still be answerable: {ids:?}"
+    );
+}
+
+// ── HBR-QUIET-001 honesty: the confirmation must not promise a window or a focus change. ────────────
+//
+// The MT-015 defect was a CREATE_NEW_CONSOLE launch plus a confirmation dialog that told the operator
+// "The terminal may take focus." The launch is now a Handshake-hosted pty and the operator answers the
+// provider's prompt in-app, so the operator-facing text must say that. This test is the fence: if the
+// launch mechanism ever regresses to an OS console, the honest text has to come back with it, and that
+// is exactly what this assertion blocks from happening silently.
+#[test]
+fn login_confirmation_never_promises_a_new_terminal_or_focus_change() {
+    let line = handshake_native::settings_dialog::cloud_cli_login_confirmation_line("Claude Code");
+    // These are CLAIM phrasings, not bare words: the honest text legitimately contains "new window"
+    // and "focus" while NEGATING both ("no new window opens", "nothing takes focus"), so a bare-word
+    // ban would be unsatisfiable and therefore useless as a fence.
+    for banned in [
+        "in a new terminal",
+        "in a new window",
+        "in a new console",
+        "opens a new window",
+        "may take focus",
+        "will take focus",
+        "can take focus",
+        "steals focus",
+        "foreground terminal",
+        "foreground console",
+    ] {
+        assert!(
+            !line.to_ascii_lowercase().contains(banned),
+            "the login confirmation must not claim `{banned}`: {line}"
+        );
+    }
+    assert!(
+        line.contains("inside Handshake"),
+        "the confirmation must say where the login actually runs: {line}"
+    );
+    assert!(
+        line.contains("no new window opens") && line.contains("nothing takes focus"),
+        "the confirmation must state the quiet posture: {line}"
+    );
+
+    // And the LIVE tree must render exactly that line, addressable out-of-process.
+    let mut harness = open_with_snapshot();
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login")
+        })
+        .next()
+        .expect("Claude Code login button addressable")
+        .click_accesskit();
+    harness.run();
+    harness.run();
+
+    let prompt = harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login.prompt")
+        })
+        .next()
+        .expect("the login confirmation prompt is addressable out-of-process")
+        .accesskit_node()
+        .label()
+        .map(|label| label.to_string())
+        .expect("the confirmation prompt carries an AccessKit label");
+    assert!(
+        !prompt.to_ascii_lowercase().contains("take focus"),
+        "the rendered confirmation must not claim a focus change: {prompt}"
+    );
+    assert!(
+        prompt.contains("inside Handshake"),
+        "the rendered confirmation must state the in-app posture: {prompt}"
+    );
+}
+
+// ── The in-app login panel makes the QUIET launch usable. ──────────────────────────────────────────
+//
+// Hiding the console without this panel would turn "steals focus" into "hangs invisibly with no
+// prompt". This proves the operator can (a) SEE the provider's own device/OAuth prompt inside
+// Handshake and (b) TYPE the answer back into the running session — both through stable author_ids, so
+// Argus can drive the same flow out-of-process.
+#[test]
+fn in_app_login_panel_renders_the_provider_prompt_and_routes_the_typed_answer() {
+    use handshake_native::settings_dialog::CloudCliLoginState;
+
+    let mut harness = open_with_snapshot();
+    // Confirm the login: the panel opens even though the headless shell suppresses the backend call.
+    for author in [
+        "settings.cloud.cli.claude_code.login",
+        "settings.cloud.cli.claude_code.login.confirm",
+    ] {
+        harness
+            .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(author))
+            .next()
+            .unwrap_or_else(|| panic!("{author} addressable"))
+            .click_accesskit();
+        harness.run();
+        harness.run();
+    }
+    assert!(
+        harness.state().cloud_models().login_panel().is_some(),
+        "confirming the login must open the in-app login panel"
+    );
+
+    // The backend answers with the provider's real device-code prompt.
+    const PROMPT: &str = "Open https://example.invalid/device and enter code WDJB-MJHT";
+    harness.state_mut().apply_cli_login_snapshot_for_test(
+        "0192f000-0000-7000-8000-0000000000aa",
+        CloudCliLoginState::AwaitingInput,
+        PROMPT,
+    );
+    harness.run();
+    harness.run();
+
+    let transcript = harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login.transcript")
+        })
+        .next()
+        .expect("the login transcript is addressable out-of-process")
+        .accesskit_node()
+        .label()
+        .map(|label| label.to_string())
+        .expect("the transcript carries an AccessKit label");
+    assert!(
+        transcript.contains("WDJB-MJHT") && transcript.contains("https://example.invalid/device"),
+        "the operator must be able to READ the provider's prompt in-app: {transcript}"
+    );
+
+    // Every control the operator needs to FINISH the login is addressable.
+    let ids = all_author_ids(&harness);
+    for expected in [
+        "settings.cloud.cli.claude_code.login.state",
+        "settings.cloud.cli.claude_code.login.transcript",
+        "settings.cloud.cli.claude_code.login.input",
+        "settings.cloud.cli.claude_code.login.send",
+        "settings.cloud.cli.claude_code.login.stop",
+    ] {
+        assert!(
+            ids.iter().any(|id| id == expected),
+            "author_id '{expected}' must be addressable in the live login panel: {ids:?}"
+        );
+    }
+
+    // Typing the code and pressing Send routes the answer to the live session.
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login.input")
+        })
+        .next()
+        .expect("login answer field addressable")
+        .focus();
+    harness.run();
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login.input")
+        })
+        .next()
+        .expect("login answer field addressable")
+        .type_text("WDJB-MJHT");
+    harness.run();
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login.send")
+        })
+        .next()
+        .expect("login send button addressable")
+        .click_accesskit();
+    harness.run();
+    harness.run();
+
+    let submitted = harness
+        .state()
+        .last_cli_login_input()
+        .cloned()
+        .expect("the typed answer was routed to the login session");
+    assert_eq!(submitted.0, "claude_code");
+    assert_eq!(submitted.1, "WDJB-MJHT");
+    // The field is emptied on submit so the answer does not linger in the UI.
+    assert_eq!(
+        harness
+            .state()
+            .cloud_models()
+            .login_panel()
+            .map(|panel| panel.input.as_str()),
+        Some(""),
+        "the answer field must clear after Send"
+    );
+
+    // A finished session swaps the drive controls for a single Close control.
+    harness.state_mut().apply_cli_login_snapshot_for_test(
+        "0192f000-0000-7000-8000-0000000000aa",
+        CloudCliLoginState::Succeeded,
+        "Login successful.",
+    );
+    harness.run();
+    harness.run();
+    let ids = all_author_ids(&harness);
+    assert!(
+        ids.iter()
+            .any(|id| id == "settings.cloud.cli.claude_code.login.close"),
+        "a finished login must expose a Close control: {ids:?}"
+    );
+    assert!(
+        !ids.iter()
+            .any(|id| id == "settings.cloud.cli.claude_code.login.send"),
+        "a finished login must not keep offering Send: {ids:?}"
+    );
 }
 
 #[test]

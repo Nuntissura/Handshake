@@ -263,7 +263,19 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .connect(&schema_url)
         .await
         .expect("connect isolated diagnostics schema");
-    let store = ModelLaneStore::new(pool.clone());
+    // HBR-PRIV: the mounted diagnostics route reads through an account-scoped
+    // store, so rows seeded with a NULL owner are invisible to it and the HTTP
+    // leg below would assert against an empty projection. Seed as a real owning
+    // account and send that account's scope on the request.
+    let diagnostics_owner =
+        handshake_core::swarm_orchestration::resource_scope::OwnerAccountId::mint();
+    let store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        handshake_core::swarm_orchestration::resource_scope::ResourceScope::new(
+            diagnostics_owner,
+            handshake_core::swarm_orchestration::resource_scope::ActorPrincipalId::mint(),
+        ),
+    );
     let model_id = handshake_core::model_runtime::ModelId::new_v7();
     let model_id_text = model_id.to_string();
     let model_registration = handshake_core::model_runtime::ModelRegistration {
@@ -1096,12 +1108,35 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .oneshot(
             Request::builder()
                 .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+                .header(
+                    "x-handshake-owner-account",
+                    diagnostics_owner.as_uuid().to_string(),
+                )
                 .body(Body::empty())
                 .expect("build mounted diagnostics request"),
         )
         .await
         .expect("mounted diagnostics route responds");
     assert_eq!(response.status(), StatusCode::OK);
+
+    // Negative control for the scope header added above: without it this route
+    // must refuse. Otherwise the header could be decorative and this leg would
+    // still pass against a route that enforces nothing (HBR-PRIV-002).
+    let unscoped = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+                .body(Body::empty())
+                .expect("build unscoped diagnostics request"),
+        )
+        .await
+        .expect("unscoped diagnostics route responds");
+    assert_eq!(
+        unscoped.status(),
+        StatusCode::FORBIDDEN,
+        "the mounted diagnostics route must refuse a caller that declares no owning account"
+    );
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("read mounted diagnostics response body");
@@ -1145,6 +1180,14 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .oneshot(
             Request::builder()
                 .uri("/swarm/model-lanes/diagnostics/run-does-not-exist")
+                // Scoped, so this asserts the ABSENT case for an authorized
+                // caller. Without the header the route would refuse at the
+                // scope boundary (403) and never reach the not-found path this
+                // leg exists to pin.
+                .header(
+                    "x-handshake-owner-account",
+                    diagnostics_owner.as_uuid().to_string(),
+                )
                 .body(Body::empty())
                 .expect("build missing-run diagnostics request"),
         )
@@ -1157,7 +1200,21 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
     let error: DiagnosticsStatusEnvelope =
         serde_json::from_slice(&body).expect("deserialize typed diagnostics status envelope");
     assert_eq!(error.error, "MODEL_LANE_DIAGNOSTICS_NOT_FOUND");
-    assert!(error.detail.contains("run-does-not-exist"));
+    // DELIBERATELY INVERTED from `detail.contains("run-does-not-exist")`.
+    //
+    // Under HBR-PRIV the scoped store answers "absent" for BOTH a run that does
+    // not exist and a run that exists but belongs to another account. That is
+    // only an anti-oracle if the two answers are indistinguishable, which means
+    // the detail must be a constant that does not vary with the request. An
+    // echoed run id is a per-request detail, so requiring it would have locked
+    // in a shape where a future "not found: <id>" vs "forbidden" split could
+    // reappear and leak existence. The stable code above is what a caller
+    // should branch on.
+    assert!(
+        !error.detail.contains("run-does-not-exist"),
+        "the not-found detail must not echo the requested run id, or absence stops being uniform: {}",
+        error.detail
+    );
 
     let routing_command_id =
         "routing-command:execution-mt017-diagnostics-awaiting:validator-verdict:1";
@@ -1180,6 +1237,10 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .oneshot(
             Request::builder()
                 .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+                .header(
+                    "x-handshake-owner-account",
+                    diagnostics_owner.as_uuid().to_string(),
+                )
                 .body(Body::empty())
                 .expect("build routing-lineage integrity request"),
         )
@@ -1221,6 +1282,10 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .oneshot(
             Request::builder()
                 .uri("/swarm/model-lanes/diagnostics/run-mt008-diag")
+                .header(
+                    "x-handshake-owner-account",
+                    diagnostics_owner.as_uuid().to_string(),
+                )
                 .body(Body::empty())
                 .expect("build integrity-failure diagnostics request"),
         )
@@ -1239,6 +1304,10 @@ async fn swarm_lane_diagnostics_backend_projection_matches_eventledger() {
         .oneshot(
             Request::builder()
                 .uri("/swarm/model-lanes/diagnostics/latest")
+                .header(
+                    "x-handshake-owner-account",
+                    diagnostics_owner.as_uuid().to_string(),
+                )
                 .body(Body::empty())
                 .expect("build unavailable-authority diagnostics request"),
         )
@@ -1674,4 +1743,149 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
+}
+
+// ===========================================================================
+// WP-1 MT-011 (HBR-PRIV-004/005): the diagnostics surface must be owner
+// filtered, and must not become a cross-account side channel.
+//
+// The shared scope substrate was already proven (migrations 0363+0364,
+// resource_scope.rs, api/account_scope.rs, model_lane_resource_scope_pg_tests).
+// What was NOT proven is the DIAGNOSTIC surface specifically, which is the one
+// place where "show me what went wrong" is most tempting to answer globally.
+// Two disclosure shapes are covered here because they fail differently:
+//
+//   1. by-id     - answering "does this run exist?" for a run you do not own,
+//                  which leaks existence even when the body is withheld;
+//   2. by-latest - resolving "the newest run" GLOBALLY and then scoping, which
+//                  leaks another account's run id through the selection itself.
+//
+// Both must be absent-shaped (NotFound), never a rich denial.
+// ===========================================================================
+
+#[tokio::test]
+async fn mt011_diagnostics_are_owner_filtered_and_latest_is_not_a_cross_account_oracle() {
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!("PostgreSQL/EventLedger is required for the MT-011 diagnostics scope proof");
+    };
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated diagnostics scope schema");
+
+    use handshake_core::swarm_orchestration::model_lane::ModelLaneError;
+    use handshake_core::swarm_orchestration::resource_scope::{
+        ActorPrincipalId, OwnerAccountId, ResourceScope,
+    };
+
+    let alice = OwnerAccountId::mint();
+    let bob = OwnerAccountId::mint();
+    assert_ne!(alice, bob, "the two owning accounts must be distinct");
+
+    let alice_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(alice, ActorPrincipalId::mint()),
+    );
+    let bob_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(bob, ActorPrincipalId::mint()),
+    );
+
+    // Alice owns a complete, diagnostics-bearing run. Bob owns nothing at all,
+    // which is deliberately the WORST case for "latest": with no rows of his
+    // own, any global fallback would hand Bob exactly Alice's run.
+    let run_id = "run-mt011-alice-diagnostics";
+    let lane_id = "lane-mt011-alice";
+    alice_store
+        .record_run(sample_run(run_id, lane_id))
+        .await
+        .expect("record alice diagnostics run");
+    alice_store
+        .record_lane(sample_lane(lane_id, run_id))
+        .await
+        .expect("record alice diagnostics lane");
+    alice_store
+        .record_message(sample_message("msg-mt011-alice", run_id, lane_id))
+        .await
+        .expect("record alice diagnostics message");
+    for (tier, state, evidence) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTierState::Wired,
+            "eventledger://kernel/model-lane/mt011/scope",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTierState::Wired,
+            "hbr-int-009://dexterity/mt011-scope",
+        ),
+        // All three tiers, because the posture validator rejects a
+        // FlightRecorder-only record outright. A partial posture would fail
+        // before the scope filter under test was ever reached.
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTierState::DeferredWithReason,
+            "palmistry://wp1/model-lane/mt011",
+        ),
+    ] {
+        alice_store
+            .record_diagnostic_tier_status(sample_tier(run_id, tier, state, evidence))
+            .await
+            .expect("record alice diagnostic tier");
+    }
+    alice_store
+        .record_mt_runtime_status(sample_mt_status(run_id))
+        .await
+        .expect("record alice MT runtime status");
+
+    // Positive control. Without this the two negatives below could both pass
+    // against a surface that simply returns nothing to anyone.
+    let alice_view = alice_store
+        .diagnostics_projection_with_model_catalog(run_id, None)
+        .await
+        .expect("alice must be able to read her own diagnostics");
+    assert_eq!(alice_view.run.run_id, run_id);
+    assert!(
+        !alice_view.diagnostic_tiers.is_empty(),
+        "the positive control must carry real diagnostic tier rows, or it proves nothing"
+    );
+
+    // (1) By-id. Bob must get ABSENT, not a denial: a 403-shaped answer would
+    // confirm the run exists and belongs to someone, which is the disclosure.
+    match bob_store
+        .diagnostics_projection_with_model_catalog(run_id, None)
+        .await
+    {
+        Err(ModelLaneError::NotFound(_)) => {}
+        Ok(view) => panic!(
+            "cross-account diagnostics read leaked run {}",
+            view.run.run_id
+        ),
+        Err(other) => {
+            panic!("cross-account diagnostics read must be absent-shaped NotFound, got {other}")
+        }
+    }
+
+    // (2) By-latest. Bob owns no runs, so "latest" must resolve INSIDE his
+    // scope and find nothing - never fall back to the globally newest row.
+    match bob_store
+        .latest_diagnostics_projection_with_model_catalog(None)
+        .await
+    {
+        Err(ModelLaneError::NotFound(_)) => {}
+        Ok(view) => panic!(
+            "latest-diagnostics leaked another account's run id: {}",
+            view.run.run_id
+        ),
+        Err(other) => panic!("latest-diagnostics must be absent-shaped NotFound, got {other}"),
+    }
+
+    // Alice's own latest still resolves, so the filter bounds the query rather
+    // than disabling the surface.
+    let alice_latest = alice_store
+        .latest_diagnostics_projection_with_model_catalog(None)
+        .await
+        .expect("alice's own latest diagnostics must still resolve");
+    assert_eq!(alice_latest.run.run_id, run_id);
 }

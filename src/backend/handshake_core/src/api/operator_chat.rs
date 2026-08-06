@@ -182,7 +182,70 @@ pub fn routes(state: OperatorChatState) -> Router {
             "/operator-chat/routing/cancel",
             post(cancel_routing_lifecycle),
         )
+        // WP-1 MT-021 AC-3: read/set the LIVE model-session concurrency cap.
+        // Mounted here because the coordinator singleton is only reachable
+        // through this module's launch service.
+        .route(
+            "/operator-chat/swarm/max-concurrent",
+            get(get_swarm_max_concurrent).put(set_swarm_max_concurrent),
+        )
         .with_state(state)
+}
+
+/// Body for `PUT /operator-chat/swarm/max-concurrent`.
+#[derive(serde::Deserialize)]
+struct SetMaxConcurrentBody {
+    max_concurrent: usize,
+}
+
+/// `GET /operator-chat/swarm/max-concurrent` - the cap currently IN FORCE.
+///
+/// Reports the live semaphore cap, not the value the coordinator was built with,
+/// so an operator surface can never display a limit the runtime is not honouring
+/// (the misleading-control defect MT-021 AC-3 exists to remove).
+async fn get_swarm_max_concurrent(
+    State(state): State<OperatorChatState>,
+) -> Result<Json<Value>, ApiError> {
+    let service = routing_service(&state)?;
+    let coordinator = service.coordinator();
+    let in_force = coordinator.max_concurrent();
+    let requested = coordinator.requested_max_concurrent();
+    Ok(Json(json!({
+        "max_concurrent": in_force,
+        // A lowering that is still draining is a real state the operator can sit
+        // in, so GET has to be able to express it. Without these two fields a
+        // reader cannot tell "the cap is 3" from "the cap is 3 on its way to 1".
+        "requested": requested,
+        "fully_applied": in_force == requested,
+        "live_sessions": coordinator.live_session_count(),
+    })))
+}
+
+/// `PUT /operator-chat/swarm/max-concurrent` - change the live cap.
+///
+/// Returns the cap ACTUALLY in force after the change, which may be higher than
+/// requested when lowering: reducing the cap is cooperative, reclaiming only
+/// permits that are free right now and retiring the rest as running sessions
+/// finish. Model sessions already admitted are never killed to satisfy a
+/// settings change - that would destroy operator work and orphan processes
+/// (HBR-QUIET-003). Reporting the requested number instead of the enforced one
+/// would recreate exactly the lie this route exists to remove.
+async fn set_swarm_max_concurrent(
+    State(state): State<OperatorChatState>,
+    Json(body): Json<SetMaxConcurrentBody>,
+) -> Result<Json<Value>, ApiError> {
+    let service = routing_service(&state)?;
+    let coordinator = service.coordinator();
+    let in_force = coordinator.set_max_concurrent(body.max_concurrent);
+    // Report the CLAMPED target, not the raw body: a request of 0 is held at 1,
+    // and echoing the 0 back would make `fully_applied` false forever.
+    let requested = coordinator.requested_max_concurrent();
+    Ok(Json(json!({
+        "requested": requested,
+        "max_concurrent": in_force,
+        "fully_applied": in_force == requested,
+        "live_sessions": coordinator.live_session_count(),
+    })))
 }
 
 fn routing_service(state: &OperatorChatState) -> Result<Arc<OperatorChatLaunchService>, ApiError> {

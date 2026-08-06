@@ -201,6 +201,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_missing_postgres_behavior(),
         page_state_recovery_guide(),
         page_kernel_write_governance(),
+        page_microvm_sandbox(),
         page_legacy_bridge(),
     ];
     pages.extend(quickstart_pages());
@@ -243,6 +244,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "missing-postgres-behavior",
         "state-recovery-guide",
         "kernel-write-governance",
+        "microvm-sandbox-kvm",
         "legacy-model-manual-bridge",
         "quickstart-index",
         "quickstart-editor",
@@ -380,12 +382,12 @@ fn page_core_workflows() -> NewUserManualPage {
                 "Author a rich document",
                 "1. `POST /knowledge/documents` {workspace_id, title, content_json} — creates the \
                  authority row (doc_version 1).\n\
-                 2. `PUT /knowledge/documents/:id/save` {expected_version, content_json} — \
+                 2. `PUT /knowledge/documents/:document_id/save` {expected_version, content_json} — \
                  optimistic concurrency; a stale expected_version returns 409 `conflict` (reload \
                  then merge, never blind-overwrite).\n\
-                 3. `GET /knowledge/documents/:id/history?limit=&offset=` — paginated append-only \
+                 3. `GET /knowledge/documents/:document_id/history?limit=&offset=` — paginated append-only \
                  revisions.\n\
-                 4. `GET /knowledge/documents/:id/projection?format=markdown|html|plain_text|wiki_loom|context_bundle` \
+                 4. `GET /knowledge/documents/:document_id/projection?format=markdown|html|plain_text|wiki_loom|context_bundle` \
                  — projections of the authority row.\n\
                  5. Import external content: `POST /knowledge/documents/import` \
                  (markdown | plain_text | html; HTML is sanitized fail-closed and unconvertible \
@@ -394,7 +396,7 @@ fn page_core_workflows() -> NewUserManualPage {
             section(
                 "workflows",
                 "Work the Notes (Loom) surface",
-                "Create blocks (`POST /workspaces/:ws/loom/blocks`), link them \
+                "Create blocks (`POST /workspaces/:workspace_id/loom/blocks`), link them \
                  (`POST .../loom/edges`), then navigate: backlinks with context, unlinked \
                  mentions, breadcrumbs, tag hubs, folders with color labels, pinned grids, \
                  local/global graph views, bounded traversal, and full-text search. Compile a \
@@ -554,11 +556,127 @@ fn page_backend_navigation_and_identity() -> NewUserManualPage {
                  - `/knowledge/retrieval/*` — context bundles + staleness + repair\n\
                  - `/knowledge/memory/*` — claims, facts, conflicts, neighborhood\n\
                  - `/knowledge/crdt/*` — draft sync (push/pull/conflict state)\n\
-                 - `/workspaces/:ws/loom/*` + `/workspaces/:ws/assets/*` — Notes/Loom\n\
+                 - `/workspaces/:workspace_id/loom/*` + `/workspaces/:workspace_id/assets/*` — Notes/Loom\n\
                  - `/usermanual/*` — this manual\n\n\
                  Everything is also mounted under `/api/...`. The complete machine-readable \
                  inventory: `GET /usermanual/tools` (every row carries method, route, expected \
                  input/output, errors, recovery).",
+            ),
+            section_with_json(
+                "navigation",
+                "The account-scope header contract (pre-WP-KERNEL-006 seam)",
+                "PURPOSE. ModelLane navigation, ModelLane diagnostics, Palmistry, and \
+                 model-runtime-registry reads are ACCOUNT-SCOPED. Before this seam existed those \
+                 routes returned whatever row matched the id in the path, to anybody who could \
+                 reach the port: the scope was not merely unauthenticated, it was ABSENT — there \
+                 was nowhere in the request to express an owning account, so the store had \
+                 nothing to filter on and the query enumerated the table.\n\n\
+                 WHAT THIS IS NOT. This is NOT authentication. It performs no credential check, \
+                 issues no session, and trusts the caller's claimed account. \
+                 `WP-KERNEL-006` owns the real LocalAccount / Principal / AuthenticatedSession \
+                 layer and the PostgreSQL row-level security that will enforce it; when it lands, \
+                 the same scope is derived from the authenticated session and this header is \
+                 rejected outright. The stores below the seam do not change, because they already \
+                 REQUIRE a scope instead of defaulting to one.\n\n\
+                 USAGE PATH (inputs). Send on every scoped route:\n\n\
+                 - `x-handshake-owner-account` — REQUIRED. The owning account, as a UUID.\n\
+                 - `x-handshake-workspace` — OPTIONAL. Narrows the read to one workspace inside \
+                 that account (the same-project privacy case).\n\n\
+                 OUTPUTS AND FAILURE MODES. A missing, blank, or malformed owner value is \
+                 `403 forbidden` with `RESOURCE_SCOPE_REQUIRED` or `RESOURCE_SCOPE_MALFORMED` — \
+                 NEVER a fallback to returning everything. `403` and not `401`, because there is \
+                 no authentication challenge to issue yet and `401` would imply one exists. A \
+                 present-but-blank workspace value is `RESOURCE_SCOPE_MALFORMED` rather than \
+                 'no workspace filter': silently widening a narrowing header is the exact failure \
+                 this rejects. Rows are filtered in the SQL predicate AND re-authorized after \
+                 deserialization, so another account's row is ABSENT rather than \
+                 denied-with-detail; the storage-level reason codes are \
+                 `RESOURCE_SCOPE_OWNER_MISMATCH` (row belongs to another account), \
+                 `RESOURCE_SCOPE_UNATTRIBUTED` (row has no owning account recorded, denied by \
+                 default), and `RESOURCE_SCOPE_WORKSPACE_MISMATCH`. No denial body ever echoes \
+                 the requested resource id, the stored owner, or anything about whether the \
+                 resource exists — a denial must not become an existence oracle.\n\n\
+                 RECOVERY. A `403` here is a MISSING INPUT, not a broken backend: resend with a \
+                 well-formed `x-handshake-owner-account`. An empty result under a valid scope \
+                 means the row belongs to another account or another workspace — do not retry \
+                 without the header hoping for a wildcard, and do not read the table directly. \
+                 Rows written before this seam carry a NULL owning account and are therefore \
+                 unreadable by every account-scoped reader; that is deliberate (fail closed for \
+                 readers, visibly wrong for auditors) and is repaired by re-recording them \
+                 through an account-scoped store, never by relaxing the reader.\n\n\
+                 AFFECTED PRIMITIVES. Migrations `0363_model_lane_account_resource_scope` and \
+                 `0364_model_lane_resource_scope_search_path_repair` added \
+                 `owner_account_id`, `actor_principal_id`, `authenticated_session_id`, \
+                 `access_space_id`, and `workspace_id` across the WP-1 model-lane tables — runs, \
+                 lanes, messages, leases, diagnostic tier statuses, cloud projection plans, cloud \
+                 consent receipts, context-bundle artifacts and handoffs, promotion decisions, \
+                 routing executions, and the model runtime registry among them. Cloud consent \
+                 authority reuses the same comparison: a receipt's `approver` is an \
+                 `AccountBoundAuthority` checked with the SAME predicate the storage read \
+                 boundary uses, so there is no second, parallel matching rule (see \
+                 [[model-lane-cloud-projection-consent]]).\n\n\
+                 THE ONE INTENTIONAL CROSS-OWNER OPERATION. Boot restart recovery must enumerate \
+                 every owner's restartable run BEFORE anyone has authenticated, so it runs under \
+                 a named `SystemScopeAuthority::boot_recovery` carrying the stable reason \
+                 `SYSTEM_SCOPE_BOOT_RESTART_RECOVERY`. Cross-owner access is therefore never an \
+                 accident: it is a typed, enumerable authority, and it is refused from an \
+                 account-scoped store.\n\n\
+                 VERIFICATION PROOF. `account_scope::tests::a_request_with_no_scope_header_is_denied_not_widened`; \
+                 `account_scope::tests::a_blank_scope_header_is_treated_as_absent_not_as_a_wildcard`; \
+                 `account_scope::tests::a_malformed_scope_header_is_denied`; \
+                 `account_scope::tests::a_blank_workspace_header_is_malformed_rather_than_a_silent_widening`; \
+                 `account_scope::tests::a_denial_body_never_carries_resource_metadata`; \
+                 `model_lane_resource_scope_pg_tests::two_accounts_cannot_read_each_others_lane_rows`; \
+                 `model_lane_resource_scope_pg_tests::one_account_cannot_read_across_its_own_workspaces`; \
+                 `model_lane_resource_scope_pg_tests::an_unattributed_legacy_row_is_denied_not_grandfathered`; \
+                 `model_lane_resource_scope_pg_tests::a_cross_account_denial_leaks_no_identifiers_or_row_contents`; \
+                 `model_lane_resource_scope_pg_tests::boot_recovery_refuses_to_run_from_an_account_scoped_store`.\n\n\
+                 HBR-INT-009 diagnostic posture for the account-scope seam (recorded, never \
+                 silently skipped):\n\
+                 - Tier 1 Flight Recorder / EventLedger: WIRED for the SCOPE STAMP. Every durable \
+                 row written through an account-scoped store carries the migration-0363 scope \
+                 columns, and its `kernel_event_ledger` evidence is read back through the same \
+                 account predicate. NOT_APPLICABLE for the refusal itself: a request rejected \
+                 during header extraction never reaches a durable writer, so there is no business \
+                 event to append — the caller's evidence is the stable reason code in the \
+                 response body.\n\
+                 - Tier 2 internal_diagnostics: DEFERRED-with-reason. The native shell records \
+                 its OWN backend calls through the `BackendRoute` diagnostic mechanism and \
+                 projects them in the Problems pane, but no server-side diagnostic event is \
+                 emitted for a scope refusal, so repeated cross-account probing by a non-native \
+                 HTTP client is not visible there. Follow-up: emit a typed diagnostic event for \
+                 scope denials once the seam is replaced by WP-KERNEL-006 authentication, so the \
+                 event carries a real principal instead of a claimed one.\n\
+                 - Tier 3 Palmistry: NOT_APPLICABLE-with-reason. Palmistry is the EXTERNAL \
+                 out-of-process watcher that survives a Handshake freeze or crash; a scope \
+                 denial is a normal in-process request outcome and is not a survivability event, \
+                 so fabricating a Palmistry observation for it would dilute the tier that exists \
+                 to prove Handshake stopped answering at all.",
+                json!({
+                    "required_scope_header": "x-handshake-owner-account",
+                    "optional_scope_header": "x-handshake-workspace",
+                    "rejection_status": 403,
+                    "request_reason_codes": ["RESOURCE_SCOPE_REQUIRED", "RESOURCE_SCOPE_MALFORMED"],
+                    "storage_reason_codes": [
+                        "RESOURCE_SCOPE_OWNER_MISMATCH",
+                        "RESOURCE_SCOPE_UNATTRIBUTED",
+                        "RESOURCE_SCOPE_WORKSPACE_MISMATCH"
+                    ],
+                    "scope_columns": [
+                        "owner_account_id",
+                        "actor_principal_id",
+                        "authenticated_session_id",
+                        "access_space_id",
+                        "workspace_id"
+                    ],
+                    "migrations": [
+                        "0363_model_lane_account_resource_scope",
+                        "0364_model_lane_resource_scope_search_path_repair"
+                    ],
+                    "named_cross_owner_authority": "SYSTEM_SCOPE_BOOT_RESTART_RECOVERY",
+                    "is_authentication": false,
+                    "superseded_by": "WP-KERNEL-006"
+                }),
             ),
             section(
                 "hooks",
@@ -672,11 +790,14 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  reports `unavailable` rather than guessing. Non-Windows probing is fail-closed \
                  `unavailable` until an equivalent process-tree-contained adapter exists. The row provides \
                  an operator-initiated 'Log in…' button. The first click opens an in-app \
-                 confirmation that discloses the new foreground terminal; only `Start login` calls the \
+                 confirmation stating that the login runs INSIDE Handshake; only `Start login` calls the \
                  backend-owned launch endpoint. The backend uses the same pinned executable graph and \
-                 fixed `claude auth login` or `codex login` argv, returning only an opaque pid handle. \
-                 The GUI performs no shell or PATH resolution, and provider response data is never \
-                 interpolated into a command.\n\
+                 fixed `claude auth login` or `codex login` argv, and runs it under a Handshake-hosted \
+                 pseudo-terminal — NOT in a new OS console. No window is created and no foreground or \
+                 Z-order change occurs (HBR-QUIET-001), while the provider's interactive device/OAuth \
+                 prompt is still readable and answerable in the in-app login panel that opens under the \
+                 provider row. The GUI performs no shell or PATH resolution, receives no executable path, \
+                 argv, or child pid, and provider response data is never interpolated into a command.\n\
                  - BYOK (available, not required): paste an Anthropic or OpenAI API key. The key is \
                  stored ONLY in the OS keychain (Windows Credential Manager / macOS Keychain / Linux \
                  Secret Service). It is NEVER written to logs, the Flight Recorder, the EventLedger, the \
@@ -701,8 +822,26 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  `gemini`) returns 404 `provider_not_offered`.\n\
                  - `DELETE /model-access/byok/{provider}/key` — remove / rotate a key (idempotent).\n\n\
                  - `POST /model-access/cli-bridge/{provider}/login` — after operator confirmation, \
-                 ask the backend to launch the same provider's already-pinned foreground login graph. \
-                 The response contains only the provider id and pid launch handle.\n\n\
+                 ask the backend to START the same provider's already-pinned login graph as an IN-APP \
+                 pseudo-terminal session. No OS console window is opened and nothing is raised to the \
+                 foreground. The response is a login-session snapshot: `session_id` (backend-generated), \
+                 `provider`, typed `status`, the provider's own `transcript`, `transcript_truncated`, \
+                 `exit_code`, `elapsed_ms`, and `remaining_ms`. No executable path, argv, environment, or \
+                 child pid crosses the boundary.\n\
+                 - `GET /model-access/cli-bridge-login/{session}` — poll one login session. `status` is \
+                 one of `pending` (started, provider has printed nothing yet), `awaiting_input` (provider \
+                 has printed output and the process is still running), `succeeded` (exit 0), `failed` \
+                 (non-zero exit), `timed_out` (the bounded window elapsed and Handshake terminated the \
+                 process), or `cancelled` (operator stopped it). `transcript` is the provider's own \
+                 terminal output with ANSI control sequences stripped; it is memory-only and is never \
+                 logged, traced, recorded to the Flight Recorder / EventLedger, or persisted.\n\
+                 - `POST /model-access/cli-bridge-login/{session}/input` with body `{\"input\": \"…\"}` — \
+                 deliver ONE operator answer (a device code, a `y`/`n`, an account choice) to the login \
+                 process's stdin. A carriage return is appended by the backend. 409 \
+                 `cli_login_session_finished` when the session already reached a terminal status.\n\
+                 - `POST /model-access/cli-bridge-login/{session}/cancel` — terminate the login process \
+                 and evict the session.\n\
+                 - 404 `cli_login_session_not_found` for any unknown or already-evicted session id.\n\n\
                  There is no route to read a stored key back out over HTTP.",
             ),
             section(
@@ -733,6 +872,33 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  docked, the reverse. The detached header adds `settings.redock` (return to the modal, \
                  settings stays open); its `settings.close` control and the window's OS close button \
                  close settings outright, after which a re-open comes back as the modal.\n\n\
+                 COMPLETING AN OFFICIAL-CLI LOGIN IN-APP (MT-015, HBR-QUIET-001). The interactive \
+                 login never opens an OS console. The backend runs the provider's own fixed login \
+                 argv inside a Handshake-hosted pseudo-terminal, and the whole exchange happens \
+                 in the login panel that opens under the provider row in Settings > Cloud Models. \
+                 Every control carries a stable per-provider author_id, so Argus (or any \
+                 out-of-process driver) can read the provider's prompt and answer it without a \
+                 window, a screen scrape, or a focus change:\n\n\
+                 1. Click `settings.cloud.cli.{provider}.login` ('Log in…'). An in-app \
+                 confirmation appears; `settings.cloud.cli.{provider}.login.confirm` \
+                 ('Start login') calls the backend, `settings.cloud.cli.{provider}.login.cancel` \
+                 backs out. Nothing is launched until the confirm control is clicked.\n\
+                 2. Read the provider's own output from \
+                 `settings.cloud.cli.{provider}.login.transcript`, and the typed session state \
+                 from `settings.cloud.cli.{provider}.login.state`.\n\
+                 3. Type the device code or answer into \
+                 `settings.cloud.cli.{provider}.login.input` and click \
+                 `settings.cloud.cli.{provider}.login.send`. One answer is delivered to the login \
+                 process's stdin per send; the backend appends the carriage return.\n\
+                 4. `settings.cloud.cli.{provider}.login.stop` terminates the login process and \
+                 evicts the session; `settings.cloud.cli.{provider}.login.close` closes the panel \
+                 without abandoning a running child (the backend session owns it through the \
+                 process ledger and its bounded window).\n\n\
+                 `{provider}` is the same provider id used by the routes above (`claude`, \
+                 `codex`). Recovery when a driver cannot find these nodes: the panel only renders \
+                 while a login session exists for that provider — start one with the confirm \
+                 control first, and target the `main` window unless Settings is detached, in \
+                 which case target `popout-settings`.\n\n\
                  Quiet-mode posture (HBR-QUIET-001): the detached window is created with \
                  `with_active(false)`, so popping Settings out never raises the window to the \
                  foreground or steals keyboard focus from the operator or from another agent's window. \
@@ -752,7 +918,26 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  - 400 `empty_api_key` — a blank key is rejected and not stored.\n\
                  - 404 `provider_not_offered` — an unknown or excluded provider id (e.g. `gemini`).\n\
                  - 503 `keychain_unavailable` — the OS keychain feature is disabled; Handshake REFUSES \
-                 to persist a cloud key rather than fall back to any plaintext store.",
+                 to persist a cloud key rather than fall back to any plaintext store.\n\n\
+                 IN-APP CLI LOGIN — failure modes and recovery:\n\
+                 - 503 `cli_login_unavailable` — the provider CLI is not registered/pinned, or the host \
+                 is not Windows (the attached login lifecycle is Windows-only today). Recovery: register \
+                 the provider CLI so the launch builder pins it, then retry.\n\
+                 - 500 `cli_login_launch_failed` — the pinned executable graph changed after \
+                 registration, the process-ledger START could not be made durable, or the PTY could not \
+                 be opened. The child is killed and reaped before the error returns, so no orphan \
+                 survives. Recovery: re-register the CLI and retry.\n\
+                 - `status: timed_out` — the login was left unanswered past its bounded window \
+                 (`CLI_LOGIN_SESSION_MAX_LIFETIME`). Handshake terminated the process and recorded the \
+                 matching process-ledger STOP. Recovery: click `Log in…` again.\n\
+                 - `status: failed` — the provider's own login exited non-zero. Read the transcript in \
+                 the panel for the provider's message; Handshake does not interpret it.\n\
+                 - The login panel closing (or Settings closing) does NOT leak the child: the backend \
+                 session owns the process through the process ledger and its bounded window, and a new \
+                 `Log in…` for the same provider cancels its predecessor, so repeated clicks cannot \
+                 accumulate login children (HBR-QUIET-003).\n\
+                 - Handshake never captures, parses, or stores the credential the provider's login \
+                 establishes; the operator's typed answer goes to the child's stdin and nowhere else.",
             ),
             section(
                 "run_commands",
@@ -767,11 +952,32 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  because Settings/keychain configuration is not a ModelLane runtime tier; the \
                  authority is the model-access HTTP route, the OS keychain leak proof, and the native \
                  Argus AccessKit tree.\n\n\
+                 HBR-INT-009 diagnostic posture for the in-app CLI-bridge login (recorded, never \
+                 silently skipped):\n\
+                 - Tier 1 Flight Recorder / EventLedger: WIRED through the process ledger. Starting the \
+                 login reserves a lifecycle and writes a durable START row (role \
+                 MODEL_ACCESS_CLI_LOGIN, wp_id WP-1, mt_id MT-015, reclaim_key \
+                 model-access-cli-login-{pid}); the watcher writes the matching STOP row on exit, \
+                 cancel, or bounded-window expiry. The non-authoritative live console tee carries only \
+                 the provider id and the backend-generated session id — never the transcript, never key \
+                 material.\n\
+                 - Tier 2 internal_diagnostics: DEFERRED-with-reason. The tier itself IS present in this \
+                 worktree (`handshake_native::internal_diagnostics`); what is deferred is this login \
+                 session's use of it — the CLI-bridge login path emits no diagnostic event into the \
+                 native producer, so login-session health does not reach the Problems projection. \
+                 Follow-up: register the login session's status transitions as diagnostic events.\n\
+                 - Tier 3 Palmistry: DEFERRED-with-reason. The external out-of-process watcher IS \
+                 present in this worktree (`sandbox::palmistry_watcher`, `api::palmistry`); what is \
+                 deferred is registering the login CHILD under a tracker, so an abandoned login is not \
+                 yet observable when Handshake itself freezes. Until then the bounded session window \
+                 plus the process-ledger START/STOP pair are the only reclaim authority.\n\n\
                  Exact backend route proof targets: `model_access_route_tests::put_store_returns_200_and_never_echoes_the_key`; \
                  `model_access_route_tests::delete_byok_key_is_idempotent_and_updates_status`; \
                  `model_access_route_tests::get_providers_reflects_configured_and_excludes_gemini`; \
                  `model_access_route_tests::cli_bridge_typed_status_wire_mapping_excludes_account_fields_and_gemini`; \
                  `model_access_route_tests::cli_login_route_returns_only_backend_owned_launch_handle`; \
+                 `model_access_route_tests::cli_login_session_is_pollable_typeable_and_cancellable`; \
+                 `model_access_route_tests::unknown_cli_login_session_is_404_on_poll_input_and_cancel`; \
                  `model_access_route_tests::put_empty_key_is_400`; \
                  `model_access_route_tests::put_gemini_is_404_excluded`; \
                  `model_access_route_tests::keychain_unavailable_is_503`. These cover \
@@ -792,12 +998,23 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  `test_cloud_models_settings_argus::cloud_models_key_entry_renders_when_backend_unreachable`; \
                  `test_cloud_models_settings_argus::typed_byok_key_is_wiped_from_egui_memory_after_close`; \
                  `test_cloud_models_settings_argus::cli_bridge_auth_status_renders_all_three_states_for_claude_and_codex`; \
-                 `test_cloud_models_settings_argus::cli_bridge_login_records_the_official_command_without_stealing_focus`. \
+                 `test_cloud_models_settings_argus::cli_bridge_login_records_the_official_command_without_stealing_focus`; \
+                 `test_cloud_models_settings_argus::in_app_login_panel_renders_the_provider_prompt_and_routes_the_typed_answer`; \
+                 `test_cloud_models_settings_argus::login_confirmation_never_promises_a_new_terminal_or_focus_change`. \
                  These prove stable AccessKit IDs and rendering for the three typed UI states; they do not \
                  claim live provider expiry detection. They also prove no Gemini row, static BYOK fallback when the backend \
-                 is unreachable, UI key-buffer wiping, an addressable foreground-launch confirmation, \
-                 and fixed provider-owned CLI login command vectors without terminal launch in the \
-                 headless test shell.\n\n\
+                 is unreachable, UI key-buffer wiping, an addressable in-app login confirmation, \
+                 fixed provider-owned CLI login command vectors without a login child in the \
+                 headless test shell, and that the in-app login panel renders the provider's own prompt \
+                 and routes the operator's typed answer back to the running login session.\n\n\
+                 Exact quiet-mode negative proof targets (Windows): \
+                 `cli_bridge_login_quiet_tests::in_app_cli_login_creates_no_new_visible_window_and_no_foreground_change` \
+                 drives the REAL LiveCliSpawner login launch with the live Win32 \
+                 WINEVENT_SYSTEM_FOREGROUND hook (`FocusAuditHandle`) installed, and fails if the \
+                 launch produces any Handshake-owned foreground event or any newly created visible \
+                 top-level window. `cli_bridge_login_quiet_tests::no_backend_spawn_site_creates_a_console_window` \
+                 is a source audit over the whole backend tree that fails the build if a \
+                 console-creating process creation flag reappears at any spawn site.\n\n\
                  Exact detached-Settings-window proof targets (native, same-shell AccessKit): \
                  `test_settings_dialog::settings_popout_control_detaches_into_its_own_argus_window_and_hides_the_modal`; \
                  `test_settings_dialog::re_docking_the_detached_settings_window_restores_the_modal`; \
@@ -826,6 +1043,9 @@ fn page_cloud_model_access() -> NewUserManualPage {
             route_anchor("PUT", "/model-access/byok/:provider/key"),
             route_anchor("DELETE", "/model-access/byok/:provider/key"),
             route_anchor("POST", "/model-access/cli-bridge/:provider/login"),
+            route_anchor("GET", "/model-access/cli-bridge-login/:session"),
+            route_anchor("POST", "/model-access/cli-bridge-login/:session/input"),
+            route_anchor("POST", "/model-access/cli-bridge-login/:session/cancel"),
             spec_anchor("2.3.13.11"),
             spec_anchor("10.15.8"),
         ],
@@ -1411,7 +1631,7 @@ fn page_rich_documents_surface() -> NewUserManualPage {
             section(
                 "recovery",
                 "Recovery",
-                "409 conflict: reload (`GET /knowledge/documents/:id`), merge, re-save with the \
+                "409 conflict: reload (`GET /knowledge/documents/:document_id`), merge, re-save with the \
                  fresh version. Broken embeds: list the typed queue \
                  (`GET .../embeds/broken`) and apply a repair action \
                  (`relink` | `reresolve` | `remove`) via `POST /knowledge/documents/embeds/:embed_id/repair`. \
@@ -2284,6 +2504,81 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  authenticated watcher and survivor recovery importer; both observe these records \
                  without becoming their authority.",
             ),
+            section_with_json(
+                "workflows",
+                "Reading and changing the LIVE swarm concurrency cap (MT-021)",
+                "PURPOSE. How many model sessions may run at once is a live runtime property, not \
+                 a displayed number. `GET /operator-chat/swarm/max-concurrent` reports the cap \
+                 ACTUALLY IN FORCE (`SwarmCoordinator::max_concurrent`, the live admission \
+                 semaphore) plus `SwarmCoordinator::live_session_count`, so an operator surface \
+                 can never show a limit the runtime is not honouring. \
+                 `PUT /operator-chat/swarm/max-concurrent` changes that cap through \
+                 `SwarmCoordinator::set_max_concurrent` WITHOUT rebuilding the coordinator and \
+                 WITHOUT disturbing sessions that are already running.\n\n\
+                 INPUTS. `PUT` body: `{\"max_concurrent\": <integer>}`. A value below 1 is clamped \
+                 to 1 — there is no 'zero concurrency' setting, because that would be a stop \
+                 button disguised as a slider. `GET` takes no body.\n\n\
+                 OUTPUTS. `GET` returns `{max_concurrent, live_sessions}`. `PUT` returns \
+                 `{requested, max_concurrent, fully_applied, live_sessions}`, where \
+                 `max_concurrent` is the cap in force AFTER the change and `fully_applied` is \
+                 whether that cap equals the CLAMPED request (so asking for 0 and getting 1 is a \
+                 full application, not a partial one). Read those two fields, not the echo of \
+                 `requested`.\n\n\
+                 RAISING IS IMMEDIATE, LOWERING IS COOPERATIVE — this asymmetry is the whole \
+                 point of the route. Raising adds permits to the live semaphore at once, so the \
+                 next spawn can use them. Lowering reclaims ONLY the permits that are free right \
+                 now (`forget_permits`) and retires the remainder as running sessions finish; the \
+                 cap in force therefore lands somewhere between the requested value and the old \
+                 one, `fully_applied` is false, and `live_sessions` tells the operator how much \
+                 work still has to drain. Model sessions already admitted are NEVER killed to \
+                 satisfy a settings change — that would destroy operator work and orphan \
+                 processes (HBR-QUIET-003) — and reporting the requested number as if it were \
+                 enforced would recreate exactly the misleading control this route exists to \
+                 remove. A partially applied reduction is a truthful partial success, not a \
+                 failure: repeat the `GET` later and the cap will have converged as sessions \
+                 finish.\n\n\
+                 AFFECTED PRIMITIVES. The value is the SwarmCoordinator's admission semaphore \
+                 (`effective_max_concurrent`), the same gate that produces \
+                 `SwarmError::ConcurrencyCapReached` and the `FR-EVT-SWARM-SPAWN-REJECTED` Flight \
+                 Recorder event when a spawn is refused, so lowering the cap makes rejections \
+                 MORE likely by design (see [[swarm-budget-and-spawn-rejection]] for the \
+                 rejection and recovery path, and [[wp1-orchestration-console]] for watching \
+                 admission decisions live).\n\n\
+                 FAILURE MODES AND RECOVERY. `503 routing_not_wired` — the deployment has no \
+                 production coordinator wired behind operator-chat, so there is no live cap to \
+                 read or move; wire the launch service and retry (the number shown by any client \
+                 that cached an earlier value is stale, not authoritative). A malformed or \
+                 missing JSON body is rejected by the extractor before the coordinator is \
+                 touched, so no partial change occurs. If `fully_applied` is false and stays \
+                 false, sessions are not finishing: inspect them through the transcript and \
+                 diagnostics surfaces rather than lowering the cap again.\n\n\
+                 EVIDENCE AND HBR-INT-009 POSTURE. Tier-1 Flight Recorder / EventLedger: the \
+                 admission decisions this cap governs are WIRED — a refused spawn emits \
+                 `FR-EVT-SWARM-SPAWN-REJECTED` and the accepted lanes carry their usual \
+                 ModelLaneRun/ModelLaneMessage authority — but the cap CHANGE itself appends no \
+                 durable business event, so the only record of a settings move is the response \
+                 body and the changed rejection behaviour that follows it. Tier-2 \
+                 internal_diagnostics and Tier-3 Palmistry inherit this surface's posture stated \
+                 above: both are wired observers of the operator-chat runtime and neither becomes \
+                 the authority for the cap.\n\n\
+                 VERIFICATION PROOF, STATED HONESTLY. Both methods are rows of \
+                 `wp009_surface_registry` and are probed against the REAL product router by \
+                 `mtdoc_every_registry_surface_exists_on_the_real_router`, so a removed route or \
+                 a wrong documented method fails the build; the MT-195 coverage gate and the tool \
+                 catalog cover them as well. There is NO dedicated behavioural proof target for \
+                 the cooperative-lowering semantics described above — that gap is real and is \
+                 recorded here rather than papered over with a proof name that does not exist.",
+                json!({
+                    "read_route": "GET /operator-chat/swarm/max-concurrent",
+                    "write_route": "PUT /operator-chat/swarm/max-concurrent",
+                    "request_body": {"max_concurrent": "integer, clamped to a minimum of 1"},
+                    "response_fields": ["requested", "max_concurrent", "fully_applied", "live_sessions"],
+                    "raise_semantics": "immediate: permits are added to the live semaphore",
+                    "lower_semantics": "cooperative: only free permits are reclaimed; the rest retire as running sessions finish; running sessions are never killed",
+                    "partial_application_signal": "fully_applied == false with max_concurrent above requested",
+                    "unavailable": "503 routing_not_wired"
+                }),
+            ),
             section(
                 "run_commands",
                 "Proof commands",
@@ -2362,6 +2657,20 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                 anchor_value: "/operator-chat/routing/cancel".into(),
                 http_method: "POST",
             },
+            // WP-1 MT-021: the live swarm-admission cap. Both methods are
+            // registry rows, so both need coverage anchors here.
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/swarm/max-concurrent".into(),
+                http_method: "GET",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/swarm/max-concurrent".into(),
+                http_method: "PUT",
+            },
+            page_link("swarm-budget-and-spawn-rejection"),
+            page_link("wp1-orchestration-console"),
         ],
     }
 }
@@ -2431,8 +2740,9 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                 "navigation",
                 "Product entrypoints",
                 "Tauri IPC (`kernel_swarm_spawn_session`) and scheduled spin-up are request \
-                 sources only, not launch authority. The live app bootstraps \
-                 `SwarmRuntimeState` with a PostgreSQL `ModelLaneStore`; if that store is \
+                 sources only, not launch authority. The live app bootstraps its \
+                 `SwarmCoordinator` through `build_production_swarm_coordinator` with a \
+                 PostgreSQL `ModelLaneStore`; if that store is \
                  unavailable, model launch startup fails closed instead of constructing a \
                  no-store coordinator. Manual IPC spawns and calendar scheduled spin-ups attach \
                  a core-generated Dexterity contract through \
@@ -3026,7 +3336,49 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  posture, fan-out targets, EventLedger event id/seq, `user_manual_behavior_ref`, \
                  and Locus fields. Replay uses \
                  `ModelLaneStore::replay_cloud_consent_authority(run_id)` and \
-                 `ModelLaneStore::replay_run(run_id)`.",
+                 `ModelLaneStore::replay_run(run_id)`.\n\n\
+                 WHO APPROVED IS A TYPED VALUE, NOT A STRING (HBR-PRIV-005/007). \
+                 `NewModelLaneCloudConsentReceipt` carries a REQUIRED `approver` of type \
+                 `AccountBoundAuthority` — either `AccountBoundAuthority::Account` (owning \
+                 account plus actor principal, and optionally authenticated session, access \
+                 space, and workspace) or `AccountBoundAuthority::Unattributed` with a stable \
+                 machine-readable reason. It is DERIVED SERVER-SIDE from the store's access \
+                 context (the request seam is the `x-handshake-owner-account` header today; an \
+                 authenticated session after WP-KERNEL-006) and can never be supplied by the \
+                 caller's payload: a receipt naming an account the store may not write as is \
+                 refused. Only `approver` decides whether a receipt may authorize a cloud \
+                 export; an `AccountBoundAuthority::Unattributed` approver satisfies no \
+                 account-scoped launch.\n\n\
+                 `approved_by_ref` is RETAINED FOR PROVENANCE AND READ BY NOTHING. It used to \
+                 be the only approval surface and it was self-issued — the operator-chat path \
+                 wrote `operator://{owner_session}/cloud-selection`, where `owner_session` is a \
+                 governance ROLE LABEL, so subject and issuer were the same string. That exact \
+                 self-issuance shape is now REJECTED at write time; the column survives so real \
+                 lineage is not rewritten, but no gate consults it. When no authenticated \
+                 account exists the operator-chat path records \
+                 `OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REF` next to an \
+                 `AccountBoundAuthority::Unattributed` approver stamped with \
+                 `OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REASON`, and the diagnostic payload \
+                 carries `approver_kind` so the receipt's approval CLASS is visible without \
+                 disclosing the account id.\n\n\
+                 EVERY ProjectionPlan CARRIES AN EXPORT DELEGATION (HBR-PRIV-007). \
+                 `NewModelLaneCloudProjectionPlan.export_delegation` is a required \
+                 `CloudExportDelegation` with `audience_refs` (the exact third-party endpoints \
+                 this projection may reach), `source_scope` (the LOCAL account-bound visibility \
+                 the export was derived from, as an `AccountBoundAuthority`), and an optional \
+                 `authorization_receipt_ref`. `audience_refs` must be NON-EMPTY and a SUBSET of \
+                 the plan's `fan_out_targets`, so an export can never name a destination the \
+                 plan did not already disclose; the pair check additionally requires \
+                 `export_delegation.source_scope` and the receipt's `approver` to name the SAME \
+                 owning account, and enforces `authorization_receipt_ref` against the paired \
+                 `consent_receipt_id` when it is present.\n\n\
+                 VALIDITY IS 12 HOURS, NOT A YEAR. Operator-chat auto-issued receipts set \
+                 `valid_until_utc` to `OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS` (12) after \
+                 mint time and backdate `valid_from_utc` by \
+                 `OPERATOR_CHAT_CLOUD_CONSENT_BACKDATE_MINUTES` (5) for clock skew. Revocation \
+                 remains the immediate kill switch; the bounded window is the backstop for a \
+                 receipt nobody remembers to revoke, and it cannot survive into the next \
+                 working day.",
                 json!({
                     "projection_plan": {
                         "table": "model_lane_cloud_projection_plans",
@@ -3034,7 +3386,13 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                         "record": "ModelLaneCloudProjectionPlanRecord",
                         "input": "NewModelLaneCloudProjectionPlan",
                         "event_type": "ARTIFACT_STORED",
-                        "aggregate_type": "model_lane_cloud_projection_plan"
+                        "aggregate_type": "model_lane_cloud_projection_plan",
+                        "required_export_delegation": {
+                            "type": "CloudExportDelegation",
+                            "audience_refs": "non-empty, subset of fan_out_targets (non-widening)",
+                            "source_scope": "AccountBoundAuthority",
+                            "authorization_receipt_ref": "optional; enforced equal to consent_receipt_id when present"
+                        }
                     },
                     "consent_receipt": {
                         "table": "model_lane_cloud_consent_receipts",
@@ -3042,7 +3400,13 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                         "record": "ModelLaneCloudConsentReceiptRecord",
                         "input": "NewModelLaneCloudConsentReceipt",
                         "event_type": "ARTIFACT_STORED",
-                        "aggregate_type": "model_lane_cloud_consent_receipt"
+                        "aggregate_type": "model_lane_cloud_consent_receipt",
+                        "authorization_surface": {
+                            "approver": "AccountBoundAuthority (REQUIRED, server-derived, the only value any gate reads)",
+                            "approved_by_ref": "provenance only; read by nothing; self-issued operator://{owner_session}/... is rejected at write time",
+                            "validity_hours": "OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS",
+                            "backdate_minutes": "OPERATOR_CHAT_CLOUD_CONSENT_BACKDATE_MINUTES"
+                        }
                     },
                     "denial": {
                         "schema_id": "hsk.model_lane_cloud_consent_denial@1",
@@ -3078,7 +3442,17 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `projection_plan_hash`, `run_id`, `scope_hash`, retention policy, export posture, \
                  and fan-out targets, and reject lane-bound identity fields. Operator Chat exposes \
                  the governed launch route `/operator-chat/cloud/single-run/grant-launch` and the \
-                 matching revocation route `/operator-chat/cloud/single-run/revoke`.",
+                 matching revocation route `/operator-chat/cloud/single-run/revoke`.\n\n\
+                 WIRE CONTRACT CHANGE — `POST /operator-chat/cloud/single-run/grant-launch` now \
+                 REQUIRES `export_delegation` inside `projection_plan`. A grant body whose \
+                 `projection_plan` omits it does not deserialize, so a caller that worked before \
+                 this change must add the delegation block. Minimal shape: \
+                 `{\"audience_refs\": [<one or more entries of fan_out_targets>], \"source_scope\": \
+                 {\"authority_kind\": \"account\"|\"unattributed\", ...}}`, with an optional \
+                 `\"authorization_receipt_ref\": <consent_receipt_id>`. The grant's \
+                 `approved_by_ref` field is still accepted and still stored, but it no longer \
+                 authorizes anything: the receipt's `approver` is derived from the store's \
+                 account context regardless of what the body says.",
             ),
             section(
                 "failure_modes",
@@ -3094,7 +3468,41 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  `SwarmCoordinator::revoke_cloud_consent_receipt` to revoke a receipt; it cancels \
                  covered non-terminal lanes as `ModelLaneStatus::Cancelled`, sets \
                  `failstate_code = CX-MM-007`, writes a `model_lane_terminal` EventLedger row, \
-                 and keeps the lane replayable.",
+                 and keeps the lane replayable.\n\n\
+                 REVOCATION NOW READS AS REVOCATION. A revoked receipt is stored with \
+                 `approved` set to false alongside its `Revoked` status, \
+                 `revoked_at_utc`, `revocation_ref`, and a `revocation_input_hash`; it no longer \
+                 claims to be approved and withdrawn at the same time. The launch gate also \
+                 checks revocation BEFORE the approval flag, so a revoked receipt is refused \
+                 with `ConsentReceipt is revoked` instead of the misleading \
+                 `ConsentReceipt is not approved`. Both orderings fail closed — only one names \
+                 the true cause, and until this change the revoked error this page documents was \
+                 unreachable on the revocation path. Diagnosing a refusal: \
+                 `ConsentReceipt is revoked` means someone withdrew consent (re-grant a new \
+                 receipt); `ConsentReceipt is not approved` now means the receipt was never \
+                 approved (status is not `Approved`, or `approved` is false); \
+                 `ConsentReceipt validity window is not current` means the 12-hour window \
+                 elapsed or has not opened yet (mint a fresh grant, or check clock skew against \
+                 the 5-minute backdate).\n\n\
+                 ACCOUNT-BOUND AUTHORIZATION FAILURES (HBR-PRIV-005/007), all fail closed with \
+                 no provider call: a self-issued `approved_by_ref` whose identity component is \
+                 the row's own `owner_session` is refused at WRITE time, before any receipt \
+                 exists; an `approver` naming an account the writing store may not write as is \
+                 refused with `CX-MM-007`; and at launch time, when the request carries an \
+                 account context, `AccountBoundAuthority::Unattributed` and another account's \
+                 `AccountBoundAuthority::Account` are both refused with `CX-MM-007` plus the \
+                 stable scope reason code (`RESOURCE_SCOPE_UNATTRIBUTED`, \
+                 `RESOURCE_SCOPE_OWNER_MISMATCH`, or `RESOURCE_SCOPE_WORKSPACE_MISMATCH`) and \
+                 never the restricted row's identifiers. A launch that carries NO account \
+                 context (a system or legacy-unscoped store) skips that check: that is the \
+                 documented pre-WP-KERNEL-006 residual, shared by every WP-1 table, not a cloud \
+                 exemption. The delegation is checked too: empty `audience_refs`, an audience \
+                 entry that is not in `fan_out_targets` (a widening export), a \
+                 `source_scope` owned by a different account than the receipt's `approver`, and \
+                 an `authorization_receipt_ref` naming a different receipt each fail closed \
+                 before the provider is contacted. Recovery for all of them is the same: record \
+                 a fresh ProjectionPlan and ConsentReceipt through the account-scoped store, \
+                 then relaunch — never hand-edit a stored row.",
             ),
             section(
                 "recovery",
@@ -3245,6 +3653,36 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  genuinely unavailable in a worktree is instead recorded as \
                  NOT_APPLICABLE-with-reason or DEFERRED-with-reason with a \
                  follow_up_ref, never silently skipped.",
+            ),
+            section(
+                "safety",
+                "Tier-to-evidence-URI binding and diagnostic privacy",
+                "Each HBR-INT-009 tier is bound to exactly ONE evidence URI and \
+                 `verify_diagnostic_tier_evidence_uri` rejects any other: Tier-1 \
+                 Flight Recorder must use `eventledger://kernel/`, Tier-2 \
+                 internal_diagnostics must use `internal-diagnostics://session/`, \
+                 and Tier-3 Palmistry must use `palmistry-observation://session/`. \
+                 Offering one tier's scheme as another tier's evidence is refused \
+                 with `DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION`, because \
+                 Tier-2 is Handshake's own in-process self-diagnostics ring while \
+                 Tier-3 is the external out-of-process watcher that survives a \
+                 freeze or crash: they observe different failure classes and are \
+                 never interchangeable. A URI with no bound diagnostic scheme is \
+                 refused with `DIAGNOSTIC_EVIDENCE_UNBOUND_SCHEME` and the right \
+                 scheme under the wrong root with \
+                 `DIAGNOSTIC_EVIDENCE_WRONG_AUTHORITY_ROOT`. The run-level gate also \
+                 requires each tier record to be WIRED, since RUN_LEVEL_WIRED is a \
+                 liveness claim. Diagnostic privacy (HBR-PRIV-004/HBR-PRIV-005): \
+                 `model_lane_diagnostic_tier_statuses` rows carry the migration-0363 \
+                 scope columns `owner_account_id`, `actor_principal_id`, \
+                 `authenticated_session_id`, `access_space_id`, and `workspace_id`, \
+                 and every diagnostic tier read is filtered by the caller's \
+                 `ResourceScopeQuery` in the SQL predicate and re-authorized after \
+                 deserialization. Another account's or another workspace's \
+                 diagnostic reasons, evidence refs, and payloads are therefore \
+                 absent rather than denied-with-detail, a row with no owning \
+                 account is refused as `RESOURCE_SCOPE_UNATTRIBUTED`, and no denial \
+                 message carries the restricted row's identifiers.",
             ),
             section(
                 "run_commands",
@@ -3414,6 +3852,42 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                  evidence fails closed. A tier that is genuinely unavailable in a \
                  worktree is instead recorded as NOT_APPLICABLE-with-reason or \
                  DEFERRED-with-reason with a follow_up_ref, never silently skipped.",
+            ),
+            section(
+                "safety",
+                "Tier-to-evidence-URI binding and diagnostic privacy",
+                "Each HBR-INT-009 tier is bound to exactly ONE evidence URI and \
+                 `verify_diagnostic_tier_evidence_uri` rejects any other: Tier-1 \
+                 Flight Recorder must use `eventledger://kernel/`, Tier-2 \
+                 internal_diagnostics must use `internal-diagnostics://session/`, \
+                 and Tier-3 Palmistry must use `palmistry-observation://session/`. \
+                 Offering one tier's scheme as another tier's evidence is refused \
+                 with `DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION`, because \
+                 Tier-2 is Handshake's own in-process self-diagnostics ring (panic \
+                 hook, UI-thread heartbeat, frame-time, CPU/RSS/GPU counters) while \
+                 Tier-3 is the external out-of-process watcher that survives a \
+                 freeze or crash: they observe different failure classes and are \
+                 never interchangeable, so a run that only produced Palmistry \
+                 observations has no in-process diagnostics coverage at all. A URI \
+                 with no bound diagnostic scheme is refused with \
+                 `DIAGNOSTIC_EVIDENCE_UNBOUND_SCHEME` and the right scheme under the \
+                 wrong root with `DIAGNOSTIC_EVIDENCE_WRONG_AUTHORITY_ROOT`. The \
+                 machine-readable coverage matrix `hsk.user_manual_behavior_coverage@1` \
+                 carries that binding alongside every behavior row, so a serialized \
+                 matrix cannot advertise a looser contract than the compiled gate. \
+                 Diagnostic privacy (HBR-PRIV-004/HBR-PRIV-005): \
+                 `model_lane_diagnostic_tier_statuses` rows carry the migration-0363 \
+                 scope columns `owner_account_id`, `actor_principal_id`, \
+                 `authenticated_session_id`, `access_space_id`, and `workspace_id`, \
+                 and every diagnostic tier read is filtered by the caller's \
+                 `ResourceScopeQuery` in the SQL predicate and re-authorized after \
+                 deserialization. Another account's or another workspace's \
+                 diagnostic reasons, evidence refs, and payloads are therefore \
+                 absent rather than denied-with-detail; a cross-account read is \
+                 reported as `RESOURCE_SCOPE_OWNER_MISMATCH`, a row with no owning \
+                 account as `RESOURCE_SCOPE_UNATTRIBUTED`, and no denial message \
+                 carries the restricted row's identifiers. Cross-owner diagnostic \
+                 reads require an explicit named `SystemScopeAuthority`.",
             ),
             section(
                 "navigation",
@@ -3930,11 +4404,11 @@ fn page_failure_modes_and_recovery() -> NewUserManualPage {
             section(
                 "recovery",
                 "Recovery map",
-                "- Broken embeds -> `GET /knowledge/documents/:id/embeds/broken` + \
+                "- Broken embeds -> `GET /knowledge/documents/:document_id/embeds/broken` + \
                  `POST /knowledge/documents/embeds/:embed_id/repair` (`relink`/`reresolve`/`remove`)\n\
                  - Failed extractions -> [[repair-queues-and-staleness]]\n\
-                 - Stale bundles -> `POST /knowledge/retrieval/bundles/:id/repair`\n\
-                 - Stale wiki -> `POST /workspaces/:ws/loom/wiki/:projection_id/regenerate`\n\
+                 - Stale bundles -> `POST /knowledge/retrieval/bundles/:bundle_id/repair`\n\
+                 - Stale wiki -> `POST /workspaces/:workspace_id/loom/wiki/:projection_id/regenerate`\n\
                  - Stale manual -> `POST /usermanual/resync`\n\
                  - Lost session state -> [[state-recovery-guide]]\n\
                  - DB down -> [[missing-postgres-behavior]]",
@@ -3963,11 +4437,11 @@ fn page_repair_queues_and_staleness() -> NewUserManualPage {
                 "Handshake never silently drops failed work; it queues typed repair rows:\n\n\
                  - **Ingestion repairs** — `GET /knowledge/ingestion/repairs`: failed/partial \
                  extractions with error class (`io_error`, parse failures, policy denials).\n\
-                 - **Broken embeds** — `GET /knowledge/documents/:id/embeds/broken`: typed \
+                 - **Broken embeds** — `GET /knowledge/documents/:document_id/embeds/broken`: typed \
                  broken state with offered repair actions.\n\
-                 - **Bundle staleness** — `GET /knowledge/retrieval/bundles/:id/staleness`: \
+                 - **Bundle staleness** — `GET /knowledge/retrieval/bundles/:bundle_id/staleness`: \
                  per-item missing-evidence / `source_stale` verdicts.\n\
-                 - **Wiki staleness** — `GET /workspaces/:ws/loom/wiki/:projection_id/stale`.\n\
+                 - **Wiki staleness** — `GET /workspaces/:workspace_id/loom/wiki/:projection_id/stale`.\n\
                  - **Manual freshness** — `GET /usermanual/freshness`.\n\
                  - **Memory conflicts** — `GET /knowledge/memory/conflicts`.",
             ),
@@ -4196,6 +4670,148 @@ fn page_kernel_write_governance() -> NewUserManualPage {
     }
 }
 
+/// The built-in hardware-isolated sandbox: what an operator or a no-context
+/// model needs to know to run a model inside a microVM rather than beside the
+/// host.
+///
+/// Posture is written honestly and deliberately: the CAPABILITY is proven at
+/// runtime, the LANE WIRING is not. A page claiming an operator can launch a
+/// worktree-scoped VM lane today would be false, and this manual is read by
+/// models with no other source of truth.
+fn page_microvm_sandbox() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "microvm-sandbox-kvm".into(),
+        title: "Built-in MicroVM Sandbox (KVM / cloud-hypervisor)".into(),
+        page_kind: "workflow",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.15.8".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "Why this page exists",
+                "Handshake can run a model inside a hardware-isolated microVM instead of beside \
+                 your files. The VM gets its own kernel, its own memory, and only what you put \
+                 in its image; it cannot read the host filesystem. This is the isolation wall \
+                 for running untrusted or experimental model work, and it is what makes it safe \
+                 to hand a model a folder and let it act.\n\n\
+                 IMPORTANT TERMINOLOGY: Handshake does not, and cannot, 'contain a /dev/kvm'. \
+                 `/dev/kvm` is a Linux kernel device node exposed by the kvm module. What \
+                 Handshake does is BUNDLE AND DRIVE a virtual machine monitor that talks to it. \
+                 The VMM is cloud-hypervisor, which is written in Rust and open source.",
+            ),
+            section(
+                "schema",
+                "What the pieces are",
+                "- VMM: `cloud-hypervisor` (Rust). Boots the guest and owns its lifecycle. \
+                 `ch-remote` drives pause/snapshot/restore against a running VM's API socket.\n\
+                 - Hardware interface: `/dev/kvm` on Linux (including WSL2 with \
+                 `nestedVirtualization=true`). The invoking account must be able to read and \
+                 write that device, normally by membership of the `kvm` group. Root is NOT \
+                 required.\n\
+                 - Guest kernel: an uncompressed `vmlinux` image.\n\
+                 - Guest image: an initramfs (cpio) holding busybox, the inference binary, and \
+                 the model weights. Everything the model may touch is what you put in this file, \
+                 which is precisely why the isolation holds.\n\
+                 - Guest binary: the inference executable MUST be statically linked. A busybox \
+                 initramfs has no libc, so a dynamically linked binary cannot start.\n\
+                 - Entry contract: the init reads `hsk.cmd=<base64>` from the kernel command \
+                 line, runs it, and brackets the result with `---HSK-BEGIN---` / \
+                 `---HSK-END rc=<code>---`, then powers the VM down.",
+            ),
+            section(
+                "workflows",
+                "Running a model inside the VM",
+                "1. Confirm the hardware path: `/dev/kvm` exists and your account can read and \
+                 write it.\n\
+                 2. Point Handshake at the VMM and kernel. Every path is overridable through \
+                 `HANDSHAKE_CH_*` (`HANDSHAKE_CH_BIN`, `HANDSHAKE_CH_REMOTE_BIN`, \
+                 `HANDSHAKE_CH_KERNEL`, `HANDSHAKE_CH_INITRAMFS`, `HANDSHAKE_CH_WORK_DIR`, \
+                 `HANDSHAKE_CH_MEMORY_MIB`, `HANDSHAKE_CH_VCPUS`). ALWAYS set these rather than \
+                 relying on the compiled-in defaults, which are machine-local paths.\n\
+                 3. Build a guest image containing a statically linked inference binary and the \
+                 model file.\n\
+                 4. Size memory above the image: the initramfs is unpacked into guest RAM, so \
+                 memory must exceed image size plus the model's working set. A ~61 MiB image \
+                 with a 68M-parameter model runs comfortably in 3072 MiB.\n\
+                 5. Read the result between the `---HSK-BEGIN---` / `---HSK-END---` markers on \
+                 the serial log.",
+            ),
+            section_with_json(
+                "workflows",
+                "Proven runtime evidence",
+                "This page documents behaviour that was observed, not intended. A 68M-parameter \
+                 GGUF model was loaded INSIDE the guest and generated real tokens, while the \
+                 same command confirmed the guest could see nothing of the host filesystem.",
+                json!({
+                    "vmm": "cloud-hypervisor v52.0",
+                    "guest_kernel": "vmlinux-6.1.102",
+                    "guest_cpus": 4,
+                    "guest_memory_mib": 3072,
+                    "host_filesystem_visible_to_guest": false,
+                    "model_params": "68.03 M",
+                    "model_buffer": "48.10 MiB CPU_Mapped",
+                    "decoded_tokens": 24,
+                    "speed_tokens_per_second": 287.74,
+                    "exit": "rc=0 then ACPI S5 power down"
+                }),
+            ),
+            section(
+                "failure_modes",
+                "Failure modes and what they actually mean",
+                "- `/dev/kvm` missing: the host is not exposing hardware virtualization. Under \
+                 WSL2 set `nestedVirtualization=true` in `.wslconfig` AND restart the utility VM \
+                 (`wsl --shutdown`) - the setting does not apply to an already-running VM. A \
+                 check taken before that restart reports absence and is STALE, not permanent.\n\
+                 - `/dev/kvm` present but permission denied: the account is not in the `kvm` \
+                 group.\n\
+                 - VMM not found: `command -v cloud-hypervisor` is the WRONG probe. The adapter \
+                 resolves ABSOLUTE paths, so a binary installed outside `PATH` is fully usable \
+                 and a PATH probe will wrongly report it missing. Check the configured path.\n\
+                 - Guest binary fails to start with no output: it is probably dynamically \
+                 linked. Rebuild statically.\n\
+                 - Static link fails with 'attempted static link of dynamic object libgomp.so': \
+                 OpenMP is dynamic-only on that host. Build with OpenMP disabled.\n\
+                 - Guest boots but the model is absent: the weights were not copied INTO the \
+                 image. The guest cannot reach host paths - that is the isolation working.",
+            ),
+            section(
+                "failure_modes",
+                "HBR-INT-009 diagnostic posture",
+                "- Tier 1 Flight Recorder / EventLedger: DEFERRED-with-reason. The proven run was \
+                 driven directly against the VMM, so no model-lane run row exists for it yet. \
+                 Follow-up: emit the lane's process-ledger START/STOP across the VM boundary once \
+                 the lane wiring lands.\n\
+                 - Tier 2 internal_diagnostics: DEFERRED-with-reason. The tier IS present in this \
+                 worktree (`handshake_native::internal_diagnostics`); what is deferred is this \
+                 path's use of it - no VM lifecycle event is emitted into the native producer.\n\
+                 - Tier 3 Palmistry: DEFERRED-with-reason. The external watcher IS present \
+                 (`sandbox::palmistry_watcher`); what is deferred is registering the VM as a \
+                 tracked child, so an abandoned guest is not yet observable if Handshake freezes.",
+            ),
+            section(
+                "recovery",
+                "Current status - read this before trusting the surface",
+                "PROVEN: a real model loads inside the microVM and generates real tokens under \
+                 cloud-hypervisor on KVM, with no host filesystem visibility and a clean \
+                 shutdown.\n\n\
+                 NOT YET WIRED: you cannot today launch this as a worktree-scoped MODEL LANE \
+                 through the operator surfaces. The proven run was driven directly against the \
+                 VMM, not through ModelLaneStore -> SwarmCoordinator -> WorktreeVmRegistry. \
+                 Until that lands, the VM is a proven capability rather than an operator feature, \
+                 and this page will not claim otherwise.\n\n\
+                 KNOWN DEFECT: the compiled-in default VMM and kernel paths are machine-local \
+                 absolute paths containing a specific user's home directory. Always override them \
+                 through the `HANDSHAKE_CH_*` environment variables.",
+            ),
+        ],
+        anchors: vec![
+            page_link("model-lane-launch-adapters"),
+            page_link("model-lane-diagnostics"),
+            page_link("permissions-and-safety"),
+        ],
+    }
+}
+
 fn page_legacy_bridge() -> NewUserManualPage {
     let plan = naming_migration_plan();
     NewUserManualPage {
@@ -4308,10 +4924,10 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
             "Quickstart — Rich Document Editing",
             "1. `POST /workspaces` {name} — get a workspace id.\n\
              2. `POST /knowledge/documents` {workspace_id, title, content_json} — doc_version 1.\n\
-             3. `PUT /knowledge/documents/:id/save` {expected_version: 1, content_json} — \
+             3. `PUT /knowledge/documents/:document_id/save` {expected_version: 1, content_json} — \
              version 2; a 409 means reload + merge.\n\
-             4. `GET /knowledge/documents/:id/history?limit=10&offset=0` — revisions.\n\
-             5. `GET /knowledge/documents/:id/projection?format=html` — the primary export \
+             4. `GET /knowledge/documents/:document_id/history?limit=10&offset=0` — revisions.\n\
+             5. `GET /knowledge/documents/:document_id/projection?format=html` — the primary export \
              projection.",
             vec![
                 page_link("rich-documents-surface"),
@@ -4323,13 +4939,13 @@ fn quickstart_pages() -> Vec<NewUserManualPage> {
             "loom",
             "Quickstart — Notes/Loom Navigation",
             "1. `POST /workspaces` {name} — workspace.\n\
-             2. `POST /workspaces/:ws/loom/blocks` — create two blocks.\n\
-             3. `POST /workspaces/:ws/loom/edges` — link them.\n\
-             4. `GET /workspaces/:ws/loom/blocks/:id/backlinks` — backlinks with context.\n\
-             5. `GET /workspaces/:ws/loom/graph/local?...` — the local graph.\n\
-             6. `GET /workspaces/:ws/loom/graph-search?q=<term>` — search with \
+             2. `POST /workspaces/:workspace_id/loom/blocks` — create two blocks.\n\
+             3. `POST /workspaces/:workspace_id/loom/edges` — link them.\n\
+             4. `GET /workspaces/:workspace_id/loom/blocks/:block_id/backlinks` — backlinks with context.\n\
+             5. `GET /workspaces/:workspace_id/loom/graph/local?...` — the local graph.\n\
+             6. `GET /workspaces/:workspace_id/loom/graph-search?q=<term>` — search with \
              `hsk.loom_retrieval_bias@1` reasons on Loom block hits.\n\
-             7. `GET /workspaces/:ws/loom/blocks/:id/knowledge` — the authority bridge row \
+             7. `GET /workspaces/:workspace_id/loom/blocks/:block_id/knowledge` — the authority bridge row \
              (entity + receipt).",
             vec![
                 page_link("notes-loom-surface"),
@@ -4445,7 +5061,7 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
         ],
         SurfaceGroup::OperatorChat => vec![
             "400 bad_request (invalid operator chat launch selection)".into(),
-            "503 launch_not_wired / transcript_not_wired (live coordinator or ModelLaneStore absent)"
+            "503 launch_not_wired / transcript_not_wired / routing_not_wired (live coordinator or ModelLaneStore absent)"
                 .into(),
             "500 launch_failed_closed / model_lane_error / recorder_error (fail-closed authority path)"
                 .into(),
@@ -4489,10 +5105,10 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
         SurfaceGroup::RichDocuments => vec![
             "409: reload the document, merge, re-save with the fresh expected_version".into(),
             "Broken embeds: GET .../embeds/broken then POST embeds/:embed_id/repair (relink|reresolve|remove)".into(),
-            "Backlink drift: POST /knowledge/documents/:id/backlinks rebuilds".into(),
+            "Backlink drift: POST /knowledge/documents/:document_id/backlinks rebuilds".into(),
         ],
         SurfaceGroup::Retrieval => vec![
-            "POST /knowledge/retrieval/bundles/:id/repair recompiles a stale bundle".into(),
+            "POST /knowledge/retrieval/bundles/:bundle_id/repair recompiles a stale bundle".into(),
             "Re-ingest vanished sources first, then repair the bundle".into(),
         ],
         SurfaceGroup::MemoryClaims => vec![
@@ -4670,7 +5286,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "test-utils feature enabled; injected InMemorySecretsVault provider for 200/400/404/delete paths; injected KeychainUnavailableProvider for 503 path; loopback Axum model-access router."
                 .into(),
         expected_output:
-            "GET /model-access/providers returns non-secret BYOK configured/unavailable rows, typed CLI auth_status rows, and excluded=[gemini]; POST /model-access/cli-bridge/{provider}/login returns only provider plus pid launch handle; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
+            "GET /model-access/providers returns non-secret BYOK configured/unavailable rows, typed CLI auth_status rows, and excluded=[gemini]; POST /model-access/cli-bridge/{provider}/login starts an in-app pseudo-terminal login session and returns only the provider plus a backend-owned session snapshot (no executable path, argv, or child pid); GET/POST /model-access/cli-bridge-login/{session}[/input|/cancel] poll, answer, and stop that session, with 404 cli_login_session_not_found for an unknown id; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
                 .into(),
         schema_fields: vec![
             "GET /model-access/providers".into(),
@@ -4845,13 +5461,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: None,
         http_method: String::new(),
         description:
-            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, visible logged-in/logged-out/expired states for Claude Code and Codex, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, an addressable foreground-terminal confirmation, and fixed provider-owned official CLI login commands without terminal launch during headless tests. The same controls are reachable in BOTH settings hosts: the main-window modal (Argus window `main`, root node `settings.dialog`) and the detached Settings window (Argus window `popout-settings`, root node `popout-window-settings`, title `Handshake – Settings`) entered via `settings.popout` and left via `settings.redock`."
+            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, visible logged-in/logged-out/expired states for Claude Code and Codex, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, an addressable in-app login confirmation that never promises a new terminal or a focus change, an in-app login panel that renders the provider's own prompt and routes the operator's typed answer back to the running login session, and fixed provider-owned official CLI login commands without spawning a login child during headless tests. The same controls are reachable in BOTH settings hosts: the main-window modal (Argus window `main`, root node `settings.dialog`) and the detached Settings window (Argus window `popout-settings`, root node `popout-window-settings`, title `Handshake – Settings`) entered via `settings.popout` and left via `settings.redock`."
                 .into(),
         expected_input:
             "egui_kittest harness with AccessKit enabled; seeded CloudAccessSnapshot for positive rows and empty snapshot/no client for backend-unreachable fallback."
                 .into(),
         expected_output:
-            "Addressable settings.cloud.* author IDs for Anthropic/OpenAI BYOK and Claude Code/Codex CLI rows; each CLI status target renders logged in, logged out, and session expired; no gemini author IDs; typed BYOK drafts are wiped; the first login click only opens confirmation; confirmed fixed provider CLI command is recorded while terminal launch remains suppressed in the test shell."
+            "Addressable settings.cloud.* author IDs for Anthropic/OpenAI BYOK and Claude Code/Codex CLI rows; each CLI status target renders logged in, logged out, and session expired; no gemini author IDs; typed BYOK drafts are wiped; the first login click only opens confirmation; the confirmation text states the login runs inside Handshake and never claims a new terminal or focus change; the confirmed fixed provider CLI command is recorded while the backend login request remains suppressed in the test shell; the in-app login panel exposes settings.cloud.cli.{provider}.login.transcript, .login.state, .login.input, .login.send, and .login.stop."
                 .into(),
         schema_fields: vec![
             "settings.cloud.byok.anthropic.key".into(),
@@ -4871,6 +5487,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "cloud_models_key_entry_renders_when_backend_unreachable".into(),
             "typed_byok_key_is_wiped_from_egui_memory_after_close".into(),
             "cli_bridge_login_records_the_official_command_without_stealing_focus".into(),
+            "in_app_login_panel_renders_the_provider_prompt_and_routes_the_typed_answer".into(),
+            "login_confirmation_never_promises_a_new_terminal_or_focus_change".into(),
         ],
         common_errors: vec![
             "missing_accesskit_author_id".into(),
@@ -4878,12 +5496,16 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "gemini_control_rendered".into(),
             "key_buffer_lingers_after_save_or_close".into(),
             "login_command_not_provider_owned".into(),
+            "login_confirmation_claims_a_new_terminal_or_focus_change".into(),
+            "login_panel_missing_prompt_or_input_control".into(),
         ],
         recovery_steps: vec![
             "If a provider control is missing, inspect render_cloud_models_body and cloud_byok_*_author_id helpers.".into(),
             "If CLI auth state is wrong, inspect CliBridgeAuthStatus parsing, the model-access auth probe, and CloudCliAuthStatus::from_wire.".into(),
             "If a typed key remains in UI memory, inspect CloudModelsSettingsState::clear_key_drafts and reset_cloud_key_edit_memory.".into(),
             "If login launches the wrong command, inspect CloudCliRow login_program/login_args plumbing.".into(),
+            "If the in-app login panel shows no prompt, inspect render_cli_login_panel and the CloudAccessClient poll_cli_login delivery path.".into(),
+            "If the confirmation still promises a new terminal, inspect cloud_cli_login_confirmation_line -- the launch is a Handshake-hosted pty, not an OS console.".into(),
         ],
         origin: "wp1_mt015_cloud_model_access".into(),
         content_hash: cloud_models_argus_tool_hash,

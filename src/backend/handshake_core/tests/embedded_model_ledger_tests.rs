@@ -1266,6 +1266,20 @@ async fn orphan_reclaim_schema_pool() -> OrphanTestDb {
     .execute(&pool)
     .await
     .expect("apply kernel_process_lifecycle migration");
+    // 0359 is REQUIRED here, not optional. The production authority guard in
+    // process_ledger/reclaim.rs accepts only a "migration-0021/0359-shaped"
+    // relation: it demands the runtime-owner-descriptor trigger 0359 installs.
+    // Applying 0021 alone builds a table that LOOKS right (correct primary key,
+    // all four generated expressions) but carries NO trigger, so the guard finds
+    // zero candidates and the reclaim-path tests in this file fail with
+    // "no ... authority relation exists in the explicit PostgreSQL search path"
+    // - which reads like a missing table rather than a half-built one.
+    sqlx::raw_sql(include_str!(
+        "../migrations/0359_process_runtime_owner_identity.sql"
+    ))
+    .execute(&pool)
+    .await
+    .expect("apply process runtime owner identity migration (0359)");
     sqlx::raw_sql(
         r#"
         CREATE INDEX IF NOT EXISTS idx_kernel_process_lifecycle_pidless_embedded_instance_open
@@ -1421,7 +1435,7 @@ async fn postgres_writer_pins_logged_authority_and_synchronous_commit() {
         .await
         .expect_err("fresh writer authority resolution must reject UNLOGGED relation");
     assert!(
-        fresh_error.to_string().contains("no migration-0021-shaped"),
+        fresh_error.to_string().contains("-shaped, permanent, non-inherited"),
         "fresh writer must find no logged authority: {fresh_error}"
     );
 }
@@ -1888,7 +1902,7 @@ async fn writer_rejects_wrong_generated_expression_with_exact_types_and_primary_
         .await
         .expect_err("writer must reject behaviorally wrong generated-column authority");
     assert!(
-        error.to_string().contains("no migration-0021-shaped"),
+        error.to_string().contains("-shaped, permanent, non-inherited"),
         "generated-expression rejection must identify authority-shape drift: {error}"
     );
     let rows: i64 =
@@ -2250,7 +2264,7 @@ async fn pidless_reclaimer_rejects_unlogged_cursor_and_inherited_lifecycle_rows(
     .expect_err("lifecycle authority participating in inheritance must fail closed");
     assert!(inheritance_error
         .to_string()
-        .contains("no migration-0021-shaped"));
+        .contains("-shaped, permanent, non-inherited"));
     let inherited_stopped_at: Option<chrono::DateTime<Utc>> = sqlx::query_scalar(
         "SELECT stopped_at FROM ONLY kernel_process_lifecycle_inherited_child WHERE process_uuid = $1",
     )

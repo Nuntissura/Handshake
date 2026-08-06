@@ -11,6 +11,7 @@ fn assert_axum_route_states_are_clone_send_sync_static() {
     assert_state::<operator_chat::OperatorChatState>();
 }
 
+pub mod account_scope;
 pub mod atelier;
 pub mod bundles;
 pub mod canvases;

@@ -17,9 +17,23 @@
 //!   launch).
 //! * `DELETE /model-access/byok/:provider/key` — remove / rotate a key
 //!   (idempotent), reusing `vault.delete`.
-//! * `POST /model-access/cli-bridge/:provider/login` — launch the provider's
-//!   exact already-pinned executable graph in a foreground console. Returns
-//!   only an opaque pid handle; no path, argv, credential, or account metadata.
+//! * `POST /model-access/cli-bridge/:provider/login` — start the provider's
+//!   exact already-pinned executable graph as an IN-APP login session running
+//!   inside a Handshake-hosted pseudo-terminal. No OS console window is opened
+//!   and no foreground/Z-order change occurs (HBR-QUIET-001). Returns the
+//!   session snapshot; no path, argv, credential, or account metadata.
+//! * `GET  /model-access/cli-bridge-login/:session` — poll one login session:
+//!   typed status (`pending` / `awaiting_input` / `succeeded` / `failed` /
+//!   `timed_out` / `cancelled`), the provider's own terminal transcript, and the
+//!   remaining bounded-window budget.
+//! * `POST /model-access/cli-bridge-login/:session/input` — deliver one operator
+//!   response (the device code or prompt answer) to the login process's stdin.
+//!   Body `{ "input": "<text>" }`.
+//! * `POST /model-access/cli-bridge-login/:session/cancel` — terminate the login
+//!   process and evict the session (idempotent while the session is known).
+//!
+//! The session routes use the distinct `cli-bridge-login` path root so they can
+//! never be confused with a provider id under `cli-bridge/:provider`.
 //!
 //! ## Leak discipline
 //!
@@ -54,10 +68,11 @@ use serde_json::{json, Value};
 
 use crate::model_runtime::cloud::access_config::{
     enumerate_with_cli_auth_probe, AccessConfigError, ByokProvider, CliBridgeAuthStatusProbe,
-    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeProvider, CloudAccessEnumeration,
-    CloudModelAccess, InMemoryAccessRegistry,
+    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeLoginSessionRegistry,
+    CliBridgeProvider, CliLoginSessionError, CloudAccessEnumeration, CloudModelAccess,
+    InMemoryAccessRegistry,
 };
-use crate::model_runtime::cloud::{ForegroundCliLaunchHandle, SecretsVaultError};
+use crate::model_runtime::cloud::{InteractiveLoginTransport, SecretsVaultError};
 
 type ApiError = (StatusCode, Json<Value>);
 
@@ -107,7 +122,7 @@ impl CliBridgeLoginLauncher for UnavailableCliAuthProbe {
     fn launch_login(
         &self,
         _provider: CliBridgeProvider,
-    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+    ) -> Result<Arc<dyn InteractiveLoginTransport>, CliBridgeLoginLaunchError> {
         Err(CliBridgeLoginLaunchError::Unavailable)
     }
 }
@@ -121,7 +136,9 @@ impl CliBridgeLoginLauncher for UnavailableCliAuthProbe {
 pub struct ModelAccessState {
     provider: Arc<dyn CloudAccessProvider>,
     cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
-    cli_login_launcher: Arc<dyn CliBridgeLoginLauncher>,
+    /// Live in-app login sessions. Shared (not per-request) so the start /
+    /// poll / input / cancel routes address the SAME running login process.
+    cli_login_sessions: Arc<CliBridgeLoginSessionRegistry>,
 }
 
 impl ModelAccessState {
@@ -132,7 +149,7 @@ impl ModelAccessState {
         Self {
             provider: Arc::new(ProductionCloudAccessProvider),
             cli_auth_probe: Arc::new(UnavailableCliAuthProbe),
-            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
+            cli_login_sessions: unavailable_login_sessions(),
         }
     }
 
@@ -142,7 +159,7 @@ impl ModelAccessState {
         Self {
             provider: Arc::new(ProductionCloudAccessProvider),
             cli_auth_probe,
-            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
+            cli_login_sessions: unavailable_login_sessions(),
         }
     }
 
@@ -153,7 +170,7 @@ impl ModelAccessState {
         Self {
             provider: Arc::new(ProductionCloudAccessProvider),
             cli_auth_probe,
-            cli_login_launcher,
+            cli_login_sessions: Arc::new(CliBridgeLoginSessionRegistry::new(cli_login_launcher)),
         }
     }
 
@@ -163,7 +180,7 @@ impl ModelAccessState {
         Self {
             provider,
             cli_auth_probe: Arc::new(UnavailableCliAuthProbe),
-            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
+            cli_login_sessions: unavailable_login_sessions(),
         }
     }
 
@@ -176,7 +193,7 @@ impl ModelAccessState {
         Self {
             provider,
             cli_auth_probe,
-            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
+            cli_login_sessions: unavailable_login_sessions(),
         }
     }
 
@@ -188,9 +205,15 @@ impl ModelAccessState {
         Self {
             provider,
             cli_auth_probe,
-            cli_login_launcher,
+            cli_login_sessions: Arc::new(CliBridgeLoginSessionRegistry::new(cli_login_launcher)),
         }
     }
+}
+
+fn unavailable_login_sessions() -> Arc<CliBridgeLoginSessionRegistry> {
+    Arc::new(CliBridgeLoginSessionRegistry::new(Arc::new(
+        UnavailableCliAuthProbe,
+    )))
 }
 
 fn access_config_api_error(err: AccessConfigError) -> ApiError {
@@ -302,6 +325,38 @@ async fn remove_byok_key(
     })))
 }
 
+/// Map a session-lookup/drive failure to a typed envelope. The session id is a
+/// server-generated UUID, so echoing it back carries no operator data.
+fn login_session_api_error(error: CliLoginSessionError) -> ApiError {
+    match error {
+        CliLoginSessionError::UnknownSession => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "cli_login_session_not_found"})),
+        ),
+        CliLoginSessionError::SessionFinished => (
+            StatusCode::CONFLICT,
+            Json(json!({"error": "cli_login_session_finished"})),
+        ),
+        CliLoginSessionError::InputFailed => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "cli_login_input_failed"})),
+        ),
+    }
+}
+
+fn login_snapshot_json(
+    snapshot: &crate::model_runtime::cloud::CliLoginSessionSnapshot,
+) -> Result<Json<Value>, ApiError> {
+    serde_json::to_value(snapshot).map(Json).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "cli_login_session_encode_failed"})),
+        )
+    })
+}
+
+/// `POST /model-access/cli-bridge/:provider/login` — start the provider's own
+/// official login as an IN-APP pseudo-terminal session.
 async fn launch_cli_login(
     State(state): State<ModelAccessState>,
     Path(provider_id): Path<String>,
@@ -312,8 +367,10 @@ async fn launch_cli_login(
             Json(json!({"error": "provider_not_offered"})),
         )
     })?;
-    let launcher = state.cli_login_launcher.clone();
-    let handle = tokio::task::spawn_blocking(move || launcher.launch_login(provider))
+    let sessions = state.cli_login_sessions.clone();
+    // Process creation, executable-graph verification, and the ledger START
+    // durability wait all block; keep them off the async request executor.
+    let snapshot = tokio::task::spawn_blocking(move || sessions.start(provider))
         .await
         .map_err(|_| {
             (
@@ -332,23 +389,66 @@ async fn launch_cli_login(
             ),
         })?;
     // MT-015: tee the cloud-access login into the live debug console (non-authoritative
-    // observability; carries only the provider id + pid, never key material). `publish_parts`
-    // is infallible + non-blocking and can never affect this handler's result.
+    // observability; carries only the provider id + the server-generated session id — never
+    // key material, never the login transcript). `publish_parts` is infallible + non-blocking
+    // and can never affect this handler's result.
     crate::console_stream::ConsoleBroadcast::shared().publish_parts(
         crate::console_stream::ConsoleSeverity::Info,
         crate::console_stream::ConsoleCategory::CloudAccess,
         format!("cli-bridge:{}", provider.id()),
         format!(
-            "official-CLI login launched (provider={}, pid={})",
+            "official-CLI login session started in-app (provider={}, session={})",
             provider.id(),
-            handle.pid
+            snapshot.session_id
         ),
         None,
     );
-    Ok(Json(json!({
-        "provider": provider.id(),
-        "launch_handle": {"pid": handle.pid},
-    })))
+    login_snapshot_json(&snapshot)
+}
+
+/// `GET /model-access/cli-bridge-login/:session` — poll one login session.
+async fn get_cli_login_session(
+    State(state): State<ModelAccessState>,
+    Path(session_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let snapshot = state
+        .cli_login_sessions
+        .snapshot(&session_id)
+        .map_err(login_session_api_error)?;
+    login_snapshot_json(&snapshot)
+}
+
+/// Request body for one operator response typed into the in-app login panel.
+/// It is a plain provider prompt answer (a device code, a `y`/`n`, an account
+/// selection) — never a Handshake-held credential, and never echoed back.
+#[derive(Deserialize)]
+struct LoginInputBody {
+    input: String,
+}
+
+/// `POST /model-access/cli-bridge-login/:session/input`
+async fn send_cli_login_input(
+    State(state): State<ModelAccessState>,
+    Path(session_id): Path<String>,
+    Json(body): Json<LoginInputBody>,
+) -> Result<Json<Value>, ApiError> {
+    let snapshot = state
+        .cli_login_sessions
+        .send_input(&session_id, &body.input)
+        .map_err(login_session_api_error)?;
+    login_snapshot_json(&snapshot)
+}
+
+/// `POST /model-access/cli-bridge-login/:session/cancel`
+async fn cancel_cli_login_session(
+    State(state): State<ModelAccessState>,
+    Path(session_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let snapshot = state
+        .cli_login_sessions
+        .cancel(&session_id)
+        .map_err(login_session_api_error)?;
+    login_snapshot_json(&snapshot)
 }
 
 pub fn routes(state: ModelAccessState) -> Router {
@@ -361,6 +461,18 @@ pub fn routes(state: ModelAccessState) -> Router {
         .route(
             "/model-access/cli-bridge/:provider/login",
             post(launch_cli_login),
+        )
+        .route(
+            "/model-access/cli-bridge-login/:session",
+            get(get_cli_login_session),
+        )
+        .route(
+            "/model-access/cli-bridge-login/:session/input",
+            post(send_cli_login_input),
+        )
+        .route(
+            "/model-access/cli-bridge-login/:session/cancel",
+            post(cancel_cli_login_session),
         )
         .with_state(state)
 }

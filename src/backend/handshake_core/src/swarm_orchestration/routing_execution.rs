@@ -284,6 +284,11 @@ pub struct ModelLaneRoutingExecutionStore {
     pool: PgPool,
     lease_owner: String,
     lease_ms: u64,
+    /// Carried so the routing executor stamps the same account scope onto the
+    /// ModelLane message/artifact rows it writes as the store that owns the run
+    /// (HBR-PRIV-001). A routing-produced row must not be less attributable than
+    /// a directly recorded one.
+    access: crate::swarm_orchestration::resource_scope::ResourceAccessContext,
 }
 
 #[derive(Debug)]
@@ -297,10 +302,23 @@ struct StageView {
 
 impl ModelLaneRoutingExecutionStore {
     pub(crate) fn new(pool: PgPool) -> Self {
+        Self::new_with_access(
+            pool,
+            crate::swarm_orchestration::resource_scope::ResourceAccessContext::system(
+                crate::swarm_orchestration::resource_scope::SystemScopeAuthority::legacy_unscoped_call_site(),
+            ),
+        )
+    }
+
+    pub(crate) fn new_with_access(
+        pool: PgPool,
+        access: crate::swarm_orchestration::resource_scope::ResourceAccessContext,
+    ) -> Self {
         Self {
             pool,
             lease_owner: format!("routing-executor:{}", uuid::Uuid::now_v7()),
             lease_ms: DEFAULT_LEASE_MS,
+            access,
         }
     }
 
@@ -309,6 +327,9 @@ impl ModelLaneRoutingExecutionStore {
             pool,
             lease_owner: lease_owner.into(),
             lease_ms: lease_ms.max(1),
+            access: crate::swarm_orchestration::resource_scope::ResourceAccessContext::system(
+                crate::swarm_orchestration::resource_scope::SystemScopeAuthority::legacy_unscoped_call_site(),
+            ),
         }
     }
 
@@ -325,6 +346,74 @@ impl ModelLaneRoutingExecutionStore {
         let state = load_execution_tx(&mut tx, execution_id).await?;
         tx.commit().await.map_err(|err| err.to_string())?;
         Ok(state)
+    }
+
+    /// Read the execution WITHOUT taking the execution-keyed advisory lock.
+    ///
+    /// This exists for exactly one caller: cancellation. `lock_execution` is an
+    /// xact lock, so a stage that is mid-generation holds it until its
+    /// transaction ends - and that transaction only ends once the stage is
+    /// cancelled. `cancel_routing_execution` used the locking `snapshot` as its
+    /// FIRST step, which made cancellation deadlock against the work it was
+    /// trying to cancel:
+    ///
+    ///   worker holds the advisory lock, blocked in generation, waiting to be
+    ///   cancelled -> cancel blocks on `snapshot` before it can fire any session
+    ///   cancel token -> generation never observes cancellation -> the lock is
+    ///   never released.
+    ///
+    /// Proven from live pg_stat_activity during the hang: the lock holder sat in
+    /// Client/ClientRead (idle in transaction) with two cancellation-side
+    /// sessions queued behind it on Lock/advisory.
+    ///
+    /// Reading unlocked is SAFE for this caller because the result is only used
+    /// to decide WHICH live instances to signal. A concurrently-changing stage
+    /// can only mean a signal that is redundant (already terminal) or one more
+    /// that the authoritative, still-locked `cancel_execution` will terminalize
+    /// anyway. Cancellation must never queue behind the work it is cancelling.
+    /// Returns `None` when the execution does not exist.
+    ///
+    /// Deliberately does NOT go through `load_execution_tx`. That path verifies
+    /// projection/EventLedger integrity, and the advisory lock is what makes
+    /// that verification sound - see the "fractured projection/EventLedger view"
+    /// note on the locked read. Running it unlocked produces spurious
+    /// "projection/EventLedger integrity failure" errors when a stage is
+    /// mid-write, which is EXACTLY the moment cancellation is most likely to be
+    /// issued. Cancellation does not need that guarantee: it only needs to know
+    /// which instances to signal, and an instance whose state changed under it
+    /// is either already terminal (the signal is a no-op) or will be
+    /// terminalized by the authoritative, still-locked `cancel_execution`.
+    pub(crate) async fn active_instance_ids_for_cancellation(
+        &self,
+        execution_id: &str,
+    ) -> Result<Option<Vec<String>>, String> {
+        let record: Option<serde_json::Value> = sqlx::query_scalar(
+            "SELECT record_json FROM model_lane_routing_executions WHERE execution_id = $1",
+        )
+        .bind(execution_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|err| err.to_string())?;
+        let Some(record) = record else {
+            return Ok(None);
+        };
+        let mut instance_ids = Vec::new();
+        if let Some(stages) = record.get("stages").and_then(serde_json::Value::as_object) {
+            for stage in stages.values() {
+                let is_active = matches!(
+                    stage.get("state").and_then(serde_json::Value::as_str),
+                    Some("claimed") | Some("in_flight") | Some("awaiting_authority")
+                );
+                if is_active {
+                    if let Some(instance_id) =
+                        stage.get("instance_id").and_then(serde_json::Value::as_str)
+                    {
+                        instance_ids.push(instance_id.to_string());
+                    }
+                }
+            }
+        }
+        Ok(Some(instance_ids))
     }
 
     /// Read native diagnostics through the production execution/stage/outbox
@@ -1444,7 +1533,7 @@ impl ModelLaneRoutingExecutionStore {
             .into_iter()
             .find(|view| view.stage_id == stage_id)
             .ok_or_else(|| format!("unknown routing stage {stage_id}"))?;
-        let model_lane_store = super::model_lane::ModelLaneStore::new(self.pool.clone());
+        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(self.pool.clone(), self.access.clone());
         let mut predecessors = Vec::new();
         let mut predecessor_states = Vec::new();
         for dependency in &view.dependencies {
@@ -1634,7 +1723,7 @@ impl ModelLaneRoutingExecutionStore {
             .ok_or_else(|| {
                 format!("routing output {stage_id} has no canonical source ModelLane")
             })?;
-        let model_lane_store = super::model_lane::ModelLaneStore::new(self.pool.clone());
+        let model_lane_store = super::model_lane::ModelLaneStore::new_with_access(self.pool.clone(), self.access.clone());
         let source_projection = model_lane_store
             .navigation_by_lane(&source_lane_id)
             .await
@@ -1833,7 +1922,7 @@ impl ModelLaneRoutingExecutionStore {
             == ModelLaneRoutingDispatchTarget::CoordinatorJoin
         {
             super::model_lane::ModelLaneStore::record_context_bundle_artifact_binding_with_validation_tx(
-                &mut tx, binding,
+                &mut tx, binding, self.access.insert_columns(),
             )
             .await
             .map_err(|err| err.to_string())?;
@@ -1841,7 +1930,10 @@ impl ModelLaneRoutingExecutionStore {
         } else {
             Some(
                 super::model_lane::ModelLaneStore::record_message_with_payload_binding_tx(
-                    &mut tx, message, binding,
+                    &mut tx,
+                    message,
+                    binding,
+                    self.access.insert_columns(),
                 )
                 .await
                 .map_err(|err| err.to_string())?
@@ -2523,15 +2615,76 @@ fn initial_execution(
     }
 }
 
+/// How long a routing-execution advisory acquisition may wait before failing
+/// loudly. Long enough that ordinary contention (a concurrent stage transition
+/// on the same execution) still succeeds on a loaded host, short enough that an
+/// operator cancel reports instead of hanging. Advisory locks are invisible to
+/// PostgreSQL's deadlock detector, so this bound is the ONLY thing that breaks a
+/// cycle on this path.
+const ROUTING_EXECUTION_LOCK_TIMEOUT: &str = "15s";
+
 async fn lock_execution(
     tx: &mut Transaction<'_, Postgres>,
     execution_id: &str,
 ) -> Result<(), String> {
+    // Transaction-local call-site marker; see the matching note in
+    // model_lane.rs::record_or_extend_run_tx. Both sites take the SAME salt-0
+    // keyspace, so naming the holder is what distinguishes a cross-site
+    // collision from a re-entrant self-block in pg_stat_activity.
+    //
+    // lock_execution has EIGHT callers, so the bare marker proves a self-
+    // collision on the execution key without naming WHICH two callers collide.
+    // Setting HANDSHAKE_LOCK_TRACE=1 appends the nearest caller frame. The
+    // backtrace is captured ONLY under that env var, so production pays
+    // nothing: this is a diagnostic seam, not an always-on cost.
+    // NOTE: application_name is capped at NAMEDATALEN-1 (63 bytes). A marker of
+    // the form hsk:lock_execution:<caller>:<execution_id> is silently truncated
+    // mid-execution_id, which hides the very field being added. The execution
+    // id is already known from the test under inspection, so the marker carries
+    // the CALLER only and stays well inside the cap.
+    // The TASK id is the discriminator that matters here, and it is far more
+    // reliable than a symbol name: on Windows/MSVC every async frame symbolises
+    // as `async_fn$0`, so a backtrace cannot name the calling function at all.
+    // If the holder and a waiter share a task id, one logical operation holds
+    // this key on one pooled connection while requesting it on another - a true
+    // re-entrant self-deadlock. Distinct task ids mean cross-task lock-ordering
+    // contention instead. Those two faults have different fixes.
+    let task = tokio::task::try_id()
+        .map(|id| id.to_string())
+        .unwrap_or_else(|| "none".to_string());
+    sqlx::query("SELECT set_config('application_name', $1, true)")
+        .bind(format!("hsk:le:task{task}"))
+        .execute(&mut **tx)
+        .await
+        .map_err(|err| err.to_string())?;
+    // BOUND the acquisition. An unbounded pg_advisory_xact_lock on the routing
+    // terminal path means an operator cancel can block forever: PostgreSQL does
+    // NOT run deadlock detection over advisory locks, so a cycle here is never
+    // broken by the database. Re-entrant acquisition (the same task holding this
+    // key on one pooled connection while requesting it on another) was proven
+    // for this keyspace via task-id markers, and it hung indefinitely.
+    //
+    // Bounding turns that from an unrecoverable hang into a typed, reportable
+    // failure that names the execution and the holder. `SET LOCAL` semantics
+    // (`true`) confine the timeout to this transaction. Precedent in-repo:
+    // model_runtime/registry_persistence.rs bounds its advisory acquisition the
+    // same way.
+    sqlx::query("SELECT set_config('lock_timeout', $1, true)")
+        .bind(ROUTING_EXECUTION_LOCK_TIMEOUT)
+        .execute(&mut **tx)
+        .await
+        .map_err(|err| err.to_string())?;
     sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
         .bind(execution_id)
         .execute(&mut **tx)
         .await
-        .map_err(|err| err.to_string())?;
+        .map_err(|err| {
+            format!(
+                "routing execution advisory lock for {execution_id} was not granted within {ROUTING_EXECUTION_LOCK_TIMEOUT} \
+                 (holder identifies itself in pg_stat_activity.application_name as hsk:le:task<id>; the SAME task id on \
+                 both holder and waiter means re-entrant acquisition, a different id means cross-task lock ordering): {err}"
+            )
+        })?;
     Ok(())
 }
 

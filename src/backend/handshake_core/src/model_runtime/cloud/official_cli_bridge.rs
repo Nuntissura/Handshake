@@ -331,11 +331,81 @@ pub(crate) struct AuxiliaryCliCommandOutput {
     pub(crate) stdout: Zeroizing<Vec<u8>>,
 }
 
-/// Non-secret receipt for an operator-confirmed foreground login process.
-/// The executable path and argv deliberately never cross the backend boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ForegroundCliLaunchHandle {
-    pub pid: u32,
+/// Live, operator-drivable transport for one provider-owned interactive login.
+///
+/// The operator-facing surface (the native Settings cloud-access panel, through
+/// the `model-access` routes) only ever sees this trait: a pid receipt, the
+/// bounded transcript the provider has printed so far, a way to type an answer,
+/// and the terminal exit state. The executable path, argv, and environment
+/// deliberately never cross the backend boundary, exactly as before.
+///
+/// The production implementation is [`InteractiveLoginPty`], which runs the
+/// provider's own login command under a Handshake-hosted pseudo-terminal so the
+/// interactive device/OAuth flow is completable WITHOUT an OS console window
+/// (HBR-QUIET-001). Route-level tests substitute an in-memory transport, so
+/// they exercise the HTTP contract without invoking an installed CLI.
+pub trait InteractiveLoginTransport: Send + Sync + std::fmt::Debug {
+    /// OS pid of the provider's login process (non-secret receipt).
+    fn pid(&self) -> u32;
+    /// Raw bytes the provider has written to the terminal so far, bounded by
+    /// the session's scrollback cap.
+    fn transcript(&self) -> Vec<u8>;
+    /// Send one operator response (already newline-terminated by the caller)
+    /// to the login process's stdin.
+    fn write_input(&self, bytes: &[u8]) -> Result<(), String>;
+    /// Terminal exit code, or `None` while the login is still running.
+    fn exit_code(&self) -> Option<i32>;
+    /// Terminate the login process. Idempotent.
+    fn cancel(&self);
+}
+
+/// PTY-backed interactive login process.
+///
+/// Holds a shared handle to the [`crate::terminal::PtySession`] that owns the
+/// provider's login child. The session's watcher thread owns the process-ledger
+/// STOP record; this handle is read/write access only, so dropping it never
+/// bypasses ledger ownership.
+#[cfg(target_os = "windows")]
+pub struct InteractiveLoginPty {
+    pid: u32,
+    session: Arc<crate::terminal::PtySession>,
+}
+
+#[cfg(target_os = "windows")]
+impl std::fmt::Debug for InteractiveLoginPty {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The transcript is deliberately absent: provider login output may carry
+        // one-time codes and must never reach a Debug/log surface.
+        formatter
+            .debug_struct("InteractiveLoginPty")
+            .field("pid", &self.pid)
+            .finish()
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl InteractiveLoginTransport for InteractiveLoginPty {
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn transcript(&self) -> Vec<u8> {
+        self.session.scrollback()
+    }
+
+    fn write_input(&self, bytes: &[u8]) -> Result<(), String> {
+        self.session
+            .write_stdin(bytes)
+            .map_err(|error| error.to_string())
+    }
+
+    fn exit_code(&self) -> Option<i32> {
+        self.session.exit_code()
+    }
+
+    fn cancel(&self) {
+        self.session.kill();
+    }
 }
 
 pub struct OfficialCliBridgeRuntime {
@@ -1656,36 +1726,65 @@ fn record_foreground_stop(
     }
 }
 
-/// Immediate owner installed on the first instruction after a foreground
-/// process is spawned. Until ownership transfers into `ForegroundWatchPayload`,
-/// every error and panic path kills and synchronously reaps the exact child.
+/// How long a reap attempt waits for the PTY child to be observed dead.
+///
+/// `PtySession::wait_for_exit` only returns once the waiter thread has reaped
+/// the child AND the reader has drained the pseudo-console, so observing it is
+/// positive proof the exact process is gone — the same guarantee the previous
+/// `Child::wait()` call provided.
+#[cfg(target_os = "windows")]
+const INTERACTIVE_LOGIN_REAP_TIMEOUT: Duration = Duration::from_secs(15);
+
+/// Bounded lifetime for one interactive login (HBR-QUIET-004 has NOT been
+/// declared for this MT, so the login must be time-bounded rather than an
+/// open-ended attached process). The watcher stops waiting after this window
+/// and falls through to its kill-and-record recovery path, so a login the
+/// operator abandoned can never linger as an unbounded child.
+#[cfg(target_os = "windows")]
+pub(crate) const INTERACTIVE_LOGIN_MAX_LIFETIME: Duration = Duration::from_secs(15 * 60);
+
+/// Terminal geometry for the login PTY. Wide enough that provider login URLs
+/// and one-time codes are not hard-wrapped mid-token in the transcript.
+#[cfg(target_os = "windows")]
+const INTERACTIVE_LOGIN_PTY_ROWS: u16 = 30;
+#[cfg(target_os = "windows")]
+const INTERACTIVE_LOGIN_PTY_COLS: u16 = 160;
+
+/// Transcript cap for one login session. Bounded so a provider that floods the
+/// terminal cannot grow backend memory without limit.
+#[cfg(target_os = "windows")]
+const INTERACTIVE_LOGIN_TRANSCRIPT_BYTES: usize = 256 * 1024;
+
+/// Immediate owner installed on the first instruction after the interactive
+/// login child is spawned. Until ownership transfers into
+/// `ForegroundWatchPayload`, every error and panic path kills and synchronously
+/// reaps the exact child.
 ///
 /// Identity locks remain in this owner through reap and the matching STOP
-/// attempt. A failed wait restores the child into the owner so Drop gets one
+/// attempt. A failed wait restores the session into the owner so Drop gets one
 /// final recovery attempt instead of silently dropping a potentially-live
-/// `std::process::Child`.
+/// child.
 #[cfg(target_os = "windows")]
 struct ForegroundChildOwner {
-    child: Option<std::process::Child>,
+    session: Option<Arc<crate::terminal::PtySession>>,
+    pid: u32,
     lifecycle: Option<Arc<ActiveProcessLifecycle>>,
     _identity_locks: Vec<File>,
 }
 
 #[cfg(target_os = "windows")]
 impl ForegroundChildOwner {
-    fn new(child: std::process::Child, identity_locks: Vec<File>) -> Self {
+    fn new(session: Arc<crate::terminal::PtySession>, pid: u32, identity_locks: Vec<File>) -> Self {
         Self {
-            child: Some(child),
+            session: Some(session),
+            pid,
             lifecycle: None,
             _identity_locks: identity_locks,
         }
     }
 
     fn pid(&self) -> u32 {
-        self.child
-            .as_ref()
-            .expect("foreground child owner retains exact child")
-            .id()
+        self.pid
     }
 
     fn attach_lifecycle(&mut self, lifecycle: ActiveProcessLifecycle) {
@@ -1693,53 +1792,51 @@ impl ForegroundChildOwner {
     }
 
     fn terminate_reap_and_record(&mut self, reason: &str) -> Result<(), OfficialCliBridgeError> {
-        let pid = self.pid();
-        let mut child = self
-            .child
+        let pid = self.pid;
+        let session = self
+            .session
             .take()
-            .expect("foreground child owner retains exact child");
-        let kill_error = child.kill().err();
-        let status = match child.wait() {
-            Ok(status) => status,
-            Err(wait_error) => {
-                self.child = Some(child);
-                if let Some(lifecycle) = self.lifecycle.as_ref() {
-                    let _ = lifecycle.leave_open_for_reconciliation();
-                }
-                return Err(OfficialCliBridgeError::SpawnFailed {
-                    reason: format!(
-                        "foreground login exact child {pid} could not be killed/reaped during {reason} (kill={kill_error:?}, wait={wait_error})"
-                    ),
-                    exit_code: None,
-                });
+            .expect("interactive login owner retains exact child");
+        session.kill();
+        let Some(exit_code) = session.wait_for_exit(INTERACTIVE_LOGIN_REAP_TIMEOUT) else {
+            self.session = Some(session);
+            if let Some(lifecycle) = self.lifecycle.as_ref() {
+                let _ = lifecycle.leave_open_for_reconciliation();
             }
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "interactive login exact child {pid} could not be killed/reaped during {reason}"
+                ),
+                exit_code: None,
+            });
         };
+        // The exact child is proven dead. Releasing our session handle here also
+        // joins the pty reader/waiter threads when this was the last holder.
+        drop(session);
         if let Some(lifecycle) = self.lifecycle.take() {
-            record_foreground_stop(lifecycle, pid, status.code(), reason)?;
+            record_foreground_stop(lifecycle, pid, Some(exit_code), reason)?;
         }
         Ok(())
     }
 
     fn wait_and_record(&mut self, reason: &str) -> Result<(), OfficialCliBridgeError> {
-        let pid = self.pid();
-        let mut child = self
-            .child
+        let pid = self.pid;
+        let session = self
+            .session
             .take()
-            .expect("foreground child owner retains exact child");
-        let status = match child.wait() {
-            Ok(status) => status,
-            Err(wait_error) => {
-                self.child = Some(child);
-                return Err(OfficialCliBridgeError::SpawnFailed {
-                    reason: format!(
-                        "foreground login exact child {pid} wait failed during {reason}: {wait_error}"
-                    ),
-                    exit_code: None,
-                });
-            }
+            .expect("interactive login owner retains exact child");
+        let Some(exit_code) = session.wait_for_exit(INTERACTIVE_LOGIN_MAX_LIFETIME) else {
+            self.session = Some(session);
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "interactive login exact child {pid} exceeded its bounded lifetime during {reason}"
+                ),
+                exit_code: None,
+            });
         };
+        drop(session);
         if let Some(lifecycle) = self.lifecycle.take() {
-            record_foreground_stop(lifecycle, pid, status.code(), reason)?;
+            record_foreground_stop(lifecycle, pid, Some(exit_code), reason)?;
         }
         Ok(())
     }
@@ -1760,7 +1857,7 @@ impl ForegroundChildOwner {
         if self.lifecycle.is_none() {
             return Err(OfficialCliBridgeError::LedgerRegistration {
                 pid,
-                reason: "foreground watcher handoff attempted without lifecycle authority"
+                reason: "interactive login watcher handoff attempted without lifecycle authority"
                     .to_string(),
             });
         }
@@ -1771,7 +1868,7 @@ impl ForegroundChildOwner {
 #[cfg(target_os = "windows")]
 impl Drop for ForegroundChildOwner {
     fn drop(&mut self) {
-        if self.child.is_none() {
+        if self.session.is_none() {
             return;
         }
         if let Err(error) =
@@ -1780,17 +1877,17 @@ impl Drop for ForegroundChildOwner {
             tracing::error!(
                 target: "handshake_core::official_cli_bridge",
                 error = %error,
-                "foreground login owner Drop could not prove exact child cleanup"
+                "interactive login owner Drop could not prove exact child cleanup"
             );
-            // `Child::drop` is not a process-lifecycle operation. If two exact
-            // handle reap attempts both fail, permanently retain the complete
-            // ownership bundle. This deliberately leaks the child handle,
+            // Dropping the session is not a process-lifecycle operation. If two
+            // exact reap attempts both fail, permanently retain the complete
+            // ownership bundle. This deliberately leaks the session handle,
             // identity locks, and open lifecycle authority rather than dropping
             // any of them while the process may still be live.
-            if let Some(child) = self.child.take() {
+            if let Some(session) = self.session.take() {
                 let lifecycle = self.lifecycle.take();
                 let identity_locks = std::mem::take(&mut self._identity_locks);
-                std::mem::forget((child, lifecycle, identity_locks));
+                std::mem::forget((session, lifecycle, identity_locks));
             }
         }
     }
@@ -1808,7 +1905,7 @@ impl ForegroundWatchPayload {
             .owner
             .wait_and_record("official_cli_foreground_login_exit")
         {
-            if self.owner.child.is_some() {
+            if self.owner.session.is_some() {
                 if let Err(recovery_error) = self
                     .owner
                     .terminate_reap_and_record("official_cli_foreground_login_wait_failed_kill")
@@ -2742,18 +2839,58 @@ impl LiveCliSpawner {
         Ok(launch)
     }
 
-    /// Launch a provider-owned interactive login in a new Windows console.
+    /// Launch a provider-owned interactive login inside a Handshake-hosted
+    /// pseudo-terminal.
     ///
-    /// The executable graph must already be pinned by the canonical launch
-    /// builder. Resolution happens here in the backend, and the GUI receives
-    /// only the resulting pid handle—never a path or argv to re-resolve.
+    /// QUIET CONTRACT (HBR-QUIET-001). The child is attached to a ConPTY
+    /// pseudo-console opened by `portable-pty`, which calls `CreateProcess`
+    /// with `EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT` and
+    /// deliberately WITHOUT `CREATE_NEW_CONSOLE`. No console window is created,
+    /// nothing is raised to the foreground, and the operator's Z-order and
+    /// keyboard focus are untouched. This replaces the previous
+    /// `CREATE_NEW_CONSOLE` launch, which was the only spawn site in the tree
+    /// that popped an OS window; the rest of the codebase already spawns with
+    /// `CREATE_NO_WINDOW`.
+    ///
+    /// The flow stays COMPLETABLE, which a bare `CREATE_NO_WINDOW` flip would
+    /// have destroyed: `claude auth login` and `codex login` are interactive
+    /// device/OAuth flows, so the provider's prompt is streamed out of the PTY
+    /// into the in-app Settings login panel and the operator's typed answer is
+    /// streamed back over [`InteractiveLoginTransport::write_input`].
+    ///
+    /// Every identity control the console launch had is retained: the
+    /// executable graph must already be pinned by the canonical launch builder
+    /// (`pin_config` / `require_previously_pinned_config`), `reject_command_interpreter`
+    /// still refuses generic shells, the identity locks stay held across the
+    /// child's life, the environment is cleared and rebuilt from
+    /// `attached_child_env`, and the process ledger still owns matching
+    /// START/STOP records. The GUI receives only the resulting pid receipt and
+    /// terminal transcript — never a path or argv to re-resolve.
     #[cfg(target_os = "windows")]
     pub(crate) fn launch_foreground_fixed_command(
         &self,
         config: &CliBridgeConfig,
         args: &[&str],
-    ) -> Result<ForegroundCliLaunchHandle, OfficialCliBridgeError> {
+    ) -> Result<InteractiveLoginPty, OfficialCliBridgeError> {
         self.launch_foreground_fixed_command_with_watcher(config, args, spawn_foreground_watcher)
+    }
+
+    /// Test-only entry to the REAL interactive-login launch.
+    ///
+    /// An integration test needs the production path end to end — canonical pin
+    /// check, `env_clear` + `attached_child_env`, ConPTY spawn, OS attestation,
+    /// process-ledger START/STOP, bounded watcher — while supplying its own
+    /// long-lived fixture argv instead of a provider's fixed login argv. This
+    /// wrapper adds no behaviour; it only widens visibility under `test-utils`
+    /// so the quiet-mode negative proof observes the same code the operator's
+    /// `Log in…` button reaches.
+    #[cfg(all(target_os = "windows", feature = "test-utils"))]
+    pub fn launch_interactive_login_for_tests(
+        &self,
+        config: &CliBridgeConfig,
+        args: &[&str],
+    ) -> Result<InteractiveLoginPty, OfficialCliBridgeError> {
+        self.launch_foreground_fixed_command(config, args)
     }
 
     #[cfg(target_os = "windows")]
@@ -2762,7 +2899,7 @@ impl LiveCliSpawner {
         config: &CliBridgeConfig,
         args: &[&str],
         establish_watcher: impl FnOnce() -> Result<ForegroundWatcherSender, OfficialCliBridgeError>,
-    ) -> Result<ForegroundCliLaunchHandle, OfficialCliBridgeError> {
+    ) -> Result<InteractiveLoginPty, OfficialCliBridgeError> {
         self.launch_foreground_fixed_command_with_hooks(
             config,
             args,
@@ -2793,37 +2930,66 @@ impl LiveCliSpawner {
             ProcessLedgerError,
         >,
         await_start: impl FnOnce(ProcessLedgerDurabilityAck) -> Result<(), ProcessLedgerError>,
-    ) -> Result<ForegroundCliLaunchHandle, OfficialCliBridgeError> {
-        use std::os::windows::process::CommandExt;
-
-        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+    ) -> Result<InteractiveLoginPty, OfficialCliBridgeError> {
         let lifecycle_reservation = self.reserve_process_lifecycle()?;
         let launch = self.foreground_fixed_launch_plan(config, args)?;
-        // Establish watcher capacity before process creation. No foreground
-        // child can exist if the OS cannot create its ownership thread.
+        // Establish watcher capacity before process creation. No login child can
+        // exist if the OS cannot create its ownership thread.
         let watcher = establish_watcher()?;
 
-        let mut command = std::process::Command::new(&launch.executable_path);
-        command
-            .args(&launch.args)
-            .env_clear()
-            .envs(attached_child_env(config))
-            .creation_flags(CREATE_NEW_CONSOLE);
-        if let Some(working_dir) = config.working_dir.as_ref() {
-            command.current_dir(working_dir);
-        }
-        let child = command
-            .spawn()
-            .map_err(|error| OfficialCliBridgeError::SpawnFailed {
-                reason: format!("foreground official CLI login spawn failed: {error}"),
-                exit_code: None,
-            })?;
+        // HBR-QUIET-001: ConPTY, not CREATE_NEW_CONSOLE. `portable-pty` attaches
+        // the child to a headless pseudo-console, so no window is created and no
+        // Z-order/foreground change occurs. `env_clear` reproduces the console
+        // launch's `Command::env_clear()`, so the PTY route does not widen the
+        // child environment.
+        // FAIL CLOSED rather than lossily converting the PINNED entrypoint.
+        //
+        // `launch.executable_path` is the exact binary this bridge canonicalized,
+        // identity-checked, and pinned via `require_previously_pinned_config`.
+        // `to_string_lossy()` would substitute U+FFFD for any non-UTF-8 byte and
+        // hand the PTY a path that is no longer the pinned binary - silently
+        // defeating the identity guarantee the pinning exists to provide, on the
+        // one code path that launches a credential-bearing login. A path we
+        // cannot represent exactly is a refusal, not a best-effort spawn.
+        let shell = launch
+            .executable_path
+            .to_str()
+            .ok_or_else(|| OfficialCliBridgeError::ExecutableIdentity(format!(
+                "pinned CLI entrypoint is not representable as UTF-8 and cannot be launched \
+                 without losing executable identity: {}",
+                launch.executable_path.display()
+            )))?
+            .to_string();
+        let session = crate::terminal::PtySession::spawn(crate::terminal::PtySpawnConfig {
+            shell: Some(shell),
+            args: launch.args.clone(),
+            cwd: config.working_dir.clone(),
+            env: attached_child_env(config).into_iter().collect(),
+            env_clear: true,
+            rows: INTERACTIVE_LOGIN_PTY_ROWS,
+            cols: INTERACTIVE_LOGIN_PTY_COLS,
+            scrollback_bytes: INTERACTIVE_LOGIN_TRANSCRIPT_BYTES,
+            broadcast_capacity: crate::terminal::pty::DEFAULT_BROADCAST_CAPACITY,
+        })
+        .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+            reason: format!("interactive official CLI login pty spawn failed: {error}"),
+            exit_code: None,
+        })?;
         // Install exact-child ownership immediately after spawn, before any
         // attestation, allocation, ledger, or watcher-handoff work can fail.
+        // `PtySession` is kill-on-drop, so the child is owned from this point on
+        // even if the pid could not be read.
+        let session = Arc::new(session);
+        let Some(pid) = session.child_pid() else {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: "interactive official CLI login pty reported no child pid".to_string(),
+                exit_code: None,
+            });
+        };
         let mut identity_locks = launch.identity_locks;
         identity_locks.append(&mut additional_identity_locks);
-        let mut child_owner = ForegroundChildOwner::new(child, identity_locks);
-        let pid = child_owner.pid();
+        let mut child_owner =
+            ForegroundChildOwner::new(Arc::clone(&session), pid, identity_locks);
         let creation_time_100ns = match attest_process(pid) {
             Ok(value) => value,
             Err(error) => {
@@ -2851,7 +3017,7 @@ impl LiveCliSpawner {
         meta.reclaim_key = Some(format!("model-access-cli-login-{pid}"));
         meta.model_identity = Some(config.cli_kind.label().to_string());
         meta.metadata_blob = json!({
-            "launch_kind": "operator_confirmed_foreground_login",
+            "launch_kind": "operator_confirmed_in_app_pty_login",
             "requested_entrypoint_sha256": launch.identity.requested_entrypoint.sha256,
             "effective_executable_sha256": launch.identity.effective_executable.sha256,
             "os_creation_time_100ns": creation_time_100ns,
@@ -2880,7 +3046,7 @@ impl LiveCliSpawner {
             ));
         }
         handoff_foreground_watch(watcher, child_owner.into_watch_payload()?)?;
-        Ok(ForegroundCliLaunchHandle { pid })
+        Ok(InteractiveLoginPty { pid, session })
     }
 
     fn spawn_attached_child(
@@ -3867,10 +4033,20 @@ mod sandbox_composition_regression_tests {
         assert!(production.contains("tokio::sync::mpsc::Sender<Vec<u8>>"));
         assert!(production.contains("sandbox adapter rejected"));
         assert!(production.contains("terminate_tree_and_wait"));
+        // Tightened by MT-015 v5 (was 1). The operator-confirmed login was the last
+        // direct OS spawn in this module and the only site in the tree that opened
+        // a console window; it now runs under the Handshake-hosted ConPTY, so ZERO
+        // direct spawns remain. This is strictly stronger than the previous bound:
+        // reintroducing any `std::process::Command::new` here fails immediately.
         assert_eq!(
             production.matches("std::process::Command::new").count(),
-            1,
-            "the only direct OS spawn is the explicit operator-confirmed foreground login; model and status execution stay adapter-owned"
+            0,
+            "no direct OS spawn may remain: model and status execution stay adapter-owned, and the \
+             operator-confirmed login runs under the Handshake-hosted pty (HBR-QUIET-001)"
+        );
+        assert!(
+            production.contains("crate::terminal::PtySession::spawn"),
+            "the operator-confirmed login must run under the Handshake-hosted pty"
         );
         assert!(production.contains("launch_foreground_fixed_command"));
         assert!(!production.contains("Command::new(\"cmd.exe\")"));
@@ -4937,9 +5113,6 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn foreground_watcher_send_failure_reaps_child_before_stop_and_lock_release() {
-        use std::os::windows::process::CommandExt;
-
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         let ready_path = std::env::temp_dir().join(format!(
             "handshake-cli-foreground-watch-send-{}.ready",
             uuid::Uuid::now_v7()
@@ -4954,29 +5127,47 @@ mod tests {
         let (_identity, identity_lock) =
             locked_file_identity(&lock_path).expect("hold executable identity lock");
 
-        let mut child = std::process::Command::new(
-            std::env::current_exe().expect("current test executable"),
-        )
-        .args([
-            "--ignored",
-            "--exact",
-            "model_runtime::cloud::official_cli_bridge::tests::foreground_watcher_sleep_child",
-            "--nocapture",
-        ])
-        .env("NO_COLOR", &ready_path)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .expect("spawn watcher-send fixture child");
-        let pid = child.id();
-        let ready_deadline = Instant::now() + Duration::from_secs(3);
+        // The interactive login now runs its exact child under a Handshake-hosted
+        // ConPTY (HBR-QUIET-001: no console window, no foreground change), so the
+        // ownership fixture builds the same kind of child the production path
+        // hands to `ForegroundChildOwner`. Every assertion below is unchanged.
+        let session = Arc::new(
+            crate::terminal::PtySession::spawn(crate::terminal::PtySpawnConfig {
+                shell: Some(
+                    std::env::current_exe()
+                        .expect("current test executable")
+                        .to_string_lossy()
+                        .into_owned(),
+                ),
+                args: vec![
+                    "--ignored".to_string(),
+                    "--exact".to_string(),
+                    "model_runtime::cloud::official_cli_bridge::tests::foreground_watcher_sleep_child"
+                        .to_string(),
+                    "--nocapture".to_string(),
+                ],
+                cwd: None,
+                env: vec![(
+                    "NO_COLOR".to_string(),
+                    ready_path.to_string_lossy().into_owned(),
+                )],
+                env_clear: false,
+                rows: 24,
+                cols: 120,
+                scrollback_bytes: 64 * 1024,
+                broadcast_capacity: 16,
+            })
+            .expect("spawn watcher-send fixture child under a pty"),
+        );
+        let pid = session
+            .child_pid()
+            .expect("the pty fixture child reports its pid");
+        let ready_deadline = Instant::now() + Duration::from_secs(10);
         while !ready_path.exists() && Instant::now() < ready_deadline {
             std::thread::sleep(Duration::from_millis(10));
         }
         if !ready_path.exists() {
-            let _ = child.kill();
-            let _ = child.wait();
+            drop(session);
             panic!("fixture child {pid} did not start");
         }
         assert!(process_is_still_active(pid), "fixture child must be live");
@@ -5018,7 +5209,7 @@ mod tests {
 
         let (sender, receiver) = mpsc::sync_channel::<ForegroundWatchPayload>(1);
         drop(receiver);
-        let mut owner = ForegroundChildOwner::new(child, vec![identity_lock]);
+        let mut owner = ForegroundChildOwner::new(session, pid, vec![identity_lock]);
         owner.attach_lifecycle(lifecycle);
         let payload = ForegroundWatchPayload { owner };
         assert!(

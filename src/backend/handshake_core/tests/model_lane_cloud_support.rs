@@ -22,11 +22,12 @@
 #![allow(dead_code)]
 
 use handshake_core::swarm_orchestration::model_lane::{
-    ModelLaneCloudConsentReceiptRecord, ModelLaneCloudConsentReceiptStatus,
+    CloudExportDelegation, ModelLaneCloudConsentReceiptRecord, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanRecord,
     ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneStore,
     NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
 };
+use handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority;
 use serde_json::json;
 
 /// Identity of the cloud lane whose durable projection/consent authority is
@@ -105,6 +106,18 @@ pub async fn seed_cloud_lane_authority(
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         provider_profile_ref: format!("provider-profile://model-lane/{}", spec.provider_kind),
         fan_out_targets: fan_out_targets.clone(),
+        // These fixtures seed through an UNSCOPED `ModelLaneStore::new(pool)`,
+        // which has no account context, so the only source scope such a store is
+        // allowed to stamp is the explicitly unattributed one. That is the honest
+        // record for a pre-WP-KERNEL-006 call site and it keeps this helper from
+        // becoming a way to fabricate account-bound authority in tests.
+        export_delegation: CloudExportDelegation {
+            audience_refs: fan_out_targets.clone(),
+            source_scope: AccountBoundAuthority::unattributed(
+                "MODEL_LANE_TEST_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+            ),
+            authorization_receipt_ref: None,
+        },
         consent_scope: ModelLaneCloudConsentScope::SingleLane,
         target_bindings: vec![],
         status: ModelLaneCloudProjectionPlanStatus::Active,
@@ -146,6 +159,9 @@ pub async fn seed_cloud_lane_authority(
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         fan_out_targets,
         approved: true,
+        approver: AccountBoundAuthority::unattributed(
+            "MODEL_LANE_TEST_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+        ),
         approved_by_ref: "operator://model-lane/approval".into(),
         approved_at_utc: "2026-06-29T09:00:10Z".into(),
         valid_from_utc: VALID_FROM_UTC.into(),

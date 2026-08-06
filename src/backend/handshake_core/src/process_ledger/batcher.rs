@@ -105,6 +105,19 @@ impl LedgerBatcher {
             .append_stop(self.attach_runtime_owner_to_stop(event))
     }
 
+    /// The START identity this ledger accepted for `process_uuid`, while its
+    /// STOP row is still outstanding.
+    ///
+    /// A terminal owner that did not author the START (for example the
+    /// `SwarmCoordinator`, when the session factory recorded the START itself)
+    /// must derive its STOP from this record. The authoritative STOP upsert
+    /// only updates a lifecycle row whose immutable identity columns match
+    /// exactly, so a STOP synthesized from the terminal owner's own defaults is
+    /// rejected as a STOP identity conflict and the lifecycle never closes.
+    pub fn recorded_start(&self, process_uuid: uuid::Uuid) -> Option<ProcessStart> {
+        self.writer.recorded_start(process_uuid)
+    }
+
     pub fn record_start_lossless(&self, event: ProcessStart) -> Result<(), ProcessLedgerError> {
         self.writer
             .append_start_lossless(self.attach_runtime_owner_to_start(event))

@@ -24,7 +24,7 @@ use handshake_core::process_ledger::{
     ProcessOwnershipRecordId, ProcessStart,
 };
 use handshake_core::swarm_orchestration::model_lane::{
-    DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
+    CloudExportDelegation, DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
     ModelLaneCloudConsentReceiptRecord, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudConsentTargetBinding, ModelLaneCloudExportPosture,
     ModelLaneCloudProjectionPlanRecord, ModelLaneCloudProjectionPlanStatus,
@@ -33,6 +33,7 @@ use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneStore, ModelLaneTarget, NewModelLane, NewModelLaneCloudConsentReceipt,
     NewModelLaneCloudProjectionPlan, NewModelLaneMessage, NewModelLaneRun, RuntimeBinding,
 };
+use handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority;
 use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink,
     RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
@@ -1839,6 +1840,15 @@ fn sample_projection_plan(
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         provider_profile_ref: format!("provider-profile://mt006/{provider_kind}"),
         fan_out_targets: vec![format!("provider://{provider_kind}/byok")],
+        // Seeded through an unscoped store, so the source scope must be the
+        // explicitly unattributed one (see `ensure_authority_matches_write_scope`).
+        export_delegation: CloudExportDelegation {
+            audience_refs: vec![format!("provider://{provider_kind}/byok")],
+            source_scope: AccountBoundAuthority::unattributed(
+                "MT006_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+            ),
+            authorization_receipt_ref: None,
+        },
         consent_scope: ModelLaneCloudConsentScope::SingleLane,
         target_bindings: vec![],
         status: ModelLaneCloudProjectionPlanStatus::Active,
@@ -1886,6 +1896,9 @@ fn sample_consent_receipt(
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         fan_out_targets: vec![format!("provider://{provider_kind}/byok")],
         approved: status == ModelLaneCloudConsentReceiptStatus::Approved,
+        approver: AccountBoundAuthority::unattributed(
+            "MT006_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+        ),
         approved_by_ref: "operator://mt006/approval".into(),
         approved_at_utc: "2026-06-29T09:00:10Z".into(),
         valid_from_utc: valid_from_utc.into(),
@@ -1943,6 +1956,11 @@ fn sample_broadcast_projection_plan(
         .iter()
         .map(|target| format!("provider-endpoint://{}", target.provider_endpoint_ref))
         .collect();
+    // A broadcast plan replaces the single-lane fan-out with the enumerated
+    // provider endpoints, so its HBR-PRIV-007 audience is those endpoints. Left
+    // at the inherited single-lane value it would name a destination this plan
+    // no longer discloses, which the non-widening gate correctly refuses.
+    plan.export_delegation.audience_refs = plan.fan_out_targets.clone();
     plan.consent_scope = ModelLaneCloudConsentScope::SingleRun;
     plan.target_bindings = vec![];
     plan.idempotency_key = format!("idem-projection-{run_id}-broadcast");

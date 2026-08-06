@@ -43,10 +43,12 @@ pub use access_config::{
     enumerate as enumerate_cloud_access, enumerate_byok, enumerate_cli_bridge,
     enumerate_cli_bridge_with_probe, enumerate_with_cli_auth_probe, AccessConfigError,
     ByokAccessRow, ByokProvider, CliBridgeAccessRow, CliBridgeAuthStatus, CliBridgeAuthStatusProbe,
-    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeProvider, CloudAccessEnumeration,
-    CloudModelAccess, InMemoryAccessRegistry, OfficialAuthStatusCommand, OfficialLoginCommand,
-    ProductionCliBridgeAuthStatusProbe, ProviderAccessRegistry, ProviderAccessStatus,
-    VaultBackedAccessRegistry,
+    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeLoginSessionRegistry,
+    CliBridgeProvider, CliLoginSessionError, CliLoginSessionSnapshot, CliLoginSessionStatus,
+    CloudAccessEnumeration, CloudModelAccess, InMemoryAccessRegistry, OfficialAuthStatusCommand,
+    OfficialLoginCommand, ProductionCliBridgeAuthStatusProbe, ProviderAccessRegistry,
+    ProviderAccessStatus, VaultBackedAccessRegistry, CLI_LOGIN_SESSION_MAX_LIFETIME,
+    CLI_LOGIN_TRANSCRIPT_TAIL_BYTES,
 };
 pub use agent_activity::{
     parse_line as parse_agent_activity_line, AgentActivity, AgentActivityKind,
@@ -63,8 +65,10 @@ pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentPr
 pub use official_cli_bridge::{
     validate_cli_executable_path, CliBridgeConfig, CliBridgeHandle, CliCancellationContext,
     CliInvocationContext, CliInvocationReceipt, CliKind, CliOutputFormat, CliSubprocessSpawner,
-    ForegroundCliLaunchHandle, LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
+    InteractiveLoginTransport, LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
 };
+#[cfg(target_os = "windows")]
+pub use official_cli_bridge::InteractiveLoginPty;
 pub use openai_byok::{
     ApiKeyFetchCode, ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
     CloudInvocationAuditSink, OpenAiByokError, OpenAiByokRuntime, OpenAiModelHandle,

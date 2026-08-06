@@ -20,6 +20,9 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint,
     NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
+use handshake_core::swarm_orchestration::resource_scope::{
+    ActorPrincipalId, OwnerAccountId, ResourceScope,
+};
 use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
 use handshake_core::user_manual::seed::ensure_seeded;
 use serde_json::{json, Value};
@@ -40,6 +43,14 @@ const LOOM_BLOCK_ID: &str = "loom-block-mt010-navigation-handoff";
 struct NavigationFixture {
     base: String,
     _server: tokio::task::JoinHandle<()>,
+    /// Carries the account scope on EVERY request by default.
+    ///
+    /// HBR-PRIV made the navigation routes account-scoped: they read through
+    /// `ModelLaneStore::new_for_owner`, so an unscoped caller is refused before
+    /// any row is touched. Setting the header as a client default keeps that
+    /// requirement in one place instead of scattering it over every probe, and
+    /// `navigation_rejects_a_caller_with_no_account_scope` below proves the
+    /// refusal is real rather than something this default quietly papers over.
     http: reqwest::Client,
     store: ModelLaneStore,
 }
@@ -514,15 +525,70 @@ async fn navigation_fixture() -> NavigationFixture {
         .connect(&kpg.schema_url)
         .await
         .expect("connect isolated navigation schema");
-    let store = ModelLaneStore::new(pool.clone());
+    // Seed UNDER an owning account, not unscoped. The routes read through an
+    // account-scoped store, so rows written with a NULL owner would simply be
+    // invisible to every probe (404, not 403) and the suite would prove nothing
+    // about the navigation projections it exists to cover.
+    let owner = OwnerAccountId::mint();
+    let scope = ResourceScope::new(owner, ActorPrincipalId::mint());
+    let store = ModelLaneStore::new_scoped(pool.clone(), scope);
     seed_navigation_run(&pool, &store).await;
     let state = app_state_for(&kpg.schema_url).await;
     let (base, server) = start_server(api::routes(state)).await;
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        "x-handshake-owner-account",
+        owner
+            .as_uuid()
+            .to_string()
+            .parse()
+            .expect("uuid is a valid header value"),
+    );
     NavigationFixture {
         base,
         _server: server,
-        http: reqwest::Client::new(),
+        http: reqwest::Client::builder()
+            .default_headers(headers)
+            .build()
+            .expect("scoped http client"),
         store,
+    }
+}
+
+/// Negative control for the account-scope seam on the navigation surface.
+///
+/// Without this, `navigation_fixture`'s default header could be masking a route
+/// that never enforced scope at all, and every other test here would still pass.
+#[tokio::test]
+async fn navigation_rejects_a_caller_with_no_account_scope() {
+    let fx = navigation_fixture().await;
+    let unscoped = reqwest::Client::new();
+    for route in [
+        "/swarm/model-lanes/navigation/runs/run-mt010-navigation",
+        "/swarm/model-lanes/navigation/lookup",
+    ] {
+        let response = unscoped
+            .get(format!("{}{}", fx.base, route))
+            .send()
+            .await
+            .unwrap_or_else(|err| panic!("unscoped probe {route} failed: {err}"));
+        assert_eq!(
+            response.status(),
+            reqwest::StatusCode::FORBIDDEN,
+            "{route} must refuse a caller that declares no owning account"
+        );
+        let body: Value = response.json().await.expect("denial body");
+        // The stable machine-readable code lives in `error`; `detail` is the
+        // human sentence. Asserting the code is what pins the contract - a
+        // reworded detail must not be able to break a caller.
+        assert_eq!(
+            body["error"], "RESOURCE_SCOPE_REQUIRED",
+            "the refusal must carry the stable reason code"
+        );
+        assert!(
+            body.get("run_id").is_none() && body.get("lane_id").is_none(),
+            "a scope refusal must not carry resource identifiers (HBR-PRIV-004), got {body}"
+        );
     }
 }
 

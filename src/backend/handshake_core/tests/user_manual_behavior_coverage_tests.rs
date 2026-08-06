@@ -14,17 +14,27 @@ use handshake_core::user_manual::seed::{ensure_seeded, seed_corpus};
 use handshake_core::user_manual::store::{
     NewManualSection, NewUserManualPage, UserManualFeatureEntry, UserManualStore,
 };
+use handshake_core::swarm_orchestration::resource_scope::{
+    stored_resource_scope_from_row, ActorPrincipalId, OwnerAccountId, ResourceAccessContext,
+    ResourceScope, ResourceScopeQuery, SystemScopeAuthority, WorkspaceScopeRef,
+    RESOURCE_SCOPE_SELECT_COLUMNS,
+};
 use handshake_core::user_manual::{
     cloud_model_access_behavior_coverage_matrix,
-    dedicated_embedding_model_behavior_coverage_matrix, embedded_model_behavior_coverage_matrix,
-    model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
-    operator_chat_launch_behavior_coverage_matrix, verify_cloud_model_access_behavior_coverage,
-    verify_embedded_model_behavior_coverage, verify_manual_named_surface_existence,
+    dedicated_embedding_model_behavior_coverage_matrix,
+    diagnostic_tier_owning_evidence_uri_scheme, embedded_model_behavior_coverage_matrix,
+    manual_literal_claims, model_lane_behavior_coverage_matrix,
+    model_runtime_registry_behavior_coverage_matrix, operator_chat_launch_behavior_coverage_matrix,
+    user_manual_behavior_coverage_matrix, verify_cloud_model_access_behavior_coverage,
+    verify_diagnostic_tier_evidence_uri, verify_embedded_model_behavior_coverage,
+    verify_manual_literal_claims, verify_manual_named_surface_existence,
     verify_model_lane_behavior_coverage, verify_model_lane_behavior_evidence,
-    verify_model_runtime_registry_behavior_coverage, BehaviorCoverageError, DiagnosticTierPosture,
-    ModelRuntimeProofExecutionStatus, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+    verify_model_runtime_registry_behavior_coverage, verify_user_manual_behavior_coverage_matrix,
+    BehaviorCoverageError, BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation,
+    DiagnosticTierPosture, ManualClaimClass, ModelRuntimeProofExecutionStatus,
+    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
     MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
-    USER_MANUAL_VERSION,
+    USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID, USER_MANUAL_VERSION,
 };
 use serde_json::json;
 use handshake_core::{
@@ -710,6 +720,16 @@ async fn cloud_model_access_behaviors_have_manual_coverage() {
         "cloud_models_key_entry_renders_when_backend_unreachable",
         "typed_byok_key_is_wiped_from_egui_memory_after_close",
         "cli_bridge_login_records_the_official_command_without_stealing_focus",
+        // MT-015 v5: the CLI-bridge login now runs inside a Handshake-hosted pty and is
+        // driven from the in-app login panel, so the manual must cite the session-route,
+        // in-app-panel, and quiet-mode negative proofs too.
+        "cli_login_session_is_pollable_typeable_and_cancellable",
+        "unknown_cli_login_session_is_404_on_poll_input_and_cancel",
+        "in_app_login_panel_renders_the_provider_prompt_and_routes_the_typed_answer",
+        "login_confirmation_never_promises_a_new_terminal_or_focus_change",
+        "cli_bridge_login_quiet_tests",
+        "in_app_cli_login_creates_no_new_visible_window_and_no_foreground_change",
+        "no_backend_spawn_site_creates_a_console_window",
     ] {
         assert!(
             body.contains(required),
@@ -720,6 +740,46 @@ async fn cloud_model_access_behaviors_have_manual_coverage() {
         body.contains("DELETE /model-access/byok/{provider}/key"),
         "manual must document the DELETE/rotate route proved by model_access_route_tests"
     );
+    // The login-session routes are what make the QUIET launch usable; a manual that
+    // documents the quiet launch without them would leave a no-context model unable to
+    // complete an interactive login.
+    for route in [
+        "GET /model-access/cli-bridge-login/{session}",
+        "POST /model-access/cli-bridge-login/{session}/input",
+        "POST /model-access/cli-bridge-login/{session}/cancel",
+    ] {
+        assert!(
+            body.contains(route),
+            "manual must document the in-app login-session route `{route}`"
+        );
+    }
+    // HBR-QUIET-001 honesty: the manual must not go back to claiming a console window.
+    for stale in [
+        "foreground terminal",
+        "foreground console",
+        "in a new terminal",
+        "may take focus",
+    ] {
+        assert!(
+            !body.contains(stale),
+            "cloud-model-access manual page still claims a focus-taking terminal: `{stale}`"
+        );
+    }
+    // HBR-INT-009: the three-tier posture must be recorded, and the two tiers this
+    // login session does not emit into must be DEFERRED-with-reason rather than
+    // claimed WIRED. Both tiers DO exist in this worktree (internal_diagnostics.rs
+    // and palmistry_watcher.rs); what is deferred is this path's use of them, so the
+    // page must not explain the deferral by claiming the tiers are absent.
+    for posture in [
+        "HBR-INT-009 diagnostic posture",
+        "Tier 2 internal_diagnostics: DEFERRED-with-reason",
+        "Tier 3 Palmistry: DEFERRED-with-reason",
+    ] {
+        assert!(
+            body.contains(posture),
+            "cloud-model-access manual page must record the HBR-INT-009 posture `{posture}`"
+        );
+    }
     assert!(
         !body.contains("cloud_access_config_tests"),
         "manual must not cite the obsolete/nonexistent cloud_access_config_tests proof target"
@@ -1377,13 +1437,160 @@ fn user_manual_names_only_surfaces_that_exist_in_compiled_product_code() {
         "the compiled Flight Recorder vocabulary looks truncated: {}",
         proof.compiled_flight_recorder_vocabulary
     );
+    // MT-022 floors for the classes the parser was broadened to cover. The
+    // validator's finding was that the gate "recognizes only a narrow subset";
+    // these make a regression back to that subset a test failure rather than a
+    // quiet loss of coverage.
+    assert!(
+        proof.route_claims_checked >= 90,
+        "expected the corpus to make route claims resolved against the surface registry, got {}",
+        proof.route_claims_checked
+    );
+    assert!(
+        proof.json_sections_scanned >= 15,
+        "expected body_json sections to be scanned, got {}",
+        proof.json_sections_scanned
+    );
+    assert!(
+        proof.literal_claims_collected >= 500,
+        "expected string-literal claims to be classified for source grounding, got {}",
+        proof.literal_claims_collected
+    );
+}
+
+/// The concatenated text of the product's own source, with the manual corpus
+/// itself EXCLUDED. `verify_manual_literal_claims` resolves string-literal
+/// claims (env vars, config keys, schema ids, bare type names) against this:
+/// they name literals, not Rust items, so they cannot be compile-anchored.
+///
+/// The walk lives in the proof suite, never in the library — `handshake_core`
+/// must not read the source tree at runtime, and the path here is derived from
+/// `CARGO_MANIFEST_DIR` so it stays disk- and checkout-agnostic.
+/// Proof files ARE included on purpose: the manual legitimately names proof
+/// targets that exist only in tests (for example
+/// `mt223_restart_after_crash_reconstructs_swarm_state_from_postgres` and the
+/// test-only `HANDSHAKE_TEST_CANDLE_MODEL_DIR` env var). That is also why the
+/// drift fixtures below assemble their fabricated names at runtime.
+fn product_source_text() -> String {
+    fn walk(dir: &std::path::Path, skip: &std::path::Path, out: &mut String, skipped: &mut usize) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if path.is_dir() {
+                if matches!(name.as_ref(), "target" | "node_modules" | "dist" | ".git") {
+                    continue;
+                }
+                walk(&path, skip, out, skipped);
+                continue;
+            }
+            if path == skip {
+                *skipped += 1;
+                continue;
+            }
+            let is_source = path.extension().and_then(|e| e.to_str()).is_some_and(|ext| {
+                matches!(ext, "rs" | "sql" | "ts" | "tsx" | "js" | "jsx" | "toml" | "json")
+            });
+            if !is_source {
+                continue;
+            }
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                out.push_str(&text);
+                out.push('\n');
+            }
+        }
+    }
+
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let src_root = manifest
+        .ancestors()
+        .nth(2)
+        .expect("handshake_core lives at <repo>/src/backend/handshake_core")
+        .to_path_buf();
+    assert!(
+        src_root.join("backend").join("handshake_core").is_dir(),
+        "resolved product source root {src_root:?} is not the repo `src/` tree"
+    );
+    // Built the same way the walk builds paths (no `canonicalize`, which would
+    // return a Windows extended-length prefix and never compare equal).
+    let corpus = src_root
+        .join("backend")
+        .join("handshake_core")
+        .join("src")
+        .join("user_manual")
+        .join("seed.rs");
+    assert!(corpus.is_file(), "seeded corpus {corpus:?} must exist");
+
+    let mut out = String::new();
+    let mut skipped = 0usize;
+    walk(&src_root, &corpus, &mut out, &mut skipped);
+    assert_eq!(
+        skipped, 1,
+        "the seeded corpus must be excluded from its own grounding source exactly once"
+    );
+    assert!(
+        out.len() > 5_000_000,
+        "product source scan looks truncated: {} bytes",
+        out.len()
+    );
+    out
+}
+
+/// MT-022: the string-literal half of HBR-MAN-003. Env vars, config/JSON keys,
+/// typed schema ids, and bare type names cannot be compile-anchored from the
+/// library, so they are resolved against the real product source instead. A
+/// fabricated or mistyped name appears nowhere and fails here.
+#[test]
+fn user_manual_literal_claims_resolve_against_real_product_source() {
+    let corpus = seed_corpus();
+    let claims = manual_literal_claims(&corpus.pages);
+    let source = product_source_text();
+
+    let resolved = verify_manual_literal_claims(&claims, &source).unwrap_or_else(|errors| {
+        panic!(
+            "HBR-MAN-003: the canonical UserManual corpus names {} literal(s) that appear nowhere \
+             in product source: {}",
+            errors.len(),
+            errors
+                .iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>()
+                .join("\n  ")
+        )
+    });
+
+    // Anti-vacuous-pass floors: a classifier that classified nothing is not a
+    // check. Each class the parser was broadened to cover must be represented.
+    assert_eq!(resolved, claims.len());
+    assert!(
+        claims.len() >= 500,
+        "expected the corpus to make a substantial number of literal claims, got {}",
+        claims.len()
+    );
+    for (class, floor) in [
+        (ManualClaimClass::ScreamingSnake, 40usize),
+        (ManualClaimClass::SnakeCase, 400),
+        (ManualClaimClass::SchemaId, 15),
+        (ManualClaimClass::BareTypeName, 20),
+    ] {
+        let count = claims.iter().filter(|claim| claim.class == class).count();
+        assert!(
+            count >= floor,
+            "expected at least {floor} `{}` claims, got {count} — the classifier stopped seeing \
+             this class",
+            class.as_str()
+        );
+    }
 }
 
 #[test]
 fn user_manual_named_surface_gate_fails_on_drift() {
-    // The AC-5 requirement: a gate nobody has seen fail is not a gate. Inject a
-    // symbol that does not exist and an event id that was never registered, and
-    // prove BOTH are reported.
+    // The AC-5 requirement: a gate nobody has seen fail is not a gate. Inject
+    // one deliberately false claim per class the MT-022 parser now covers and
+    // prove EVERY one is reported.
     let mut corpus = seed_corpus();
     corpus.pages.push(NewUserManualPage {
         slug: "mt022-drift-probe".into(),
@@ -1391,32 +1598,71 @@ fn user_manual_named_surface_gate_fails_on_drift() {
         page_kind: "surface_guide",
         audience: "model_and_operator",
         spec_anchors: vec!["10.15.8".into()],
-        sections: vec![NewManualSection {
-            section_kind: "purpose",
-            title: "Deliberately false claims".into(),
-            body_md: "Call `SwarmCoordinator::totally_not_a_real_method` and watch for \
-                      FR-EVT-SWARM-SPAWN-DENIED in the Flight Recorder."
-                .into(),
-            body_json: None,
-        }],
+        sections: vec![
+            NewManualSection {
+                section_kind: "purpose",
+                title: "Deliberately false claims".into(),
+                body_md: "Call `SwarmCoordinator::totally_not_a_real_method` and watch for \
+                          FR-EVT-SWARM-SPAWN-DENIED in the Flight Recorder. A truncated \
+                          FR-EVT-S must not resolve against a longer real id, and a \
+                          lowercase fr-evt-swarm-spawn-denied must not evade the scan."
+                    .into(),
+                body_json: None,
+            },
+            NewManualSection {
+                section_kind: "navigation",
+                title: "Routes that are not mounted".into(),
+                // NOTE on a fixture deliberately NOT used here:
+                // `GET /usermanual/pages/no-such-route` DOES resolve, because
+                // it is a legal concrete instance of the mounted pattern
+                // `GET /usermanual/pages/:slug`. Whether a given slug exists is
+                // a page-content claim proven by the TOC reachability tests,
+                // not a mounted-surface claim. The fixtures below are the
+                // shapes that genuinely cannot be served.
+                body_md: "Call `GET /usermanual/pages/:slug/no-such-subroute`, then \
+                          `DELETE /usermanual/pages`, then `POST /workspaces/:ws/loom/blocks` \
+                          (drifted parameter name), then lowercase `get /usermanual/pages`."
+                    .into(),
+                body_json: None,
+            },
+            NewManualSection {
+                // Proves body_json is really scanned: before MT-022 a claim
+                // parked in a JSON body was invisible to this gate.
+                section_kind: "evidence",
+                title: "Claim parked in a JSON body".into(),
+                body_md: "The machine-readable body below carries the claim.".into(),
+                body_json: Some(json!({
+                    "notes": ["the JSON body names `ModelLaneStore::totally_fabricated_json_only`"],
+                })),
+            },
+        ],
         anchors: vec![],
     });
 
     let errors = verify_manual_named_surface_existence(&corpus.pages)
         .expect_err("a manual page naming a non-existent surface MUST fail HBR-MAN-003");
 
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.reason.contains("SwarmCoordinator::totally_not_a_real_method")),
-        "the bogus product symbol must be reported, got {errors:?}"
-    );
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.reason.contains("FR-EVT-SWARM-SPAWN-DENIED")),
-        "the bogus Flight Recorder event id must be reported, got {errors:?}"
-    );
+    for expected in [
+        // Rust path (pre-existing coverage).
+        "SwarmCoordinator::totally_not_a_real_method",
+        // Rust path parked in body_json (new: JSON bodies are scanned).
+        "ModelLaneStore::totally_fabricated_json_only",
+        // Flight Recorder: fabricated id, truncated family, lowercase spelling.
+        "FR-EVT-SWARM-SPAWN-DENIED",
+        "FR-EVT-S",
+        "fr-evt-swarm-spawn-denied",
+        // Routes: unmounted subpath, wrong method, drifted parameter name,
+        // lowercase method token.
+        "/usermanual/pages/:slug/no-such-subroute",
+        "DELETE /usermanual/pages",
+        "/workspaces/:ws/loom/blocks",
+        "route method `get`",
+    ] {
+        assert!(
+            errors.iter().any(|error| error.reason.contains(expected)),
+            "the injected drift `{expected}` must be reported, got {errors:?}"
+        );
+    }
     assert!(
         errors
             .iter()
@@ -1424,11 +1670,64 @@ fn user_manual_named_surface_gate_fails_on_drift() {
         "named-surface failures must carry the named-surface behavior id, got {errors:?}"
     );
 
-    // Removing the drifted page returns the corpus to PASS: the failure is
-    // caused by the injected claim, not by an unrelated corpus problem.
+    // The literal classes fail through the source-grounded half of the gate.
+    //
+    // The fabricated names are ASSEMBLED AT RUNTIME on purpose. The grounding
+    // source deliberately includes proof files (see `product_source_text`), so
+    // a fixture written as a contiguous literal in THIS file would resolve
+    // against this file and the negative fixture would silently stop proving
+    // anything. Splitting each name keeps it absent from every source byte.
+    let fake_env = format!("OPENAI_COMPAT_{}_FAKE_URL", "TOTALLY");
+    let fake_key = format!("max_{}", "concurrentt");
+    let fake_schema = format!("hsk.not_a_real_{}@9", "schema");
+    let fake_type = format!("Totally{}TypeName", "Fake");
+    let source = product_source_text();
+    for fabricated in [&fake_env, &fake_key, &fake_schema, &fake_type] {
+        assert!(
+            !source.contains(fabricated.as_str()),
+            "fixture `{fabricated}` leaked into product source — the negative fixture would be \
+             vacuous"
+        );
+    }
+
+    let mut literal_corpus = seed_corpus();
+    literal_corpus.pages.push(NewUserManualPage {
+        slug: "mt022-literal-drift-probe".into(),
+        title: "MT-022 literal drift probe (test-only)".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.15.8".into()],
+        sections: vec![NewManualSection {
+            section_kind: "purpose",
+            title: "Deliberately false literals".into(),
+            body_md: format!(
+                "Set `{fake_env}`, raise `{fake_key}`, read `{fake_schema}`, and construct a \
+                 `{fake_type}`."
+            ),
+            body_json: None,
+        }],
+        anchors: vec![],
+    });
+    let literal_errors =
+        verify_manual_literal_claims(&manual_literal_claims(&literal_corpus.pages), &source)
+            .expect_err("fabricated literals MUST fail the source-grounded half of HBR-MAN-003");
+    for expected in [&fake_env, &fake_key, &fake_schema, &fake_type] {
+        assert!(
+            literal_errors
+                .iter()
+                .any(|error| error.reason.contains(expected.as_str())),
+            "the injected literal drift `{expected}` must be reported, got {literal_errors:?}"
+        );
+    }
+
+    // Removing the drifted pages returns the corpus to PASS: the failures are
+    // caused by the injected claims, not by an unrelated corpus problem.
     corpus.pages.pop();
     verify_manual_named_surface_existence(&corpus.pages)
         .expect("the unmodified canonical corpus must pass once the drift is removed");
+    literal_corpus.pages.pop();
+    verify_manual_literal_claims(&manual_literal_claims(&literal_corpus.pages), &source)
+        .expect("the unmodified canonical corpus must pass once the literal drift is removed");
 }
 
 #[test]
@@ -1522,4 +1821,749 @@ fn swarm_budget_rejection_and_recovery_is_documented_and_toc_reachable() {
         }),
         "the new page must be reachable from the UserManual table of contents"
     );
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 remediation (validator FAIL_V5): the three-tier diagnostic model binds
+// each tier to ONE evidence URI scheme, and cross-tier substitution is rejected.
+//
+//   Tier 1 FlightRecorder       -> `eventledger://kernel/`
+//   Tier 2 InternalDiagnostics  -> `internal-diagnostics://session/`
+//   Tier 3 Palmistry            -> `palmistry-observation://session/`
+//
+// Tier 2 is Handshake's own IN-PROCESS self-diagnostics; Tier 3 is the EXTERNAL
+// out-of-process watcher that survives a freeze or crash. They observe different
+// failure classes, so one is never evidence for the other.
+// ---------------------------------------------------------------------------
+
+/// Pure, compiled proof that the binding is EXACT and TOTAL: every diagonal
+/// (tier, its own prefix) pair is accepted and every one of the six off-diagonal
+/// (tier, another tier's prefix) pairs is rejected as a cross-tier substitution.
+///
+/// This is the falsifiable core of the MT-011 remediation and needs no database,
+/// so it runs on every invocation of this proof binary.
+#[test]
+fn diagnostic_tier_evidence_uri_binding_is_exact_and_rejects_every_cross_tier_substitution() {
+    assert_eq!(
+        DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING.len(),
+        3,
+        "the binding must cover all three HBR-INT-009 tiers"
+    );
+
+    let mut accepted = 0usize;
+    let mut rejected = 0usize;
+    for (declared_tier, _, declared_prefix) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+        for (other_tier, _, other_prefix) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+            let offered = format!("{other_prefix}run-mt011-binding/observation-1");
+            if declared_tier == other_tier {
+                verify_diagnostic_tier_evidence_uri(declared_tier, &offered).unwrap_or_else(
+                    |violation| {
+                        panic!(
+                            "tier {} must accept its OWN evidence prefix {declared_prefix}: {violation}",
+                            declared_tier.as_str()
+                        )
+                    },
+                );
+                accepted += 1;
+                continue;
+            }
+            let violation = verify_diagnostic_tier_evidence_uri(declared_tier, &offered)
+                .expect_err(&format!(
+                    "tier {} must REJECT tier {}'s evidence scheme",
+                    declared_tier.as_str(),
+                    other_tier.as_str()
+                ));
+            assert_eq!(
+                violation.reason_code(),
+                "DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION",
+                "offering {} evidence as {} must be reported as a cross-tier substitution, got {violation}",
+                other_tier.as_str(),
+                declared_tier.as_str()
+            );
+            assert!(
+                matches!(
+                    violation,
+                    DiagnosticEvidenceUriViolation::CrossTierSchemeSubstitution { .. }
+                ),
+                "unexpected violation shape: {violation:?}"
+            );
+            // The denial must stay actionable without echoing the offending URI
+            // (HBR-PRIV-004: a denial is not a metadata side channel).
+            let rendered = violation.to_string();
+            assert!(
+                rendered.contains(declared_tier.as_str())
+                    && rendered.contains(other_tier.as_str())
+                    && rendered.contains(declared_prefix),
+                "denial must name both tiers and the required prefix: {rendered}"
+            );
+            assert!(
+                !rendered.contains("run-mt011-binding"),
+                "denial must not echo the offending evidence URI: {rendered}"
+            );
+            rejected += 1;
+        }
+    }
+    assert_eq!(accepted, 3, "one accepted pair per tier");
+    assert_eq!(rejected, 6, "all six cross-tier pairs must be rejected");
+
+    // A URI with no bound diagnostic scheme, and the right scheme under the
+    // wrong authority root, are each their own distinct finding rather than
+    // being silently folded into the cross-tier case.
+    assert_eq!(
+        verify_diagnostic_tier_evidence_uri(
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "https://example.invalid/observation",
+        )
+        .expect_err("an unbound scheme must be rejected")
+        .reason_code(),
+        "DIAGNOSTIC_EVIDENCE_UNBOUND_SCHEME"
+    );
+    assert_eq!(
+        verify_diagnostic_tier_evidence_uri(
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "internal-diagnostics://wp1/not-a-session/observation",
+        )
+        .expect_err("the tier's own scheme under the wrong root must be rejected")
+        .reason_code(),
+        "DIAGNOSTIC_EVIDENCE_WRONG_AUTHORITY_ROOT"
+    );
+
+    // Scheme ownership is resolvable on its own, and the three scheme tokens do
+    // not overlap.
+    for (tier, _, prefix) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+        assert_eq!(
+            diagnostic_tier_owning_evidence_uri_scheme(prefix),
+            Some(tier),
+            "{prefix} must resolve to exactly one owning tier"
+        );
+    }
+    assert_eq!(
+        diagnostic_tier_owning_evidence_uri_scheme("flight-recorder://detached/only"),
+        None,
+        "a detached flight-recorder ref belongs to no HBR-INT-009 tier"
+    );
+}
+
+/// MT-011 run-level evidence proof (NEGATIVE, per tier, against real durable
+/// PostgreSQL rows): a run whose HBR-INT-009 envelope carries a tier record
+/// wearing ANOTHER tier's evidence scheme fails the gate, in both directions.
+///
+/// Every case is seeded on its own `run_id` because
+/// `model_lane_diagnostic_tier_statuses` keeps one row per (run, behavior, tier).
+#[tokio::test]
+async fn model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme_substitution() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for model_lane_run_level_hbr_int_009_evidence_rejects_cross_tier_uri_scheme_substitution: \
+             MT-011 cross-tier substitution proof requires live PostgreSQL/EventLedger"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual behavior coverage corpus");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect ModelLane store to isolated schema");
+    let store = ModelLaneStore::new(pool);
+    let schema_registry = store
+        .schema_registry_rows()
+        .await
+        .expect("read ModelLane schema registry");
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+
+    // Correct, tier-native evidence for each tier. The substitution cases below
+    // swap exactly ONE entry, so the failure can only come from the swap.
+    let canonical = |run_id: &str, tier: ModelLaneDiagnosticTier| match tier {
+        ModelLaneDiagnosticTier::FlightRecorder => {
+            format!("eventledger://kernel/model-lane/run/{run_id}")
+        }
+        ModelLaneDiagnosticTier::InternalDiagnostics => {
+            format!("internal-diagnostics://session/{run_id}/panic-heartbeat-frame-resource")
+        }
+        ModelLaneDiagnosticTier::Palmistry => {
+            format!("palmistry-observation://session/{run_id}/watcher")
+        }
+    };
+
+    // (declared tier, tier whose scheme is substituted in, run slug)
+    let substitutions = [
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTier::Palmistry,
+            "run-mt011-sub-int-as-palm",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "run-mt011-sub-palm-as-int",
+        ),
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            "run-mt011-sub-fr-as-int",
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            "run-mt011-sub-int-as-fr",
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            ModelLaneDiagnosticTier::FlightRecorder,
+            "run-mt011-sub-palm-as-fr",
+        ),
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTier::Palmistry,
+            "run-mt011-sub-fr-as-palm",
+        ),
+    ];
+
+    for (declared_tier, substituted_tier, run_id) in substitutions {
+        store
+            .record_run(evidence_run(run_id))
+            .await
+            .unwrap_or_else(|error| panic!("record run {run_id}: {error}"));
+        for tier in [
+            ModelLaneDiagnosticTier::FlightRecorder,
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            ModelLaneDiagnosticTier::Palmistry,
+        ] {
+            let evidence_ref = if tier == declared_tier {
+                canonical(run_id, substituted_tier)
+            } else {
+                canonical(run_id, tier)
+            };
+            store
+                .record_diagnostic_tier_status(evidence_tier(
+                    run_id,
+                    tier,
+                    ModelLaneDiagnosticTierState::Wired,
+                    &evidence_ref,
+                ))
+                .await
+                .unwrap_or_else(|error| panic!("record {} tier for {run_id}: {error}", tier.as_str()));
+        }
+
+        let errors = verify_model_lane_behavior_evidence(&store, run_id, &matrix)
+            .await
+            .err()
+            .unwrap_or_else(|| {
+                panic!(
+                    "offering {} evidence as the {} tier must FAIL the run-level HBR-INT-009 gate for {run_id}",
+                    substituted_tier.as_str(),
+                    declared_tier.as_str()
+                )
+            });
+        assert!(
+            errors.iter().any(|error| {
+                error.behavior_id == "HBR-INT-009"
+                    && error
+                        .reason
+                        .contains("DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION")
+                    && error.reason.contains(declared_tier.as_str())
+                    && error.reason.contains(substituted_tier.as_str())
+            }),
+            "the failure must name the cross-tier substitution for tier {} (got {errors:?})",
+            declared_tier.as_str()
+        );
+    }
+
+    // POSITIVE CONTROL on the same code path: with every tier carrying its OWN
+    // scheme the gate passes, so the six negatives above are observing the
+    // binding rather than a gate that rejects everything.
+    let ok_run = "run-mt011-tier-binding-positive";
+    store
+        .record_run(evidence_run(ok_run))
+        .await
+        .expect("record the tier-binding positive-control run");
+    for tier in [
+        ModelLaneDiagnosticTier::FlightRecorder,
+        ModelLaneDiagnosticTier::InternalDiagnostics,
+        ModelLaneDiagnosticTier::Palmistry,
+    ] {
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                ok_run,
+                tier,
+                ModelLaneDiagnosticTierState::Wired,
+                &canonical(ok_run, tier),
+            ))
+            .await
+            .expect("record tier-native run-level evidence");
+    }
+    let postures = verify_model_lane_behavior_evidence(&store, ok_run, &matrix)
+        .await
+        .unwrap_or_else(|errors| {
+            panic!("tier-native run-level evidence must PASS the gate: {errors:?}")
+        });
+    assert_eq!(postures.len(), 1);
+    assert_eq!(postures[0].tiers.len(), 3);
+    for record in &postures[0].tiers {
+        verify_diagnostic_tier_evidence_uri(record.tier, &record.evidence_ref).unwrap_or_else(
+            |violation| panic!("accepted posture carries a mis-bound tier URI: {violation}"),
+        );
+    }
+
+    // A tier that is merely DEFERRED cannot carry the RUN_LEVEL_WIRED liveness
+    // claim, even with a perfectly-bound URI.
+    let deferred_run = "run-mt011-tier-deferred";
+    store
+        .record_run(evidence_run(deferred_run))
+        .await
+        .expect("record the deferred-tier run");
+    for tier in [
+        ModelLaneDiagnosticTier::FlightRecorder,
+        ModelLaneDiagnosticTier::InternalDiagnostics,
+        ModelLaneDiagnosticTier::Palmistry,
+    ] {
+        let state = if tier == ModelLaneDiagnosticTier::Palmistry {
+            ModelLaneDiagnosticTierState::DeferredWithReason
+        } else {
+            ModelLaneDiagnosticTierState::Wired
+        };
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                deferred_run,
+                tier,
+                state,
+                &canonical(deferred_run, tier),
+            ))
+            .await
+            .expect("record run-level tier with a deferred Palmistry tier");
+    }
+    let errors = verify_model_lane_behavior_evidence(&store, deferred_run, &matrix)
+        .await
+        .expect_err("a DEFERRED tier must not satisfy RUN_LEVEL_WIRED coverage");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.reason.contains("requires a live WIRED `palmistry` tier record")),
+        "the failure must name the deferred Palmistry tier, got {errors:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 acceptance: the machine-readable `hsk.user_manual_behavior_coverage@1`
+// matrix, and the gate that fails when any required column is missing.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_any_missing_column()
+{
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for user_manual_behavior_coverage_matrix_is_machine_readable_and_fails_on_any_missing_column: \
+             MT-011 coverage matrix proof requires live PostgreSQL/EventLedger"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual behavior coverage corpus");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect ModelLane store to isolated schema");
+    let model_lane_store = ModelLaneStore::new(pool);
+    let schema_registry = model_lane_store
+        .schema_registry_rows()
+        .await
+        .expect("read ModelLane schema registry");
+    let manual_store = UserManualStore::new(&pg.db);
+    let pages = manual_store
+        .list_pages(None, None, 1_000)
+        .await
+        .expect("read UserManual pages");
+    let tools = manual_store
+        .list_tool_entries(None, None, 1_000)
+        .await
+        .expect("read UserManual tools");
+
+    // The matrix covers EVERY behavior family this WP declares, not just the
+    // model-lane rows, so a family with no manual entry cannot hide.
+    let mut behavior_rows = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+    behavior_rows.extend(embedded_model_behavior_coverage_matrix());
+    behavior_rows.extend(operator_chat_launch_behavior_coverage_matrix());
+    behavior_rows.extend(cloud_model_access_behavior_coverage_matrix());
+    behavior_rows.extend(dedicated_embedding_model_behavior_coverage_matrix());
+
+    let matrix =
+        user_manual_behavior_coverage_matrix(&behavior_rows, &schema_registry, &pages, &tools);
+    assert_eq!(matrix.schema_id, USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID);
+    assert_eq!(matrix.user_manual_version, USER_MANUAL_VERSION);
+    assert_eq!(matrix.rows.len(), behavior_rows.len());
+    assert!(
+        matrix.rows.len() >= 24,
+        "the WP-1 behavior inventory must not shrink silently, got {}",
+        matrix.rows.len()
+    );
+
+    let proven = verify_user_manual_behavior_coverage_matrix(&matrix).unwrap_or_else(|errors| {
+        panic!(
+            "MT-011 coverage matrix gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+    assert_eq!(proven, matrix.rows.len());
+
+    // It is genuinely machine-readable: every declared column survives a JSON
+    // round trip, keyed by behavior_id.
+    let rendered = serde_json::to_value(&matrix).expect("serialize the MT-011 coverage matrix");
+    let rows = rendered["rows"].as_array().expect("matrix rows array");
+    assert_eq!(rows.len(), matrix.rows.len());
+    for row in rows {
+        for column in [
+            "behavior_id",
+            "schema_or_event_family",
+            "runtime_surface_id",
+            "user_manual_slug",
+            "proof_tool_id",
+            "eventledger_flight_recorder_evidence_path",
+            "internal_diagnostics_posture",
+            "palmistry_posture",
+            "self_consistency_result",
+        ] {
+            assert!(
+                !row[column].is_null(),
+                "coverage row {} is missing column `{column}`",
+                row["behavior_id"]
+            );
+        }
+        assert_eq!(row["self_consistency_result"]["result"], "consistent");
+        assert_eq!(row["user_manual_version"], USER_MANUAL_VERSION);
+    }
+    // The serialized binding travels with the matrix.
+    assert_eq!(
+        rendered["diagnostic_tier_evidence_uri_binding"]
+            .as_array()
+            .expect("binding array")
+            .len(),
+        3
+    );
+
+    // NEGATIVE, one per required column. Each tamper is applied to a fresh copy
+    // of the proven matrix, so a failure can only come from that column.
+    let expect_gap = |mutate: &dyn Fn(&mut handshake_core::user_manual::UserManualBehaviorCoverageMatrix),
+                      needle: &str| {
+        let mut tampered = matrix.clone();
+        mutate(&mut tampered);
+        let errors = verify_user_manual_behavior_coverage_matrix(&tampered)
+            .expect_err(&format!("tampering `{needle}` must fail the coverage gate"));
+        assert!(
+            errors.iter().any(|error| error.reason.contains(needle)),
+            "expected a coverage error containing `{needle}`, got {errors:?}"
+        );
+    };
+
+    expect_gap(
+        &|m| m.rows[0].user_manual_slug = "",
+        "lacks a UserManual entry",
+    );
+    expect_gap(
+        &|m| m.rows[0].eventledger_flight_recorder_evidence_path = "",
+        "lacks an EventLedger/Flight Recorder evidence path",
+    );
+    expect_gap(
+        &|m| m.rows[0].runtime_surface_id = "",
+        "lacks an implemented command/API/IPC runtime surface",
+    );
+    expect_gap(
+        &|m| m.rows[0].proof_tool_id = "",
+        "lacks a UserManual proof target",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].internal_diagnostics_posture = DiagnosticTierPosture::DeferredWithReason;
+            m.rows[0].diagnostic_reason = None;
+        },
+        "requires an explicit reason",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].palmistry_posture = DiagnosticTierPosture::DeferredWithReason;
+            m.rows[0].follow_up_ref = None;
+        },
+        "requires a follow_up_ref",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].self_consistency_result = BehaviorSelfConsistencyResult::Inconsistent {
+                errors: vec!["injected self-consistency failure".to_owned()],
+            }
+        },
+        "self-consistency failed",
+    );
+    expect_gap(
+        &|m| {
+            m.rows[0].self_consistency_result =
+                BehaviorSelfConsistencyResult::Inconsistent { errors: Vec::new() }
+        },
+        "inconsistent with no stated reason",
+    );
+    expect_gap(&|m| m.rows.clear(), "matrix that covers nothing is not proof");
+    expect_gap(
+        &|m| m.diagnostic_tier_evidence_uri_binding.clear(),
+        "does not match the compiled binding",
+    );
+    expect_gap(
+        &|m| {
+            let duplicate = m.rows[0].clone();
+            m.rows.push(duplicate);
+        },
+        "duplicate behavior_id",
+    );
+
+    // A row whose self-consistency genuinely cannot be computed (its UserManual
+    // page does not exist) is reported as INCONSISTENT by the projection itself,
+    // not silently omitted.
+    let mut broken = behavior_rows.clone();
+    broken[0].user_manual_slug = "missing-model-lane-manual-page";
+    let broken_matrix =
+        user_manual_behavior_coverage_matrix(&broken, &schema_registry, &pages, &tools);
+    assert!(
+        !broken_matrix.rows[0].self_consistency_result.is_consistent(),
+        "a behavior with no UserManual page must project an inconsistent self-consistency result"
+    );
+    verify_user_manual_behavior_coverage_matrix(&broken_matrix)
+        .expect_err("a matrix row with no UserManual page must fail the coverage gate");
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 / HBR-PRIV-004 + HBR-PRIV-005: diagnostic records, their reasons,
+// evidence refs and diagnostic payloads are owner/AccessSpace filtered, and a
+// denial does not become a cross-account side channel.
+//
+// This reuses the WP-1 resource-scope substrate proven by
+// `model_lane_resource_scope_pg_tests` (migrations 0363/0364,
+// `swarm_orchestration/resource_scope.rs`) rather than inventing a second
+// ownership model.
+// ---------------------------------------------------------------------------
+
+/// Seed one run plus its complete, tier-native run-level HBR-INT-009 envelope
+/// through `store`, so the rows carry whatever scope that store stamps.
+async fn seed_scoped_diagnostic_envelope(store: &ModelLaneStore, run_id: &str) {
+    store
+        .record_run(evidence_run(run_id))
+        .await
+        .unwrap_or_else(|error| panic!("seed scoped run {run_id}: {error}"));
+    for (tier, evidence_ref) in [
+        (
+            ModelLaneDiagnosticTier::FlightRecorder,
+            format!("eventledger://kernel/model-lane/run/{run_id}"),
+        ),
+        (
+            ModelLaneDiagnosticTier::InternalDiagnostics,
+            format!("internal-diagnostics://session/{run_id}/panic-heartbeat-frame-resource"),
+        ),
+        (
+            ModelLaneDiagnosticTier::Palmistry,
+            format!("palmistry-observation://session/{run_id}/watcher"),
+        ),
+    ] {
+        store
+            .record_diagnostic_tier_status(evidence_tier(
+                run_id,
+                tier,
+                ModelLaneDiagnosticTierState::Wired,
+                &evidence_ref,
+            ))
+            .await
+            .unwrap_or_else(|error| panic!("seed scoped {} tier for {run_id}: {error}", tier.as_str()));
+    }
+}
+
+#[tokio::test]
+async fn diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_side_channel() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for diagnostic_tier_evidence_is_owner_scoped_and_is_not_a_cross_account_side_channel: \
+             HBR-PRIV-004/005 diagnostic scope proof requires live PostgreSQL/EventLedger"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual behavior coverage corpus");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect ModelLane store to isolated schema");
+    let schema_registry = ModelLaneStore::new(pool.clone())
+        .schema_registry_rows()
+        .await
+        .expect("read ModelLane schema registry");
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
+
+    let alice = OwnerAccountId::mint();
+    let bob = OwnerAccountId::mint();
+    assert_ne!(alice, bob, "the two owning accounts must be distinct");
+
+    let alice_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(alice, ActorPrincipalId::mint()),
+    );
+    let bob_store =
+        ModelLaneStore::new_scoped(pool.clone(), ResourceScope::new(bob, ActorPrincipalId::mint()));
+
+    let alice_run = "run-mt011-priv-alice";
+    let bob_run = "run-mt011-priv-bob";
+    seed_scoped_diagnostic_envelope(&alice_store, alice_run).await;
+    seed_scoped_diagnostic_envelope(&bob_store, bob_run).await;
+
+    // -- POSITIVE CONTROL ---------------------------------------------------
+    // Without this every negative below could pass because nothing was written.
+    let own = verify_model_lane_behavior_evidence(&alice_store, alice_run, &matrix)
+        .await
+        .unwrap_or_else(|errors| {
+            panic!("the owning account must still prove its OWN run-level evidence: {errors:?}")
+        });
+    assert_eq!(own[0].tiers.len(), 3);
+
+    // -- LAYER 1: the owner predicate keeps the rows inside PostgreSQL -------
+    let errors = verify_model_lane_behavior_evidence(&alice_store, bob_run, &matrix)
+        .await
+        .expect_err("alice must not read bob's diagnostic tier evidence");
+    let rendered = errors
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+    // The denial names only the run id the caller already supplied. Everything
+    // that identifies bob's account or discloses his diagnostic rows must be
+    // absent (HBR-PRIV-004).
+    for secret in [
+        bob.to_string(),
+        format!("internal-diagnostics://session/{bob_run}"),
+        format!("palmistry-observation://session/{bob_run}"),
+        format!("eventledger://kernel/model-lane/run/{bob_run}"),
+    ] {
+        assert!(
+            !rendered.contains(&secret),
+            "a cross-account diagnostic denial leaked `{secret}`: {rendered}"
+        );
+    }
+    // And the reverse direction, so this is isolation rather than one store
+    // simply being broken.
+    verify_model_lane_behavior_evidence(&bob_store, alice_run, &matrix)
+        .await
+        .expect_err("bob must not read alice's diagnostic tier evidence");
+    verify_model_lane_behavior_evidence(&bob_store, bob_run, &matrix)
+        .await
+        .expect("bob must still prove his own run-level evidence");
+
+    // The raw store read is filtered too, not just the MT-011 gate above it.
+    let bobs_tiers_seen_by_alice = alice_store
+        .diagnostic_tier_posture(bob_run, "HBR-INT-009")
+        .await
+        .expect("a scoped posture read must succeed and simply be empty");
+    assert!(
+        bobs_tiers_seen_by_alice.tiers.is_empty(),
+        "alice enumerated {} of bob's diagnostic tier records",
+        bobs_tiers_seen_by_alice.tiers.len()
+    );
+
+    // -- LAYER 2: post-deserialization authorization -------------------------
+    // Simulate the SQL predicate being dropped by a future edit: the row comes
+    // back, and the second layer must still refuse it with the stable code.
+    let sql = format!(
+        "SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} FROM model_lane_diagnostic_tier_statuses \
+         WHERE run_id = $1 AND tier = 'internal_diagnostics'"
+    );
+    let row = sqlx::query(&sql)
+        .bind(bob_run)
+        .fetch_one(&pool)
+        .await
+        .expect("unpredicated read of bob's internal_diagnostics tier row");
+    let stored = stored_resource_scope_from_row(&row).expect("decode stored scope columns");
+    assert_eq!(
+        stored.owner_account_id,
+        Some(bob),
+        "the diagnostic tier write path must stamp the owning account, or this proves nothing"
+    );
+    let denied = ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice))
+        .authorize_row(&stored)
+        .expect_err("layer 2 must deny a cross-account diagnostic row with no SQL predicate");
+    assert_eq!(denied.reason_code(), "RESOURCE_SCOPE_OWNER_MISMATCH");
+    assert!(
+        !denied.to_string().contains(&bob.to_string()),
+        "the typed denial must not disclose the owning account id"
+    );
+
+    // -- Same account, two workspaces (the same-project privacy case) --------
+    let ws_owner = OwnerAccountId::mint();
+    let alpha_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(ws_owner, ActorPrincipalId::mint())
+            .with_workspace(WorkspaceScopeRef::new("ws-mt011-alpha").unwrap()),
+    );
+    let beta_store = ModelLaneStore::new_scoped(
+        pool.clone(),
+        ResourceScope::new(ws_owner, ActorPrincipalId::mint())
+            .with_workspace(WorkspaceScopeRef::new("ws-mt011-beta").unwrap()),
+    );
+    let alpha_run = "run-mt011-priv-alpha";
+    let beta_run = "run-mt011-priv-beta";
+    seed_scoped_diagnostic_envelope(&alpha_store, alpha_run).await;
+    seed_scoped_diagnostic_envelope(&beta_store, beta_run).await;
+    verify_model_lane_behavior_evidence(&alpha_store, alpha_run, &matrix)
+        .await
+        .expect("the owning workspace must still prove its own run-level evidence");
+    verify_model_lane_behavior_evidence(&alpha_store, beta_run, &matrix)
+        .await
+        .expect_err("one workspace must not read another workspace's diagnostic evidence");
+    assert!(
+        alpha_store
+            .diagnostic_tier_posture(beta_run, "HBR-INT-009")
+            .await
+            .expect("scoped posture read")
+            .tiers
+            .is_empty(),
+        "workspace narrowing must apply to diagnostic tier records"
+    );
+
+    // -- Unattributed (pre-0363 style) diagnostic rows are denied ------------
+    let legacy_store = ModelLaneStore::new_system_authority(
+        pool.clone(),
+        SystemScopeAuthority::internal_subsystem("TEST_MT011_PRE_0363_DIAGNOSTIC_ROW"),
+    );
+    let legacy_run = "run-mt011-priv-legacy";
+    seed_scoped_diagnostic_envelope(&legacy_store, legacy_run).await;
+    let legacy_row = sqlx::query(&sql)
+        .bind(legacy_run)
+        .fetch_one(&pool)
+        .await
+        .expect("unpredicated read of the unattributed diagnostic row");
+    let legacy_stored =
+        stored_resource_scope_from_row(&legacy_row).expect("decode stored scope columns");
+    assert_eq!(
+        legacy_stored.owner_account_id, None,
+        "the legacy fixture must actually be unattributed, or this proves nothing"
+    );
+    assert_eq!(
+        ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice))
+            .authorize_row(&legacy_stored)
+            .expect_err("an unattributed diagnostic row must never be readable by an account")
+            .reason_code(),
+        "RESOURCE_SCOPE_UNATTRIBUTED"
+    );
+    verify_model_lane_behavior_evidence(&alice_store, legacy_run, &matrix)
+        .await
+        .expect_err("an account reader must not prove coverage from unattributed diagnostic rows");
+    // The explicitly-named system authority is the documented cross-owner path.
+    verify_model_lane_behavior_evidence(&legacy_store, legacy_run, &matrix)
+        .await
+        .expect("an explicit SystemScopeAuthority store may read unattributed diagnostic rows");
 }

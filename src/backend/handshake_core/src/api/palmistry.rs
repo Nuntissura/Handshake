@@ -341,7 +341,32 @@ impl PalmistryLaunchState {
             ledger,
             recorder,
             event_ledger,
-            model_lane_store: ModelLaneStore::new(postgres_pool.clone()),
+            // Named cross-owner authority, not an anonymous unscoped store.
+            //
+            // `/internal-diagnostics/model-lane/observe` resolves whether a
+            // watcher-reported `lane_id` belongs to the server-resolved `run_id`.
+            // The watcher's authority comes from a server-issued launch record
+            // (session_id + launch_nonce + ed25519 readback), NOT from an
+            // account, so there is no caller-supplied scope to read as and a
+            // `X-Handshake-Owner-Account` header would be the wrong control
+            // here — it would let the caller choose the scope it is checked
+            // against.
+            //
+            // The read is therefore a genuine cross-owner system operation and
+            // is declared as one so it is auditable rather than accidental.
+            // RESIDUAL GAP, deliberately recorded: the correlation answer is a
+            // per-run existence signal, so a caller able to forge the full
+            // ed25519/nonce envelope could probe run/lane membership across
+            // accounts. Closing that properly means deriving the scope from the
+            // launch record's owning account, which belongs with the Palmistry
+            // implementation in WP-KERNEL-012 (CX-981-005) rather than here.
+            // No lane CONTENT is returned by this path.
+            model_lane_store: ModelLaneStore::new_system_authority(
+                postgres_pool.clone(),
+                crate::swarm_orchestration::resource_scope::SystemScopeAuthority::internal_subsystem(
+                    "SYSTEM_SCOPE_PALMISTRY_OBSERVATION_CORRELATION",
+                ),
+            ),
             postgres_pool,
             reclaim,
             active: Arc::new(Mutex::new(HashMap::new())),

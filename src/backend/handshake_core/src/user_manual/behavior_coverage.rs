@@ -17,8 +17,9 @@ use crate::process_ledger::reclaim::reclaim_pidless_embedded_orphans;
 use crate::sandbox::{HandshakeNativeSandboxAdapter, SandboxAdapter};
 use crate::storage::StorageError;
 use crate::swarm_orchestration::model_lane::{
-    DexterityLaunchAdapterRegistry, ModelLaneDiagnosticTierPosture, ModelLaneDiagnosticsProjection,
-    ModelLaneSchemaRegistryRow, ModelLaneStore,
+    DexterityLaunchAdapterRegistry, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierPosture,
+    ModelLaneDiagnosticTierState, ModelLaneDiagnosticsProjection, ModelLaneSchemaRegistryRow,
+    ModelLaneStore,
 };
 use crate::swarm_orchestration::operator_chat::{
     ModelLaneCaptureRecorder, OperatorChatLaunchService,
@@ -58,6 +59,221 @@ impl DiagnosticTierPosture {
             Self::NotApplicableWithReason => "NOT_APPLICABLE-with-reason",
             Self::DeferredWithReason => "DEFERRED-with-reason",
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 / HBR-INT-009: the EXACT tier-to-evidence-URI binding.
+//
+// The three diagnostic tiers are produced by three DIFFERENT subsystems and
+// each writes its evidence under its OWN URI scheme:
+//
+//   Tier 1  FlightRecorder       `eventledger://kernel/`
+//           the kept-as-is backend BUSINESS-EVENT ledger.
+//   Tier 2  InternalDiagnostics  `internal-diagnostics://session/`
+//           Handshake's own IN-PROCESS self-diagnostics: panic hook, UI-thread
+//           heartbeat, frame-time, CPU/RSS/GPU counters, open diagnostic-event
+//           API. Emitted by `api::palmistry::record_diagnostic_observation`
+//           from the native producer ring.
+//   Tier 3  Palmistry            `palmistry-observation://session/`
+//           the EXTERNAL, out-of-process watcher that survives a Handshake
+//           freeze or crash and writes durable survivor records.
+//
+// Before MT-011 remediation, `verify_model_lane_behavior_evidence` accepted ANY
+// of the three prefixes for EVERY tier — one `||` chain applied uniformly to
+// every record — so a Tier-3 Palmistry URI offered as Tier-2 internal_diagnostics
+// evidence, or the reverse, was accepted. That is coverage forgery, not a
+// cosmetic laxity: Tier 2 and Tier 3 observe different failure classes (a hung
+// UI thread is invisible to Tier 2's own in-process ring and is exactly what
+// Tier 3 exists to catch), so they are NOT interchangeable. A run that only ever
+// produced Palmistry observations has no in-process diagnostics coverage at all,
+// and substituting one scheme for the other would let a work packet claim a
+// diagnostic tier it never wired.
+//
+// The binding below is therefore exact and total, and a cross-tier scheme is a
+// REJECTION, never a fallback.
+// ---------------------------------------------------------------------------
+
+/// Tier 1. EventLedger kernel stream evidence for the Flight Recorder tier.
+pub const FLIGHT_RECORDER_EVIDENCE_URI_PREFIX: &str = "eventledger://kernel/";
+/// Tier 2. Handshake-native in-process diagnostics session evidence.
+pub const INTERNAL_DIAGNOSTICS_EVIDENCE_URI_PREFIX: &str = "internal-diagnostics://session/";
+/// Tier 3. External Palmistry watcher observation evidence.
+pub const PALMISTRY_EVIDENCE_URI_PREFIX: &str = "palmistry-observation://session/";
+
+/// Scheme token of [`FLIGHT_RECORDER_EVIDENCE_URI_PREFIX`].
+pub const FLIGHT_RECORDER_EVIDENCE_URI_SCHEME: &str = "eventledger:";
+/// Scheme token of [`INTERNAL_DIAGNOSTICS_EVIDENCE_URI_PREFIX`].
+pub const INTERNAL_DIAGNOSTICS_EVIDENCE_URI_SCHEME: &str = "internal-diagnostics:";
+/// Scheme token of [`PALMISTRY_EVIDENCE_URI_PREFIX`].
+pub const PALMISTRY_EVIDENCE_URI_SCHEME: &str = "palmistry-observation:";
+
+/// The complete tier -> (scheme token, required URI prefix) binding.
+///
+/// Total over [`ModelLaneDiagnosticTier`]: adding a fourth tier to that enum
+/// makes [`diagnostic_tier_evidence_uri_prefix`] a non-exhaustive `match` and
+/// therefore a COMPILE error, so a new tier cannot inherit another tier's
+/// scheme by omission.
+pub const DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING: [(ModelLaneDiagnosticTier, &str, &str); 3] = [
+    (
+        ModelLaneDiagnosticTier::FlightRecorder,
+        FLIGHT_RECORDER_EVIDENCE_URI_SCHEME,
+        FLIGHT_RECORDER_EVIDENCE_URI_PREFIX,
+    ),
+    (
+        ModelLaneDiagnosticTier::InternalDiagnostics,
+        INTERNAL_DIAGNOSTICS_EVIDENCE_URI_SCHEME,
+        INTERNAL_DIAGNOSTICS_EVIDENCE_URI_PREFIX,
+    ),
+    (
+        ModelLaneDiagnosticTier::Palmistry,
+        PALMISTRY_EVIDENCE_URI_SCHEME,
+        PALMISTRY_EVIDENCE_URI_PREFIX,
+    ),
+];
+
+/// The one URI prefix this tier's evidence is allowed to use.
+pub const fn diagnostic_tier_evidence_uri_prefix(tier: ModelLaneDiagnosticTier) -> &'static str {
+    match tier {
+        ModelLaneDiagnosticTier::FlightRecorder => FLIGHT_RECORDER_EVIDENCE_URI_PREFIX,
+        ModelLaneDiagnosticTier::InternalDiagnostics => INTERNAL_DIAGNOSTICS_EVIDENCE_URI_PREFIX,
+        ModelLaneDiagnosticTier::Palmistry => PALMISTRY_EVIDENCE_URI_PREFIX,
+    }
+}
+
+/// The one URI scheme token this tier's evidence is allowed to use.
+pub const fn diagnostic_tier_evidence_uri_scheme(tier: ModelLaneDiagnosticTier) -> &'static str {
+    match tier {
+        ModelLaneDiagnosticTier::FlightRecorder => FLIGHT_RECORDER_EVIDENCE_URI_SCHEME,
+        ModelLaneDiagnosticTier::InternalDiagnostics => INTERNAL_DIAGNOSTICS_EVIDENCE_URI_SCHEME,
+        ModelLaneDiagnosticTier::Palmistry => PALMISTRY_EVIDENCE_URI_SCHEME,
+    }
+}
+
+/// Which tier a URI's scheme BELONGS to, independent of the tier that offered
+/// it. This is what turns "wrong prefix" into the far more specific finding
+/// "this is another tier's evidence wearing this tier's label".
+///
+/// The three scheme tokens are mutually non-prefixing, so the first match is
+/// the only match.
+pub fn diagnostic_tier_owning_evidence_uri_scheme(
+    evidence_ref: &str,
+) -> Option<ModelLaneDiagnosticTier> {
+    let evidence_ref = evidence_ref.trim();
+    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING
+        .iter()
+        .find(|(_, scheme, _)| evidence_ref.starts_with(scheme))
+        .map(|(tier, _, _)| *tier)
+}
+
+/// Why a diagnostic tier record's `evidence_ref` was refused.
+///
+/// Every field is a compile-time constant tier label or prefix. The offending
+/// URI itself is deliberately NOT carried: a denial rendered for one account
+/// must not become a metadata side channel for another account's diagnostic
+/// evidence (HBR-PRIV-004). The scheme that WAS found is a bounded, compile-known
+/// token, so the message stays actionable without disclosing row content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "violation", rename_all = "snake_case")]
+pub enum DiagnosticEvidenceUriViolation {
+    /// The URI carries ANOTHER tier's scheme. This is the cross-tier
+    /// substitution the MT-011 evidence gate exists to reject.
+    CrossTierSchemeSubstitution {
+        declared_tier: &'static str,
+        scheme_owned_by_tier: &'static str,
+        expected_prefix: &'static str,
+    },
+    /// The URI carries no diagnostic scheme bound to any tier.
+    UnboundScheme {
+        declared_tier: &'static str,
+        expected_prefix: &'static str,
+    },
+    /// The tier's own scheme, but not under its required authority root.
+    WrongAuthorityRoot {
+        declared_tier: &'static str,
+        expected_prefix: &'static str,
+    },
+}
+
+impl DiagnosticEvidenceUriViolation {
+    /// Stable machine-readable reason code for typed receipts and tests.
+    pub const fn reason_code(self) -> &'static str {
+        match self {
+            Self::CrossTierSchemeSubstitution { .. } => {
+                "DIAGNOSTIC_EVIDENCE_CROSS_TIER_SCHEME_SUBSTITUTION"
+            }
+            Self::UnboundScheme { .. } => "DIAGNOSTIC_EVIDENCE_UNBOUND_SCHEME",
+            Self::WrongAuthorityRoot { .. } => "DIAGNOSTIC_EVIDENCE_WRONG_AUTHORITY_ROOT",
+        }
+    }
+}
+
+impl std::fmt::Display for DiagnosticEvidenceUriViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CrossTierSchemeSubstitution {
+                declared_tier,
+                scheme_owned_by_tier,
+                expected_prefix,
+            } => write!(
+                f,
+                "{}: HBR-INT-009 tier `{declared_tier}` offered evidence whose URI scheme belongs \
+                 to tier `{scheme_owned_by_tier}`; the tiers observe different failure classes and \
+                 are not interchangeable. Tier `{declared_tier}` evidence must use \
+                 `{expected_prefix}`.",
+                self.reason_code()
+            ),
+            Self::UnboundScheme {
+                declared_tier,
+                expected_prefix,
+            } => write!(
+                f,
+                "{}: HBR-INT-009 tier `{declared_tier}` offered evidence with no diagnostic URI \
+                 scheme bound to any tier; it must use `{expected_prefix}`.",
+                self.reason_code()
+            ),
+            Self::WrongAuthorityRoot {
+                declared_tier,
+                expected_prefix,
+            } => write!(
+                f,
+                "{}: HBR-INT-009 tier `{declared_tier}` used its own URI scheme but not its \
+                 required authority root; it must use `{expected_prefix}`.",
+                self.reason_code()
+            ),
+        }
+    }
+}
+
+/// Pin one diagnostic tier record's `evidence_ref` to that tier's exact URI.
+///
+/// Rejects, in order of specificity: another tier's scheme (cross-tier
+/// substitution), no bound scheme at all, and the right scheme under the wrong
+/// authority root.
+pub fn verify_diagnostic_tier_evidence_uri(
+    tier: ModelLaneDiagnosticTier,
+    evidence_ref: &str,
+) -> Result<(), DiagnosticEvidenceUriViolation> {
+    let evidence_ref = evidence_ref.trim();
+    let declared_tier = tier.as_str();
+    let expected_prefix = diagnostic_tier_evidence_uri_prefix(tier);
+    match diagnostic_tier_owning_evidence_uri_scheme(evidence_ref) {
+        Some(scheme_tier) if scheme_tier != tier => {
+            Err(DiagnosticEvidenceUriViolation::CrossTierSchemeSubstitution {
+                declared_tier,
+                scheme_owned_by_tier: scheme_tier.as_str(),
+                expected_prefix,
+            })
+        }
+        Some(_) if evidence_ref.starts_with(expected_prefix) => Ok(()),
+        Some(_) => Err(DiagnosticEvidenceUriViolation::WrongAuthorityRoot {
+            declared_tier,
+            expected_prefix,
+        }),
+        None => Err(DiagnosticEvidenceUriViolation::UnboundScheme {
+            declared_tier,
+            expected_prefix,
+        }),
     }
 }
 
@@ -640,20 +856,59 @@ fn compute_behavior_consistency(
 // or to a compiled Flight-Recorder id vocabulary, so a renamed product symbol
 // becomes a COMPILE error and an invented one becomes a TEST failure.
 //
-// Scan rule (deterministic, no heuristics):
-//  * Only `body_md` prose of seeded pages is scanned.
-//  * A SYMBOL claim is a backtick-delimited span whose text — after cutting at
-//    the first `(`, `{`, `<` or `[` and trimming — is a Rust path of the shape
-//    `Uppercase(::segment)+`. Anything else in backticks (routes, env vars,
-//    shell commands, JSON fields) is not a symbol claim and is ignored.
-//  * A FLIGHT RECORDER claim is any `FR-EVT-` token, backticked or not. It
-//    resolves when it is, or prefixes, a compiled event id — so a family
-//    reference such as `FR-EVT-AGENT-*` resolves through
-//    `FR-EVT-AGENT-TOOLCALL`.
+// Scan rule (deterministic, no heuristics). MT-022 widened this from "Rust
+// paths only" after a validator found that lowercase routes, env/config keys,
+// schema ids and bare type names all evaded the gate:
+//  * BOTH `body_md` prose AND every string leaf of `body_json` are scanned.
+//    Prose hidden inside a JSON section used to be entirely unchecked.
+//  * A ROUTE claim is a backticked span of the shape `METHOD /path`. It must
+//    resolve against [`wp009_surface_registry`] — exactly, or as a concrete
+//    instance of a registry pattern (`GET /usermanual/pages/manual-toc`
+//    resolves through `/usermanual/pages/:slug`). A claim that writes its own
+//    parameter names (`/workspaces/:ws/...` against the mounted
+//    `/workspaces/:workspace_id/...`) does NOT resolve — that is real drift,
+//    because a model copying the manual would call a path the router rejects.
+//    A lowercase method token is reported rather than accepted.
+//    [`NON_REGISTRY_DOCUMENTED_ROUTES`] is the written escape hatch for real
+//    routes that are deliberately not WP-009 registry rows.
+//  * A SYMBOL claim is a backticked span whose text — after cutting at the
+//    first `(`, `{`, `<` or `[` and trimming — is a Rust path of the shape
+//    `Uppercase(::segment)*`. A `::` path must be in the compiled vocabulary.
+//    A BARE `CamelCase` name resolves when it is a segment of a compiled
+//    vocabulary entry (so `ModelLaneStore` is anchored by
+//    `ModelLaneStore::record_message`); otherwise it degrades to a LITERAL
+//    claim rather than being silently ignored.
+//  * A LITERAL claim is a backticked `SCREAMING_SNAKE` token (env var,
+//    EventLedger event type, state label), a `snake_case` token (config key,
+//    JSON field, table name), an `hsk.<name>@<n>` schema id, or an unanchored
+//    bare `CamelCase` name. These name string literals, not nameable Rust
+//    items, so they cannot be compile-anchored from here. They are collected by
+//    [`manual_literal_claims`] and resolved by [`verify_manual_literal_claims`]
+//    against the real product source text, which the proof suite supplies. That
+//    is weaker than compile anchoring (a coordinated rename in both places
+//    passes) but it does catch fabricated and mistyped names, which is the
+//    failure this gate exists to stop.
+//  * A FLIGHT RECORDER claim is any `FR-EVT-` token, backticked or not, matched
+//    CASE-INSENSITIVELY so a lowercase `fr-evt-...` cannot slip past; a
+//    non-canonical spelling is itself reported. A token resolves when it is a
+//    compiled event id exactly, or a prefix of one AT A `-` SEGMENT BOUNDARY —
+//    so the family `FR-EVT-AGENT-*` still resolves through
+//    `FR-EVT-AGENT-TOOLCALL`, while a truncation like `FR-EVT-S` no longer
+//    resolves against `FR-EVT-SWARM-...`.
 //  * [`PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES`] is the explicit, reviewable
 //    escape hatch for families the manual documents as DEFERRED wiring. It
 //    mirrors the legacy scanner's `CommandStatus::Planned` semantics: an
 //    exemption must be written down, never inferred.
+//
+// Deliberately NOT checked, so the limit is visible instead of implied:
+//  * Backticked BARE paths without a method (`/knowledge/code/*`,
+//    `/routing/cancel`, `/proc/self/fd`). They are route FRAGMENTS, globs and
+//    OS paths, not callable-surface claims; checking them against the registry
+//    would report the whole class as drift. The method-prefixed form above is
+//    the unambiguous claim shape and is enforced.
+//  * Shell/command spans, prose, and identifiers that are none of the shapes
+//    above. Those land in neither the symbol nor the literal classes; the
+//    counts returned by the gate report exactly how much it looked at.
 // ---------------------------------------------------------------------------
 
 /// Behavior id stamped on every named-surface failure so the error stream stays
@@ -674,6 +929,10 @@ enum ManualNamedSymbolProof {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ManualNamedSymbol {
+    /// `AccountBoundAuthority::Account`
+    AccountBoundAuthorityAccount,
+    /// `AccountBoundAuthority::Unattributed`
+    AccountBoundAuthorityUnattributed,
     /// `AdmitDecision::Suppress`
     AdmitDecisionSuppress,
     /// `AppState::model_catalog`
@@ -812,6 +1071,10 @@ enum ManualNamedSymbol {
     SwarmCoordinatorInvokeDownstreamContextBundle,
     /// `SwarmCoordinator::launch_operator_subagent_model_lane`
     SwarmCoordinatorLaunchOperatorSubagentModelLane,
+    /// `SwarmCoordinator::live_session_count`
+    SwarmCoordinatorLiveSessionCount,
+    /// `SwarmCoordinator::max_concurrent`
+    SwarmCoordinatorMaxConcurrent,
     /// `SwarmCoordinator::remaining`
     SwarmCoordinatorRemaining,
     /// `SwarmCoordinator::retry_pending_session_cleanups`
@@ -820,6 +1083,8 @@ enum ManualNamedSymbol {
     SwarmCoordinatorRevokeCloudConsentReceipt,
     /// `SwarmCoordinator::session_runtime`
     SwarmCoordinatorSessionRuntime,
+    /// `SwarmCoordinator::set_max_concurrent`
+    SwarmCoordinatorSetMaxConcurrent,
     /// `SwarmCoordinator::spawn_session`
     SwarmCoordinatorSpawnSession,
     /// `SwarmError::BreakerOpen`
@@ -842,12 +1107,16 @@ enum ManualNamedSymbol {
     SwarmEventSpawnRejected,
     /// `SwarmFrEventId::SpawnRejected`
     SwarmFrEventIdSpawnRejected,
+    /// `SystemScopeAuthority::boot_recovery`
+    SystemScopeAuthorityBootRecovery,
     /// `Update::decode_v1`
     UpdateDecodeV1,
 }
 
 impl ManualNamedSymbol {
     const ALL: &'static [ManualNamedSymbol] = &[
+        Self::AccountBoundAuthorityAccount,
+        Self::AccountBoundAuthorityUnattributed,
         Self::AdmitDecisionSuppress,
         Self::AppStateModelCatalog,
         Self::BreakerStateClosed,
@@ -917,10 +1186,13 @@ impl ManualNamedSymbol {
         Self::SwarmCoordinatorContextBundleForDownstreamLane,
         Self::SwarmCoordinatorInvokeDownstreamContextBundle,
         Self::SwarmCoordinatorLaunchOperatorSubagentModelLane,
+        Self::SwarmCoordinatorLiveSessionCount,
+        Self::SwarmCoordinatorMaxConcurrent,
         Self::SwarmCoordinatorRemaining,
         Self::SwarmCoordinatorRetryPendingSessionCleanups,
         Self::SwarmCoordinatorRevokeCloudConsentReceipt,
         Self::SwarmCoordinatorSessionRuntime,
+        Self::SwarmCoordinatorSetMaxConcurrent,
         Self::SwarmCoordinatorSpawnSession,
         Self::SwarmErrorBreakerOpen,
         Self::SwarmErrorBudgetExhausted,
@@ -932,12 +1204,15 @@ impl ManualNamedSymbol {
         Self::SwarmEventBreakerTripped,
         Self::SwarmEventSpawnRejected,
         Self::SwarmFrEventIdSpawnRejected,
+        Self::SystemScopeAuthorityBootRecovery,
         Self::UpdateDecodeV1,
     ];
 
     /// The exact text the manual prose is allowed to print between backticks.
     fn literal(self) -> &'static str {
         match self {
+            Self::AccountBoundAuthorityAccount => "AccountBoundAuthority::Account",
+            Self::AccountBoundAuthorityUnattributed => "AccountBoundAuthority::Unattributed",
             Self::AdmitDecisionSuppress => "AdmitDecision::Suppress",
             Self::AppStateModelCatalog => "AppState::model_catalog",
             Self::BreakerStateClosed => "BreakerState::Closed",
@@ -1009,10 +1284,13 @@ impl ManualNamedSymbol {
             Self::SwarmCoordinatorContextBundleForDownstreamLane => "SwarmCoordinator::context_bundle_for_downstream_lane",
             Self::SwarmCoordinatorInvokeDownstreamContextBundle => "SwarmCoordinator::invoke_downstream_context_bundle",
             Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => "SwarmCoordinator::launch_operator_subagent_model_lane",
+            Self::SwarmCoordinatorLiveSessionCount => "SwarmCoordinator::live_session_count",
+            Self::SwarmCoordinatorMaxConcurrent => "SwarmCoordinator::max_concurrent",
             Self::SwarmCoordinatorRemaining => "SwarmCoordinator::remaining",
             Self::SwarmCoordinatorRetryPendingSessionCleanups => "SwarmCoordinator::retry_pending_session_cleanups",
             Self::SwarmCoordinatorRevokeCloudConsentReceipt => "SwarmCoordinator::revoke_cloud_consent_receipt",
             Self::SwarmCoordinatorSessionRuntime => "SwarmCoordinator::session_runtime",
+            Self::SwarmCoordinatorSetMaxConcurrent => "SwarmCoordinator::set_max_concurrent",
             Self::SwarmCoordinatorSpawnSession => "SwarmCoordinator::spawn_session",
             Self::SwarmErrorBreakerOpen => "SwarmError::BreakerOpen",
             Self::SwarmErrorBudgetExhausted => "SwarmError::BudgetExhausted",
@@ -1024,12 +1302,15 @@ impl ManualNamedSymbol {
             Self::SwarmEventBreakerTripped => "SwarmEvent::BreakerTripped",
             Self::SwarmEventSpawnRejected => "SwarmEvent::SpawnRejected",
             Self::SwarmFrEventIdSpawnRejected => "SwarmFrEventId::SpawnRejected",
+            Self::SystemScopeAuthorityBootRecovery => "SystemScopeAuthority::boot_recovery",
             Self::UpdateDecodeV1 => "Update::decode_v1",
         }
     }
 
     fn proof(self) -> ManualNamedSymbolProof {
         match self {
+            Self::AccountBoundAuthorityAccount => ManualNamedSymbolProof::CompileAnchored,
+            Self::AccountBoundAuthorityUnattributed => ManualNamedSymbolProof::CompileAnchored,
             Self::AdmitDecisionSuppress => ManualNamedSymbolProof::CompileAnchored,
             Self::AppStateModelCatalog => ManualNamedSymbolProof::CompileAnchored,
             Self::BreakerStateClosed => ManualNamedSymbolProof::CompileAnchored,
@@ -1107,10 +1388,13 @@ impl ManualNamedSymbol {
             Self::SwarmCoordinatorContextBundleForDownstreamLane => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorInvokeDownstreamContextBundle => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorLiveSessionCount => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorMaxConcurrent => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorRemaining => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorRetryPendingSessionCleanups => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorRevokeCloudConsentReceipt => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorSessionRuntime => ManualNamedSymbolProof::CompileAnchored,
+            Self::SwarmCoordinatorSetMaxConcurrent => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmCoordinatorSpawnSession => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmErrorBreakerOpen => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmErrorBudgetExhausted => ManualNamedSymbolProof::CompileAnchored,
@@ -1122,6 +1406,7 @@ impl ManualNamedSymbol {
             Self::SwarmEventBreakerTripped => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmEventSpawnRejected => ManualNamedSymbolProof::CompileAnchored,
             Self::SwarmFrEventIdSpawnRejected => ManualNamedSymbolProof::CompileAnchored,
+            Self::SystemScopeAuthorityBootRecovery => ManualNamedSymbolProof::CompileAnchored,
             Self::UpdateDecodeV1 => ManualNamedSymbolProof::CompileAnchored,
         }
     }
@@ -1130,6 +1415,12 @@ impl ManualNamedSymbol {
     /// COMPILE error here, so a manual page can never outlive the surface it names.
     fn assert_compiled(self) {
         match self {
+            Self::AccountBoundAuthorityAccount => {
+                let _ = |value: &crate::swarm_orchestration::resource_scope::AccountBoundAuthority| matches!(value, crate::swarm_orchestration::resource_scope::AccountBoundAuthority::Account { .. });
+            }
+            Self::AccountBoundAuthorityUnattributed => {
+                let _ = |value: &crate::swarm_orchestration::resource_scope::AccountBoundAuthority| matches!(value, crate::swarm_orchestration::resource_scope::AccountBoundAuthority::Unattributed { .. });
+            }
             Self::AdmitDecisionSuppress => {
                 let _ = |value: &crate::swarm_orchestration::AdmitDecision| matches!(value, crate::swarm_orchestration::AdmitDecision::Suppress { .. });
             }
@@ -1369,6 +1660,12 @@ impl ManualNamedSymbol {
             Self::SwarmCoordinatorLaunchOperatorSubagentModelLane => {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::launch_operator_subagent_model_lane;
             }
+            Self::SwarmCoordinatorLiveSessionCount => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::live_session_count;
+            }
+            Self::SwarmCoordinatorMaxConcurrent => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::max_concurrent;
+            }
             Self::SwarmCoordinatorRemaining => {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::remaining;
             }
@@ -1396,6 +1693,9 @@ impl ManualNamedSymbol {
                 {
                     let _ = crate::swarm_orchestration::SwarmCoordinator::session_runtime;
                 }
+            }
+            Self::SwarmCoordinatorSetMaxConcurrent => {
+                let _ = crate::swarm_orchestration::SwarmCoordinator::set_max_concurrent;
             }
             Self::SwarmCoordinatorSpawnSession => {
                 let _ = crate::swarm_orchestration::SwarmCoordinator::spawn_session;
@@ -1430,6 +1730,9 @@ impl ManualNamedSymbol {
             Self::SwarmFrEventIdSpawnRejected => {
                 let _ = |value: &crate::swarm_orchestration::SwarmFrEventId| matches!(value, crate::swarm_orchestration::SwarmFrEventId::SpawnRejected);
             }
+            Self::SystemScopeAuthorityBootRecovery => {
+                let _ = crate::swarm_orchestration::resource_scope::SystemScopeAuthority::boot_recovery;
+            }
             Self::UpdateDecodeV1 => {
                 let _ = <yrs::Update as yrs::updates::decoder::Decode>::decode_v1;
             }
@@ -1455,6 +1758,20 @@ const PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES: &[(&str, &str)] = &[
          promotion authority today is durable EventLedger rows.",
     ),
 ];
+
+/// Routes the manual is allowed to name that are deliberately NOT WP-009
+/// registry rows. Same discipline as [`PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES`]:
+/// tiny, explicit, and every entry carries the reason it is not a
+/// [`SurfaceDescriptor`](super::registry::SurfaceDescriptor). Adding an entry is
+/// a reviewable act, not a side effect.
+const NON_REGISTRY_DOCUMENTED_ROUTES: &[(&str, &str, &str)] = &[(
+    "GET",
+    "/health",
+    "the liveness probe mounted directly on the root axum router in `main.rs`; \
+     it is an operational readiness endpoint with no workspace, identity, or \
+     model semantics, so it owns no SurfaceGroup page and no SurfaceDescriptor \
+     row. The startup page documents it as a `curl` liveness check only.",
+)];
 
 /// Every Flight Recorder event id the product can actually emit, assembled from
 /// compiled sources only: two exhaustive enums plus the free-standing `pub const`
@@ -1491,10 +1808,58 @@ fn compiled_flight_recorder_event_ids() -> Vec<&'static str> {
 pub struct ManualNamedSurfaceProof {
     pub pages_scanned: usize,
     pub sections_scanned: usize,
+    /// Sections whose `body_json` was walked for string leaves as well as
+    /// `body_md`. Before MT-022 this was always zero: JSON prose was unchecked.
+    pub json_sections_scanned: usize,
     pub symbol_claims_checked: usize,
+    /// `METHOD /path` spans resolved against [`wp009_surface_registry`].
+    pub route_claims_checked: usize,
     pub flight_recorder_event_claims_checked: usize,
+    /// Spans classified as string-literal claims and handed to
+    /// [`verify_manual_literal_claims`]. Counted here so a caller can see that
+    /// this gate alone did NOT prove them.
+    pub literal_claims_collected: usize,
     pub compiled_symbol_vocabulary: usize,
     pub compiled_flight_recorder_vocabulary: usize,
+}
+
+/// Which string-literal family a [`ManualLiteralClaim`] belongs to. Reported so
+/// a failure says what kind of name drifted, not just that something did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManualClaimClass {
+    /// `HANDSHAKE_LLM_PROVIDER`, `KNOWLEDGE_INDEX_RUN_COMPLETED`, `DORMANT` —
+    /// env vars, EventLedger event types, and state labels.
+    ScreamingSnake,
+    /// `max_concurrent`, `breaker_open`, `kernel_event_ledger` — config keys,
+    /// JSON fields, table names, proof-target names.
+    SnakeCase,
+    /// `hsk.model_lane_run@1` — a typed schema id.
+    SchemaId,
+    /// A bare `CamelCase` name the compiled symbol vocabulary does not anchor.
+    BareTypeName,
+}
+
+impl ManualClaimClass {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ScreamingSnake => "screaming_snake",
+            Self::SnakeCase => "snake_case",
+            Self::SchemaId => "schema_id",
+            Self::BareTypeName => "bare_type_name",
+        }
+    }
+}
+
+/// One manual claim whose truth lives in a product-source string literal rather
+/// than in a Rust item this module can name. Resolved by
+/// [`verify_manual_literal_claims`] against real product source text.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ManualLiteralClaim {
+    pub page_slug: String,
+    pub section_kind: &'static str,
+    pub class: ManualClaimClass,
+    pub literal: String,
 }
 
 /// Backtick-delimited spans of a markdown body, in order.
@@ -1510,8 +1875,37 @@ fn backticked_spans(text: &str) -> Vec<&str> {
     spans
 }
 
+/// Every string leaf of a JSON section body, so prose parked in `body_json` is
+/// scanned by the same rules as `body_md`.
+fn json_string_leaves(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::String(text) => out.push(text.clone()),
+        serde_json::Value::Array(items) => {
+            for item in items {
+                json_string_leaves(item, out);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            for item in map.values() {
+                json_string_leaves(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// `true` when every char is legal inside one Rust path segment.
+fn is_ident_segment(segment: &str) -> bool {
+    !segment.is_empty()
+        && segment
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// `true` when `value` has the shape of a Rust path rooted at a type or enum:
-/// an uppercase-initial first segment followed by at least one `::segment`.
+/// an uppercase-initial first segment, optionally followed by `::segment`s.
+/// MT-022: a BARE `CamelCase` name (zero `::` segments) now qualifies, so bare
+/// type names are no longer invisible to the gate.
 fn is_rust_symbol_path(value: &str) -> bool {
     let mut segments = value.split("::");
     let Some(first) = segments.next() else {
@@ -1524,21 +1918,10 @@ fn is_rust_symbol_path(value: &str) -> bool {
     {
         return false;
     }
-    if !first.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+    if !is_ident_segment(first) {
         return false;
     }
-    let mut tail = 0usize;
-    for segment in segments {
-        if segment.is_empty()
-            || !segment
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '_')
-        {
-            return false;
-        }
-        tail += 1;
-    }
-    tail >= 1
+    segments.all(is_ident_segment)
 }
 
 /// The symbol claim carried by one backticked span, if any. `Foo::bar(x)`,
@@ -1554,14 +1937,95 @@ fn manual_symbol_candidate(span: &str) -> Option<&str> {
     Some(candidate)
 }
 
-/// Every `FR-EVT-...` token in a body, with any trailing separator or wildcard
-/// trimmed so a family reference (`FR-EVT-AGENT-*`) reduces to its prefix.
-fn flight_recorder_event_tokens(text: &str) -> Vec<&str> {
+/// A `METHOD /path` claim carried by a backticked span.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RouteClaim<'a> {
+    /// The method token exactly as the manual wrote it.
+    method_as_written: &'a str,
+    /// The canonical uppercase method.
+    method: &'static str,
+    path: &'a str,
+}
+
+const HTTP_METHODS: [&str; 5] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+
+/// The route claim carried by one backticked span, if any. Method matching is
+/// case-INSENSITIVE on purpose: a lowercase `get /usermanual/pages` must be
+/// caught and reported, not quietly skipped as "not a route".
+fn manual_route_claim(span: &str) -> Option<RouteClaim<'_>> {
+    let span = span.trim();
+    let (method_as_written, rest) = span.split_once(' ')?;
+    let rest = rest.trim();
+    if !rest.starts_with('/') {
+        return None;
+    }
+    // Query strings are documentation of parameters, not part of the mounted
+    // route pattern; match on the path only.
+    let path = rest.split('?').next()?;
+    // A glob/ellipsis is a family reference (`/knowledge/code/*`), not a
+    // callable claim; documented as out of scope in the scan rule above.
+    if path.contains('*') || path.contains("...") || path.contains(' ') || path.is_empty() {
+        return None;
+    }
+    let method = HTTP_METHODS
+        .iter()
+        .copied()
+        .find(|m| m.eq_ignore_ascii_case(method_as_written))?;
+    Some(RouteClaim {
+        method_as_written,
+        method,
+        path,
+    })
+}
+
+/// `true` when a documented path resolves to a mounted registry pattern.
+///
+/// Exact equality, or a CONCRETE instance of a pattern segment — so
+/// `/usermanual/pages/manual-toc` resolves through `/usermanual/pages/:slug`.
+/// A documented segment that is itself a `:param` must match the registry's
+/// parameter name exactly: `/workspaces/:ws/...` does NOT resolve against
+/// `/workspaces/:workspace_id/...`, because a model that copies the manual's
+/// parameter names into its own client code is documenting a different API.
+fn route_path_matches(documented: &str, registered: &str) -> bool {
+    let mut doc = documented.split('/');
+    let mut reg = registered.split('/');
+    loop {
+        match (doc.next(), reg.next()) {
+            (None, None) => return true,
+            (Some(d), Some(r)) => {
+                if d == r {
+                    continue;
+                }
+                if r.starts_with(':') && !d.starts_with(':') && !d.is_empty() {
+                    continue;
+                }
+                return false;
+            }
+            _ => return false,
+        }
+    }
+}
+
+/// One `FR-EVT-` token found in a body.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FlightRecorderTokenClaim {
+    /// The token as written, uppercased. This is what is resolved.
+    token: String,
+    /// The token exactly as the manual wrote it.
+    as_written: String,
+}
+
+/// Every `FR-EVT-...` token in a body, matched CASE-INSENSITIVELY so a
+/// lowercase spelling cannot evade the gate, with any trailing separator or
+/// wildcard trimmed so a family reference (`FR-EVT-AGENT-*`) reduces to its
+/// prefix.
+fn flight_recorder_event_tokens(text: &str) -> Vec<FlightRecorderTokenClaim> {
     const PREFIX: &str = "FR-EVT-";
-    let bytes = text.as_bytes();
+    let upper = text.to_ascii_uppercase();
+    let bytes = upper.as_bytes();
     let mut tokens = Vec::new();
     let mut cursor = 0usize;
-    while let Some(offset) = text[cursor..].find(PREFIX) {
+    while let Some(offset) = upper[cursor..].find(PREFIX) {
         let start = cursor + offset;
         let mut end = start + PREFIX.len();
         while end < bytes.len()
@@ -1569,14 +2033,33 @@ fn flight_recorder_event_tokens(text: &str) -> Vec<&str> {
         {
             end += 1;
         }
-        let mut token = &text[start..end];
+        // `upper` is an ASCII-uppercased copy of `text`; ASCII case folding is
+        // length-preserving, so the same byte range indexes both.
+        let mut token = &upper[start..end];
+        let mut as_written = &text[start..end];
         while let Some(trimmed) = token.strip_suffix('-') {
             token = trimmed;
+            as_written = &as_written[..trimmed.len()];
         }
-        tokens.push(token);
+        tokens.push(FlightRecorderTokenClaim {
+            token: token.to_string(),
+            as_written: as_written.to_string(),
+        });
         cursor = end;
     }
     tokens
+}
+
+/// `true` when `token` is a compiled event id, or names a family by prefixing
+/// one at a `-` segment boundary. The boundary is what stops a truncation such
+/// as `FR-EVT-S` from resolving against `FR-EVT-SWARM-SPAWN-REJECTED`.
+fn flight_recorder_token_resolves(token: &str, vocabulary: &[&'static str]) -> bool {
+    vocabulary.iter().any(|id| {
+        *id == token
+            || (id.len() > token.len()
+                && id.starts_with(token)
+                && id.as_bytes()[token.len()] == b'-')
+    })
 }
 
 /// HBR-MAN-003 for the canonical `user_manual` corpus: every product symbol and
@@ -1626,51 +2109,156 @@ pub fn verify_manual_named_surface_existence(
         }
     }
 
-    let event_vocabulary = compiled_flight_recorder_event_ids();
+    // A BARE `CamelCase` name is anchored when it is a SEGMENT of a declared
+    // path: `ModelLaneStore` is real because `ModelLaneStore::record_message`
+    // compiles. Only uppercase-initial segments join this set, so a generic
+    // method segment such as `list` can never resolve a prose token.
+    let mut symbol_segment_vocabulary: BTreeSet<&'static str> = BTreeSet::new();
+    for literal in &symbol_vocabulary {
+        for segment in literal.split("::") {
+            if segment.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+                symbol_segment_vocabulary.insert(segment);
+            }
+        }
+    }
 
-    // (2) Corpus scan.
+    let event_vocabulary = compiled_flight_recorder_event_ids();
+    let registry = wp009_surface_registry();
+
+    // (2) Corpus scan — `body_md` AND every `body_json` string leaf.
     let mut sections_scanned = 0usize;
+    let mut json_sections_scanned = 0usize;
     let mut symbol_claims_checked = 0usize;
+    let mut route_claims_checked = 0usize;
     let mut flight_recorder_event_claims_checked = 0usize;
+    let mut literal_claims_collected = 0usize;
 
     for page in pages {
         for section in &page.sections {
             sections_scanned += 1;
-            for span in backticked_spans(&section.body_md) {
-                let Some(candidate) = manual_symbol_candidate(span) else {
-                    continue;
-                };
-                symbol_claims_checked += 1;
-                if !symbol_vocabulary.contains(candidate) {
-                    errors.push(BehaviorCoverageError {
-                        behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
-                        reason: format!(
-                            "UserManual page `{}` section `{}` names product symbol `{}`, which is \
-                             not in the compiled named-surface vocabulary (HBR-MAN-003: the manual \
-                             must never name a surface that does not exist). Either the symbol was \
-                             renamed/removed in product code, or the claim is fabricated. Fix the \
-                             prose, or add a ManualNamedSymbol entry that compile-anchors it.",
-                            page.slug, section.section_kind, candidate
-                        ),
-                    });
-                }
+            let mut bodies: Vec<String> = vec![section.body_md.clone()];
+            if let Some(json) = &section.body_json {
+                json_sections_scanned += 1;
+                json_string_leaves(json, &mut bodies);
             }
-            for token in flight_recorder_event_tokens(&section.body_md) {
-                flight_recorder_event_claims_checked += 1;
-                let resolved = event_vocabulary.iter().any(|id| id.starts_with(token));
-                let planned = PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES
-                    .iter()
-                    .any(|(family, _)| *family == token);
-                if !resolved && !planned {
-                    errors.push(BehaviorCoverageError {
-                        behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
-                        reason: format!(
-                            "UserManual page `{}` section `{}` names Flight Recorder event `{}`, \
-                             which is neither a compiled event id (nor a prefix of one) nor a \
-                             declared PLANNED family (HBR-MAN-003).",
-                            page.slug, section.section_kind, token
-                        ),
-                    });
+
+            for body in &bodies {
+                for span in backticked_spans(body) {
+                    if let Some(route) = manual_route_claim(span) {
+                        route_claims_checked += 1;
+                        if route.method_as_written != route.method {
+                            errors.push(BehaviorCoverageError {
+                                behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                                reason: format!(
+                                    "UserManual page `{}` section `{}` writes route method `{}` in \
+                                     `{} {}`; documented methods must be canonical uppercase `{}` \
+                                     so a model copying the manual issues the request the router \
+                                     actually matches (HBR-MAN-003).",
+                                    page.slug,
+                                    section.section_kind,
+                                    route.method_as_written,
+                                    route.method_as_written,
+                                    route.path,
+                                    route.method
+                                ),
+                            });
+                            continue;
+                        }
+                        let mounted = registry.iter().any(|surface| {
+                            surface.method == route.method
+                                && route_path_matches(route.path, surface.route)
+                        });
+                        let exempt = NON_REGISTRY_DOCUMENTED_ROUTES
+                            .iter()
+                            .any(|(method, path, _)| *method == route.method && *path == route.path);
+                        if !mounted && !exempt {
+                            errors.push(BehaviorCoverageError {
+                                behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                                reason: format!(
+                                    "UserManual page `{}` section `{}` documents route `{} {}`, \
+                                     which resolves to no row of wp009_surface_registry() \
+                                     (HBR-MAN-003). Either the route is not mounted, the method is \
+                                     wrong, or the path parameter names drift from the mounted \
+                                     pattern (for example `:ws` where the router mounts \
+                                     `:workspace_id`). Fix the prose, add the missing \
+                                     SurfaceDescriptor row, or declare it in \
+                                     NON_REGISTRY_DOCUMENTED_ROUTES with a written reason.",
+                                    page.slug, section.section_kind, route.method, route.path
+                                ),
+                            });
+                        }
+                        continue;
+                    }
+
+                    // Literal classes are tested BEFORE the symbol shape: a
+                    // `SCREAMING_SNAKE` env var is uppercase-initial and made
+                    // only of identifier characters, so the bare-symbol rule
+                    // would otherwise swallow the whole env/event-type class.
+                    if literal_claim_class(span).is_some() {
+                        literal_claims_collected += 1;
+                        continue;
+                    }
+
+                    if let Some(candidate) = manual_symbol_candidate(span) {
+                        let bare = !candidate.contains("::");
+                        if symbol_vocabulary.contains(candidate)
+                            || (bare && symbol_segment_vocabulary.contains(candidate))
+                        {
+                            symbol_claims_checked += 1;
+                            continue;
+                        }
+                        if bare {
+                            // A bare name the compiled vocabulary does not
+                            // anchor is not ignored: it degrades to a literal
+                            // claim resolved against product source.
+                            literal_claims_collected += 1;
+                            continue;
+                        }
+                        symbol_claims_checked += 1;
+                        errors.push(BehaviorCoverageError {
+                            behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                            reason: format!(
+                                "UserManual page `{}` section `{}` names product symbol `{}`, which is \
+                                 not in the compiled named-surface vocabulary (HBR-MAN-003: the manual \
+                                 must never name a surface that does not exist). Either the symbol was \
+                                 renamed/removed in product code, or the claim is fabricated. Fix the \
+                                 prose, or add a ManualNamedSymbol entry that compile-anchors it.",
+                                page.slug, section.section_kind, candidate
+                            ),
+                        });
+                    }
+                }
+
+                for claim in flight_recorder_event_tokens(body) {
+                    flight_recorder_event_claims_checked += 1;
+                    if claim.as_written != claim.token {
+                        errors.push(BehaviorCoverageError {
+                            behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                            reason: format!(
+                                "UserManual page `{}` section `{}` writes Flight Recorder event \
+                                 `{}`; compiled event ids are uppercase `{}`, and a lowercase \
+                                 spelling would let a fabricated id evade this gate (HBR-MAN-003).",
+                                page.slug, section.section_kind, claim.as_written, claim.token
+                            ),
+                        });
+                        continue;
+                    }
+                    let resolved =
+                        flight_recorder_token_resolves(&claim.token, &event_vocabulary);
+                    let planned = PLANNED_FLIGHT_RECORDER_EVENT_FAMILIES
+                        .iter()
+                        .any(|(family, _)| *family == claim.token);
+                    if !resolved && !planned {
+                        errors.push(BehaviorCoverageError {
+                            behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                            reason: format!(
+                                "UserManual page `{}` section `{}` names Flight Recorder event `{}`, \
+                                 which is neither a compiled event id, nor a family prefix of one at \
+                                 a `-` boundary, nor a declared PLANNED family (HBR-MAN-003).",
+                                page.slug, section.section_kind, claim.token
+                            ),
+                        });
+                    }
                 }
             }
         }
@@ -1680,11 +2268,162 @@ pub fn verify_manual_named_surface_existence(
         Ok(ManualNamedSurfaceProof {
             pages_scanned: pages.len(),
             sections_scanned,
+            json_sections_scanned,
             symbol_claims_checked,
+            route_claims_checked,
             flight_recorder_event_claims_checked,
+            literal_claims_collected,
             compiled_symbol_vocabulary: symbol_vocabulary.len(),
             compiled_flight_recorder_vocabulary: event_vocabulary.len(),
         })
+    } else {
+        Err(errors)
+    }
+}
+
+/// The literal class a backticked span belongs to, if any.
+fn literal_claim_class(span: &str) -> Option<ManualClaimClass> {
+    let value = span.trim();
+    if value.is_empty() || value.contains(char::is_whitespace) {
+        return None;
+    }
+    // `hsk.<snake_name>@<digits>`
+    if let Some((head, version)) = value.rsplit_once('@') {
+        if let Some(name) = head.strip_prefix("hsk.") {
+            if !name.is_empty()
+                && !version.is_empty()
+                && version.chars().all(|c| c.is_ascii_digit())
+                && name
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '.')
+            {
+                return Some(ManualClaimClass::SchemaId);
+            }
+        }
+    }
+    if !is_ident_segment(value) {
+        return None;
+    }
+    let first = value.chars().next()?;
+    if first.is_ascii_uppercase() {
+        // Uppercase-initial: either SCREAMING_SNAKE or a bare CamelCase name
+        // (the latter only reaches here through the symbol path).
+        if value
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+            && value.contains('_')
+        {
+            return Some(ManualClaimClass::ScreamingSnake);
+        }
+        return None;
+    }
+    if first.is_ascii_lowercase()
+        && value.contains('_')
+        && value
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
+        return Some(ManualClaimClass::SnakeCase);
+    }
+    None
+}
+
+/// Every string-literal claim the seeded corpus makes: env vars, EventLedger
+/// event types, config/JSON keys, typed schema ids, and bare type names the
+/// compiled vocabulary does not anchor.
+///
+/// These name string literals in product source rather than Rust items this
+/// module can name, so they cannot be compile-anchored here. Hand them to
+/// [`verify_manual_literal_claims`] together with the real product source text.
+pub fn manual_literal_claims(pages: &[NewUserManualPage]) -> Vec<ManualLiteralClaim> {
+    let mut symbol_vocabulary: BTreeSet<&'static str> = BTreeSet::new();
+    for symbol in ManualNamedSymbol::ALL {
+        symbol_vocabulary.insert(symbol.literal());
+    }
+    let mut symbol_segment_vocabulary: BTreeSet<&'static str> = BTreeSet::new();
+    for literal in &symbol_vocabulary {
+        for segment in literal.split("::") {
+            if segment.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+                symbol_segment_vocabulary.insert(segment);
+            }
+        }
+    }
+
+    let mut claims = Vec::new();
+    for page in pages {
+        for section in &page.sections {
+            let mut bodies: Vec<String> = vec![section.body_md.clone()];
+            if let Some(json) = &section.body_json {
+                json_string_leaves(json, &mut bodies);
+            }
+            for body in &bodies {
+                for span in backticked_spans(body) {
+                    if manual_route_claim(span).is_some() {
+                        continue;
+                    }
+                    // Same ordering as `verify_manual_named_surface_existence`:
+                    // literal classes first, then the bare-symbol fallback.
+                    let (class, literal) = if let Some(class) = literal_claim_class(span) {
+                        (class, span.trim().to_string())
+                    } else if let Some(candidate) = manual_symbol_candidate(span) {
+                        if candidate.contains("::")
+                            || symbol_vocabulary.contains(candidate)
+                            || symbol_segment_vocabulary.contains(candidate)
+                        {
+                            continue;
+                        }
+                        (ManualClaimClass::BareTypeName, candidate.to_string())
+                    } else {
+                        continue;
+                    };
+                    claims.push(ManualLiteralClaim {
+                        page_slug: page.slug.clone(),
+                        section_kind: section.section_kind,
+                        class,
+                        literal,
+                    });
+                }
+            }
+        }
+    }
+    claims
+}
+
+/// Resolve [`manual_literal_claims`] against real product source text.
+///
+/// `product_source` is the concatenation of the product's own source files with
+/// the manual corpus itself EXCLUDED — otherwise every claim would resolve
+/// against the sentence that made it. The proof suite owns the file walk,
+/// because the library must never read the source tree at runtime.
+///
+/// Returns the number of claims resolved, or one error per claim that names a
+/// literal appearing nowhere in the product. This is deliberately weaker than
+/// compile anchoring — a rename applied to both the manual and the code passes —
+/// and that limitation is why the strongest classes (Rust paths, routes, Flight
+/// Recorder ids) are proven by [`verify_manual_named_surface_existence`] instead.
+pub fn verify_manual_literal_claims(
+    claims: &[ManualLiteralClaim],
+    product_source: &str,
+) -> Result<usize, Vec<BehaviorCoverageError>> {
+    let mut errors = Vec::new();
+    for claim in claims {
+        if !product_source.contains(&claim.literal) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+                reason: format!(
+                    "UserManual page `{}` section `{}` names {} `{}`, which appears nowhere in \
+                     product source (HBR-MAN-003). The manual must never name a surface that does \
+                     not exist: fix the spelling, or remove the claim.",
+                    claim.page_slug,
+                    claim.section_kind,
+                    claim.class.as_str(),
+                    claim.literal
+                ),
+            });
+        }
+    }
+    if errors.is_empty() {
+        Ok(claims.len())
     } else {
         Err(errors)
     }
@@ -2856,7 +3595,7 @@ fn canonical_non_schema_behavior_registry() -> Vec<CanonicalBehaviorDescriptor> 
             user_manual_slug: "cloud-model-access",
             tool_id: "test_cloud_models_settings_argus",
             eventledger_flight_recorder_path:
-                "settings_argus:official_cli_bridge_login + provider_owned_login_command",
+                "settings_argus:official_cli_bridge_in_app_pty_login + provider_owned_login_command + process_ledger_start_stop",
             internal_diagnostics_posture: DiagnosticTierPosture::NotApplicableWithReason,
             palmistry_posture: DiagnosticTierPosture::NotApplicableWithReason,
             deferred_reason: Some(NOT_APPLICABLE_REASON),
@@ -3332,34 +4071,385 @@ pub async fn verify_model_lane_behavior_evidence(
     }
 
     const BEHAVIOR_ID: &str = "HBR-INT-009";
-    match store
+    // A read this reader is not scoped for returns NO tier rows (the store's
+    // owner predicate keeps them inside PostgreSQL), so a cross-account call
+    // lands here as "no valid evidence" rather than disclosing another
+    // account's diagnostic records. The message names only the caller-supplied
+    // run id (HBR-PRIV-004: a denial must not be an existence oracle).
+    let posture = match store
         .validate_diagnostic_tier_posture(run_id, BEHAVIOR_ID)
         .await
     {
-        Ok(posture)
-            if posture.run_id == run_id
-                && posture.behavior_id == BEHAVIOR_ID
-                && posture.tiers.iter().all(|tier| {
-                    !tier.event_ledger_event_id.trim().is_empty()
-                        && (tier.evidence_ref.starts_with("eventledger://kernel/")
-                            || tier
-                                .evidence_ref
-                                .starts_with("internal-diagnostics://session/")
-                            || tier
-                                .evidence_ref
-                                .starts_with("palmistry-observation://session/"))
-                }) =>
-        {
-            Ok(vec![posture])
+        Ok(posture) => posture,
+        Err(error) => {
+            return Err(vec![BehaviorCoverageError {
+                behavior_id: BEHAVIOR_ID,
+                reason: format!("run {run_id} has no valid three-tier diagnostic evidence: {error}"),
+            }])
         }
-        Ok(_) => Err(vec![BehaviorCoverageError {
+    };
+
+    let mut errors = Vec::new();
+    if posture.run_id != run_id || posture.behavior_id != BEHAVIOR_ID {
+        errors.push(BehaviorCoverageError {
             behavior_id: BEHAVIOR_ID,
-            reason: "diagnostic tier records lack correlated durable EventLedger evidence"
-                .to_owned(),
-        }]),
-        Err(error) => Err(vec![BehaviorCoverageError {
-            behavior_id: BEHAVIOR_ID,
-            reason: format!("run {run_id} has no valid three-tier diagnostic evidence: {error}"),
-        }]),
+            reason: format!("diagnostic tier posture does not correlate to run {run_id}"),
+        });
+    }
+
+    // Exactly one record per canonical tier. `validate_diagnostic_tier_posture`
+    // already refuses a missing tier; this additionally refuses a duplicate or
+    // an unexpected tier, so the envelope shape is pinned rather than assumed.
+    for (tier, _, _) in DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING {
+        let recorded = posture
+            .tiers
+            .iter()
+            .filter(|record| record.tier == tier)
+            .count();
+        if recorded != 1 {
+            errors.push(BehaviorCoverageError {
+                behavior_id: BEHAVIOR_ID,
+                reason: format!(
+                    "run-level HBR-INT-009 envelope must carry exactly one `{}` tier record, found {recorded}",
+                    tier.as_str()
+                ),
+            });
+        }
+    }
+
+    for record in &posture.tiers {
+        if record.event_ledger_event_id.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: BEHAVIOR_ID,
+                reason: format!(
+                    "HBR-INT-009 tier `{}` has no durable EventLedger event id",
+                    record.tier.as_str()
+                ),
+            });
+        }
+        // RUN_LEVEL_WIRED is a liveness claim. A tier that is merely deferred or
+        // not-applicable cannot carry it, so the run-level gate demands WIRED.
+        if record.state != ModelLaneDiagnosticTierState::Wired {
+            errors.push(BehaviorCoverageError {
+                behavior_id: BEHAVIOR_ID,
+                reason: format!(
+                    "RUN_LEVEL_WIRED coverage requires a live WIRED `{}` tier record, got `{}`",
+                    record.tier.as_str(),
+                    record.state.as_str()
+                ),
+            });
+        }
+        // The load-bearing MT-011 remediation: each tier's evidence must use its
+        // OWN URI scheme. Offering Tier-3 Palmistry evidence as Tier-2
+        // internal_diagnostics evidence (or the reverse) is rejected here.
+        if let Err(violation) =
+            verify_diagnostic_tier_evidence_uri(record.tier, &record.evidence_ref)
+        {
+            errors.push(BehaviorCoverageError {
+                behavior_id: BEHAVIOR_ID,
+                reason: violation.to_string(),
+            });
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(vec![posture])
+    } else {
+        Err(errors)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MT-011 acceptance: the machine-readable per-behavior UserManual coverage
+// matrix, emitted under the Rust-owned schema id
+// `hsk.user_manual_behavior_coverage@1`.
+//
+// This is a PROJECTION of the already-generated behavior rows
+// ([`model_lane_behavior_coverage_matrix`] and the canonical non-schema
+// registries), not a second source of truth: it joins each row to its computed
+// self-consistency result so the matrix is complete on its own terms and can be
+// serialized for a no-context model, an operator surface, or a validator.
+//
+// [`verify_user_manual_behavior_coverage_matrix`] is the acceptance gate: it
+// FAILS when any behavior lacks a UserManual entry, an EventLedger/Flight
+// Recorder evidence path, a per-tier internal_diagnostics/Palmistry posture, a
+// runtime route/schema, or a self-consistency result. Keyword grep is never the
+// proof target.
+// ---------------------------------------------------------------------------
+
+/// Rust-owned schema id for the MT-011 coverage matrix. Already named by the
+/// seeded UserManual corpus and by the storage proof; this is the compiled
+/// definition those references point at.
+pub const USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID: &str = "hsk.user_manual_behavior_coverage@1";
+
+fn serialize_posture<S>(posture: &DiagnosticTierPosture, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(posture.as_str())
+}
+
+/// The self-consistency column. Either the authorities that were actually
+/// checked for this behavior, or the reasons it is inconsistent; never absent.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "result", rename_all = "snake_case")]
+pub enum BehaviorSelfConsistencyResult {
+    Consistent {
+        checked_authorities: Vec<&'static str>,
+    },
+    Inconsistent {
+        errors: Vec<String>,
+    },
+}
+
+impl BehaviorSelfConsistencyResult {
+    pub const fn is_consistent(&self) -> bool {
+        matches!(self, Self::Consistent { .. })
+    }
+}
+
+/// One machine-readable coverage row, keyed by `behavior_id` and by
+/// `schema_id`-or-`event_family`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct UserManualBehaviorCoverageMatrixRow {
+    pub behavior_id: &'static str,
+    pub schema_id: Option<&'static str>,
+    pub event_family: &'static str,
+    /// The stable matrix key: the typed schema id when the behavior has one,
+    /// otherwise its event family.
+    pub schema_or_event_family: &'static str,
+    /// Implemented command / API route / IPC surface for this behavior.
+    pub runtime_surface_id: &'static str,
+    pub user_manual_slug: &'static str,
+    pub user_manual_version: &'static str,
+    pub proof_tool_id: &'static str,
+    pub eventledger_flight_recorder_evidence_path: &'static str,
+    #[serde(serialize_with = "serialize_posture")]
+    pub internal_diagnostics_posture: DiagnosticTierPosture,
+    #[serde(serialize_with = "serialize_posture")]
+    pub palmistry_posture: DiagnosticTierPosture,
+    /// Required whenever a posture is anything other than a per-behavior
+    /// `WIRED` observation.
+    pub diagnostic_reason: Option<&'static str>,
+    pub follow_up_ref: Option<&'static str>,
+    pub self_consistency_result: BehaviorSelfConsistencyResult,
+}
+
+/// The full matrix plus the schema id and manual version it was generated for.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct UserManualBehaviorCoverageMatrix {
+    pub schema_id: &'static str,
+    pub user_manual_version: &'static str,
+    /// Exact tier to URI prefix binding this matrix was validated under, so a
+    /// serialized matrix carries the binding rather than implying it.
+    pub diagnostic_tier_evidence_uri_binding: Vec<(&'static str, &'static str)>,
+    pub rows: Vec<UserManualBehaviorCoverageMatrixRow>,
+}
+
+/// Project behavior coverage rows into the machine-readable MT-011 matrix,
+/// computing each row's self-consistency result against the real ModelLane
+/// schema registry and the real UserManual page/tool rows.
+pub fn user_manual_behavior_coverage_matrix(
+    rows: &[BehaviorCoverageRow],
+    schema_registry: &[ModelLaneSchemaRegistryRow],
+    pages: &[UserManualPage],
+    tools: &[UserManualToolEntry],
+) -> UserManualBehaviorCoverageMatrix {
+    let rows = rows
+        .iter()
+        .map(|row| {
+            let self_consistency_result =
+                match row.self_consistency_result(schema_registry, pages, tools) {
+                    Ok(proof) => BehaviorSelfConsistencyResult::Consistent {
+                        checked_authorities: proof.checked_authorities.into_iter().collect(),
+                    },
+                    Err(errors) => BehaviorSelfConsistencyResult::Inconsistent {
+                        errors: errors.into_iter().map(|error| error.reason).collect(),
+                    },
+                };
+            UserManualBehaviorCoverageMatrixRow {
+                behavior_id: row.behavior_id,
+                schema_id: row.schema_id,
+                event_family: row.event_family,
+                schema_or_event_family: row.schema_or_event_family(),
+                runtime_surface_id: row.runtime_surface_id,
+                user_manual_slug: row.user_manual_slug,
+                user_manual_version: USER_MANUAL_VERSION,
+                proof_tool_id: row.tool_id,
+                eventledger_flight_recorder_evidence_path: row.eventledger_flight_recorder_path,
+                internal_diagnostics_posture: row.internal_diagnostics_posture,
+                palmistry_posture: row.palmistry_posture,
+                diagnostic_reason: row.deferred_reason,
+                follow_up_ref: row.follow_up_ref,
+                self_consistency_result,
+            }
+        })
+        .collect();
+
+    UserManualBehaviorCoverageMatrix {
+        schema_id: USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID,
+        user_manual_version: USER_MANUAL_VERSION,
+        diagnostic_tier_evidence_uri_binding: compiled_diagnostic_tier_uri_binding(),
+        rows,
+    }
+}
+
+fn compiled_diagnostic_tier_uri_binding() -> Vec<(&'static str, &'static str)> {
+    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING
+        .iter()
+        .map(|(tier, _, prefix)| (tier.as_str(), *prefix))
+        .collect()
+}
+
+/// MT-011 acceptance gate over the machine-readable matrix.
+///
+/// Returns the number of behaviors proven, or one error per missing column.
+/// Fails when a behavior lacks any of: a UserManual entry, an EventLedger/Flight
+/// Recorder evidence path, a per-tier diagnostic posture with its required
+/// reason, a runtime route/schema, or a self-consistency result.
+pub fn verify_user_manual_behavior_coverage_matrix(
+    matrix: &UserManualBehaviorCoverageMatrix,
+) -> Result<usize, Vec<BehaviorCoverageError>> {
+    const MATRIX_ID: &str = "user_manual.behavior_coverage_matrix";
+    let mut errors = Vec::new();
+
+    if matrix.schema_id != USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID {
+        errors.push(BehaviorCoverageError {
+            behavior_id: MATRIX_ID,
+            reason: format!(
+                "coverage matrix must be emitted as {USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID}"
+            ),
+        });
+    }
+    if matrix.user_manual_version != USER_MANUAL_VERSION {
+        errors.push(BehaviorCoverageError {
+            behavior_id: MATRIX_ID,
+            reason: format!(
+                "coverage matrix targets manual version {} but the compiled corpus is {USER_MANUAL_VERSION}",
+                matrix.user_manual_version
+            ),
+        });
+    }
+    if matrix.rows.is_empty() {
+        // A matrix with no rows would let every per-row check below pass
+        // vacuously, which is exactly the false green MT-011 forbids.
+        errors.push(BehaviorCoverageError {
+            behavior_id: MATRIX_ID,
+            reason: "coverage matrix is empty; a matrix that covers nothing is not proof".to_owned(),
+        });
+    }
+
+    let mut seen = BTreeSet::new();
+    for row in &matrix.rows {
+        if !seen.insert(row.behavior_id) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "duplicate behavior_id in the coverage matrix".to_owned(),
+            });
+        }
+        if row.behavior_id.trim().is_empty() || row.schema_or_event_family.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "matrix key (behavior_id plus schema_id/event_family) is incomplete"
+                    .to_owned(),
+            });
+        }
+        if row.schema_or_event_family != row.schema_id.unwrap_or(row.event_family) {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "schema_or_event_family key does not derive from schema_id/event_family"
+                    .to_owned(),
+            });
+        }
+        if row.runtime_surface_id.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "matrix row lacks an implemented command/API/IPC runtime surface".to_owned(),
+            });
+        }
+        if row.user_manual_slug.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "matrix row lacks a UserManual entry".to_owned(),
+            });
+        }
+        if row.proof_tool_id.trim().is_empty() {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "matrix row lacks a UserManual proof target".to_owned(),
+            });
+        }
+        if row
+            .eventledger_flight_recorder_evidence_path
+            .trim()
+            .is_empty()
+        {
+            errors.push(BehaviorCoverageError {
+                behavior_id: row.behavior_id,
+                reason: "matrix row lacks an EventLedger/Flight Recorder evidence path".to_owned(),
+            });
+        }
+        for (tier_label, posture) in [
+            ("internal_diagnostics", row.internal_diagnostics_posture),
+            ("palmistry", row.palmistry_posture),
+        ] {
+            if !matches!(posture, DiagnosticTierPosture::Wired) && row.diagnostic_reason.is_none() {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: format!(
+                        "{tier_label} posture {} requires an explicit reason",
+                        posture.as_str()
+                    ),
+                });
+            }
+            let follow_up_required = matches!(
+                posture,
+                DiagnosticTierPosture::RunLevelWired | DiagnosticTierPosture::DeferredWithReason
+            );
+            if follow_up_required && row.follow_up_ref.is_none() {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: format!(
+                        "{tier_label} posture {} requires a follow_up_ref",
+                        posture.as_str()
+                    ),
+                });
+            }
+        }
+        if let BehaviorSelfConsistencyResult::Inconsistent { errors: reasons } =
+            &row.self_consistency_result
+        {
+            if reasons.is_empty() {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: "self-consistency result is inconsistent with no stated reason"
+                        .to_owned(),
+                });
+            }
+            for reason in reasons {
+                errors.push(BehaviorCoverageError {
+                    behavior_id: row.behavior_id,
+                    reason: format!("self-consistency failed: {reason}"),
+                });
+            }
+        }
+    }
+
+    // The serialized binding must match the compiled one, so a matrix handed to
+    // a validator cannot advertise a looser tier-to-scheme contract than the one
+    // `verify_diagnostic_tier_evidence_uri` actually enforces.
+    if matrix.diagnostic_tier_evidence_uri_binding != compiled_diagnostic_tier_uri_binding() {
+        errors.push(BehaviorCoverageError {
+            behavior_id: MATRIX_ID,
+            reason:
+                "declared diagnostic tier to evidence URI binding does not match the compiled binding"
+                    .to_owned(),
+        });
+    }
+
+    if errors.is_empty() {
+        Ok(matrix.rows.len())
+    } else {
+        Err(errors)
     }
 }

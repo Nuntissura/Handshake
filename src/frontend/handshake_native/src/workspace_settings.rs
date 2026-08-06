@@ -599,6 +599,29 @@ pub struct SettingsClient {
 }
 
 impl SettingsClient {
+    /// Drive an async request to completion from this SYNCHRONOUS transport seam.
+    ///
+    /// `Handle::block_on` PANICS with "Cannot start a runtime from within a
+    /// runtime" when it is called on a thread that is already driving tokio
+    /// tasks. The documented usage of this transport - "called ONLY from a
+    /// short-lived tokio task off the egui UI thread" - is precisely that case,
+    /// so the previous direct `self.runtime.block_on(...)` crashed the worker
+    /// every time the app loaded or saved workspace settings during startup.
+    /// That panic killed the thread before the native shell published its
+    /// `swarm_mcp_binding.json`, which is why live Argus could not attach to the
+    /// production binary at all.
+    ///
+    /// `block_in_place` is the sanctioned mechanism: it tells the multi-threaded
+    /// runtime that this worker is about to block so the runtime can migrate the
+    /// remaining tasks off it, instead of deadlocking or panicking. Outside a
+    /// runtime there is nothing to yield, so the plain `block_on` is correct.
+    fn bridge<F: std::future::Future>(&self, fut: F) -> F::Output {
+        match tokio::runtime::Handle::try_current() {
+            Ok(_) => tokio::task::block_in_place(|| self.runtime.block_on(fut)),
+            Err(_) => self.runtime.block_on(fut),
+        }
+    }
+
     /// Build a client against `base_url` (e.g. [`crate::backend_client::BACKEND_BASE_URL`]) bridging
     /// onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
@@ -641,7 +664,7 @@ impl SettingsTransport for SettingsClient {
     fn load(&self, workspace_id: &str) -> Result<Option<Value>, SettingsTransportError> {
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
-        self.runtime.block_on(async move {
+        self.bridge(async move {
             let resp = client
                 .get(&url)
                 .timeout(REQUEST_TIMEOUT)
@@ -674,7 +697,7 @@ impl SettingsTransport for SettingsClient {
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
         let request_body = serde_json::json!({ "settings_state": settings_state });
-        self.runtime.block_on(async move {
+        self.bridge(async move {
             let resp = client
                 .put(&url)
                 .timeout(REQUEST_TIMEOUT)

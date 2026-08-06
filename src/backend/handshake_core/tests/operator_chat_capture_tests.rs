@@ -802,9 +802,11 @@ impl ModelSessionFactory for CliLoopbackFactory {
     }
 }
 
-fn cli_loopback_coordinator(store: ModelLaneStore, lines: Vec<String>) -> Arc<SwarmCoordinator> {
-    cli_loopback_coordinator_with_ledger(store, lines).0
-}
+// `cli_loopback_coordinator` was removed deliberately: it returned only `.0`
+// from `cli_loopback_coordinator_with_ledger`, silently dropping the
+// `ProcessLedgerDrain` that owns the ledger receiver, which closed the channel
+// before the first spawn. Callers must bind the drain, so there is no
+// drain-discarding convenience wrapper to fall back into.
 
 fn cli_generic_loopback_coordinator(
     store: ModelLaneStore,
@@ -850,11 +852,21 @@ fn cli_loopback_coordinator_with_ledger_and_kind(
     (Arc::new(coordinator), drain)
 }
 
+/// Returns the drain alongside the coordinator so the caller keeps it alive.
+///
+/// `LedgerBatcher::manual_for_tests` hands back the ONLY mpsc `Receiver` inside
+/// the `ProcessLedgerDrain`. Dropping it at helper exit closes the ledger
+/// channel before the first spawn, so every lossless terminal STOP then fails
+/// with "no ledger consumer is running" and the lane never reaches a terminal
+/// state. That is a dead fixture, not a product defect — it made the ledger path
+/// under test unreachable. Sibling helpers such as
+/// `cli_cancel_after_prefix_coordinator` already return the drain for this
+/// reason; these two were simply never updated.
 fn cli_failing_after_chunk_coordinator(
     store: ModelLaneStore,
     lines: Vec<String>,
-) -> Arc<SwarmCoordinator> {
-    let (ledger, _drain) =
+) -> (Arc<SwarmCoordinator>, ProcessLedgerDrain) {
+    let (ledger, drain) =
         LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
             .expect("manual process ledger");
     let coordinator = SwarmCoordinator::new_with_model_lane_store(
@@ -869,7 +881,7 @@ fn cli_failing_after_chunk_coordinator(
         ledger,
         store,
     );
-    Arc::new(coordinator)
+    (Arc::new(coordinator), drain)
 }
 
 fn cli_cancel_after_prefix_coordinator(
@@ -1657,7 +1669,8 @@ async fn operator_chat_launch_stream_error_preserves_partial_capture_and_reclaim
         json!({"type":"item.completed","item":{"id":"r1","type":"reasoning","text": marker}})
             .to_string(),
     ];
-    let coordinator = cli_failing_after_chunk_coordinator(store, lines);
+    // `_drain` must stay bound for the whole test: it owns the ledger receiver.
+    let (coordinator, _drain) = cli_failing_after_chunk_coordinator(store, lines);
     let recorder = Arc::new(CapturingRecorder::default());
     let service =
         OperatorChatLaunchService::new(coordinator.clone(), ModelCatalog::empty(), recorder);
@@ -2142,7 +2155,8 @@ async fn operator_chat_launch_captured_messages_originate_from_launched_runtime_
         json!({"type":"item.completed","item":{"id":"r1","type":"reasoning","text": marker_thought}}).to_string(),
         json!({"type":"item.completed","item":{"id":"m1","type":"agent_message","text": marker_answer}}).to_string(),
     ];
-    let coordinator = cli_loopback_coordinator(store.clone(), lines);
+    // `_drain` must stay bound for the whole test: it owns the ledger receiver.
+    let (coordinator, _drain) = cli_loopback_coordinator_with_ledger(store.clone(), lines);
     let recorder = Arc::new(CapturingRecorder::default());
     let service =
         OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
@@ -2479,7 +2493,14 @@ fn operator_chat_launch_config_forces_stream_json() {
 /// AC: the operator working_dir is the REAL CLI subprocess cwd (F10 plumbing).
 /// Uses the real `LiveCliSpawner` to run `cmd /c cd`, which prints its cwd.
 #[cfg(windows)]
-#[tokio::test]
+// Multi-threaded runtime is REQUIRED, not cosmetic. `LiveCliSpawner::spawn` is a
+// blocking call, and it will not return until the process ledger durably
+// acknowledges the START row. On the default current-thread runtime the blocking
+// spawn owns the only worker, so the spawned ledger writer task can never be
+// polled, the ack never lands, and the spawner correctly terminates and reaps the
+// child with PROCESS_LEDGER_DURABILITY_ACK_TIMEOUT. The sibling launch proofs use
+// the same flavor for the same reason.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     use handshake_core::swarm_orchestration::production_factory::cli_bridge_config_with_working_dir;
     use std::collections::HashMap;
@@ -2490,15 +2511,43 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     std::fs::create_dir_all(&selected).expect("create operator-selected dir");
     let selected_str = selected.to_string_lossy().to_string();
 
-    let (ledger, _drain) =
-        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
-            .expect("manual process ledger");
-    let spawner = LiveCliSpawner::new(Arc::new(ledger), LiveCliSpawner::native_cli_registry());
+    // A REAL, driven, PostgreSQL-backed ledger — not a manual batcher.
+    //
+    // `LiveCliSpawner` is the production spawner: it refuses to leave a child
+    // running unless the ledger durably acknowledges the START row, and
+    // terminates and reaps the child if that ack does not land
+    // (PROCESS_LEDGER_DURABILITY_ACK_TIMEOUT). That is the HBR-QUIET-003
+    // process-ownership guarantee, so it must not be dodged. A
+    // `manual_for_tests` batcher is never driven, so the ack can never arrive
+    // and the child is always killed before it can report its cwd.
+    let (pool, _lane_store) = pg_store().await;
+    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    ledger_store
+        .apply_migration()
+        .await
+        .expect("process ledger migration applies before the launch durability gate");
+    let (ledger, ledger_writer) = LedgerBatcher::spawn(
+        ledger_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
+    let spawner = LiveCliSpawner::new(Arc::new(ledger.clone()), LiveCliSpawner::native_cli_registry());
 
+    // A real, non-interpreter executable that reports its own cwd.
+    //
+    // This previously spawned `cmd /c cd`, which can never succeed: the product
+    // denylists generic command interpreters as CLI entrypoints
+    // (`reject_command_interpreter` in model_runtime/cloud/official_cli_bridge.rs
+    // lists `cmd` / `cmd.exe` among others, matched on file name, so PATH
+    // resolution does not get past it either). Making the old form pass would
+    // have required deleting `cmd` from that denylist — removing a security
+    // control to satisfy a fixture. The behaviour under test (an operator-selected
+    // working directory really becomes the spawned child's cwd) is legitimate, so
+    // it is proven here against `cwd-probe`, a genuine spawned process.
     let template = CliBridgeConfig {
         cli_kind: CliKind::Other,
-        executable_path: "cmd".into(),
-        args_template: vec!["/c".into(), "cd".into()],
+        executable_path: env!("CARGO_BIN_EXE_cwd-probe").into(),
+        args_template: Vec::new(),
         output_format: CliOutputFormat::RawText,
         env_vars: HashMap::new(),
         working_dir: None,
@@ -2510,6 +2559,17 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     assert_eq!(config.working_dir.as_deref(), Some(selected.as_path()));
 
     use handshake_core::model_runtime::cloud::CliSubprocessSpawner;
+
+    // Pin the executable graph exactly as production does. `register_bridge`
+    // pins the config when a CLI bridge is registered, and `LiveCliSpawner`
+    // revalidates that same pinned identity immediately before every launch, so
+    // an unpinned entrypoint is refused. This test hand-builds its config
+    // instead of going through `register_bridge`, so it must pin explicitly —
+    // that keeps the identity control in force rather than routing around it.
+    spawner
+        .pin_config(&config)
+        .expect("cwd-probe executable graph pins for the operator-selected launch");
+
     let mut selected_invocation = CliInvocationContext::new("OPERATOR_CHAT_TEST", "model");
     selected_invocation.requested_trust_class = Some(handshake_core::sandbox::TrustClass::Trusted);
     selected_invocation.requested_isolation_tier =
@@ -2524,7 +2584,7 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     selected_invocation.working_dir = Some(selected_str.clone());
     let receipt = spawner
         .spawn(&config, &selected_invocation, "model", "prompt")
-        .expect("cmd /c cd spawns");
+        .expect("cwd-probe spawns");
     assert!(
         receipt
             .stdout
@@ -2540,13 +2600,23 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     default_invocation.working_dir = None;
     let default_receipt = spawner
         .spawn(&template, &default_invocation, "model", "prompt")
-        .expect("default cmd /c cd spawns");
+        .expect("default cwd-probe spawns");
     assert!(
         !default_receipt
             .stdout
             .to_lowercase()
             .contains(&unique.to_lowercase()),
         "without working_dir the subprocess must NOT be in the operator selection"
+    );
+
+    // Drain and join the ledger writer so both spawns' START/STOP rows are
+    // durably settled before the test ends. Leaving the writer task running
+    // would leak it into the rest of the suite and hide unacknowledged rows.
+    let ledger_outcome =
+        drain_and_join_ledger_writer(&ledger, ledger_writer, Duration::from_secs(10)).await;
+    assert!(
+        matches!(ledger_outcome, LedgerDrainJoinOutcome::Flushed),
+        "the production process-ledger writer must flush both spawns' START/STOP rows; got {ledger_outcome:?}"
     );
 
     let _ = std::fs::remove_dir_all(&selected);

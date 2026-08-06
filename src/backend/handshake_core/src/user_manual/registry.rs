@@ -961,6 +961,264 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "q + filter query params including source_kinds.",
         "JSON heterogeneous graph-search hits; Loom block hits include hsk.loom_retrieval_bias@1 metadata."
     ),
+    // MT-022: the Loom routes mounted by `api::loom::routes` that had no
+    // registry row. The MT-195 negative gate
+    // (`mtdoc_every_loom_router_route_is_in_surface_registry`) requires every
+    // mounted Loom route to be inventoried here, and `surface_page` then
+    // propagates each row into the notes-loom-surface Routes section, the page
+    // route anchors, and a `user_manual_tool_entries` row.
+    surface!(
+        "loom.journals.open",
+        SurfaceGroup::NotesLoom,
+        "PUT",
+        "/workspaces/:workspace_id/loom/journals/:journal_date",
+        "Open (get-or-create) the daily journal block for one calendar date; idempotent, and re-bridges the block to ProjectKnowledgeIndex/EventLedger on every open.",
+        "workspace_id + journal_date path params; journal_date must be exactly YYYY-MM-DD (anything else is HSK-400-LOOM-JOURNAL-DATE).",
+        "JSON LoomBlock row for that date (the same block on repeat opens)."
+    ),
+    surface!(
+        "loom.blocks.transclusion",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/loom/blocks/:block_id/transclusion",
+        "Read-through from a block to its SOURCE rich document so an embedding host renders the source WITHOUT copying it.",
+        "workspace_id + block_id path params.",
+        "JSON {source_document_id, source_doc_version, content_json, resolved, unresolved_reason}; `resolved:false` carries a typed reason, never a silent blank; 404 when the block is absent."
+    ),
+    surface!(
+        "loom.assets.tiers.list",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/assets/:asset_id/tiers",
+        "List the media cache tiers for one asset with their generation status, so a failed preview tier is visible instead of silently missing.",
+        "workspace_id + asset_id path params.",
+        "JSON {tiers:[{tier, status, tier_asset_id, content_hash, failure_reason, attempt_count}]}; 404 when the asset is absent."
+    ),
+    surface!(
+        "loom.assets.tiers.retry",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/assets/:asset_id/tiers/:tier/retry",
+        "Requeue one failed media tier: flips its status back to pending (bumping attempt_count) and creates a real background preview-generation job.",
+        "workspace_id + asset_id + tier path params; an unknown tier is 400 invalid_tier.",
+        "JSON {tier, status, attempt_count, requeued}; 404 when no Loom block owns the asset."
+    ),
+    surface!(
+        "loom.collections.create",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/collections",
+        "Create an ordered asset collection — the backend list-source behind album and slideshow embeds.",
+        "JSON {title?, asset_ids?}; supplying asset_ids sets the initial order.",
+        "JSON {collection_id, title, members} with members in stored order."
+    ),
+    surface!(
+        "loom.collections.get",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/loom/collections/:collection_id",
+        "Load one collection with its ordered members.",
+        "workspace_id + collection_id path params.",
+        "JSON {collection_id, title, members}; 404 when absent."
+    ),
+    surface!(
+        "loom.collections.order",
+        SurfaceGroup::NotesLoom,
+        "PUT",
+        "/workspaces/:workspace_id/loom/collections/:collection_id/order",
+        "Replace a collection's member order (drag-reorder authority lives in PostgreSQL, not the client).",
+        "JSON {asset_ids} in the new order.",
+        "JSON {collection_id, title, members} reflecting the persisted order."
+    ),
+    surface!(
+        "loom.search_v2",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/search-v2",
+        "LoomSearchV2: Postgres-native graph-blended hybrid search (full-text + pg_trgm + pgvector kNN). Embeds the query through the configured model runtime; a typed decline degrades to keyword/trigram instead of failing.",
+        "JSON {query, content_type?, tag_ids?, graph_boost?, limit?, offset?}.",
+        "JSON LoomSearchV2Response with per-modality scores, content facets, highlights, and a semantic_available flag."
+    ),
+    surface!(
+        "loom.quick_switcher.recents.list",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/loom/quick-switcher/recents",
+        "List recently opened quick-switcher targets, most recent first.",
+        "Optional limit query param (defaults to 20, clamped to 1..=100).",
+        "JSON array of QuickSwitcherRecent rows."
+    ),
+    surface!(
+        "loom.quick_switcher.recents.record",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/quick-switcher/recents",
+        "Record one quick-switcher open so recency survives restart in PostgreSQL rather than client state.",
+        "JSON QuickSwitcherRecentInput.",
+        "JSON the recorded QuickSwitcherRecent row."
+    ),
+    surface!(
+        "loom.ai_jobs.run",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/ai-jobs",
+        "Run an AI Loom job (auto-tag / auto-caption / link-suggest) over named blocks. Every output is a PENDING proposal requiring confirm-to-promote; nothing is applied here.",
+        "JSON {kind, block_ids, tag_candidates?} plus optional x-hsk-actor-* headers; an empty block_ids is HSK-400-LOOM-AI-NO-BLOCKS and a missing block fails the whole job (no silent skip).",
+        "JSON {job_id, kind, suggestions[]}; HSK-409-LOOM-AI-NO-MODEL with zero rows when no model is configured or the provider declines."
+    ),
+    surface!(
+        "loom.ai_jobs.accept_all",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/ai-jobs/:job_id/accept-all",
+        "Accept-all-of-kind for one job. Per-item authority: each suggestion runs the SAME single-accept flow (never a bulk UPDATE), so a non-operator promotes nothing and every promotion is individually kernel-event-backed.",
+        "job_id path param; optional JSON {kind} filter; reviewer identity from x-hsk-actor-* headers.",
+        "JSON {promoted[], denied[], skipped[]}."
+    ),
+    surface!(
+        "loom.ai_suggestions.list",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/loom/ai-suggestions",
+        "List AI Loom suggestions — the review queue behind confirm-to-promote.",
+        "Optional job_id and state query params.",
+        "JSON array of LoomAiSuggestionRow."
+    ),
+    surface!(
+        "loom.ai_suggestions.accept",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/ai-suggestions/:suggestion_id/accept",
+        "Promote one PENDING AI suggestion into authority state; a model actor is refused with a durable denial receipt rather than a silent no-op.",
+        "suggestion_id path param; optional JSON {reason}; reviewer identity from x-hsk-actor-* headers.",
+        "JSON the promoted LoomAiSuggestionRow; HSK-403-LOOM-AI-PROMOTION-DENIED for an unauthorized reviewer; HSK-409-LOOM-AI-NOT-PENDING when already decided; 404 loom_ai_suggestion_not_found."
+    ),
+    surface!(
+        "loom.ai_suggestions.reject",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/ai-suggestions/:suggestion_id/reject",
+        "Reject one PENDING AI suggestion, recording the rejection as a durable receipt.",
+        "suggestion_id path param; optional JSON {reason}; reviewer identity from x-hsk-actor-* headers.",
+        "JSON the rejected LoomAiSuggestionRow; HSK-403-LOOM-AI-PROMOTION-DENIED / HSK-409-LOOM-AI-NOT-PENDING / 404 as for accept."
+    ),
+    surface!(
+        "loom.canvas_boards.create",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/canvas-boards",
+        "Create a CanvasBoard: a typed LoomBlock (content_type canvas) bridged to ProjectKnowledgeIndex plus its board-state row — not a parallel canvas store.",
+        "JSON {title?, board_state?}; board_state defaults to centered, zoom 1.",
+        "JSON LoomCanvasBoard row."
+    ),
+    surface!(
+        "loom.canvas_boards.get",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/loom/canvas-boards/:block_id",
+        "Load one canvas with its viewport, placements, and visual edges.",
+        "workspace_id + block_id path params.",
+        "JSON LoomCanvasBoardView; 404 when absent."
+    ),
+    surface!(
+        "loom.canvas_boards.viewport",
+        SurfaceGroup::NotesLoom,
+        "PUT",
+        "/workspaces/:workspace_id/loom/canvas-boards/:block_id/viewport",
+        "Persist the canvas viewport (pan/zoom) so board state survives restart in PostgreSQL.",
+        "JSON {board_state}.",
+        "JSON the updated LoomCanvasBoard row."
+    ),
+    surface!(
+        "loom.canvas_boards.placements.create",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/canvas-boards/:block_id/placements",
+        "Place an EXISTING block on a canvas as a reference (the canvas never copies block content).",
+        "JSON {placed_block_id, x, y, w, h, z_index?, group_id?}.",
+        "JSON the created LoomCanvasPlacement row."
+    ),
+    surface!(
+        "loom.canvas_boards.cards.create",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/canvas-boards/:block_id/cards",
+        "Create a free-text card: a REAL note LoomBlock backed by a RichDocument and bridged to knowledge, then placed on the canvas. The card is authority, never a board-only copy.",
+        "JSON {title, body?, x, y, w, h, z_index?}.",
+        "JSON {block, rich_document_id, placement}."
+    ),
+    surface!(
+        "loom.canvas_placements.patch",
+        SurfaceGroup::NotesLoom,
+        "PATCH",
+        "/workspaces/:workspace_id/loom/canvas-placements/:placement_id",
+        "Move, resize, restack, or (re)group one canvas placement.",
+        "JSON subset {x?, y?, w?, h?, z_index?, group_id?, clear_group?}; clear_group true removes the group binding.",
+        "JSON the updated LoomCanvasPlacement row."
+    ),
+    surface!(
+        "loom.canvas_placements.delete",
+        SurfaceGroup::NotesLoom,
+        "DELETE",
+        "/workspaces/:workspace_id/loom/canvas-placements/:placement_id",
+        "Remove a placement from a canvas; the placed block itself is untouched.",
+        "workspace_id + placement_id path params.",
+        "204 No Content."
+    ),
+    surface!(
+        "loom.canvas_visual_edges.create",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/canvas-boards/:block_id/visual-edges",
+        "Draw a board-local visual edge between two placements (presentation only — it is NOT a typed LoomEdge in the knowledge graph).",
+        "JSON {from_placement_id, to_placement_id, label?}.",
+        "JSON the created LoomCanvasVisualEdge row."
+    ),
+    surface!(
+        "loom.canvas_visual_edges.delete",
+        SurfaceGroup::NotesLoom,
+        "DELETE",
+        "/workspaces/:workspace_id/loom/canvas-visual-edges/:visual_edge_id",
+        "Delete one canvas visual edge.",
+        "workspace_id + visual_edge_id path params.",
+        "204 No Content."
+    ),
+    surface!(
+        "loom.views.definitions.create",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/views/definitions",
+        "Create a saved table/Kanban/calendar view definition. The view is born as a normal LoomBlock with the usual knowledge bridge and receipt, then stamped view_def — no parallel view store.",
+        "JSON {block_id?, title?, definition}.",
+        "JSON BlockViewRecord {block, definition}."
+    ),
+    surface!(
+        "loom.views.definitions.get",
+        SurfaceGroup::NotesLoom,
+        "GET",
+        "/workspaces/:workspace_id/loom/views/definitions/:block_id",
+        "Load one saved view definition.",
+        "workspace_id + block_id path params.",
+        "JSON BlockViewRecord; 404 when absent."
+    ),
+    surface!(
+        "loom.views.definitions.patch",
+        SurfaceGroup::NotesLoom,
+        "PATCH",
+        "/workspaces/:workspace_id/loom/views/definitions/:block_id",
+        "Persist a new definition for a saved view — e.g. a table header click that re-sorts is stored in PostgreSQL, not localStorage.",
+        "JSON {definition}.",
+        "JSON the updated BlockViewRecord."
+    ),
+    surface!(
+        "loom.views.definitions.results",
+        SurfaceGroup::NotesLoom,
+        "POST",
+        "/workspaces/:workspace_id/loom/views/definitions/:block_id/results",
+        "Execute a saved view against the real Loom query backend; filtering, the typed ORDER BY, and Kanban lane partitioning all run server-side.",
+        "JSON {limit?, offset?}; limit defaults to 100 and is capped at 500.",
+        "JSON BlockViewResults {kind, groups, total_returned}."
+    ),
     // -- Model access configuration (api/model_access.rs) -----------------
     surface!(
         "model_access.providers.list",
@@ -994,9 +1252,36 @@ const SURFACES: &[SurfaceDescriptor] = &[
         SurfaceGroup::ModelAccess,
         "POST",
         "/model-access/cli-bridge/:provider/login",
-        "Launch the provider's own official CLI login command through the CLI bridge after operator confirmation.",
-        "provider path param; operator-confirmed launch of the provider-owned official login command.",
-        "JSON provider plus pid launch handle; never key material; 404 provider_not_offered."
+        "Start the provider's own official CLI login as an in-app pseudo-terminal session after operator confirmation; no OS console window is opened and no foreground or Z-order change occurs.",
+        "provider path param; operator-confirmed start of the provider-owned official login command.",
+        "JSON login-session snapshot (session_id, typed status, provider transcript, bounded window); never key material; 404 provider_not_offered."
+    ),
+    surface!(
+        "model_access.cli_bridge.login_session",
+        SurfaceGroup::ModelAccess,
+        "GET",
+        "/model-access/cli-bridge-login/:session",
+        "Poll one in-app official-CLI login session for its typed status, the provider's terminal transcript, and the remaining bounded-window budget.",
+        "session path param.",
+        "JSON login-session snapshot; 404 cli_login_session_not_found."
+    ),
+    surface!(
+        "model_access.cli_bridge.login_session_input",
+        SurfaceGroup::ModelAccess,
+        "POST",
+        "/model-access/cli-bridge-login/:session/input",
+        "Deliver one operator response (device code or prompt answer) to the running login process's stdin so the interactive flow can be completed inside Handshake.",
+        "session path param; JSON body {\"input\": \"<text>\"}.",
+        "JSON login-session snapshot; 404 cli_login_session_not_found, 409 cli_login_session_finished."
+    ),
+    surface!(
+        "model_access.cli_bridge.login_session_cancel",
+        SurfaceGroup::ModelAccess,
+        "POST",
+        "/model-access/cli-bridge-login/:session/cancel",
+        "Terminate the running in-app official-CLI login process and evict its session.",
+        "session path param.",
+        "JSON login-session snapshot with cancelled status; 404 cli_login_session_not_found."
     ),
     // -- ModelRuntime registry/control surface (api/model_runtime_registry.rs)
     surface!(
@@ -1099,6 +1384,25 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "JSON {execution_id, reason}.",
         "JSON cancelled ModelLaneRoutingExecutionState with compensated/cancelled stage state and EventLedger authority."
     ),
+    // -- Live swarm admission control (api/operator_chat.rs, WP-1 MT-021) ---
+    surface!(
+        "operator_chat.swarm.max_concurrent.read",
+        SurfaceGroup::OperatorChat,
+        "GET",
+        "/operator-chat/swarm/max-concurrent",
+        "Read the model-session concurrency cap currently IN FORCE plus the live session count.",
+        "None.",
+        "JSON {max_concurrent, live_sessions}; max_concurrent is the live admission-semaphore cap, never the value the coordinator was constructed with."
+    ),
+    surface!(
+        "operator_chat.swarm.max_concurrent.set",
+        SurfaceGroup::OperatorChat,
+        "PUT",
+        "/operator-chat/swarm/max-concurrent",
+        "Change the live model-session concurrency cap without rebuilding the coordinator or killing running sessions.",
+        "JSON {max_concurrent: <usize>}; values below 1 are clamped to 1.",
+        "JSON {requested, max_concurrent, fully_applied, live_sessions}; lowering is cooperative, so max_concurrent may stay above requested and fully_applied is then false."
+    ),
     // -- Run-scoped cloud consent control (api/operator_chat.rs) -----------
     surface!(
         "model_lane.cloud_single_run.grant_launch",
@@ -1106,7 +1410,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "POST",
         "/operator-chat/cloud/single-run/grant-launch",
         "Grant a governed run-scoped cloud consent receipt and launch the covered ModelLane run.",
-        "JSON run-scoped projection, consent, provider, model, retention, and fan-out authority payload.",
+        "JSON run-scoped projection, consent, provider, model, retention, and fan-out authority payload; projection_plan.export_delegation (audience_refs subset of fan_out_targets, source_scope, authorization_receipt_ref) is REQUIRED.",
         "JSON launch/consent projection with durable plan and receipt references; mismatched or partial authority fails closed."
     ),
     surface!(

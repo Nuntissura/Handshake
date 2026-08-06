@@ -83,8 +83,32 @@ async fn receipt_exists(kpg: &KnowledgePg, event_id: &str) -> bool {
     exists
 }
 
-fn loom_router_surfaces_from_source() -> BTreeSet<(String, String)> {
+/// The `pub fn routes(...)` body of `api/loom.rs`, from the router constructor
+/// to its terminating `.with_state(`.
+///
+/// MT-022 correctness fix: the scraper below walks `.route(` occurrences and
+/// ends each route's method block at the NEXT `.route(`. Without this slice the
+/// LAST route's block ran to end-of-file, so every `get(`/`patch(`/... token in
+/// the ~4600 lines of handler code AFTER the router was falsely attributed to
+/// `/workspaces/:workspace_id/loom/views/definitions/:block_id/results`. That
+/// invented GET and PATCH surfaces the router does not serve — registering them
+/// would have made `mtdoc_every_registry_surface_exists_on_the_real_router` fail
+/// with 405 METHOD_NOT_ALLOWED. Slicing to the router body also stops any future
+/// `.route(` inside a handler or `mod tests` from being scraped as mounted.
+fn loom_router_body() -> &'static str {
     let source = include_str!("../src/api/loom.rs");
+    let start = source
+        .find("pub fn routes(")
+        .expect("api/loom.rs must declare `pub fn routes(`");
+    let body = &source[start..];
+    let end = body
+        .find(".with_state(")
+        .expect("api::loom::routes must terminate with `.with_state(`");
+    &body[..end]
+}
+
+fn loom_router_surfaces_from_source() -> BTreeSet<(String, String)> {
+    let source = loom_router_body();
     let mut surfaces = BTreeSet::new();
     let mut remaining = source;
 
@@ -141,6 +165,55 @@ fn mtdoc_every_loom_router_route_is_in_surface_registry() {
     assert!(
         missing.is_empty(),
         "mounted Loom routes missing from wp009_surface_registry: {missing:?}"
+    );
+}
+
+/// MT-022 NEGATIVE FIXTURE for the scraper itself. A scraper that over-reports
+/// is as dangerous as one that under-reports: it pressures the next implementer
+/// into registering surfaces the router does not serve, which then fails the
+/// live-router probe with 405.
+///
+/// The LAST route mounted by `api::loom::routes` is
+/// `POST /workspaces/:workspace_id/loom/views/definitions/:block_id/results`.
+/// Before the `loom_router_body()` slice, its method block ran to end-of-file
+/// and absorbed unrelated `get(`/`patch(` tokens from handler code, inventing a
+/// GET and a PATCH on that path. Assert the POST is found and the two phantoms
+/// are not.
+#[test]
+fn mtdoc_loom_router_scraper_does_not_invent_methods_past_the_router_body() {
+    let scraped = loom_router_surfaces_from_source();
+    const LAST_ROUTE: &str = "/workspaces/:workspace_id/loom/views/definitions/:block_id/results";
+
+    assert!(
+        scraped.contains(&("POST".to_string(), LAST_ROUTE.to_string())),
+        "the router's final route must still be scraped; got {scraped:?}"
+    );
+    for phantom in ["GET", "PATCH", "PUT", "DELETE"] {
+        assert!(
+            !scraped.contains(&(phantom.to_string(), LAST_ROUTE.to_string())),
+            "{phantom} {LAST_ROUTE} is NOT mounted — the scraper leaked handler-body tokens \
+             into the last route's method block"
+        );
+    }
+
+    // The scraped body must stop at the router. `pub fn routes` is ~290 lines;
+    // the file is thousands. If the slice ever regresses to whole-file, this
+    // upper bound breaks before the phantom assertions above go quietly stale.
+    let body = loom_router_body();
+    assert!(
+        body.len() < include_str!("../src/api/loom.rs").len() / 4,
+        "loom_router_body() must be the router only, got {} bytes",
+        body.len()
+    );
+    assert!(
+        !body.contains("async fn "),
+        "loom_router_body() must not extend into handler definitions"
+    );
+    // Anti-vacuous floor: the router really does mount a substantial inventory.
+    assert!(
+        scraped.len() >= 60,
+        "expected the Loom router to mount a substantial route set, scraped {}",
+        scraped.len()
     );
 }
 

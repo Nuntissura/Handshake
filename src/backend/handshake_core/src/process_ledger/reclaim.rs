@@ -733,23 +733,58 @@ async fn resolve_process_ledger_authority_relation_on_connection(
         ("sandbox_capabilities_snapshot", jsonb_oid, true, ""),
         ("metadata_jsonb", jsonb_oid, true, ""),
     ];
+    // Record WHY each candidate was rejected. A bare empty result cannot
+    // distinguish "no such relation", "wrong column signature", and "right
+    // relation, wrong search_path" - three different faults with three
+    // different fixes. Collecting the reason costs nothing on the success
+    // path and makes the failure state its own cause on the first rerun.
+    let mut shape_rejections: Vec<String> = Vec::new();
     let shape_matching: Vec<(String, i64)> = relations
         .into_iter()
         .filter_map(|((schema, oid), columns)| {
-            (columns.len() == expected.len()
-                && expected
-                    .iter()
-                    .all(|(name, type_oid, not_null, generated)| {
-                        columns.get(*name).is_some_and(|actual| {
-                            actual.0 == *type_oid
-                                && actual.1 == *not_null
-                                && actual.2.as_str() == *generated
-                        })
-                    }))
-            .then_some((schema, oid))
+            let mut problems: Vec<String> = Vec::new();
+            if columns.len() != expected.len() {
+                problems.push(format!(
+                    "column count {} != expected {}",
+                    columns.len(),
+                    expected.len()
+                ));
+            }
+            for (name, type_oid, not_null, generated) in expected.iter() {
+                match columns.get(*name) {
+                    None => problems.push(format!("missing column {name}")),
+                    Some(actual) => {
+                        if actual.0 != *type_oid {
+                            problems.push(format!(
+                                "{name} type_oid {} != expected {type_oid}",
+                                actual.0
+                            ));
+                        }
+                        if actual.1 != *not_null {
+                            problems.push(format!(
+                                "{name} not_null {} != expected {not_null}",
+                                actual.1
+                            ));
+                        }
+                        if actual.2.as_str() != *generated {
+                            problems.push(format!(
+                                "{name} generated '{}' != expected '{generated}'",
+                                actual.2
+                            ));
+                        }
+                    }
+                }
+            }
+            if problems.is_empty() {
+                Some((schema, oid))
+            } else {
+                shape_rejections.push(format!("{schema} -> {}", problems.join("; ")));
+                None
+            }
         })
         .collect();
     let mut matching = Vec::new();
+    let mut guard_rejections: Vec<String> = Vec::new();
     for (schema, oid) in shape_matching {
         let primary_key_matches: bool = sqlx::query_scalar(
             r#"
@@ -799,14 +834,47 @@ async fn resolve_process_ledger_authority_relation_on_connection(
             process_runtime_owner_descriptor_guard_matches(connection, oid).await?;
         if primary_key_matches && generated_expressions_match && runtime_owner_guard_matches {
             matching.push((schema, oid));
+        } else {
+            guard_rejections.push(format!(
+                "{schema} -> primary_key_matches={primary_key_matches} generated_expressions_match={generated_expressions_match} runtime_owner_guard_matches={runtime_owner_guard_matches}"
+            ));
         }
     }
     let (schema, relation_oid) = match matching.as_slice() {
         [(schema, relation_oid)] => (schema.clone(), *relation_oid),
         [] => {
-            return Err(ProcessLedgerError::Store(
-                "no migration-0021/0359-shaped, permanent, non-inherited, exact-runtime-owner-guard/RLS/rule-free kernel_process_lifecycle authority relation exists in the explicit PostgreSQL search path".to_string(),
-            ))
+            // The candidate query filters on `n.nspname = ANY(current_schemas(false))`,
+            // so this branch is reached BOTH when no such relation exists anywhere
+            // and when a perfectly well-formed one exists in a schema that is not
+            // on this connection's search_path. Those are completely different
+            // faults - a broken migration versus a mis-wired pool - and the bare
+            // message cannot tell them apart. Report the search_path actually in
+            // force and where the relation really lives, so the reader does not
+            // have to reproduce the failure under a database inspector to find out.
+            let search_path: String = sqlx::query_scalar(
+                "SELECT pg_catalog.array_to_string(pg_catalog.current_schemas(false), ',')",
+            )
+            .fetch_one(&mut *connection)
+            .await
+            .unwrap_or_else(|_| "<unavailable>".to_string());
+            let present_in: String = sqlx::query_scalar(
+                "SELECT COALESCE(pg_catalog.string_agg(n.nspname::pg_catalog.text, ','), '<none>')
+                 FROM pg_catalog.pg_class c
+                 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                 WHERE c.relname = 'kernel_process_lifecycle' AND c.relkind = 'r'",
+            )
+            .fetch_one(&mut *connection)
+            .await
+            .unwrap_or_else(|_| "<unavailable>".to_string());
+            return Err(ProcessLedgerError::Store(format!(
+                "no migration-0021/0359-shaped, permanent, non-inherited, exact-runtime-owner-guard/RLS/rule-free kernel_process_lifecycle authority relation exists in the explicit PostgreSQL search path \
+                 (search_path in force: [{search_path}]; kernel_process_lifecycle relations actually present in schemas: [{present_in}]; \
+                 candidates rejected on COLUMN SIGNATURE: [{shape_rejected}]; \
+                 candidates rejected on PK/generated-expression/runtime-owner-guard checks: [{guard_rejected}]. \
+                 Read it this way: if BOTH rejection lists are empty the relation is not on this connection's search_path at all, which is a pool/search_path wiring fault; if EITHER list is non-empty the relation IS visible and was rejected for the reason stated there, which is a schema-shape fault, not a wiring fault.)",
+                shape_rejected = shape_rejections.join(" | "),
+                guard_rejected = guard_rejections.join(" | ")
+            )))
         }
         schemas => {
             return Err(ProcessLedgerError::Store(format!(

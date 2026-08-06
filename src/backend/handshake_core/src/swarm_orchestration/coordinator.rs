@@ -9,7 +9,7 @@
 //! worker adapter in tests.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -340,6 +340,26 @@ struct Inner {
     /// Per-instance respawn counters (anti-storm) + budget accounting.
     accounting: Mutex<Accounting>,
     semaphore: Arc<Semaphore>,
+    /// The LIVE model-session concurrency cap.
+    ///
+    /// `config.budget.max_concurrent` is the value the coordinator was BUILT
+    /// with and never changes; this is the value currently in force. WP-1 MT-021
+    /// AC-3 requires an operator-facing concurrency control bound to actual
+    /// runtime behaviour, so the cap has to be adjustable without rebuilding the
+    /// coordinator (which would drop every live session). Every place that
+    /// reports or enforces "the cap" reads THIS, not the frozen config value, so
+    /// the number the operator sees is the number the semaphore is honouring.
+    effective_max_concurrent: AtomicUsize,
+    /// The cap the operator last ASKED for, which may not be in force yet.
+    ///
+    /// Lowering is cooperative (running sessions are never killed), so a
+    /// requested decrease can only be applied as fast as permits come free. The
+    /// deficit has to be remembered somewhere or it is silently abandoned: the
+    /// permits handed back by finishing sessions would return to the semaphore
+    /// and the cap would settle at whatever intermediate value happened to be
+    /// reachable at request time, NOT at what the operator asked for. This is
+    /// that memory. `reconcile_concurrency_cap` drains it toward the target.
+    desired_max_concurrent: AtomicUsize,
     /// rank-6 admission: bounds SIMULTANEOUS cold starts (factory.create / boot)
     /// separately from `semaphore` (run-concurrency). Held only during boot, so a
     /// burst of admitted spawns does not stampede the boot/networking layer.
@@ -805,8 +825,13 @@ impl SwarmCoordinator {
             config.budget.max_concurrent_cold_starts.max(1),
         ));
         let breaker = FailureFingerprintBreaker::new(config.breaker);
+        // Inherit the lane store's account scope so routing-produced rows carry
+        // the same ownership as directly recorded ones (HBR-PRIV-001).
         let routing_execution_store = model_lane_store.as_ref().map(|store| {
-            super::routing_execution::ModelLaneRoutingExecutionStore::new(store.postgres_pool())
+            super::routing_execution::ModelLaneRoutingExecutionStore::new_with_access(
+                store.postgres_pool(),
+                store.access().clone(),
+            )
         });
         let inner = Arc::new(Inner {
             registry: Mutex::new(HashMap::new()),
@@ -814,6 +839,8 @@ impl SwarmCoordinator {
             orphan_cleanups: Mutex::new(HashMap::new()),
             breaker: Mutex::new(breaker),
             accounting: Mutex::new(Accounting::default()),
+            effective_max_concurrent: AtomicUsize::new(config.budget.max_concurrent.max(1)),
+            desired_max_concurrent: AtomicUsize::new(config.budget.max_concurrent.max(1)),
             semaphore,
             cold_start_semaphore,
             lifetime_spawns: AtomicU64::new(0),
@@ -958,10 +985,18 @@ impl SwarmCoordinator {
 
         // (3) Concurrency permit. try_acquire so an over-cap spawn returns a
         // typed error immediately rather than blocking forever.
+        //
+        // Reconcile FIRST: a pending lowering can only take permits that are
+        // free, so permits released since the request must be retired here,
+        // before this spawn could be admitted on one of them.
+        // Reconcile FIRST: a pending lowering can only take permits that are
+        // free, so permits released since the request must be retired here,
+        // before this spawn could be admitted on one of them.
+        inner.reconcile_concurrency_cap();
         let permit = match inner.semaphore.clone().try_acquire_owned() {
             Ok(p) => p,
             Err(_) => {
-                let cap = inner.config.budget.max_concurrent;
+                let cap = inner.effective_max_concurrent.load(Ordering::SeqCst);
                 self.emit_spawn_rejected(instance_id, "concurrency_cap")?;
                 return Err(SwarmError::ConcurrencyCapReached {
                     in_flight: cap.saturating_sub(inner.semaphore.available_permits()),
@@ -1092,9 +1127,28 @@ impl SwarmCoordinator {
                 biased;
                 _ = create_cancel.cancelled() => {
                     // `create` may already have crossed an external side-effect
-                    // boundary. Do not drop it: resolve it and compensate any
-                    // resulting live session before acknowledging cancellation.
-                    (create.await, true)
+                    // boundary. Do not drop it IMMEDIATELY: give it a bounded
+                    // grace period to resolve so any resulting live session can
+                    // be compensated before we acknowledge cancellation.
+                    //
+                    // The grace is BOUNDED (teardown_timeout, the same budget
+                    // that bounds every other unwind) because an unbounded
+                    // `create.await` here means a factory that never returns
+                    // hangs the cancellation itself - and cancel_routing_execution
+                    // awaits cancel_session per live instance, so ONE stuck
+                    // create wedges the operator's cancel forever. That is worse
+                    // than a possible orphan: an orphan is recoverable through
+                    // the process-ledger reclaim path, a hung cancel is not
+                    // recoverable by the operator at all.
+                    match tokio::time::timeout(inner.config.teardown_timeout, &mut create).await {
+                        Ok(result) => (result, true),
+                        Err(_) => (
+                            Err(SwarmError::FactoryFailed(format!(
+                                "factory create did not resolve within teardown_timeout after cancellation for {instance_id}; create abandoned, any external side effect is left to process-ledger reclaim"
+                            ))),
+                            true,
+                        ),
+                    }
                 },
                 result = &mut create => (result, false),
             }
@@ -1313,7 +1367,7 @@ impl SwarmCoordinator {
                         // on a real success (C4). A signature that tripped
                         // recovers after a genuine success, not only cooldown.
                         inner.heal_breaker_for_instance(instance_id);
-                        let permits_cap = inner.config.budget.max_concurrent;
+                        let permits_cap = inner.effective_max_concurrent.load(Ordering::SeqCst);
                         let permits_in_use =
                             permits_cap.saturating_sub(inner.semaphore.available_permits());
                         inner
@@ -2435,6 +2489,109 @@ impl SwarmCoordinator {
             .map(|h| h.model_id)
     }
 
+    /// The model-session concurrency cap currently in force.
+    ///
+    /// This is the live value, not `config.budget.max_concurrent`, which is only
+    /// what the coordinator was constructed with.
+    pub fn max_concurrent(&self) -> usize {
+        // Reconciles first so a GET after sessions drained reports the cap that
+        // is actually in force, not the stale value from request time.
+        self.inner.reconcile_concurrency_cap()
+    }
+
+    /// The cap the operator last requested, whether or not it is fully applied.
+    ///
+    /// Differs from [`Self::max_concurrent`] only while a lowering is still
+    /// draining; the pair is what lets the UI say "3 in force, 1 requested"
+    /// instead of picking one number and being wrong half the time.
+    pub fn requested_max_concurrent(&self) -> usize {
+        self.inner.desired_max_concurrent.load(Ordering::SeqCst)
+    }
+
+    /// Change how many model sessions may run concurrently, WITHOUT rebuilding
+    /// the coordinator or disturbing sessions that are already running.
+    ///
+    /// WP-1 MT-021 AC-3: the operator-facing swarm concurrency control must bind
+    /// to real runtime behaviour. That means moving the actual admission
+    /// semaphore, because a setting that only changes a displayed number is the
+    /// misleading control the acceptance row exists to remove.
+    ///
+    /// Semantics, and why they are the safe ones:
+    /// * RAISING adds permits immediately, so waiting spawns are admitted at
+    ///   once.
+    /// * LOWERING is COOPERATIVE, never preemptive: it removes permits that are
+    ///   free right now and marks the remainder to be retired as running
+    ///   sessions finish (`Semaphore::forget_permits` returns how many it could
+    ///   actually take). Sessions already admitted keep running to completion.
+    ///   Killing live model sessions to satisfy a settings change would destroy
+    ///   operator work and orphan processes, which HBR-QUIET-003 forbids.
+    /// * The returned value is the cap now IN FORCE. When lowering could not
+    ///   fully take effect yet, the caller learns the real number instead of a
+    ///   optimistic one, so the UI can report the truth rather than the request.
+    ///
+    /// A cap below 1 is clamped to 1: zero would wedge the coordinator with no
+    /// way to admit the spawn that would release a permit.
+    pub fn set_max_concurrent(&self, requested: usize) -> usize {
+        let requested = requested.max(1);
+        // Record the target FIRST. This is what makes a partially-applied
+        // lowering converge instead of being abandoned at whatever value was
+        // reachable at request time: every later admission and read drains the
+        // remaining deficit through `reconcile_concurrency_cap`. Storing it also
+        // cancels any earlier pending lowering when the operator raises again.
+        self.inner
+            .desired_max_concurrent
+            .store(requested, Ordering::SeqCst);
+
+        // Raising takes effect at once so waiting spawns are admitted now.
+        loop {
+            let effective = self.inner.effective_max_concurrent.load(Ordering::SeqCst);
+            if requested <= effective {
+                break;
+            }
+            if self
+                .inner
+                .effective_max_concurrent
+                .compare_exchange(effective, requested, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                self.inner.semaphore.add_permits(requested - effective);
+                break;
+            }
+        }
+
+        self.inner.reconcile_concurrency_cap()
+    }
+
+    /// The coordinator-owned cancellation token for a spawned instance, for
+    /// OBSERVATION only.
+    ///
+    /// `generate_session_managed` deliberately replaces a caller-supplied token
+    /// with this one so no caller can bypass the coordinator's terminal ledger
+    /// transition. Consumers of the generated stream therefore have no way to
+    /// ask "has this session been cancelled?" except through the in-band
+    /// `FinishReason::Cancelled` token — and that marker races with any output
+    /// already buffered ahead of it in the chunk channel. A capture path that
+    /// only watches the in-band marker will durably persist an activity block
+    /// that arrived AFTER cancellation, purely depending on which the executor
+    /// polls first.
+    ///
+    /// Exposing the token lets a consumer fence its own durable writes on the
+    /// same signal the runtime observes, making "only pre-cancel output is
+    /// durable" deterministic instead of timing-dependent.
+    ///
+    /// Unlike [`Self::session_model_id`] this deliberately does NOT filter on
+    /// `ModelSessionState`: the whole point is to keep observing the token while
+    /// the session is being torn down, which is exactly when the state has
+    /// already moved past `Ready`/`Generating`.
+    pub fn session_cancel_token(&self, instance_id: ModelInstanceId) -> Option<CancellationToken> {
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .get(&instance_id)
+            .map(|h| h.cancel.clone())
+    }
+
     /// The coordinator's wired [`ModelLaneStore`] (a cheap `PgPool`-backed clone),
     /// or `None` when the coordinator was built without one. WP-1 MT-012: the
     /// operator-chat launch service uses this to replay the just-spawned run/lane
@@ -3296,11 +3453,26 @@ impl SwarmCoordinator {
             .collect();
 
         let mut dispatched = Vec::new();
-        while let Some(result) = pending.next().await {
+        // Results that completed WHILE we were awaiting sibling cancellation.
+        // They must be queued rather than dropped: a completed dispatch is
+        // durable state the caller still has to see.
+        let mut queued: std::collections::VecDeque<
+            SwarmResult<super::routing_execution::ModelLaneRoutingStageDispatch>,
+        > = std::collections::VecDeque::new();
+        loop {
+            let result = match queued.pop_front() {
+                Some(result) => result,
+                None => match pending.next().await {
+                    Some(result) => result,
+                    None => break,
+                },
+            };
             let dispatch = match result {
                 Ok(dispatch) => dispatch,
                 Err(err) => {
-                    self.cancel_active_routing_siblings(
+                    self.cancel_siblings_while_driving(
+                        &mut pending,
+                        &mut queued,
                         execution_id,
                         None,
                         "routing dispatch error; immediate terminal cleanup",
@@ -3310,7 +3482,9 @@ impl SwarmCoordinator {
                 }
             };
             if dispatch.state == ModelLaneRoutingStageStateKind::Failed {
-                self.cancel_active_routing_siblings(
+                self.cancel_siblings_while_driving(
+                    &mut pending,
+                    &mut queued,
                     execution_id,
                     Some(&dispatch.stage_id),
                     "routing sibling failed; immediate terminal cleanup",
@@ -3332,6 +3506,55 @@ impl SwarmCoordinator {
             execution,
             dispatched,
         })
+    }
+
+    /// Cancel active routing siblings WITHOUT freezing the in-flight stage
+    /// futures, by continuing to poll `pending` for the whole cancellation.
+    ///
+    /// This is a correctness requirement, not a throughput optimisation.
+    /// `FuturesUnordered` only advances while it is polled, and a suspended
+    /// stage future can still own an OPEN transaction holding the
+    /// execution-keyed `pg_advisory_xact_lock`. Awaiting cancellation without
+    /// polling `pending` therefore deadlocks the worker task against itself:
+    /// `cancel_execution` requests the very lock the frozen future holds, and
+    /// that future can only resume once this await returns. Proven with tokio
+    /// task ids - the advisory-lock holder and one of its waiters were the SAME
+    /// task (see MT-009 `cancellation_deadlock_ROOT_CAUSE_PROVEN_2026_08_05`).
+    ///
+    /// Any dispatch results that land during cancellation are pushed onto
+    /// `queued` so the caller still processes them; dropping them would lose
+    /// durable stage outcomes.
+    async fn cancel_siblings_while_driving<S>(
+        &self,
+        pending: &mut S,
+        queued: &mut std::collections::VecDeque<
+            SwarmResult<super::routing_execution::ModelLaneRoutingStageDispatch>,
+        >,
+        execution_id: &str,
+        except_stage_id: Option<&str>,
+        reason: &str,
+    ) -> SwarmResult<()>
+    where
+        S: futures::Stream<
+                Item = SwarmResult<super::routing_execution::ModelLaneRoutingStageDispatch>,
+            > + Unpin,
+    {
+        use futures::StreamExt as _;
+        let cancel = self.cancel_active_routing_siblings(execution_id, except_stage_id, reason);
+        futures::pin_mut!(cancel);
+        loop {
+            tokio::select! {
+                // Biased so a completed cancellation wins immediately instead of
+                // waiting on another stage poll.
+                biased;
+                outcome = &mut cancel => return outcome,
+                item = pending.next() => match item {
+                    Some(item) => queued.push_back(item),
+                    // Nothing left to drive; a plain await cannot deadlock now.
+                    None => return cancel.await,
+                },
+            }
+        }
     }
 
     async fn cancel_active_routing_siblings(
@@ -3725,6 +3948,11 @@ impl SwarmCoordinator {
             .await
     }
 
+    /// How many times cancellation re-reads the execution projection looking for
+    /// sessions that were spawned after the previous pass. Small on purpose: it
+    /// exists to close a narrow spawn/transition race, not to poll indefinitely.
+    const CANCELLATION_SETTLE_PASSES: usize = 3;
+
     pub async fn cancel_routing_execution(
         &self,
         execution_id: &str,
@@ -3733,8 +3961,13 @@ impl SwarmCoordinator {
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
             SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
         })?;
-        let execution = store
-            .snapshot(execution_id)
+        // Unlocked read, deliberately. The locking `snapshot` takes the same
+        // execution-keyed advisory xact lock that a mid-generation stage holds
+        // until it is cancelled, so using it here made cancellation deadlock on
+        // its own first step - it could never reach the cancel_session calls
+        // below that fire the session tokens the stage is waiting for.
+        let active_instance_ids: Vec<String> = store
+            .active_instance_ids_for_cancellation(execution_id)
             .await
             .map_err(|err| {
                 SwarmError::LedgerFailed(format!("routing cancellation scan failed: {err}"))
@@ -3742,19 +3975,6 @@ impl SwarmCoordinator {
             .ok_or_else(|| {
                 SwarmError::LedgerFailed(format!("unknown routing execution {execution_id}"))
             })?;
-        let active_instance_ids: Vec<String> = execution
-            .stages
-            .values()
-            .filter(|stage| {
-                matches!(
-                    stage.state,
-                    super::routing_execution::ModelLaneRoutingStageStateKind::Claimed
-                        | super::routing_execution::ModelLaneRoutingStageStateKind::InFlight
-                        | super::routing_execution::ModelLaneRoutingStageStateKind::AwaitingAuthority
-                )
-            })
-            .filter_map(|stage| stage.instance_id.clone())
-            .collect();
         let mut instances: Vec<ModelInstanceId> = self
             .inner
             .registry
@@ -3778,18 +3998,89 @@ impl SwarmCoordinator {
         });
         instances.sort_by_key(ToString::to_string);
         instances.dedup();
-        for instance_id in instances {
-            self.cancel_session(instance_id, "routing execution cancelled")
-                .await?;
-        }
-        store
+        // Persist the cancellation BEFORE tearing down the runtime sessions.
+        //
+        // Tearing down first makes every in-flight stage fail, the worker then
+        // terminalizes the execution as Failed, and this persistence step is
+        // refused by cancel_execution's terminal guard with "terminal routing
+        // execution cannot be cancelled" - so the operator's cancel never
+        // becomes the recorded outcome. AC-9 requires the run to end Cancelled,
+        // which means the durable transition has to win that race.
+        //
+        // Ordering the other way is not merely cosmetic: a teardown failure
+        // after this point leaves a recoverable orphan that process-ledger
+        // reclaim already owns, whereas a persistence failure after teardown
+        // leaves a run whose recorded outcome contradicts the operator action
+        // and cannot be repaired from state.
+        let cancelled = store
             .cancel_execution(execution_id, reason)
             .await
             .map_err(|err| {
-                SwarmError::LedgerFailed(format!(
-                    "routing cancellation persistence failed after runtime cleanup: {err}"
-                ))
-            })
+                SwarmError::LedgerFailed(format!("routing cancellation persistence failed: {err}"))
+            })?;
+        let mut already_cancelled: std::collections::BTreeSet<String> =
+            std::collections::BTreeSet::new();
+        for instance_id in instances {
+            already_cancelled.insert(instance_id.to_string());
+            self.cancel_session(instance_id, "routing execution cancelled")
+                .await?;
+        }
+
+        // Close the spawn -> record_transition window.
+        //
+        // Live sessions are discovered from the execution PROJECTION, but
+        // spawn_session returns an instance before its InFlight transition has
+        // landed. A session spawned inside that window is already running and
+        // yet absent from the projection, so a single discovery pass silently
+        // skips it - it is never cancelled, never torn down, and survives as an
+        // orphan holding a model. That is the measured teardowns==1 shortfall.
+        //
+        // Re-read until a pass finds nothing new. Bounded, so a pathological
+        // writer cannot spin here; sessions that appear after the last pass are
+        // still caught by process-ledger reclaim, which is the recoverable
+        // outcome rather than the silent one.
+        for _ in 0..Self::CANCELLATION_SETTLE_PASSES {
+            let active: Vec<String> = match store
+                .active_instance_ids_for_cancellation(execution_id)
+                .await
+                .map_err(|err| {
+                    SwarmError::LedgerFailed(format!("routing cancellation rescan failed: {err}"))
+                })? {
+                Some(active) => active,
+                None => break,
+            };
+            let mut late: Vec<ModelInstanceId> = self
+                .inner
+                .registry
+                .lock()
+                .expect("registry poisoned")
+                .keys()
+                .copied()
+                .collect();
+            late.extend(
+                self.inner
+                    .pending_spawns
+                    .lock()
+                    .expect("pending spawns poisoned")
+                    .keys()
+                    .copied(),
+            );
+            late.retain(|instance_id| {
+                let key = instance_id.to_string();
+                active.contains(&key) && !already_cancelled.contains(&key)
+            });
+            late.sort_by_key(ToString::to_string);
+            late.dedup();
+            if late.is_empty() {
+                break;
+            }
+            for instance_id in late {
+                already_cancelled.insert(instance_id.to_string());
+                self.cancel_session(instance_id, "routing execution cancelled")
+                    .await?;
+            }
+        }
+        Ok(cancelled)
     }
     // ---- internals ----
 
@@ -4026,7 +4317,7 @@ impl SwarmCoordinator {
         let committed_memory_reservation =
             CommittedMemoryReservation::reserve(Arc::clone(&self.inner), committed_memory_bytes)
                 .map_err(|dimension| SwarmError::BudgetExhausted { dimension })?;
-        let cap = self.inner.config.budget.max_concurrent;
+        let cap = self.inner.effective_max_concurrent.load(Ordering::SeqCst);
         let permit = self
             .inner
             .semaphore
@@ -4099,7 +4390,7 @@ impl SwarmCoordinator {
         let committed_memory_reservation =
             CommittedMemoryReservation::reserve(Arc::clone(&self.inner), committed_memory_bytes)
                 .map_err(|dimension| SwarmError::BudgetExhausted { dimension })?;
-        let cap = self.inner.config.budget.max_concurrent;
+        let cap = self.inner.effective_max_concurrent.load(Ordering::SeqCst);
         let permit = self
             .inner
             .semaphore
@@ -4418,20 +4709,45 @@ impl SwarmCoordinator {
                         "session {instance_id} has a cancelling state without a cleanup receipt"
                     ))
                 })?;
-                if pending.terminal != terminal
-                    || pending.reason != reason
-                    || pending.exit_code != exit_code
-                {
-                    return Err(SwarmError::LedgerFailed(format!(
-                        "session {instance_id} cleanup retry does not match its durable terminal intent"
-                    )));
-                }
+                // FIRST-WRITER-WINS terminalization (idempotent).
+                //
+                // A differing intent here is NOT a bug. Two legitimate actors
+                // race to terminalize the same session: the operator's
+                // cancel_routing_execution and the worker's own stage-failure
+                // path, which fires because that very cancellation stopped the
+                // stream. Rejecting the second one made CONCURRENT
+                // terminalization impossible, so an ordinary race became a hard
+                // failure of the operator's cancel.
+                //
+                // No ordering of those two actors fixes this - it only chooses
+                // which one fails, which is exactly what was measured: teardown
+                // first loses the execution status to `Failed`, persist first
+                // loses the session cleanup to this guard. Idempotency removes
+                // the class instead of moving it, and it stays correct as more
+                // actors (process-ledger reclaim, supervisors, future model
+                // lanes) gain the ability to terminalize.
+                //
+                // Nothing is swallowed: the first durable intent remains
+                // authoritative, and ITS owner still performs the teardown and
+                // writes the terminal receipt. A later caller only observes that
+                // the session is already terminalizing. A genuine retry - same
+                // intent, no owner currently running - still falls through to
+                // the ownership bump below and is unaffected.
+                // Someone is ACTIVELY terminalizing this session right now, so
+                // this caller has nothing to do: that owner performs the
+                // teardown and writes the terminal receipt.
                 if pending.in_progress {
-                    return Err(SwarmError::LedgerFailed(format!(
-                        "session {instance_id} cleanup is already in progress at generation {}",
-                        pending.owner_generation
-                    )));
+                    return Ok(());
                 }
+                // No owner is running. A previous attempt recorded an intent and
+                // then stopped, so ADOPT ownership rather than returning Ok on a
+                // mismatch: skipping here would leave the session with no one to
+                // tear it down, which is precisely the orphan this guard exists
+                // to prevent. Overwriting the stale intent keeps the receipts
+                // consistent with the terminal state actually being applied.
+                pending.terminal = terminal;
+                pending.reason = reason.to_string();
+                pending.exit_code = exit_code;
                 pending.owner_generation = pending.owner_generation.saturating_add(1);
                 pending.in_progress = true;
                 let generation = pending.owner_generation;
@@ -4489,15 +4805,35 @@ impl SwarmCoordinator {
             handle.runtime.cancel(handle.cancel.clone());
         }
 
-        self.record_cleanup_receipt(
-            instance_id,
-            "cleanup_pending",
-            terminal,
-            reason,
-            exit_code,
-            None,
-        )
-        .await?;
+        // A failed DURABLE WRITE must not abort the RUNTIME TEARDOWN.
+        //
+        // Both writes below used to return early, and the only step that
+        // actually tears the session down (run_teardown_bounded) runs AFTER
+        // them. So a PostgreSQL/EventLedger hiccup left a live model session
+        // running with its factory teardown never invoked - an orphan produced
+        // by a bookkeeping failure. That is the measured cause of the
+        // teardowns==1 assertion, and an HBR-QUIET-003 process-ownership
+        // violation in its own right.
+        //
+        // This coordinator already argues the same way for the bounded factory
+        // create: an orphan is recoverable through process-ledger reclaim, an
+        // unrecoverable state is not. So the error is DEFERRED, not dropped -
+        // teardown proceeds, and the first durable-write failure is still
+        // returned from the function's normal exit, so nothing is silenced.
+        let mut deferred_durable_error: Option<SwarmError> = None;
+        if let Err(err) = self
+            .record_cleanup_receipt(
+                instance_id,
+                "cleanup_pending",
+                terminal,
+                reason,
+                exit_code,
+                None,
+            )
+            .await
+        {
+            deferred_durable_error = Some(err);
+        }
 
         if let Some(status) = model_lane_terminal_status(terminal) {
             if let Some((store, lane_id)) = terminal_record {
@@ -4505,9 +4841,12 @@ impl SwarmCoordinator {
                     .record_lane_terminal_status(&lane_id, status, reason)
                     .await
                 {
-                    return Err(SwarmError::LedgerFailed(format!(
+                    let err = SwarmError::LedgerFailed(format!(
                         "Dexterity terminal lane state record failed: {err}"
-                    )));
+                    ));
+                    // Keep the FIRST failure: it is the one closest to the
+                    // original cause, and later writes may fail as a consequence.
+                    deferred_durable_error.get_or_insert(err);
                 }
             }
         }
@@ -4732,6 +5071,14 @@ impl SwarmCoordinator {
             acc.last_failure_signature.remove(&instance_id);
         }
 
+        // Surface a deferred durable-write failure now that the session has
+        // actually been torn down. Reporting it here rather than at the write
+        // site is what lets teardown run first; returning Ok would silence a
+        // real bookkeeping failure.
+        if let Some(err) = deferred_durable_error {
+            return Err(err);
+        }
+
         // The permit is released as `handle` drops at end of scope.
         Ok(())
     }
@@ -4831,6 +5178,19 @@ impl SwarmCoordinator {
     /// Build a process-ledger STOP row for a terminating session. Shared by
     /// `terminate`, `teardown_orphan`, and the reaper so START/STOP rows are
     /// symmetric in one place (C7).
+    ///
+    /// START/STOP symmetry is an authority requirement, not a convention: the
+    /// authoritative STOP upsert only closes a lifecycle row when every
+    /// immutable identity column of the STOP matches the persisted START. When
+    /// the session factory recorded the START, the coordinator therefore uses
+    /// that exact record — supplied by the factory as `ledger_start_override`,
+    /// or otherwise recovered from the ledger's in-flight START index. Falling
+    /// back to coordinator defaults here would emit a STOP whose `started_at`,
+    /// WP/MT lineage, and `metadata_jsonb` diverge from the START, which
+    /// PostgreSQL rejects as `PROCESS_LEDGER_STOP_IDENTITY_CONFLICT` and which
+    /// leaves the process permanently open in the ledger. The synthesized row
+    /// below is reserved for sessions whose START was never recorded, where the
+    /// STOP inserts a fresh lifecycle row instead of updating one.
     #[allow(clippy::too_many_arguments)]
     fn build_stop(
         &self,
@@ -4845,7 +5205,9 @@ impl SwarmCoordinator {
         exit_code: i32,
         instance_id: &ModelInstanceId,
     ) -> ProcessStop {
-        if let Some(start) = ledger_start_override {
+        let recorded_start = ledger_start_override
+            .or_else(|| self.inner.ledger.recorded_start(process_record_id.as_uuid()));
+        if let Some(start) = recorded_start {
             return ProcessStop::from_start(&start, Some(exit_code)).with_stop_reason(reason);
         }
         ProcessStop {
@@ -5030,6 +5392,45 @@ impl Inner {
     /// recorded; a genuine success closes that signature's breaker (resets the
     /// consecutive-failure count and forces Closed) so recovery does not depend
     /// on cooldown alone. The instance's signature record is cleared.
+    /// Drain the requested concurrency decrease as far as free permits allow,
+    /// and report the cap now genuinely in force.
+    ///
+    /// Idempotent and cheap, so it is safe to call on every admission and every
+    /// read. It MUST be called before admission: a session that ended after a
+    /// lowering request handed its permit back to the semaphore, and without
+    /// this the next spawn would be admitted on that permit — over the cap the
+    /// operator asked for and above the number the UI is showing.
+    fn reconcile_concurrency_cap(&self) -> usize {
+        loop {
+            let effective = self.effective_max_concurrent.load(Ordering::SeqCst);
+            let desired = self.desired_max_concurrent.load(Ordering::SeqCst);
+            if desired >= effective {
+                return effective;
+            }
+            // Only permits that are free right now can be taken; the rest stay
+            // with their running sessions and are retired on a later pass.
+            let removed = self.semaphore.forget_permits(effective - desired);
+            if removed == 0 {
+                // Nothing was free. Re-load rather than returning the value read
+                // at the top: a concurrent reconcile may have committed a lower
+                // cap in between, and reporting the pre-read number would hand a
+                // caller a cap the semaphore is no longer honouring.
+                return self.effective_max_concurrent.load(Ordering::SeqCst);
+            }
+            let in_force = effective - removed;
+            if self
+                .effective_max_concurrent
+                .compare_exchange(effective, in_force, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                return in_force;
+            }
+            // Lost a race with a concurrent raise; give the permits back and
+            // re-read rather than leaving the semaphore short.
+            self.semaphore.add_permits(removed);
+        }
+    }
+
     fn heal_breaker_for_instance(&self, instance_id: ModelInstanceId) {
         let fp = {
             let mut acc = self.accounting.lock().expect("accounting poisoned");

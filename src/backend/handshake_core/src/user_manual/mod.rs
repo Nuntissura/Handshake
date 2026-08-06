@@ -50,16 +50,26 @@ pub mod store;
 
 pub use behavior_coverage::{
     cloud_model_access_behavior_coverage_matrix,
-    dedicated_embedding_model_behavior_coverage_matrix, embedded_model_behavior_coverage_matrix,
+    dedicated_embedding_model_behavior_coverage_matrix, diagnostic_tier_evidence_uri_prefix,
+    diagnostic_tier_evidence_uri_scheme, diagnostic_tier_owning_evidence_uri_scheme,
+    embedded_model_behavior_coverage_matrix, manual_literal_claims,
     model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
-    operator_chat_launch_behavior_coverage_matrix,
-    verify_cloud_model_access_behavior_coverage, verify_embedded_model_behavior_coverage,
+    operator_chat_launch_behavior_coverage_matrix, user_manual_behavior_coverage_matrix,
+    verify_cloud_model_access_behavior_coverage, verify_diagnostic_tier_evidence_uri,
+    verify_embedded_model_behavior_coverage, verify_manual_literal_claims,
     verify_manual_named_surface_existence, verify_model_lane_behavior_coverage,
     verify_model_lane_behavior_evidence, verify_model_runtime_registry_behavior_coverage,
-    BehaviorConsistencyProof, BehaviorCoverageError, BehaviorCoverageRow, DiagnosticTierPosture,
-    ManualNamedSurfaceProof, ModelRuntimeProofExecutionStatus,
-    ModelRuntimeRegistryBehaviorCoverageRow, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
+    verify_user_manual_behavior_coverage_matrix, BehaviorConsistencyProof, BehaviorCoverageError,
+    BehaviorCoverageRow, BehaviorSelfConsistencyResult, DiagnosticEvidenceUriViolation,
+    DiagnosticTierPosture, ManualClaimClass, ManualLiteralClaim, ManualNamedSurfaceProof,
+    ModelRuntimeProofExecutionStatus, ModelRuntimeRegistryBehaviorCoverageRow,
+    UserManualBehaviorCoverageMatrix, UserManualBehaviorCoverageMatrixRow,
+    DIAGNOSTIC_TIER_EVIDENCE_URI_BINDING, FLIGHT_RECORDER_EVIDENCE_URI_PREFIX,
+    FLIGHT_RECORDER_EVIDENCE_URI_SCHEME, INTERNAL_DIAGNOSTICS_EVIDENCE_URI_PREFIX,
+    INTERNAL_DIAGNOSTICS_EVIDENCE_URI_SCHEME, MANUAL_NAMED_SURFACE_BEHAVIOR_ID,
     MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
+    PALMISTRY_EVIDENCE_URI_PREFIX, PALMISTRY_EVIDENCE_URI_SCHEME,
+    USER_MANUAL_BEHAVIOR_COVERAGE_SCHEMA_ID,
 };
 pub use migration_plan::{
     naming_migration_plan, LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan, PlanRow,
@@ -76,7 +86,7 @@ pub use store::{
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.18";
+pub const USER_MANUAL_VERSION: &str = "2.0.22";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all

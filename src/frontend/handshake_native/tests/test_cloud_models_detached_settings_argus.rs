@@ -395,7 +395,7 @@ fn detached_settings_cli_login_is_operable_via_accesskit_without_stealing_focus(
     harness.run();
     harness.run();
 
-    // The first click only arms the foreground-window confirmation (no launch, no focus theft).
+    // The first click only arms the in-app login confirmation (no launch, no window, no focus theft).
     assert!(
         harness.state().last_cli_login_launch().is_none(),
         "the first click only opens the login confirmation"

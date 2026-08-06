@@ -3703,3 +3703,169 @@ impl ModelSessionFactory for HealableFactory {
         ))
     }
 }
+
+// ===========================================================================
+// WP-1 MT-021 AC-3: the operator-facing swarm concurrency control must bind to
+// real runtime behaviour.
+//
+// These exist because the route and `set_max_concurrent` previously had NO
+// behavioural coverage at all, and the uncovered path was wrong: lowering
+// reclaimed only the permits that were free at request time and then FORGOT the
+// remainder, so a cap lowered while sessions ran settled at an arbitrary
+// intermediate value and the freed permits were recycled into new spawns. The
+// control appeared to work and did not. AC-3 exists to remove exactly that.
+// ===========================================================================
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mt021_lowering_max_concurrent_is_cooperative_and_converges_to_the_request() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(16).with_concurrency(4)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+    assert_eq!(coordinator.max_concurrent(), 4);
+
+    let a = instance(1);
+    let b = instance(2);
+    coordinator.spawn_session(spawn_req(a)).await.unwrap();
+    coordinator.spawn_session(spawn_req(b)).await.unwrap();
+
+    // Ask for 1 while two of the four permits are held by running sessions.
+    let in_force = coordinator.set_max_concurrent(1);
+    assert_eq!(
+        in_force, 2,
+        "only the two FREE permits may be reclaimed; the held ones must not be"
+    );
+    assert_eq!(
+        coordinator.requested_max_concurrent(),
+        1,
+        "the unapplied remainder of the request must be remembered"
+    );
+    assert_eq!(
+        coordinator.live_session_count(),
+        2,
+        "HBR-QUIET-003: a settings change must never kill a running session"
+    );
+
+    // The cap in force is 2 and both are held, so admission is closed.
+    assert!(matches!(
+        coordinator
+            .spawn_session(spawn_req(instance(3)))
+            .await
+            .unwrap_err(),
+        SwarmError::ConcurrencyCapReached { .. }
+    ));
+
+    // One session finishes. THIS is the regression: its permit must be retired
+    // toward the target, not recycled into the next spawn.
+    coordinator.complete_session(a).await.unwrap();
+    assert_eq!(
+        coordinator.max_concurrent(),
+        1,
+        "a permit freed after a lowering request must be retired, not reused"
+    );
+    assert!(
+        matches!(
+            coordinator
+                .spawn_session(spawn_req(instance(4)))
+                .await
+                .unwrap_err(),
+            SwarmError::ConcurrencyCapReached { .. }
+        ),
+        "the freed permit must not admit a spawn above the requested cap"
+    );
+
+    // With the last session done the request is fully applied, and the one
+    // remaining permit still admits work: converged to 1, not wedged at 0.
+    coordinator.complete_session(b).await.unwrap();
+    assert_eq!(coordinator.max_concurrent(), 1);
+    assert_eq!(coordinator.requested_max_concurrent(), 1);
+    coordinator
+        .spawn_session(spawn_req(instance(5)))
+        .await
+        .expect("the converged cap of 1 must still admit one session");
+
+    coordinator.drain_all().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mt021_raising_max_concurrent_admits_at_once_and_cancels_a_pending_lowering() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(16).with_concurrency(2)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    let a = instance(11);
+    let b = instance(12);
+    coordinator.spawn_session(spawn_req(a)).await.unwrap();
+    coordinator.spawn_session(spawn_req(b)).await.unwrap();
+    assert!(matches!(
+        coordinator
+            .spawn_session(spawn_req(instance(13)))
+            .await
+            .unwrap_err(),
+        SwarmError::ConcurrencyCapReached { .. }
+    ));
+
+    // A lowering that cannot apply at all (both permits held) leaves a deficit.
+    assert_eq!(coordinator.set_max_concurrent(1), 2);
+    assert_eq!(coordinator.requested_max_concurrent(), 1);
+
+    // Raising again must CANCEL that pending lowering rather than let it drain
+    // later and silently undo the operator's newer instruction.
+    assert_eq!(coordinator.set_max_concurrent(4), 4);
+    assert_eq!(coordinator.requested_max_concurrent(), 4);
+    coordinator
+        .spawn_session(spawn_req(instance(14)))
+        .await
+        .expect("raising the cap must admit a waiting spawn immediately");
+
+    // Completing a session must not now retire its permit: nothing is pending.
+    coordinator.complete_session(a).await.unwrap();
+    assert_eq!(coordinator.max_concurrent(), 4);
+
+    coordinator.drain_all().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mt021_max_concurrent_of_zero_is_clamped_to_one_not_wedged() {
+    let (ledger, _drain) = ledger_pair();
+    let factory = Arc::new(ControllableFactory::new(
+        FactoryBehavior::Succeed,
+        Duration::from_millis(1),
+        ledger.clone(),
+    ));
+    let coordinator = SwarmCoordinator::new_legacy_without_dexterity_for_tests(
+        SwarmConfig::new(RunBudget::defaulted(8).with_concurrency(3)),
+        factory.clone(),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+    );
+
+    // Zero would leave no way to admit the spawn that releases a permit, so it
+    // is held at 1. `requested` must report the CLAMPED value, otherwise
+    // `fully_applied` on the route could never become true.
+    assert_eq!(coordinator.set_max_concurrent(0), 1);
+    assert_eq!(coordinator.requested_max_concurrent(), 1);
+    coordinator
+        .spawn_session(spawn_req(instance(21)))
+        .await
+        .expect("a clamped cap of 1 must still admit one session");
+
+    coordinator.drain_all().await.unwrap();
+}

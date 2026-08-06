@@ -66,7 +66,7 @@ use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneRecord, ModelLaneRecoveryEventKind, ModelLaneRecoveryFailureKind,
     ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneRoutingMetadata,
     ModelLaneRoutingPolicy, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
-    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
+    CloudExportDelegation, NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus, NewModelLaneLease,
     NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLanePromotionDecision,
     NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
@@ -107,7 +107,16 @@ async fn mt009_kernel_crdt_authority_rejects_truncate() {
     let (pool, _store) = model_lane_store().await;
     for table in ["kernel_crdt_updates", "kernel_crdt_snapshots"] {
         let mut tx = pool.begin().await.expect("begin CRDT TRUNCATE probe");
-        let error = sqlx::query(&format!("TRUNCATE TABLE {table}"))
+        // CASCADE deliberately. A plain TRUNCATE stopped being a real probe once
+        // migration 0362 added a foreign key referencing kernel_crdt_updates:
+        // PostgreSQL then refuses with "cannot truncate a table referenced in a
+        // foreign key constraint" during constraint checking, BEFORE any BEFORE
+        // TRUNCATE trigger fires. The statement was still refused, so the test
+        // still passed its exit code - but the append-only authority it claims to
+        // prove was never reached. CASCADE satisfies the FK objection so the
+        // migration-0358 trigger actually runs, which makes this assert what it
+        // says: the guard refuses even a caller willing to cascade.
+        let error = sqlx::query(&format!("TRUNCATE TABLE {table} CASCADE"))
             .execute(&mut *tx)
             .await
             .expect_err("append-only CRDT authority must reject TRUNCATE");
@@ -4777,7 +4786,13 @@ async fn mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch() {
         let lane_id = format!("lane-mt009-aggregate-mismatch-{suffix}");
         let message_id = format!("msg-mt009-aggregate-mismatch-{suffix}");
         seed_run_lane(&store, &run_id, &lane_id, RuntimeBinding::Local).await;
-        let message = sample_message(&message_id, &run_id, &lane_id, "local", 1);
+        let mut message = sample_message(&message_id, &run_id, &lane_id, "local", 1);
+        // sample_message builds a Proposal-kind message, and the kind-aware rule
+        // in model_lane.rs requires a proposal_ref for those. Without it the
+        // write is refused as InvalidInput BEFORE this test reaches the
+        // EventLedger aggregate mismatch it exists to prove. Same one-line
+        // convention every other message fixture in this file already uses.
+        message.proposal_ref = Some(format!("proposal://mt009/aggregate-mismatch/{message_id}"));
         store
             .record_message(message.clone())
             .await
@@ -6832,6 +6847,15 @@ fn sample_projection_plan(run_id: &str, lane_id: &str) -> NewModelLaneCloudProje
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         provider_profile_ref: "provider-profile://mt009/openai".into(),
         fan_out_targets: vec!["provider://openai/byok".into()],
+        // Seeded through an unscoped store: only an explicitly unattributed
+        // source scope may be stamped (see `ensure_authority_matches_write_scope`).
+        export_delegation: CloudExportDelegation {
+            audience_refs: vec!["provider://openai/byok".into()],
+            source_scope: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
+                "MT009_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+            ),
+            authorization_receipt_ref: None,
+        },
         consent_scope: ModelLaneCloudConsentScope::SingleLane,
         target_bindings: vec![],
         status: ModelLaneCloudProjectionPlanStatus::Active,
@@ -6875,6 +6899,9 @@ fn sample_consent_receipt(
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         fan_out_targets: vec!["provider://openai/byok".into()],
         approved: true,
+        approver: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
+            "MT009_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+        ),
         approved_by_ref: "operator://mt009/approval".into(),
         approved_at_utc: "2026-07-01T00:00:10Z".into(),
         valid_from_utc: "2026-01-01T00:00:00Z".into(),
@@ -8873,17 +8900,26 @@ async fn ac9_cancel_terminalizes_parallel_siblings_and_live_sessions() {
         "in_flight",
     )
     .await;
-    let cancelled = fixture
-        .coordinator
-        .cancel_routing_execution(&fixture.execution_id, "operator AC-9 cancellation")
-        .await
-        .expect("cancel production routing execution");
+    // Bounded for the same reason as the blocked-create cancellation proof: an
+    // unbounded await here turns a cancellation regression into a suite-wide
+    // hang instead of a reported failure.
+    let cancelled = tokio::time::timeout(
+        Duration::from_secs(60),
+        fixture
+            .coordinator
+            .cancel_routing_execution(&fixture.execution_id, "operator AC-9 cancellation"),
+    )
+    .await
+    .expect("cancel_routing_execution must not hang while siblings are live")
+    .expect("cancel production routing execution");
     assert_eq!(cancelled.status, ModelLaneRoutingExecutionStatus::Cancelled);
     assert!(cancelled.stages.values().all(|stage| {
         stage.state == ModelLaneRoutingStageStateKind::Cancelled
             || ac9_stage_is_terminal(stage.state)
     }));
-    let _ = worker.await;
+    let _ = tokio::time::timeout(Duration::from_secs(60), worker)
+        .await
+        .expect("cancellation must terminalize live sibling sessions and end the worker");
     assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
     assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 2);
 }
@@ -8973,13 +9009,36 @@ async fn ac9_replay_rejects_message_and_artifact_projection_drift() {
         .output_ref
         .as_deref()
         .expect("local output artifact");
-    sqlx::query(
+    let tampered = sqlx::query(
         "UPDATE model_lane_context_bundle_artifacts SET record_json=jsonb_set(record_json, '{payload_json,typed_output,proposal}', '\"tampered-output\"'::jsonb) WHERE artifact_ref=$1",
     )
     .bind(artifact_ref)
     .execute(&artifact_fixture.pool)
     .await
     .expect("tamper output artifact projection");
+    // Prove the tamper actually LANDED before asserting replay rejects it.
+    // `jsonb_set` returns the document UNCHANGED when the parent path is absent,
+    // so if the artifact record shape ever moves, this UPDATE silently becomes a
+    // no-op, replay then legitimately succeeds, and the failure reads as "replay
+    // stopped detecting drift" when nothing was ever corrupted. Without this the
+    // test cannot tell a real detection regression from a stale fixture path.
+    assert_eq!(
+        tampered.rows_affected(),
+        1,
+        "the tamper UPDATE must hit exactly one artifact row for artifact_ref {artifact_ref}"
+    );
+    let landed: bool = sqlx::query_scalar::<_, Option<bool>>(
+        "SELECT record_json #>> '{payload_json,typed_output,proposal}' = 'tampered-output' FROM model_lane_context_bundle_artifacts WHERE artifact_ref=$1",
+    )
+    .bind(artifact_ref)
+    .fetch_one(&artifact_fixture.pool)
+    .await
+    .expect("read back tampered artifact projection")
+    .unwrap_or(false);
+    assert!(
+        landed,
+        "the tampered value is not present at {{payload_json,typed_output,proposal}} - the fixture path no longer matches the stored artifact shape, so this test was not exercising drift detection at all"
+    );
     assert!(artifact_fixture
         .store
         .replay_run(&artifact_fixture.context.run_id)
@@ -9330,13 +9389,29 @@ async fn ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create() {
         "in_flight",
     )
     .await;
-    let state = cancelled
-        .coordinator
-        .cancel_routing_execution(&cancelled.execution_id, "cancel blocked create")
-        .await
-        .expect("pending create cancellation completes before DB terminalization");
+    // BOUNDED DELIBERATELY. Ac9ProductionFactory::create blocks in a
+    // `while hold_create { sleep(25ms) }` loop with no cancellation awareness,
+    // and this test never clears hold_create - the whole point is that CANCEL
+    // must be what breaks it out. If that propagation regresses, an unbounded
+    // await here hangs FOREVER and takes the entire binary with it, which is
+    // exactly what made mixed_model_lane_integration_pg_tests unrunnable (86
+    // minutes for 62 CPU-seconds, every other test finished). A hang is not a
+    // more cautious failure than an assertion - it is a worse one, because it
+    // destroys the suite's ability to report anything at all.
+    let state = tokio::time::timeout(
+        Duration::from_secs(60),
+        cancelled
+            .coordinator
+            .cancel_routing_execution(&cancelled.execution_id, "cancel blocked create"),
+    )
+    .await
+    .expect("cancel_routing_execution must not hang on a blocked factory create")
+    .expect("pending create cancellation completes before DB terminalization");
     assert_eq!(state.status, ModelLaneRoutingExecutionStatus::Cancelled);
-    assert!(worker.await.expect("join cancelled create worker").is_err());
+    let worker_result = tokio::time::timeout(Duration::from_secs(60), worker)
+        .await
+        .expect("cancellation must propagate INTO the blocked factory create and end the worker");
+    assert!(worker_result.expect("join cancelled create worker").is_err());
     assert_eq!(cancelled.teardowns.load(Ordering::SeqCst), 0);
 
     let peer = Arc::new(ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, "peer-create").await);

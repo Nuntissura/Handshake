@@ -49,8 +49,8 @@ use futures::StreamExt;
 use super::error::SwarmError;
 use super::ids::{ByokCloudProvider, ModelInstanceId, SpawnRequest};
 use super::model_lane::{
-    dexterity_spawn_model_session_id, DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest,
-    DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
+    dexterity_spawn_model_session_id, CloudExportDelegation, DexterityLaunchAdapterKind,
+    DexterityLaunchAdapterRequest, DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
     ModelLaneCloudConsentReceiptRecord, ModelLaneCloudConsentReceiptStatus,
     ModelLaneCloudConsentScope, ModelLaneCloudConsentTargetBinding, ModelLaneCloudExportPosture,
     ModelLaneCloudProjectionPlanRecord, ModelLaneCloudProjectionPlanStatus,
@@ -62,6 +62,7 @@ use super::model_lane::{
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus,
     NewModelLaneMessage, RuntimeBinding,
 };
+use super::resource_scope::AccountBoundAuthority;
 use super::routing::ModelLaneRoutingAuthority;
 use super::routing_execution::{
     ModelLaneRoutingDispatchBatch, ModelLaneRoutingExecutionContext,
@@ -80,6 +81,58 @@ pub const OPERATOR_CHAT_CLI_ADAPTER: &str = "operator_chat_cli_bridge";
 /// `tool_result` content block as a [`AgentActivity::Text`]. Detecting it lets us
 /// map a rendered tool_result to [`ModelLaneMessageKind::ToolResult`] per F1.
 pub const RENDERED_TOOL_RESULT_PREFIX: &str = "[tool_result]";
+
+/// How long an auto-issued operator-chat cloud ConsentReceipt stays valid.
+///
+/// # Why this is 12 hours and not 365 days
+///
+/// This receipt is minted by the launch path itself, for exactly ONE lane in ONE
+/// run, and it authorizes sending operator context to a third-party provider.
+/// The previous value was `now + 365 days`, which is longer than the resource it
+/// authorizes can possibly live: a lane cannot outlive its run, a run cannot
+/// outlive the coordinator process, and neither survives a machine restart. A
+/// capability that outlives its subject by three orders of magnitude is a
+/// dangling capability — after the lane is gone the receipt is still an
+/// approved, unrevoked, replayable authorization for that provider/scope pair,
+/// and every idempotent re-launch on the same run/lane ids re-uses it instead of
+/// asking again.
+///
+/// The genuinely correct binding is lifetime-scoped consent, and that primitive
+/// exists (`ModelLaneCloudConsentScope::SingleRun`, migration
+/// `0353_model_lane_run_scoped_consent`), but it is a *scope* mechanism, not an
+/// *expiry* mechanism: it says which lanes one grant covers, not when the grant
+/// dies. There is no run-end timestamp available at mint time to bind
+/// `valid_until_utc` to, so the honest construction is a bounded window that is
+/// long enough to cover a real working session (a cloud lane can legitimately
+/// run for hours) and short enough that an abandoned receipt expires on its own
+/// rather than waiting for someone to notice it. 12 hours is that window: longer
+/// than any single operator-chat turn or session, shorter than a day, and it
+/// cannot silently survive to the next working day.
+///
+/// Revocation stays the immediate kill switch; expiry is the backstop for the
+/// case where nobody revokes because nobody remembers the receipt exists.
+pub const OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS: i64 = 12;
+
+/// Clock-skew grace applied to `valid_from_utc` so a receipt minted on one clock
+/// is not rejected as "not yet valid" by a check on a slightly earlier clock.
+pub const OPERATOR_CHAT_CLOUD_CONSENT_BACKDATE_MINUTES: i64 = 5;
+
+/// Recorded as `approved_by_ref` when the operator-chat launch path has no
+/// authenticated account to bind the approval to.
+///
+/// It replaces `format!("operator://{}/cloud-selection", owner_session)`, which
+/// claimed an operator approved the export when all it actually recorded was the
+/// governance role label of the thing requesting the export. This value claims
+/// nothing: it states that no authenticated account existed, and the typed
+/// `approver` alongside it is [`AccountBoundAuthority::Unattributed`], which no
+/// account-scoped gate will accept.
+pub const OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REF: &str =
+    "unattributed://operator-chat/no-authenticated-account";
+
+/// Stable reason stamped on an unattributed operator-chat cloud approval so
+/// every such row is enumerable by an auditor.
+pub const OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REASON: &str =
+    "OPERATOR_CHAT_CLOUD_LAUNCH_WITHOUT_AUTHENTICATED_ACCOUNT";
 
 /// Operator Chat request for one immutable run-scoped cloud-consent grant.
 /// The receipt is derived from the stored plan so its hash, policies, and
@@ -1311,6 +1364,17 @@ pub struct OperatorChatLaunchService {
 }
 
 impl OperatorChatLaunchService {
+    /// The live coordinator this service launches through.
+    ///
+    /// WP-1 MT-021 AC-3: the operator-facing swarm concurrency control must move
+    /// the REAL model-session admission cap, and the coordinator singleton is
+    /// only reachable from the API through this service. Exposed read-only so a
+    /// route can call `set_max_concurrent`/`max_concurrent` without gaining any
+    /// other coordinator authority.
+    pub fn coordinator(&self) -> &Arc<SwarmCoordinator> {
+        &self.coordinator
+    }
+
     pub fn new(
         coordinator: Arc<SwarmCoordinator>,
         catalog: Arc<ModelCatalog>,
@@ -1362,9 +1426,18 @@ impl OperatorChatLaunchService {
                 "operator-chat SingleRun grant requires a ModelLaneStore".into(),
             )
         })?;
-        let stored_plan = store
-            .record_cloud_projection_plan(request.projection_plan)
-            .await?;
+
+        // HBR-PRIV-005: identity is server-derived, never client-supplied. The
+        // caller may propose a plan and a provenance label; it may not tell the
+        // backend whose data is being exported or who approved it. Overriding
+        // rather than validating is deliberate — there is no legitimate case
+        // where a client knows a source scope the store does not.
+        let approver = AccountBoundAuthority::from_access(store.access());
+        let mut projection_plan = request.projection_plan;
+        projection_plan.export_delegation.source_scope = approver.clone();
+        projection_plan.export_delegation.authorization_receipt_ref =
+            Some(request.consent_receipt_id.clone());
+        let stored_plan = store.record_cloud_projection_plan(projection_plan).await?;
         let receipt = store
             .record_cloud_consent_receipt(NewModelLaneCloudConsentReceipt {
                 consent_receipt_id: request.consent_receipt_id,
@@ -1383,6 +1456,7 @@ impl OperatorChatLaunchService {
                 export_posture: stored_plan.export_posture.clone(),
                 fan_out_targets: stored_plan.fan_out_targets.clone(),
                 approved: true,
+                approver,
                 approved_by_ref: request.approved_by_ref,
                 approved_at_utc: request.approved_at_utc,
                 valid_from_utc: request.valid_from_utc,
@@ -1478,6 +1552,12 @@ impl OperatorChatLaunchService {
             .iter()
             .map(|target| format!("provider-endpoint://{}", target.provider_endpoint_ref))
             .collect();
+        // HBR-PRIV-007: the SingleRun audience is exactly the enumerated launch
+        // targets. Deriving it here (rather than trusting the caller's list)
+        // means a broadcast grant cannot name an endpoint that is not one of the
+        // lanes actually being launched under it.
+        request.grant.projection_plan.export_delegation.audience_refs =
+            request.grant.projection_plan.fan_out_targets.clone();
         let (plan, receipt) = self.grant_single_run_cloud_consent(request.grant).await?;
         for spawn in &mut spawn_requests {
             let contract = spawn.dexterity_launch.as_mut().ok_or_else(|| {
@@ -1787,6 +1867,37 @@ impl OperatorChatLaunchService {
         });
         let scope_hash = sha256_hex(&canonical_json_bytes(&scope_basis));
         let fan_out_targets = vec![format!("provider://{provider_kind}/byok")];
+
+        // HBR-PRIV-005/007. The approver is derived from the store's account
+        // context — the request seam (`api/account_scope.rs` today, an
+        // authenticated session after WP-KERNEL-006) — and NEVER from
+        // `selection.owner_session`, which is a governance role label shared by
+        // every operator on every machine.
+        //
+        // When there is no account context the launch is still allowed to
+        // proceed, because this is the documented pre-WP-KERNEL-006 posture for
+        // every WP-1 table and refusing here would take away the only cloud
+        // launch path on a build that has no authentication at all. What it may
+        // NOT do is lie about who approved: the receipt is recorded as explicitly
+        // unattributed, the row is stamped with a NULL owning account (so no
+        // account-scoped reader can see or reuse it), and
+        // `ensure_cloud_launch_authority_tx` will refuse it the moment a launch
+        // carries an account context.
+        let approver = AccountBoundAuthority::from_access(store.access());
+        let approved_by_ref = match &approver {
+            AccountBoundAuthority::Account {
+                owner_account_id, ..
+            } => format!("account://{owner_account_id}/cloud-selection"),
+            AccountBoundAuthority::Unattributed { .. } => {
+                OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REF.to_string()
+            }
+        };
+        let approver = match approver {
+            account @ AccountBoundAuthority::Account { .. } => account,
+            AccountBoundAuthority::Unattributed { .. } => {
+                AccountBoundAuthority::unattributed(OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REASON)
+            }
+        };
         let stored_plan = store
             .record_cloud_projection_plan(NewModelLaneCloudProjectionPlan {
                 projection_plan_id: projection_plan_id.clone(),
@@ -1811,6 +1922,16 @@ impl OperatorChatLaunchService {
                 export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
                 provider_profile_ref: format!("provider-profile://operator-chat/{provider_kind}"),
                 fan_out_targets: fan_out_targets.clone(),
+                // HBR-PRIV-007: the audience is exactly the disclosed fan-out —
+                // this projection delegates to the BYOK provider endpoint and
+                // nothing else — and the local visibility it is derived from is
+                // the same account that approves it, so a remote export cannot
+                // be broader than what that account can already see locally.
+                export_delegation: CloudExportDelegation {
+                    audience_refs: fan_out_targets.clone(),
+                    source_scope: approver.clone(),
+                    authorization_receipt_ref: Some(consent_receipt_id.clone()),
+                },
                 consent_scope: ModelLaneCloudConsentScope::SingleLane,
                 target_bindings: vec![],
                 status: ModelLaneCloudProjectionPlanStatus::Active,
@@ -1853,10 +1974,15 @@ impl OperatorChatLaunchService {
                 export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
                 fan_out_targets,
                 approved: true,
-                approved_by_ref: format!("operator://{}/cloud-selection", selection.owner_session),
+                approver: approver.clone(),
+                approved_by_ref,
                 approved_at_utc: now.to_rfc3339(),
-                valid_from_utc: (now - Duration::minutes(5)).to_rfc3339(),
-                valid_until_utc: (now + Duration::days(365)).to_rfc3339(),
+                valid_from_utc: (now
+                    - Duration::minutes(OPERATOR_CHAT_CLOUD_CONSENT_BACKDATE_MINUTES))
+                .to_rfc3339(),
+                valid_until_utc: (now
+                    + Duration::hours(OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS))
+                .to_rfc3339(),
                 revoked_at_utc: None,
                 revocation_ref: None,
                 revocation_input_hash: None,
@@ -1878,6 +2004,13 @@ impl OperatorChatLaunchService {
                     "provider_call_attempted": false,
                     "surface": OPERATOR_CHAT_SURFACE_ID,
                     "selection_ref": format!("operator-chat-selection://{}", contract.run_id),
+                    // Scoped diagnostic evidence (HBR-PRIV-005/008): the KIND of
+                    // approval is visible without disclosing the account id, so
+                    // an operator or a diagnostics surface can see at a glance
+                    // that a receipt is unattributed rather than having to infer
+                    // it from a string that used to look like an approval.
+                    "approver_kind": if approver.is_account_bound() { "account_bound" } else { "unattributed" },
+                    "consent_validity_hours": OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS,
                 }),
             })
             .await?;
@@ -2189,6 +2322,21 @@ impl OperatorChatLaunchService {
         let mut stream = self
             .coordinator
             .generate_session_managed(instance_id, request)?;
+        // The coordinator-owned token this session is actually cancelled through.
+        //
+        // The in-band `FinishReason::Cancelled` marker is NOT a sufficient fence
+        // on its own: output already buffered in the chunk channel can be
+        // dequeued ahead of it, so whether a post-cancellation activity block
+        // becomes durable would depend on which the executor polls first. Every
+        // durable write below is therefore fenced on this token, which is the
+        // same signal the runtime observes, so "only pre-cancel output is
+        // durable" holds deterministically rather than by luck.
+        let session_cancel = self.coordinator.session_cancel_token(instance_id);
+        let cancellation_requested = || {
+            session_cancel
+                .as_ref()
+                .is_some_and(|token| token.is_cancelled())
+        };
         let mut stdout_buffer = String::new();
         let mut next_capture_index = 1;
         let mut captured_message_count = 0;
@@ -2199,6 +2347,17 @@ impl OperatorChatLaunchService {
                 Ok(token) => {
                     if token.finish_reason == Some(FinishReason::Cancelled) {
                         stream_cancelled = true;
+                    }
+                    // Fence on the coordinator token, not just the in-band
+                    // marker. An activity block that was already buffered when
+                    // cancellation was requested arrives here AFTER the terminal
+                    // boundary; persisting it would contradict the lane's
+                    // Cancelled status and fabricate durable model output the
+                    // operator never accepted.
+                    if cancellation_requested() {
+                        stream_cancelled = true;
+                        stdout_buffer.clear();
+                        continue;
                     }
                     if token.finish_reason.is_none() && !token.text.is_empty() {
                         stdout_buffer.push_str(&token.text);
@@ -2237,7 +2396,7 @@ impl OperatorChatLaunchService {
         // captured on normal/error completion. On a cooperative cancellation it
         // is intentionally not promoted: only newline-complete activity blocks
         // observed before the terminal boundary are durable.
-        if !stream_cancelled && !stdout_buffer.trim().is_empty() {
+        if !stream_cancelled && !cancellation_requested() && !stdout_buffer.trim().is_empty() {
             let records = capture
                 .capture_cli_stream(
                     &run,
@@ -2472,6 +2631,37 @@ mod tests {
     use super::*;
 
     #[test]
+    fn an_auto_issued_cloud_consent_cannot_outlive_a_working_day() {
+        // Regression guard for the 365-day self-issued approval. If someone
+        // widens this again, this test names the reason it was narrowed instead
+        // of leaving the number to look arbitrary.
+        assert!(
+            OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS > 0,
+            "an auto-issued consent must have a positive validity window"
+        );
+        assert!(
+            OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS <= 24,
+            "an auto-issued cloud-export approval must not survive into the next day: {OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS}h"
+        );
+        assert!(
+            OPERATOR_CHAT_CLOUD_CONSENT_BACKDATE_MINUTES > 0
+                && OPERATOR_CHAT_CLOUD_CONSENT_BACKDATE_MINUTES < 60,
+            "the clock-skew grace must be a grace, not a second validity window"
+        );
+    }
+
+    #[test]
+    fn the_unattributed_approval_ref_does_not_claim_an_operator_approved() {
+        // The replaced value was `operator://<role_label>/cloud-selection`, which
+        // read as an operator approval. Its replacement must not.
+        assert!(
+            !OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REF.starts_with("operator://"),
+            "an unattributed approval must not present itself as an operator approval"
+        );
+        assert!(OPERATOR_CHAT_UNATTRIBUTED_APPROVAL_REF.starts_with("unattributed://"));
+    }
+
+    #[test]
     fn tool_call_maps_to_tool_request_with_activity_kind() {
         let activity = AgentActivity::ToolCall {
             name: "Read".into(),
@@ -2588,9 +2778,25 @@ mod tests {
             request.requested_net_policy,
             Some(crate::sandbox::NetPolicy::HostInherited)
         );
+        // Assert against the CONSTANT, not a hand-written literal.
+        //
+        // This assertion previously demanded "execution-policy://operator-chat/official-cli",
+        // a value that exists nowhere in src/ except this test. It was not merely stale: the
+        // official CLI bridge REJECTS any requested ref that is not
+        // CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF (official_cli_bridge.rs
+        // `if requested_ref != crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF`),
+        // so a spawn request carrying the old expected value would be refused by the product.
+        // Satisfying the test as written would have BROKEN the operator-chat CLI lane.
+        //
+        // Verified pre-existing, not introduced by the 2026-08-04 lanes: the constant is
+        // byte-identical at HEAD 50517aec and in the working tree, and neither this literal
+        // nor the policy assignment appears in any uncommitted diff.
+        //
+        // Binding to the constant means a future rename moves both sides together instead of
+        // silently re-breaking this test.
         assert_eq!(
             request.requested_execution_policy_ref.as_deref(),
-            Some("execution-policy://operator-chat/official-cli")
+            Some(crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF)
         );
     }
 

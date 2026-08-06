@@ -1,0 +1,1038 @@
+//! WP-1 MT-006 HBR-PRIV proof for the CLOUD projection/consent authority path.
+//!
+//! # Why this file exists separately from `model_lane_resource_scope_pg_tests`
+//!
+//! That suite proves account-bound scope on lane rows, navigation routes,
+//! registry enumeration, derived non-widening and boot recovery. It does NOT
+//! touch `model_lane_cloud_projection_plans` or
+//! `model_lane_cloud_consent_receipts`, which are the two tables that decide
+//! whether operator data may be shipped to a third-party provider. Borrowing
+//! that suite's green for MT-006 would have been exactly the vacuous-pass the
+//! PRIV pillar exists to prevent, so the cloud path is proven here on its own
+//! terms:
+//!
+//! * **HBR-PRIV-001/002** — two distinct owning accounts; neither can read nor
+//!   REUSE the other's ProjectionPlan or ConsentReceipt.
+//! * **HBR-PRIV-005/007** — the receipt's approver is a typed, account-bound
+//!   value; a self-issued governance-role-label string is refused at write time;
+//!   an unattributed approval cannot authorize an account-scoped launch even if
+//!   the row's owning-account column is backfilled underneath it.
+//! * **HBR-PRIV-006** — after revocation a subsequent launch is refused, and the
+//!   already-running lane stays pinned to its ORIGINAL immutable projection/
+//!   consent context instead of being silently retargeted onto a newer grant.
+//! * **HBR-PRIV-007** — the ProjectionPlan carries audience + local source scope
+//!   + authorization-receipt provenance, and an audience that widens beyond the
+//!   disclosed fan-out is rejected.
+//!
+//! Real PostgreSQL only. A missing cluster panics; it never skips green.
+//!
+//! # Falsifiability
+//!
+//! Every negative is paired with a positive control on the same data, so a
+//! denial can never pass because nothing was written. Every `FALSIFIABILITY`
+//! comment records an inversion that was actually applied, run against real
+//! PostgreSQL, observed to fail, and then restored — the quoted text is the
+//! observed panic message, not a prediction.
+
+mod knowledge_pg_support;
+
+use std::collections::BTreeSet;
+
+use handshake_core::swarm_orchestration::model_lane::{
+    CloudExportDelegation, LaunchAuthority, ModelLaneCloudConsentReceiptStatus,
+    ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
+    ModelLaneCloudRetentionPolicy, ModelLaneError, ModelLaneKind, ModelLaneLocusBinding,
+    ModelLaneProviderKind, ModelLaneRecoveryState, ModelLaneStatus, ModelLaneStore, NewModelLane,
+    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan, NewModelLaneRun,
+    RuntimeBinding,
+};
+use handshake_core::swarm_orchestration::resource_scope::{
+    stored_resource_scope_from_row, AccountBoundAuthority, ActorPrincipalId, OwnerAccountId,
+    ResourceAccessContext, ResourceScope, ResourceScopeQuery, StoredResourceScope,
+    RESOURCE_SCOPE_SELECT_COLUMNS,
+};
+use serde_json::json;
+use sqlx::PgPool;
+
+const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
+const MT_ID: &str = "MT-006";
+const TASK_BOARD_ID: &str = "task-board://wp-1";
+const USERMANUAL_BEHAVIOR: &str = "usermanual://model-lane-cloud-projection-consent#launch";
+const PROVIDER_KIND: &str = "openai";
+const REQUESTED_MODEL_ID: &str = "model://dexterity/byok_cloud/gpt-4o-mini";
+const SCOPE_HASH: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const PAYLOAD_SHA256: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+// ---------------------------------------------------------------------------
+// Harness
+// ---------------------------------------------------------------------------
+
+async fn pg_pool(test_name: &str) -> PgPool {
+    let pg = knowledge_pg_support::knowledge_pg().await.unwrap_or_else(|| {
+        panic!(
+            "PostgreSQL unavailable for {test_name}: MT-006 HBR-PRIV cloud-consent proof requires live Handshake-managed PostgreSQL"
+        )
+    });
+    sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&pg.schema_url)
+        .await
+        .expect("connect isolated cloud consent scope schema")
+}
+
+fn scope_for(owner: OwnerAccountId) -> ResourceScope {
+    ResourceScope::new(owner, ActorPrincipalId::mint())
+}
+
+fn account_store(pool: &PgPool, scope: &ResourceScope) -> ModelLaneStore {
+    ModelLaneStore::new_scoped(pool.clone(), scope.clone())
+}
+
+/// The pre-account legacy store: no write scope, so it stamps NULL owners and
+/// can only record explicitly unattributed authority.
+fn legacy_store(pool: &PgPool) -> ModelLaneStore {
+    ModelLaneStore::new(pool.clone())
+}
+
+fn approver_for(scope: &ResourceScope) -> AccountBoundAuthority {
+    AccountBoundAuthority::from_scope(scope)
+}
+
+fn unattributed(reason: &str) -> AccountBoundAuthority {
+    AccountBoundAuthority::unattributed(reason)
+}
+
+// ---------------------------------------------------------------------------
+// Fixtures — every identifier derives from `slug`, so two owners can seed
+// structurally identical cloud authority that differs only in ownership.
+// ---------------------------------------------------------------------------
+
+fn run_id(slug: &str) -> String {
+    format!("run-cloud-{slug}")
+}
+
+fn lane_id(slug: &str) -> String {
+    format!("lane-cloud-{slug}")
+}
+
+fn plan_id(slug: &str) -> String {
+    format!("cloud-projection-plan://{}/{}", run_id(slug), lane_id(slug))
+}
+
+fn receipt_id(slug: &str) -> String {
+    format!("cloud-consent-receipt://{}/{}", run_id(slug), lane_id(slug))
+}
+
+fn stream_id(slug: &str) -> String {
+    format!("mlane-stream-{}", run_id(slug))
+}
+
+fn model_session_id(slug: &str) -> String {
+    format!("model-session-{}", lane_id(slug))
+}
+
+fn owner_session(slug: &str) -> String {
+    // Deliberately a governance ROLE LABEL, exactly like production. It is the
+    // value the old code mistook for an owner; keeping it here means every
+    // isolation assertion below has to come from the real account columns.
+    format!("KERNEL_BUILDER-{slug}")
+}
+
+fn fan_out_targets() -> Vec<String> {
+    vec![format!("provider://{PROVIDER_KIND}/byok")]
+}
+
+fn projection_plan(
+    slug: &str,
+    source_scope: AccountBoundAuthority,
+    authorization_receipt_ref: Option<String>,
+) -> NewModelLaneCloudProjectionPlan {
+    let run = run_id(slug);
+    let lane = lane_id(slug);
+    NewModelLaneCloudProjectionPlan {
+        projection_plan_id: plan_id(slug),
+        run_id: run.clone(),
+        trace_id: format!("trace-{run}"),
+        lane_id: Some(lane.clone()),
+        model_session_id: Some(model_session_id(slug)),
+        provider_kind: Some(PROVIDER_KIND.into()),
+        requested_model_id: Some(REQUESTED_MODEL_ID.into()),
+        scope_hash: SCOPE_HASH.into(),
+        source_artifact_refs: vec![
+            format!("artifact-store://mt006-priv/{run}/{lane}/context.json"),
+            "context-bundle://mt006-priv/cloud-safe".into(),
+        ],
+        payload_artifact_ref: format!("artifact-store://mt006-priv/{run}/{lane}/payload.json"),
+        payload_sha256: PAYLOAD_SHA256.into(),
+        redaction_policy_ref: "redaction-policy://mt006-priv/cloud-safe".into(),
+        redaction_summary: "workspace-local secrets and local-only memory are excluded".into(),
+        retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
+        export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
+        provider_profile_ref: format!("provider-profile://mt006-priv/{PROVIDER_KIND}"),
+        fan_out_targets: fan_out_targets(),
+        export_delegation: CloudExportDelegation {
+            audience_refs: fan_out_targets(),
+            source_scope,
+            authorization_receipt_ref,
+        },
+        consent_scope: ModelLaneCloudConsentScope::SingleLane,
+        target_bindings: vec![],
+        status: ModelLaneCloudProjectionPlanStatus::Active,
+        event_ledger_stream_id: stream_id(slug),
+        work_packet_id: WP_ID.into(),
+        micro_task_id: MT_ID.into(),
+        task_board_id: TASK_BOARD_ID.into(),
+        owner_session: owner_session(slug),
+        idempotency_key: format!("idem-projection-{run}-{lane}"),
+        created_at_utc: "2026-08-04T09:00:00Z".into(),
+        user_manual_behavior_ref: USERMANUAL_BEHAVIOR.into(),
+        diagnostic_payload: json!({
+            "flight_recorder": "EventLedger",
+            "internal_diagnostics": "deferred: native internal_diagnostics surface ships separately",
+            "palmistry": "deferred: external watcher links by run_id/lane_id when available",
+            "locus": format!("locus://wp1/mt006/{run}/{lane}")
+        }),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn consent_receipt(
+    slug: &str,
+    projection_plan_id: &str,
+    projection_plan_hash: &str,
+    approver: AccountBoundAuthority,
+    approved_by_ref: &str,
+) -> NewModelLaneCloudConsentReceipt {
+    let run = run_id(slug);
+    let lane = lane_id(slug);
+    NewModelLaneCloudConsentReceipt {
+        consent_receipt_id: receipt_id(slug),
+        projection_plan_id: projection_plan_id.into(),
+        projection_plan_hash: projection_plan_hash.into(),
+        run_id: run.clone(),
+        trace_id: format!("trace-{run}"),
+        lane_id: Some(lane.clone()),
+        model_session_id: Some(model_session_id(slug)),
+        provider_kind: Some(PROVIDER_KIND.into()),
+        requested_model_id: Some(REQUESTED_MODEL_ID.into()),
+        scope_hash: SCOPE_HASH.into(),
+        consent_scope: ModelLaneCloudConsentScope::SingleLane,
+        target_bindings: vec![],
+        retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
+        export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
+        fan_out_targets: fan_out_targets(),
+        approved: true,
+        approver,
+        approved_by_ref: approved_by_ref.into(),
+        approved_at_utc: "2026-08-04T09:00:10Z".into(),
+        // Wide enough to be current on any wall clock during the test run. The
+        // BOUNDED window is an operator-chat mint-site policy
+        // (`OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS`), not a storage rule, so
+        // it is asserted there rather than smuggled in here.
+        valid_from_utc: "2020-01-01T00:00:00Z".into(),
+        valid_until_utc: "2099-01-01T00:00:00Z".into(),
+        revoked_at_utc: None,
+        revocation_ref: None,
+        revocation_input_hash: None,
+        status: ModelLaneCloudConsentReceiptStatus::Approved,
+        event_ledger_stream_id: stream_id(slug),
+        work_packet_id: WP_ID.into(),
+        micro_task_id: MT_ID.into(),
+        task_board_id: TASK_BOARD_ID.into(),
+        owner_session: owner_session(slug),
+        idempotency_key: format!("idem-consent-{run}-{lane}"),
+        created_at_utc: "2026-08-04T09:00:15Z".into(),
+        user_manual_behavior_ref: USERMANUAL_BEHAVIOR.into(),
+        diagnostic_payload: json!({
+            "flight_recorder": "EventLedger",
+            "provider_call_attempted": false,
+            "locus": format!("locus://wp1/mt006/{run}/{lane}")
+        }),
+    }
+}
+
+fn locus(slug: &str) -> ModelLaneLocusBinding {
+    ModelLaneLocusBinding {
+        work_packet_id: WP_ID.into(),
+        micro_task_id: MT_ID.into(),
+        task_board_id: Some(TASK_BOARD_ID.into()),
+        coordinator_session_id: format!("coordinator-session-{}", run_id(slug)),
+        session_id: format!("session-{}", lane_id(slug)),
+        model_session_id: model_session_id(slug),
+        owner_session: owner_session(slug),
+        locus_binding_ref: format!("locus://wp1/mt006/{}/{}", run_id(slug), lane_id(slug)),
+    }
+}
+
+/// A cloud run + lane bound to `slug`'s projection/consent authority. `plan_ref`
+/// and `receipt_ref` are explicit so a test can deliberately point a launch at
+/// ANOTHER account's authority.
+fn cloud_run_lane(
+    slug: &str,
+    status: ModelLaneStatus,
+    plan_ref: &str,
+    receipt_ref: &str,
+) -> (NewModelLaneRun, NewModelLane) {
+    let run = run_id(slug);
+    let lane = lane_id(slug);
+    (
+        NewModelLaneRun {
+            run_id: run.clone(),
+            trace_id: format!("trace-{run}"),
+            run_span_id: format!("span-{run}"),
+            coordinator_session_id: format!("coordinator-session-{run}"),
+            routing_policy: "cloud_plan_local_execute".into(),
+            context_bundle_id: format!("context-bundle://mt006-priv/{run}/bootstrap"),
+            lane_ids: vec![lane.clone()],
+            event_ledger_stream_id: stream_id(slug),
+            artifact_namespace: format!("artifact://model-lane/mt006-priv/{run}"),
+            projection_plan_ref: Some(plan_ref.into()),
+            consent_receipt_ref: Some(receipt_ref.into()),
+            work_packet_id: Some(WP_ID.into()),
+            micro_task_id: Some(MT_ID.into()),
+            task_board_id: Some(TASK_BOARD_ID.into()),
+            owner_session: owner_session(slug),
+            idempotency_key: format!("idem-run-{run}"),
+            replay_order_key: format!("00000000/{run}/run"),
+            replay_after_event_ledger_seq: None,
+            recovery_state: ModelLaneRecoveryState::Restartable,
+            failstate_code: None,
+            reason_ref: None,
+            recovery_hint_ref: Some(
+                "usermanual://model-lane-cloud-projection-consent#recovery".into(),
+            ),
+            locus_binding: Some(locus(slug)),
+            memory_pack_ref: format!("memory-pack://fems/mt006-priv/{run}"),
+            memory_pack_hash: PAYLOAD_SHA256.into(),
+            determinism_mode: "deterministic_replay".into(),
+            budget_summary_ref: format!("budget://mt006-priv/{run}"),
+            selected_model_id: Some(REQUESTED_MODEL_ID.into()),
+            candidate_model_ids: vec![REQUESTED_MODEL_ID.into()],
+            procedural_review_status: "cloud_projection_consent_preflighted".into(),
+            truncation_warning_ref: None,
+            rejection_reason_refs: vec![],
+        },
+        NewModelLane {
+            lane_id: lane.clone(),
+            run_id: run.clone(),
+            trace_id: format!("trace-{run}"),
+            lane_span_id: format!("span-{lane}"),
+            event_ledger_stream_id: stream_id(slug),
+            kind: ModelLaneKind::CloudModel,
+            role: "cloud-review-lane".into(),
+            backend: "cloud_lane_openai".into(),
+            model_id: Some(REQUESTED_MODEL_ID.into()),
+            session_id: format!("session-{lane}"),
+            model_session_id: model_session_id(slug),
+            adapter_id: "openai_byok".into(),
+            runtime_binding: RuntimeBinding::Cloud,
+            launch_authority: LaunchAuthority::CloudLane,
+            provider_kind: ModelLaneProviderKind::OpenAi,
+            capability_token_ids: vec!["capability://dexterity/cloud-generate".into()],
+            effective_capability_snapshot_ref: Some(format!("capability-snapshot://{lane}")),
+            capability_negotiation_ref: Some(format!("capability-negotiation://{lane}")),
+            provider_feature_profile_ref: Some(format!(
+                "provider-profile://mt006-priv/{PROVIDER_KIND}"
+            )),
+            requested_execution_policy_ref: Some(format!("execution-policy://requested/{lane}")),
+            effective_execution_policy_ref: Some(format!("execution-policy://effective/{lane}")),
+            projection_plan_ref: Some(plan_ref.into()),
+            consent_receipt_ref: Some(receipt_ref.into()),
+            tool_gate_decision_refs: vec!["toolgate://mt006-priv/cloud-read-context".into()],
+            status,
+            recovery_state: ModelLaneRecoveryState::Restartable,
+            heartbeat_at_utc: Some("2026-08-04T09:01:00Z".into()),
+            lease_expires_at_utc: Some("2026-08-04T09:10:00Z".into()),
+            reclaim_after_utc: Some("2026-08-04T09:11:00Z".into()),
+            restart_generation: 0,
+            cancellation_ref: Some(format!("cancel-token://{lane}")),
+            reclaim_policy_ref: Some("reclaim-policy://mt006-priv/cloud".into()),
+            terminal_status_mapping_ref: Some("terminal-status://mt006-priv/cloud".into()),
+            process_ownership_ref: Some(format!("process-ledger://{lane}")),
+            no_os_process_reason_ref: None,
+            backpressure_ref: None,
+            loop_counter_ref: Some("loop-counter://mt006-priv".into()),
+            last_runtime_status_ref: Some("runtime-status://cloud-ready".into()),
+            last_recovery_event_ref: None,
+            failstate_code: None,
+            startup_failure_ref: None,
+            reason_ref: None,
+            recovery_hint_ref: Some(
+                "usermanual://model-lane-cloud-projection-consent#recovery".into(),
+            ),
+            work_packet_id: Some(WP_ID.into()),
+            micro_task_id: Some(MT_ID.into()),
+            task_board_id: Some(TASK_BOARD_ID.into()),
+            owner_session: owner_session(slug),
+            locus_binding: Some(locus(slug)),
+        },
+    )
+}
+
+/// Seed a coherent ProjectionPlan + ConsentReceipt pair owned by `scope`.
+async fn seed_cloud_authority(store: &ModelLaneStore, slug: &str, scope: &ResourceScope) {
+    let plan = store
+        .record_cloud_projection_plan(projection_plan(
+            slug,
+            approver_for(scope),
+            Some(receipt_id(slug)),
+        ))
+        .await
+        .unwrap_or_else(|error| panic!("seed cloud ProjectionPlan for {slug}: {error}"));
+    store
+        .record_cloud_consent_receipt(consent_receipt(
+            slug,
+            &plan.projection_plan_id,
+            &plan.projection_plan_hash,
+            approver_for(scope),
+            "operator://mt006-priv/approval",
+        ))
+        .await
+        .unwrap_or_else(|error| panic!("seed cloud ConsentReceipt for {slug}: {error}"));
+}
+
+/// Read a row's stored scope columns with NO owner predicate: the deliberate
+/// simulation of layer 1 being deleted by a future edit.
+async fn stored_scope_without_predicate(
+    pool: &PgPool,
+    table: &str,
+    key_column: &str,
+    key: &str,
+) -> StoredResourceScope {
+    let sql =
+        format!("SELECT {RESOURCE_SCOPE_SELECT_COLUMNS} FROM {table} WHERE {key_column} = $1");
+    let row = sqlx::query(&sql)
+        .bind(key)
+        .fetch_one(pool)
+        .await
+        .unwrap_or_else(|error| panic!("unpredicated read of {table}.{key_column}={key}: {error}"));
+    stored_resource_scope_from_row(&row).expect("decode stored scope columns")
+}
+
+async fn lane_row_refs(pool: &PgPool, lane: &str) -> (String, String, String) {
+    let row: (serde_json::Value,) =
+        sqlx::query_as("SELECT record_json FROM model_lanes WHERE lane_id = $1")
+            .bind(lane)
+            .fetch_one(pool)
+            .await
+            .unwrap_or_else(|error| panic!("read lane row {lane}: {error}"));
+    let record = row.0;
+    (
+        record["projection_plan_ref"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
+        record["consent_receipt_ref"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
+        record["status"].as_str().unwrap_or_default().to_string(),
+    )
+}
+
+// ---------------------------------------------------------------------------
+// 1. HBR-PRIV-001/002 — cross-account read AND reuse
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn two_accounts_cannot_read_or_reuse_each_others_cloud_consent_authority() {
+    let pool = pg_pool("cross-account cloud consent isolation").await;
+
+    let alice_account = OwnerAccountId::mint();
+    let bob_account = OwnerAccountId::mint();
+    assert_ne!(alice_account, bob_account);
+
+    let alice_scope = scope_for(alice_account);
+    let bob_scope = scope_for(bob_account);
+    let alice = account_store(&pool, &alice_scope);
+    let bob = account_store(&pool, &bob_scope);
+
+    seed_cloud_authority(&alice, "alice", &alice_scope).await;
+    seed_cloud_authority(&bob, "bob", &bob_scope).await;
+
+    // -- POSITIVE CONTROL ---------------------------------------------------
+    // Without this every negative below could pass because nothing was written
+    // or because enforcement is simply "deny everything".
+    let own = alice
+        .replay_cloud_consent_authority(&run_id("alice"))
+        .await
+        .expect("the owning account must replay its own cloud authority");
+    assert_eq!(own.projection_plans.len(), 1, "alice's own plan is visible");
+    assert_eq!(
+        own.consent_receipts.len(),
+        1,
+        "alice's own receipt is visible"
+    );
+    assert_eq!(own.projection_plans[0].projection_plan_id, plan_id("alice"));
+
+    // -- LAYER 1 (SQL): cross-account READ ----------------------------------
+    //
+    // FALSIFIABILITY (inverted, run, observed, restored): expecting `1` here
+    // instead of `0` produced
+    //   assertion `left == right` failed: alice must not see bob's cloud
+    //   projection plans / left: 0 / right: 1
+    // so the emptiness is enforcement, not an unwritten row (the positive
+    // control above already proved the rows exist).
+    let across = alice
+        .replay_cloud_consent_authority(&run_id("bob"))
+        .await
+        .expect("a scoped replay of another account's run must be empty, not an error");
+    assert_eq!(
+        across.projection_plans.len(),
+        0,
+        "alice must not see bob's cloud projection plans"
+    );
+    assert_eq!(
+        across.consent_receipts.len(),
+        0,
+        "alice must not see bob's cloud consent receipts"
+    );
+
+    // And symmetric, so the result is not an artifact of insertion order.
+    let reverse = bob
+        .replay_cloud_consent_authority(&run_id("alice"))
+        .await
+        .expect("scoped replay");
+    assert_eq!(reverse.projection_plans.len(), 0);
+    assert_eq!(reverse.consent_receipts.len(), 0);
+
+    // -- LAYER 1: cross-account REUSE (the sharper failure) ------------------
+    // Reading someone else's receipt is a disclosure; USING it is an
+    // authorization break. Alice attaches bob's durable plan/consent refs to her
+    // own cloud lane and launches.
+    let (run, lane) = cloud_run_lane(
+        "alice-steal",
+        ModelLaneStatus::Ready,
+        &plan_id("bob"),
+        &receipt_id("bob"),
+    );
+    //
+    // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)` produced
+    //   InvalidInput("CX-MM-007 cloud lane launch denied for run_id
+    //   run-cloud-alice-steal lane_id lane-cloud-alice-steal: final cloud launch
+    //   insertion fence denied: invalid model lane input: ProjectionPlan
+    //   cloud-projection-plan://run-cloud-bob/lane-cloud-bob is not durable")
+    let denied = alice
+        .record_prepared_launch((run, lane))
+        .await
+        .expect_err("alice must not be able to launch on bob's cloud consent");
+    let message = denied.to_string();
+    assert!(
+        message.contains("CX-MM-007"),
+        "cross-account cloud reuse must fail closed with CX-MM-007: {message}"
+    );
+    assert!(
+        message.contains("is not durable"),
+        "bob's authority must be unresolvable to alice, not merely rejected later: {message}"
+    );
+
+    // A receipt cannot be minted against another account's plan either, so the
+    // denial is not a launch-only check.
+    let cross_receipt = bob
+        .record_cloud_consent_receipt(consent_receipt(
+            "bob-steal",
+            &plan_id("alice"),
+            SCOPE_HASH,
+            approver_for(&bob_scope),
+            "operator://mt006-priv/approval",
+        ))
+        .await
+        // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)`
+        // produced AuthorityDenied("CX-MM-007 ProjectionPlan
+        // cloud-projection-plan://run-cloud-alice/lane-cloud-alice is not durable")
+        .expect_err("bob must not be able to consent to alice's projection plan");
+    assert!(
+        matches!(cross_receipt, ModelLaneError::AuthorityDenied(_)),
+        "cross-account consent minting must be an authority denial: {cross_receipt}"
+    );
+
+    // Nor can an account claim to be another account when writing.
+    let forged = alice
+        .record_cloud_projection_plan(projection_plan("alice-forge", approver_for(&bob_scope), None))
+        .await
+        // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)`
+        // produced AuthorityDenied("CX-MM-007
+        // ProjectionPlan.export_delegation.source_scope names an owning account
+        // this store is not authorized to write as")
+        .expect_err("alice must not stamp bob as the export source scope");
+    assert!(
+        forged
+            .to_string()
+            .contains("not authorized to write as"),
+        "server-derived identity must reject a client-claimed owner: {forged}"
+    );
+
+    // -- LAYER 2 (post-deserialization) -------------------------------------
+    // Simulate the SQL predicate being dropped. The row comes back; the second
+    // layer must still refuse it with the stable reason code.
+    let bobs_plan_scope = stored_scope_without_predicate(
+        &pool,
+        "model_lane_cloud_projection_plans",
+        "projection_plan_id",
+        &plan_id("bob"),
+    )
+    .await;
+    assert_eq!(
+        ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice_account))
+            .authorize_row(&bobs_plan_scope)
+            // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)`
+            // produced OwnerMismatch { requested: OwnerAccountId(019fcd38-2fbc-
+            // 76a1-85c6-d5511d6a2cbe), stored: OwnerAccountId(019fcd38-2fbc-76a1-
+            // 85c6-d561133e76eb) }
+            .expect_err("layer 2 must deny a cross-account projection plan")
+            .reason_code(),
+        "RESOURCE_SCOPE_OWNER_MISMATCH"
+    );
+
+    let bobs_receipt_scope = stored_scope_without_predicate(
+        &pool,
+        "model_lane_cloud_consent_receipts",
+        "consent_receipt_id",
+        &receipt_id("bob"),
+    )
+    .await;
+    assert_eq!(
+        ResourceAccessContext::for_reader(ResourceScopeQuery::for_owner(alice_account))
+            .authorize_row(&bobs_receipt_scope)
+            .expect_err("layer 2 must deny a cross-account consent receipt")
+            .reason_code(),
+        "RESOURCE_SCOPE_OWNER_MISMATCH"
+    );
+
+    // -- The write path really did stamp distinct owners --------------------
+    // Otherwise every assertion above would be testing nothing.
+    assert_eq!(
+        bobs_plan_scope.owner_account_id,
+        Some(bob_account),
+        "bob's projection plan row must be stamped with bob's account"
+    );
+    assert_eq!(bobs_receipt_scope.owner_account_id, Some(bob_account));
+    let alices_receipt_scope = stored_scope_without_predicate(
+        &pool,
+        "model_lane_cloud_consent_receipts",
+        "consent_receipt_id",
+        &receipt_id("alice"),
+    )
+    .await;
+    assert_eq!(alices_receipt_scope.owner_account_id, Some(alice_account));
+    assert_ne!(
+        alices_receipt_scope.owner_account_id,
+        bobs_receipt_scope.owner_account_id
+    );
+    assert!(
+        alices_receipt_scope.actor_principal_id.is_some(),
+        "HBR-PRIV-005 keeps the acting principal separately recoverable from the owner"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 2. HBR-PRIV-006 — revocation and context switch
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn revoked_cloud_consent_refuses_relaunch_and_leaves_the_inflight_lane_pinned() {
+    let pool = pg_pool("cloud consent revocation and context switch").await;
+
+    let account = OwnerAccountId::mint();
+    let scope = scope_for(account);
+    let store = account_store(&pool, &scope);
+
+    seed_cloud_authority(&store, "revoke", &scope).await;
+
+    // An in-flight cloud lane running under that grant.
+    let (run, lane) = cloud_run_lane(
+        "revoke",
+        ModelLaneStatus::Running,
+        &plan_id("revoke"),
+        &receipt_id("revoke"),
+    );
+    let (_stored_run, stored_lane) = store
+        .record_prepared_launch((run, lane))
+        .await
+        .expect("a valid grant must allow the cloud lane to launch");
+    assert_eq!(stored_lane.status, ModelLaneStatus::Running);
+    let original_plan_ref = stored_lane
+        .projection_plan_ref
+        .clone()
+        .expect("in-flight lane carries its projection plan");
+    let original_receipt_ref = stored_lane
+        .consent_receipt_ref
+        .clone()
+        .expect("in-flight lane carries its consent receipt");
+
+    // -- Revoke -------------------------------------------------------------
+    let cancelled = store
+        .test_finalize_cloud_consent_revocation(
+            &receipt_id("revoke"),
+            "operator://mt006-priv/revoker",
+            "operator withdrew cloud consent",
+            &BTreeSet::from([lane_id("revoke")]),
+        )
+        .await
+        .expect("revocation must terminate the covered lanes");
+    assert_eq!(cancelled.len(), 1, "the covered in-flight lane is cancelled");
+    assert_eq!(cancelled[0].status, ModelLaneStatus::Cancelled);
+    assert_eq!(cancelled[0].failstate_code.as_deref(), Some("CX-MM-007"));
+
+    // -- A SUBSEQUENT launch attempt is refused -----------------------------
+    //
+    // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)` produced
+    //   InvalidInput("CX-MM-007 cloud lane launch denied for run_id
+    //   run-cloud-revoke lane_id lane-cloud-revoke: final cloud launch insertion
+    //   fence denied: invalid model lane input: ConsentReceipt is revoked")
+    let (retry_run, retry_lane) = cloud_run_lane(
+        "revoke",
+        ModelLaneStatus::Ready,
+        &plan_id("revoke"),
+        &receipt_id("revoke"),
+    );
+    let refused = store
+        .record_prepared_launch((retry_run, retry_lane))
+        .await
+        .expect_err("a revoked consent receipt must not authorize another launch");
+    let refused_message = refused.to_string();
+    assert!(
+        refused_message.contains("CX-MM-007"),
+        "post-revocation launch must fail closed with CX-MM-007: {refused_message}"
+    );
+    assert!(
+        refused_message.contains("ConsentReceipt is revoked"),
+        "the denial must name revocation as the cause, not a generic 'not approved': {refused_message}"
+    );
+    // ...and the durable row agrees with the gate rather than still claiming it
+    // is an approved authorization.
+    let receipt_row: (String, bool) = sqlx::query_as(
+        "SELECT status, approved FROM model_lane_cloud_consent_receipts WHERE consent_receipt_id = $1",
+    )
+    .bind(receipt_id("revoke"))
+    .fetch_one(&pool)
+    .await
+    .expect("read the revoked receipt row");
+    assert_eq!(receipt_row.0, "revoked");
+    assert!(
+        !receipt_row.1,
+        "a revoked receipt must not keep claiming approved: true"
+    );
+
+    // -- CONTEXT SWITCH: a NEW valid grant must not adopt the old lane -------
+    // The operator grants fresh consent for the same account. The already-
+    // terminated lane must stay pinned to the context it actually ran under; if
+    // it were silently retargeted, its audit trail would claim it ran under a
+    // grant that did not exist at the time.
+    seed_cloud_authority(&store, "revoke-next", &scope).await;
+    let (pinned_plan, pinned_receipt, pinned_status) =
+        lane_row_refs(&pool, &lane_id("revoke")).await;
+    assert_eq!(
+        pinned_plan, original_plan_ref,
+        "the cancelled lane must keep its ORIGINAL projection plan, not the newer grant"
+    );
+    // FALSIFIABILITY (inverted, run, observed, restored): expecting
+    // `receipt_id("revoke-next")` here produced
+    //   assertion `left == right` failed / left:
+    //   "cloud-consent-receipt://run-cloud-revoke/lane-cloud-revoke" / right:
+    //   "cloud-consent-receipt://run-cloud-revoke-next/lane-cloud-revoke-next"
+    // i.e. the lane really is pinned to the context it ran under.
+    assert_eq!(
+        pinned_receipt, original_receipt_ref,
+        "the cancelled lane must keep its ORIGINAL consent receipt, not the newer grant"
+    );
+    assert_ne!(
+        pinned_receipt,
+        receipt_id("revoke-next"),
+        "a new grant must not retarget an already-run lane"
+    );
+    assert_eq!(
+        pinned_status, "cancelled",
+        "the revoked lane stays terminal under the new grant"
+    );
+
+    // The new grant is genuinely usable — otherwise "pinned" could just mean
+    // "revocation broke the whole account".
+    let (fresh_run, fresh_lane) = cloud_run_lane(
+        "revoke-next",
+        ModelLaneStatus::Ready,
+        &plan_id("revoke-next"),
+        &receipt_id("revoke-next"),
+    );
+    let fresh = store
+        .record_prepared_launch((fresh_run, fresh_lane))
+        .await
+        .expect("a fresh grant must still authorize a new lane after a revocation");
+    assert_eq!(
+        fresh.1.consent_receipt_ref.as_deref(),
+        Some(receipt_id("revoke-next").as_str())
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 3. HBR-PRIV-007 — audience, source scope and authorization provenance
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn cloud_projection_records_audience_scope_and_authorization_provenance() {
+    let pool = pg_pool("cloud projection delegation provenance").await;
+
+    let account = OwnerAccountId::mint();
+    let scope = scope_for(account);
+    let store = account_store(&pool, &scope);
+
+    // -- POSITIVE: the delegation record is durable and complete ------------
+    seed_cloud_authority(&store, "delegation", &scope).await;
+    let replay = store
+        .replay_cloud_consent_authority(&run_id("delegation"))
+        .await
+        .expect("replay the delegation authority");
+    let plan = &replay.projection_plans[0];
+    assert_eq!(
+        plan.export_delegation.audience_refs,
+        fan_out_targets(),
+        "the audience the export may reach is recorded, not implied"
+    );
+    assert_eq!(
+        plan.export_delegation.source_scope.owner_account_id(),
+        Some(account),
+        "the LOCAL visibility the export derives from is account-bound"
+    );
+    assert_eq!(
+        plan.export_delegation.authorization_receipt_ref.as_deref(),
+        Some(receipt_id("delegation").as_str()),
+        "the receipt that authorizes the delegation is named by the plan"
+    );
+    assert_eq!(
+        replay.consent_receipts[0].approver.owner_account_id(),
+        Some(account),
+        "the approver is a typed account, not a formatted role label"
+    );
+
+    // -- NEGATIVE: the audience may not widen beyond the disclosed fan-out ---
+    //
+    // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)` produced
+    //   InvalidInput("export_delegation.audience_refs must not widen beyond
+    //   fan_out_targets: provider://anthropic/byok is not a disclosed fan-out
+    //   target")
+    let mut widened = projection_plan("delegation-widen", approver_for(&scope), None);
+    widened
+        .export_delegation
+        .audience_refs
+        .push("provider://anthropic/byok".into());
+    let widening_error = store
+        .record_cloud_projection_plan(widened)
+        .await
+        .expect_err("a remote export must not name an undisclosed audience");
+    assert!(
+        widening_error
+            .to_string()
+            .contains("must not widen beyond fan_out_targets"),
+        "the denial must name the non-widening rule: {widening_error}"
+    );
+
+    // -- NEGATIVE: a plan may not be paired with a receipt it did not name ---
+    // The plan for `delegation-crosslink` declares it is authorized by the
+    // `delegation` receipt, but the receipt written against it is its own. The
+    // pair must be refused at every gate that consults it.
+    let crosslinked = store
+        .record_cloud_projection_plan(projection_plan(
+            "delegation-crosslink",
+            approver_for(&scope),
+            Some(receipt_id("delegation")),
+        ))
+        .await
+        .expect("an incoherent plan is still durable evidence");
+    store
+        .record_cloud_consent_receipt(consent_receipt(
+            "delegation-crosslink",
+            &crosslinked.projection_plan_id,
+            &crosslinked.projection_plan_hash,
+            approver_for(&scope),
+            "operator://mt006-priv/approval",
+        ))
+        .await
+        .expect("an incoherent receipt is still durable evidence");
+    // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)` produced
+    //   AuthorityDenied("CX-MM-007 ProjectionPlan cloud-projection-plan://
+    //   run-cloud-delegation-crosslink/lane-cloud-delegation-crosslink is
+    //   authorized by cloud-consent-receipt://run-cloud-delegation/
+    //   lane-cloud-delegation, not by ConsentReceipt cloud-consent-receipt://
+    //   run-cloud-delegation-crosslink/lane-cloud-delegation-crosslink")
+    let pair_error = store
+        .replay_cloud_consent_authority(&run_id("delegation-crosslink"))
+        .await
+        .expect_err("a receipt the plan did not name must not authorize it");
+    assert!(
+        pair_error.to_string().contains("is authorized by"),
+        "the denial must name the authorization-provenance mismatch: {pair_error}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 4. HBR-PRIV-005 — the self-issued approver defect itself
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_self_issued_role_label_approver_is_refused_at_write_time() {
+    let pool = pg_pool("self-issued approver rejection").await;
+
+    let account = OwnerAccountId::mint();
+    let scope = scope_for(account);
+    let store = account_store(&pool, &scope);
+
+    let plan = store
+        .record_cloud_projection_plan(projection_plan(
+            "selfissue",
+            approver_for(&scope),
+            Some(receipt_id("selfissue")),
+        ))
+        .await
+        .expect("record the projection plan");
+
+    // This is the EXACT string the operator-chat cloud path used to mint:
+    // `operator://{owner_session}/cloud-selection`, where `owner_session` is a
+    // governance role label. Its identity component is the row's own role label,
+    // so it recorded that the requester approved its own export.
+    //
+    // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)` produced
+    //   InvalidInput("approved_by_ref
+    //   operator://KERNEL_BUILDER-selfissue/cloud-selection is self-issued: its
+    //   identity component is this row's own owner_session governance role
+    //   label, which authorizes nothing. Record a typed approver instead.")
+    let self_issued = format!(
+        "operator://{}/cloud-selection",
+        owner_session("selfissue")
+    );
+    let rejected = store
+        .record_cloud_consent_receipt(consent_receipt(
+            "selfissue",
+            &plan.projection_plan_id,
+            &plan.projection_plan_hash,
+            approver_for(&scope),
+            &self_issued,
+        ))
+        .await
+        .expect_err("a self-issued role-label approver must be refused at write time");
+    assert!(
+        rejected.to_string().contains("self-issued"),
+        "the denial must say why the value authorizes nothing: {rejected}"
+    );
+
+    // POSITIVE CONTROL: the same receipt with an honest provenance label is
+    // accepted, so the rule targets self-issuance and not the `operator://`
+    // scheme (which real deployed receipts legitimately use).
+    store
+        .record_cloud_consent_receipt(consent_receipt(
+            "selfissue",
+            &plan.projection_plan_id,
+            &plan.projection_plan_hash,
+            approver_for(&scope),
+            "operator://ticket-4471/cloud-export-approval",
+        ))
+        .await
+        .expect("an honest provenance label must still be accepted");
+}
+
+#[tokio::test]
+async fn an_unattributed_approval_cannot_authorize_an_account_scoped_cloud_launch() {
+    let pool = pg_pool("unattributed approval cannot authorize").await;
+
+    // Seed through the pre-account legacy store: the resulting rows carry a NULL
+    // owning account AND an explicitly unattributed approver.
+    let legacy = legacy_store(&pool);
+    let plan = legacy
+        .record_cloud_projection_plan(projection_plan(
+            "legacy",
+            unattributed("LEGACY_CALL_SITE_WITHOUT_ACCOUNT"),
+            Some(receipt_id("legacy")),
+        ))
+        .await
+        .expect("a legacy store may still record unattributed authority");
+    legacy
+        .record_cloud_consent_receipt(consent_receipt(
+            "legacy",
+            &plan.projection_plan_id,
+            &plan.projection_plan_hash,
+            unattributed("LEGACY_CALL_SITE_WITHOUT_ACCOUNT"),
+            "unattributed://operator-chat/no-authenticated-account",
+        ))
+        .await
+        .expect("a legacy store may still record unattributed authority");
+
+    // A legacy store can still launch: this is the documented pre-WP-KERNEL-006
+    // posture, not a new hole. Proving it keeps the negative below honest — the
+    // refusal must come from the APPROVER, not from the row being broken.
+    let (run, lane) = cloud_run_lane(
+        "legacy",
+        ModelLaneStatus::Ready,
+        &plan_id("legacy"),
+        &receipt_id("legacy"),
+    );
+    legacy
+        .record_prepared_launch((run, lane))
+        .await
+        .expect("the unscoped legacy path is unchanged by this MT");
+
+    // Now simulate the dangerous "fix": a backfill that grandfathers legacy
+    // cloud-consent rows into a real account by setting the owning-account
+    // column, WITHOUT anyone having actually approved. Layer 1 now lets the rows
+    // through; the typed approver must still refuse them.
+    let account = OwnerAccountId::mint();
+    for (table, key_column, key) in [
+        (
+            "model_lane_cloud_projection_plans",
+            "projection_plan_id",
+            plan_id("legacy"),
+        ),
+        (
+            "model_lane_cloud_consent_receipts",
+            "consent_receipt_id",
+            receipt_id("legacy"),
+        ),
+    ] {
+        let sql = format!("UPDATE {table} SET owner_account_id = $1 WHERE {key_column} = $2");
+        sqlx::query(&sql)
+            .bind(account.as_uuid())
+            .bind(&key)
+            .execute(&pool)
+            .await
+            .unwrap_or_else(|error| panic!("backfill {table}: {error}"));
+    }
+
+    let scope = scope_for(account);
+    let store = account_store(&pool, &scope);
+
+    // Layer 1 no longer hides the row — prove that, so the denial below is
+    // demonstrably the approver check and not "not durable" again.
+    let visible = store
+        .replay_cloud_consent_authority(&run_id("legacy"))
+        .await
+        .expect("the backfilled rows are now inside the account's scope");
+    assert_eq!(
+        visible.consent_receipts.len(),
+        1,
+        "the backfill must have made the receipt visible, or this test proves nothing"
+    );
+
+    // FALSIFIABILITY (inverted, run, observed, restored): `.expect(..)` produced
+    //   InvalidInput("CX-MM-007 cloud lane launch denied for run_id
+    //   run-cloud-legacy lane_id lane-cloud-legacy: final cloud launch insertion
+    //   fence denied: model lane authority denied: CX-MM-007 ConsentReceipt
+    //   cloud-consent-receipt://run-cloud-legacy/lane-cloud-legacy carries no
+    //   approval usable by this account: RESOURCE_SCOPE_UNATTRIBUTED")
+    let (retry_run, retry_lane) = cloud_run_lane(
+        "legacy",
+        ModelLaneStatus::Ready,
+        &plan_id("legacy"),
+        &receipt_id("legacy"),
+    );
+    let denied = store
+        .record_prepared_launch((retry_run, retry_lane))
+        .await
+        .expect_err("an unattributed approval must not authorize an account-scoped launch");
+    let message = denied.to_string();
+    assert!(
+        message.contains("CX-MM-007"),
+        "the refusal must be the fail-closed cloud code: {message}"
+    );
+    assert!(
+        message.contains("RESOURCE_SCOPE_UNATTRIBUTED"),
+        "the refusal must name the missing approval, not a generic mismatch: {message}"
+    );
+}

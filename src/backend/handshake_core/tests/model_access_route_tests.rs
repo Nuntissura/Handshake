@@ -32,7 +32,7 @@ use handshake_core::api::model_access::{routes, CloudAccessProvider, ModelAccess
 use handshake_core::model_runtime::cloud::{
     AccessConfigError, ByokProvider, CliBridgeAuthStatus, CliBridgeAuthStatusProbe,
     CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeProvider, CloudModelAccess,
-    ForegroundCliLaunchHandle, InMemorySecretsVault, SecretsVault, SecretsVaultError,
+    InMemorySecretsVault, InteractiveLoginTransport, SecretsVault, SecretsVaultError,
 };
 use serde_json::Value;
 use zeroize::Zeroizing;
@@ -172,18 +172,77 @@ impl CliBridgeAuthStatusProbe for TypedCliAuthProbe {
     }
 }
 
+/// In-memory stand-in for the production PTY login transport.
+///
+/// The ROUTE contract is what these tests own: session identity, typed status
+/// transitions, transcript delivery, and operator input reaching the process.
+/// The real ConPTY behaviour (no console window, no foreground change, real
+/// identity pinning, real ledger START/STOP) is proven separately by
+/// `cli_bridge_login_quiet_tests` against `LiveCliSpawner`, so this stand-in is
+/// a transport double, not a substitute for that proof.
+#[derive(Debug, Default)]
+struct FakeLoginTransport {
+    transcript: Mutex<Vec<u8>>,
+    written: Mutex<Vec<u8>>,
+    exit_code: Mutex<Option<i32>>,
+    cancelled: Mutex<bool>,
+}
+
+impl InteractiveLoginTransport for FakeLoginTransport {
+    fn pid(&self) -> u32 {
+        4242
+    }
+
+    fn transcript(&self) -> Vec<u8> {
+        self.transcript.lock().expect("transcript lock").clone()
+    }
+
+    fn write_input(&self, bytes: &[u8]) -> Result<(), String> {
+        self.written
+            .lock()
+            .expect("written lock")
+            .extend_from_slice(bytes);
+        Ok(())
+    }
+
+    fn exit_code(&self) -> Option<i32> {
+        *self.exit_code.lock().expect("exit lock")
+    }
+
+    fn cancel(&self) {
+        *self.cancelled.lock().expect("cancel lock") = true;
+    }
+}
+
 #[derive(Default)]
 struct CapturingCliLoginLauncher {
     calls: Mutex<Vec<CliBridgeProvider>>,
+    transports: Mutex<Vec<Arc<FakeLoginTransport>>>,
 }
 
 impl CliBridgeLoginLauncher for CapturingCliLoginLauncher {
     fn launch_login(
         &self,
         provider: CliBridgeProvider,
-    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+    ) -> Result<Arc<dyn InteractiveLoginTransport>, CliBridgeLoginLaunchError> {
         self.calls.lock().expect("login calls lock").push(provider);
-        Ok(ForegroundCliLaunchHandle { pid: 4242 })
+        let transport = Arc::new(FakeLoginTransport::default());
+        self.transports
+            .lock()
+            .expect("transport lock")
+            .push(transport.clone());
+        Ok(transport as Arc<dyn InteractiveLoginTransport>)
+    }
+}
+
+impl CapturingCliLoginLauncher {
+    fn last_transport(&self) -> Arc<FakeLoginTransport> {
+        self.transports
+            .lock()
+            .expect("transport lock")
+            .last()
+            .cloned()
+            .expect("a login transport was created")
     }
 }
 
@@ -235,11 +294,171 @@ async fn cli_login_route_returns_only_backend_owned_launch_handle() {
     assert!(!body.contains("PATH"), "{body}");
     let value: Value = serde_json::from_str(&body).expect("login launch JSON");
     assert_eq!(value["provider"], "codex");
-    assert_eq!(value["launch_handle"]["pid"], 4242);
+    // The launch receipt is a backend-owned session id. The pid is now kept
+    // entirely inside the backend (the process ledger owns it), so the GUI
+    // receives strictly less process detail than the previous pid handle did.
+    assert!(
+        value["session_id"].as_str().is_some_and(|id| !id.is_empty()),
+        "{body}"
+    );
+    assert!(value.get("pid").is_none(), "{body}");
+    assert!(!body.contains("4242"), "{body}");
+    assert_eq!(value["status"], "pending");
     assert_eq!(
         launcher.calls.lock().expect("login calls lock").as_slice(),
         &[CliBridgeProvider::Codex]
     );
+    server.abort();
+}
+
+/// The in-app login session is drivable end to end over HTTP: poll returns the
+/// provider's transcript and typed status, operator input reaches the login
+/// process's stdin, and cancel terminates it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cli_login_session_is_pollable_typeable_and_cancellable() {
+    let vault = Arc::new(InMemorySecretsVault::default());
+    let launcher = Arc::new(CapturingCliLoginLauncher::default());
+    let state = ModelAccessState::with_provider_cli_runtime(
+        Arc::new(InMemoryProvider { vault }),
+        Arc::new(TypedCliAuthProbe::default()),
+        launcher.clone(),
+    );
+    let (base, server) = start_server(state).await;
+    let client = reqwest::Client::new();
+
+    let start: Value = client
+        .post(format!("{base}/model-access/cli-bridge/claude_code/login"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .expect("start login")
+        .json()
+        .await
+        .expect("start login JSON");
+    let session_id = start["session_id"].as_str().expect("session id").to_string();
+    assert_eq!(start["status"], "pending", "{start}");
+
+    // The provider prints its device-code prompt; the poll route must surface it
+    // verbatim (ANSI stripped) so the operator can read it INSIDE Handshake.
+    let transport = launcher.last_transport();
+    transport
+        .transcript
+        .lock()
+        .expect("transcript lock")
+        .extend_from_slice(
+            b"\x1b[1mOpen https://example.invalid/device\x1b[0m\r\nEnter code: ",
+        );
+
+    let polled: Value = client
+        .get(format!("{base}/model-access/cli-bridge-login/{session_id}"))
+        .send()
+        .await
+        .expect("poll login")
+        .json()
+        .await
+        .expect("poll JSON");
+    assert_eq!(polled["status"], "awaiting_input", "{polled}");
+    let transcript = polled["transcript"].as_str().expect("transcript");
+    assert!(
+        transcript.contains("https://example.invalid/device"),
+        "{transcript}"
+    );
+    assert!(transcript.contains("Enter code:"), "{transcript}");
+    assert!(
+        !transcript.contains('\u{1b}'),
+        "ANSI escapes must be stripped: {transcript:?}"
+    );
+
+    // Typing the code in the in-app panel reaches the login process's stdin.
+    let after_input: Value = client
+        .post(format!(
+            "{base}/model-access/cli-bridge-login/{session_id}/input"
+        ))
+        .json(&serde_json::json!({ "input": "WDJB-MJHT" }))
+        .send()
+        .await
+        .expect("send input")
+        .json()
+        .await
+        .expect("input JSON");
+    assert_eq!(after_input["session_id"], session_id.as_str());
+    assert_eq!(
+        String::from_utf8_lossy(&transport.written.lock().expect("written lock")),
+        "WDJB-MJHT\r"
+    );
+
+    // A finished login reports the typed terminal state.
+    *transport.exit_code.lock().expect("exit lock") = Some(0);
+    let done: Value = client
+        .get(format!("{base}/model-access/cli-bridge-login/{session_id}"))
+        .send()
+        .await
+        .expect("poll finished")
+        .json()
+        .await
+        .expect("finished JSON");
+    assert_eq!(done["status"], "succeeded", "{done}");
+    assert_eq!(done["exit_code"], 0, "{done}");
+
+    // Cancel is a real termination request on the transport and evicts the id.
+    let cancelled: Value = client
+        .post(format!(
+            "{base}/model-access/cli-bridge-login/{session_id}/cancel"
+        ))
+        .send()
+        .await
+        .expect("cancel login")
+        .json()
+        .await
+        .expect("cancel JSON");
+    assert_eq!(cancelled["status"], "cancelled", "{cancelled}");
+    assert!(*transport.cancelled.lock().expect("cancel lock"));
+    let missing = client
+        .get(format!("{base}/model-access/cli-bridge-login/{session_id}"))
+        .send()
+        .await
+        .expect("poll evicted");
+    assert_eq!(missing.status().as_u16(), 404);
+    server.abort();
+}
+
+/// A login session id the backend never issued is a typed 404, and unknown-session
+/// input is refused rather than silently accepted.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_cli_login_session_is_404_on_poll_input_and_cancel() {
+    let (state, _vault) = in_memory_state();
+    let (base, server) = start_server(state).await;
+    let client = reqwest::Client::new();
+    let unknown = "0192f000-0000-7000-8000-000000000000";
+
+    for response in [
+        client
+            .get(format!("{base}/model-access/cli-bridge-login/{unknown}"))
+            .send()
+            .await
+            .expect("poll unknown"),
+        client
+            .post(format!(
+                "{base}/model-access/cli-bridge-login/{unknown}/cancel"
+            ))
+            .send()
+            .await
+            .expect("cancel unknown"),
+    ] {
+        assert_eq!(response.status().as_u16(), 404);
+        let body = response.text().await.expect("body");
+        assert!(body.contains("cli_login_session_not_found"), "{body}");
+    }
+
+    let input = client
+        .post(format!(
+            "{base}/model-access/cli-bridge-login/{unknown}/input"
+        ))
+        .json(&serde_json::json!({ "input": "code" }))
+        .send()
+        .await
+        .expect("input unknown");
+    assert_eq!(input.status().as_u16(), 404);
     server.abort();
 }
 

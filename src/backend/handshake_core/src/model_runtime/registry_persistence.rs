@@ -30,6 +30,11 @@ use crate::{
         KernelActor, KernelEventType, NewKernelEvent,
     },
     storage::postgres::append_kernel_event_with_executor,
+    swarm_orchestration::resource_scope::{
+        stored_resource_scope_from_row, ResourceAccessContext, ResourceScope, ResourceScopeQuery,
+        ScopeDenied, SystemScopeAuthority, RESOURCE_SCOPE_INSERT_COLUMNS,
+        RESOURCE_SCOPE_SELECT_COLUMNS,
+    },
 };
 
 use super::{
@@ -197,6 +202,11 @@ impl ExplicitModelRuntimeRebind {
 pub struct ModelRegistryStore {
     pool: PgPool,
     authority: Arc<OnceCell<ModelRegistryAuthority>>,
+    /// HBR-PRIV-001/002 account-bound scope for the registry authority tables.
+    /// Registry rows and active-selection receipts are durable product
+    /// resources: which models an operator has registered, and which one they
+    /// made their default, is their data, not the node's.
+    access: ResourceAccessContext,
     #[cfg(feature = "test-utils")]
     precommit_advisory_gate_for_tests: Option<i64>,
 }
@@ -374,6 +384,10 @@ pub enum ModelRegistryPersistenceError {
     },
     #[error("model registry explicit rebind rejected: {0}")]
     InvalidRebind(String),
+    /// HBR-PRIV-002 default-deny. Carries the stable denial reason code only —
+    /// never the withheld row's identifiers or contents.
+    #[error("model registry resource scope denied: {0}")]
+    ScopeDenied(#[from] ScopeDenied),
 }
 
 impl From<sqlx::Error> for ModelRegistryPersistenceError {
@@ -495,13 +509,41 @@ impl Drop for AuthorityTransaction {
 
 impl ModelRegistryStore {
     /// Bind the store to Handshake's existing managed PostgreSQL pool.
+    ///
+    /// Legacy constructor: it yields
+    /// [`SystemScopeAuthority::legacy_unscoped_call_site`], so reads are not
+    /// account-filtered and writes are stamped with a NULL `owner_account_id`.
+    /// New code and every HTTP boundary MUST use [`Self::new_for_owner`] or
+    /// [`Self::new_scoped`].
     pub fn new(pool: PgPool) -> Self {
+        Self::new_with_access(
+            pool,
+            ResourceAccessContext::system(SystemScopeAuthority::legacy_unscoped_call_site()),
+        )
+    }
+
+    /// Registry store bound to one owning account for reads and writes.
+    pub fn new_scoped(pool: PgPool, scope: ResourceScope) -> Self {
+        Self::new_with_access(pool, ResourceAccessContext::for_account(scope))
+    }
+
+    /// Read-only registry store bound to one owning account.
+    pub fn new_for_owner(pool: PgPool, query: ResourceScopeQuery) -> Self {
+        Self::new_with_access(pool, ResourceAccessContext::for_reader(query))
+    }
+
+    pub fn new_with_access(pool: PgPool, access: ResourceAccessContext) -> Self {
         Self {
             pool,
             authority: Arc::new(OnceCell::new()),
+            access,
             #[cfg(feature = "test-utils")]
             precommit_advisory_gate_for_tests: None,
         }
+    }
+
+    pub fn access(&self) -> &ResourceAccessContext {
+        &self.access
     }
 
     /// Integration-only fault seam that blocks after registry/audit DML and read-back but before
@@ -861,7 +903,7 @@ impl ModelRegistryStore {
                         .to_string(),
                 )
             })?;
-            sqlx::query(
+            let registry_insert_sql = format!(
                 r#"
                 INSERT INTO model_runtime_registry (
                     schema_id,
@@ -881,31 +923,37 @@ impl ModelRegistryStore {
                     selection_updated_event_id,
                     selection_created_at_utc,
                     selection_updated_at_utc,
-                    last_observed_at_utc
+                    last_observed_at_utc,
+                    {RESOURCE_SCOPE_INSERT_COLUMNS}
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, pg_catalog.clock_timestamp())
-                "#,
-            )
-            .bind(MODEL_RUNTIME_REGISTRY_SCHEMA_ID)
-            .bind(audit.registry_row_id)
-            .bind(selection.artifact_sha256.as_slice())
-            .bind(artifact_locator_for_sha256(selection.artifact_sha256))
-            .bind(registration.model_id.as_uuid())
-            .bind(runtime_binding_token(selection.runtime_binding))
-            .bind(selection.runtime_role.as_str())
-            .bind(MODEL_RUNTIME_CAPABILITIES_SCHEMA_ID)
-            .bind(serde_json::to_value(&selection.declared_capabilities)?)
-            .bind(provider_token(selection.provider))
-            .bind(registration.base_model_tag.as_str())
-            .bind(registration.registered_by.as_str())
-            .bind(selection_revision)
-            .bind(audit.selection_created_event_id)
-            .bind(audit.selection_updated_event_id)
-            .bind(audit.selection_created_at_utc)
-            .bind(audit.selection_updated_at_utc)
-            .execute(&mut *tx)
-            .await
-            .map_err(|error| map_sqlx_selection_error(error, &selection.artifact_sha256))?;
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, pg_catalog.clock_timestamp(), $18, $19, $20, $21, $22)
+                "#
+            );
+            self.access
+                .insert_columns()
+                .bind(
+                    sqlx::query(&registry_insert_sql)
+                        .bind(MODEL_RUNTIME_REGISTRY_SCHEMA_ID)
+                        .bind(audit.registry_row_id)
+                        .bind(selection.artifact_sha256.as_slice())
+                        .bind(artifact_locator_for_sha256(selection.artifact_sha256))
+                        .bind(registration.model_id.as_uuid())
+                        .bind(runtime_binding_token(selection.runtime_binding))
+                        .bind(selection.runtime_role.as_str())
+                        .bind(MODEL_RUNTIME_CAPABILITIES_SCHEMA_ID)
+                        .bind(serde_json::to_value(&selection.declared_capabilities)?)
+                        .bind(provider_token(selection.provider))
+                        .bind(registration.base_model_tag.as_str())
+                        .bind(registration.registered_by.as_str())
+                        .bind(selection_revision)
+                        .bind(audit.selection_created_event_id)
+                        .bind(audit.selection_updated_event_id)
+                        .bind(audit.selection_created_at_utc)
+                        .bind(audit.selection_updated_at_utc),
+                )
+                .execute(&mut *tx)
+                .await
+                .map_err(|error| map_sqlx_selection_error(error, &selection.artifact_sha256))?;
         }
         force_deferred_constraints_immediate_tx(&mut tx).await?;
         repin_and_reassert_model_registry_authority_tx(&mut tx, &authority).await?;
@@ -1011,24 +1059,30 @@ impl ModelRegistryStore {
                 .await
                 .map_err(|error| ModelRegistryPersistenceError::Audit(error.to_string()))?;
             repin_and_reassert_model_registry_authority_tx(&mut tx, &authority).await?;
-            sqlx::query(
+            let active_selection_insert_sql = format!(
                 r#"
                 INSERT INTO model_runtime_active_selection (
                     schema_id, purpose, runtime_role, artifact_sha256,
                     selection_revision, selection_created_event_id,
                     selection_updated_event_id, selection_created_at_utc,
-                    selection_updated_at_utc
-                ) VALUES ($1, $2, $3, $4, 1, $5, $5, $6, $6)
-                "#,
-            )
-            .bind(MODEL_RUNTIME_ACTIVE_SELECTION_SCHEMA_ID)
-            .bind(purpose.as_str())
-            .bind(purpose.runtime_role().as_str())
-            .bind(candidate_sha256.as_slice())
-            .bind(&stored_event.event_id)
-            .bind(stored_event.created_at)
-            .execute(&mut *tx)
-            .await?;
+                    selection_updated_at_utc,
+                    {RESOURCE_SCOPE_INSERT_COLUMNS}
+                ) VALUES ($1, $2, $3, $4, 1, $5, $5, $6, $6, $7, $8, $9, $10, $11)
+                "#
+            );
+            self.access
+                .insert_columns()
+                .bind(
+                    sqlx::query(&active_selection_insert_sql)
+                        .bind(MODEL_RUNTIME_ACTIVE_SELECTION_SCHEMA_ID)
+                        .bind(purpose.as_str())
+                        .bind(purpose.runtime_role().as_str())
+                        .bind(candidate_sha256.as_slice())
+                        .bind(&stored_event.event_id)
+                        .bind(stored_event.created_at),
+                )
+                .execute(&mut *tx)
+                .await?;
             recovered.push(
                 load_active_selection_tx(&mut tx, *purpose, false)
                     .await?
@@ -1045,30 +1099,45 @@ impl ModelRegistryStore {
         Ok(recovered)
     }
 
-    /// Read all active purpose defaults from one repeatable PostgreSQL snapshot.
+    /// Read the active purpose defaults **this reader owns** from one repeatable
+    /// PostgreSQL snapshot. Before scoping this was a full-table read, so any
+    /// caller learned which model every account had made its default.
     pub async fn list_active_selections(
         &self,
     ) -> Result<Vec<PersistedActiveModelSelection>, ModelRegistryPersistenceError> {
         let (mut tx, _) = self
             .begin_authority_transaction(AuthorityTransactionMode::RepeatableReadOnly)
             .await?;
-        let rows = sqlx::query(
+        let predicate = self.access.sql_predicate(1);
+        let active_selection_sql = format!(
             r#"
             SELECT schema_id, purpose, runtime_role, artifact_sha256, selection_revision,
                    selection_created_event_id, selection_updated_event_id,
-                   selection_created_at_utc, selection_updated_at_utc
+                   selection_created_at_utc, selection_updated_at_utc,
+                   {RESOURCE_SCOPE_SELECT_COLUMNS}
             FROM ONLY model_runtime_active_selection
+            WHERE TRUE{}
             ORDER BY purpose ASC
             LIMIT 3
             "#,
-        )
-        .fetch_all(&mut *tx)
-        .await?;
+            predicate.clause()
+        );
+        let rows = predicate
+            .bind(sqlx::query(&active_selection_sql))
+            .fetch_all(&mut *tx)
+            .await?;
         if rows.len() > 2 {
             return Err(ModelRegistryPersistenceError::CorruptRow(
                 "active ModelRuntime selection authority contains more than two purposes"
                     .to_owned(),
             ));
+        }
+        // Second enforcement layer (HBR-PRIV-002): re-authorize the scope
+        // columns that came back, so a future edit to the predicate above cannot
+        // silently turn this back into a full-table disclosure.
+        for row in &rows {
+            self.access
+                .authorize_row(&stored_resource_scope_from_row(row)?)?;
         }
         let decoded = rows
             .into_iter()
@@ -1368,14 +1437,23 @@ impl ModelRegistryStore {
         Ok(row)
     }
 
-    /// Enumerate committed durable selections in stable artifact-hash order.
+    /// Enumerate the committed durable selections **this reader owns**, in
+    /// stable artifact-hash order.
+    ///
+    /// Before scoping this enumerated the whole `model_runtime_registry` table,
+    /// so `GET /model-runtime/registry` disclosed every account's registered
+    /// model artifacts to any caller (HBR-PRIV-002). The owner predicate is
+    /// applied to both the transfer-budget probe and the row read, so the
+    /// bounded-enumeration caps are computed over the same row set the caller is
+    /// actually allowed to see.
     pub async fn list_recoverable(
         &self,
     ) -> Result<Vec<PersistedModelRegistration>, ModelRegistryPersistenceError> {
         let (mut tx, _) = self
             .begin_authority_transaction(AuthorityTransactionMode::RepeatableReadOnly)
             .await?;
-        let transfer_shape = sqlx::query(
+        let probe_predicate = self.access.sql_predicate(2);
+        let transfer_shape_sql = format!(
             r#"
             WITH bounded AS (
                 SELECT pg_catalog.octet_length(capabilities_json::pg_catalog.text)::pg_catalog.int8
@@ -1396,6 +1474,7 @@ impl ModelRegistryStore {
                            + 128
                        )::pg_catalog.int8 AS row_bytes
                 FROM ONLY model_runtime_registry
+                WHERE TRUE{}
                 ORDER BY artifact_sha256 ASC
                 LIMIT $1
             )
@@ -1408,10 +1487,12 @@ impl ModelRegistryStore {
                        AS total_row_bytes
             FROM bounded
             "#,
-        )
-        .bind(MODEL_REGISTRY_ROW_ENUMERATION_CAP + 1)
-        .fetch_one(&mut *tx)
-        .await?;
+            probe_predicate.clause()
+        );
+        let transfer_shape = probe_predicate
+            .bind(sqlx::query(&transfer_shape_sql).bind(MODEL_REGISTRY_ROW_ENUMERATION_CAP + 1))
+            .fetch_one(&mut *tx)
+            .await?;
         let row_count: i64 = transfer_shape.try_get("row_count")?;
         if row_count > MODEL_REGISTRY_ROW_ENUMERATION_CAP {
             return Err(ModelRegistryPersistenceError::AuthorityUnavailable(
@@ -1431,11 +1512,13 @@ impl ModelRegistryStore {
                 "model registry enumeration is {total_row_bytes} variable bytes, exceeding the bounded {MODEL_REGISTRY_ROW_SET_BYTE_CAP}-byte transfer limit"
             )));
         }
+        let row_predicate = self.access.sql_predicate(2);
         let statement = format!(
-            "SELECT {MODEL_REGISTRY_SELECT_COLUMNS} FROM ONLY model_runtime_registry ORDER BY artifact_sha256 ASC LIMIT $1",
+            "SELECT {MODEL_REGISTRY_SELECT_COLUMNS}, {RESOURCE_SCOPE_SELECT_COLUMNS} FROM ONLY model_runtime_registry WHERE TRUE{} ORDER BY artifact_sha256 ASC LIMIT $1",
+            row_predicate.clause()
         );
-        let rows = sqlx::query(&statement)
-            .bind(MODEL_REGISTRY_ROW_ENUMERATION_CAP + 1)
+        let rows = row_predicate
+            .bind(sqlx::query(&statement).bind(MODEL_REGISTRY_ROW_ENUMERATION_CAP + 1))
             .fetch_all(&mut *tx)
             .await?;
         if i64::try_from(rows.len()).unwrap_or(i64::MAX) > MODEL_REGISTRY_ROW_ENUMERATION_CAP {
@@ -1445,6 +1528,11 @@ impl ModelRegistryStore {
                     MODEL_REGISTRY_ROW_ENUMERATION_CAP
                 ),
             ));
+        }
+        // Second enforcement layer (HBR-PRIV-002).
+        for row in &rows {
+            self.access
+                .authorize_row(&stored_resource_scope_from_row(row)?)?;
         }
         let registrations = rows
             .into_iter()
@@ -1918,6 +2006,12 @@ async fn ensure_authority_available_tx(
                    WHEN 'selection_created_at_utc' THEN attribute.atttypid = 'pg_catalog.timestamptz'::pg_catalog.regtype
                    WHEN 'selection_updated_at_utc' THEN attribute.atttypid = 'pg_catalog.timestamptz'::pg_catalog.regtype
                    WHEN 'last_observed_at_utc' THEN attribute.atttypid = 'pg_catalog.timestamptz'::pg_catalog.regtype
+                   -- HBR-PRIV account-bound resource scope (migrations 0363/0364).
+                   WHEN 'owner_account_id' THEN attribute.atttypid = 'pg_catalog.uuid'::pg_catalog.regtype
+                   WHEN 'actor_principal_id' THEN attribute.atttypid = 'pg_catalog.uuid'::pg_catalog.regtype
+                   WHEN 'authenticated_session_id' THEN attribute.atttypid = 'pg_catalog.uuid'::pg_catalog.regtype
+                   WHEN 'access_space_id' THEN attribute.atttypid = 'pg_catalog.uuid'::pg_catalog.regtype
+                   WHEN 'workspace_id' THEN attribute.atttypid = 'pg_catalog.text'::pg_catalog.regtype
                    ELSE FALSE
                END AS type_matches,
                attribute.attnotnull AS not_null,
@@ -2078,14 +2172,23 @@ async fn ensure_authority_available_tx(
     .bind(authority.relation_oid)
     .fetch_all(&mut **tx)
     .await?;
+    // Exact-set pin, ordered by index name. The two HBR-PRIV scope indexes are
+    // part of the canonical shape now: they are the ACCESS PATH for every
+    // default-deny read (`WHERE owner_account_id = $n [AND workspace_id = $m]`)
+    // and for actor attribution (HBR-PRIV-005), not reporting conveniences. If
+    // migration 0363/0364 were reverted or skipped they would disappear, and
+    // this check must fail loudly rather than let the registry silently fall
+    // back to unindexed full-table scans of other accounts' rows.
     let expected_index_names = vec![
+        "idx_model_runtime_registry_actor_principal".to_string(),
+        "idx_model_runtime_registry_owner_scope".to_string(),
         MODEL_RUNTIME_REGISTRY_UPDATED_INDEX.to_string(),
         "pk_model_runtime_registry".to_string(),
         "uq_model_runtime_registry_artifact_sha256".to_string(),
     ];
     if index_names != expected_index_names {
         return Err(ModelRegistryPersistenceError::AuthorityUnavailable(format!(
-            "{schema}.model_runtime_registry must have exactly its canonical primary-key, artifact-identity, and updated-at indexes; found {index_names:?}"
+            "{schema}.model_runtime_registry must have exactly its canonical primary-key, artifact-identity, updated-at, and HBR-PRIV scope indexes; found {index_names:?}"
         )));
     }
 
@@ -4423,6 +4526,42 @@ fn required_model_registry_columns() -> &'static [RequiredColumn] {
             name: "last_observed_at_utc",
             udt_name: "timestamptz",
             is_nullable: "NO",
+        },
+        // HBR-PRIV account-bound resource scope, added by migrations
+        // 0363/0364. These are pinned here for the same reason every other
+        // column is: this check is an exact-shape authority pin, so a scope
+        // column that silently disappeared (or was never applied, as happened
+        // when 0363's `public.`-qualified guard skipped non-public schemas)
+        // must fail the authority check loudly rather than degrade the registry
+        // to an unscoped full-table read.
+        //
+        // NULLable until WP-KERNEL-006 MT-015 tightens them: there is no
+        // LocalAccount authority to backfill existing rows from yet. WP-1 fails
+        // closed in application code instead of trusting the column.
+        RequiredColumn {
+            name: "owner_account_id",
+            udt_name: "uuid",
+            is_nullable: "YES",
+        },
+        RequiredColumn {
+            name: "actor_principal_id",
+            udt_name: "uuid",
+            is_nullable: "YES",
+        },
+        RequiredColumn {
+            name: "authenticated_session_id",
+            udt_name: "uuid",
+            is_nullable: "YES",
+        },
+        RequiredColumn {
+            name: "access_space_id",
+            udt_name: "uuid",
+            is_nullable: "YES",
+        },
+        RequiredColumn {
+            name: "workspace_id",
+            udt_name: "text",
+            is_nullable: "YES",
         },
     ]
 }

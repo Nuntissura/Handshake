@@ -1544,7 +1544,9 @@ async fn fetch_blame_text(
 // returns only non-secret status; it has no route to read a key back.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-use crate::settings_dialog::{CloudAccessSnapshot, CloudByokRow, CloudCliAuthStatus, CloudCliRow};
+use crate::settings_dialog::{
+    CloudAccessSnapshot, CloudByokRow, CloudCliAuthStatus, CloudCliLoginState, CloudCliRow,
+};
 
 /// One delivered cloud-access result, drained by the shell each frame.
 pub enum CloudAccessDelivery {
@@ -1556,6 +1558,15 @@ pub enum CloudAccessDelivery {
         message: String,
         snapshot: Option<CloudAccessSnapshot>,
     },
+    /// MT-015 v5: a fresh in-app official-CLI login session snapshot (start, poll,
+    /// input, or cancel). Carries only the backend-owned session id, the typed
+    /// status, and the provider's own terminal output.
+    LoginSession {
+        provider: String,
+        snapshot: CliLoginSnapshot,
+    },
+    /// MT-015 v5: an in-app login request failed at the transport level.
+    LoginError { provider: String, message: String },
 }
 
 /// The single-writer async delivery queue for cloud-access results.
@@ -1630,10 +1641,11 @@ impl CloudAccessClient {
         delete_expect_success(&self.client, &url).await
     }
 
-    /// Ask the backend to launch the already-pinned provider login graph.
-    /// The response is an opaque pid handle; executable paths and argv never
-    /// cross into the GUI for local PATH/shell resolution.
-    pub async fn launch_cli_login(&self, provider: &str) -> Result<u32, AppError> {
+    /// Ask the backend to start the already-pinned provider login graph as an
+    /// IN-APP pseudo-terminal session (no OS console window, no focus change).
+    /// The response is a backend-owned session snapshot; executable paths, argv,
+    /// and the child pid never cross into the GUI.
+    pub async fn launch_cli_login(&self, provider: &str) -> Result<CliLoginSnapshot, AppError> {
         if !matches!(provider, "claude_code" | "codex") {
             return Err(AppError::Parse(
                 "unsupported CLI login provider".to_string(),
@@ -1646,13 +1658,95 @@ impl CloudAccessClient {
                 "CLI login receipt provider mismatch".to_string(),
             ));
         }
-        value
-            .pointer("/launch_handle/pid")
-            .and_then(Value::as_u64)
-            .and_then(|pid| u32::try_from(pid).ok())
-            .filter(|pid| *pid != 0)
-            .ok_or_else(|| AppError::Parse("invalid CLI login launch handle".to_string()))
+        parse_cli_login_snapshot(&value)
     }
+
+    /// `GET /model-access/cli-bridge-login/{session}` — poll one in-app login
+    /// session for the provider's prompt and the typed status.
+    pub async fn poll_cli_login(&self, session_id: &str) -> Result<CliLoginSnapshot, AppError> {
+        let url = format!(
+            "{}/model-access/cli-bridge-login/{}",
+            self.base_url,
+            encode_path_segment(session_id)
+        );
+        let value = get_json_with_timeout(&self.client, &url, &[], Duration::from_secs(10)).await?;
+        parse_cli_login_snapshot(&value)
+    }
+
+    /// `POST /model-access/cli-bridge-login/{session}/input` — deliver the
+    /// operator's answer to the provider's prompt.
+    pub async fn send_cli_login_input(
+        &self,
+        session_id: &str,
+        input: &str,
+    ) -> Result<CliLoginSnapshot, AppError> {
+        let url = format!(
+            "{}/model-access/cli-bridge-login/{}/input",
+            self.base_url,
+            encode_path_segment(session_id)
+        );
+        let value = post_json(&self.client, &url, &serde_json::json!({ "input": input })).await?;
+        parse_cli_login_snapshot(&value)
+    }
+
+    /// `POST /model-access/cli-bridge-login/{session}/cancel` — stop the running
+    /// login process.
+    pub async fn cancel_cli_login(&self, session_id: &str) -> Result<CliLoginSnapshot, AppError> {
+        let url = format!(
+            "{}/model-access/cli-bridge-login/{}/cancel",
+            self.base_url,
+            encode_path_segment(session_id)
+        );
+        let value = post_json(&self.client, &url, &serde_json::json!({})).await?;
+        parse_cli_login_snapshot(&value)
+    }
+}
+
+/// One in-app official-CLI login session as the shell sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CliLoginSnapshot {
+    pub session_id: String,
+    pub state: CloudCliLoginState,
+    /// The provider's own terminal output (ANSI already stripped by the backend).
+    pub transcript: String,
+}
+
+/// Percent-encode a path segment. The session id is a backend-generated UUID, so
+/// this is defence in depth against a malformed id being pasted into a URL.
+fn encode_path_segment(value: &str) -> String {
+    value
+        .chars()
+        .flat_map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '~') {
+                vec![c]
+            } else {
+                format!("%{:02X}", c as u32 as u8).chars().collect()
+            }
+        })
+        .collect()
+}
+
+fn parse_cli_login_snapshot(value: &Value) -> Result<CliLoginSnapshot, AppError> {
+    let session_id = value
+        .get("session_id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .ok_or_else(|| AppError::Parse("CLI login session id missing".to_string()))?
+        .to_owned();
+    let state = value
+        .get("status")
+        .and_then(Value::as_str)
+        .map(CloudCliLoginState::from_wire)
+        .ok_or_else(|| AppError::Parse("CLI login session status missing".to_string()))?;
+    Ok(CliLoginSnapshot {
+        session_id,
+        state,
+        transcript: value
+            .get("transcript")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
+    })
 }
 
 /// Parse the `GET /model-access/providers` JSON into the UI snapshot. Defensive:

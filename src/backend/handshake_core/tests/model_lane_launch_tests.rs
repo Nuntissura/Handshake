@@ -221,6 +221,15 @@ async fn seed_cloud_launch_authority(
             export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
             provider_profile_ref: contract.adapter_id.clone(),
             fan_out_targets: fan_out_targets.clone(),
+            // Seeded through an unscoped store: only an explicitly unattributed
+            // source scope may be stamped.
+            export_delegation: handshake_core::swarm_orchestration::model_lane::CloudExportDelegation {
+                audience_refs: fan_out_targets.clone(),
+                source_scope: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
+                    "MT003_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+                ),
+                authorization_receipt_ref: None,
+            },
             consent_scope: ModelLaneCloudConsentScope::SingleLane,
             target_bindings: vec![],
             status: ModelLaneCloudProjectionPlanStatus::Active,
@@ -266,6 +275,9 @@ async fn seed_cloud_launch_authority(
             export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
             fan_out_targets,
             approved: true,
+            approver: handshake_core::swarm_orchestration::resource_scope::AccountBoundAuthority::unattributed(
+                "MT003_PROOF_FIXTURE_WITHOUT_ACCOUNT_CONTEXT",
+            ),
             approved_by_ref: "operator://mt003/approval".into(),
             approved_at_utc: "2026-07-19T00:00:10Z".into(),
             valid_from_utc: "2026-01-01T00:00:00Z".into(),

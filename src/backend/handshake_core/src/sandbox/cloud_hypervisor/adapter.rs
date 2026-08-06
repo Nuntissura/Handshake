@@ -213,14 +213,58 @@ const VM_ROOT_OWNER_PID_FILE: &str = ".hsk-owner-pid";
 /// disk-agnostic per [GLOBAL-PORTABILITY] (no hardcoded absolute path is baked
 /// into a build the operator cannot redirect after a project move).
 const DEFAULT_DISTRO: &str = "Ubuntu";
-const DEFAULT_WORK_DIR: &str = "/home/ilja_smets/handshake-sandbox";
-const DEFAULT_CH_BIN: &str = "/home/ilja_smets/handshake-sandbox/bin/cloud-hypervisor";
+/// Root of the sandbox layout. Resolved at RUNTIME and never baked in: a home
+/// directory is machine-local, so compiling one operator's path into the binary
+/// breaks the moment the project moves, another operator builds it, or CI runs
+/// it ([CX-109]/[CX-109B]/[GLOBAL-PORTABILITY-005]). It also makes the installed
+/// binaries invisible to a PATH-based probe, which is exactly how a prior
+/// session concluded the hypervisor was absent when it was present the whole
+/// time. Resolution order: `HANDSHAKE_SANDBOX_ROOT`, then `$HOME` (or
+/// `$USERPROFILE`) plus `handshake-sandbox`, then a bare relative directory.
+const SANDBOX_ROOT_ENV: &str = "HANDSHAKE_SANDBOX_ROOT";
+const SANDBOX_DIR_NAME: &str = "handshake-sandbox";
+
+fn default_sandbox_root() -> String {
+    if let Some(root) = std::env::var(SANDBOX_ROOT_ENV)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        return root.trim().trim_end_matches('/').to_string();
+    }
+    for home_key in ["HOME", "USERPROFILE"] {
+        if let Some(home) = std::env::var(home_key)
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+        {
+            let home = home.trim().trim_end_matches('/').trim_end_matches('\\');
+            return format!("{home}/{SANDBOX_DIR_NAME}");
+        }
+    }
+    SANDBOX_DIR_NAME.to_string()
+}
+
+fn default_work_dir() -> String {
+    default_sandbox_root()
+}
+
+fn default_ch_bin() -> String {
+    format!("{}/bin/cloud-hypervisor", default_sandbox_root())
+}
+
 /// `ch-remote` CLI used to drive a live persistent VM (pause + snapshot). Lives
 /// beside `cloud-hypervisor` in the proven layout; derived from `ch_bin`'s
 /// directory when unset, overridable via `HANDSHAKE_CH_REMOTE_BIN`.
-const DEFAULT_CH_REMOTE_BIN: &str = "/home/ilja_smets/handshake-sandbox/bin/ch-remote";
-const DEFAULT_KERNEL: &str = "/home/ilja_smets/handshake-sandbox/vmlinux-6.1.102";
-const DEFAULT_INITRAMFS: &str = "/home/ilja_smets/handshake-sandbox/initramfs.cpio";
+fn default_ch_remote_bin() -> String {
+    format!("{}/bin/ch-remote", default_sandbox_root())
+}
+
+fn default_kernel() -> String {
+    format!("{}/vmlinux-6.1.102", default_sandbox_root())
+}
+
+fn default_initramfs() -> String {
+    format!("{}/initramfs.cpio", default_sandbox_root())
+}
 /// WSL-side busybox used as the only guest userland baked into the per-exec
 /// initramfs. Overridable via `HANDSHAKE_CH_BUSYBOX` so the adapter stays
 /// portable per [GLOBAL-PORTABILITY].
@@ -504,12 +548,12 @@ impl Default for CloudHypervisorConfig {
             wsl_exe: std::env::var("HANDSHAKE_CH_WSL_EXE")
                 .map(PathBuf::from)
                 .unwrap_or_else(|_| default_wsl_exe()),
-            ch_bin: env_string("HANDSHAKE_CH_BIN", DEFAULT_CH_BIN),
-            ch_remote_bin: env_string("HANDSHAKE_CH_REMOTE_BIN", DEFAULT_CH_REMOTE_BIN),
-            kernel: env_string("HANDSHAKE_CH_KERNEL", DEFAULT_KERNEL),
-            initramfs: env_string("HANDSHAKE_CH_INITRAMFS", DEFAULT_INITRAMFS),
+            ch_bin: env_string("HANDSHAKE_CH_BIN", &default_ch_bin()),
+            ch_remote_bin: env_string("HANDSHAKE_CH_REMOTE_BIN", &default_ch_remote_bin()),
+            kernel: env_string("HANDSHAKE_CH_KERNEL", &default_kernel()),
+            initramfs: env_string("HANDSHAKE_CH_INITRAMFS", &default_initramfs()),
             busybox: env_string("HANDSHAKE_CH_BUSYBOX", DEFAULT_BUSYBOX),
-            work_dir: env_string("HANDSHAKE_CH_WORK_DIR", DEFAULT_WORK_DIR),
+            work_dir: env_string("HANDSHAKE_CH_WORK_DIR", &default_work_dir()),
             memory_mib: env_u32("HANDSHAKE_CH_MEMORY_MIB", DEFAULT_MEMORY_MIB),
             committed_memory_budget_mib,
             committed_memory_budget_config_error,
@@ -6301,12 +6345,12 @@ done
         let config = CloudHypervisorConfig {
             distro: DEFAULT_DISTRO.to_string(),
             wsl_exe: PathBuf::from("wsl.exe"),
-            ch_bin: DEFAULT_CH_BIN.to_string(),
-            ch_remote_bin: DEFAULT_CH_REMOTE_BIN.to_string(),
-            kernel: DEFAULT_KERNEL.to_string(),
-            initramfs: DEFAULT_INITRAMFS.to_string(),
+            ch_bin: default_ch_bin(),
+            ch_remote_bin: default_ch_remote_bin(),
+            kernel: default_kernel(),
+            initramfs: default_initramfs(),
             busybox: DEFAULT_BUSYBOX.to_string(),
-            work_dir: DEFAULT_WORK_DIR.to_string(),
+            work_dir: default_work_dir(),
             memory_mib: DEFAULT_MEMORY_MIB,
             committed_memory_budget_mib: None,
             committed_memory_budget_config_error: None,
