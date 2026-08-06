@@ -1,0 +1,85 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-118",
+  "title": "B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry",
+  "group": "B-Backend",
+  "created_at_utc": "2026-08-06T19:10:56.234Z",
+  "updated_at_utc": "2026-08-06T19:10:56.234Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-112"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Isolated by MT-112 with a real instrumented error after its own identity fix landed. It is a DURABLE CONTRACT decision outside MT-112 allowed_paths and defect_detail, so it is deferred here per the Operator standing rule rather than decided unilaterally or lost."
+  },
+  "scope": {
+    "summary": "Let a pre-hardening FEMS memory proposal row that has no _canonical_artifact retry successfully, without weakening the canonical proposal contract for normal rows.",
+    "defect_detail": {
+      "failing_test": "api::memory::legacy_retry_heals_missing_receipt_once_and_converges - it has NEVER passed.",
+      "real_error": "Serialization(\"memory proposal artifact is not hsk.memory_write_proposal@0.1: missing field schema_version\"), obtained by MT-112 through temporary instrumentation of storage_error which was then removed.",
+      "mechanism": "A pre-hardening legacy row has no _canonical_artifact, so proposal_artifact_value (storage/fems_memory.rs:279-290) returns the raw payload and build_memory_proposal_flight_recorder_event (:996-1001) cannot parse it.",
+      "why_reconstruction_alone_fails": "fems_memory.rs:1003-1004 requires canonical.proposal_id == proposal.proposal_id AND Uuid::parse_str(&canonical.proposal_id).is_ok(). The legacy fixture id is PROP-LEGACY-{uuid}, so NO artifact can satisfy both constraints. The contract itself must change for legacy non-UUID ids.",
+      "determinism": "Reproduced deterministically in isolation in 3.37s with zero contention - not the cargo/PostgreSQL starvation hazard, and not a race: both concurrent retries fail identically.",
+      "origin": "Commit 892662e0, a WIP checkpoint - the same commit that introduced the Rust/SQL identity split MT-112 fixed."
+    },
+    "recommended_shape_from_mt112_for_authority_approval": "Heal _canonical_artifact from DURABLE COLUMNS ONLY, mirroring the existing \"Pre-hardening rows cannot recover the headers\" branch at fems_memory.rs:606-623 so concurrent retries converge byte-for-byte, and admit a legacy non-UUID proposal_id ONLY on that heal path. This is a recommendation, not an authorized decision.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/storage/fems_memory.rs",
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/frontend/**",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-118-1: legacy_retry_heals_missing_receipt_once_and_converges passes against real PostgreSQL WITHOUT weakening or deleting any assertion.",
+      "AC-118-2: the legacy non-UUID proposal_id is admitted ONLY on the heal path. A NORMAL proposal with a non-UUID id must still be rejected - prove that with a negative test, or the contract has been globally weakened.",
+      "AC-118-3: concurrent retries against a healed legacy row converge BYTE-FOR-BYTE (the failing test drives two; both must reach the same durable outcome).",
+      "AC-118-4: the heal derives ONLY from durable columns. It must never fabricate provenance that was not persisted.",
+      "AC-118-5: MT-112 canonical identity work stays green - both the differential test and migration_0345_old_schema_identity_and_down_up_retry_converge still pass."
+    ],
+    "proof_targets": [
+      "PT-118-1: the named test green against real PostgreSQL, with the RED reproduced first.",
+      "PT-118-2: a negative test proving a non-legacy proposal with a non-UUID id is still rejected.",
+      "PT-118-3: the full api::memory:: suite green (MT-112 left it at 27 passed / 1 failed; this MT should make it 28+/0)."
+    ]
+  },
+  "hbr_obligations": {
+    "PRIV": "The heal must not surface actor identity beyond what the durable row already persisted."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

@@ -31,15 +31,72 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Two independent sub-agents (MT-109 and MT-064) reproduced the same defect from different directions. It is real, deterministic, and belongs to no existing MT scope, so it is captured here per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost."
+    "creation_reason": "Two independent sub-agents (MT-109 and MT-064) reproduced the same defect from different directions. It is real, deterministic, and belongs to no existing MT scope, so it is captured here per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost.",
+    "claimed_at_utc": "2026-08-06T19:10:56.234Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_at_utc": "2026-08-06T19:10:56.234Z",
+      "implemented_by": "KERNEL_BUILDER-20260805-054937",
+      "previous_status": "READY_FOR_DEV",
+      "commit": "bce12043 on feat/WP-KERNEL-012, 3 files, +611/-21.",
+      "status_rationale": "HELD at CLAIMED, deliberately NOT advanced to READY_FOR_VALIDATION. AC-112-4 requires BOTH convergence tests green and only ONE is. Advancing would repeat the gate-ordering error made on MT-114, and the KB ready-checklist would BLOCK on RC-005 because PT-112-1 demands the three named tests GREEN.",
+      "red_reproduced_first": "cargo test --lib --features duckdb-flight-recorder,test-utils api::memory:: against real PostgreSQL => EXIT 101, 24 passed / 3 failed / 1989 filtered, 421.00s. Exactly the three named tests, with real assertion messages: proposal_missing_provenance_fails_closed at memory.rs:3719 (left 404, right 400); migration_0345_old_schema_identity_and_down_up_retry_converge at memory.rs:2303 (migration digest vs Rust digest); legacy_retry_heals_missing_receipt_once_and_converges at memory.rs:3225 (SQL digest vs Rust digest). Evidence: red-repro-01.txt.",
+      "ac_112_1_canonical_choice": {
+        "decision": "The RUST eleven components are canonical; actor_id is EXCLUDED.",
+        "evidence_is_product_design_not_traffic_shape": "The decisive evidence is NOT \"live traffic produces it\". It is same_logical_proposal at storage/fems_memory.rs:796-824, which ALREADY strips actor_id from intake replay equality with the comment: \"The router derives actor_id from the live native binding. It belongs to the immutable receipt identity, not the caller authoritative proposal payload, so an exact request-id retry from a later authenticated session must still converge.\" VERIFIED VERBATIM BY KERNEL_BUILDER at that exact location. Hashing actor_id into request_id would make that comment false: a retry from a later session would derive a DIFFERENT identity, never reach the conflict path, and create a duplicate row. So the SQL was wrong and the Rust was right.",
+        "privacy_posture": "HBR-PRIV satisfied - actor_id remains in the proposal payload and in the immutable ARTIFACT_PROPOSED receipt (KernelActor). Only the DEDUP KEY excludes it. A new test pins this directly (without_actor == with_actor)."
+      },
+      "ac_112_3_contract_premise_was_WRONG_and_is_corrected": {
+        "contract_said": "The MT-112 contract (inheriting the MT-064 agent assessment) states SQL position 12 is \"a duplicate of position 8, which the MT-064 agent assessed as almost certainly a copy/paste error\".",
+        "finding": "THAT ASSESSMENT IS INCORRECT. Position 12 is RETAINED, with proof.",
+        "why": "Canonical component 11 is sha256_hex(source_document_content), but a proposal row NEVER PERSISTS source_document_content, so SQL cannot compute it. document_content_hash is the only SQL-derivable expression of that value, and it is PROVABLY THE SAME value: intake at memory.rs:1172-1180 rejects any proposal where sha256(source_document_content) != document_content_hash, and the rich-document (:1082-1088) and Loom (:1208-1218) branches reject a proposal carrying either field, leaving both empty. Components 8 and 11 are therefore EQUAL IN RUST TOO - the apparent duplication is inherent to the canonical list, not a typo. Removing SQL position 12 would leave 10 components and BREAK convergence.",
+        "resolution": "Position 12 retained with that justification written into both the migration header and the Rust doc comment; only the extra actor_id component was dropped. A new test asserts the 8 == 11 invariant per fixture. THE CONTRACT TEXT SHOULD BE CORRECTED - it currently records a premise the implementation disproved."
+      },
+      "ac_112_5_decision": {
+        "decision": "400, not 404.",
+        "reasoning": "document_id is client-supplied provenance being VALIDATED, not the route resource. The route resource is the workspace, checked at memory.rs:1013-1021, and it correctly STAYS 404 (proposal_route_rejects_deleted_workspace still passes). The actual 404 leak was get_loom_block, which returns StorageResult<LoomBlock> rather than Option and propagated NotFound through storage_error. Now mapped to bad_request, matching every other provenance gate in the handler. Fail-closed behaviour is unchanged - nothing was stored either way."
+      },
+      "ac_112_6_row_impact": {
+        "result": "ZERO live rows re-keyed. Nothing required the operator stop-gate.",
+        "census": "All 20 databases / 33 schemas holding fems_memory_proposals: 12 rows total (7 in MT-064 test schemas, 5 in the harness), rows_would_rekey = 0 in EVERY schema. No 0345-derived identity exists anywhere; all live rows carry explicit or canonical-11 ids.",
+        "structural_safety": "Loss, duplication and orphaning are structurally impossible here: proposal_id - which receipts, aggregate_id, idempotency_key and the fems-memory-proposal:{id} correlation all key on - is NEVER touched. Only request_id moves. Round-trip: rows_total=5, distinct_proposal_ids=5, distinct_ws_request_pairs=5, column_json_mismatches=0.",
+        "evidence": "ac-112-6-row-impact-census.txt"
+      },
+      "ac_112_2_and_pt_112_3": {
+        "migration_0345_untouched": "VERIFIED BY KERNEL_BUILDER with git: 0345 has exactly ONE commit in its history (892662e0) and does not appear in bce12043. It was not edited in place.",
+        "superseding_migration": "0365_fems_proposal_request_id_canonical_identity.sql (+267) and .down.sql (+32). It ships fems_proposal_request_id(...) as the SINGLE SQL definition of the identity, journals every change in fems_memory_proposal_request_id_rekey (proposal_id, old, new), and re-keys ONLY rows whose current request_id is exactly what 0345 twelve-component expression produced. Explicit and preserved ids are untouched.",
+        "up_down_up": "Full round-trip on a dedicated scratch database, all SEVEN steps EXIT 0: seed, 0345 up, 0365 up, 0365 down, 0345 down, 0345 up, 0365 up - converging back to identical canonical ids. The down path restores the prior value BYTE-FOR-BYTE from the journal rather than re-deriving it. Evidence: pt-112-3-up-down-up-roundtrip.txt.",
+        "permanent_guard": "A new in-test assert_ne! permanently guards AC-112-2: if 0345 alone ever produces the canonical identity, it was edited in place and the test fails."
+      },
+      "pt_112_2_differential_proof": "New test canonical_request_identity_matches_shipped_sql_across_actor_and_hash_edges PASSES. Five fixtures: no actor_id; actor_id differing only; Unicode-whitespace-padded actor_id/document_id/pane_id; canonical code snapshot with document_content_hash; all optionals absent. Each asserts Rust == SHIPPED SQL and assert_ne! against the superseded 0345 twelve-component expression, so it cannot pass vacuously. Diverged before, identical after.",
+      "root_cause_of_the_original_drift": "The agent replaced the HAND-COPIED SQL mirror inside legacy_retry_ with a call to the SHIPPED fems_proposal_request_id function. That hand-copy is HOW THIS DEFECT AROSE: it had drifted from the migration it claimed to mirror (its position 12 was sha256(source_document_content) while the migration used document_content_hash), so the test could not catch the very drift it existed to catch. Worth carrying into other MTs as a pattern: a test that hand-copies production logic cannot detect production drift.",
+      "results": "cargo test --lib --features duckdb-flight-recorder,test-utils api::memory:: => 27 passed / 1 failed / 1989 filtered (28 tests, up from 27). proposal_missing_provenance_fails_closed OK. migration_0345_old_schema_identity_and_down_up_retry_converge OK. The new differential test OK. legacy_retry_heals_missing_receipt_once_and_converges STILL RED. No assertion was weakened, relaxed or deleted, and no test was removed - the only test-body edits were applying 0365 in real deployment order, switching the mirror to the shipped function, and ADDING assertions.",
+      "blocker_ac_112_4_is_1_of_2": {
+        "failing_test": "legacy_retry_heals_missing_receipt_once_and_converges",
+        "the_mt112_part_now_passes": "Its MT-112 identity assertion at memory.rs:3225 PASSES. It now fails roughly 150 lines later, on a DIFFERENT defect.",
+        "real_error": "Serialization(\"memory proposal artifact is not hsk.memory_write_proposal@0.1: missing field schema_version\"), obtained by temporarily instrumenting storage_error and then REMOVING the instrumentation. Reproduced deterministically in isolation in 3.37s with zero contention, so it is not the cargo/PostgreSQL starvation hazard and not a race - both concurrent retries fail identically.",
+        "mechanism": "A pre-hardening legacy row has no _canonical_artifact, so proposal_artifact_value (fems_memory.rs:279-290) returns the raw payload and build_memory_proposal_flight_recorder_event (:996-1001) cannot parse it. It ALSO cannot be fixed by reconstructing the artifact, because :1003-1004 requires canonical.proposal_id == proposal.proposal_id AND Uuid::parse_str(&canonical.proposal_id).is_ok(), while the fixture id is PROP-LEGACY-{uuid}. No artifact can satisfy both.",
+        "why_it_is_out_of_scope": "Fixing it requires changing the canonical proposal contract for legacy non-UUID ids in src/backend/handshake_core/src/storage/fems_memory.rs - OUTSIDE MT-112 allowed_paths, outside its defect_detail, and a durable-contract decision of exactly the kind this contract reserved to the authority owner. Same origin as the identity split: commit 892662e0, a WIP checkpoint. THIS TEST HAS NEVER PASSED.",
+        "recommended_shape_not_applied": "Heal _canonical_artifact from durable columns only, mirroring the existing \"Pre-hardening rows cannot recover the headers\" branch at fems_memory.rs:606-623 so concurrent retries converge byte-for-byte, and admit a legacy non-UUID proposal_id ONLY on that heal path. Routed to MT-118 rather than applied."
+      },
+      "regression_sweep": "storage:: (51 tests): 42 passed, 9 failed, ALL PRE-EXISTING and none attributable here. 8 abort at Migration(\"while executing migration 51: function digest(text, unknown) does not exist\") - pre-existing 0051_atelier_intake_batch_resume.sql:12, in helpers that create a bare schema without the digest shim. sqlx applies in version order so the version-365 migration is never reached, and it uses digest(BYTEA, TEXT), a different signature. The 0051 failure was reproduced INDEPENDENTLY in a bare schema (pre-existing-migration-0051-digest-failure.txt). The 9th, database_trait_purity_source_regressions, is an unrelated source-text assertion on loom_api.",
+      "disclosed_gaps": [
+        "AC-112-4 is 1-of-2. legacy_retry_ is red on the independent defect above; routed to MT-118.",
+        "Only api::memory:: and storage:: were run. Migration 0365 applies to EVERY test schema, so residual regression risk exists in suites not run; a full-backend sweep is the honest confirmation.",
+        "Migration 0365 adds durable schema surface (two IMMUTABLE functions plus one journal table) - intentional, because it is what makes the single canonical list mechanically enforceable and the down path exact, but it is more than a pure data fix and the journal table is retained after up by design.",
+        "Because ZERO live rows were re-keyed, the migration collision and rank branches are UNTESTED AGAINST REAL COLLISIONS - exercised only by construction, not by data."
+      ],
+      "hygiene": "Scoped target dir cleaned per HBR-SWARM-006, 13.53 GB freed, only its own subdir touched and 28 siblings left alone. PostgreSQL PID 36052 never started, stopped or signalled. AGENTS.md/CLAUDE.md left uncommitted per CX-113A. No src/frontend/** touched, so the two co-tenant agents were undisturbed.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
+    }
   },
   "scope": {
     "summary": "Converge the FEMS memory-proposal stable request identity between the Rust derivation and migration 0345 so a migrated legacy row and a live retry derive the SAME request_id, restoring retry convergence.",
