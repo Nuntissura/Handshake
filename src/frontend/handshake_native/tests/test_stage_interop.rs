@@ -685,6 +685,13 @@ impl LiveWorkspaceGuard<'_> {
         let artifacts = Self::sql_text_array(&self.stage_artifact_ids);
         let jobs = Self::sql_text_array(&self.stage_job_ids);
         let events = Self::sql_text_array(&self.stage_event_ids);
+        // The native-editor Flight Recorder EventLedger rows are matched by their MT-109
+        // workspace-partitioned idempotency keys as well. A live run proved this is load-bearing: the
+        // mounted app emits MORE native-editor events than the two receipts this proof tracks by id
+        // (the occupied-route blocker is one), and those rows carry no top-level
+        // `payload.workspace_id` — so neither the tracked-id path nor the payload-workspace path
+        // reached them and they survived a "zero residue" run. The key prefix is exact and carries
+        // this run's own generated workspace id, so the scope stays this workspace only.
         let detach_ledger_references = Self::DETACH_LEDGER_REFERENCES_SQL;
         self.backend.run_fixture_sql(
             "mt066-stage-side-effect-cleanup",
@@ -700,6 +707,8 @@ impl LiveWorkspaceGuard<'_> {
                     OR payload->>'workspace_id' = '{workspace}' \
                     OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
                     OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
+                    OR idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
+                    OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%' \
                     OR (source_component = 'stage_capture_api' \
                         AND payload->>'workspace_id' = '{workspace}') \
                  UNION SELECT event_ledger_event_id FROM mt066_stage_cleanup_artifacts \
@@ -734,6 +743,8 @@ impl LiveWorkspaceGuard<'_> {
                                                WHERE event_id IS NOT NULL) \
                                OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
                                OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
+                               OR idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
+                               OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%' \
                                OR payload->>'workspace_id' = '{workspace}' \
                                OR (source_component = 'stage_capture_api' \
                                    AND payload->>'workspace_id' = '{workspace}')) \
