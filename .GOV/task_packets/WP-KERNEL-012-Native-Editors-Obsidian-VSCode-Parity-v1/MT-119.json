@@ -66,12 +66,24 @@
         "excerpt_line": "Rendered on its own line inside a vertical layout, so it wraps rather than pushing anything sideways. SAFE."
       },
       "disclosed_gaps": [
-        "PT-119-1 NOT YET CAPTURED - the mounted GPU after-frame showing both Restore and Remove fully inside the pane. This is the MT acceptance and the sole reason it is held at CLAIMED. MT-113 cleaned its scoped target dir, so the mounted proof binary needs a rebuild before the frame can be produced.",
-        "PT-119-3 NOT YET WRITTEN - the regression assertion that the control rects lie within the pane rect. Without it this fix can silently regress. Should land with the frame.",
-        "AC-119-4 result-row instance left open (see above) - a candidate for a follow-up MT rather than a mid-WP layout change to an MT-029 baseline surface."
+        "PT-119-3 NOT YET WRITTEN - the regression assertion that the control rects lie within the pane rect. Without it this fix can silently regress. find_in_files::show() takes a FindInFilesCallbacks plus two clients and returns no Responses, so a rect assertion needs a mounted egui_kittest harness rather than a plain lib unit test; it was deliberately NOT rushed in a narrow window. THIS IS THE SOLE REMAINING BLOCKER to READY_FOR_VALIDATION.",
+        "AC-119-4 result-row instance left open: the rows have NO clippable control (the whole row is the click target) but a long hit.title CAN push the [source_kind] badge out of view. Same class, lower severity. Deliberately not changed to avoid disturbing MT-029 mounted visual baselines mid-WP. Candidate for a follow-up MT."
       ],
       "scope_compliance": "CLEAN. One file, src/frontend/handshake_native/src/find_in_files.rs, inside MT-119 allowed_paths. The canonical Argus driver was not touched. Pre-existing non-rustfmt-clean sites in this file were left alone, following the MT-113 precedent of avoiding formatter spillover into another MT diff.",
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict.",
+      "pt_119_1_PROVEN": {
+        "status": "PROVEN BY DIRECT INSPECTION",
+        "how": "The MT-113 mounted proof (tests/test_author_id_budget.rs, PT-113-3) renders this exact surface with a realistic long query, so it was re-run AT HEAD WITH THE MT-119 FIX IN PLACE rather than authoring a duplicate harness. Command: cargo test --features integration --test test_author_id_budget -- --nocapture --test-threads=1, with HANDSHAKE_GPU_SCREENSHOT=1, the current-source backend and real PostgreSQL at 127.0.0.1:5544. Result: EXIT 0, 12 passed / 0 failed / 0 ignored / 0 filtered, 28.97s, with mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query green.",
+        "first_attempt_ran_zero_tests": "Recorded because it nearly produced a false negative: the first run without --features integration compiled the binary and reported \"running 0 tests / ok\". The proof is #[cfg(feature = \"integration\")] gated (test_author_id_budget.rs:59). An exit-0 with zero tests executed is NOT evidence, and was not treated as such.",
+        "what_kernel_builder_ACTUALLY_SAW": "The regenerated frame was OPENED. The saved-search row now reads \"authentication middleware refactor across the workspace mt113-49036-178...\" with the label ELIDED at the ellipsis, and BOTH controls render COMPLETELY inside the Find-in-Files pane: Restore and then Remove, each fully legible with clearance from the pane edge. Compare the pre-fix frame, also opened, where the label ran to the pane boundary, only a bare \"R\" of Restore survived and Remove was NOT VISIBLE AT ALL. AC-119-1 is satisfied on the evidence, not on the compile.",
+        "evidence": [
+          "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-119/canonical-argus/MT-119-after-fix-controls-inside-pane.png sha256 945abb7ce3e7d5c2193c1052be2c37c9a7b2f03fafe46d89fcb856e076f28408",
+          "../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-119/canonical-argus/MT-119-after-fix-row-removed.png sha256 137a5228738e03b6e6e4ac653fe1b9c071ff05ac338deb6bbb78e2af25aa8e4d"
+        ],
+        "frames_are_distinct": "The two sha256 digests differ, so the WP known byte-identical-pair failure mode is excluded by content.",
+        "provenance_note": "The mounted test writes into the MT-113 artifact directory because it is MT-113 test. The frames were COPIED into the MT-119 directory under MT-119-specific names so this MT evidence is self-contained; the originals were left untouched.",
+        "incidental_confirmation": "Because the MT-113 proof closes with finish_require_no_indeterminate(), this run ALSO re-confirms that the MT-119 layout change did not disturb MT-113 terminality: the long-query bookmark REMOVE still terminalizes with no indeterminate receipt."
+      }
     }
   },
   "scope": {
