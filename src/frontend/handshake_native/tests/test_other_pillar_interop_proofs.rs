@@ -525,6 +525,12 @@ fn save_surface_screenshot(
     surface: &str,
 ) -> PathBuf {
     let screenshot = artifact_dir.join(format!("{surface}.png"));
+    // Advance ONE ordinary application frame before capturing. Canonical receipts and the AccessKit
+    // snapshot terminalize in the dispatch frame while wgpu still owns the PRECEDING painted frame, so
+    // a plain render here reproduces pre-action pixels: MT-068 hit exactly this and wrote an `after`
+    // PNG byte-identical to its `before`. That is a stale visual artifact, not a product defect — but
+    // it also cannot evidence the terminal state, so this seam settles the frame first.
+    harness.step();
     harness
         .render()
         .expect("MT-074 requires a material surface render")
@@ -538,14 +544,149 @@ fn save_surface_screenshot(
 }
 
 fn observation_evidence(label: &str, observation: &ArgusObservation) -> serde_json::Value {
+    // `validation_v4` remediation item 6: an action receipt is only evidence once it has been rebound to
+    // its authoritative terminal snapshot and carries at least one PASSING action-specific predicate.
+    // Both facts travel in the persisted row so an external verifier can recompute the predicate against
+    // `after_reinspect` rather than trusting a pass flag.
+    assert!(
+        observation.terminal_refreshed,
+        "{label}: canonical action {} was never rebound to an authoritative terminal snapshot",
+        observation.receipt_id
+    );
+    assert!(
+        !observation.terminal_predicates.is_empty()
+            && observation
+                .terminal_predicates
+                .iter()
+                .all(|predicate| predicate.passed),
+        "{label}: canonical action {} carries no passing action-specific terminal predicate",
+        observation.receipt_id
+    );
     serde_json::json!({
         "label": label,
         "receipt_id": observation.receipt_id,
         "receipt_status": observation.receipt_status,
         "agent_id": observation.agent_id,
+        "correlation_id": observation.correlation_id,
+        "terminal_refreshed": observation.terminal_refreshed,
+        "terminal_observed_sequence": observation.terminal_observed_sequence,
+        "terminal_predicates": observation.terminal_predicates,
         "before_inspect": observation.before,
         "after_reinspect": observation.after,
     })
+}
+
+/// The deterministic per-scenario runtime verdict file name. `validation_v4` remediation item 7: the
+/// manifest's declared PASS is only legitimate when the canonical finish for that scenario actually
+/// succeeded in THIS run, and a failed run must record FAIL plus the exact stage it reached. The
+/// manifest names this same suffix, so the declaration and the produced artifact cannot drift.
+const RUNTIME_VERDICT_SUFFIX: &str = "-runtime-verdict.json";
+
+/// Records a scenario's terminal runtime verdict on the way out — PASS only after the scenario marks
+/// itself complete (which happens after its canonical `argus.finish()` and its evidence write), FAIL
+/// otherwise, naming the last stage reached. Unwinding cannot skip it.
+struct ScenarioRuntimeVerdict {
+    scenario_id: &'static str,
+    proof_fn: &'static str,
+    artifact_dir: PathBuf,
+    stage: String,
+    predicate_ids: Vec<String>,
+    evidence_path: Option<PathBuf>,
+    complete: bool,
+}
+
+impl ScenarioRuntimeVerdict {
+    fn open(scenario_id: &'static str, proof_fn: &'static str, artifact_dir: &Path) -> Self {
+        Self {
+            scenario_id,
+            proof_fn,
+            artifact_dir: artifact_dir.to_path_buf(),
+            stage: "STARTED".to_owned(),
+            predicate_ids: Vec::new(),
+            evidence_path: None,
+            complete: false,
+        }
+    }
+
+    fn stage(&mut self, stage: &str) {
+        self.stage = stage.to_owned();
+    }
+
+    fn record_predicates(&mut self, observation: &ArgusObservation) {
+        for predicate in &observation.terminal_predicates {
+            self.predicate_ids.push(predicate.predicate_id.clone());
+        }
+    }
+
+    fn complete(&mut self, evidence_path: PathBuf) {
+        self.stage = "CANONICAL_FINISH_AND_EVIDENCE_WRITTEN".to_owned();
+        self.evidence_path = Some(evidence_path);
+        self.complete = true;
+    }
+
+    fn path(&self) -> PathBuf {
+        self.artifact_dir.join(format!(
+            "{}{RUNTIME_VERDICT_SUFFIX}",
+            self.scenario_id.to_ascii_lowercase()
+        ))
+    }
+}
+
+impl Drop for ScenarioRuntimeVerdict {
+    fn drop(&mut self) {
+        let verdict = if self.complete { "PASS" } else { "FAIL" };
+        let path = self.path();
+        let body = serde_json::json!({
+            "schema_id": "handshake.mt074-scenario-runtime-verdict.v1",
+            "scenario_id": self.scenario_id,
+            "proof_fn": self.proof_fn,
+            "verdict": verdict,
+            "last_stage_reached": self.stage,
+            "bound_terminal_predicate_ids": self.predicate_ids,
+            "canonical_evidence_path": self.evidence_path,
+            "source_sha": current_source_sha(),
+            "recorded_at_utc": chrono::Utc::now().to_rfc3339(),
+        });
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::write(
+            &path,
+            serde_json::to_vec_pretty(&body).expect("serialize MT-074 scenario runtime verdict"),
+        )
+        .unwrap_or_else(|error| {
+            panic!(
+                "write MT-074 scenario runtime verdict {}: {error}",
+                path.display()
+            )
+        });
+    }
+}
+
+/// Every scenario asserts its own committed manifest entry declares PASS. A manifest left at
+/// `READY_FOR_RUNTIME`, `FAIL`, or `BLOCKED` therefore fails the scenario that owns it, and a declared
+/// PASS is bound to this run's verdict artifact rather than standing alone.
+fn assert_manifest_entry_declares_pass(scenario_id: &str, proof_fn: &str) {
+    let manifest: serde_json::Value =
+        serde_json::from_str(include_str!("other_pillar_interop_manifest.json"))
+            .expect("the manifest is valid JSON");
+    let entry = manifest
+        .as_array()
+        .expect("the manifest is a JSON array")
+        .iter()
+        .find(|entry| entry["scenario_id"].as_str() == Some(scenario_id))
+        .unwrap_or_else(|| panic!("the manifest declares {scenario_id}"));
+    assert_eq!(
+        entry["status"].as_str(),
+        Some("PASS"),
+        "{scenario_id} manifest status must be PASS once its canonical finish succeeds"
+    );
+    assert_eq!(entry["proof_fn"].as_str(), Some(proof_fn));
+    assert_eq!(
+        entry["runtime_verdict"]["artifact_suffix"].as_str(),
+        Some(RUNTIME_VERDICT_SUFFIX),
+        "{scenario_id} manifest must name the exact runtime verdict artifact this scenario writes"
+    );
 }
 
 fn write_scenario_evidence(
@@ -821,9 +962,35 @@ impl<'a> Mt074FixtureCleanup<'a> {
         if !self.native_fr_event_ids.contains(&event_id) {
             self.native_fr_event_ids.push(event_id);
         }
+        // MT-109 made the DURABLE recorder id a workspace-scoped DERIVATION of the client event id,
+        // while the EventLedger idempotency keys are still built from the CLIENT id (now prefixed with
+        // the workspace). Track that id too, or the cleanup names rows that do not exist and the
+        // zero-residue assertion passes while real fixture rows survive.
+        if let Some(client_event_id) = row["payload"]["client_event_id"].as_str() {
+            let client_event_id = client_event_id.to_owned();
+            if !self.native_fr_event_ids.contains(&client_event_id) {
+                self.native_fr_event_ids.push(client_event_id);
+            }
+        }
     }
 
     fn assert_cleanup(&mut self) {
+        // Discover every native-editor recorder row this workspace minted BEFORE deleting anything.
+        // MT-066 proved a passing run can report zero residue while real rows survive, because the
+        // mounted app emits more native-editor events than a scenario tracks by id.
+        if let Some(rows) = authorized_flight_recorder_rows(self.backend) {
+            let discovered = rows
+                .as_array()
+                .into_iter()
+                .flatten()
+                .cloned()
+                .collect::<Vec<_>>();
+            for row in &discovered {
+                if row["event_id"].as_str().is_some() {
+                    self.native_fr(row);
+                }
+            }
+        }
         for document_id in &self.document_ids {
             let status = self
                 .backend
@@ -893,14 +1060,37 @@ impl<'a> Mt074FixtureCleanup<'a> {
                 sql_literal(block_id)
             ));
         }
+        if !self.backend.workspace_id.is_empty() {
+            // MT-109 partitioned the native-editor EventLedger idempotency keys by workspace
+            // (`native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`). Sweeping by the
+            // exact workspace prefix reaches every row THIS run minted, including the ones no scenario
+            // tracked by id, and stays scoped to this run's own generated workspace.
+            let workspace = self.backend.workspace_id.replace('\'', "''");
+            statements.push(format!(
+                "DELETE FROM kernel_event_ledger \
+                 WHERE idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
+                    OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%'; \
+                 DO $native_fr_workspace_cleanup$ BEGIN IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                 WHERE idempotency_key LIKE 'native-editor-fr-pending:{workspace}:%' \
+                    OR idempotency_key LIKE 'native-editor-fr-complete:{workspace}:%') \
+                 THEN RAISE EXCEPTION \
+                 'MT-074 workspace-partitioned native FR EventLedger cleanup left rows'; END IF; \
+                 END $native_fr_workspace_cleanup$;"
+            ));
+        }
         if !self.native_fr_event_ids.is_empty() {
+            let workspace_id = self.backend.workspace_id.clone();
             let keys = self
                 .native_fr_event_ids
                 .iter()
                 .flat_map(|event_id| {
+                    // Both spellings: rows minted before MT-109 partitioned the keys, and rows minted
+                    // after. Every key is still scoped to this proof's own event ids.
                     [
                         format!("native-editor-fr-pending:{event_id}"),
                         format!("native-editor-fr-complete:{event_id}"),
+                        format!("native-editor-fr-pending:{workspace_id}:{event_id}"),
+                        format!("native-editor-fr-complete:{workspace_id}:{event_id}"),
                     ]
                 })
                 .map(|key| sql_literal(&key))
@@ -979,6 +1169,33 @@ fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
         .expect("loaded document has content_json")
 }
 
+/// The exact `x-hsk-session-token` credential the mounted native client publishes.
+///
+/// WP-KERNEL-012 MT-109 made the whole Flight Recorder route group fail-closed, so an unauthenticated
+/// read returns 401 and looks exactly like "the recorder is empty". This reads the proof's own real
+/// on-disk native-MCP binding through the product path — it never weakens, bypasses, feature-gates, or
+/// substitutes the authorization.
+fn live_binding_session_token() -> String {
+    try_live_binding_session_token().unwrap_or_else(|reason| {
+        panic!("MT-109 capability-gated Flight Recorder read requires the live native-MCP binding: {reason}")
+    })
+}
+
+/// Fallible twin of [`live_binding_session_token`]. `Drop` recovery uses this one: by the time a guard
+/// drops during unwinding the mounted app (and therefore its published binding) may already be gone.
+/// Recovery must not be blocked by that, and must never invent a credential.
+fn try_live_binding_session_token() -> Result<String, String> {
+    let path = handshake_native::mcp::binding_path();
+    let bytes = std::fs::read(&path)
+        .map_err(|error| format!("read native-MCP binding {}: {error}", path.display()))?;
+    let binding: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse native-MCP binding {}: {error}", path.display()))?;
+    binding["token"]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| format!("native-MCP binding {} carries no token", path.display()))
+}
+
 fn wait_for_native_fr(
     backend: &pg_proof_support::LiveBackend,
     kind: &str,
@@ -986,22 +1203,51 @@ fn wait_for_native_fr(
 ) -> serde_json::Value {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
-        let rows = backend.get_json(&format!(
-            "/api/flight_recorder?wsid={}",
-            backend.workspace_id
-        ));
+        let rows = backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", backend.workspace_id),
+            &live_binding_session_token(),
+        );
         if let Some(row) = rows.as_array().and_then(|rows| {
             rows.iter()
                 .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
         }) {
             assert!(row["event_id"].as_str().is_some());
+            assert_eq!(
+                row["payload"]["workspace_id"].as_str(),
+                Some(backend.workspace_id.as_str())
+            );
             return row.clone();
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "automatic {kind} Flight Recorder row did not arrive within ten seconds"
+            "automatic {kind} Flight Recorder row did not arrive within ten seconds. \
+             Recorder rows currently visible for this workspace: {rows}. \
+             (MT-109 made the durable FR `event_id` a workspace-scoped DERIVATION of the client id, so \
+             matching a client-side receipt id against `event_id` alone no longer works — the minted id \
+             travels in `payload.client_event_id`.)"
         );
         std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+/// Read every workspace-scoped Flight Recorder row through the authorized credential. Used by the
+/// deterministic fixture cleanup so ledger residue minted by the mounted app — not only the rows a
+/// scenario tracked by id — is named exactly.
+fn authorized_flight_recorder_rows(
+    backend: &pg_proof_support::LiveBackend,
+) -> Option<serde_json::Value> {
+    match try_live_binding_session_token() {
+        Ok(session_token) => Some(backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", backend.workspace_id),
+            &session_token,
+        )),
+        Err(reason) => {
+            eprintln!(
+                "MT-074 cleanup skipped authorized Flight Recorder discovery ({reason}); the \
+                 workspace-scoped SQL residue sweep still runs."
+            );
+            None
+        }
     }
 }
 
@@ -1310,6 +1556,11 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let artifact_dir = scenario_artifact_dir("op04-aggregate");
+    let mut verdict = ScenarioRuntimeVerdict::open(
+        "OP-04",
+        "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+        &artifact_dir,
+    );
     let mut observations: Vec<(String, ArgusObservation)> = Vec::new();
     let mut screenshots = Vec::new();
 
@@ -1349,18 +1600,34 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         assert!(std::time::Instant::now() < stage_ready);
     }
     select_mounted_rich_text(&mut stage_app, stage_routed_text);
-    observations.push((
-        "stage-open-editors-menu".to_owned(),
-        argus_click(&mut stage_argus, &mut stage_app, "menu-editors"),
-    ));
-    observations.push((
-        "stage-route-selection".to_owned(),
-        argus_click(
-            &mut stage_argus,
-            &mut stage_app,
-            "menu.editors.route-to-stage",
-        ),
-    ));
+
+    // ── Canonical action 1 of 6 (Stage edge): open the Editors menu ──────────────────────────────
+    verdict.stage("OP04_ACTION_1_STAGE_OPEN_EDITORS_MENU");
+    let stage_menu = argus_click(&mut stage_argus, &mut stage_app, "menu-editors");
+    assert!(
+        !json_has_author_id(&stage_menu.before, "menu.editors.route-to-stage"),
+        "OP-04 the Route-to-Stage leaf must be absent BEFORE the menu action"
+    );
+    stage_argus.assert_latest_terminal_predicate_with_evidence(
+        &mut stage_app,
+        "mt074-op04-editors-menu-exposes-route-to-stage",
+        serde_json::json!({
+            "expected_author_id": "menu.editors.route-to-stage",
+            "absent_before_action": true,
+        }),
+        |after| json_has_author_id(after, "menu.editors.route-to-stage"),
+    );
+    let stage_menu = stage_argus.latest_terminal_observation();
+    verdict.record_predicates(&stage_menu);
+    observations.push(("stage-open-editors-menu".to_owned(), stage_menu));
+
+    // ── Canonical action 2 of 6 (Stage edge): route the exact selected bytes ─────────────────────
+    verdict.stage("OP04_ACTION_2_STAGE_ROUTE_SELECTION");
+    argus_click(
+        &mut stage_argus,
+        &mut stage_app,
+        "menu.editors.route-to-stage",
+    );
     let stage_surface_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         stage_app.run_steps(1);
@@ -1379,14 +1646,49 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
             "OP-04 Stage capture action did not become enabled after the mounted rich route was drained"
         );
     }
-    observations.push((
-        "stage-embed-back".to_owned(),
-        argus_click(
-            &mut stage_argus,
-            &mut stage_app,
-            STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
-        ),
-    ));
+    let op04_routed_summary =
+        StageContent::Selection(stage_routed_text.to_owned(), stage_doc_id.clone()).summary();
+    let op04_routed_summary_for_predicate = op04_routed_summary.clone();
+    let stage_state_for_predicate = Arc::clone(&stage_state);
+    let stage_routed_text_for_predicate = stage_routed_text.to_owned();
+    let stage_doc_id_for_predicate = stage_doc_id.clone();
+    stage_argus.assert_latest_terminal_predicate_with_evidence(
+        &mut stage_app,
+        "mt074-op04-route-delivers-exact-selection-to-stage",
+        serde_json::json!({
+            "expected_stage_routed_content_author_id":
+                handshake_native::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
+            "expected_stage_routed_content_value": op04_routed_summary,
+            "expected_source_document_id": stage_doc_id,
+            "expected_routed_text": stage_routed_text,
+        }),
+        move |after| {
+            let projected_exactly = json_author_value(
+                after,
+                handshake_native::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
+            ) == Some(op04_routed_summary_for_predicate.as_str());
+            let live_stage_content = matches!(
+                stage_state_for_predicate.lock().unwrap().content,
+                StageContent::Selection(ref text, ref source)
+                    if text == &stage_routed_text_for_predicate
+                        && source == &stage_doc_id_for_predicate
+            );
+            projected_exactly
+                && live_stage_content
+                && json_has_author_id(after, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)
+        },
+    );
+    let stage_route_observation = stage_argus.latest_terminal_observation();
+    verdict.record_predicates(&stage_route_observation);
+    observations.push(("stage-route-selection".to_owned(), stage_route_observation));
+
+    // ── Canonical action 3 of 6 (Stage edge): capture -> embed back ──────────────────────────────
+    verdict.stage("OP04_ACTION_3_STAGE_EMBED_BACK");
+    argus_click(
+        &mut stage_argus,
+        &mut stage_app,
+        STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+    );
     let stage_effect_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         stage_app.run_steps(2);
@@ -1403,10 +1705,13 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         );
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let artifact_id = match stage_state.lock().unwrap().last_embed_back.clone() {
-        Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { artifact_id, .. }) => {
-            artifact_id
-        }
+    let (artifact_id, stage_created_sha) = match stage_state.lock().unwrap().last_embed_back.clone()
+    {
+        Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded {
+            artifact_id,
+            sha256,
+            ..
+        }) => (artifact_id, sha256),
         other => panic!("OP-04 expected Stage embed, got {other:?}"),
     };
     fixtures.stage_artifact(artifact_id.clone());
@@ -1423,17 +1728,38 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
             .is_some_and(|value| value.contains(&artifact_id)),
         "OP-04 Stage result node exposes the exact embedded artifact"
     );
-    let stage_final_inspect = stage_argus.inspect(&mut stage_app);
-    assert!(
-        json_author_value(&stage_final_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
-            .is_some_and(|value| value.contains(&artifact_id)),
-        "OP-04 fresh canonical Stage inspect exposes the exact embedded artifact"
+    let op04_short_sha = stage_created_sha.chars().take(12).collect::<String>();
+    let artifact_id_for_predicate = artifact_id.clone();
+    let op04_short_sha_for_predicate = op04_short_sha.clone();
+    let stage_final_inspect = stage_argus.assert_latest_terminal_predicate_with_evidence(
+        &mut stage_app,
+        "mt074-op04-embed-back-exposes-exact-artifact-and-digest",
+        serde_json::json!({
+            "expected_status_author_id": STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+            "expected_artifact_id": artifact_id,
+            "expected_sha256": stage_created_sha,
+            "expected_short_sha256": op04_short_sha,
+        }),
+        move |after| {
+            json_author_value(after, STAGE_EMBED_BACK_STATUS_AUTHOR_ID).is_some_and(|value| {
+                value.contains(&artifact_id_for_predicate)
+                    && value.contains(&op04_short_sha_for_predicate)
+            })
+        },
     );
+    let stage_embed_observation = stage_argus.latest_terminal_observation();
+    verdict.record_predicates(&stage_embed_observation);
+    observations.push(("stage-embed-back".to_owned(), stage_embed_observation));
     screenshots.push(save_surface_screenshot(
         &mut stage_app,
         &artifact_dir,
         "op04-stage",
     ));
+    assert_eq!(
+        stage_argus.dispatched_action_count(),
+        3,
+        "OP-04 Stage edge dispatches exactly three canonical actions, each terminally bound"
+    );
     stage_argus.finish();
 
     // Calendar: today's canonical rows -> mounted journal loader -> stable AccessKit event activation.
@@ -1526,14 +1852,13 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         .is_none(),
         "OP-04 Calendar destination must not be mounted before the event activation"
     );
-    observations.push((
-        "calendar-open-event".to_owned(),
-        argus_click(
-            &mut calendar_argus,
-            &mut calendar_app,
-            DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
-        ),
-    ));
+    // ── Canonical action 4 of 6 (Calendar edge): activate the exact bound CalendarEvent ──────────
+    verdict.stage("OP04_ACTION_4_CALENDAR_OPEN_EVENT");
+    argus_click(
+        &mut calendar_argus,
+        &mut calendar_app,
+        DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+    );
     let destination_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
         calendar_app.run_steps(1);
@@ -1575,43 +1900,94 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         }),
         "OP-04 Calendar Details must expose the exact activated event id"
     );
-
-    observations.push((
-        "calendar-open-activity".to_owned(),
-        argus_click(
-            &mut calendar_argus,
-            &mut calendar_app,
-            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
-        ),
-    ));
-    assert!(
-        find_node(
-            &calendar_app.root(),
-            &handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id),
-        )
-        .is_some(),
-        "OP-04 Calendar Activity must expose the exact correlated span"
+    let op04_event_id_for_predicate = event_id.clone();
+    calendar_argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut calendar_app,
+        "mt074-op04-event-chip-activates-exact-calendar-event",
+        serde_json::json!({
+            "expected_calendar_event_id": event_id,
+            "expected_pane_type": "Calendar Event",
+            "expected_details_author_id":
+                handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+        }),
+        move |after, app| {
+            let active_tab_is_the_event = app
+                .active_pane()
+                .and_then(|pane| app.tab_bar_states().get(pane))
+                .and_then(|bar| bar.tabs.get(bar.active_index))
+                .is_some_and(|tab| {
+                    tab.pane_type == PaneType::CalendarEvent
+                        && tab.content_id.as_deref() == Some(op04_event_id_for_predicate.as_str())
+                });
+            let details_expose_the_event = json_author_value(
+                after,
+                handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+            )
+            .is_some_and(|value| value.contains(&op04_event_id_for_predicate));
+            active_tab_is_the_event
+                && details_expose_the_event
+                && json_has_author_id(
+                    after,
+                    handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+                )
+        },
     );
+    let calendar_event_observation = calendar_argus.latest_terminal_observation();
+    verdict.record_predicates(&calendar_event_observation);
+    observations.push(("calendar-open-event".to_owned(), calendar_event_observation));
+
+    // ── Canonical action 5 of 6 (Calendar edge): open the correlated ActivitySpan projection ─────
+    verdict.stage("OP04_ACTION_5_CALENDAR_OPEN_ACTIVITY");
+    let calendar_span_id =
+        handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
     let calendar_result_id = handshake_native::graph::daily_journal_panel::activity_item_author_id(
         &handshake_native::interop::DocId(binding.doc_id.as_str().to_owned()),
+    );
+    argus_click(
+        &mut calendar_argus,
+        &mut calendar_app,
+        handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+    );
+    assert!(
+        find_node(&calendar_app.root(), &calendar_span_id).is_some(),
+        "OP-04 Calendar Activity must expose the exact correlated span"
     );
     assert!(
         find_node(&calendar_app.root(), &calendar_result_id).is_some(),
         "OP-04 Calendar destination exposes the exact correlated document chip"
     );
-    let calendar_span_id =
-        handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
-    let calendar_final_inspect = calendar_argus.inspect(&mut calendar_app);
-    assert!(
-        json_has_author_id(&calendar_final_inspect, &calendar_span_id)
-            && json_has_author_id(&calendar_final_inspect, &calendar_result_id),
-        "OP-04 fresh canonical Calendar inspect exposes the exact span and document result"
+    let calendar_span_id_for_predicate = calendar_span_id.clone();
+    let calendar_result_id_for_predicate = calendar_result_id.clone();
+    let calendar_final_inspect = calendar_argus.assert_latest_terminal_predicate_with_evidence(
+        &mut calendar_app,
+        "mt074-op04-activity-tab-exposes-exact-span-and-edited-document",
+        serde_json::json!({
+            "expected_span_author_id": calendar_span_id,
+            "expected_edited_document_author_id": calendar_result_id,
+            "expected_activity_span_id": span_id,
+            "expected_edited_document_id": binding.doc_id.as_str(),
+        }),
+        move |after| {
+            json_has_author_id(after, &calendar_span_id_for_predicate)
+                && json_has_author_id(after, &calendar_result_id_for_predicate)
+        },
     );
+    let calendar_activity_observation = calendar_argus.latest_terminal_observation();
+    verdict.record_predicates(&calendar_activity_observation);
+    observations.push((
+        "calendar-open-activity".to_owned(),
+        calendar_activity_observation,
+    ));
     screenshots.push(save_surface_screenshot(
         &mut calendar_app,
         &artifact_dir,
         "op04-calendar",
     ));
+    assert_eq!(
+        calendar_argus.dispatched_action_count(),
+        2,
+        "OP-04 Calendar edge dispatches exactly two canonical actions, each terminally bound"
+    );
     calendar_argus.finish();
 
     // Locus: persisted reference -> mounted rich chip -> resolve and reverse lookup product effects.
@@ -1664,10 +2040,55 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         }
         assert!(std::time::Instant::now() < locus_deadline);
     }
-    observations.push((
-        "locus-open-work-packet".to_owned(),
-        argus_click(&mut locus_argus, &mut locus_app, &locus_chip_id),
-    ));
+    // ── Canonical action 6 of 6 (Locus edge): navigate the chip to its exact work packet ─────────
+    // MT-068 (V5) terminalizes this receipt product-side ONLY when the declared work unit mounts as a
+    // Kernel DCC tab bound to `WP:{id}`; the navigation record is single-use, so a repeat click cannot
+    // reuse a prior tab. Verified here rather than assumed.
+    verdict.stage("OP04_ACTION_6_LOCUS_OPEN_WORK_PACKET");
+    let expected_locus_content_id = format!("WP:{wp_id}");
+    argus_click(&mut locus_argus, &mut locus_app, &locus_chip_id);
+    let op04_locus_content_id_for_predicate = expected_locus_content_id.clone();
+    let op04_locus_chip_id_for_predicate = locus_chip_id.clone();
+    locus_argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut locus_app,
+        "mt074-op04-locus-chip-navigates-to-exact-work-packet",
+        serde_json::json!({
+            "expected_navigation_content_id": expected_locus_content_id,
+            "expected_pane_type": "Kernel DCC",
+            "clicked_chip_author_id": locus_chip_id,
+            "completion_observer_author_id":
+                handshake_native::app::MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+        }),
+        move |after, app| {
+            let routed = app
+                .active_pane()
+                .and_then(|pane| app.tab_bar_states().get(pane))
+                .and_then(|bar| bar.tabs.get(bar.active_index))
+                .is_some_and(|tab| {
+                    tab.content_id.as_deref()
+                        == Some(op04_locus_content_id_for_predicate.as_str())
+                        && tab.pane_type.label() == "Kernel DCC"
+                });
+            routed
+                && !json_has_author_id(after, &op04_locus_chip_id_for_predicate)
+                && json_has_author_id(
+                    after,
+                    handshake_native::app::MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+                )
+        },
+    );
+    let locus_observation = locus_argus.latest_terminal_observation();
+    verdict.record_predicates(&locus_observation);
+    assert_eq!(
+        locus_observation.receipt_status, "applied",
+        "OP-04 the Locus chip must terminalize on the MT-068 product-side navigation completion"
+    );
+    observations.push(("locus-open-work-packet".to_owned(), locus_observation));
+    assert_eq!(
+        locus_argus.dispatched_action_count(),
+        1,
+        "OP-04 Locus edge dispatches exactly one canonical action, terminally bound"
+    );
     let active_pane = locus_app
         .state()
         .active_pane()
@@ -1679,7 +2100,6 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         .get(&active_pane)
         .and_then(|bar| bar.tabs.get(bar.active_index))
         .expect("OP-04 Locus navigation produced an active tab");
-    let expected_locus_content_id = format!("WP:{wp_id}");
     assert_eq!(
         active_tab.content_id.as_deref(),
         Some(expected_locus_content_id.as_str()),
@@ -1739,7 +2159,13 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     ] {
         fixtures.native_fr(row);
     }
-    let rows = be.get_json(&format!("/api/flight_recorder?wsid={ws}"));
+    // MT-109 made the whole Flight Recorder route group fail-closed: an unauthenticated read returns
+    // 401 HSK-401-FR-SESSION and is indistinguishable from "the recorder is empty". Present the same
+    // real native-MCP credential the mounted client publishes.
+    let rows = be.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={ws}"),
+        &live_binding_session_token(),
+    );
     let stage_route_dispatches = rows
         .as_array()
         .expect("OP-04 Flight Recorder rows")
@@ -1781,12 +2207,21 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         json_contains_exact_string(&locus_final_inspect, &expected_locus_content_id),
         "OP-04 fresh canonical Locus inspect carries the exact persisted WP target"
     );
-    locus_argus.finish();
-    drop(stage_binding);
+    // Ordering is load-bearing (remediation item 6): the fixture cleanup discovers this workspace's
+    // native-editor recorder rows over the MT-109 capability-gated route, which needs the live
+    // native-MCP binding. `locus_argus.finish()` drops the last `SwarmMcpServer` and its `Drop` removes
+    // that binding file, so cleanup must complete BEFORE teardown, not after.
+    verdict.stage("OP04_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     assert_no_local_artifact_dir();
     fixtures.assert_cleanup();
+    locus_argus.finish();
+    drop(stage_binding);
     drop(fixtures);
     be.assert_cleanup();
+    assert_manifest_entry_declares_pass(
+        "OP-04",
+        "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+    );
     let observation_refs = observations
         .iter()
         .map(|(label, observation)| (label.as_str(), observation))
@@ -1863,8 +2298,17 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
                 }
             ],
             "event_id_cardinality": event_ids.len(),
+            "terminal_predicate_ids": observations
+                .iter()
+                .flat_map(|(_, observation)| observation
+                    .terminal_predicates
+                    .iter()
+                    .map(|predicate| predicate.predicate_id.clone()))
+                .collect::<Vec<_>>(),
+            "dispatched_action_count": 6,
         }),
     );
+    verdict.complete(evidence.clone());
     println!(
         "OP-04 CANONICAL ARGUS PROVEN: accesskit interop edges driven through Stage, Calendar, and Locus inspect/action/receipt/fresh-reinspect matrix; screenshots={screenshots:?}; evidence={}",
         evidence.display()
@@ -1876,8 +2320,16 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
 
 #[test]
 fn other_pillar_runtime_readiness_manifest() {
-    // Validate the sibling JSON manifest: exactly 4 entries (OP-01..OP-04), each with the required fields
-    // and a pre-validation READY_FOR_RUNTIME status. Runtime PASS is written only after exact tests run.
+    // Validate the sibling JSON manifest: exactly 4 entries (OP-01..OP-04), each with the required
+    // fields and a declared PASS status that is BOUND to this run's verdict artifact.
+    //
+    // `validation_v4` remediation item 7 rejected a static manifest that keeps declaring
+    // `READY_FOR_RUNTIME` while the configured runtime command fails every scenario. The deterministic
+    // result path is now: each scenario owns a `ScenarioRuntimeVerdict` whose `Drop` writes PASS only
+    // after its canonical `argus.finish()` and evidence write, FAIL (with the exact stage reached)
+    // otherwise; and each scenario additionally asserts its own manifest entry declares PASS, so a
+    // manifest left at FAIL / BLOCKED / READY_FOR_RUNTIME fails the scenario that owns it. Typed
+    // BLOCKED remains reserved for a genuinely unavailable dependency, never for failed proof.
     let manifest_src = include_str!("other_pillar_interop_manifest.json");
     let manifest: serde_json::Value =
         serde_json::from_str(manifest_src).expect("the manifest is valid JSON");
@@ -1948,9 +2400,36 @@ fn other_pillar_runtime_readiness_manifest() {
             "duplicate scenario_id '{id}' in the manifest"
         );
         let status = entry["status"].as_str().expect("status is a string");
-        if status != "READY_FOR_RUNTIME" {
+        assert!(
+            matches!(status, "PASS" | "FAIL" | "BLOCKED"),
+            "{id} manifest status must be a terminal runtime verdict, got {status:?}"
+        );
+        if status != "PASS" {
             fail_count += 1;
         }
+        assert_eq!(
+            entry["status_authority"].as_str(),
+            Some("RUNTIME_VERDICT_ARTIFACT"),
+            "{id} manifest status must declare the runtime verdict artifact as its authority"
+        );
+        let runtime_verdict = &entry["runtime_verdict"];
+        assert_eq!(
+            runtime_verdict["artifact_suffix"].as_str(),
+            Some(RUNTIME_VERDICT_SUFFIX),
+            "{id} manifest must name the exact runtime verdict artifact its proof fn writes"
+        );
+        assert_eq!(
+            runtime_verdict["written_by"].as_str(),
+            entry["proof_fn"].as_str(),
+            "{id} runtime verdict must be written by the scenario's own proof fn"
+        );
+        assert_eq!(runtime_verdict["declared_status_is_bound_to_this_artifact"], true);
+        assert!(
+            runtime_verdict["pass_condition"]
+                .as_str()
+                .is_some_and(|condition| condition.contains("argus.finish()")),
+            "{id} runtime verdict PASS condition must require the canonical finish"
+        );
         // The proof_fn must name a function in THIS file (the manifest's proof_fn field matches a test fn).
         let proof_fn = entry["proof_fn"].as_str().expect("proof_fn is a string");
         assert!(
@@ -1972,7 +2451,7 @@ fn other_pillar_runtime_readiness_manifest() {
     }
     assert_eq!(
         fail_count, 0,
-        "before validation every MT-074 scenario is READY_FOR_RUNTIME"
+        "every MT-074 scenario entry must carry a PASS runtime verdict; zero FAIL/BLOCKED entries"
     );
     for expected in ["OP-01", "OP-02", "OP-03", "OP-04"] {
         assert!(
@@ -1980,7 +2459,110 @@ fn other_pillar_runtime_readiness_manifest() {
             "the manifest contains scenario {expected}"
         );
     }
-    println!("MT-074 manifest OK: OP-01..OP-04 are READY_FOR_RUNTIME; validation owns PASS");
+    println!(
+        "MT-074 manifest OK: OP-01..OP-04 declare PASS bound to their per-run \
+         '{RUNTIME_VERDICT_SUFFIX}' verdict artifacts; zero FAIL/BLOCKED/READY_FOR_RUNTIME entries"
+    );
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// `validation_v4` remediation item 10 — the STATIC regression assertion.
+//
+// V4's finding was systematic, not local: six `argus.finish` calls and ZERO terminal-predicate /
+// reinspection calls. A future edit that adds a canonical dispatch without binding its terminal
+// predicate would reintroduce exactly that class of defect, and it would only surface at runtime in a
+// scenario that needs a live backend. This gate reads THIS binary's own source and fails at once.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn other_pillar_every_canonical_action_binds_a_terminal_predicate() {
+    let src = include_str!("test_other_pillar_interop_proofs.rs");
+    // Every way this suite can dispatch a canonical Argus action. `argus_click` is the suite's own
+    // helper around `click_from_snapshot_and_reinspect`; the remaining spellings are the driver's
+    // public dispatch surface, listed so a future switch to any of them is still counted.
+    let dispatch_sites = [
+        "argus_click(",
+        ".click_and_reinspect(",
+        ".click_expect_applied_and_reinspect(",
+        ".click_from_snapshot_and_reinspect(",
+        ".click_with_payload_and_reinspect(",
+        ".click_with_payload_expect_applied_and_reinspect(",
+        ".set_value_and_reinspect(",
+    ];
+    let predicate_sites = [
+        ".assert_latest_terminal_predicate(",
+        ".assert_latest_terminal_predicate_with_evidence(",
+        ".assert_latest_terminal_predicate_with_app_evidence(",
+    ];
+    let count = |haystack: &str, needles: &[&str]| -> usize {
+        needles
+            .iter()
+            .map(|needle| haystack.matches(needle).count())
+            .sum()
+    };
+
+    // Scope the scan to the scenario bodies: split on the attribute that starts each test function.
+    let blocks = src.split("\n#[test]\n").collect::<Vec<_>>();
+    let mut scanned_scenarios = 0usize;
+    let mut total_dispatches = 0usize;
+    let mut total_predicates = 0usize;
+    for block in &blocks {
+        let name = block.lines().next().unwrap_or_default().trim();
+        // Only `#[test]` function bodies are scanned. The file preamble (which defines the shared
+        // `argus_click` helper) and this gate itself name the call spellings without dispatching.
+        if !name.starts_with("fn ")
+            || name.contains("other_pillar_every_canonical_action_binds_a_terminal_predicate")
+        {
+            continue;
+        }
+        let dispatches = count(block, &dispatch_sites);
+        let predicates = count(block, &predicate_sites);
+        if dispatches == 0 {
+            // A scenario that deliberately drives nothing must say so explicitly rather than let an
+            // unchanged surface imply non-dispatch.
+            if block.contains("CanonicalArgusDriver::bind")
+                && (block.contains(".finish()")
+                    || block.contains(".finish_require_no_indeterminate()"))
+            {
+                assert!(
+                    block.contains("dispatched_action_count()"),
+                    "{name}: a canonical lifecycle that dispatches no action must assert an explicit \
+                     zero-action count"
+                );
+            }
+            continue;
+        }
+        scanned_scenarios += 1;
+        total_dispatches += dispatches;
+        total_predicates += predicates;
+        assert!(
+            predicates >= dispatches,
+            "{name}: {dispatches} canonical action(s) dispatched but only {predicates} terminal \
+             predicate binding(s); every dispatched action must be rebound to a fresh authoritative \
+             terminal snapshot with an action-specific predicate BEFORE finish"
+        );
+        assert!(
+            block.contains("dispatched_action_count()"),
+            "{name}: must assert its exact canonical action count so a silently added or dropped \
+             dispatch cannot pass unnoticed"
+        );
+    }
+    assert_eq!(
+        scanned_scenarios, 4,
+        "OP-01..OP-04 are the four canonical-action scenarios in this binary"
+    );
+    // The V4 failing state was 6 dispatches / 0 predicates. Anything at or below parity is the same
+    // defect class.
+    assert!(
+        total_predicates >= total_dispatches && total_dispatches >= 13,
+        "MT-074 drives {total_dispatches} canonical actions with {total_predicates} terminal \
+         predicate bindings"
+    );
+    println!(
+        "canonical-action binding gate OK (remediation item 10): {scanned_scenarios} scenarios, \
+         {total_dispatches} dispatched canonical actions, {total_predicates} terminal predicate \
+         bindings; zero unbound dispatches before finish"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2566,6 +3148,11 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         .with_size(egui::vec2(1100.0, 760.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let artifact_dir = scenario_artifact_dir("op01-stage");
+    let mut verdict = ScenarioRuntimeVerdict::open(
+        "OP-01",
+        "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+        &artifact_dir,
+    );
     let mut observations = Vec::new();
     let mount_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
@@ -2577,14 +3164,34 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     select_mounted_rich_text(&mut harness, routed_text);
-    observations.push((
-        "open-editors-menu",
-        argus_click(&mut argus, &mut harness, "menu-editors"),
-    ));
-    observations.push((
-        "route-selection-to-stage",
-        argus_click(&mut argus, &mut harness, "menu.editors.route-to-stage"),
-    ));
+
+    // ── Canonical action 1 of 4: open the Editors menu ───────────────────────────────────────────
+    // `validation_v4` remediation item 1: every dispatched action waits for its owning state to settle,
+    // is rebound to a FRESH authoritative terminal snapshot, and carries an action-specific,
+    // non-tautological predicate before any `argus.finish()`.
+    verdict.stage("OP01_ACTION_1_OPEN_EDITORS_MENU");
+    let open_menu = argus_click(&mut argus, &mut harness, "menu-editors");
+    assert!(
+        !json_has_author_id(&open_menu.before, "menu.editors.route-to-stage"),
+        "OP-01 the Route-to-Stage leaf must be absent BEFORE the menu action, or its terminal \
+         predicate would be tautological"
+    );
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt074-op01-editors-menu-exposes-route-to-stage",
+        serde_json::json!({
+            "expected_author_id": "menu.editors.route-to-stage",
+            "absent_before_action": true,
+        }),
+        |after| json_has_author_id(after, "menu.editors.route-to-stage"),
+    );
+    let open_menu = argus.latest_terminal_observation();
+    verdict.record_predicates(&open_menu);
+    observations.push(("open-editors-menu", open_menu));
+
+    // ── Canonical action 2 of 4: route the exact selected bytes to the Stage pane ────────────────
+    verdict.stage("OP01_ACTION_2_ROUTE_SELECTION_TO_STAGE");
+    argus_click(&mut argus, &mut harness, "menu.editors.route-to-stage");
     let route_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
@@ -2594,10 +3201,48 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         }
         assert!(std::time::Instant::now() < route_deadline);
     }
-    observations.push((
-        "stage-embed-back",
-        argus_click(&mut argus, &mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID),
-    ));
+    // The Stage pane projects its routed content as an addressable value
+    // (`Selection from {doc_id}: "{preview}"`), so the predicate binds the exact source document
+    // identity AND the exact routed bytes — both runtime-generated, neither present before the action.
+    let expected_routed_summary =
+        StageContent::Selection(routed_text.to_owned(), document_id.clone()).summary();
+    let expected_routed_summary_for_predicate = expected_routed_summary.clone();
+    let stage_for_route_predicate = Arc::clone(&stage);
+    let routed_text_for_predicate = routed_text.to_owned();
+    let document_id_for_predicate = document_id.clone();
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt074-op01-route-delivers-exact-selection-to-stage",
+        serde_json::json!({
+            "expected_stage_routed_content_author_id":
+                handshake_native::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
+            "expected_stage_routed_content_value": expected_routed_summary,
+            "expected_source_document_id": document_id,
+            "expected_routed_text": routed_text,
+        }),
+        move |after| {
+            let projected_exactly = json_author_value(
+                after,
+                handshake_native::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
+            ) == Some(expected_routed_summary_for_predicate.as_str());
+            let live_stage_content = matches!(
+                stage_for_route_predicate.lock().unwrap().content,
+                StageContent::Selection(ref text, ref source)
+                    if text == &routed_text_for_predicate && source == &document_id_for_predicate
+            );
+            // The capture action only becomes addressable once real routed content landed.
+            projected_exactly
+                && live_stage_content
+                && json_has_author_id(after, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)
+        },
+    );
+    let route_observation = argus.latest_terminal_observation();
+    verdict.record_predicates(&route_observation);
+    observations.push(("route-selection-to-stage", route_observation));
+
+    // ── Canonical action 3 of 4: Stage capture -> embed back ─────────────────────────────────────
+    verdict.stage("OP01_ACTION_3_STAGE_EMBED_BACK");
+    argus_click(&mut argus, &mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID);
     let embed_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(2);
@@ -2618,12 +3263,28 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         }) => (artifact_id, sha256),
         other => panic!("OP-01 expected Stage embed, got {other:?}"),
     };
-    let final_stage_inspect = argus.inspect(&mut harness);
-    assert!(
-        json_author_value(&final_stage_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
-            .is_some_and(|value| value.contains(&artifact_id)),
-        "OP-01 fresh canonical inspect exposes the exact terminal Stage artifact"
+    let expected_short_sha = created_sha.chars().take(12).collect::<String>();
+    let artifact_id_for_predicate = artifact_id.clone();
+    let short_sha_for_predicate = expected_short_sha.clone();
+    let final_stage_inspect = argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt074-op01-embed-back-exposes-exact-artifact-and-digest",
+        serde_json::json!({
+            "expected_status_author_id": STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+            "expected_artifact_id": artifact_id,
+            "expected_sha256": created_sha,
+            "expected_short_sha256": expected_short_sha,
+        }),
+        move |after| {
+            json_author_value(after, STAGE_EMBED_BACK_STATUS_AUTHOR_ID).is_some_and(|value| {
+                value.contains(&artifact_id_for_predicate)
+                    && value.contains(&short_sha_for_predicate)
+            })
+        },
     );
+    let embed_observation = argus.latest_terminal_observation();
+    verdict.record_predicates(&embed_observation);
+    observations.push(("stage-embed-back", embed_observation));
     let stage_screenshot =
         save_surface_screenshot(&mut harness, &artifact_dir, "op01-stage-terminal");
     fixtures.stage_artifact(artifact_id.clone());
@@ -2653,10 +3314,10 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
             .expect("rich target tab remains mounted");
     }
     harness.run_steps(2);
-    observations.push((
-        "save-rich-document",
-        argus_click(&mut argus, &mut harness, "editor.rich.save"),
-    ));
+
+    // ── Canonical action 4 of 4: persist the produced embed through the mounted save control ─────
+    verdict.stage("OP01_ACTION_4_SAVE_RICH_DOCUMENT");
+    argus_click(&mut argus, &mut harness, "editor.rich.save");
     let save_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
@@ -2673,19 +3334,64 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         assert!(std::time::Instant::now() < save_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let reloaded =
-        loaded_content_json(&be.get_json(&format!("/knowledge/documents/{document_id}")))
-            .to_string();
+    // The save action's authoritative effect is a PostgreSQL mutation, not a projected AccessKit value,
+    // so its predicate performs a FRESH authoritative GET of the origin document at the same terminal
+    // instant and recomputes the persisted provenance triple plus the advanced revision. Re-reading it
+    // after the call would not be bound to this observation at all.
+    let expected_manifest_ref = artifact.manifest.manifest_ref.clone();
+    let created_version = created_doc_version(&created_doc);
+    let mut persisted_readback = serde_json::Value::Null;
+    {
+        let persisted_slot = &mut persisted_readback;
+        let backend_for_predicate = &be;
+        let document_id_for_predicate = document_id.clone();
+        let artifact_id_for_predicate = artifact_id.clone();
+        let sha_for_predicate = created_sha.clone();
+        let manifest_ref_for_predicate = expected_manifest_ref.clone();
+        argus.assert_latest_terminal_predicate_with_evidence(
+            &mut harness,
+            "mt074-op01-save-persists-exact-embed-provenance-in-postgresql",
+            serde_json::json!({
+                "expected_document_id": document_id,
+                "expected_artifact_id": artifact_id,
+                "expected_sha256": created_sha,
+                "expected_manifest_ref": expected_manifest_ref,
+                "expected_doc_version_greater_than": created_version,
+                "recompute": "GET /knowledge/documents/{expected_document_id} and match all four",
+            }),
+            move |after| {
+                let loaded = backend_for_predicate
+                    .get_json(&format!("/knowledge/documents/{document_id_for_predicate}"));
+                let reloaded = loaded_content_json(&loaded).to_string();
+                let advanced = loaded
+                    .pointer("/document/doc_version")
+                    .or_else(|| loaded.get("doc_version"))
+                    .and_then(serde_json::Value::as_i64)
+                    .is_some_and(|version| version > created_version);
+                *persisted_slot = loaded;
+                reloaded.contains(&artifact_id_for_predicate)
+                    && reloaded.contains(&sha_for_predicate)
+                    && reloaded.contains(&manifest_ref_for_predicate)
+                    && advanced
+                    && json_has_author_id(after, "editor.rich.save")
+            },
+        );
+    }
+    let save_observation = argus.latest_terminal_observation();
+    verdict.record_predicates(&save_observation);
+    let final_rich_inspect = save_observation.after.clone();
+    observations.push(("save-rich-document", save_observation));
+    let reloaded = loaded_content_json(&persisted_readback).to_string();
     assert!(
         reloaded.contains(&artifact_id)
             && reloaded.contains(&created_sha)
             && reloaded.contains(artifact.manifest.manifest_ref.as_str(),),
         "OP-01: saved/reloaded embed retains artifact id, sha256, and manifest_ref provenance"
     );
-    let final_rich_inspect = argus.inspect(&mut harness);
-    assert!(
-        json_has_author_id(&final_rich_inspect, "editor.rich.save"),
-        "OP-01 final canonical rich inspect retains the mounted save surface"
+    assert_eq!(
+        argus.dispatched_action_count(),
+        4,
+        "OP-01 dispatches exactly four canonical actions, each with its own terminal predicate"
     );
 
     let route_row = wait_for_native_fr(&be, "route_to_stage", |row| {
@@ -2715,7 +3421,13 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
         "OP-01 Stage embed-back must inherit the exact route causal identity"
     );
     assert_causal_order(&route_row, &embed_row, "OP-01 Stage route/embed");
-    let rows = be.get_json(&format!("/api/flight_recorder?wsid={ws}"));
+    // MT-109 made the whole Flight Recorder route group fail-closed: an unauthenticated read returns
+    // 401 HSK-401-FR-SESSION and is indistinguishable from "the recorder is empty". Present the same
+    // real native-MCP credential the mounted client publishes.
+    let rows = be.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={ws}"),
+        &live_binding_session_token(),
+    );
     let stage_route_dispatches = rows
         .as_array()
         .expect("OP-01 Flight Recorder rows")
@@ -2731,8 +3443,17 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
     );
     let rich_screenshot = save_surface_screenshot(&mut harness, &artifact_dir, "op01-rich-saved");
     let screenshots = vec![stage_screenshot, rich_screenshot];
+    // Ordering is load-bearing: `argus.finish()` consumes the driver and drops the `SwarmMcpServer`
+    // whose `Drop` removes the native-MCP binding file, after which no caller can present the genuine
+    // MT-109 credential. Every authorized recorder read and cleanup assertion therefore completes
+    // FIRST, and teardown happens last (remediation item 6).
+    verdict.stage("OP01_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     fixtures.assert_cleanup();
     argus.finish();
+    assert_manifest_entry_declares_pass(
+        "OP-01",
+        "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+    );
     let evidence = write_scenario_evidence(
         "op01-stage",
         &artifact_dir,
@@ -2781,8 +3502,17 @@ fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
                     }
                 }
             ],
+            "terminal_predicate_ids": observations
+                .iter()
+                .flat_map(|(_, observation)| observation
+                    .terminal_predicates
+                    .iter()
+                    .map(|predicate| predicate.predicate_id.clone()))
+                .collect::<Vec<_>>(),
+            "dispatched_action_count": 4,
         }),
     );
+    verdict.complete(evidence.clone());
 
     println!(
         "OP-01 LIVE OK: stage artifact {artifact_id} round-tripped on real PG; sha256 {created_sha} \
@@ -2934,6 +3664,11 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
         .with_size(egui::vec2(1100.0, 760.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let artifact_dir = scenario_artifact_dir("op02-calendar");
+    let mut verdict = ScenarioRuntimeVerdict::open(
+        "OP-02",
+        "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+        &artifact_dir,
+    );
     let mut observations = Vec::new();
     let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
@@ -2954,14 +3689,23 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
         assert!(std::time::Instant::now() < load_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    observations.push((
-        "open-calendar-event",
-        argus_click(
-            &mut argus,
-            &mut harness,
-            DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
-        ),
-    ));
+    assert!(
+        find_node(
+            &harness.root(),
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+        )
+        .is_none(),
+        "OP-02 the Calendar destination must not be mounted before the event activation, or its \
+         terminal predicate would be tautological"
+    );
+
+    // ── Canonical action 1 of 2: activate the exact bound CalendarEvent ──────────────────────────
+    verdict.stage("OP02_ACTION_1_OPEN_CALENDAR_EVENT");
+    argus_click(
+        &mut argus,
+        &mut harness,
+        DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+    );
     let destination_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
         harness.run_steps(1);
@@ -2978,23 +3722,86 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
             "OP-02 canonical Calendar event action did not mount its destination"
         );
     }
-    observations.push((
-        "open-calendar-activity",
-        argus_click(
-            &mut argus,
-            &mut harness,
-            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
-        ),
-    ));
+    // The `TabBarState` routing model is deliberately not projected as an addressable AccessKit value,
+    // so the predicate reads BOTH the authoritative terminal tree and the live mounted app at the same
+    // terminal instant: the exact CalendarEvent id must own the active tab AND be visible in the
+    // mounted Details projection.
+    let event_id_for_predicate = event_id.clone();
+    let daily_note_doc_id = binding.doc_id.as_str().to_owned();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt074-op02-event-chip-activates-exact-calendar-event",
+        serde_json::json!({
+            "expected_calendar_event_id": event_id,
+            "expected_pane_type": "Calendar Event",
+            "expected_details_author_id":
+                handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+            "expected_bound_daily_note_document_id": daily_note_doc_id,
+        }),
+        move |after, app| {
+            let active_tab_is_the_event = app
+                .active_pane()
+                .and_then(|pane| app.tab_bar_states().get(pane))
+                .and_then(|bar| bar.tabs.get(bar.active_index))
+                .is_some_and(|tab| {
+                    tab.pane_type == PaneType::CalendarEvent
+                        && tab.content_id.as_deref() == Some(event_id_for_predicate.as_str())
+                });
+            let details_expose_the_event = json_author_value(
+                after,
+                handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+            )
+            .is_some_and(|value| value.contains(&event_id_for_predicate));
+            active_tab_is_the_event
+                && details_expose_the_event
+                && json_has_author_id(
+                    after,
+                    handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+                )
+        },
+    );
+    let event_observation = argus.latest_terminal_observation();
+    verdict.record_predicates(&event_observation);
+    observations.push(("open-calendar-event", event_observation));
+
+    // ── Canonical action 2 of 2: open the correlated ActivitySpan projection ─────────────────────
+    verdict.stage("OP02_ACTION_2_OPEN_CALENDAR_ACTIVITY");
+    let span_author_id =
+        handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
+    let result_id =
+        handshake_native::graph::daily_journal_panel::activity_item_author_id(&binding.doc_id);
+    argus_click(
+        &mut argus,
+        &mut harness,
+        handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+    );
     assert!(
-        inspect_until(
-            &mut argus,
-            &mut harness,
-            &handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id),
-            40,
-        )
-        .is_object(),
+        inspect_until(&mut argus, &mut harness, &span_author_id, 40).is_object(),
         "OP-02 fresh canonical inspect exposes the exact persisted ActivitySpan"
+    );
+    let span_author_id_for_predicate = span_author_id.clone();
+    let result_id_for_predicate = result_id.clone();
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt074-op02-activity-tab-exposes-exact-span-and-edited-document",
+        serde_json::json!({
+            "expected_span_author_id": span_author_id,
+            "expected_edited_document_author_id": result_id,
+            "expected_activity_span_id": span_id,
+            "expected_edited_document_id": daily_note_doc_id,
+        }),
+        move |after| {
+            json_has_author_id(after, &span_author_id_for_predicate)
+                && json_has_author_id(after, &result_id_for_predicate)
+        },
+    );
+    let activity_observation = argus.latest_terminal_observation();
+    verdict.record_predicates(&activity_observation);
+    observations.push(("open-calendar-activity", activity_observation));
+    assert_eq!(
+        argus.dispatched_action_count(),
+        2,
+        "OP-02 dispatches exactly two canonical actions, each with its own terminal predicate"
     );
 
     let bound_row = wait_for_native_fr(&be, "calendar_event_bound", |row| {
@@ -3019,18 +3826,21 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
     );
     assert_causal_order(&bound_row, &span_row, "OP-02 Calendar bind/correlate");
     let final_inspect = argus.inspect(&mut harness);
-    let span_author_id =
-        handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
-    let result_id =
-        handshake_native::graph::daily_journal_panel::activity_item_author_id(&binding.doc_id);
     assert!(
         json_has_author_id(&final_inspect, &span_author_id)
             && json_has_author_id(&final_inspect, &result_id),
         "OP-02 fresh canonical inspect exposes the exact span and edited-document result"
     );
     let screenshot = save_surface_screenshot(&mut harness, &artifact_dir, "op02-calendar");
+    // Authorized recorder reads and cleanup complete BEFORE teardown: `argus.finish()` drops the
+    // `SwarmMcpServer` and removes the native-MCP binding the MT-109 credential comes from.
+    verdict.stage("OP02_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     fixtures.assert_cleanup();
     argus.finish();
+    assert_manifest_entry_declares_pass(
+        "OP-02",
+        "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+    );
     let evidence = write_scenario_evidence(
         "op02-calendar",
         &artifact_dir,
@@ -3064,8 +3874,17 @@ fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
                     }
                 }
             ],
+            "terminal_predicate_ids": observations
+                .iter()
+                .flat_map(|(_, observation)| observation
+                    .terminal_predicates
+                    .iter()
+                    .map(|predicate| predicate.predicate_id.clone()))
+                .collect::<Vec<_>>(),
+            "dispatched_action_count": 2,
         }),
     );
+    verdict.complete(evidence.clone());
     drop(argus_binding);
 
     println!(
@@ -3182,6 +4001,11 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
         .with_size(egui::vec2(1440.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     let artifact_dir = scenario_artifact_dir("op03-locus");
+    let mut verdict = ScenarioRuntimeVerdict::open(
+        "OP-03",
+        "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+        &artifact_dir,
+    );
     let chip_id = locus_ref_chip_author_id(&locus_uri);
     let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
@@ -3194,8 +4018,60 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
         assert!(std::time::Instant::now() < load_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let observation = argus_click(&mut argus, &mut harness, &chip_id);
     let expected_locus_content_id = format!("WP:{wp_id}");
+
+    // ── Canonical action 1 of 1: navigate the mounted Locus chip to its exact work packet ────────
+    // MT-068 (V5) moved Locus completion product-side: the chip's receipt terminalizes `applied` ONLY
+    // when the exact declared work unit mounts as a Kernel DCC tab bound to `WP:{id}`; otherwise the
+    // product publishes a typed rejection after a bounded window. The predicate binds that contract
+    // rather than the click being consumed.
+    verdict.stage("OP03_ACTION_1_OPEN_LOCUS_WORK_PACKET");
+    argus_click(&mut argus, &mut harness, &chip_id);
+    let expected_locus_content_id_for_predicate = expected_locus_content_id.clone();
+    let chip_id_for_predicate = chip_id.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt074-op03-locus-chip-navigates-to-exact-work-packet",
+        serde_json::json!({
+            "expected_navigation_content_id": expected_locus_content_id,
+            "expected_pane_type": "Kernel DCC",
+            "clicked_chip_author_id": chip_id,
+            "completion_observer_author_id":
+                handshake_native::app::MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+        }),
+        move |after, app| {
+            let routed = app
+                .active_pane()
+                .and_then(|pane| app.tab_bar_states().get(pane))
+                .and_then(|bar| bar.tabs.get(bar.active_index))
+                .is_some_and(|tab| {
+                    tab.content_id.as_deref()
+                        == Some(expected_locus_content_id_for_predicate.as_str())
+                        && tab.pane_type.label() == "Kernel DCC"
+                });
+            // The source chip is a TRANSIENT target: routing the record replaces the rich-document view
+            // it was painted in, so the authoritative terminal tree must no longer expose it while the
+            // durable MT-068 completion observer remains addressable.
+            routed
+                && !json_has_author_id(after, &chip_id_for_predicate)
+                && json_has_author_id(
+                    after,
+                    handshake_native::app::MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+                )
+        },
+    );
+    let observation = argus.latest_terminal_observation();
+    verdict.record_predicates(&observation);
+    assert_eq!(
+        observation.receipt_status, "applied",
+        "OP-03 the Locus chip must terminalize on the MT-068 product-side navigation completion, not \
+         on dispatch"
+    );
+    assert_eq!(
+        argus.dispatched_action_count(),
+        1,
+        "OP-03 dispatches exactly one canonical action, bound to its own terminal predicate"
+    );
     assert_eq!(
         harness
             .state()
@@ -3247,8 +4123,15 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
         "OP-03 fresh canonical inspect carries the exact persisted WP target"
     );
     let screenshot = save_surface_screenshot(&mut harness, &artifact_dir, "op03-locus");
+    // Authorized recorder reads and cleanup complete BEFORE teardown: `argus.finish()` drops the
+    // `SwarmMcpServer` and removes the native-MCP binding the MT-109 credential comes from.
+    verdict.stage("OP03_CLEANUP_BEFORE_ARGUS_TEARDOWN");
     fixtures.assert_cleanup();
     argus.finish();
+    assert_manifest_entry_declares_pass(
+        "OP-03",
+        "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+    );
     let evidence = write_scenario_evidence(
         "op03-locus",
         &artifact_dir,
@@ -3269,8 +4152,15 @@ fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
                 "predicate": "the active tab navigates to the exact persisted Locus target",
                 "observed_outcome": expected_locus_content_id
             }],
+            "terminal_predicate_ids": observation
+                .terminal_predicates
+                .iter()
+                .map(|predicate| predicate.predicate_id.clone())
+                .collect::<Vec<_>>(),
+            "dispatched_action_count": 1,
         }),
     );
+    verdict.complete(evidence.clone());
     drop(argus_binding);
 
     println!(

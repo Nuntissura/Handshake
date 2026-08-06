@@ -4,47 +4,172 @@
     "edge": "stage",
     "pillar": "Pillar 17 (Stage)",
     "description": "Drive the mounted rich-editor route, Stage embed-back, and rich save through canonical Argus inspect/click/receipt/fresh-reinspect; persist and fetch a real Stage artifact; save and reload its hsLink NodeView with SHA-256 manifest provenance; capture external screenshot/tree evidence; and read the automatically emitted route_to_stage plus stage_embed_back events with one inherited causal identity.",
-    "surfaces_involved": ["rich-text editor", "Stage pane", "Stage artifact store", "Flight Recorder"],
-    "backend_apis_called": ["POST /workspaces/{ws}/stage/artifacts", "GET /workspaces/{ws}/stage/artifacts/{id}", "POST /knowledge/documents", "PUT /knowledge/documents/{id}/save", "GET /knowledge/documents/{id}", "POST /api/workspaces/{ws}/flight_recorder/native_editor_event (automatic product emitter)", "GET /api/flight_recorder"],
-    "accesskit_ids": ["menu-editors", "menu.editors.route-to-stage", "stage-pane", "stage-routed-content", "stage-capture-embed-back", "stage-embed-back-status", "editor.rich.save"],
-    "expected_fr_events": ["route_to_stage", "stage_embed_back"],
+    "surfaces_involved": [
+      "rich-text editor",
+      "Stage pane",
+      "Stage artifact store",
+      "Flight Recorder"
+    ],
+    "backend_apis_called": [
+      "POST /workspaces/{ws}/stage/artifacts",
+      "GET /workspaces/{ws}/stage/artifacts/{id}",
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{id}/save",
+      "GET /knowledge/documents/{id}",
+      "POST /api/workspaces/{ws}/flight_recorder/native_editor_event (automatic product emitter)",
+      "GET /api/flight_recorder"
+    ],
+    "accesskit_ids": [
+      "menu-editors",
+      "menu.editors.route-to-stage",
+      "stage-pane",
+      "stage-routed-content",
+      "stage-capture-embed-back",
+      "stage-embed-back-status",
+      "editor.rich.save"
+    ],
+    "expected_fr_events": [
+      "route_to_stage",
+      "stage_embed_back"
+    ],
     "proof_fn": "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
-    "status": "READY_FOR_RUNTIME"
+    "status": "PASS",
+    "status_authority": "RUNTIME_VERDICT_ARTIFACT",
+    "runtime_verdict": {
+      "artifact_suffix": "-runtime-verdict.json",
+      "artifact_dir_template": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/{scenario_dir}/run-{run_id}/",
+      "written_by": "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+      "pass_condition": "the scenario reached its canonical argus.finish() and wrote its canonical evidence; any earlier exit records FAIL plus the exact stage reached",
+      "declared_status_is_bound_to_this_artifact": true
+    }
   },
   {
     "scenario_id": "OP-02",
     "edge": "calendar",
     "pillar": "Pillar 2 (Calendar)",
     "description": "Open the mounted daily journal, resolve a persisted CalendarEvent and ActivitySpan through the production service, activate the event and Activity tabs through canonical Argus inspect/click/receipt/fresh-reinspect, capture external screenshot/tree evidence, and read automatically emitted calendar_event_bound plus activity_span_correlated events.",
-    "surfaces_involved": ["daily note", "daily-journal panel", "Calendar event store", "Calendar activity-span store", "Flight Recorder"],
-    "backend_apis_called": ["PUT /workspaces/{ws}/loom/journals/{date}", "GET /workspaces/{ws}/calendar/events", "POST /workspaces/{ws}/calendar/activity-spans", "GET /workspaces/{ws}/calendar/activity-spans", "POST /api/workspaces/{ws}/flight_recorder/native_editor_event (automatic product emitter)", "GET /api/flight_recorder"],
-    "accesskit_ids": ["daily-journal-panel", "daily-journal-calendar-event-chip", "daily-journal-activity-strip", "calendar-event-pane", "calendar-event-tab-activity", "calendar-event-span-{span_id}", "daily-journal-activity-item-{document_id}"],
-    "expected_fr_events": ["calendar_event_bound", "activity_span_correlated"],
+    "surfaces_involved": [
+      "daily note",
+      "daily-journal panel",
+      "Calendar event store",
+      "Calendar activity-span store",
+      "Flight Recorder"
+    ],
+    "backend_apis_called": [
+      "PUT /workspaces/{ws}/loom/journals/{date}",
+      "GET /workspaces/{ws}/calendar/events",
+      "POST /workspaces/{ws}/calendar/activity-spans",
+      "GET /workspaces/{ws}/calendar/activity-spans",
+      "POST /api/workspaces/{ws}/flight_recorder/native_editor_event (automatic product emitter)",
+      "GET /api/flight_recorder"
+    ],
+    "accesskit_ids": [
+      "daily-journal-panel",
+      "daily-journal-calendar-event-chip",
+      "daily-journal-activity-strip",
+      "calendar-event-pane",
+      "calendar-event-tab-activity",
+      "calendar-event-span-{span_id}",
+      "daily-journal-activity-item-{document_id}"
+    ],
+    "expected_fr_events": [
+      "calendar_event_bound",
+      "activity_span_correlated"
+    ],
     "proof_fn": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
-    "status": "READY_FOR_RUNTIME"
+    "status": "PASS",
+    "status_authority": "RUNTIME_VERDICT_ARTIFACT",
+    "runtime_verdict": {
+      "artifact_suffix": "-runtime-verdict.json",
+      "artifact_dir_template": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/{scenario_dir}/run-{run_id}/",
+      "written_by": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+      "pass_condition": "the scenario reached its canonical argus.finish() and wrote its canonical evidence; any earlier exit records FAIL plus the exact stage reached",
+      "declared_status_is_bound_to_this_artifact": true
+    }
   },
   {
     "scenario_id": "OP-03",
     "edge": "locus",
     "pillar": "Pillar 6 (Locus)",
     "description": "Activate a mounted rich-document Locus chip through canonical Argus inspect/click/receipt/fresh-reinspect, resolve its canonical persisted work packet, reverse-lookup that document exactly once, capture external screenshot/tree evidence, and read automatically emitted locus_ref_resolved plus locus_reverse_lookup events.",
-    "surfaces_involved": ["rich-text editor", "Locus resolve routes", "Loom search-v2 reverse index", "Flight Recorder"],
-    "backend_apis_called": ["GET /workspaces/{ws}/locus/work-packets/{id}", "POST /knowledge/documents", "PUT /knowledge/documents/{id}/save", "POST /workspaces/{ws}/loom/search-v2", "POST /api/workspaces/{ws}/flight_recorder/native_editor_event (automatic product emitter)", "GET /api/flight_recorder"],
-    "accesskit_ids": ["locus-ref-chip-wp-{id}", "locus-refby-{document_id}"],
-    "expected_fr_events": ["locus_ref_resolved", "locus_reverse_lookup"],
+    "surfaces_involved": [
+      "rich-text editor",
+      "Locus resolve routes",
+      "Loom search-v2 reverse index",
+      "Flight Recorder"
+    ],
+    "backend_apis_called": [
+      "GET /workspaces/{ws}/locus/work-packets/{id}",
+      "POST /knowledge/documents",
+      "PUT /knowledge/documents/{id}/save",
+      "POST /workspaces/{ws}/loom/search-v2",
+      "POST /api/workspaces/{ws}/flight_recorder/native_editor_event (automatic product emitter)",
+      "GET /api/flight_recorder"
+    ],
+    "accesskit_ids": [
+      "locus-ref-chip-wp-{id}",
+      "locus-refby-{document_id}"
+    ],
+    "expected_fr_events": [
+      "locus_ref_resolved",
+      "locus_reverse_lookup"
+    ],
     "proof_fn": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
-    "status": "READY_FOR_RUNTIME"
+    "status": "PASS",
+    "status_authority": "RUNTIME_VERDICT_ARTIFACT",
+    "runtime_verdict": {
+      "artifact_suffix": "-runtime-verdict.json",
+      "artifact_dir_template": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/{scenario_dir}/run-{run_id}/",
+      "written_by": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+      "pass_condition": "the scenario reached its canonical argus.finish() and wrote its canonical evidence; any earlier exit records FAIL plus the exact stage reached",
+      "declared_status_is_bound_to_this_artifact": true
+    }
   },
   {
     "scenario_id": "OP-04",
     "edge": "swarm",
     "pillar": "Pillars 17, 2, and 6",
     "description": "Run the three managed HandshakeApp scenarios and activate every Stage, Calendar, and Locus interop trigger through the real localhost canonical Argus transport using stable AccessKit author_ids; retain attributed action receipts, fresh tree inspections, three material screenshots, exact Stage route/embed causal identity, ordered automatic Flight Recorder rows, zero active leases, and fail-closed cleanup without coordinates or label scraping.",
-    "surfaces_involved": ["Stage pane", "daily-journal panel", "rich-text Locus chip", "AccessKit"],
-    "backend_apis_called": ["OP-01, OP-02, and OP-03 managed-runtime routes", "GET /api/flight_recorder"],
-    "accesskit_ids": ["menu-editors", "menu.editors.route-to-stage", "stage-pane", "stage-capture-embed-back", "stage-embed-back-status", "daily-journal-calendar-event-chip", "calendar-event-pane", "calendar-event-tab-activity", "calendar-event-span-{span_id}", "daily-journal-activity-item-{document_id}", "locus-ref-chip-wp-{id}"],
-    "expected_fr_events": ["route_to_stage", "stage_embed_back", "calendar_event_bound", "activity_span_correlated", "locus_ref_resolved", "locus_reverse_lookup"],
+    "surfaces_involved": [
+      "Stage pane",
+      "daily-journal panel",
+      "rich-text Locus chip",
+      "AccessKit"
+    ],
+    "backend_apis_called": [
+      "OP-01, OP-02, and OP-03 managed-runtime routes",
+      "GET /api/flight_recorder"
+    ],
+    "accesskit_ids": [
+      "menu-editors",
+      "menu.editors.route-to-stage",
+      "stage-pane",
+      "stage-capture-embed-back",
+      "stage-embed-back-status",
+      "daily-journal-calendar-event-chip",
+      "calendar-event-pane",
+      "calendar-event-tab-activity",
+      "calendar-event-span-{span_id}",
+      "daily-journal-activity-item-{document_id}",
+      "locus-ref-chip-wp-{id}"
+    ],
+    "expected_fr_events": [
+      "route_to_stage",
+      "stage_embed_back",
+      "calendar_event_bound",
+      "activity_span_correlated",
+      "locus_ref_resolved",
+      "locus_reverse_lookup"
+    ],
     "proof_fn": "other_pillar_op04_swarm_accesskit_other_pillar_interop",
-    "status": "READY_FOR_RUNTIME"
+    "status": "PASS",
+    "status_authority": "RUNTIME_VERDICT_ARTIFACT",
+    "runtime_verdict": {
+      "artifact_suffix": "-runtime-verdict.json",
+      "artifact_dir_template": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/{scenario_dir}/run-{run_id}/",
+      "written_by": "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+      "pass_condition": "the scenario reached its canonical argus.finish() and wrote its canonical evidence; any earlier exit records FAIL plus the exact stage reached",
+      "declared_status_is_bound_to_this_artifact": true
+    }
   }
 ]
