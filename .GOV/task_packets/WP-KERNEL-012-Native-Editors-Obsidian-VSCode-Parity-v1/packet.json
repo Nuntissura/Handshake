@@ -865,7 +865,15 @@
             "full_binary_run": "FAILED — 50 passed / 1 failed. A second panic also appeared on an unnamed thread at test_app_host_mount_secondary.rs:3540, indicating cross-thread interference under cargo default parallelism.",
             "in_isolation": "PASSES — 1 passed / 0 failed / 50 filtered, printing \"relevant_memory: ever_requested=true got_blocker=true\".",
             "diagnosis": "ORDER- or PARALLELISM-DEPENDENT, NOT MT-113 fallout. Same class MT-108 remediation item 5 warns about (and note item 5 own named example, mounted_backlink_event_retries_when_bus_is_contended, was measured EARLIER this session as already passing, so item 5 premise is stale while THIS instance is live).",
-            "severity": "Real. A test that passes alone and fails in its own binary will make the MT-108 full-suite sweep non-deterministic."
+            "severity": "Real. A test that passes alone and fails in its own binary will make the MT-108 full-suite sweep non-deterministic.",
+            "kernel_builder_root_cause": {
+              "at_utc": "2026-08-06T23:46:10.726Z",
+              "mechanism": "The test stands up its OWN deterministic 404 server on an EPHEMERAL port (it reads listener.local_addr(), so a fixed-port collision is ruled out - that was the obvious hypothesis and it is wrong). The server thread runs a hard 10-SECOND deadline and panics with \"memory-pack 404 was not requested\" if the shell has not issued the memory-pack read by then. That is the unnamed-thread panic seen at test_app_host_mount_secondary.rs:3540 in the full-binary run.",
+              "why_it_fails_only_in_the_full_binary": "cargo runs the binary 51 tests in PARALLEL by default. Under that load the shell does not reach its FEMS refresh-for-context within the fixed 10s window, the server thread dies on its deadline, and the downstream assertion ever_in_flight (AC-080-5) then fails. Run alone, the read fires immediately - observed printing \"relevant_memory: ever_requested=true got_blocker=true\" and passing 1/0.",
+              "classification": "TEST ROBUSTNESS under parallelism, NOT a product defect and NOT MT-113 fallout. The product behaviour it asserts (the shell drives the FEMS read, and a 404 surfaces as a typed blocker) is demonstrably correct when given time.",
+              "how_to_fix_without_weakening_anything": "Do NOT relax the ASSERTIONS - ever_in_flight and the typed blocker are the real contract and must stay. The 10s wall-clock deadline is the fragile part. Prefer making the wait condition-based with a generous bound, or serialising this test, over simply enlarging the constant. Note MT-113 hit a sibling of this class and solved it properly with an explicit quiescence gate rather than a longer sleep - the same instinct applies here.",
+              "impact_on_the_capstone": "MT-108 item 11 requires the full suite to pass. A test that is green alone and red in its own binary makes that sweep NON-DETERMINISTIC, so this must be fixed before the capstone rather than discovered inside it. Recording it now is the difference between a known 10-minute fix and an unexplained capstone failure."
+            }
           },
           "red_2_needs_diagnosis": {
             "test": "test_event_emitter::event_emitter_native_editor_round_trip",
