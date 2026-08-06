@@ -1,0 +1,89 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-120",
+  "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
+  "group": "B-Backend",
+  "created_at_utc": "2026-08-06T20:32:17.598Z",
+  "updated_at_utc": "2026-08-06T20:32:17.598Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-109",
+      "MT-115"
+    ],
+    "blocks": [
+      "MT-115"
+    ],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Isolated by MT-115 at runtime with a decisive positive control. It is a durable SECURITY-CONTRACT decision outside MT-115 allowed_paths, so it is deferred here per the Operator standing rule rather than decided unilaterally or weakened to make a test pass."
+  },
+  "scope": {
+    "summary": "Make the document_saved receipt-ownership check enforceable by authenticating the document-save route as the same principal the Flight Recorder derives, instead of leaving a clause that rejects every legitimate save.",
+    "defect_detail": {
+      "clause": "validate_document_save_receipt requires row.actor_id == event.canonical_actor_id() in src/backend/handshake_core/src/api/flight_recorder.rs.",
+      "why_unsatisfiable": "The recorder actor is SERVER-DERIVED as handshake-native:{pid}:{birth_fingerprint} by capture_context. POST/PUT /knowledge/documents... has NO session authentication and takes its actor from a client header (backend_client::DOC_ACTOR_ID = handshake-native-editor). No route exposes the derived identity, so the frontend cannot stamp it. The two values can never match for a real product save.",
+      "runtime_evidence": "Real save then document_saved ingestion with a genuine token and all fields matching => HTTP 400 HSK-400-INVALID-EVENT. Same session, undo_fired => HTTP 200. Positive control: issuing the save with x-hsk-actor-id set to the server-derived actor makes ingestion return HTTP 200 - proving the clause is the SOLE blocker.",
+      "security_framing": "MT-109 intent is that a save receipt can only be claimed by the principal that minted it, which requires BOTH endpoints to authenticate the same principal. Today only one does, so the clause does not enforce the invariant - it rejects everything legitimate. A guard that always fails is an outage wearing a security control costume, and it also trains future implementers to weaken it."
+    },
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/knowledge_documents.rs",
+      "src/backend/handshake_core/src/api/flight_recorder.rs",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/tests/**",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": [
+      "AC-120-1: the document-save route authenticates the SAME principal the Flight Recorder derives, OR the derived identity is exposed through a route the frontend can legitimately use. The clause must become SATISFIABLE without being removed.",
+      "AC-120-2: THE BINDING IS NOT WEAKENED. A save receipt minted by principal A must still be unclaimable by principal B - prove it with a negative test. Deleting or relaxing the actor comparison is an automatic rejection of this MT.",
+      "AC-120-3: test_e7_swarm_edit_proof goes green, closing the MT-115 PT-115-1 blocker (it is currently 24 passed / 1 failed).",
+      "AC-120-4: test_flight_recorder_authz still passes unchanged at 12 tests - the MT-109 negative suite must not regress.",
+      "AC-120-5: a real end-to-end product save emits document_saved and it INGESTS at runtime, proven live rather than in a stub."
+    ],
+    "proof_targets": [
+      "PT-120-1: the RED reproduced first (HTTP 400 HSK-400-INVALID-EVENT on a legitimate save), then green.",
+      "PT-120-2: a cross-principal negative test proving A cannot claim B receipt.",
+      "PT-120-3: test_e7_swarm_edit_proof and test_flight_recorder_authz both green against real PostgreSQL."
+    ]
+  },
+  "hbr_obligations": {
+    "PRIV": "Do not surface the derived process identity more widely than the save path requires.",
+    "MAN": "Update the internal manual: the documented attribution contract changes."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

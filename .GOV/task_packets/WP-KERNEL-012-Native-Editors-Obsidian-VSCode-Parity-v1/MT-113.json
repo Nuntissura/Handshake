@@ -31,15 +31,59 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Discovered during MT-029 remediation and measured precisely. This is a PRODUCT-VISIBLE observability defect reachable by ordinary user input, not a test-fixture concern, and it is outside MT-029 scope. Captured per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost."
+    "creation_reason": "Discovered during MT-029 remediation and measured precisely. This is a PRODUCT-VISIBLE observability defect reachable by ordinary user input, not a test-fixture concern, and it is outside MT-029 scope. Captured per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost.",
+    "claimed_at_utc": "2026-08-06T20:29:30.418Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_at_utc": "2026-08-06T20:29:30.418Z",
+      "implemented_by": "KERNEL_BUILDER-20260805-054937",
+      "commit": "0a1b35aa on feat/WP-KERNEL-012, baseline bce12043. find_in_files.rs +905/-42, mcp/action.rs +355/-32, tests/test_author_id_budget.rs +384 (new).",
+      "baseline_reproduced_first": "cargo test --lib mt113_baseline => EXIT 101, 2 failed. \"authentication middleware refactor\" (34 chars) produced a 137-byte stable_id and a 304-byte Remove route, and serialize_observer_click_state returned None - the observer node carries no value, so the action is PERMANENTLY indeterminate. A 23-character query produced a 260-byte route, CONFIRMING the MT-029 measurement that 22 characters fit and 23 do not. The RED was obtained honestly by saving edits to scratch, restoring both files with git show HEAD:<path>, appending the probes, running, then restoring - no reset, stash, checkout -- or clean on a branch shared with the live MT-115 agent, whose files were never touched.",
+      "bounding_design": {
+        "shape": "Two-regime deterministic function of (prefix, components, pane). VERBATIM: the existing lowercase bytewise UTF-8 hex, emitted whenever the FULL composed route INCLUDING its .pane- scope already fits 256 bytes. DIGESTED: zsha256-<64 hex> per component, only on overrun.",
+        "injectivity": "STRUCTURAL, not asserted: the sentinel character z lies OUTSIDE the lowercase-hex alphabet and . never occurs inside a component, so a route parses back to its component tuple unambiguously and distinct tuples yield distinct routes. Under the digested regime this rests on SHA-256 collision resistance - cryptographic rather than absolute, and the code says so plainly rather than overclaiming.",
+        "resolvability_handled_honestly": "Exact string reversal is MATHEMATICALLY IMPOSSIBLE for a bounded encoding of unbounded input, and the agent did not fake it. hit_identity_from_result_author_id keeps its exact contract for the verbatim regime and honestly returns None for a digested one; a new TOTAL function hit_identity_from_result_author_id_in resolves any route by recomputation against the live candidate set - which is exactly how the production panel already matches an activated row.",
+        "byte_identity_is_structural": "The verbatim branch is tried FIRST against the FINAL composed string, so byte-identity for anything that already fits is structural rather than incidental. mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition reproduces the real legacy algorithm inline and asserts equality over the adversarial corpus x 6 composition sites x 3 pane scopes. This is WHY a reserve-based budget was rejected: it would have changed MT-029 own 209-byte mounted route.",
+        "ordering_fix": "Content-derived routes now compose their pane scope in the SAME call (pane_scoped_*_author_id), because pane_scoped_author_id can only shrink the PANE component and never the content."
+      },
+      "proof_targets": {
+        "pt_113_1": "mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize (find_in_files.rs:5839). Deterministic LCG corpus built from whole &str atoms so a codepoint is NEVER split: ZWJ grapheme clusters, regional-indicator pairs, base plus two combining marks, 4-byte astral scalars, bidi controls, \".\" and \"..\", inputs mimicking the zsha256- sentinel, inputs shaped like hex output, sizes 0 to 4096 bytes. Over 1000 assertions that the route fits AND the token serializes AND the same id is legal as a context value.",
+        "pt_113_2": "test_find_in_files 17/17 with accesskit_result_ids_are_utf8_injective_and_exactly_reversible passing UNCHANGED. VERIFIED STRUCTURALLY BY KERNEL_BUILDER: git diff bce12043..0a1b35aa over tests/test_find_in_files.rs is EMPTY, so the MT-029 reversibility test was not edited to accommodate this change.",
+        "pt_113_3": "mt113_mounted_bookmark_remove_terminalizes_with_a_realistic_long_query in the new tests/test_author_id_budget.rs - production HandshakeApp, real localhost Argus, long query saved then removed, closed with the STRICT finish_require_no_indeterminate(), plus an independent fresh-backend GET. Green on 6 of 6 consecutive runs."
+      },
+      "dependent_mts_verified_not_assumed": "All nine observer-dependent suites re-run against a live backend: MT-024 test_sidebar_panel_argus 1/1, MT-026 test_canvas_board 38/38, MT-028 test_loom_search_v2 14/14, MT-029 test_find_in_files 17/17, MT-042 test_e7_knowledge_accesskit 35/35, MT-064 test_memory_proposal_argus 12/12, MT-065 test_fems_interop_proofs 28/28, MT-068 test_locus_interop 32/32, MT-079 test_app_host_mount 53/53. Plus full lib suite 2058/0, test_accesskit_ids 10/10, test_mcp_tools 10/10, and cargo check --all-targets --features integration exit 0. NOTE the 2058-test sweep firing NO debug_assert! is itself evidence that no existing call site composes an over-budget author field.",
+      "driver_untouched": "VERIFIED BY KERNEL_BUILDER: git diff --stat bce12043..0a1b35aa over tests/native_gui_support/ is EMPTY. canonical_argus_driver.rs untouched and finish() not weakened - and PT-113-3 uses the STRICTER finish_require_no_indeterminate().",
+      "environment_correction_propagated": "IMPORTANT AND ACTED ON: the wp012-mt068 backend binary (built 14:15) is now STALE, because MT-112 landed bce12043 at 21:05 touching src/api/memory.rs and adding migration 0365. The fixture own assert_backend_binary_is_current_source would have panicked. The agent built its own (10m18s, exit 0) and confirmed migration 365 applied. KERNEL_BUILDER had briefed this binary as reusable and had instructed agents to re-verify before binding provenance; MT-113 did exactly that, and the correction was relayed to the MT-115 brief.",
+      "visual_evidence_opened": "Both frames opened and asserted non-identical in-test. BEFORE: Find-in-Files pane with the long query, a status line carrying a real receipt KE-019fd8b7-1edc-7762-..., and one saved-search row. AFTER: the row and its heading are gone and the status reads \"Removed search bookmark; receipt: KE-019fd8b7-2d51-7411-...\".",
+      "zero_residue_verified_by_direct_query": "Agent own query: workspaces 0, bookmark_states 0, documents 0. The 10399 kernel_event_ledger rows are the append-only receipt trail and are retained by design. HONEST DISCLOSURE: one workspace leaked from the very first run before the Drop guard was added; it was removed with a single-id DELETE and re-verified at 0.",
+      "disclosed_gaps": [
+        "NEW HBR-VIS DEFECT FOUND IN ITS OWN FRAME, OUT OF SCOPE, ROUTED TO MT-119: the saved-search row renders the FULL UNTRUNCATED query as its label, pushing Restore/Remove past the Find pane right edge - only \"Re...\" of Restore is visible and Remove is clipped ENTIRELY off-pane. Argus addresses and clicks it fine because the AccessKit node exists and terminalizes, but a human validator cannot SEE the control. Same root pathology as MT-113 - unbounded user content in a bounded surface - in the LAYOUT dimension rather than the identity dimension.",
+        "SHARED-OBSERVER SEQUENCING TRAP, latent WP-wide: dispatching a second observer-backed action on the shared bookmark observer before the first settles makes the pre-dispatch declaration and the post-render frame disagree, and the boundary correctly refuses it as \"persistent observer target identity or action capability drifted\". This flaked once before an explicit quiescence gate was added (observer not pending AND the row declaration stable across consecutive frames). MT-029 only avoids it ACCIDENTALLY, by having intervening actions. Latent for any future MT sharing one observer across two controls.",
+        "SCOPE IS FIND-IN-FILES PLUS THE SHARED action.rs CONTRACT. Roughly 80 other *_author_id() sites (drawer, canvas, graph, tags, sidebar, wiki, folder tree, atelier, flight recorder) still format ids directly. They are safe TODAY because their components are backend UUIDs, but they are NOT BOUNDED BY CONSTRUCTION - a future feature putting a title or path into one re-opens this defect class. Converting them was outside the closure unit and each conversion carries byte-identity risk for another MT.",
+        "set_value_completion_author_id yields target + 21 bytes as a NODE author_id. Node ids carry no budget (only token fields do), so a 256-byte target produces a 277-byte sibling node id. Documented and deliberately not changed.",
+        "MAX_BOOKMARK_STABLE_ID_BYTES = 1024 is a judgement call: it keeps every realistic query (~450 characters) verbatim while leaving over 1 KB of headroom in the 2048-byte semantic_value budget.",
+        "find_in_files.rs was ALREADY non-rustfmt-clean at HEAD (6 sites). Those were left alone to avoid formatter spillover into another MT diff; only the 4 new sites were hand-fixed. action.rs and the new test file are fully rustfmt-clean.",
+        "The 37 GB scoped target dir was CLEANED per HBR-SWARM-006, so a validator re-run needs a rebuild. The exact rebuild command set is recorded in the agent report."
+      ],
+      "scope_compliance": "CLEAN. All three files are inside MT-113 allowed_paths (src/frontend/handshake_native/src/** and tests/**). No .GOV/ edit, no backend edit, and the co-tenant MT-115 files were never touched. No waiver required.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict.",
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0,
+        "gate_ordering": "Checklist run to a PASS receipt BEFORE this status write.",
+        "caught_a_real_defect": "RC-006 flagged that claimed_by was empty - this MT would have crossed the boundary unclaimed. Repaired before the receipt. Second time the checklist has caught this exact authoring defect on a KERNEL_BUILDER-created MT (MT-114 was the first)."
+      }
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-06T20:30:32.347Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937"
   },
   "scope": {
     "summary": "Bound author_id composition so that user-supplied content can never push a completion token past its byte budget and silently disable Argus observability for that control.",

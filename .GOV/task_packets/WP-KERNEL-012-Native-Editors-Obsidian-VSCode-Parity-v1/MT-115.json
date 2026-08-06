@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-109",
@@ -39,10 +39,62 @@
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Three distinct consequences of the MT-109 authorization hardening that MT-111 correctly identified but could not close within its allowed_paths or without unverifiable edits across seven other MTs proofs. Captured so none is lost, per the Operator standing deferral rule."
+    "creation_reason": "Three distinct consequences of the MT-109 authorization hardening that MT-111 correctly identified but could not close within its allowed_paths or without unverifiable edits across seven other MTs proofs. Captured so none is lost, per the Operator standing deferral rule.",
+    "claimed_at_utc": "2026-08-06T20:32:17.598Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_at_utc": "2026-08-06T20:32:17.598Z",
+      "implemented_by": "KERNEL_BUILDER-20260805-054937",
+      "previous_status": "READY_FOR_DEV",
+      "commits": "ed800c3b (+508/-112 across 7 files) and 2a9ed016 (e7 proof-log fixture rebind).",
+      "status_rationale": "HELD at CLAIMED, deliberately NOT advanced. PT-115-1 requires all seven suites live-green and it is 6 of 7 - test_e7_swarm_edit_proof stays red on the document_saved attribution blocker below, which requires an operator decision and a fix outside allowed_paths. Advancing would repeat the MT-114 gate-ordering error.",
+      "failure_reproduced_first_live": "Against the real backend: unauthenticated GET /api/flight_recorder?wsid=... => HTTP 401 {\"error\":\"HSK-401-FR-SESSION\"}; a forged 64-hex token => identical 401; unauthenticated POST .../native_editor_event => identical 401.",
+      "pt_115_1_six_of_seven": {
+        "environment": "handshake_core.exe built FRESH from current source (24m24s, exit 0) into the scoped target, DSN postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_115, HANDSHAKE_GPU_SCREENSHOT=1, per-run isolated stage binding root. PID 36052 never started, stopped or touched.",
+        "green": [
+          "test_calendar_interop 31 passed / 0 failed, exit 0",
+          "test_ckc_embed (--features integration) 39 passed / 0 failed, exit 0",
+          "test_code_note_cross_ref 18 passed / 0 failed, exit 0",
+          "test_fems_interop_proofs 28 passed / 0 failed, exit 0",
+          "test_locus_interop ordinary 32 passed / 0 failed / 1 ignored, exit 0",
+          "test_locus_interop --ignored live 1 passed / 0 failed, exit 0",
+          "test_other_pillar_interop_proofs 27 passed / 0 failed, exit 0"
+        ],
+        "red": "test_e7_swarm_edit_proof 24 passed / 1 failed, exit 101 - red on the Part-3 blocker, NOT on credentials.",
+        "contract_inventory_was_stale": "Three of the seven (fems, locus, other_pillar) were ALREADY credentialed at HEAD by MT-111/MT-066/MT-068. The MT-115 contract inventory of seven uncredentialed harnesses is stale. The real remaining work was calendar, ckc and e7 - plus two defects the contract did not list."
+      },
+      "defects_found_beyond_the_contract": [
+        "test_calendar_interop had a SECOND, SEPARATE break: it used CanonicalArgusDriver::bind, which installs its OWN app-data root. Inside the Argus window the mounted app emitter resolved a binding the fixture-owned backend could not see, so every automatic native-editor event emitted there 401d and wait_for_calendar_fr reported a NON-EXISTENT product defect. Fixed with bind_in_current_app_data carrying the same token, and argus.finish() moved AFTER the zero-residue cleanup because it drops the SwarmMcpServer and deletes the binding.",
+        "FOUR mounted stub-server proofs in the same suite were measuring nothing. One (mounted_activity_404_and_503_preserve_event_without_activity_fr) asserted a POSITIVE FR post and failed deterministically because the emitter fails closed without a binding. THREE others asserted native_fr_posts == 0 VACUOUSLY, since the emitter aborts before ever reaching the socket. All four now publish a real binding, so the negative assertions finally measure product behaviour instead of measuring the missing credential."
+      ],
+      "pt_115_2": "test_flight_recorder_authz re-run UNCHANGED post-commit: 12 passed / 0 failed / 0 ignored, exit 0. AC-115-4 holds.",
+      "pt_115_3_blocker_requiring_operator_decision": {
+        "status": "REPRODUCED AND ISOLATED - AWAITING_OPERATOR_DECISION",
+        "finding": "The document_saved attribution clause is UNSATISFIABLE BY THE REAL PRODUCT. validate_document_save_receipt requires row.actor_id == event.canonical_actor_id() (src/backend/handshake_core/src/api/flight_recorder.rs, VERIFIED AT THAT LINE BY KERNEL_BUILDER). The recorder actor is server-derived as handshake-native:{pid}:{birth_fingerprint} by capture_context, while POST/PUT /knowledge/documents... has NO session authentication at all and takes its actor from a client header (backend_client::DOC_ACTOR_ID = handshake-native-editor). No route exposes the derived identity, so the frontend cannot stamp it.",
+        "evidence_chain": "Real product save then document_saved ingestion with a genuine session token and every payload field matching the ledger row => HTTP 400 HSK-400-INVALID-EVENT. SAME authenticated session, same workspace, undo_fired => HTTP 200 with actor_id handshake-native:13496:66b7100f. Ledger row for the save receipt carries actor_id=handshake-native-editor. DECISIVE POSITIVE CONTROL: re-running with the document save issued under x-hsk-actor-id set to the server-derived native actor makes document_saved ingestion return HTTP 200. A temporary probe was used and then deleted.",
+        "why_it_matters": "MT-109 stated intent is that a save receipt can only be claimed by the principal that minted it. That requires BOTH endpoints to authenticate the same principal. Today only one does, so the clause does not enforce the invariant - it rejects EVERYTHING legitimate. A guard that always fails is not a security control; it is an outage that looks like one.",
+        "why_not_fixed_here": "Every fix inside MT-115 allowed_paths would WEAKEN the binding. The non-weakening fix - authenticate the document-save route from the native session, or expose the derived identity through a route the frontend can use - lives in api/knowledge_documents.rs or a new route, outside allowed_paths, and is a durable security-contract decision. Routed to MT-120 rather than decided unilaterally."
+      },
+      "palmistry_forwarder_resolved_with_a_third_decisive_reason": {
+        "what_was_found": "FR_ROUTE_PATH named /api/flight_recorder/runtime_chat_event, which MT-109 deleted. Beyond the two reasons the contract listed, the agent verified a THIRD and decisive one in source: capture_context requires process_birth_identity(binding.pid) to STILL MATCH, i.e. the app process must be ALIVE. Palmistry exists precisely to survive a freeze or crash, so at the exact moment it has evidence worth forwarding, even reading the app binding file yields StaleBinding => 401.",
+        "consequence": "Option (a) \"just add the credential\" is not a small change: it requires a NEW out-of-process principal class able to write attributed FR rows while the app is dead - and it still has no workspace.",
+        "implemented": "Option (c): removed the dead constant (not renamed, not re-pointed), made the ingestion path an explicit constructor argument, and production binds None. Production behaviour is BYTE-IDENTICAL - SchemaIncompatible still short-circuits before any network call. Two new tests pin it. Palmistry lib 77/77, test_fr_forward 6/6, test_end_to_end_support 5/5, test_survivor_store 7/7, exit 0.",
+        "recommendation_for_the_operator": "Keep the deferral, and when WP-KERNEL-016 opens it prefer (b) a SEPARATE INGESTION BOUNDARY over (a): a survivor-intake route with its own capability and credential shape, because the FR group credential is process-liveness-bound BY DESIGN and Palmistry is defined by outliving that process. Confirming the deferral in .GOV is the operator call; the agent did not touch .GOV."
+      },
+      "mt109_authorization_not_weakened": "CONFIRMED. Every read presents a real on-disk binding; absent, forged and stale all still fail closed, proven LIVE. The 12-test negative suite passes unchanged. The e7 change STRENGTHENS attribution by asserting the row actor is the authenticated handshake-native:{pid}:{birth} identity and NOT the client-supplied save actor.",
+      "ledger_residue_and_the_fourth_rediscovery_avoided": "Direct PostgreSQL query, final state: native-editor-fr-{pending,complete}:% rows = 0; rows matching the un-partitioned defect signature ^native-editor-fr-(pending|complete):[^:]+$ = 0; workspaces = 0. Mid-run 8 rows appeared, ALL from the agent own temporary probes and all already in the correct :{workspace_id}:{client_event_id} shape - none from the seven suites. They and their 4 orphaned workspaces were removed through the product DELETE route and re-verified at zero. The agent ALSO fixed the un-partitioned keys in calendar and ckc (matching on payload.client_event_id with an event_id fallback) and added fail-closed workspace-prefix sweeps to calendar, ckc and e7. The briefed warning about becoming the fourth rediscovery of this defect was heeded.",
+      "driver_untouched": "VERIFIED BY KERNEL_BUILDER: git diff --stat 0a1b35aa..HEAD over tests/native_gui_support/ is EMPTY across both commits.",
+      "disclosed_gaps": [
+        "PT-115-1 is 6 of 7. e7 stays red until the document_saved attribution decision (MT-120).",
+        "ac5_atelier_side_panel_loads_from_live_pg (ckc) has a PRE-EXISTING dependency on an attachable backend at HSK_TEST_BASE / 127.0.0.1:37501 that it does not own. The agent started one against its scoped DB for the run and stopped it afterwards. Unrelated to MT-109; worth its own MT.",
+        "palmistry::survivor_store::open_default_or_sibling_falls_back_to_a_local_dir fails on this machine with Os { code: 183, AlreadyExists } because %LOCALAPPDATA%\\handshake\\palmistry is ACL-locked. PROVEN ENVIRONMENTAL, not caused here: it passes with HANDSHAKE_PALMISTRY_SURVIVOR_DIR redirected, and the diff touches only fr_forward.rs. The operator ACLs were not altered.",
+        "The scoped target dir wp012-mt115 was retained so a validator avoids a 24-minute rebuild. Delete at WP closeout per HBR-SWARM-006."
+      ],
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
+    }
   },
   "scope": {
     "summary": "Close the remaining MT-109 authorization fallout: the Palmistry forwarder design question, the seven test harnesses that still read the recorder without a credential, and document_saved actor attribution.",

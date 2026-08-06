@@ -1,0 +1,81 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-119",
+  "title": "E5-MT-119-Bound-Saved-Search-Row-Layout-So-Long-Queries-Cannot-Clip-Restore-And-Remove-Off-Pane",
+  "group": "E5-Search",
+  "created_at_utc": "2026-08-06T20:30:32.347Z",
+  "updated_at_utc": "2026-08-06T20:30:32.347Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-113"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Found by the MT-113 agent IN ITS OWN CAPTURED FRAME while proving the identity fix, and correctly reported rather than quietly fixed out of scope. Deferred here per the Operator standing rule so it is not lost."
+  },
+  "scope": {
+    "summary": "Bound the saved-search row layout so an unbounded user query cannot push its Restore and Remove controls outside the Find-in-Files pane.",
+    "observed_defect": {
+      "symptom": "The saved-search row renders the FULL UNTRUNCATED query as its label. With a realistic long query this pushes the Restore/Remove controls past the pane right edge: only \"Re...\" of Restore remains visible and Remove is clipped ENTIRELY off-pane.",
+      "why_it_is_not_caught_by_argus": "This is the subtle part. Argus addresses and clicks Remove FINE - the AccessKit node exists and its action terminalizes correctly, which is exactly what MT-113 proved. So an automated proof passes while a HUMAN OPERATOR CANNOT SEE OR REACH the control. Automated terminality and human reachability diverge here, which is precisely the class of defect HBR-VIS exists to catch.",
+      "relationship_to_mt113": "Same root pathology - unbounded user content in a bounded surface - but in the LAYOUT dimension rather than the identity dimension. MT-113 bounded the author_id; nothing bounds the rendered label.",
+      "evidence": "MT-113 frame ../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-113/MT-113-long-query-bookmark-before-remove.png, opened and described by the MT-113 agent."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/find_in_files.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": [
+      "AC-119-1: with a query long enough to overflow the row, BOTH Restore and Remove render FULLY INSIDE the Find-in-Files pane at the tested viewport. Prove it by OPENING the frame and describing what is visible, not merely by capturing it.",
+      "AC-119-2: the full query text remains RECOVERABLE by the operator (elide with a tooltip, wrap, or an equivalent affordance). Truncating the label so the operator can no longer tell two saved searches apart is NOT an acceptable fix.",
+      "AC-119-3: the AccessKit author_ids and the MT-113 bounded identities are UNCHANGED - this is a layout fix only. Re-run the MT-113 proofs and show them still green.",
+      "AC-119-4: check the same overflow class on the other Find-in-Files rows (result rows, bookmark headings) and either fix them or record explicitly that they were checked and are safe."
+    ],
+    "proof_targets": [
+      "PT-119-1: a mounted frame at a realistic long query, OPENED and described, showing both controls fully inside the pane.",
+      "PT-119-2: MT-113 test_author_id_budget and test_find_in_files still green.",
+      "PT-119-3: a regression assertion that the control rects lie within the pane rect, so this cannot silently regress."
+    ]
+  },
+  "hbr_obligations": {
+    "VIS": "CENTRAL. This MT exists because an automated proof passed while a human could not see the control. Frames must be OPENED and inspected; byte-identical before/after pairs are a known failure mode in this WP."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

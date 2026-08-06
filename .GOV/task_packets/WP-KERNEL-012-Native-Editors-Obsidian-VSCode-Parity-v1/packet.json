@@ -792,6 +792,26 @@
         "impact": "Two of the six ready-checklist rubric items provide no real signal at this gate across the whole WP. A genuine dead pub item or a wrongly-gated platform test would pass RC-002/RC-003 unnoticed. For MT-068 both were verified MANUALLY instead and the vacuity recorded on the MT.",
         "recommended_fix": "Make kb-ready-checklist.mjs fall back to scope.allowed_paths when owned_files is absent, and make it FAIL LOUD rather than silently skipping when it can resolve neither - a skipped check must never present as a satisfied one. Separately, make the product-worktree fallback to repo root a visible warning at minimum, since a checklist bound to the wrong root reports on the wrong tree.",
         "scope_note": "NOT fixed here. The script lives in .GOV/roles/kernel_builder/scripts/ and is repo-governance tooling, outside this WP product scope; and per operator instruction this WP is not doing governance-tooling work. Recorded for the operator to route."
+      },
+      {
+        "id": "RD-WP012-UNBOUNDED-AUTHOR-ID-SITES-REMAIN",
+        "raised_at_utc": "2026-08-06T20:30:32.347Z",
+        "raised_by": "KERNEL_BUILDER-20260805-054937",
+        "status": "OPEN_LATENT_DEFECT_CLASS",
+        "finding": "MT-113 bounded author_id composition for Find-in-Files and the shared mcp/action.rs contract, but roughly 80 other *_author_id() sites (drawer, canvas, graph, tags, sidebar, wiki, folder tree, atelier, flight recorder) still format ids directly. They are safe TODAY only because their components are backend UUIDs - they are NOT BOUNDED BY CONSTRUCTION.",
+        "risk": "Any future feature that puts a user-supplied title, path, query or label into one of those components silently re-opens the exact defect class MT-113 just closed: the completion token stops serializing and the control becomes permanently indeterminate, with NO compile-time or test-time signal.",
+        "why_not_fixed_in_mt113": "Outside the MT-113 closure unit, and each conversion carries byte-identity risk for whichever MT owns that surface. The MT-113 agent judged this correctly and reported it instead of sprawling.",
+        "recommended_fix": "Route the composition of every author_id through the bounded helper so the budget is enforced BY CONSTRUCTION, converting surface by surface with a byte-identity assertion per surface. A cheap interim mitigation is a debug_assert! at every composition site; MT-113 evidence shows the 2058-test lib sweep fires none today, so such an assert would be quiet until a real regression appeared."
+      },
+      {
+        "id": "RD-WP012-SHARED-OBSERVER-SEQUENCING-TRAP",
+        "raised_at_utc": "2026-08-06T20:30:32.347Z",
+        "raised_by": "KERNEL_BUILDER-20260805-054937",
+        "status": "OPEN_LATENT_TEST_HAZARD",
+        "finding": "Dispatching a second observer-backed action on a SHARED observer before the first settles makes the pre-dispatch declaration and the post-render frame disagree. The boundary correctly refuses it with \"persistent observer target identity or action capability drifted\" - so it surfaces as a confusing proof failure rather than as a product defect.",
+        "evidence": "It flaked on the MT-113 agent once before it added an explicit quiescence gate: observer not pending AND the row declaration stable across consecutive frames.",
+        "risk": "MT-029 avoids this only ACCIDENTALLY, by happening to have intervening actions between the two bookmark actions. Any future MT that shares one observer across two controls will hit it and is likely to misdiagnose it as a product defect.",
+        "recommended_fix": "Document the quiescence gate as the standard pattern for shared observers in the internal manual, and consider making the driver surface a clearer diagnostic distinguishing \"you dispatched too early\" from \"the target genuinely drifted\"."
       }
     ]
   },
