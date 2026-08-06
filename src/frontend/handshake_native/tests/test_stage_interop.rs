@@ -938,6 +938,22 @@ fn try_live_binding_session_token() -> Result<String, String> {
         .ok_or_else(|| format!("native-MCP binding {} carries no token", path.display()))
 }
 
+/// Does this Flight Recorder row belong to the producer event the mounted app minted?
+///
+/// WP-KERNEL-012 MT-109 made the DURABLE recorder `event_id` a workspace-scoped DERIVATION of the
+/// client event id — deliberately, so one workspace cannot pre-seed, read back, or reconcile another
+/// workspace's row by guessing a client id. The id the mounted app actually minted now travels in
+/// `payload.client_event_id`.
+///
+/// A proof holding a client-side receipt id must therefore compare against BOTH spellings. Comparing
+/// only `event_id` is how this proof came to report "Flight Recorder row did not arrive" for rows
+/// that had in fact arrived and been authorized (`fr.ingest.native_editor` -> `allow`). The legacy
+/// `event_id` comparison is retained so rows minted before MT-109 still match.
+fn fr_row_matches_producer_event(row: &serde_json::Value, producer_event_id: &str) -> bool {
+    row["payload"]["client_event_id"].as_str() == Some(producer_event_id)
+        || row["event_id"].as_str() == Some(producer_event_id)
+}
+
 fn wait_for_native_fr(
     backend: &interconnect_support::LiveBackend,
     workspace_id: &str,
@@ -1679,7 +1695,7 @@ fn live_route_round_trip_real_pg() {
         );
     }
     let route_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "route_to_stage", |row| {
-        row["event_id"].as_str() == Some(retained_route_event_id.as_str())
+        fr_row_matches_producer_event(row, retained_route_event_id.as_str())
             && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
     });
     cleanup.track_native_fr(&route_row);
@@ -1710,10 +1726,11 @@ fn live_route_round_trip_real_pg() {
         Some(retained_causal_action_id.as_str()),
         "route FR carries the mounted command's exact Stage correlation"
     );
-    assert_eq!(
-        route_row["event_id"].as_str(),
-        Some(retained_route_event_id.as_str()),
-        "route FR preserves the exact retained producer EventLedger identity"
+    assert!(
+        fr_row_matches_producer_event(&route_row, retained_route_event_id.as_str()),
+        "route FR preserves the exact retained producer EventLedger identity (MT-109: the client id \
+         lives in payload.client_event_id and the durable event_id is its workspace-scoped \
+         derivation); row={route_row}"
     );
     assert_eq!(
         stage.lock().unwrap().causal_action_id.as_deref(),
@@ -1942,7 +1959,7 @@ fn live_route_round_trip_real_pg() {
         .as_array()
         .expect("Flight Recorder rows")
         .iter()
-        .filter(|row| row["event_id"].as_str() == Some(retained_route_event_id.as_str()))
+        .filter(|row| fr_row_matches_producer_event(row, retained_route_event_id.as_str()))
         .count();
     assert_eq!(
         route_dispatches, 1,
