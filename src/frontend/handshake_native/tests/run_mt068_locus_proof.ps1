@@ -130,19 +130,21 @@ if ($dirtyRows.Count -ne 0) {
     throw "MT-068 proof requires every compiled input to match committed HEAD; dirty rows: $($dirtyRows -join '; ')"
 }
 
-# ── Scenario discovery: the expected counts come from the SOURCE, never a hardcoded number ────────
+# ── Scenario declaration gate (source side) ──────────────────────────────────────────────────────
+# The MT's own file must declare EXACTLY ONE runner-only scenario, and it must be the live proof. The
+# expected COUNTS deliberately do NOT come from here: this binary also compiles `#[path]`-included
+# support modules (`pg_proof_support` contributes its own unit tests), so a source regex over one file
+# would silently undercount. The authoritative inventory is taken from the built binary below.
 $testSourcePath = Join-Path $PSScriptRoot "$TEST_BINARY.rs"
 $testSource = Get-Content -LiteralPath $testSourcePath -Raw
-$declaredTests = @([regex]::Matches($testSource, '(?m)^#\[test\]'))
 $declaredIgnored = @([regex]::Matches($testSource, '(?m)^#\[ignore'))
-if ($declaredTests.Count -lt 2 -or $declaredIgnored.Count -ne 1) {
-    throw "MT-068 expects exactly one runner-only #[ignore] scenario in $TEST_BINARY.rs; found $($declaredIgnored.Count) among $($declaredTests.Count) tests"
+if ($declaredIgnored.Count -ne 1) {
+    throw "MT-068 expects exactly one runner-only #[ignore] scenario in $TEST_BINARY.rs; found $($declaredIgnored.Count)"
 }
 if ($testSource -notmatch [regex]::Escape("fn $LIVE_SCENARIO()")) {
     throw "The mandatory live scenario $LIVE_SCENARIO is absent from $TEST_BINARY.rs"
 }
-$expectedOrdinaryPassed = $declaredTests.Count - $declaredIgnored.Count
-$expectedIgnored = $declaredIgnored.Count
+$expectedIgnored = 1
 
 # ── External artifact roots ──────────────────────────────────────────────────────────────────────
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot '..\Handshake_Artifacts'))
@@ -289,6 +291,25 @@ try {
     Remove-Item Env:HSK_TEST_BASE -ErrorAction SilentlyContinue
     Remove-Item Env:HANDSHAKE_ARGUS_MATRIX_RUN_ID -ErrorAction SilentlyContinue
 
+    # ── Authoritative scenario inventory, taken from the BUILT binary ─────────────────────────────
+    $listArgs = @('test', '--locked', '-j', '2', '--test', $TEST_BINARY, '--', '--list')
+    $list = Invoke-ContainedCommand -Label 'scenario-inventory' -Executable $cargo `
+        -Arguments $listArgs -WorkingDirectory $crateRoot -DescendantExitGraceMilliseconds 180000
+    $scenarioReceipts.Add($list)
+    Assert-ContainedCommandPassed -Receipt $list
+    $listText = Get-Content -LiteralPath $list.stdout_path -Raw
+    $listedTests = @([regex]::Matches($listText, '(?m)^(?<name>[A-Za-z0-9_:]+): test$') |
+        ForEach-Object { $_.Groups['name'].Value })
+    $listSummary = [regex]::Match($listText, '(?m)^(?<total>\d+) tests, \d+ benchmarks$')
+    if (-not $listSummary.Success -or [int]$listSummary.Groups['total'].Value -ne $listedTests.Count) {
+        throw "scenario-inventory could not bind an exact test inventory for $TEST_BINARY"
+    }
+    $totalScenarios = $listedTests.Count
+    if (@($listedTests | Where-Object { $_ -ceq $LIVE_SCENARIO }).Count -ne 1) {
+        throw "The mandatory live scenario $LIVE_SCENARIO is not present exactly once in the built binary"
+    }
+    $expectedOrdinaryPassed = $totalScenarios - $expectedIgnored
+
     # ── Scenario 1: the ordinary suite ───────────────────────────────────────────────────────────
     $ordinaryArgs = @('test', '--locked', '-j', '2', '--test', $TEST_BINARY, '--',
         '--test-threads=1', '--nocapture')
@@ -300,8 +321,14 @@ try {
     if ($ordinaryCounts.verdict -cne 'ok' -or $ordinaryCounts.failed -ne 0) {
         throw "ordinary-suite reported $($ordinaryCounts.failed) failures"
     }
-    if ($ordinaryCounts.passed -ne $expectedOrdinaryPassed -or $ordinaryCounts.ignored -ne $expectedIgnored) {
-        throw "ordinary-suite reported $($ordinaryCounts.passed) passed / $($ordinaryCounts.ignored) ignored; the source declares $expectedOrdinaryPassed / $expectedIgnored"
+    if ($ordinaryCounts.passed -ne $expectedOrdinaryPassed -or
+        $ordinaryCounts.ignored -ne $expectedIgnored -or $ordinaryCounts.filtered_out -ne 0) {
+        throw "ordinary-suite reported $($ordinaryCounts.passed) passed / $($ordinaryCounts.ignored) ignored / $($ordinaryCounts.filtered_out) filtered; the built binary declares $expectedOrdinaryPassed / $expectedIgnored / 0"
+    }
+    # The mandatory scenario must be visibly SKIPPED here, never counted as ordinary acceptance.
+    $ordinaryStdout = Get-Content -LiteralPath $ordinary.stdout_path -Raw
+    if ($ordinaryStdout -notmatch "(?m)^test $([regex]::Escape($LIVE_SCENARIO)) \.\.\. ignored") {
+        throw "ordinary-suite did not record $LIVE_SCENARIO as ignored; a mandatory scenario must never be silently absorbed into the default result"
     }
 
     # ── Scenario 2: the mandatory runner-only live proof ──────────────────────────────────────────
@@ -313,8 +340,13 @@ try {
     Assert-ContainedCommandPassed -Receipt $live
     $liveCounts = Get-TestResultCounts -StdoutPath $live.stdout_path -Scenario 'runner-only-live-proof'
     if ($liveCounts.verdict -cne 'ok' -or $liveCounts.passed -ne 1 -or
-        $liveCounts.failed -ne 0 -or $liveCounts.ignored -ne 0) {
-        throw "runner-only-live-proof must report exactly 1 passed / 0 failed / 0 ignored; got $($liveCounts.passed)/$($liveCounts.failed)/$($liveCounts.ignored)"
+        $liveCounts.failed -ne 0 -or $liveCounts.ignored -ne 0 -or
+        $liveCounts.filtered_out -ne ($totalScenarios - 1)) {
+        throw "runner-only-live-proof must report exactly 1 passed / 0 failed / 0 ignored / $($totalScenarios - 1) filtered; got $($liveCounts.passed)/$($liveCounts.failed)/$($liveCounts.ignored)/$($liveCounts.filtered_out)"
+    }
+    $liveStdout = Get-Content -LiteralPath $live.stdout_path -Raw
+    if ($liveStdout -notmatch "(?m)^test $([regex]::Escape($LIVE_SCENARIO)) \.\.\. ok") {
+        throw "runner-only-live-proof did not record $LIVE_SCENARIO as ok"
     }
 
     # ── Canonical evidence must be FRESH and bound to THIS source ─────────────────────────────────
@@ -431,7 +463,9 @@ SELECT COUNT(*) FROM kernel_event_ledger
             lifecycle = 'existing_internal_postgresql_preserved'
         }
         discovered_scenarios = [ordered]@{
-            declared_tests = $declaredTests.Count
+            inventory_source = 'built binary --list'
+            total_scenarios = $totalScenarios
+            listed_scenarios = @($listedTests)
             declared_ignored = $expectedIgnored
             expected_ordinary_passed = $expectedOrdinaryPassed
             mandatory_runner_only_scenario = $LIVE_SCENARIO
