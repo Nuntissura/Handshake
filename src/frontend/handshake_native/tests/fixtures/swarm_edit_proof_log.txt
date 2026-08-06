@@ -1,41 +1,41 @@
-PROOF_RUNNING attempt_id=67408-10d63c7f-640b-4784-9578-79a1f197cc26 generation=1786047010434314800
+PROOF_RUNNING attempt_id=66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769 generation=1786048098230674500
 [T0001] NOTE authoritative managed-PostgreSQL attempt started
-[T0002] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofTarget-67408-10d63c7f-640b-4784-9578-79a1f197cc26\"}"
+[T0002] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofTarget-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769\"}"
 [T0003] RESPONSE tree_change=mounted slash-note request accepted db_result=PASS
-[T0004] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofNote-67408-10d63c7f-640b-4784-9578-79a1f197cc26\"}"
+[T0004] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofNote-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769\"}"
 [T0005] RESPONSE tree_change=mounted slash-note request accepted db_result=PASS
 [T0006] RESPONSE tree_change=exact slash-created source and target rows exist in canonical knowledge_rich_documents db_result=PASS
 [T0007] RESPONSE tree_change=production slash-create navigation mounted the exact source document without test-state rebinding db_result=PASS
 [T0008] DISPATCH author_id=editor.rich.root action=Focus payload=null
 [T0009] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
-[T0010] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"wikilink\",\"label\":\"SwarmProofTarget-67408-10d63c7f-640b-4784-9578-79a1f197cc26\",\"ref_kind\":\"note\",\"ref_value\":\"KRD-019fd8b2b35272b0bfc50b4b42471b1e\"}"
+[T0010] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"wikilink\",\"label\":\"SwarmProofTarget-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769\",\"ref_kind\":\"note\",\"ref_value\":\"KRD-019fd8c354c27be19e3d252fdae7373d\"}"
 [T0011] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
 [T0012] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"code\":\"\",\"kind\":\"code_block\",\"language\":\"rust\"}"
 [T0013] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
 [T0014] DISPATCH author_id=editor.rich.code-block.open.re-block-513637473 action=Click payload=null
 [T0015] RESPONSE tree_change=exact rich code block opened in the native code editor db_result=PASS
-[T0016] DISPATCH author_id=editor.code.text#document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636343338363233323632333336323335333733363337333136313634333636313631363436323633363133343335363533323331333733393a31 action=SetValue payload="fn swarm_merge() -> &'static str { \"MT-043\" }\n"
+[T0016] DISPATCH author_id=editor.code.text#document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636343338363333333335333533323337333736363336333336323636333633343633333636333331333536333636333933333333333433373a31 action=SetValue payload="fn swarm_merge() -> &'static str { \"MT-043\" }\n"
 [T0017] RESPONSE tree_change=agent-authored code entered the exact bound native code buffer db_result=PASS
-[T0018] DISPATCH author_id=editor.code.save.document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636343338363233323632333336323335333733363337333136313634333636313631363436323633363133343335363533323331333733393a31 action=Click payload=null
+[T0018] DISPATCH author_id=editor.code.save.document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636343338363333333335333533323337333736363336333336323636333633343633333636333331333536333636333933333333333433373a31 action=Click payload=null
 [T0019] RESPONSE tree_change=editor.code.save entered the exact rich-code persistence bridge db_result=PASS
-[T0020] RESPONSE tree_change=exact rich code content binding mounted as rich-code-block:4b52442d3031396664386232623362353736373161643661616462636134356532313739:1 db_result=PASS
-[T0021] NOTE PROCESS_AGENT label=actor-b-crash-mid-edit pid=83264 seq=0 marker=REQUEST_READY role=crashing-agent-mid-edit
-[T0022] DISPATCH author_id=editor.rich.root action=SetValue payload="agent-b-recoverable-67408-10d63c7f-640b-4784-9578-79a1f197cc26"
+[T0020] RESPONSE tree_change=exact rich code content binding mounted as rich-code-block:4b52442d3031396664386333353532373766363362663634633663313563663933333437:1 db_result=PASS
+[T0021] NOTE PROCESS_AGENT label=actor-b-crash-mid-edit pid=73624 seq=0 marker=REQUEST_READY role=crashing-agent-mid-edit
+[T0022] DISPATCH author_id=editor.rich.root action=SetValue payload="agent-b-recoverable-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769"
 [T0023] RESPONSE tree_change=crashing editor-agent process was killed after an acknowledged mounted edit db_result=PASS
 [T0024] DISPATCH author_id=editor.rich.save action=Click payload=null
 [T0025] RESPONSE tree_change=actor B stale save intent entered the mounted save manager db_result=PASS
 [T0026] RESPONSE tree_change=loser refetched canonical server document after 409 db_result=PASS
-[T0027] NOTE PROCESS_AGENT label=actor-b-survivor-refetch-merge-save pid=105056 seq=0 marker=REQUEST_READY role=survivor-merge-agent
+[T0027] NOTE PROCESS_AGENT label=actor-b-survivor-refetch-merge-save pid=83172 seq=0 marker=REQUEST_READY role=survivor-merge-agent
 [T0028] DISPATCH author_id=editor.rich.conflict.keep-server action=Click payload=null
 [T0029] RESPONSE tree_change=mounted conflict UI adopted the refetched server version db_result=PASS
-[T0030] DISPATCH author_id=editor.rich.root action=ReplaceSelectedText payload="agent-b-recoverable-67408-10d63c7f-640b-4784-9578-79a1f197cc26"
+[T0030] DISPATCH author_id=editor.rich.root action=ReplaceSelectedText payload="agent-b-recoverable-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769"
 [T0031] RESPONSE tree_change=loser merged its recoverable edit into the adopted server document through mounted AccessKit db_result=PASS
 [T0032] DISPATCH author_id=editor.rich.save action=Click payload=null
 [T0033] RESPONSE tree_change=loser submitted the merged winner-plus-loser document db_result=PASS
-[T0034] DISPATCH author_id=search.query action=SetValue payload="SwarmProofNote-67408-10d63c7f-640b-4784-9578-79a1f197cc26"
+[T0034] DISPATCH author_id=search.query action=SetValue payload="SwarmProofNote-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769"
 [T0035] RESPONSE tree_change=continuous mounted search state advanced db_result=PASS
 [T0036] DISPATCH author_id=search.run action=Click payload=null
 [T0037] RESPONSE tree_change=continuous mounted search state advanced db_result=PASS
-[T0038] DISPATCH author_id=search.result.KRD-019fd8b2b3b57671ad6aadbca45e2179 action=Click payload=null
+[T0038] DISPATCH author_id=search.result.KRD-019fd8c355277f63bf64c6c15cf93347 action=Click payload=null
 [T0039] RESPONSE tree_change=search result activated on continuous app db_result=PASS
 PROOF_FAIL: authoritative live attempt exited before all proof gates passed
