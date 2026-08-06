@@ -1,4 +1,4 @@
-﻿# CODER PROTOCOL [CX-620-625]
+# CODER PROTOCOL [CX-620-625]
 ## Deterministic Atomic Governance Files [CX-908]
 - Machine-readable deterministic atomic files are the single executable workflow authority for packets, refinements, MTs, startup capsules, runtime, receipts, dossiers, and workflow contracts once the relevant contract exists.
 - Operator-facing Markdown is generated projection, frozen legacy reference, or short migration bridge only. Do not create or maintain parallel manual JSON/Markdown sidecars as co-authority.
@@ -159,11 +159,16 @@ RGF-248 named-verb receipts are the preferred wire for routine handoffs: emit `M
 ## Product Runtime Root (Current Default)
 
 - External build/test/tool outputs stay under `../Handshake_Artifacts/` [CX-212E]. Required subfolders:
-  - `handshake-cargo-target/` â€” Cargo build target (default via `CARGO_TARGET_DIR` in justfile). For parallel WPs, use `CARGO_TARGET_DIR='../Handshake_Artifacts/handshake-cargo-target'` explicitly to share builds, or accept sequential build locking (cargo handles this gracefully with "Blocking waiting for file lock")
+  - `handshake-cargo-target/<wp-or-owner-slug>[-<purpose>]` - Cargo build target. **PER-OWNER SCOPED, NEVER THE SHARED ROOT** (HARD, [CX-984] / HBR-SWARM-005). "Owner" is the work packet, role session, or sub-agent that owns the build.
+    - This SUPERSEDES the previous guidance to share one target dir across parallel WPs and "accept sequential build locking". That guidance caused two real failures on 2026-08-02: (1) a live proof suite starved on the shared cargo file lock and produced a false negative that was initially misdiagnosed as a product defect; (2) `handshake_core` resolves its runtime `data_dir` from `env!("CARGO_MANIFEST_DIR")` at COMPILE time, so a `handshake_core.exe` left in the shared dir by another worktree embedded THAT worktree's root, opened its DuckDB flight recorder, and died replaying its WAL.
+    - NEVER run a prebuilt binary found in a shared target dir as proof. Build it from YOUR worktree into YOUR scoped dir first - an `*.exe` in a shared directory is not evidence about your source.
+    - Proof runs needing a database MUST use a WP-scoped database; divergent migration sets across worktrees fail sqlx checksum validation (`migration N was previously applied but has been modified`).
+    - CLEAN YOUR OWN scoped subdir as each build/test finishes - continuously, not only at closeout (HBR-SWARM-006). NEVER delete another owner's scoped dir, and NEVER delete, prune, or `cargo clean` anything under the shared artifact root: a sub-agent doing exactly that removed the shared `.fingerprint` tree and broke the next build.
   - `handshake-product/` â€” product runtime artifacts, databases, generated files
   - `handshake-test/` â€” test outputs, coverage reports, benchmark results
   - `handshake-tool/` â€” governance tooling artifacts, linter caches, script outputs
-- Do NOT create artifact paths inside the repo or in ad-hoc sibling folders. Use the subfolders above.
+- Do NOT create artifact paths inside the repo or in ad-hoc sibling folders. Use the subfolders above. EVERY other sibling artifact folder is ILLEGAL residue â€” no repo-local `target/`, no sibling `*-target` directory outside this root, no ad-hoc scratch beside the worktrees.
+- ARTIFACT ROOT BOUNDARY (HARD, [CX-984]): `../Handshake_Artifacts/` holds build, test, tool, and product-runtime scratch output ONLY. It MUST NOT contain repo-governance artifacts (anything belonging under `/.GOV/`) or repo-governance runtime state (anything belonging under `gov_runtime/`: `WP_COMMUNICATIONS`, session-control ledgers, session registries, dossiers, receipts). Build residue is deletable at any moment; governance state is not.
 - Product runtime state SHOULD default to the external sibling root `gov_runtime/`, not a folder inside the repo worktree.
 - This external runtime root is the intended home for databases, logs, workspace state, generated workflow outputs, and product-owned `.handshake/` runtime state.
 - Treat repo-root `data/` and `.handshake/` paths as legacy/transitional unless the current WP is explicitly remediating them.

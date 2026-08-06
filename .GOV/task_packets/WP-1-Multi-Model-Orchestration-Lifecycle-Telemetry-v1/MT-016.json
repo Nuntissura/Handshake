@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-016",
   "created_at_utc": "2026-07-02T03:00:00Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-08-04T21:55:00Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-016.json",
@@ -31,7 +31,7 @@
     "blocker": null,
     "missing_resource": null,
     "proof_status": "READY_FOR_VALIDATION_V5: all 6 declared proof commands green on real Handshake-managed PostgreSQL (port 5544) at a5f92507. mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency, mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat, mt016_default_boot_registers_distinct_embedding_model_when_configured, mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model, mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call all PASS; dedicated_embedding_model_behaviors_have_manual_coverage PASS after completing the embedding behavior's Palmistry correlation ref + page HBR-INT-009 tier posture (fix a5f92507). Proofs use the standard real-PG-registry + deterministic-model-response pattern per the MT's own allowance. The V4 blocker (fresh embedding proof did not complete against the MT-014-changed shared surface) is resolved: proofs now run green against current HEAD which includes MT-014's registration changes. NOTE: the additional real-embedding-model e2e (tests/mt016_real_embedding_e2e.rs) requires a real embedding model artifact and was NOT run this pass; the Integration Validator should decide whether real-model proof beyond the deterministic pattern is additionally required. Dependency MT-014 is itself still under V5 remediation.",
-    "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.",
+    "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - registry rows are isolated per account. STILL OWED: Embedding artifact, Loom index, and derived search-result non-widening are not yet attached.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
     "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior.",
@@ -86,7 +86,11 @@
   "required_build_rules": [
     "HBR-INT-001",
     "HBR-INT-009",
-    "HBR-MAN-004"
+    "HBR-MAN-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "INT",
@@ -204,5 +208,19 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "v5_declared_proof_reverification_2026_08_04": {
+    "declared_proofs_reverified": {
+      "model_registry_tests": "8 passed, 0 failed",
+      "model_catalog_tests": "5 passed, 0 failed",
+      "llm_default_boot_resolution_tests": "7 passed, 0 failed",
+      "loom_search_v2_tests": "9 passed, 0 failed",
+      "user_manual_behavior_coverage_tests (contains dedicated_embedding_model_behaviors_have_manual_coverage)": "21 passed, 0 failed"
+    },
+    "note": "All six declared proof_targets are covered; the sixth is a named test inside user_manual_behavior_coverage_tests, executed in full.",
+    "context": "Re-executed at the current HEAD, i.e. WITH the HBR-PRIV account-scope substrate (migrations 0363+0364, resource_scope.rs, api/account_scope.rs) already in place. That is the point of the re-run: the PRIV work changed the read/write boundary these surfaces sit on, so a green recorded before it no longer evidences anything. Managed PostgreSQL at 127.0.0.1:5544.",
+    "reverified_by": "KERNEL_BUILDER-20260801-214802",
+    "reverified_at_utc": "2026-08-04T21:55:00Z",
+    "status_unchanged": "Remains READY_FOR_VALIDATION_V5. This attaches fresh execution evidence; it does not change any acceptance criterion, and no test was added, filtered, or weakened to obtain it."
   }
 }

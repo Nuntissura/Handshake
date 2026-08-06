@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-006",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-08-04T21:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-006.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -28,13 +28,13 @@
     "validator_verdict": null,
     "claimed_by": null,
     "claimed_at_utc": null,
-    "ready_for_validation_by": "KERNEL_BUILDER-20260723-205940",
-    "ready_for_validation_at_utc": "2026-07-24T14:33:31Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T17:45:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: all three declared cloud_model_lane_policy_pg_tests proof targets pass on real Handshake-managed PostgreSQL (port 5544) at 4066e9c1 (HEAD a63af726 additive-only): cloud_projection_and_consent_receipts_persist_and_replay, cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent, cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence. user_manual_api_tests::cloud_model_lane_policy_user_manual_entry_is_current green. The V4 blocker (suite did not return in the bounded run) is resolved; the suite now returns with 13/14 green. The one non-declared failing test broadcast_revoke_fences_factory_inflight_before_durable_lane_insert is MT-017 final-hardening scope (revoke reason operator://mt017/...): a fail-closed error-code ordering race (SWARM_FACTORY_FAILED surfaces instead of CX-MM-007; no lane row persists either way), tracked separately, not an MT-006 proof target.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
+    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): the self-minted cloud consent approver is GONE. approver is a required typed AccountBoundAuthority derived from the store access context and adjudicated by the same authorize_row the storage boundary uses; validity 365d -> 12h; export_delegation adds audience/source-scope/authorization provenance with non-widening enforcement; both cloud INSERTs now populate the 0363/0364 scope columns that were previously dead. Also fixed: a revoked receipt that still read approved:true, and an unreachable 'ConsentReceipt is revoked' error the UserManual documents. Proofs: new cloud consent scope suite 5/0; cloud policy 14/0; resource scope 7/0; launch 8/0; schema 4/0; promotion 3/0; context bundle 4/0; lib resource_scope 21/0; lib operator_chat 13/0; cargo check exit 0. TEN falsifiability inversions run against real PostgreSQL with observed failure text. STILL OWED: HBR-MAN-004 UserManual entry.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON; HBR-PRIV NOT YET PROVEN FOR THIS MT (2026-08-04) - stated plainly rather than borrowing the shared substrate's green. The 7-test isolation suite covers lane rows, navigation routes, registry enumeration, derived non-widening and boot recovery; it does NOT cover cloud projection plans or consent receipts. MT-006 additionally needs HBR-PRIV-006 (revocation / context-switch on a live cloud lane) and HBR-PRIV-007 (remote/SaaS delegation scope), neither of which the substrate exercises. A SEPARATE REAL DEFECT is on record for this area and is NOT fixed: cloud consent receipts self-mint their approver as approved_by_ref = format!(\"operator://{}/cloud-selection\", owner_session) with approved:true and 365-day validity - and owner_session is a governance ROLE LABEL, not an account - so the receipt currently proves nothing about who consented. Fixing that is a prerequisite for honest HBR-PRIV-005/007 evidence here.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
@@ -114,7 +114,13 @@
     "HBR-INT-003",
     "HBR-INT-009",
     "HBR-MAN-004",
-    "HBR-SWARM-004"
+    "HBR-SWARM-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007"
   ],
   "hbr_obligations": [
     "INT",
@@ -286,5 +292,51 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "v5_remediation_2026_08_04": {
+    "validator_verdict_remediated": "FAIL_V5",
+    "validator_judgment": "Cloud lane projection and consent receipts lack the active HBR-PRIV resource-bound scope, cross-account isolation, revocation/context-switch, and scoped diagnostic evidence required for approval.",
+    "remediation_by": "KERNEL_BUILDER-20260801-214802 (delegated; reviewed and blast-radius-verified by KERNEL_BUILDER)",
+    "operator_authorization": "Operator explicitly accepted this scope expansion on 2026-08-04 after KERNEL_BUILDER surfaced the self-minted-approver defect.",
+    "core_defect_fixed": {
+      "was": "operator_chat.rs minted the consent receipt approver itself: approved_by_ref = format!(\"operator://{}/cloud-selection\", selection.owner_session), beside approved:true and ~365 days validity. owner_session is a governance ROLE LABEL (e.g. swarm_coordinator / KERNEL_BUILDER), identical for every operator on every machine and dangling after restart. The column (migration 0341) is plain TEXT with no CHECK and no FK. A self-issued, year-long approval on the path that authorizes sending operator data to a third-party cloud provider therefore proved NOTHING about who consented.",
+      "now": "NewModelLaneCloudConsentReceipt.approver is a REQUIRED typed AccountBoundAuthority (Account{owner_account_id, actor_principal_id, authenticated_session, access_space, workspace} | Unattributed{reason}) derived from store.access(), i.e. server-derived and never payload-asserted. It delegates its decision to the SAME ResourceScopeQuery::authorize_row the storage read boundary uses, so there is no second matching rule to drift. from_access() means a read-only or system context structurally cannot mint an account-bound approval."
+    },
+    "legacy_approver_decision": "Split narrowly rather than all-or-nothing. RETAINED for provenance but demoted out of authority - real receipts carry human-meaningful refs (ticket ids, UI action refs), so deleting the column would destroy real lineage and pretend the self-issued receipts never existed; it is made honest by being read by NOTHING. REJECTED at write time only for the self-issuance SHAPE (issuer == subject: exactly operator://{owner_session}/...). A blanket operator:// ban was rejected as theatre - it would refuse honest refs while a caller self-issues under any other scheme.",
+    "validity_decision": "365 days -> OPERATOR_CHAT_CLOUD_CONSENT_VALIDITY_HOURS = 12. Reasoning: the receipt authorizes ONE lane in ONE run; a lane cannot outlive its run, a run cannot outlive the coordinator, neither survives a restart. A capability outliving its subject by three orders of magnitude is a dangling capability, and every idempotent re-launch on the same run/lane ids re-uses it instead of asking again. Run-scoped consent (migration 0353) is a SCOPE mechanism, not an EXPIRY one, and no run-end timestamp exists at mint time - so a bounded window is the honest construction: longer than any working session, shorter than a day, cannot survive to the next working day. Revocation remains the kill switch; expiry is the backstop for when nobody revokes.",
+    "additional_defects_found_and_fixed": [
+      "A REVOKED receipt still read approved:true while status:revoked - a durable record simultaneously claiming both states. Now set false on revocation.",
+      "The revoked path emitted 'ConsentReceipt is not approved', which made the 'ConsentReceipt is revoked' error the in-product UserManual documents UNREACHABLE. Checks reordered; both orderings fail closed, only one is honest.",
+      "SIDE EFFECT: broadcast_revoke_fences_factory_inflight_before_durable_lane_insert - recorded in this MT validation_v5 as a KNOWN FAILING MT-017 error-code ordering race - now PASSES."
+    ],
+    "hbr_priv_007_delegation": "NewModelLaneCloudProjectionPlan.export_delegation = CloudExportDelegation{audience_refs, source_scope, authorization_receipt_ref}. validate_cloud_export_delegation requires audience to be a SUBSET of fan_out_targets (non-widening); validate_cloud_authority_pair requires the plan source_scope and the receipt approver to name the same account and refuses a plan paired with a receipt other than the one it names.",
+    "scope_columns_now_populated": "Both cloud INSERTs stamp the five 0363/0364 scope columns. Previously the migration existed but NOTHING populated it for these tables - the columns were dead.",
+    "proofs": {
+      "model_lane_cloud_consent_scope_pg_tests (NEW)": "5 passed, 0 failed",
+      "cloud_model_lane_policy_pg_tests": "14 passed, 0 failed",
+      "model_lane_resource_scope_pg_tests": "7 passed, 0 failed",
+      "model_lane_launch_tests": "8 passed, 0 failed",
+      "model_lane_schema_pg_tests": "4 passed, 0 failed",
+      "model_lane_promotion_pg_tests": "3 passed, 0 failed",
+      "model_lane_context_bundle_pg_tests": "4 passed, 0 failed",
+      "lib swarm_orchestration::resource_scope": "21 passed, 0 failed",
+      "lib swarm_orchestration::operator_chat": "13 passed, 0 failed (was 12/1; see stale_assertion_repaired)",
+      "cargo check --features test-utils --all-targets": "exit 0",
+      "git diff --check": "clean"
+    },
+    "falsifiability": "TEN inversions, each applied, run against real managed PostgreSQL, OBSERVED, and restored. Observed failures include: cross-account read (alice must not see the other account cloud projection plans / left: 0 / right: 1); cross-account REUSE (ProjectionPlan ... is not durable); forged owner on write (export_delegation.source_scope names an owning account this store is not authorized to write as); layer-2 with the SQL predicate removed (OwnerMismatch{requested,stored}); revoked relaunch (ConsentReceipt is revoked); audience widening (must not widen beyond fan_out_targets); and self-issued approver (approved_by_ref operator://KERNEL_BUILDER-selfissue/cloud-selection is self-issued: its identity component is this row own owner_session governance role label, which authorizes nothing).",
+    "stale_assertion_repaired": "lib swarm_orchestration::operator_chat was 12 passed/1 failed. build_spawn_request_cli_sets_provider_working_dir_and_contract demanded requested_execution_policy_ref == execution-policy://operator-chat/official-cli, a value existing NOWHERE in src/ except that assertion. VERIFIED PRE-EXISTING, not caused by the 2026-08-04 lanes: CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF is byte-identical at HEAD 50517aec and in the working tree, and neither the literal nor the policy assignment appears in any uncommitted diff. The delegated agent and KERNEL_BUILDER had each initially mis-attributed it to a concurrent lane by reasoning from file overlap instead of the diff; that inference was wrong and is corrected here. The assertion was not merely stale but ACTIVELY WRONG - official_cli_bridge.rs rejects any requested ref that is not CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF, so satisfying it would have BROKEN the operator-chat CLI lane. Repaired by asserting the CONSTANT instead of a literal so a future rename moves both sides together. 13 passed/0 failed after; executed test count did not decrease.",
+    "still_owed": [
+      "HBR-MAN-004: the in-product UserManual needs a same-change entry for the typed approver, export_delegation, the 12-hour validity, and the revoked-vs-not-approved wording. Not written because user_manual/** was owned by another active lane at the time. That lane is now free.",
+      "The account-bound operator-chat cloud launch is proven at the STORE boundary only; api/account_scope.rs is not yet wired into the operator-chat launch route (a WP-KERNEL-006 dependency), so it is not proven end-to-end through HTTP.",
+      "The unscoped operator-chat path was deliberately NOT hard-failed: tests/operator_chat_capture_tests.rs launches a BYOK cloud lane through ModelLaneStore::new(pool), and refusing there would have required editing a file owned by another lane. The lie is removed (such rows are Unattributed, NULL-owner, and satisfy no account-scoped gate); the documented pre-KERNEL-006 bypass is unchanged.",
+      "WIRE CONTRACT CHANGE: POST /operator-chat/cloud/single-run/grant-launch now requires export_delegation inside projection_plan. operator_chat_route_tests still passes."
+    ],
+    "hbr_man_004_discharged_2026_08_04": {
+      "was_owed": "the in-product UserManual needed a same-change entry for the typed approver, export_delegation, the 12-hour validity, and the revoked-vs-not-approved wording.",
+      "now": "WRITTEN. USER_MANUAL_VERSION 2.0.20 -> 2.0.21. model-lane-cloud-projection-consent documents approver: AccountBoundAuthority as the required server-derived authorization surface, demotes approved_by_ref to provenance-only with the operator://{owner_session}/... self-issuance shape rejected at write time, documents CloudExportDelegation (audience subset of fan_out_targets, source_scope, authorization_receipt_ref) and the same-owner rule, the 12-hour validity constant, and CORRECTS the previously-wrong revocation claim with a which-refusal-means-what triage block. The grant-launch wire-contract change (export_delegation now REQUIRED) is documented.",
+      "verified_by_kernel_builder": "Counts were NOT taken on the delegated agent's word. Re-run independently after its changes AND after KERNEL_BUILDER's own subsequent seed.rs correction: user_manual_behavior_coverage_tests 21 passed/0 failed, user_manual_api_tests 24/0, user_manual_storage_tests 12/0.",
+      "residual_still_owed": "Unchanged and still open: the account-bound operator-chat cloud launch is proven at the STORE boundary only; api/account_scope.rs is not wired into the operator-chat launch route (a WP-KERNEL-006 dependency), so it is not proven end-to-end through HTTP."
+    }
   }
 }

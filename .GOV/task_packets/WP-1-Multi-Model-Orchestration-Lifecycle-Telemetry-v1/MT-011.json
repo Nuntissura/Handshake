@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-011",
   "created_at_utc": "2026-06-28T18:06:24.222Z",
-  "updated_at_utc": "2026-07-29T18:08:40Z",
+  "updated_at_utc": "2026-08-04T20:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -13,6 +13,30 @@
   "markdown_projection": {
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "v5_remediation_2026_08_04": {
+    "validator_verdict_remediated": "FAIL_V5",
+    "validator_session": "WP_VALIDATOR-20260801-062930",
+    "validator_judgment": "Diagnostic evidence validation does not explicitly reject cross-tier URI scheme substitution; current tests do not pin exact tier-to-scheme binding. Diagnostic records also lack explicit HBR-PRIV scope-filtering evidence.",
+    "remediation_by": "KERNEL_BUILDER-20260801-214802 (implemented by delegated sub-agent; agent lost to a usage limit before it could run its own proofs, so KERNEL_BUILDER executed and verified them)",
+    "what_was_actually_wrong": "Diagnostic-evidence validation accepted ANY of the three tier URI prefixes for EVERY tier - a single `||` chain applied uniformly to every record. A Tier-3 Palmistry URI could therefore be presented as Tier-2 internal_diagnostics evidence and pass. That is not cosmetic: the tiers observe DIFFERENT failure classes. A hung UI thread is invisible to Tier 2's own in-process ring and is precisely what Tier 3 exists to catch, so a run that only ever produced Palmistry evidence could have claimed internal self-diagnostics coverage it never had.",
+    "tier_to_scheme_binding_pinned": {
+      "tier_1_flight_recorder": "eventledger://kernel/",
+      "tier_2_internal_diagnostics": "internal-diagnostics://session/",
+      "tier_3_palmistry": "palmistry-observation://session/"
+    },
+    "operator_clarification_2026_08_02": "Palmistry is specifically the EXTERNAL watcher that survives Handshake crashes; internal_diagnostics is Handshake's own in-process tier. They are not interchangeable, which is exactly why the cross-tier substitution had to be rejected rather than tolerated.",
+    "proofs_executed_by_kernel_builder": [
+      "cargo test --locked -j 1 --features test-utils --test user_manual_behavior_coverage_tests => ok. 21 passed; 0 failed (1784.90s). Was 17 before this MT; the 4 new tests are the cross-tier substitution negatives.",
+      "cargo test --locked -j 1 --features test-utils --test user_manual_api_tests => ok. 24 passed; 0 failed (583.67s)",
+      "cargo test --locked -j 1 --features test-utils --test user_manual_storage_tests => ok. 12 passed; 0 failed (86.83s)"
+    ],
+    "no_regression_on_mt022": "MT-022's suites were green at 17/24/12 earlier in this session. After MT-011's 2699-line change they are 21/24/12 - behavior coverage GAINED tests and API/storage are unchanged, so MT-011 did not regress MT-022's remediation.",
+    "delegation_integrity_note": "The sub-agent reported 'compiles clean' and was lost before running any suite. Its changes were therefore treated as UNVERIFIED and re-run in full by KERNEL_BUILDER rather than accepted on the agent's report, per KERNEL_BUILDER_PROTOCOL sub-agent oversight.",
+    "still_owed": [
+      "HBR-PRIV-004/005 for diagnostics: prove diagnostic records, logs and traces are owner/AccessSpace filtered and cannot become a cross-account side channel. The shared substrate is proven (migrations 0363+0364, resource_scope.rs, api/account_scope.rs, model_lane_resource_scope_pg_tests 7/0) but MT-011-specific diagnostic-surface filtering evidence is not yet attached.",
+      "The machine-readable per-behavior coverage matrix must be confirmed to FAIL when a behavior lacks a UserManual entry, EventLedger/FR evidence, a per-tier posture, a runtime route/schema, or a self-consistency result - the falsifiability of the matrix itself, not just of the substitution negatives."
+    ]
   },
   "lifecycle": {
     "status": "READY_FOR_VALIDATION_V5",
@@ -25,13 +49,13 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T12:53:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-180840",
-    "ready_for_validation_at_utc": "2026-07-29T18:08:40Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T12:00:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: the V4 vacuous-WIRED-flip blocker is REMEDIATED via the operator-selected honest run-level HBR-INT-009 encoding (source 3bbc72b3). (1) Killed the tautology: the 24 wp1.model_lane.* per-behavior internal_diagnostics/Palmistry postures were DiagnosticTierPosture::Wired asserted against hardcoded Wired literals (could never fail). New DiagnosticTierPosture::RunLevelWired ('RUN_LEVEL_WIRED') now declares -- at the type level -- that each row's Tier-2/Tier-3 coverage is carried by the SINGLE per-run HBR-INT-009 envelope, not a fabricated per-behavior observation; the static matrix check (behavior_coverage.rs compute_behavior_consistency + verify_model_lane_behavior_coverage) is honestly labeled a STRUCTURAL declaration guard that REJECTS a per-behavior Wired literal, and does NOT claim liveness. (2) Wired the previously-DEAD verify_model_lane_behavior_evidence (behavior_coverage.rs:2242) as the real run-level evidence gate: it validates the exact run's durable HBR-INT-009 records through ModelLaneStore::validate_diagnostic_tier_posture (model_lane.rs:4122 -- rejects any Missing tier, rejects FlightRecorder-only, requires all three tiers) plus non-empty EventLedger event ids and eventledger://kernel/ + internal-diagnostics://session/ + palmistry-observation://session/ evidence refs; fails closed on absent/incomplete evidence. (3) Manual currency (also closes MT-010): model-lane-diagnostics + model-lane-recovery UserManual pages state the honest run-level posture; stale api-test token 'RUN >' synced to code truth 'MODELS > Open Lane Diagnostics' (top_menu_bar.rs: item under the MODELS menu since abd9c256). Independently VERIFIED on managed PostgreSQL (127.0.0.1:5544): user_manual_behavior_coverage_tests 12/12 incl the NEW positive (durable run-level triplet -> gate PASSES, one envelope for all 24 rows) + negative (absent -> fail; FlightRecorder-only -> fail; gamed per-behavior Wired literal -> rejected pre-DB), behavior_coverage_matrix_generated_from_model_lane_registries, behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route, model_lane_user_manual_freshness_detects_stale_code_truth, model_lane_user_manual_entries_persist_in_postgres, model_lane_diagnostics_user_manual_entry_is_current, model_lane_recovery_user_manual_entry_is_current -- all green. Orchestrator traced the full evidence chain (diff -> gate body -> completeness-enforcing store method -> runtime fail-closed proof); the anti-gaming property is genuine, not relocated.",
-    "hbr_status": "PASS_HBR_MAN_INT_FOR_MT011_RUNLEVEL_HBR_INT_009_EVIDENCE_GATE_AND_USERMANUAL_GREEN",
+    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): exact tier-to-evidence-URI binding pinned (Tier1 eventledger://kernel/, Tier2 internal-diagnostics://session/, Tier3 palmistry-observation://session/) and cross-tier substitution now REJECTED - previously one || chain accepted any prefix for every tier. user_manual_behavior_coverage_tests ok 21 passed/0 failed (was 17; +4 substitution negatives); user_manual_api_tests ok 24/0; user_manual_storage_tests ok 12/0. Run and verified by KERNEL_BUILDER, not accepted on the sub-agent's report (agent was lost to a usage limit before running any suite).",
+    "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT011_TIER_SCHEME_BINDING_GREEN; HBR-PRIV-004/005 DECLARED_NOT_YET_PROVEN - shared scope substrate proven (0363+0364, resource_scope.rs, model_lane_resource_scope_pg_tests 7/0) but MT-011-specific diagnostic-surface scope-filtering evidence is not yet attached.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
@@ -89,10 +113,10 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_postgres -- --exact"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_postgres -- --exact"
     ],
     "risk_if_missed": "Future models and the operator will only understand the new orchestration system through this chat or stale packets, causing parallel work, recovery, diagnostics, and cloud/local handoff to drift.",
     "reference_only_paths": [
@@ -126,7 +150,9 @@
     "HBR-MAN-003",
     "HBR-MAN-004",
     "HBR-INT-007",
-    "HBR-INT-009"
+    "HBR-INT-009",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "MAN",
@@ -292,5 +318,17 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "proof_command_repair_2026_08_04": {
+    "defect": "Declared proof commands targeted handshake_core test binaries whose Cargo.toml [[test]] entries carry required-features = [\"test-utils\"], but omitted --features test-utils. Run verbatim they execute ZERO tests and exit 101 with `requires the features: test-utils`.",
+    "verification": "Confirmed by reading src/backend/handshake_core/Cargo.toml required-features for each named target, not inferred. Frontend (handshake_native) proof commands in this packet were checked and deliberately NOT changed: test-utils is a handshake_core feature and does not exist there.",
+    "repair": "Inserted --features test-utils only into the affected commands. No test name, assertion, or acceptance criterion changed; this makes the declared proof runnable, it does not weaken it.",
+    "changed_commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_freshness_fixture_tests model_lane_user_manual_freshness_detects_stale_code_truth -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_storage_tests model_lane_user_manual_entries_persist_in_postgres -- --exact"
+    ],
+    "found_by": "KERNEL_BUILDER-20260801-214802, after hitting the same defect while executing MT-010's proofs."
   }
 }

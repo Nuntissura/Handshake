@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-29T10:53:29Z",
+  "updated_at_utc": "2026-08-04T12:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -13,6 +13,33 @@
   "markdown_projection": {
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "v5_remediation_2026_08_02": {
+    "validator_verdict_remediated": "FAIL_V5",
+    "validator_session": "WP_VALIDATOR-20260801-062930",
+    "validator_judgment": "Active HBR-PRIV rows are not declared or evidenced for launched model/session resources. The declared real llama.cpp GGUF proof was not completed at current HEAD; only current-head real Candle evidence is green.",
+    "remediation_by": "KERNEL_BUILDER-20260801-214802",
+    "secondary_concern_llama_cpp_gguf": {
+      "status": "PROVED",
+      "why_it_was_never_completed": "Not a code defect. llama_cpp_e2e_smoke requires HANDSHAKE_TEST_GGUF_PATH and HARD-FAILS when absent (its own skip_policy says so), and no .gguf file was known to the session. The Candle lane had SmolLM2-135M in the HuggingFace cache, which is exactly why the Candle half was green and the llama.cpp half never ran.",
+      "resolution": "Operator identified the model library at D:\\Local Models (recorded as Codex [CX-983] LOCAL_TEST_MODEL_REGISTRY). Smallest GGUF selected so the proof is fast rather than impressive.",
+      "command": "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine,test-utils --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload -- --ignored --exact --nocapture",
+      "result": "ok. 1 passed; 0 failed; 0 ignored; 1 filtered out; finished in 17.84s",
+      "gguf_path": "D:/Local Models/Novaciano/Nanopenis-68M_NSFW_RP-GGUF/Nanopenis-68M_NSFW_RP.gguf",
+      "gguf_sha256": "452e1a2bae39605977ce0cb34179e1abbc58743a0ee0b7a4cf02d043d1a35bf0",
+      "gguf_length_bytes": 51164992,
+      "frozen_source_worktree_sha256": "f9d3810b5574576daabf535ab5ee7ba420608ee3155dec307307066a98442d9a",
+      "compiled_source_worktree_sha256_matches_frozen": true,
+      "proof_artifact": "${HANDSHAKE_ARTIFACTS_ROOT}/handshake-test/wp1-final-audit/mt013-real-llama-cpp-runtime-proof-v1.json",
+      "runtime_evidence": "Real llama.cpp executed, not a fixture: KV cache 13.50 MiB over 8192 cells (K/V q4_0), flash attention auto-enabled, fused Gated Delta Net resolved for autoregressive and chunked paths, CPU compute buffer 65.5020 MiB matching expectation. Recorded results: generation_count=6, embedding_dimension=768, flight_recorder_event_count=23, failed=0.",
+      "covers": "load, capabilities, generate, LoRA, KV quantization/prefix replay, ngram speculation, score, embed, Flight Recorder events, unload"
+    },
+    "primary_concern_hbr_priv": {
+      "status": "PARTIAL",
+      "declared": "HBR-PRIV-001/002/005/006 added to required_build_rules for MT-003 (launched model/session resources).",
+      "shared_substrate_proved": "Account-bound resource scope implemented and proven: migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs. tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL, including a documented falsifiability check.",
+      "still_owed": "MT-003-specific evidence that a LAUNCHED model/session resource carries owner/scope through the launch adapters for every lane (local, cloud, CLI, human, subagent), plus HBR-PRIV-006 revocation/context-switch behaviour for a live launch. The shared substrate proof does not by itself discharge this MT's launch-path rows."
+    }
   },
   "lifecycle": {
     "status": "READY_FOR_VALIDATION_V5",
@@ -28,12 +55,12 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-01T19:02:22Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-050211",
-    "ready_for_validation_at_utc": "2026-07-29T05:02:11Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T12:00:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": "Real-model proofs [19]/[20] need operator-local Candle/GGUF weights (validator-gated).",
-    "proof_status": "READY_FOR_VALIDATION_V5: all four V4 blocker gaps genuinely closed in production source (adversarial review confirmed no gate-gaming) and all runnable declared proof targets green on managed PostgreSQL (127.0.0.1:5544): launch [0]-[7] 8/8, schema [8]-[11] 4/4, boot-resolution [14]-[17] 7/7 (Ollama-kill: embedded ModelRuntime/Candle default, DisabledLlmClient fail-closed, ExternalEngineImport compat-only, no OllamaAdapter; AC[19] UUIDv7 identity + AC[20] embedding proven by non-vacuous tests), user_manual [12][13] 2/2, cargo check --features app-runtime [18], lib source-guard. (a) SwarmCoordinator generation routes through llm_client.stream_completion_with_context (coordinator.rs:2190); raw session_runtime accessor is test-gated. (b) official-CLI rejects unresolved execution-policy refs fail-closed at 3 layers (execution_policy.rs resolver + model_lane.rs:5392 preflight + official_cli_bridge.rs:2341 process-creation gate). (c) post-resume Windows startup bounded by POST_RESUME_CLEANUP_TIMEOUT=7s with deterministic terminate/reap (windows_native_jail/adapter.rs:740). (d) Ollama-kill complete. Two stale test assertions updated to track the already-committed production refactors (legitimate; anti-bypass negatives preserved). VALIDATOR-GATED: real-model proofs [19]/[20] need operator-local Candle/GGUF weights; a from-frozen-HEAD real-model rerun is operator-gated. MINOR follow-up: no test drives an unresolved exec-policy ref DIRECTLY into preflight_spawn_request (covered transitively). Source at 99c0f75c. UPDATE 2026-07-29: real-model proof [19] NO LONGER deferred -- candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop now runs GREEN with real weights (Maykeye_TinyLLama-v0, candle-runtime-engine) on managed PG. [20] llama.cpp GGUF proof (llama_cpp_e2e_smoke) is BUILD-TOOLCHAIN-GATED: the llama-cpp-runtime-engine feature compiles llama.cpp via CMake, which fails in this env ('CMake will not be able to correctly generate this project' -- no configured C++/MSVC compiler). Needs a C++ build toolchain (validator env or operator installs CMake+MSVC).",
+    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): SECONDARY concern CLOSED - the real llama.cpp GGUF E2E that was never completed at current HEAD now passes: llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload ok 1 passed/0 failed (17.84s) against a real 68M GGUF (sha256 452e1a2b..., 51164992 bytes) with frozen==compiled worktree sha256 f9d3810b...; artifact records generation_count=6, embedding_dimension=768, flight_recorder_event_count=23, failed=0. PRIMARY HBR-PRIV concern remains PARTIAL: rows declared and shared substrate proven, but per-lane launched-resource owner/scope evidence for local/cloud/CLI/human/subagent lanes and HBR-PRIV-006 revocation-during-live-launch are still owed.",
     "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -162,7 +189,11 @@
     "HBR-MAN-004",
     "HBR-INT-009",
     "HBR-SWARM-002",
-    "HBR-SWARM-004"
+    "HBR-SWARM-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006"
   ],
   "hbr_obligations": [
     "INT",

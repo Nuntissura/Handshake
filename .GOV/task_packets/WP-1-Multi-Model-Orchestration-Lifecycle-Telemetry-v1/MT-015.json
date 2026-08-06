@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-015",
   "created_at_utc": "2026-07-01T23:23:30Z",
-  "updated_at_utc": "2026-07-29T16:15:50Z",
+  "updated_at_utc": "2026-08-04T15:30:00Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-02_CLOUD_CONFIG_SECRETS_HARDENED",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
@@ -25,13 +25,13 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T13:20:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-161550",
-    "ready_for_validation_at_utc": "2026-07-29T16:15:50Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T15:30:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": "Validator-gated: live 2nd-OS-window + live-pixel PrintWindow grab (GUI host); existing test_argus_production_socket_live* covers it on a display.",
-    "proof_status": "READY_FOR_VALIDATION_V5: V4 blocker closed. Fixed a REAL production accessibility gap -- the DETACHED cloud-access Settings surface emitted its CLI auth-status + BYOK configured/unavailable state via plain ui.label, which egui does NOT auto-expose as an AccessKit name in an embedded (detached-window) viewport, so an out-of-process Argus client targeting popout-settings could not read the state (acceptance [1]/[4]). settings_dialog.rs render_cloud_models_body now emits the non-secret status text via set_author_id_and_label at both sites (fixed &static literals, no key material). VERIFIED HEADLESS (egui_kittest AccessKit) on this box: test_cloud_models_detached_settings_argus 6/6 (all controls addressable in the detached window; all 3 CLI auth states + BYOK configured/unavailable render; Gemini absent; CLI login operable without stealing focus; screenshot capture-target resolves popout-settings by recorded HWND with title fallback; BYOK key never appears as author_id/label -- canary), test_cloud_models_settings_argus (docked) 6/6. MANDATORY secrets-leakage adversarial review (acceptance [6]): PASS, NO leaks -- key strictly OS-keychain-only (SecretString at HTTP boundary, no read-back route, no store/delete echo, Zeroizing frontend buffer wiped on Save/close), labels strictly non-secret literals, console/Flight-Recorder cloud path carries only provider id + pid (redact_secrets on free-text), password AccessKit value masked to bullets at the egui source. Backend leak/enumeration proofs (cloud_byok_access_config_leak_tests, model_access_route_tests) are pre-existing green at V1 and unchanged by this edit (git diff on backend empty). VALIDATOR-GATED: only the OS raising a real 2nd top-level window + live-pixel PrintWindow grab needs a GUI host (existing test_argus_production_socket_live* on a display). DEFERRED FOLLOW-UPS: (1) HBR-QUIET -- the CLI-login proof spawns the provider's official CLI which currently pops a console window; add CREATE_NO_WINDOW suppression so test runs stay quiet (operator-reported). (2) review MINOR -- extend the canary scan to the AccessKit value channel (defense-in-depth; not a live leak, masked at source). Source at 5ec42f50.",
-    "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
+    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-04): HBR-QUIET-001 violation REMOVED - CREATE_NEW_CONSOLE gone as an active flag (independently verified), interactive login on ConPTY, login proven still COMPLETABLE by runtime round-trip. Proofs: model_access_route_tests 11/0; test_cloud_models_settings_argus 9/0; test_focus_audit_quiet 7/0; cli_bridge_login_quiet_tests 3/0/1; cargo check --all-targets exit 0; git diff --check clean. Falsifiability DEMONSTRATED by injecting a real CREATE_NEW_CONSOLE defect and observing both gates fail, then removing it. That exercise also EXPOSED and REPAIRED a near-vacuous test: the old created-during-window pid filter missed the regression because Windows 11's default-terminal handoff rendered the console in a pre-existing WindowsTerminal.exe pid. Live detached Settings Argus remains BLOCKED on Palmistry provenance (WP-KERNEL-012).",
+    "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED; HBR-QUIET-001 code-level violation removed (ConPTY, no CREATE_NEW_CONSOLE). HBR-QUIET-004 is NOT declared on this MT and is NOT needed now - there is no foreground exception to declare because the foreground launch is gone. Detached Settings Argus proof remains BLOCKED on authenticated Palmistry provenance (WP-KERNEL-012).",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_task_a0e9015f5c0ee8643",
     "post_implementation_adversarial_review_status": "COMPLETED_SECRETS_LEAKAGE_LENS_20260729_PASS",
     "adversarial_findings_status": "NO_SECRET_LEAKS; real accessibility gap fixed; HBR-QUIET CLI-login window + canary value-scan deferred",
@@ -91,7 +91,10 @@
     "HBR-INT-005",
     "HBR-MAN-004",
     "HBR-INT-009",
-    "HBR-QUIET-001"
+    "HBR-QUIET-001",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008"
   ],
   "hbr_obligations": [
     "VIS",
@@ -200,5 +203,35 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "v5_remediation_2026_08_04": {
+    "validator_verdict_remediated": "FAIL_V5",
+    "validator_judgment": "settings_dialog.rs launches official login in a visible terminal and states the terminal may take focus, violating HBR-QUIET-001. Mandatory native detached Settings Argus proof is absent despite backend suites passing 14/14.",
+    "remediation_by": "KERNEL_BUILDER-20260801-214802 (implementation delegated across two passes; KERNEL_BUILDER fixed two fail-closed defects in the first pass and verified the second)",
+    "quiet_violation_removed": "CREATE_NEW_CONSOLE is gone as an active flag - INDEPENDENTLY VERIFIED by KERNEL_BUILDER: every remaining occurrence in src/ is a comment explaining the removal. All 11 .creation_flags( sites in src/ are CREATE_NO_WINDOW or palmistry_creation_flags(). Interactive login now runs through ConPTY (portable-pty openpty + slave.spawn_command) so no console window is created and no Z-order/foreground change occurs.",
+    "why_not_the_one_line_fix": "Flipping CREATE_NEW_CONSOLE to CREATE_NO_WINDOW would satisfy HBR-QUIET-001 on paper and BREAK the feature: `claude auth login` / `codex login` are interactive device/OAuth flows, so hiding the console converts focus-stealing into an invisible hang with no prompt and no way to complete login.",
+    "kernel_builder_fail_closed_fixes": [
+      "official_cli_bridge.rs: the PTY spawn passed the PINNED launch.executable_path through to_string_lossy(), which substitutes U+FFFD for non-UTF-8 bytes and would hand the PTY a path that no longer names the identity-checked binary - silently defeating executable-identity pinning on the one path that launches a credential-bearing login. Now refuses with ExecutableIdentity rather than degrading.",
+      "terminal/pty.rs resolve_windows_default_shell_from_path: same lossy conversion applied AFTER is_file() had verified a specific file; now skips candidates that cannot round-trip to UTF-8."
+    ],
+    "proofs": {
+      "model_access_route_tests": "ok. 11 passed; 0 failed; 0 ignored",
+      "test_cloud_models_settings_argus": "ok. 9 passed; 0 failed",
+      "test_focus_audit_quiet": "ok. 7 passed; 0 failed (63 source files scanned)",
+      "cli_bridge_login_quiet_tests": "ok. 3 passed; 0 failed; 1 ignored (the ignored one is the fixture child, invoked by the launch)",
+      "cargo_check_all_targets": "exit 0, 0 errors",
+      "git_diff_check": "exit 0"
+    },
+    "falsifiability_demonstrated": {
+      "method": "Injected the real defect at the production launch site - std::process::Command::new(\"cmd.exe\").creation_flags(CREATE_NEW_CONSOLE_PROBE) immediately after PtySession::spawn - rebuilt, ran, OBSERVED failure, then removed the probe and confirmed NO_PROBE_RESIDUE.",
+      "observed_failure": "1 passed; 2 failed. Static gate: 'HBR-QUIET-001: no product spawn site may create a console window ... Offending sites: official_cli_bridge.rs:2983/2986: CREATE_NEW_CONSOLE'. Runtime gate: 'the official-CLI login must open NO window. New visible top-level windows ... hwnd=0x14b09fc pid=17828 exe=Some(\"WindowsTerminal.exe\")'.",
+      "after_removal": "3 passed; 0 failed; cargo check --all-targets 0 errors"
+    },
+    "significant_finding_the_probe_exposed": "The pre-existing 'process created during the audit window' filter would have MISSED the injected regression entirely. Windows 11's default-terminal handoff rendered the new console in WindowsTerminal.exe pid 17828, which was ALREADY RUNNING before the launch. Only the newly added CONSOLE_HOST_IMAGES rule caught it. Without that hardening the runtime negative would have been near-vacuous on this host - i.e. the falsifiability exercise did not merely confirm the test, it repaired it.",
+    "completability_proven_not_asserted": "A runtime round trip through the production transport inside the passing test: the fixture child writes an interactive prompt into the pty, that prompt reaches InteractiveLoginTransport::transcript() (the same surface the HTTP poll route serves to the Settings panel), write_input() delivers the operator's answer to the child's stdin with production's trailing \r, and the child echoes HANDSHAKE-LOGIN-RECEIVED:<answer> - a string only the child can emit, so ConPTY input echo cannot forge it. UI side: render_cli_login_panel exposes author_ids settings.cloud.cli.{provider}.login.transcript/.login.input/.login.send/.login.stop.",
+    "honest_discrepancy": "The FAIL_V5 text cites 'backend suites passing 14/14'; model_access_route_tests actually contains 11 tests. The validator's 14/14 does not correspond to this suite. Recorded as observed rather than reconciled by assumption.",
+    "residual_weakness_disclosed": "The runtime negative observes a real desktop, so an unrelated application opening a new console/terminal window inside the ~900ms audit window would false-positive. This is a deliberate false-positive bias (fail loud rather than miss a regression) and is documented in the test file.",
+    "blocked_row": "HBR-VIS-001 live detached Settings Argus - BLOCKED, missing resource palmistry.exe / authenticated Palmistry provenance (WP-KERNEL-012). app.rs:1058 returns false unless diagnostics.argus_signing_secret() resolves; api/palmistry.rs:504 returns PALMISTRY_LAUNCH_UNAVAILABLE. Headless egui_kittest evidence was NOT substituted for it.",
+    "cross_lane_hazard_observed": "Another lane editing the same worktree left handshake_core NON-COMPILING for ~20 minutes (E0063) mid-session, failing this lane's first backend and native runs for reasons unrelated to MT-015. Concurrent edits to a shared crate inside one worktree make every lane's proof non-reproducible while the break lasts."
   }
 }

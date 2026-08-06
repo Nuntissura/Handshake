@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-014",
   "created_at_utc": "2026-07-01T21:15:18Z",
-  "updated_at_utc": "2026-07-29T10:49:58Z",
+  "updated_at_utc": "2026-08-04T20:55:00Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
@@ -55,15 +55,16 @@
     "ready_for_validation_at_utc": "2026-07-29T07:11:03Z",
     "completed_by": null,
     "blocker": null,
-    "missing_resource": "Validator-gated: live-Argus panel VISUAL proof (GUI host + Palmistry) only; real-Candle telemetry now proven with operator weights.",
+    "missing_resource": "CORRECTED 2026-08-04: the previously recorded resource -- 'Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)' -- is STALE. Palmistry is PRESENT in this worktree and was verified by direct file inspection, not inference: migrations/0360_palmistry_durable_verifier.sql (+ .down), src/api/palmistry.rs (carries WatcherSigningSecret, i.e. the authenticated provenance seam), src/sandbox/palmistry_watcher.rs, src/frontend/handshake_native/src/palmistry.rs, the cargo-auto-discovered binary target src/frontend/handshake_native/src/bin/palmistry.rs, and the real end-to-end proof tests/palmistry_real_e2e_tests.rs. REMAINING GATE (smaller and actionable, not an absent component): palmistry_real_e2e_tests is #[ignore]-gated and needs an operator-provided environment -- CARGO_BIN_EXE_handshake_core via --features app-runtime, HANDSHAKE_NATIVE_BIN, HANDSHAKE_PALMISTRY_BIN, HANDSHAKE_PALMISTRY_SHA256 (exact lowercase pin), POSTGRES_TEST_URL on a disposable database, and HANDSHAKE_PALMISTRY_E2E_ISOLATED=1 -- plus exclusive use of the production-fixed listener 127.0.0.1:37501, so the target must run serially and fails closed if that port is occupied.",
     "proof_status": "READY_FOR_VALIDATION_V5: 5 declared proof targets green + full model_runtime_registry_api_tests 13/13 on managed PostgreSQL (127.0.0.1:5544). V4 blocker closed: (1) durable active default-model selection persists to model_runtime_active_selection (PG) and is RESTORED after restart -- proven by mt014_active_default_selection_persists_and_restores_after_restart (new store vs same PG recovers the operator's audited CAS choice B rev2, not the boot candidate A). (2) ModelRuntime panel telemetry wired: local_router.rs::inspect_model_runtime now surfaces real active-steering / tokens-per-sec / VRAM-resident / last-call / engine-internals (was hardcoded Unavailable) with honest per-field typed-Unavailable -- proven by mt014_registry_projection_surfaces_live_runtime_telemetry_through_backend via live GET /model-runtime/registry. Also fixed a REAL production integrity-ORDERING gap: the absent-selection guard masked the structural registry guards (duplicate SHA, adapter/capability drift, orphaned catalog row, uncommitted READY) whenever no default existed; reordered so structural corruption is reported first and absent-default still fails closed (500). 7 formerly-failing mt014_* tests now green; adversarial security review PASS (fail-closed preserved, no new Ok path, precedence test-enforced at model_runtime_registry_api_tests.rs:1282/:1323). No assertion loosened. VALIDATOR-GATED: (a) live-Argus VISUAL panel proof (test_model_runtime_panel_argus) needs a GUI host + Palmistry backend; (b) real in-process Candle telemetry values need candle-runtime-engine + a real model artifact (candle_e2e_smoke --ignored). Source at ac4a4ac4/9d5f2e2d. UPDATE 2026-07-29: the real in-process Candle telemetry proof is NO LONGER validator-deferred -- mt014_real_candle_registry_commit_failure_rolls_back_and_stops now runs GREEN with real weights (Maykeye_TinyLLama-v0, candle-runtime-engine) on managed PG: real Candle load + forced registry-commit failure rolls back and writes STOP. Only the live-Argus VISUAL panel proof remains GUI-host-gated.",
-    "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
+    "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - the registry projection behind the ModelRuntime panel is account-scoped. STILL OWED: HBR-PRIV-008 operator-surface scope/denial visibility is BLOCKED on the same Palmistry provenance that blocks live Argus.; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "COMPLETED_INTEGRITY_REORDER_REVIEW_20260729_PASS",
     "adversarial_findings_status": "REAL_INTEGRITY_ORDERING_GAP_FIXED_AND_REVIEWED_FAILCLOSED_PRESERVED",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-014:2026-07-20T01:18:19.901Z",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "missing_resource_prior_2026_08_04": "Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)"
   },
   "scope": {
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
@@ -124,7 +125,12 @@
     "HBR-INT-005",
     "HBR-INT-007",
     "HBR-MAN-004",
-    "HBR-INT-009"
+    "HBR-INT-009",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-008"
   ],
   "hbr_obligations": [
     "INT",
@@ -414,5 +420,11 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "palmistry_residual_correction_2026_08_04": {
+    "why_this_was_wrong": "The note was written when Palmistry genuinely was not in this worktree. It has since landed on this branch, but the note was never revisited, so two MTs carried an absent-component blocker for a component that is present.",
+    "how_verified": "Enumerated every *palmistry* path in the worktree (excluding target/ and .git/) and read the module headers. Six source/migration files plus one e2e test found.",
+    "status_unchanged": "Both MTs remain READY_FOR_VALIDATION_V5. This corrects the recorded residual only; no acceptance criterion, proof target, or status was altered.",
+    "found_by": "KERNEL_BUILDER-20260801-214802, prompted by a delegated agent correctly disputing a briefing statement that Palmistry was absent. The agent was right and the briefing was wrong; this is the downstream correction."
   }
 }

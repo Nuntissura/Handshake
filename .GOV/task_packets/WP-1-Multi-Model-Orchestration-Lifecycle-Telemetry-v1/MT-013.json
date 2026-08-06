@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-29T10:49:58Z",
+  "updated_at_utc": "2026-08-05T10:00:00Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
@@ -31,7 +31,7 @@
     "blocker": null,
     "missing_resource": "Validator-env only: template-mode managed-PostgreSQL-start harness for the 8 engine-free SUPPORTING proofs [1]-[8] (PASS_REQUIRED real-Candle proof [0] is met).",
     "proof_status": "READY_FOR_VALIDATION_V5: both V4 blocker parts now CLOSED. (1) Reclaim path WIRED into product boot (MT-007 reconcile_restart_orphans_at_boot, main.rs:447), independently proven by process_reclaim_real_lifecycle_pg_tests. (2) PASS_REQUIRED real-Candle proof [0] NOW GREEN with real operator-local weights (Maykeye_TinyLLama-v0 via HANDSHAKE_TEST_CANDLE_MODEL_DIR) on managed PostgreSQL (127.0.0.1:5544), features candle-runtime-engine,test-utils: candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop (real embedded Candle load emits process-ledger START/STOP) + mt013_real_candle_embedding_failure_unloads_and_stops_primary (injected missing-embedding artifact unloads+stops the primary fail-closed) both ok. Real START/STOP/artifact-retention/crash-recovery/lease-release are now bound to the current source. The 8 ENGINE_FREE_SUPPORTING proofs [1]-[8] (embedded_model_ledger reclaim/lifecycle) use task_owned_managed_postgres TEMPLATE mode which requires the test process to START its own dedicated cluster -- validator-env-runnable, not runnable while adopting the shared 5544 cluster; supporting evidence, not the PASS_REQUIRED gate.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_enumerate_each_others_model_registry_rows - ModelRegistryStore list paths are account-scoped; previously list_recoverable/list_active_selections were full-table. STILL OWED: Model artifact/lifecycle-event scoping and HBR-PRIV-006 revocation for registry rows are not yet attached.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
     "adversarial_findings_status": "REAL_CANDLE_PASS_REQUIRED_PROOF_GREEN_WITH_OPERATOR_WEIGHTS; reclaim wired via MT-007",
@@ -93,7 +93,11 @@
     "HBR-INT-001",
     "HBR-INT-009",
     "HBR-MAN-004",
-    "HBR-SWARM-002"
+    "HBR-SWARM-002",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006"
   ],
   "hbr_obligations": [
     "INT",
@@ -335,5 +339,181 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "v5_proof_audit_2026_08_04": {
+    "headline": "TWO of this MT's declared proofs are VACUOUS: they name tests that no longer exist. `cargo test <filter>` with a filter matching nothing runs zero tests and EXITS 0, so a validator executing them verbatim sees success and records a pass that proves nothing.",
+    "vacuous_proofs": [
+      "embedded_model_ledger_tests :: hard_crash_pidless_embedded_orphan_is_reconciled_on_boot -> observed 'test result: ok. 0 passed; 0 failed; 45 filtered out', exit 0. Confirmed absent from tests/embedded_model_ledger_tests.rs (no `fn` of that name) and absent from `--list`.",
+      "embedded_model_ledger_tests :: embedded_model_stop_overflow_returns_error_for_retry -> observed 'test result: ok. 0 passed; 0 failed; 45 filtered out', exit 0. Same confirmation."
+    ],
+    "why_they_vanished": "The suite was restructured and grew from the 8 tests recorded on 2026-07-04 to 45. The pidless/orphan reclaim area was rewritten into a family of new tests (pidless_reclaim_preserves_two_live_instances_and_closes_one_stale_instance, concurrent_reconcilers_close_stale_instance_exactly_once, pidless_reclaim_row_lock_timeout_is_bounded_reported_and_recoverable, and others). The MT contract was never updated to follow.",
+    "deliberately_NOT_done": "The two dead proof names were NOT re-pointed at similarly-named surviving tests. Picking a plausible replacement would fabricate evidence for a claim nobody verified is equivalent, and several of the nearest candidates are themselves currently FAILING (see below), so a silent substitution would have been both unfounded and wrong. Re-pointing needs whoever owns what these two proofs were meant to establish.",
+    "declared_proofs_that_DO_pass": {
+      "embedded_model_ledger_tests :: embedded_model_load_emits_ledger_start_and_shutdown_seam_emits_stop": "1 passed, 0 failed",
+      "embedded_model_ledger_tests :: graceful_shutdown_sequence_flushes_stop_through_background_writer": "1 passed, 0 failed",
+      "embedded_model_ledger_tests :: supplied_ledger_start_overflow_fails_local_client_assembly_closed": "1 passed, 0 failed",
+      "process_ledger_writer_tests :: overflow_10001st_event_emits_fr_evt_ledger_overflow_without_blocking_spawn_path": "1 passed, 0 failed"
+    },
+    "full_suite_state_is_NOT_green": {
+      "embedded_model_ledger_tests (whole binary)": "18 passed, 27 failed",
+      "single_root_cause_of_all_27": "PROCESS_LEDGER_STORE: no migration-0021/0359-shaped, permanent, non-inherited, exact-runtime-owner-guard/RLS/rule-free kernel_process_lifecycle authority relation exists in the explicit PostgreSQL search path.",
+      "evidence_gathered": "Inspected the live test PostgreSQL directly with psql. The kernel_process_lifecycle relations DO exist - one per isolated test schema (mt013_<uuid>), relkind=r, relpersistence=p. So the rows are not missing; the authority guard is not resolving them through the search path the harness sets. This is the SAME defect class as the migration 0363 search-path bug found earlier in this packet (code qualifying against one schema while the harness isolates each test in another), but it sits in the process-ledger authority lookup, not in a migration.",
+      "ownership": "These reclaim/authority tests are MT-019 territory (MT-019 declares 8 process_ledger/reclaim proofs). Recorded here because this is where the failures surfaced; routing and any fix belong with that MT, not with MT-013's embedded-model ledger scope."
+    },
+    "harness_mode_discovery": {
+      "fact": "tests/knowledge_pg_support.rs::task_owned_managed_postgres asserts HANDSHAKE_TEST_PG_DATABASE_TEMPLATE=1 AND HANDSHAKE_MANAGED_PG_DATA_DIR AND HANDSHAKE_MANAGED_PG_PORT, and FORBIDS a non-empty POSTGRES_TEST_URL or DATABASE_URL.",
+      "consequence": "This packet needs TWO MUTUALLY EXCLUSIVE database modes. Suites using knowledge_pg() need POSTGRES_TEST_URL set; suites using task_owned_managed_postgres need it UNSET plus three other variables. No declared proof command in this packet states which mode it needs.",
+      "cost_of_not_knowing": "KERNEL_BUILDER first ran these suites with POSTGRES_TEST_URL set globally and got 29 refusals in 0.01s that LOOK like product failures and are not. A validator following the declared commands verbatim will hit the same wall and can easily mis-report the product as broken.",
+      "recommendation": "Record the required mode on each affected proof command, and consider a standing Codex rule. Flagged to the operator; not self-authorized."
+    },
+    "audited_by": "KERNEL_BUILDER-20260801-214802",
+    "systemic_check": "All 106 named-test proof references across all 23 MT contracts were scanned statically for this failure mode. Only these two are genuinely vacuous; the problem is confined to this restructured suite and is NOT packet-wide."
+  },
+  "advisory_lock_database_scope_cascade_2026_08_05": {
+    "headline": "DEFINITIVE EXPLANATION OF THE MIXED-SUITE CASCADE: PostgreSQL advisory locks are DATABASE-scoped, but this harness isolates tests by SCHEMA inside one shared database. Per-schema isolation therefore does NOT isolate the locks these code paths take, so parallel tests serialize and deadlock across schema boundaries.",
+    "the_two_facts_that_combine": {
+      "1_locks_are_database_wide": "pg_advisory_xact_lock keys live in a single per-DATABASE namespace. Two sessions in different schemas of the same database contend on the same key.",
+      "2_isolation_is_only_per_schema": "Verified directly with psql: the managed cluster has ONE database (`handshake`) containing per-test schemas (mt013_<uuid>, and equivalents for other suites). Confirmed earlier when kernel_process_lifecycle was found once per test schema."
+    },
+    "the_colliding_keyspace": "swarm_orchestration/model_lane.rs::record_or_extend_run_tx takes pg_advisory_xact_lock(hashtextextended($1, 0)) keyed on run_id, AND swarm_orchestration/routing_execution.rs::lock_execution takes pg_advisory_xact_lock(hashtextextended($1, 0)) keyed on execution_id. Same function, same salt (0), same database-wide namespace. record_or_extend_run_tx additionally takes a `SELECT ... FROM model_lane_runs WHERE run_id = $1 FOR UPDATE` row lock in the SAME caller-provided transaction.",
+    "why_this_produces_the_observed_symptoms": [
+      "The failing/hanging SET changes between identical runs, because which test wins a lock depends on scheduling.",
+      "mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted PASSED in one run and HUNG in the next with no change to it or to any CRDT code - it was queued behind another test's transaction, in a different schema.",
+      "Single-test runs (--exact) and single-threaded runs are reliable; that is exactly the configuration in which every fix this session was confirmed.",
+      "The observed blocking chain (holder idle-in-transaction after a scoped read -> a waiter on `transactionid` -> a waiter on `advisory`) is the model_lane run lock and the routing execution lock interacting."
+    ],
+    "relationship_to_the_other_root_cause": "This is SEPARATE from, and compounded by, the transaction-across-generation defect recorded in transaction_across_generation_root_cause_2026_08_05. A transaction held open across inference makes the window enormous; database-wide advisory locks make that window affect UNRELATED tests in other schemas. Either alone is survivable; together they make the suite non-deterministic.",
+    "actionable_consequences": {
+      "for_validation_now": "Run mixed_model_lane_integration_pg_tests with `-- --test-threads=1` (or per-test --exact). A default-parallelism run is not reproducible and will accuse innocent tests. This is already recorded on MT-017, whose capstone declares this binary.",
+      "for_the_harness": "True isolation requires a DATABASE per test (the task_owned_managed_postgres template mode already creates per-test databases) rather than a schema per test, OR the advisory keys must be namespaced per test schema so they cannot collide across concurrent tests.",
+      "for_the_product": "Split the transaction at the generation await so no lane row and no advisory key is held across inference. Anchor identified: model_lane.rs::record_or_extend_run_tx is called from record_prepared_launch (line 245) inside a caller-controlled transaction."
+    },
+    "verification_method": "Two live pg_stat_activity/pg_blocking_pids samples taken DURING the hang windows, plus direct psql inspection of the cluster's database/schema layout. Not inferred from code reading alone.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T06:45:00Z"
+  },
+  "twenty_seven_failures_narrowed_2026_08_05": {
+    "headline": "The 27 embedded_model_ledger_tests failures are NOT a malformed table, a missing migration, or a missing trigger. The authority relation is WELL-FORMED and satisfies every condition the guard checks. The failure is SEARCH-PATH VISIBILITY: the connection running the guard does not have the schema containing that relation on its search_path.",
+    "the_error": "PROCESS_LEDGER_STORE: no migration-0021/0359-shaped, permanent, non-inherited, exact-runtime-owner-guard/RLS/rule-free kernel_process_lifecycle authority relation exists in the explicit PostgreSQL search path (process_ledger/reclaim.rs:808). This is the EMPTY-match branch, not the multiple-match branch.",
+    "what_was_verified_directly_with_psql": {
+      "method": "Ran the guard's OWN conditions as SQL against a real persisted kernel_process_lifecycle relation on the live managed cluster (oid 7338173).",
+      "primary_key": "PASSES - conkey resolves to exactly {process_uuid}.",
+      "generated_expressions": "PASSES - count = 4, and the four are exactly process_id -> process_uuid, adapter_id -> sandbox_adapter_id, spawned_at_utc -> started_at, stopped_at_utc -> stopped_at, as migration 0021/0359 requires.",
+      "runtime_owner_guard": "PASSES - trigger trg_kernel_process_runtime_owner_descriptor_guard is present and not internal.",
+      "shape_flags": "PASSES - relpersistence = p (permanent), relrowsecurity = f, relhassubclass = f (not inherited), relhasrules = f."
+    },
+    "what_this_eliminates": [
+      "ELIMINATED: 'the migration chain did not run in the isolated schema' - the relation exists with the full 0021/0359 shape.",
+      "ELIMINATED: 'the table shape drifted' - all four generated expressions and the exact single-column primary key are present.",
+      "ELIMINATED: 'the owner-guard trigger is missing' - it is there.",
+      "ELIMINATED: 'my migrations 0363/0364 broke it' - already separately proven; 0363 targets only model_lane_*, model_runtime_*, palmistry_durable_verifier and swarm_* tables and contains ZERO references to kernel_process_lifecycle."
+    ],
+    "what_remains": "The store's connection search_path does not include the schema holding the relation when these tests run. Note this suite uses task_owned_managed_postgres (template mode: a DATABASE per test) while other suites use knowledge_pg (a SCHEMA per test) - the two modes place the relation differently, and the guard resolves candidates from the EXPLICIT search path only. That mode split is already recorded on this MT as an undocumented harness requirement.",
+    "concrete_next_step": "Print the connection's actual `SHOW search_path` at the point the guard runs, and compare it to the schema the relation was created in. That single observation distinguishes 'search_path never set for this pool' from 'set to the wrong schema' from 'relation created in public while search_path excludes public'.",
+    "not_fixed_here": "The fix belongs in the harness's pool/search_path wiring for this suite, not in product code. Changing it blind risks breaking the OTHER suites that depend on the schema-per-test mode, which are currently green.",
+    "narrowed_by": "KERNEL_BUILDER-20260801-214802",
+    "narrowed_at_utc": "2026-08-05T08:00:00Z"
+  },
+  "twenty_seven_failures_ROOT_CAUSE_2026_08_05": {
+    "headline": "ROOT CAUSE FOUND: migration 0359's runtime-owner-guard TRIGGER is not created inside the isolated template-mode schema. The relation is otherwise perfect, so the authority guard's third condition fails and it reports zero matches.",
+    "evidence": {
+      "enriched_error": "search_path in force: [mt013_019fd05ffa0d7c30a7cda2cab2b2e08c]; kernel_process_lifecycle relations actually present in schemas: [mt013_019fd05ffa0d7c30a7cda2cab2b2e08c]. The relation IS in the search path and IS visible - so this is NOT the pool/search_path wiring fault previously suspected.",
+      "direct_psql_of_that_schema": "relpersistence=p, relrowsecurity=f, relhassubclass=f, relhasrules=f (all correct). All FOUR generated expressions present (process_id->process_uuid, adapter_id->sandbox_adapter_id, spawned_at_utc->started_at, stopped_at_utc->stopped_at). TRIGGERS: NONE.",
+      "contrast": "A storage_test_<uuid> schema on the external cluster HAS trg_kernel_process_runtime_owner_descriptor_guard and passes all three conditions. The template-mode schema does not. Same table, different creation path."
+    },
+    "why_the_guard_fails": "process_ledger/reclaim.rs requires primary_key_matches AND generated_expressions_match AND runtime_owner_guard_matches, then exactly one candidate. The first two pass; runtime_owner_guard_matches fails because the trigger is absent, leaving zero candidates and the '...exists in the explicit PostgreSQL search path' error.",
+    "correction_of_my_earlier_records": "Two earlier entries in this MT are superseded. twenty_seven_failures_narrowed_2026_08_05 concluded the relation was well-formed and the fault was search-path visibility - that verification was performed against a storage_test_* schema from a DIFFERENT suite and mode, not against an mt013_* schema, and generalising from it was wrong. The enriched error then disproved the visibility theory outright.",
+    "known_fix_pattern_in_this_repo": "This is the SAME defect class as migration 0363: a statement that resolves against `public` (or otherwise depends on search_path) silently does nothing when the harness runs each test in an isolated schema, while still recording the migration as applied. Migration 0364 fixed 0363 by resolving with quote_ident against the scoped table instead of a public-qualified name. Apply the same treatment to 0359's trigger creation.",
+    "verification_step_for_the_fix": "After changing 0359, re-run any embedded_model_ledger_tests case in TEMPLATE mode and confirm the schema's kernel_process_lifecycle has trg_kernel_process_runtime_owner_descriptor_guard: SELECT tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='<test schema>' AND c.relname='kernel_process_lifecycle' AND NOT t.tgisinternal;",
+    "diagnostic_left_in_product": "The guard's empty-match error now prints the search_path in force and the schemas actually holding the relation, so this class of failure self-explains on any host instead of requiring a database inspector.",
+    "found_by": "KERNEL_BUILDER-20260801-214802",
+    "found_at_utc": "2026-08-05T08:45:00Z"
+  },
+  "twenty_seven_failures_FINAL_ROOT_CAUSE_2026_08_05": {
+    "headline": "FINAL. The template-mode test schema is NEVER MIGRATED. Migration 0359 did not partially apply - the migration machinery does not run in this mode at all. The schema is built by some other mechanism that creates TABLES but not functions, triggers, or 0359's columns.",
+    "evidence_live_psql_on_the_failing_schema": {
+      "schema": "mt013_019fd08ecba17bc287bd3b2468398777 (port 5563, created by the failing run itself)",
+      "owner_columns_present": "ONLY owner_role, owner_wp - both 0021-era.",
+      "owner_runtime_instance_id_(added_by_0359)": "ABSENT (count = 0).",
+      "triggers_on_kernel_process_lifecycle": "NONE.",
+      "guard_function_kernel_process_runtime_owner_descriptor_guard": "DOES NOT EXIST ANYWHERE IN THE DATABASE - not in the test schema, not in public.",
+      "_sqlx_migrations": "DOES NOT EXIST IN ANY SCHEMA of this database."
+    },
+    "why_this_settles_it": "If the migration chain had run and only the trigger statement mis-resolved, _sqlx_migrations would exist and 0359's owner_runtime_instance_id column would be present. Neither is true. The absence of _sqlx_migrations anywhere proves sqlx migrations were never applied to this database.",
+    "supersedes_my_two_earlier_records": [
+      "twenty_seven_failures_narrowed_2026_08_05 concluded 'relation is well-formed, fault is search-path visibility'. WRONG - that verification was run against a storage_test_* schema from a DIFFERENT suite and mode.",
+      "twenty_seven_failures_ROOT_CAUSE_2026_08_05 concluded 'migration 0359's trigger is not created in the template-mode schema, fix it like 0364 fixed 0363'. ALSO WRONG in its remedy: a new migration would accomplish NOTHING because nothing runs migrations in this mode. The observation that the trigger was missing was correct; the inference that 0359 had otherwise applied was not."
+    ],
+    "correct_fix_direction": "Harness, not product, and not a migration. The template-mode path (tests/knowledge_pg_support.rs - task_owned_managed_postgres / create_migrated_template_database) must actually apply the migration chain to the template database before per-test schemas/databases are derived from it. Note create_migrated_template_database EXISTS in that file and is referenced at lines ~600-601; whether it is reached on this path is the thing to verify first.",
+    "do_NOT_do": "Do not author a migration 0365 to re-create the trigger, and do not edit 0359. sqlx checksum-validates applied migrations, and in this mode there is no migration state to append to.",
+    "diagnostic_left_in_product": "process_ledger/reclaim.rs's empty-match error now prints the search_path in force and the schemas holding the relation. That is what disproved the visibility theory and is worth keeping.",
+    "process_note": "Three successive conclusions on this one defect were wrong before this one, each corrected by going back to live database evidence rather than reasoning from code. Anyone continuing should verify against a live failing schema before acting.",
+    "found_by": "KERNEL_BUILDER-20260801-214802",
+    "found_at_utc": "2026-08-05T09:30:00Z"
+  },
+  "independent_corroboration_and_CONCURRENT_SESSION_WARNING_2026_08_05": {
+    "headline": "A SECOND, INDEPENDENT instrument reached the same conclusion as twenty_seven_failures_FINAL_ROOT_CAUSE_2026_08_05. Recorded as corroboration, not as a competing diagnosis. ALSO: two KERNEL_BUILDER sessions were editing this packet and this product worktree at the same time - that is a coordination hazard the Operator must resolve.",
+    "corroborating_evidence": "reclaim.rs was instrumented from a different angle - report, per rejected candidate, exactly which COLUMN SIGNATURE fields mismatch - and the failing template-mode schema reported: 'mt013_019fd0c5392676c1b8a19378689a7426 -> column count 24 != expected 30; missing column owner_runtime_instance_id; owner_host_scope_id; owner_lease_schema_id; owner_lease_protocol; owner_lease_address; owner_lease_port'.",
+    "why_it_corroborates": "Those six missing columns are exactly the ones migrations/0359_process_runtime_owner_identity.sql adds, and the only owner_* columns that survive are the 0021-era pair. That is independently consistent with 'the migration chain never ran in this mode', and it is NOT consistent with 'only the trigger statement mis-resolved' (which would have left 0359's columns present). It reached the same place from column shape rather than from _sqlx_migrations.",
+    "additional_datum": "Candidates rejected on PK/generated-expression/runtime-owner-guard checks: [] - EMPTY. The three later checks were never reached, because the column-signature filter runs first and rejected every candidate. Anyone reading only the trigger evidence could wrongly conclude the trigger check was the failing gate; it never executed.",
+    "second_case_do_not_confuse": "The same run also rejected schema mt013_writer_shadow_<uuid> with 'column count 1 != expected 30'. That is a DELIBERATE decoy relation created by the writer-shadow tests and the guard correctly refuses it. Only the 24-column case is the defect.",
+    "isolation_datum": "durable_start_ack_rejects_uuid_reuse_without_emitting_stop PASSES ALONE in template mode (1 passed, 78.60s) but FAILS inside the full binary, so the failures are order/state dependent within the process.",
+    "instrumentation_added": "process_ledger/reclaim.rs now also reports per-candidate shape_rejections and guard_rejections, and its empty-match message no longer asserts unconditionally that a non-empty 'present in' list means a pool/search_path wiring fault - this run proved that assertion false. Diagnostic only: no control flow, acceptance behaviour, or assertion changed.",
+    "CONCURRENT_SESSION_HAZARD": {
+      "what_happened": "KERNEL_BUILDER-20260805-053606 (Operator-directed takeover) and KERNEL_BUILDER-20260801-214802 (the prior session) were both live, both editing .GOV/task_packets/WP-1-.../MT-*.json and both editing src/backend/handshake_core product code in the SAME wtc-multi-model-orchestration-v1 worktree within the same minutes. A write by 053606 to MT-013.json was rejected because the file had changed underneath it.",
+      "why_it_matters": "Two implementer sessions on one WP worktree can silently lose each other's edits, produce contradictory governance records, and make it impossible to attribute which diff proved which claim. It also means neither session's test runs are isolated from the other's rebuilds. This is exactly the class of drift the WP worktree budget of 1 per WP [CX-503G] exists to prevent.",
+      "state_verified_by_053606": "Both of 053606's product edits survived and are present: reclaim.rs shape_rejections/guard_rejections, and sandbox/cloud_hypervisor/adapter.rs runtime-resolved sandbox-root defaults. No 053606 edit is known to have been lost, but that is a point-in-time check, not a guarantee.",
+      "operator_action_needed": "Decide which session owns this WP and close the other. Until then, treat every governance record and every test result on this packet as potentially raced."
+    },
+    "status_unchanged": "No lifecycle status changed by this record.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T09:35:00Z"
+  },
+  "twenty_seven_failures_FIX_APPLIED_2026_08_05": {
+    "headline": "FIX LANDED. embedded_model_ledger_tests went from 18 passed/27 failed to 27 passed/18 failed, and the 'no ... authority relation exists in the explicit PostgreSQL search path' error dropped from 27 occurrences to 2.",
+    "the_defect": "The suite builds its own isolated schema and applied ONLY migrations/0021_kernel_process_lifecycle.sql. The production authority guard (process_ledger/reclaim.rs) accepts only a 'migration-0021/0359-shaped' relation - it requires the runtime-owner-descriptor trigger that 0359 installs. 0021 alone produces a table that LOOKS correct (exact {process_uuid} primary key, all four generated expressions) but carries NO trigger, so the guard found zero candidates.",
+    "the_fix": "tests/embedded_model_ledger_tests.rs: after applying 0021, the general schema fixture now also applies migrations/0359_process_runtime_owner_identity.sql. One site changed.",
+    "deliberately_NOT_changed": "Two other sites in the same file also apply 0021 raw and were left alone ON PURPOSE: one builds an 'exact-shaped replacement' table for an OID-replacement scenario, and the other builds a DELIBERATELY MALFORMED table (it rewrites the process_id generated expression) for a negative test. Applying 0359 blindly to all three - which a replace-all would have done - would have broken a valid negative test.",
+    "pattern_source": "Not invented: tests/process_runtime_owner_identity_migration_pg_tests.rs already applies 0359 the same way, so the approach is proven in-repo.",
+    "remaining_18_failures_are_a_DIFFERENT_class": "They are no longer missing-authority errors. Observed causes now include reclaim-behaviour assertions (closed_rows: 0, deferred_instances: 1), a negative test asserting an error contains 'no migration-0021-shaped', and one 'fresh writer must find no logged authority' expectation. These need individual analysis and may include further schema objects the fixture does not build, or the MT-019 5s identity-lookup timeout under host load.",
+    "why_the_earlier_planned_fix_would_have_FAILED": "I was one step from authoring migration 0365 to re-create the trigger. That would have accomplished NOTHING: there is no _sqlx_migrations table anywhere in this database, so the migration machinery never runs in this mode. The fixture applies raw SQL files directly.",
+    "correction_trail": "Four successive conclusions on this defect, three wrong: (1) 'migration did not run' - tables existed; (2) 'relation well-formed, fault is search-path visibility' - verified against a storage_test_* schema from a DIFFERENT suite and wrongly generalised; (3) '0359 trigger mis-resolves, fix like 0364 fixed 0363' - right observation, wrong remedy; (4) CORRECT: the fixture only ever applied 0021. Every correction came from live psql against the real failing schema, never from re-reading code.",
+    "fixed_by": "KERNEL_BUILDER-20260801-214802",
+    "fixed_at_utc": "2026-08-05T10:00:00Z"
+  },
+  "post_fix_failure_census_and_self_RETRACTION_2026_08_05": {
+    "headline": "The 0359 fixture fix HOLDS - independently measured. Full-suite census of the POST-FIX tree: 27 passed, 18 failed, 0 filtered, 83.46s (template mode, --test-threads=1), inverting the previously recorded 18-passed/27-failed. This record also RETRACTS this session's own earlier corroboration reasoning.",
+    "SELF_RETRACTION": "independent_corroboration_and_CONCURRENT_SESSION_WARNING_2026_08_05 (written by 20260805-053606) argued the missing-0359 story from a schema showing 'column count 24 != expected 30'. That sample was taken AFTER the fixture fix landed and came from writer_rejects_wrong_generated_expression_with_exact_types_and_primary_key - a test that INTENTIONALLY builds a wrong-shaped relation. The second sample was the intentional mt013_writer_shadow_* decoy (1 column). Neither is evidence about the healthy path, so that block's reasoning is withdrawn. The conclusion it corroborated happened to be right; the evidence offered for it was not.",
+    "one_correction_to_the_fix_record": "twenty_seven_failures_FINAL_ROOT_CAUSE_2026_08_05 and why_the_earlier_planned_fix_would_have_FAILED both treat 'no _sqlx_migrations table anywhere' as proof that the migration machinery never runs in this mode. That absence is BY DESIGN and proves nothing on its own: embedded_model_ledger_tests never uses the sqlx migrator - it applies migration files by hand via sqlx::raw_sql(include_str!(...)) (tests/embedded_model_ledger_tests.rs ~1263-1282), so no _sqlx_migrations table would ever exist even when the fixture is perfectly healthy. The applied fix (have the fixture also apply 0359) is correct; the stated proof for it is not, and the do-not-author-0365 guidance remains right for a simpler reason - this path does not consume the migration chain at all.",
+    "post_fix_census_of_the_18": {
+      "guard_empty_match_error - only 2 of 18, BOTH intentional-decoy tests": [
+        "postgres_writer_pins_logged_authority_and_synchronous_commit (decoy schema mt013_writer_shadow_*, 1 column)",
+        "writer_rejects_wrong_generated_expression_with_exact_types_and_primary_key (deliberately wrong shape, 24 columns)"
+      ],
+      "DOMINANT real defect - reclaim DEFERS instead of closing (7 tests, one shared signature)": [
+        "signature: closed_rows: 0, deferred_instances: 1, candidate_scan_timed_out: false, candidate_instance_limit_reached: false",
+        "database_session_loss_does_not_reclaim_live_os_leased_instance",
+        "foreign_host_scope_is_never_reclaimed_through_local_loopback",
+        "pg_temp_search_path_and_function_shadows_cannot_redirect_reclaim",
+        "pidless_reclaim_preserves_two_live_instances_and_closes_one_stale_instance",
+        "reused_udp_port_fails_safe_until_exclusive_claim_is_available",
+        "concurrent_reconcilers_close_stale_instance_exactly_once",
+        "pidless_reclaimer_reports_authority_lock_timeout_without_advancing_cursor"
+      ],
+      "assertions pinned to STALE guard wording - 3 tests, message drift not logic": [
+        "pidless_reclaimer_rejects_lifecycle_rls_policy_without_mutation and pidless_reclaimer_rejects_lifecycle_user_trigger_without_mutation assert the error contains 'hook/RLS/rule-free'; the guard now says 'exact-runtime-owner-guard/RLS/rule-free'.",
+        "pidless_reclaimer_rejects_unlogged_cursor_and_inherited_lifecycle_rows asserts 'no migration-0021-shaped'; the guard now says 'no migration-0021/0359-shaped'.",
+        "PRE-EXISTING drift from an earlier edit to the guard prefix. NOT caused by 20260805-053606's diagnostic change, which only appended per-candidate rejection detail and reworded the trailing interpretation sentence - the prefix was left untouched."
+      ],
+      "timing / equality assertions - 6 tests": [
+        "pidless_reclaim_row_lock_timeout_is_bounded_reported_and_recoverable: 'proof must traverse the configured 1.5-second row-lock timeout: 47.0474ms' - the sweep returned far too fast to have traversed the timeout at all",
+        "corrupt_and_conflicting_metadata_does_not_abort_valid_reclaim, legacy_endpoint_only_host_scope_is_not_adopted_by_v2_reclaimer, pidless_reclaim_caps_each_boot_batch_and_reports_deferred_candidates, pidless_reclaimer_forces_sync_commit_for_cursor_and_terminal_update, cyclic_reclaim_cursor_advances_past_full_live_prefix_to_later_stale_instance"
+      ]
+    },
+    "highest_leverage_next_question": "Why does the pidless reclaim sweep report deferred_instances=1 / closed_rows=0 for an instance the fixture set up as stale-and-reclaimable? That single question covers 7 of the 18. The message-drift trio is independently cheap once an owner decides which wording is canonical. Neither depends on migrations or the harness template path.",
+    "method_note": "Two sessions each generalised from whichever failing schema they sampled first. Censusing ALL failures from one already-captured log overturned both lines of reasoning and separated four distinct causes that had been reported as one.",
+    "status_unchanged": "No lifecycle status changed.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T10:15:00Z"
   }
 }

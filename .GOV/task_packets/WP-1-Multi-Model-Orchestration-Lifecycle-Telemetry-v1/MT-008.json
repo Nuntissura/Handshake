@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-008",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-29T15:20:28Z",
+  "updated_at_utc": "2026-08-05T03:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -13,6 +13,27 @@
   "markdown_projection": {
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "proof_contract_repair_2026_08_02": {
+    "repaired_by": "KERNEL_BUILDER-20260801-214802",
+    "validator_judgment_addressed": "Mandatory native detached-window Argus capture was not produced; headless unit evidence cannot close ARGUS-003/008/012. The authoritative proof command omits test-utils and required artifact/nonce setup; source requires an MT017 nonce and emits an mt014-named artifact.",
+    "defects_in_the_declared_proof_set": [
+      "DEFECT A - proof_targets[0] omits --features test-utils. Cargo.toml declares [[test]] swarm_lane_diagnostics_pg_tests with required-features = [\"test-utils\"], and test-utils is NOT in default features, so the command as written cannot build that test binary at all. Sibling MTs (014/015/017) all pass --features test-utils; MT-008 was the outlier. This is the packet's own forbidden 'proof command that passes with zero matching tests'.",
+      "DEFECT B - proof_targets[0] omits the environment the producer REQUIRES: HANDSHAKE_ARTIFACTS_DIR (asserted to canonicalize to the sibling Handshake_Artifacts root) and HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE (the producer panics without it). The artifact it emits is named mt014_swarm_lane_diagnostics_projection.json under a hsk.mt017_diagnostics_projection_provenance@1 schema - MT-008's producer is cross-wired to MT-014/MT-017 naming, which is why the chain looked unrelated to MT-008.",
+      "DEFECT C - both declared native targets are in-process egui_kittest, which yields AccessKit trees and ZERO pixels. On this host in-process pixel capture cannot work at all: Harness::render() headless wgpu readback faults with STATUS_ACCESS_VIOLATION 0xc0000005 (documented at tests/test_visual_interaction_proof.rs:13-16). HBR-VIS-001 states plainly that unit tests, process exit codes and uninspected screenshots do not satisfy it, so the declared set could never close ARGUS-003/008/012.",
+      "DEFECT D - the detached-window capture the validator demands ALREADY EXISTS in source but was never declared: tests/test_argus_production_socket_live.rs drives argus.click ctx-menu.pane.pop_out, waits for the popout window, captures argus.screenshot for that window_id, verifies PID/SHA-256/PNG-magic, asserts assert_visual_png (which rejects blank/uniform frames), then merges back. It is #[ignore]d behind an environment gate, so nothing forced it to run."
+    ],
+    "repaired_proof_targets": [
+      "$env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:POSTGRES_TEST_URL='postgres://postgres@127.0.0.1:5544/handshake'; $env:HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test swarm_lane_diagnostics_pg_tests swarm_lane_diagnostics_backend_projection_matches_eventledger -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_lists_filters_and_drills_down -- --exact",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch -- --exact",
+      "cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus native_consumes_backend_generated_schema_v3_projection_artifact -- --exact   # consumer half of the producer chain; SAME HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE value as the producer, and must run within the 30-MINUTE staleness window the consumer asserts",
+      "$env:HANDSHAKE_ARGUS_LIVE_BACKEND_READY='1'; $env:HANDSHAKE_DIAGNOSTICS_DIR='<existing absolute dir>'; $env:HANDSHAKE_PROOF_ARTIFACT_DIR='<existing absolute dir>'; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_argus_production_socket_live production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popout -- --ignored --exact --test-threads=1   # DETACHED-WINDOW capture; requires managed PostgreSQL and a Palmistry-ready handshake_core answering GET /health on 127.0.0.1:37501"
+    ],
+    "execution_note": "The producer/consumer artifact chain asserts the artifact is under 30 minutes old while a cold native build takes ~37 minutes, so running it cold fails on STALENESS even when the code is correct. Pre-build BOTH test binaries with --no-run first, then run producer and consumer back to back. This exact false negative already masked a real defect for two runs during MT-017.",
+    "cross_worktree_hazard": "handshake_core resolves its runtime data_dir from env!(CARGO_MANIFEST_DIR) at COMPILE time (main.rs:900-912). A handshake_core.exe left in the SHARED Handshake_Artifacts/handshake-cargo-target/debug by another worktree embeds THAT worktree's root and dies replaying its DuckDB flight-recorder WAL. Build the backend for this proof with a WP-scoped CARGO_TARGET_DIR before starting it on 37501.",
+    "still_owed": "Execute the repaired set and attach ARGUS-012 evidence: tool/path used, screenshot reference, target author_id values, action sequence, before/after observation, and any unremediated gap.",
+    "adopt_from_wp_kernel_012": "WP-KERNEL-012 (wtc-native-editors-v1) proves Argus with a reusable canonical driver (tests/native_gui_support/canonical_argus_driver.rs, emitting ArgusObservation with before/after, authoritative receipt correlation, agent identity and typed TerminalPredicateResult evidence) plus a declarative manifest (tests/mt108_argus_matrix.json, schema hsk.native_gui.argus_surface_matrix@1) and a SEPARATE post-run closure gate (test_mt108_argus_aggregate.rs) so a partial matrix can never silently close the aggregate. Its manifest explicitly EXCLUDES model-session.launch-workspace as outside the editor GUI matrix - i.e. exactly the Dexterity surfaces WP-1 owns. WP-1 should adopt that driver/manifest/closure-gate pattern for its own surfaces (operator chat, model runtime panel, swarm lane diagnostics, cloud model settings, WP-1 console stream, MODELS menu leaf) rather than keeping bespoke per-surface tests that can partially pass. The two Argus surfaces are the same 11-file MCP core in both worktrees, so this is convergence, not a fork."
   },
   "lifecycle": {
     "status": "READY_FOR_VALIDATION_V5",
@@ -33,10 +54,10 @@
     "ready_for_validation_by": "KERNEL_BUILDER-20260729-152028",
     "ready_for_validation_at_utc": "2026-07-29T15:20:28Z",
     "completed_by": null,
-    "blocker": null,
-    "missing_resource": "Validator-gated: live-GPU PrintWindow/BitBlt pixel grab of a real on-screen pop-out (GUI host).",
+    "blocker": "Live detached-window Argus proof requires authenticated Palmistry provenance (WP-KERNEL-012); MT-008's own proof contract was separately repaired 2026-08-02 (missing --features test-utils on a required-features target, missing HANDSHAKE_ARTIFACTS_DIR + HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE, and two declared native targets that cannot produce pixels on this host).",
+    "missing_resource": "CORRECTED 2026-08-04: the previously recorded resource -- 'Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)' -- is STALE. Palmistry is PRESENT in this worktree and was verified by direct file inspection, not inference: migrations/0360_palmistry_durable_verifier.sql (+ .down), src/api/palmistry.rs (carries WatcherSigningSecret, i.e. the authenticated provenance seam), src/sandbox/palmistry_watcher.rs, src/frontend/handshake_native/src/palmistry.rs, the cargo-auto-discovered binary target src/frontend/handshake_native/src/bin/palmistry.rs, and the real end-to-end proof tests/palmistry_real_e2e_tests.rs. REMAINING GATE (smaller and actionable, not an absent component): palmistry_real_e2e_tests is #[ignore]-gated and needs an operator-provided environment -- CARGO_BIN_EXE_handshake_core via --features app-runtime, HANDSHAKE_NATIVE_BIN, HANDSHAKE_PALMISTRY_BIN, HANDSHAKE_PALMISTRY_SHA256 (exact lowercase pin), POSTGRES_TEST_URL on a disposable database, and HANDSHAKE_PALMISTRY_E2E_ISOLATED=1 -- plus exclusive use of the production-fixed listener 127.0.0.1:37501, so the target must run serially and fails closed if that port is occupied.",
     "proof_status": "READY_FOR_VALIDATION_V5: all declared targets green on managed PostgreSQL + pop-out Argus capture wired and unit-covered. [0] swarm_lane_diagnostics_pg_tests backend_projection_matches_eventledger ok -- fixed a REAL production over-reject bug: validate_initial_input_tx compared a CRDT-bearing routing input's record_json (binding NESTED) against the EventLedger /record (binding a SIBLING) -> false mismatch for ALL CRDT routing inputs; now strips the binding from the record body and asserts it separately as an exact match vs the ledger sibling (adversarial review PASS: binding authority STRENGTHENED, all tamper classes still fail closed). [1][2] test_swarm_lane_diagnostics_argus (egui_kittest, HEADLESS AccessKit) lists_filters_and_drills_down + rejects_missing_author_id_and_count_mismatch ok; two_swarm_lane_panes_have_unique_pane_scoped_author_ids ok. Pop-out capture: every pop-out records its OS window handle by stable window_id; resolve_capture_target picks the recorded HWND per 'Handshake - <pane>' pop-out (screenshot.rs) -- 10 resolution/registry units ok (incl. two same-title pop-outs each keep their own HWND). Live debug console (051138ef) streams swarm-lane diagnostics headlessly. VALIDATOR-GATED: only the live-GPU PrintWindow/BitBlt PIXEL grab of a real on-screen pop-out needs a GUI host; the declared egui_kittest Argus proofs do not. Deferred (review MINOR): negative-tamper pinning tests for the CRDT binding path. Source at d4a22c08.",
-    "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
+    "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
@@ -45,7 +66,8 @@
     "post_implementation_adversarial_review_status": "COMPLETED_20260729",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
     "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
-    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "missing_resource_prior_2026_08_04": "Authenticated Palmistry provenance / Palmistry binary (WP-KERNEL-012)"
   },
   "scope": {
     "summary": "Expose readable swarm lane/message diagnostics in UI/debug surfaces.",
@@ -120,7 +142,9 @@
     "HBR-VIS-004",
     "HBR-QUIET-002",
     "HBR-MAN-004",
-    "HBR-INT-009"
+    "HBR-INT-009",
+    "HBR-PRIV-005",
+    "HBR-PRIV-008"
   ],
   "hbr_obligations": [
     "VIS",
@@ -277,5 +301,33 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "palmistry_residual_correction_2026_08_04": {
+    "why_this_was_wrong": "The note was written when Palmistry genuinely was not in this worktree. It has since landed on this branch, but the note was never revisited, so two MTs carried an absent-component blocker for a component that is present.",
+    "how_verified": "Enumerated every *palmistry* path in the worktree (excluding target/ and .git/) and read the module headers. Six source/migration files plus one e2e test found.",
+    "status_unchanged": "Both MTs remain READY_FOR_VALIDATION_V5. This corrects the recorded residual only; no acceptance criterion, proof target, or status was altered.",
+    "found_by": "KERNEL_BUILDER-20260801-214802, prompted by a delegated agent correctly disputing a briefing statement that Palmistry was absent. The agent was right and the briefing was wrong; this is the downstream correction."
+  },
+  "v5_priv_regression_repair_2026_08_05": {
+    "headline": "swarm_lane_diagnostics_pg_tests is GREEN again: 3 passed, 0 failed. It had regressed to 1 passed / 2 failed under the HBR-PRIV account-scope work introduced elsewhere in this same packet.",
+    "regression_owner": "KERNEL_BUILDER's own lane. api/diagnostics.rs was made account-scoped (reads through ModelLaneStore::new_for_owner via RequestAccountScope), and this suite predates that seam. The 403s were CORRECT behaviour; the defect was leaving a declared proof of the same packet un-updated.",
+    "repairs": {
+      "1_scoped_seed": "The fixture seeded through an UNSCOPED ModelLaneStore::new(pool), so every row carried a NULL owner and was invisible to the scoped read. Now seeds via ModelLaneStore::new_scoped under a minted OwnerAccountId. Without this half the rows stay invisible and the route answers 404 - which looks like a diagnostics bug and is not one.",
+      "2_scoped_requests": "FOUR separate requests in this test drove the mounted diagnostics router with no scope header (the projection read, the missing-run 404 leg, the routing-lineage integrity leg, and the unavailable-authority leg). All four now carry x-handshake-owner-account.",
+      "3_negative_control_added": "navigation-style negative control: the same route with NO header must return 403. Without it the added headers could be masking a route that enforces nothing, and every other assertion here would still pass.",
+      "4_anti_oracle_assertion_inverted": "The missing-run leg asserted `detail.contains(\"run-does-not-exist\")`. Under HBR-PRIV the scoped store answers ABSENT for both a nonexistent run and a run owned by someone else, which is only an anti-oracle if the two answers are INDISTINGUISHABLE - so the detail must be a constant that does not vary with the request. The assertion was deliberately inverted to require the detail NOT echo the run id, and to pin the stable error code instead. Recorded explicitly because inverting an existing declared assertion is a real change of what this MT proves."
+    },
+    "PRODUCT_DEFECT_FIXED_not_test_relaxed": {
+      "defect": "After the scoped-store change, a database that is unreachable returned 500 INTERNAL_SERVER_ERROR instead of 503 SERVICE_UNAVAILABLE. The 503 constructor `authority_unavailable` had been left annotated #[allow(dead_code)] - a dead-code marker sitting on a still-required contract.",
+      "why_it_matters": "500 tells a caller 'this server is broken'; 503 tells it 'the authority store is unavailable, retry'. Collapsing them makes a transient outage indistinguishable from real corruption, which is the single distinction an operator staring at diagnostics needs most.",
+      "fix": "map_model_lane_diagnostics_error now routes ModelLaneError::Sqlx to authority_unavailable (503) and keeps `integrity` (500) for genuine integrity failures. Fixed in the PRODUCT; the test's 503 expectation was correct and was not touched."
+    },
+    "undocumented_harness_requirements_found": "This suite also requires HANDSHAKE_ARTIFACTS_DIR and a FRESH HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE (an anti-stale-evidence token stamped into the provenance receipt). Neither is stated in any declared proof command. Combined with the two mutually exclusive PostgreSQL modes recorded on MT-013, that is THREE undocumented environment requirements in this packet, each of which makes a correct run look like product breakage.",
+    "proofs": {
+      "swarm_lane_diagnostics_pg_tests": "3 passed, 0 failed",
+      "test_count_went_UP": "2 executed tests before the repair, 3 after - the negative control is net-new coverage, so nothing was traded away to obtain the pass."
+    },
+    "repaired_by": "KERNEL_BUILDER-20260801-214802",
+    "repaired_at_utc": "2026-08-05T03:30:00Z"
   }
 }

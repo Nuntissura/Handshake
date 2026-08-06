@@ -977,3 +977,37 @@ When current tooling still requires a Markdown packet, refinement, or microtask 
 [CX-982-004] Every UserManual entry for observable behavior MUST link the behavior to Flight Recorder/EventLedger evidence and record the HBR-INT-009 diagnostic posture for Flight Recorder, internal_diagnostics, and Palmistry as WIRED, NOT_APPLICABLE-with-reason, or DEFERRED-with-reason.
 
 [CX-982-005] If internal_diagnostics or Palmistry are not present in the current worktree, the implementation MUST record DEFERRED-with-reason plus the integration follow-up; it MUST NOT silently skip the linkage. This block is enforced through HBR-MAN-004 and HBR-INT-009.
+
+## [CX-984] HARD_SCOPED_BUILD_ARTIFACT_ISOLATION (HARD)
+
+[CX-984-001] SINGLE ARTIFACT ROOT. Every cargo, test, lint, benchmark, coverage, and tooling output produced by any worktree, role, session, or sub-agent MUST land under the external artifacts root `../Handshake_Artifacts/` (resolve via `${HANDSHAKE_ARTIFACTS_ROOT}`; never record an absolute host path in code, governance state, or contracts per [CX-109B]). Any OTHER sibling artifact folder is ILLEGAL WORKFLOW RESIDUE, not a neutral convenience: no repo-local `target/`, no `handshake-native-target` or similar sibling outside the root, no ad-hoc scratch directory beside the worktrees. When one appears, steer the producer or patch the offending script; do not work around it.
+
+[CX-984-002] PER-OWNER SCOPED CARGO TARGET DIR (the rule this block exists for). `CARGO_TARGET_DIR` MUST be a per-owner subdirectory of `../Handshake_Artifacts/handshake-cargo-target/`, never the shared root, where "owner" is the work packet, role session, or sub-agent that owns the build. Canonical shape: `../Handshake_Artifacts/handshake-cargo-target/<wp-or-owner-slug>[-<purpose>]`.
+
+[CX-984-003] WHY THIS IS HARD, not a preference. Two distinct production failures were observed on 2026-08-02 with parallel work packets active:
+- CONTENTION: concurrent builds sharing one `CARGO_TARGET_DIR` serialize on the cargo file lock. A live proof suite starved on that lock and produced a false negative that was initially misdiagnosed as a product defect.
+- CROSS-WORKTREE BINARY CONTAMINATION: `handshake_core` resolves its runtime `data_dir` from `env!("CARGO_MANIFEST_DIR")` at COMPILE time, so a `handshake_core.exe` left in the shared target dir by another worktree embeds THAT worktree's root. Running it from a different worktree opened the other worktree's DuckDB flight recorder and died replaying its WAL. The same class of failure hits any compile-time-embedded path.
+Scoped target dirs remove both, and let parallel lanes actually build in parallel instead of queueing.
+
+[CX-984-004] NEVER TRUST A PREBUILT BINARY FROM A SHARED TARGET DIR. Before running a product binary for a proof, the running role MUST have built it from ITS OWN worktree into ITS OWN scoped target dir. Reusing an existing `*.exe` found in a shared directory is not evidence about the current worktree's source.
+
+[CX-984-005] SHARED DATABASES ARE THE SAME HAZARD. Divergent migration sets across worktrees make one shared database fail sqlx checksum validation ("migration N was previously applied but has been modified"). A role running a product binary or proof suite MUST use a WP-scoped database, not the common one.
+
+[CX-984-006] CLEANUP IS CONTINUOUS, NOT A CLOSEOUT STEP. Each owner cleans its own scoped artifact subdirectory as soon as its build/test finishes, throughout the work, not only at WP closeout. An owner MUST NOT delete another owner's scoped directory, and MUST NOT delete, prune, or `cargo clean` anything under the shared artifact root: on 2026-08-02 a sub-agent cleaning up removed the shared `.fingerprint` tree and broke the next build outright. Sub-agent cleanup compliance is unreliable, so the parent role is the cleanup backstop and MUST inspect each sub-agent's scoped directory after it completes. The pre-merge `ARTIFACT_DIR_CLEANUP` gate remains the final backstop, not the primary mechanism.
+
+[CX-984-007] BOUNDARY: `../Handshake_Artifacts/` is for BUILD, TEST, TOOL, and product-runtime scratch output ONLY. It MUST NOT contain repo-governance artifacts (anything belonging under `/.GOV/`: packets, refinements, microtasks, protocols, records, registries, audits) nor repo-governance runtime state (anything belonging under the external governance runtime root `gov_runtime/`: `WP_COMMUNICATIONS`, session-control ledgers, session registries, dossiers, receipts). Governance truth and build residue are different lifecycles: build residue is deletable at any moment, governance state is not. Mixing them makes cleanup unsafe.
+
+## [CX-983] LOCAL_TEST_MODEL_REGISTRY (HARD)
+
+[CX-983-001] Operator-provided local model weights for testing and proof live in the machine-local root `D:\Local Models`. This is an Operator-owned asset directory, NOT part of the repo and NOT a build artifact: it MUST NOT be committed, mirrored into the repo, written to by tests, or cleaned by artifact hygiene. Recorded here per Operator instruction 2026-08-02 so a no-context model knows the models exist and where to find them instead of concluding local-model proofs are blocked.
+
+[CX-983-002] Machine-local absolute paths are otherwise forbidden by [CX-109]/[CX-109B]. This entry is a documented exception and is scoped to it: the path is recorded as Operator-provided PROOF INPUT documentation only. Product code, governance state, scripts, and recorded `worktree_dir` values MUST still be disk-agnostic; tests MUST receive the path through the declared environment variable, never by hardcoding it.
+
+[CX-983-003] Designated smallest GGUF smoke model (llama.cpp lane):
+`D:\Local Models\Novaciano\Nanopenis-68M_NSFW_RP-GGUF\Nanopenis-68M_NSFW_RP.gguf` (~50 MB, 68M params). It is chosen for size so `llama_cpp_e2e_smoke` (load, capabilities, generate, LoRA, KV quantization/prefix replay, ngram speculation, score, embed, Flight Recorder events, unload) completes quickly. Supply it through `HANDSHAKE_TEST_GGUF_PATH`.
+
+[CX-983-004] Designated Candle smoke model (Candle lane): the HuggingFace cache entry `models--HuggingFaceTB--SmolLM2-135M`. Supply its directory through `HANDSHAKE_TEST_CANDLE_MODEL_DIR`.
+
+[CX-983-005] Larger models in the same root (up to 134 GB) are available when a proof genuinely needs real capability rather than mechanical lane coverage. Prefer the smallest model that exercises the contract under test; a bigger model is not stronger evidence of lane wiring and costs disproportionate proof time.
+
+[CX-983-006] A model file being absent is a real BLOCKED state with a named missing resource, never grounds to weaken, skip, or fake a local-model proof. If a needed format is missing from the root, obtain it into that same root and record it here; do not relocate the Operator's model library or scatter test weights elsewhere.

@@ -16,6 +16,29 @@
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
+  "v5_remediation_2026_08_02": {
+    "validator_verdict_remediated": "FAIL_V5",
+    "validator_session": "WP_VALIDATOR-20260801-062930",
+    "validator_judgment": "user_manual_api_tests failed 1/23 because 30 mounted Loom routes are absent from wp009_surface_registry; storage tests did not run. Named-surface gate recognizes only a narrow subset, allowing lowercase routes, env/config, JSON/schema, and general prose drift to evade it.",
+    "remediation_by": "KERNEL_BUILDER-20260801-214802",
+    "what_was_actually_wrong": [
+      "Only 28 of the 30 reported routes were real. The other 2 (GET and PATCH on /workspaces/:workspace_id/loom/views/definitions/:block_id/results) were an artifact of the TEST'S OWN scraper: loom_router_surfaces_from_source ended the last route's method block at end-of-file instead of at the router body, absorbing unrelated get(/patch( tokens from ~4600 lines of handler code below it. Registering those two would have made the manual claim methods the router does not serve and failed mtdoc_every_registry_surface_exists_on_the_real_router with 405.",
+      "The named-surface gate only checked backticked spans that were Rust symbol paths (uppercase first char, all alnum/underscore, containing '::'). Routes, env vars, snake_case config keys, hsk.*@N schema ids and bare CamelCase type names all evaded it, and section body_json was never scanned at all.",
+      "The storage suite did not run because the three proof commands were &&-chained behind the failing api suite."
+    ],
+    "changes": [
+      "user_manual/registry.rs: +28 real NotesLoom SurfaceDescriptor rows, summaries/inputs/outputs written from reading each handler in api/loom.rs.",
+      "tests/user_manual_api_tests.rs: loom_router_body() slices pub fn routes( -> .with_state( so the scraper cannot invent methods past the router; new negative fixture mtdoc_loom_router_scraper_does_not_invent_methods_past_the_router_body asserts POST is scraped and GET/PATCH/PUT/DELETE are not.",
+      "user_manual/behavior_coverage.rs: broadened verify_manual_named_surface_existence with manual_literal_claims/ManualClaimClass covering routes, env vars, config keys, schema ids and bare type names; FR-EVT matching tightened from starts_with to exact-or-declared-family.",
+      "user_manual/seed.rs: 23 lines of REAL corpus drift corrected, found by the broadened gate - :ws -> :workspace_id, :id -> :document_id/:block_id/:bundle_id, and a SwarmRuntimeState reference that exists nowhere in src/ replaced with the truthful SwarmCoordinator built via build_production_swarm_coordinator (independently verified by KERNEL_BUILDER).",
+      "user_manual/mod.rs: USER_MANUAL_VERSION 2.0.18 -> 2.0.19 because the corpus hash changed."
+    ],
+    "kernel_builder_review": "Delegated diff reviewed by KERNEL_BUILDER before acceptance. Verified independently: SwarmRuntimeState absent from src/, build_production_swarm_coordinator present at production_factory.rs:189, and the scraper over-report reproduced from the source. Suites re-run by KERNEL_BUILDER at the current tree, not accepted on the sub-agent's report.",
+    "honest_limitations": [
+      "Env vars, snake_case config keys, schema ids and unanchored bare type names are grounded against source literals, not compile anchors, because MT-022 allowed_paths forbids editing llm/registry.rs etc. to add pub const anchors. A rename applied to BOTH manual and code would therefore still pass. This is stated in the code doc comment; it does catch fabrication and typos.",
+      "Bare paths without a method (/knowledge/code/*, /proc/self/fd) are deliberately not route-checked: they are fragments, globs and OS paths, and checking them would report the whole class as drift."
+    ]
+  },
   "lifecycle": {
     "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [],
@@ -24,13 +47,13 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T04:30:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
-    "ready_for_validation_at_utc": "2026-07-30T13:10:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-02T13:05:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: user_manual_behavior_coverage_tests ok 16 passed/0 failed; user_manual_storage_tests ok 12/0; user_manual_api_tests 22 passed/1 failed where the single failure is independently verified PRE-EXISTING.",
-    "hbr_status": null,
+    "proof_status": "READY_FOR_VALIDATION_V5 (V5 REMEDIATION 2026-08-02): all three declared suites GREEN in one run at one tree state, each invoked as an INDEPENDENT command (never &&-chained, which is why the validator's storage suite never ran). user_manual_behavior_coverage_tests ok 17 passed/0 failed (215.00s); user_manual_api_tests ok 24 passed/0 failed (455.24s); user_manual_storage_tests ok 12 passed/0 failed (175.12s); git diff --check clean. No suite executed zero tests. The prior V5 claim of '22 passed/1 failed where the single failure is independently verified PRE-EXISTING' is RETRACTED: a red test is a red test, and the validator was correct to reject that framing.",
+    "hbr_status": "PASS_HBR_MAN_001_002_003_004_AND_INT_009_FOR_MT022: mounted-route registry and manual corpus are code-truthful and self-consistency-gated; HBR-PRIV NOT_APPLICABLE for MT-022 because it changes only in-product UserManual content and its own gate, creating no product resource (HBR-PRIV-001 not_applicable_when).",
     "pre_implementation_adversarial_review_status": null,
     "post_implementation_adversarial_review_status": "PARENT_KERNEL_BUILDER_REVIEWED_DELEGATED_DIFF_AND_RE_RAN_PROOFS"
   },

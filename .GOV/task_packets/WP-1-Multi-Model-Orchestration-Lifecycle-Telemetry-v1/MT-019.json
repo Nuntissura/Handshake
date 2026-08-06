@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-019",
   "created_at_utc": "2026-07-29T03:23:21Z",
-  "updated_at_utc": "2026-08-01T02:30:00Z",
+  "updated_at_utc": "2026-08-05T07:45:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -24,13 +24,13 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260729-225554",
     "claimed_at_utc": "2026-07-30T00:10:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-225554",
-    "ready_for_validation_at_utc": "2026-07-30T15:30:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T12:45:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: P-1..P-5 and F1..F7 all implemented and runtime-proven. process_reclaim_real_lifecycle_pg_tests ok 12 passed/0 failed; process_ledger_reclaim_tests 30 passed/1 failed (the 1 is the known pre-existing MT-020 AC-6 defect); six mt019_* --exact each ok 1 passed; user_manual_behavior_coverage_tests ok 16/0; --lib mt019_ hook proofs ok 3/0.",
-    "hbr_status": "PENDING",
+    "proof_status": "READY_FOR_VALIDATION_V5: P-1..P-5 and F1..F7 all implemented and runtime-proven. process_reclaim_real_lifecycle_pg_tests ok 12 passed/0 failed; process_ledger_reclaim_tests 30 passed/1 failed (the 1 is the known pre-existing MT-020 AC-6 defect); six mt019_* --exact each ok 1 passed; user_manual_behavior_coverage_tests ok 16/0; --lib mt019_ hook proofs ok 3/0. || RECLAIM SUITE GREEN (2026-08-04): cargo test --features test-utils --test process_ledger_reclaim_tests => ok. 31 passed; 0 failed; 0 ignored; 0 filtered out (175.84s), FULL suite with no name filter. LOAD-DEPENDENCE IS THE FINDING, recorded so nobody re-diagnoses it: an earlier run of the same suite during heavy parallel builds returned 30 passed/1 failed at 617s, with production_reclaim_kills_real_process_and_durably_closes_postgres_lifecycle failing on KillOutcome::Failed{ error: \"sandbox adapter handshake_native failed to spawn process: ... cannot read executable identity: A device attached to the system is not functioning. (os error 31)\" } instead of Killed. os error 31 is a Windows ERROR_GEN_FAILURE - an OS-level device fault while inspecting a real spawned process, NOT a reclaim-logic defect: the logic reached the kill path correctly and the failure was beneath it. Re-run under light load passed and took 175.84s versus 617s, so this test is sensitive to machine contention. Do not chase it as a code bug; run the reclaim suite when the box is quiet.",
+    "hbr_status": "PENDING; HBR-INT-001 / HBR-INT-005 / HBR-INT-009 / HBR-MAN-004 / HBR-QUIET-003 for MT-019: the full reclaim suite is green including real-process kill and durable PostgreSQL lifecycle closure, which is the HBR-QUIET-003 process-ownership guarantee (no orphan processes after run, failure, staleness or cancel). hbr_status was previously PENDING, which made PASS illegal under CX-503B1 irrespective of the 12/12 the validator saw.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "pre_implementation_adversarial_review_status": "COMPLETE_2026_07_30_PLAN_REQUIRES_REWORK_P1_P2_P3_P4_P5_PREREQUISITES",
@@ -117,7 +117,8 @@
     "HBR-INT-005",
     "HBR-INT-009",
     "HBR-MAN-004",
-    "HBR-QUIET-003"
+    "HBR-QUIET-003",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "INT",
@@ -319,5 +320,46 @@
       "disclosure": "The new report is TRUTHFUL - shutdown genuinely is incomplete while open rows remain. The Tauri owner should either close its rows before draining or read the new lease_retained_reason. Note the Tauri stack is superseded per Codex CX-009-VIS and frozen since 2026-07-23, so the blast radius is the legacy shell.",
       "status": "GRANTED"
     }
-  ]
+  ],
+  "v5_proof_recheck_2026_08_05": {
+    "headline": "This MT is recorded READY_FOR_VALIDATION_V5, but TWO of its declared proofs FAIL right now and reproduce in isolation. Recorded rather than quietly left, because the recorded status currently overstates the evidence.",
+    "results": {
+      "process_ledger_reclaim_tests": "31 passed, 0 failed (GREEN)",
+      "process_reclaim_real_lifecycle_pg_tests": "9 passed, 3 failed"
+    },
+    "load_vs_logic_separated": {
+      "method": "The three failures were re-run ONE AT A TIME with --test-threads=1, because this family spawns real OS processes and was already shown earlier in this packet to be load-sensitive (31/0 at 175s under light load versus 617s and 1404s under load).",
+      "mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed": "PASSES alone in 43.7s. Its batch failure was 'process reclaim boot reconciliation exceeded 30000 ms' - a LOAD-INDUCED timeout, not a defect. The 30s budget is simply not survivable on a host running several work packets at once.",
+      "mt019_post_boot_staleness_task_resurfaces_restart_orphan": "FAILS alone in 34.2s: 'the periodic restart tick must reclaim a restart orphan without a reboot'. GENUINE.",
+      "concurrent_reclaimers_produce_exactly_one_kill_and_one_stop": "FAILS alone in 24.4s: 'exactly one reclaimer may kill + STOP the shared process (no double-STOP)' with left: 0, i.e. ZERO reclaimers acted. GENUINE."
+    },
+    "not_covered_by_the_waivers": "Checked. operator_waivers_2026_08_01 grants WAIVER-MT019-FOCUS-AUDIT-TESTS (a one-line Option type change in focus_audit_tests.rs) and WAIVER-MT019-TAURI-SHUTDOWN-SEMANTICS (a Tauri call-site reporting change). Neither covers these two failures; the numeric coincidence of 'two waivers / two failures' is exactly that.",
+    "provenance_established": {
+      "tests_are_not_new": "tests/process_reclaim_real_lifecycle_pg_tests.rs is UNMODIFIED versus HEAD, and both failing test functions exist in HEAD. So these are not newly-added tests that never passed.",
+      "reclaim_engine_untouched": "src/process_ledger/reclaim.rs is UNMODIFIED versus HEAD.",
+      "what_did_change_nearby": "src/process_ledger/writer.rs (+116) and batcher.rs (+13) are modified in the working tree by this packet's permanently-open-ledger-rows work."
+    },
+    "hypothesis_RAISED_AND_REFUTED": "Hypothesis: the writer hardening ('the authoritative STOP upsert only updates a lifecycle row when every immutable identity column of the STOP is byte-identical to the persisted START, otherwise the lifecycle never closes') broke the EXTERNAL reclaim path, because an external reclaimer synthesizing a STOP from its own defaults would now be rejected - which would explain zero kills. REFUTED by reading the code: ProcessReclaim::reclaim_stop builds its STOP from the PERSISTED ROW's own fields (process_uuid, os_pid, parent_session_id, parent_process_id, sandbox ids, engine_kind, started_at, owner/role/wp), not from reclaimer defaults, so it remains byte-identical on every identity column. The tidy causal story is wrong and is recorded here as refuted so nobody re-derives it.",
+    "cause_NOT_established": "Deliberately left open rather than guessed. Distinguishing 'pre-existing at the HEAD this MT was closed against' from 'regressed under this packet's uncommitted changes' requires running these two tests against clean HEAD, which needs a separate worktree and a full cold rebuild. That was not self-authorized: MT-019 is already closed, ~8000 lines of uncommitted work from several lanes sit in this tree, and stashing or worktree-splitting it is an operator-scope decision, not a KERNEL_BUILDER one.",
+    "recommended_next_step": "Operator decision. Either (a) authorize a clean-HEAD comparison run to classify these two as pre-existing or regression, or (b) route them to whoever owns the reclaim engine. Note also that the 30s boot-reconciliation budget is too tight for a loaded host and produces false failures independently of these two.",
+    "checked_by": "KERNEL_BUILDER-20260801-214802",
+    "status_note": "Status intentionally NOT changed. Downgrading an operator-closed MT is a scope decision; this record exists so the status is not silently trusted."
+  },
+  "failure_diagnosed_2026_08_05": {
+    "headline": "DIAGNOSED. concurrent_reclaimers_produce_exactly_one_kill_and_one_stop does NOT fail on reclaim logic. The reclaimer selects the process and attempts the kill, but the PRODUCTION IDENTITY LOOKUP TIMES OUT against a hardcoded 5-second budget on a loaded host.",
+    "observed": "kill = Failed { error: \"production reclaim identity lookup timed out for process 019fd03c-6425-7732-aa08-9de1362f7391\" }, stop = None. Target process_uuid matched the seeded row and the real child pid (8772) was alive.",
+    "how_it_was_obtained": "The assertion previously reported only `left: 0, right: 1`, which cannot distinguish (a) the process was never selected as reclaimable, (b) it was selected but the kill was declined, or (c) it was killed but no STOP was written - three different defects with three different fixes. The assertion was made self-explaining (it now prints the target uuid, the real child pid, and every reclaimed entry with its kill_result and stop_event_kind, plus an explicit note that an empty list means it was never selected). NO assertion was weakened; only the diagnosis was made possible. The answer appeared on the first run afterwards.",
+    "the_budget": "src/process_ledger/reclaim.rs uses tokio::time::timeout(Duration::from_secs(5), ...) around the identity resolution in TWO places: line ~2630 (`identity`) and line ~2780 (`kill_operation_status`). The lookup queries OS process identity and hashes the executable image, so it is I/O bound and degrades under host contention.",
+    "why_this_explains_ALL_THREE_MT019_failures": "Uniform cause. mt019_production_with_lease_boot_is_fail_open_on_unreapable_orphan_and_reports_kill_failed PASSES alone in 43.7s and failed in the batch with 'process reclaim boot reconciliation exceeded 30000 ms'. The other two fail with this 5s identity timeout. All three are timing budgets that a host running several work packets plus heavy cargo cannot meet. Earlier in this packet the same family was measured at 31/0 in 175s under light load versus 617s and 1404s under load.",
+    "classification": "NOT a correctness defect in reclaim logic. It IS a real robustness defect: on a loaded production host the same timeout would abandon a kill and leave an orphan, and the operator would see a reclaim that silently gave up. The current behaviour reports kill_result = Failed with a typed reason rather than lying, which is correct fail-closed behaviour - the budget is what is wrong.",
+    "fix_options_NOT_self_authorized": [
+      "Raise the 5s budget. Simple, but the number would be arbitrary without knowing the intended worst-case host.",
+      "Make the budget configurable (env or SwarmConfig) so a loaded CI/dev host and a production host can differ, defaulting to today's 5s.",
+      "Treat an identity-lookup TIMEOUT as retryable rather than terminal for that pass, so the next reclaim tick re-attempts instead of abandoning the orphan. This is the most robust option and changes no budget, but it changes reclaim's terminal semantics and needs MT-019's full proof set to validate."
+    ],
+    "why_not_applied": "All three options change production reclaim timing or terminal semantics on the orphan-cleanup path, and MT-019 is an already-closed MT with operator-granted waivers. Picking a budget or changing terminal semantics is an operator/owner decision, not a KERNEL_BUILDER one, and this session has already shown what happens when boundary changes land without full validation.",
+    "test_improvement_retained": "The self-explaining assertion is kept. It is strictly more informative and cost nothing in strictness.",
+    "diagnosed_by": "KERNEL_BUILDER-20260801-214802",
+    "diagnosed_at_utc": "2026-08-05T07:45:00Z"
+  }
 }

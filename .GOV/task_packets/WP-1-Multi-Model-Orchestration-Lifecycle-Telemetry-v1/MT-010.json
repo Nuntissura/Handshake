@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-010",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-29T18:08:40Z",
+  "updated_at_utc": "2026-08-04T22:15:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -26,13 +26,13 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:36:59Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-180840",
-    "ready_for_validation_at_utc": "2026-07-29T18:08:40Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T22:15:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: both V4 blocker parts REMEDIATED and independently verified on managed PostgreSQL (127.0.0.1:5544) at HEAD 3bbc72b3. (1) UserManual operational correctness restored: the recovery pages no longer claim official-CLI reconciliation recovers open lifecycle ownership without a wired Reclaim -- they now describe the ACTUAL production Reclaim/SandboxKill composition wired by MT-007 (seed.rs: 'Hard-crash orphan reconcile' page -> reclaim_pidless_embedded_orphans strict-decode boot sweep + session-scoped process reclaim with a lossless STOP-queue permit, UUIDv7+generation fenced claims, reclaim_kill_in_progress double-kill guard; 'never reports a terminal STOP merely because a queue accepted a row'; 'an unreaped termination leaves the durable START open with no fabricated STOP so reconciliation can recover it'). (2) WP-completeness gap closed: required diagnostics (MT-008 swarm-lane diagnostics backend + Argus + live console) and ModelRuntime controls (MT-014 full ModelRuntime panel + durable default-model) are now present and wired; the diagnostics manual page records the honest run-level HBR-INT-009 posture (MT-011). VERIFIED GREEN -- all 3 declared proof targets: model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery + model_lane_navigation_user_manual_registry_rows_match_runtime_routes; user_manual_api_tests model_lane_navigation_user_manual_entries_are_current (the currency gate proves manual == code truth). Remediation source spans MT-007 (Reclaim composition + its recovery page), MT-008/MT-014 (diagnostics + ModelRuntime presence), and MT-011 3bbc72b3 (diagnostics/recovery page currency).",
-    "hbr_status": "PASS_HBR_INT_MAN_FOR_MT010_NAV_API_AND_MANUAL_GREEN",
+    "proof_status": "READY_FOR_VALIDATION_V5 (PRIV REGRESSION REPAIRED 2026-08-04): all three declared proofs green - model_lane_navigation_api_tests 4/0 and user_manual_api_tests 24/0. The suite now seeds under a real owning account and carries the account scope on every request, so it proves the navigation surface under HBR-PRIV rather than around it, plus a new negative control proving an unscoped caller is refused with the stable reason code and no identifiers. Declared proof commands were also repaired: as written they omitted --features test-utils and ran no tests at all.",
+    "hbr_status": "PASS_HBR_INT_MAN_FOR_MT010_NAV_API_AND_MANUAL_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows covers replay_run AND all eight navigation routes (navigation_by_run/_lane/_message/_recovery/...); a_cross_account_denial_leaks_no_identifiers_or_row_contents proves the denial itself is not a metadata side channel. api/account_scope.rs makes a missing or malformed scope a 403 with a stable reason code - never a fallback to returning everything. STILL OWED: Search/index and preview/export boundaries named by HBR-PRIV-002 are not exercised by this MT's routes.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
@@ -83,9 +83,9 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact"
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact"
     ],
     "risk_if_missed": "The feature remains usable only by models that remember this chat, which defeats recovery and parallel-agent operation.",
     "reference_only_paths": [
@@ -118,7 +118,12 @@
     "HBR-MAN-003",
     "HBR-INT-007",
     "HBR-INT-009",
-    "HBR-MAN-004"
+    "HBR-MAN-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "MAN",
@@ -292,5 +297,31 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "proof_command_repair_2026_08_04": {
+    "defect": "All three declared proof_targets omitted `--features test-utils`. Run verbatim they do not execute a single test; cargo refuses with `error: target `model_lane_navigation_api_tests` in package `handshake_core` requires the features: `test-utils`` and exits 101. A validator following this contract literally would have recorded a FAIL that says nothing about the navigation routes.",
+    "observed_before_repair": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_navigation_api_tests -> exit 101, zero tests run.",
+    "repair": "Inserted `--features test-utils` into the commands that lacked it. No test name, no assertion, and no acceptance criterion was changed; this makes the declared proof runnable, it does not weaken it.",
+    "changed_commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_navigation_api_tests model_lane_navigation_user_manual_registry_rows_match_runtime_routes -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_navigation_user_manual_entries_are_current -- --exact"
+    ],
+    "found_by": "KERNEL_BUILDER-20260801-214802 while executing MT-010's declared proofs."
+  },
+  "v5_priv_regression_repair_2026_08_04": {
+    "regression_found": "Both declared MT-010 proofs FAILED with 403 Forbidden on every navigation route. Cause: the HBR-PRIV work in this same packet made api/model_lane_navigation.rs account-scoped (it now reads through ModelLaneStore::new_for_owner via RequestAccountScope), and MT-010's suite predates that seam - it sent no X-Handshake-Owner-Account header and seeded its rows through an UNSCOPED ModelLaneStore::new(pool), i.e. with a NULL owner.",
+    "why_this_matters": "The 403 was CORRECT behaviour, not a bug in the route. The defect was that a declared proof of this packet was left un-updated by a change made elsewhere in the same packet, so MT-010 would have failed validation for a reason that had nothing to do with navigation.",
+    "repair": "Two halves, because fixing only one produces a false pass. (1) The fixture now SEEDS under a real owning account via ModelLaneStore::new_scoped - without this the rows stay NULL-owner and every scoped probe returns 404, which would look like a navigation bug. (2) The fixture's reqwest client carries the owning account as a DEFAULT header, so the requirement lives in one place instead of being repeated at seven call sites.",
+    "not_a_weakening": "No assertion was relaxed and no test was deleted. The suite got STRICTER: it now proves the navigation projections resolve under a real account scope, which it never did before. A new negative control, navigation_rejects_a_caller_with_no_account_scope, proves the routes still refuse an unscoped caller with the stable RESOURCE_SCOPE_REQUIRED code and no resource identifiers in the body (HBR-PRIV-004) - so the fixture's default header cannot be masking a route that enforces nothing. Executed test count went UP, 3 -> 4.",
+    "assertion_correction": "The negative control initially asserted the reason code in `detail` and failed (left: the human sentence, right: RESOURCE_SCOPE_REQUIRED). AccountScopeRejectionBody puts the stable code in `error` and the human sentence in `detail`; the assertion was corrected to pin `error`, which is the field a caller should depend on.",
+    "proofs": {
+      "model_lane_navigation_api_tests": "4 passed, 0 failed (was 1 passed / 2 failed before the repair)",
+      "model_lane_navigation_routes_return_run_lane_message_artifact_trace_and_recovery": "PASS (declared proof 1)",
+      "model_lane_navigation_user_manual_registry_rows_match_runtime_routes": "PASS (declared proof 2)",
+      "user_manual_api_tests (contains model_lane_navigation_user_manual_entries_are_current)": "24 passed, 0 failed (declared proof 3)"
+    },
+    "also_repaired_this_session": "proof_command_repair_2026_08_04 - all three declared commands omitted --features test-utils and executed ZERO tests as written.",
+    "repaired_by": "KERNEL_BUILDER-20260801-214802"
   }
 }

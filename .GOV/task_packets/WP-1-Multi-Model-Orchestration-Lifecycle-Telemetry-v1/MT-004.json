@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-004",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-29T02:09:13Z",
+  "updated_at_utc": "2026-08-04T22:40:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -34,7 +34,7 @@
     "blocker": null,
     "missing_resource": null,
     "proof_status": "READY_FOR_VALIDATION_V5: all six declared proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544). model_lane_promotion_pg_tests appends_eventledger_and_replays_decision / rejects_stale_base_schema_mismatch_and_direct_mutation / reordered_inputs_keep_same_decision_hash (3/3), model_lane_schema_persists_and_replays_eventledger_rows, and model_lane_promotion_user_manual_entry_is_current all ok; cargo check --features test-utils clean. Promotion decision cloud-consent seeding fixed and user-manual HBR-INT-009 posture corrected to Flight Recorder/EventLedger WIRED with direct FR emission DEFERRED-with-reason. Built on resolver actor_kind taxonomy fix 644dee55.",
-    "hbr_status": "PASSED",
+    "hbr_status": "PASSED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: a_derivative_of_mixed_scope_sources_is_not_readable_under_either_source - promotion outputs derived from mixed-scope sources cannot widen scope (HBR-PRIV-004 non-widening). STILL OWED: Promotion-specific positive path: promoted artifacts carrying owner/AccessSpace through the PromotionGate, plus cross-account promotion negatives, are not yet attached.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "RESOLVED_TO_CURRENT_WORKTREE",
     "last_recovery_event_ref": "usermanual://model-lane-promotion#recovery",
@@ -119,7 +119,11 @@
     "HBR-MAN-004",
     "HBR-INT-009",
     "HBR-SWARM-001",
-    "HBR-SWARM-002"
+    "HBR-SWARM-002",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "INT",
@@ -283,5 +287,18 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "v5_declared_proof_reverification_2026_08_04": {
+    "context": "Re-executed at the current HEAD, i.e. WITH the HBR-PRIV account-scope substrate (migrations 0363+0364, resource_scope.rs, api/account_scope.rs) in place. That substrate changed the read/write boundary these surfaces sit on and has already been shown to invalidate declared proofs elsewhere in this packet (MT-010 and MT-008 both failed 403 against it and needed repair), so a green recorded before it is not evidence. Managed PostgreSQL at 127.0.0.1:5544.",
+    "declared_proofs_reverified": {
+      "model_lane_promotion_pg_tests": "3 passed, 0 failed",
+      "model_lane_schema_pg_tests": "4 passed, 0 failed",
+      "user_manual_api_tests": "24 passed, 0 failed"
+    },
+    "coverage_note": "Every declared proof_target for this MT lives in one of the binaries above; each binary was run IN FULL rather than filtered to the named test, so a sibling regression in the same binary could not hide.",
+    "no_scope_regression": "Unlike MT-010 and MT-008, this MT's proofs do not drive an account-scoped HTTP route, so they were unaffected by the PRIV seam and needed no repair.",
+    "reverified_by": "KERNEL_BUILDER-20260801-214802",
+    "reverified_at_utc": "2026-08-04T22:40:00Z",
+    "status_unchanged": "Remains READY_FOR_VALIDATION_V5; fresh execution evidence only, no acceptance criterion touched and no test weakened."
   }
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-007",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-29T03:23:21Z",
+  "updated_at_utc": "2026-08-04T21:55:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -38,7 +38,7 @@
     "blocker": null,
     "missing_resource": null,
     "proof_status": "READY_FOR_VALIDATION_V5: V4 Spec-Realism blocker closed and runtime-proven on managed PostgreSQL (127.0.0.1:5544). The generic spawned-process Reclaim/SandboxKill boot pass is now a named callable (reconcile_restart_orphans_at_boot) reachable unconditionally from real boot (main.rs:447 run() -> production_with_lease), and new proof boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan drives the real restart_sessions() surfacing path and asserts an official-CLI orphan is surfaced, killed via ProductionSandboxKill (pid+creation-time+exe-sha256 fence), given a durable STOP, and its START row no longer open. process_reclaim_real_lifecycle_pg_tests 5/5 pass (incl. pid_reuse_guard + concurrent_reclaimers exactly-one-kill); the 4 declared model_lane_recovery_pg_tests targets still pass. Two-lens adversarial review: NO path can kill a non-owned process (identity fence before kill on one OS handle, no TOCTOU; reaper scoped to Handshake-owned ledger rows only). HONEST SEMANTICS: kill-failure is fail-OPEN (row left OPEN, boot continues), not fail-closed; boot is the safety net. DEFERRED to MT-019: running-app-window reaping (same-instance CLI-bridge/no-lane orphan reaped only at next boot; staleness restart pass disabled post-boot), STARTUP_RECOVERY_ONLY generic-reconcile skip, non-Windows fail-open proof, doc/counter polish. Windows-gated proof (native kill fence is Windows-only). Source at 3be795c7.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: boot_recovery_refuses_to_run_from_an_account_scoped_store - recovery is a NAMED cross-owner operation (SystemScopeAuthority::boot_recovery) rather than a silent unscoped read, so 'no account filter' cannot happen by accident. STILL OWED: Recovery/diagnostic replay under a stale or revoked context (HBR-PRIV-006) is not yet attached.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
     "last_recovery_event_ref": null,
@@ -85,10 +85,10 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_reclaim_real_lifecycle_pg_tests boot_reconcile_via_restart_sessions_reclaims_official_cli_orphan -- --exact"
     ],
     "risk_if_missed": "Parallel swarms will fail in ways the operator and later models cannot recover.",
@@ -125,7 +125,12 @@
     "HBR-QUIET-003",
     "HBR-MAN-004",
     "HBR-SWARM-001",
-    "HBR-VIS-004"
+    "HBR-VIS-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006"
   ],
   "hbr_obligations": [
     "INT",
@@ -297,5 +302,27 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "proof_command_repair_2026_08_04": {
+    "defect": "Declared proof commands targeted handshake_core test binaries whose Cargo.toml [[test]] entries carry required-features = [\"test-utils\"], but omitted --features test-utils. Run verbatim they execute ZERO tests and exit 101 with `requires the features: test-utils`.",
+    "verification": "Confirmed by reading src/backend/handshake_core/Cargo.toml required-features for each named target, not inferred. Frontend (handshake_native) proof commands in this packet were checked and deliberately NOT changed: test-utils is a handshake_core feature and does not exist there.",
+    "repair": "Inserted --features test-utils only into the affected commands. No test name, assertion, or acceptance criterion changed; this makes the declared proof runnable, it does not weaken it.",
+    "changed_commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact"
+    ],
+    "found_by": "KERNEL_BUILDER-20260801-214802, after hitting the same defect while executing MT-010's proofs."
+  },
+  "v5_declared_proof_reverification_2026_08_04": {
+    "declared_proofs_reverified": {
+      "model_lane_recovery_pg_tests": "12 passed, 0 failed (all four declared tests are members of this binary)"
+    },
+    "note": "Proof commands were ALSO repaired this session - see proof_command_repair_2026_08_04. As written they omitted --features test-utils and could not execute at all.",
+    "context": "Re-executed at the current HEAD, i.e. WITH the HBR-PRIV account-scope substrate (migrations 0363+0364, resource_scope.rs, api/account_scope.rs) already in place. That is the point of the re-run: the PRIV work changed the read/write boundary these surfaces sit on, so a green recorded before it no longer evidences anything. Managed PostgreSQL at 127.0.0.1:5544.",
+    "reverified_by": "KERNEL_BUILDER-20260801-214802",
+    "reverified_at_utc": "2026-08-04T21:55:00Z",
+    "status_unchanged": "Remains READY_FOR_VALIDATION_V5. This attaches fresh execution evidence; it does not change any acceptance criterion, and no test was added, filtered, or weakened to obtain it."
   }
 }

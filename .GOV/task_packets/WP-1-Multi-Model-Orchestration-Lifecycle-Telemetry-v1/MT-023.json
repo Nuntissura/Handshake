@@ -1,0 +1,244 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-023",
+  "created_at_utc": "2026-08-02T13:50:00Z",
+  "updated_at_utc": "2026-08-05T02:30:00Z",
+  "authority_files": [
+    "../handshake_main/AGENTS.md",
+    ".GOV/codex/Handshake_Codex_v1.4.md",
+    ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json"
+  ],
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "origin": {
+    "discovered_by": "KERNEL_BUILDER-20260801-214802",
+    "discovered_at_utc": "2026-08-02T13:45:00Z",
+    "trigger": "Operator stated as NON-NEGOTIABLE 2026-08-02: 'launching models in folders or creating a worktree of a folder inside a VM'. Gap check found the first half proven and the second half unproven and uncontracted in this packet.",
+    "why_a_new_mt": "KERNEL_BUILDER_PROTOCOL and the Operator instruction both require a discovered gap that does not belong to the current MT to be deferred into a NEW MT in the SAME work packet rather than dropped or silently absorbed."
+  },
+  "scope": {
+    "summary": "Prove, at runtime, that Handshake can launch a model lane against a worktree-scoped folder running inside a microVM - the second half of the Operator's non-negotiable. The first half (an operator-selected FOLDER really becoming the spawned child's working directory) is already proven by operator_chat_cli_lane_runs_in_operator_selected_cwd, which drives SpawnRequest.working_dir -> CliBridgeConfig.working_dir -> the real child process cwd, with a negative control showing the child does NOT land there when working_dir is absent. This MT covers the VM half, which currently has no live proof.",
+    "root_cause": "swarm_orchestration/worktree_vm_registry.rs binds worktree_id to a persistent Cloud Hypervisor microVM with snapshot/restore, but it is WP-KERNEL-004 wave-1 work and its own module header states the boundary honestly: it is fake-adapter-tested, and serving generate() from a restored warm VM 'still requires the live serial/vsock guest transport and a model-bearing guest image', and it 'does not fake live token generation'. WP-1's packet.json never mentions VM or worktree launch, and only MT-012 references working_dir, so nothing in this packet forces the VM lane to be proven.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/",
+      "src/backend/handshake_core/src/model_runtime/",
+      "src/backend/handshake_core/src/sandbox/",
+      "src/backend/handshake_core/tests/",
+      "src/backend/handshake_core/migrations/"
+    ],
+    "forbidden_paths": [
+      "Re-architecting WP-KERNEL-004's worktree_vm_registry snapshot/restore or clone-safety design; this MT proves and wires the lane, it does not redesign the KERNEL-004 seam",
+      "Faking live token generation from a restored VM - the existing module explicitly refuses to do this and so must this MT",
+      "SQLite in any form"
+    ],
+    "acceptance_criteria": [
+      "AC-1: A model lane launches against a worktree-scoped folder inside a microVM and produces REAL generated tokens from a model loaded inside that VM. Fake adapters and in-memory doubles do not satisfy this; per HBR-STOP-003 and the Spec-Realism Gate the proof must touch the real managed resource boundary.",
+      "AC-2: The worktree_id -> VM binding is durable and recoverable: after a restart the binding resolves to the same VM (or fails closed with a named reason), proven against real PostgreSQL rather than in-memory state.",
+      "AC-3: Process ownership holds across the VM boundary (HBR-QUIET-003): the VM-hosted lane records START/STOP with owner metadata and is reclaimed on session close, failure, staleness, or operator cancel, leaving no orphan VM.",
+      "AC-4: HBR-PRIV: the worktree-VM binding and any artifact it produces carry owner_account_id / actor_principal_id / workspace scope per the account-bound resource scope introduced in migrations 0363+0364 and swarm_orchestration/resource_scope.rs, with a cross-account negative proving one account cannot enumerate or attach to another account's worktree VM.",
+      "AC-5: The in-product internal UserManual documents the worktree-VM launch path (purpose, usage, inputs/outputs, failure modes, recovery) and records the HBR-INT-009 three-tier diagnostic posture, with internal_diagnostics/Palmistry marked DEFERRED-with-reason while WP-KERNEL-012 is unshipped.",
+      "AC-6: If the live guest transport or a model-bearing guest image is genuinely unavailable, this MT is BLOCKED with the exact missing resource named in lifecycle.missing_resource. It MUST NOT be closed by weakening AC-1 to a fake-adapter test - that is precisely the scaffold-pass this packet has already been failed for."
+    ],
+    "proof_commands": [
+      "TO BE DECLARED during implementation: the exact test target that boots a real microVM, binds a worktree folder, loads a model inside it, and generates tokens. Declaring proof commands before the lane exists would create the 'proof command that passes with zero matching tests' defect MT-008 already carries."
+    ],
+    "risk_if_missed": "The Operator has declared worktree-in-VM model launch non-negotiable. Leaving it fake-adapter-tested means Handshake claims a sandboxed-execution capability that has never run, which is the exact class of defect the Spec-Realism Gate exists to catch, and it would surface as a spec-vs-runtime gap at Integration Validation rather than here."
+  },
+  "implementation_notes": "Start from the existing seam, do not rebuild it: WorktreeVmRegistry (swarm_orchestration/worktree_vm_registry.rs) already provides the worktree_id -> persistent Cloud Hypervisor microVM binding plus snapshot/restore, and the TOCTOU clone-safety (single live clone per snapshot, reservation released on every failure path) is REUSED unchanged. LocalExecutionMode::WarmVm (swarm_orchestration/ids.rs) and IsolationTier::Tier3Microvm (sandbox/adapter.rs) are the existing selectors. The known missing pieces named by the module header are the live serial/vsock guest transport and a model-bearing guest image. The Operator's model library is at D:\\Local Models per Codex [CX-983]; the 68M GGUF recorded there is the natural candidate for a guest image because it keeps the VM proof fast.",
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-SWARM-001",
+    "HBR-SWARM-002",
+    "HBR-QUIET-003",
+    "HBR-MAN-004",
+    "HBR-STOP-003",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
+  ],
+  "red_team": [
+    "The cheapest way to make this MT look done is to prove the REGISTRY binding with a fake adapter and call the lane proven. AC-1 exists to block that: the acceptance is real tokens from a model inside the VM, not a binding row.",
+    "A restored warm VM that silently reloads the model from the host would pass a naive token-generation assertion while defeating the point of warm restore. Any restore claim must state whether a reload occurred.",
+    "A VM that outlives its session is an orphan with far higher cost than an orphan process; AC-3 is not optional.",
+    "Marking this MT NOT_APPLICABLE because 'WP-KERNEL-004 owns the VM' would lose the Operator's non-negotiable. The seam is KERNEL-004's; proving the model-launch lane over it is this packet's."
+  ],
+  "handshake_compatibility": "No SQLite. PostgreSQL/EventLedger authority only. Handshake-managed microVM via the existing Cloud Hypervisor adapter - not Docker Desktop, not a manually launched outside app (CX-503S).",
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": [
+      "cloud-hypervisor binary: ABSENT in WSL2 Ubuntu 24.04.4. INSTALLABLE - upstream ships static x86_64 release binaries; this is a provisioning step, not a capability gap.",
+      "ch-remote binary: ABSENT, same source, same remedy.",
+      "Model-bearing guest image + warm-agent package: ABSENT. HANDSHAKE_CH_WARM_AGENT_HOST_PATH unset, no hsk-warm-agent.package.json / llama-server guest payload. This is now the LARGEST remaining item."
+    ],
+    "proof_status": "READY_FOR_DEV (blocker retracted 2026-08-05): the recorded '/dev/kvm ABSENT' blocker was FALSE. /dev/kvm is present in WSL2 with kvm_amd loaded, and the operator's account has read+write on it via group 993(kvm), so KVM is usable without root. Remaining work is provisioning (cloud-hypervisor + ch-remote static binaries) plus the model-bearing guest image, then the real AC-1 proof. Research basis for a built-in Rust backend recorded in research_basis_2026_08_05.",
+    "hbr_status": null,
+    "pre_implementation_adversarial_review_status": null,
+    "post_implementation_adversarial_review_status": null,
+    "blocked_at_utc": "2026-08-04T20:20:00Z",
+    "blocked_by": "KERNEL_BUILDER-20260801-214802"
+  },
+  "v5_block_2026_08_04": {
+    "verification_commands": [
+      "Get-Command cloud-hypervisor / ch-remote / qemu-system-x86_64 -> all ABSENT on Windows PATH",
+      "wsl.exe -e bash -lc \"which cloud-hypervisor ch-remote\" -> no output (both absent in WSL2 Ubuntu)",
+      "wsl.exe -e bash -lc \"ls /dev/kvm\" -> ls: cannot access '/dev/kvm': No such file or directory",
+      "$env:HANDSHAKE_CH_WARM_AGENT_HOST_PATH -> empty"
+    ],
+    "corroborating_source": "src/backend/handshake_core/src/swarm_orchestration/worktree_vm_registry.rs module header already states the wave-1 boundary in its own words: serving generate() from a restored warm VM 'still requires the live serial/vsock guest transport and a model-bearing guest image; the registry prevents stale snapshot reuse but does not fake live token generation.' The code and the host evidence agree.",
+    "what_exists_and_is_NOT_being_claimed": "WorktreeVmRegistry (505 lines) binds worktree_id -> persistent microVM and implements a snapshot/restore seam with warm-start manifests, currently fake-adapter tested. That is real code, but it is NOT AC-1 evidence and is explicitly not being presented as such.",
+    "ac6_compliance": "AC-6 forbids closing this MT by weakening AC-1 to a fake-adapter test. That was not done. No test was added, relabelled, or pointed at a double to manufacture a pass; the MT is left BLOCKED with the missing resources named.",
+    "unblock_requirements": [
+      "A host exposing /dev/kvm (bare-metal Linux, or a WSL2/Hyper-V configuration with nested virtualization enabled), OR an operator decision to target a different VMM that this host can actually run.",
+      "cloud-hypervisor + ch-remote installed on that host.",
+      "A guest image containing the warm-agent package and llama-server, with HANDSHAKE_CH_WARM_AGENT_HOST_PATH pointed at it, plus a model artifact reachable inside the guest."
+    ],
+    "operator_note": "This is the VM half of the Operator's stated non-negotiable. The FOLDER half is already proven at runtime by operator_chat_cli_lane_runs_in_operator_selected_cwd (real child process cwd, with a negative control). The VM half cannot be proven on this machine as currently provisioned; it needs an operator provisioning decision, not more implementation."
+  },
+  "blocker_correction_2026_08_05": {
+    "RETRACTION": "The 2026-08-04 BLOCKED record is WRONG and is retracted. It claimed '/dev/kvm: ABSENT ... Cloud Hypervisor is a KVM VMM, so even if the binaries were installed no microVM could boot on this host' and treated that as a host-capability limit requiring an operator provisioning decision. That conclusion is false.",
+    "what_is_actually_true": "/dev/kvm IS present in WSL2 Ubuntu: `crw-rw---- 1 root kvm 10, 232 Aug  5 01:06 /dev/kvm`. Modules kvm_amd (126976) and kvm (970752, used by kvm_amd) are loaded. The CPU exposes svm. The operator's account is a member of group 993(kvm) and has confirmed READ+WRITE on the device, so KVM is usable WITHOUT root. %USERPROFILE%\\.wslconfig already contains nestedVirtualization=true.",
+    "why_the_earlier_observation_differed": "The earlier check was taken while the WSL utility VM was running from a boot that predated the nested-virtualization setting taking effect; the device node's own timestamp (Aug 5 01:06) shows it was created on a later VM start. The observation was accurate WHEN TAKEN and stale by the time it was recorded as a durable blocker. The error was not the measurement, it was treating a one-shot environment probe as a permanent host property without re-verifying before writing it into governance.",
+    "consequence": "MT-023 moves BLOCKED -> READY_FOR_DEV. AC-6 (block with the exact missing resource) no longer applies as recorded, because the resource it named is present. What remains is ordinary provisioning plus real implementation work, not an operator hardware decision.",
+    "corrected_by": "KERNEL_BUILDER-20260801-214802"
+  },
+  "research_basis_2026_08_05": {
+    "operator_request": "Handshake should have a BUILT-IN hypervisor/KVM capability; operator prefers Rust or an open-source Docker variant in Rust.",
+    "terminology_correction": "A program cannot 'contain' /dev/kvm - it is a Linux kernel device node exposed by the kvm module, not something an application provides. The achievable form of the request is: Handshake BUNDLES AND MANAGES its own Rust virtualization backend, so the operator installs nothing. On Linux/WSL2 that backend talks to /dev/kvm; on native Windows the equivalent hardware interface is WHP (Windows Hypervisor Platform).",
+    "existing_precedent_in_this_codebase": "handshake_core already implements exactly this pattern for a different dependency: managed_postgres.rs starts, owns, and tears down its own PostgreSQL with an explicit data dir and port. A managed hypervisor is the same shape, which is why 'built-in' is architecturally cheap here rather than novel.",
+    "candidates_evaluated": {
+      "cloud-hypervisor": "Rust, Apache-2.0, production-grade, KVM/Linux only. ALREADY integrated as sandbox/cloud_hypervisor with a persistent-VM + snapshot/restore seam and WorktreeVmRegistry. Cheapest path to a working proof because the adapter code already exists; needs the binary provisioned. Does NOT run natively on Windows.",
+      "OpenVMM (microsoft/openvmm, MIT)": "Rust, cross-platform VMM: Windows x64/Aarch64 via WHP, Linux via KVM or MSHV, macOS via Hypervisor.framework. The only evaluated option that gives a FULL VM natively on Windows with no WSL2. Microsoft states it is not yet production-ready.",
+      "Hyperlight (Microsoft -> CNCF Sandbox)": "Rust EMBEDDABLE micro-VM library; hardware isolation via KVM, MSHV, or WHP; sub-millisecond starts. Best fit for 'built-in' since it is a library, not a daemon. CAVEAT recorded honestly: it targets small functions/Wasm workloads; running a full local LLM inside one is not its design point today (Hyperlight Nanvix is adding POSIX support but is early). Not a drop-in for AC-1 as written.",
+      "youki / libcontainer-rs": "Rust OCI runtime, memory-safe runc replacement, containerd-validated, ~30% faster start. Linux-only by nature (namespaces/cgroups). The right choice for the CONTAINER lane, not the VM lane.",
+      "ocipkg / ocirender": "Rust OCI registry client and image assembly without a daemon - the 'docker pull' half if a container lane is built.",
+      "REJECTED - 'full-feature Docker in Rust'": "Does not exist. youki (runtime), ocipkg/ocirender (images) and netavark/aardvark (networking) are real and production-grade, but no project assembles them into a Docker-equivalent engine. Recorded as rejected so nobody re-searches for it expecting to find one."
+    },
+    "recommended_split": {
+      "immediate (unblocks AC-1 with code that already exists)": "Provision cloud-hypervisor + ch-remote for WSL2 and build the model-bearing guest image. No new backend, no new abstraction.",
+      "strategic (delivers the operator's 'built-in' requirement)": "A Handshake-managed hypervisor asset following the managed_postgres pattern, plus a WHP-capable backend (OpenVMM) so native Windows does not depend on WSL2. This is a NEW work item, not MT-023 scope creep."
+    },
+    "sources": [
+      "https://github.com/youki-dev/youki",
+      "https://hyperlight.org/",
+      "https://opensource.microsoft.com/blog/2024/11/07/introducing-hyperlight-virtual-machine-based-security-for-functions-at-scale/",
+      "https://opensource.microsoft.com/blog/2026/01/28/hyperlight-nanvix-posix-support-for-hyperlight-micro-vms/",
+      "https://openvmm.dev/guide/",
+      "https://github.com/microsoft/openvmm",
+      "https://github.com/termoshtt/ocipkg"
+    ],
+    "recorded_by": "KERNEL_BUILDER-20260801-214802"
+  },
+  "runtime_capability_proof_2026_08_05": {
+    "headline": "The microVM sandbox WORKS on this host, proven at runtime. Every component the 2026-08-04 BLOCKED record called missing is present and functional.",
+    "what_was_actually_run": "cloud-hypervisor --kernel vmlinux-6.1.102 --initramfs initramfs.cpio --cmdline 'console=ttyS0 hsk.cmd=<base64>' --cpus boot=2 --memory size=1024M --serial tty --console off",
+    "observed_output": "Run /init as init process / ---HSK-BEGIN--- / Linux (none) 6.1.102 #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux / GUEST_CPUS=2 / ISOLATION_HOSTFS=0 / ---HSK-END rc=0--- / ACPI: PM: Preparing to enter system sleep state S5 / reboot: Power down",
+    "what_this_proves": [
+      "A real Linux 6.1.102 kernel boots under cloud-hypervisor (a Rust VMM) on this host's KVM.",
+      "Arbitrary commands execute INSIDE the guest and their output returns to the host through the serial transport, with a typed begin/end/rc envelope the init contract defines.",
+      "The vCPU count honours the host-side --cpus flag (GUEST_CPUS=2), so guest resources are really being shaped by the caller.",
+      "ISOLATION_HOSTFS=0: the guest sees NOTHING of the host filesystem. This is real isolation, not a chroot-shaped claim.",
+      "Clean lifecycle: rc=0 then ACPI S5 power down, so the VM terminates rather than leaking."
+    ],
+    "components_verified_present": {
+      "/dev/kvm": "crw-rw---- 1 root kvm 10, 232, with kvm_amd + kvm modules loaded; operator account in group 993(kvm) with confirmed read+write, so no root needed",
+      "cloud-hypervisor": "v52.0 at ~/handshake-sandbox/bin/cloud-hypervisor (Rust, open source)",
+      "ch-remote": "v52.0, same directory - this is what the snapshot/restore seam drives",
+      "guest kernel": "vmlinux-6.1.102, 40774472 bytes",
+      "initramfs": "initramfs.cpio, 2125824 bytes, with a busybox init implementing the hsk.cmd base64 contract",
+      "prior_use_evidence": "~/handshake-sandbox contains dozens of snap-<uuid> directories from earlier snapshot/restore work, plus microvm-build.sh and fsbind-proto.sh. This environment was built and exercised before."
+    },
+    "ROOT_CAUSE_OF_MY_FALSE_BLOCKER": "Two probing errors, both mine. (1) I checked /dev/kvm once while the WSL utility VM was running from a boot that predated nestedVirtualization=true taking effect, then wrote a one-shot environment observation into governance as a permanent host property. (2) I checked for the hypervisor with `command -v cloud-hypervisor`, which only searches PATH - but the adapter resolves ABSOLUTE paths (DEFAULT_CH_BIN = /home/ilja_smets/handshake-sandbox/bin/cloud-hypervisor). The binaries were installed the whole time; I used an instrument that could not see them. The lesson is specific: probe the way the CODE resolves the resource, not the way a shell user would.",
+    "what_is_GENUINELY_still_missing": "Only the model-bearing guest payload: a warm-agent package plus llama-server and a model artifact reachable inside the guest (HANDSHAKE_CH_WARM_AGENT_HOST_PATH is unset and no hsk-warm-agent.package.json / llama-server exists under ~/handshake-sandbox). This is exactly the boundary WorktreeVmRegistry's own module header already declared. It is BUILDABLE: microvm-build.sh exists, and the operator keeps local models at D:\\Local Models per CX-983.",
+    "AC_status": {
+      "AC-1": "NOT yet satisfied - it requires REAL generated tokens from a model loaded inside the VM. In-guest execution is now proven; the model payload is not built yet. No part of AC-1 is being claimed on the strength of this boot.",
+      "AC-6": "No longer applicable as recorded. The resources it named as missing are present, so blocking under AC-6 would now itself be false."
+    },
+    "proven_by": "KERNEL_BUILDER-20260801-214802",
+    "proven_at_utc": "2026-08-05T01:30:00Z"
+  },
+  "ac1_model_in_vm_proof_2026_08_05": {
+    "headline": "A REAL model now loads INSIDE the microVM and generates REAL tokens. The half of AC-1 that had no live proof anywhere in this packet is now proven at runtime, on this host, with no fake adapter and no in-memory double.",
+    "observed_guest_output": "GUEST_ISOLATION_HOSTFS=0 | llama_model_loader: loaded meta data with 35 key-value pairs and 21 tensors from /model/model.gguf (GGUF V3) | print_info: model params = 68.03 M | load_tensors: CPU_Mapped model buffer size = 48.10 MiB | '<unk> The capital of France is the largest city in the world. It is the capital of the French-speaking nation, and the capital of the' | main: decoded 24 tokens in 0.08 s, speed: 287.74 t/s | ---HSK-END rc=0--- | reboot: Power down",
+    "why_this_is_real_and_not_a_double": [
+      "The weights are the Operator's own designated CX-983-003 smoke model (Nanopenis-68M_NSFW_RP.gguf, 51164992 bytes), copied INTO the guest image at /model/model.gguf. The guest reads it from its own initramfs, not from a host path.",
+      "GUEST_ISOLATION_HOSTFS=0 in the same command output: the guest can see nothing of the host filesystem, so the model cannot have been served from the host.",
+      "The tokens are produced by real inference - the loader dumps 35 GGUF KV pairs, 21 tensors, q5_K/q6_K quantization, builds a real KV cache (1.50 MiB, 256 cells, 2 layers) and reports per-token eval timings.",
+      "Clean lifecycle: rc=0 then ACPI S5 power down, so the VM terminated rather than leaking."
+    ],
+    "how_it_was_built": {
+      "vmm": "cloud-hypervisor v52.0 (Rust, open source) on /dev/kvm, 4 vCPUs, 3072 MiB",
+      "kernel": "vmlinux-6.1.102",
+      "guest_image": "initramfs-llm.cpio (61466624 bytes) = busybox + statically linked llama-simple + the GGUF model. Built as a SEPARATE image so the Operator's existing initramfs.cpio was not modified.",
+      "guest_binary": "llama-simple, built from llama.cpp at ~/handshake-sandbox/llama.cpp with -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF and -static. Verified 'ELF 64-bit LSB executable, x86-64, statically linked' - required because the busybox initramfs has no libc.",
+      "build_obstacle_and_fix": "The first static link failed with 'attempted static link of dynamic object libgomp.so'. OpenMP ships dynamic-only on this host, so GGML_OPENMP was disabled; a 68M model does not need it."
+    },
+    "what_this_does_NOT_yet_claim": "AC-1 has TWO clauses. 'produces REAL generated tokens from a model loaded inside that VM' is now PROVEN. 'A model lane launches against a worktree-scoped folder inside a microVM' is NOT yet proven end-to-end: this run was driven directly against cloud-hypervisor, not through ModelLaneStore -> SwarmCoordinator -> WorktreeVmRegistry. The remaining work is PRODUCT WIRING, not capability - the capability question is now settled.",
+    "remaining_to_close_AC1": [
+      "Drive this image through the existing sandbox/cloud_hypervisor adapter rather than a hand-built argv.",
+      "Bind the guest to a worktree-scoped folder via WorktreeVmRegistry so the 'worktree-scoped' clause is real.",
+      "Record the lane's process-ledger START/STOP across the VM boundary (AC-3) and the account scope columns (AC-4)."
+    ],
+    "portability_defect_found": "sandbox/cloud_hypervisor/adapter.rs hardcodes DEFAULT_CH_BIN = /home/ilja_smets/handshake-sandbox/bin/cloud-hypervisor and DEFAULT_KERNEL = /home/ilja_smets/handshake-sandbox/vmlinux-6.1.102. These are machine-local absolute paths carrying the Operator's username, which violates GLOBAL-PORTABILITY-005 / CX-109. They are overridable by HANDSHAKE_CH_* env vars, but the DEFAULT should not be a personal path. This is also what made the installed binaries invisible to a PATH-based probe.",
+    "proven_by": "KERNEL_BUILDER-20260801-214802",
+    "proven_at_utc": "2026-08-05T01:35:00Z"
+  },
+  "ac5_user_manual_entry_2026_08_05": {
+    "operator_request": "Operator instruction 2026-08-05: 'make sure the internal user manual has the built in dev/kvm described'.",
+    "delivered": "New in-product UserManual page `microvm-sandbox-kvm` - 'Built-in MicroVM Sandbox (KVM / cloud-hypervisor)'. USER_MANUAL_VERSION 2.0.21 -> 2.0.22.",
+    "registered_not_orphaned": "Added to the seeded page list AND to the manual TOC slug list. The manual's own rule is that an orphan page is a defect, so registering in only one place would itself be a defect.",
+    "content": [
+      "Purpose, including the explicit terminology correction that a program cannot 'contain a /dev/kvm' - it is a kernel device node - and that what Handshake does is bundle and drive a Rust VMM that talks to it.",
+      "The component list: cloud-hypervisor + ch-remote, /dev/kvm access via the kvm group (root NOT required), guest kernel, guest image, and the requirement that the guest binary be STATICALLY linked because a busybox initramfs has no libc.",
+      "The hsk.cmd base64 entry contract and its ---HSK-BEGIN--- / ---HSK-END rc=--- envelope.",
+      "The end-to-end workflow including sizing memory above the image, since the initramfs is unpacked into guest RAM.",
+      "Machine-readable proof evidence from the real run (vmm version, vcpus, memory, host_filesystem_visible_to_guest=false, model params, decoded tokens, tokens/sec).",
+      "Failure modes written from what was actually hit, not imagined: stale /dev/kvm readings before a wsl --shutdown; permission denied without kvm group; the PATH-probe trap; dynamically linked guest binaries; the libgomp static-link failure; and a guest that cannot see host paths BY DESIGN.",
+      "HBR-INT-009 three-tier posture, each DEFERRED-with-reason with the honest reason (the tiers exist; this path does not emit into them yet)."
+    ],
+    "honesty_constraint_applied": "The page states plainly that the VM is a PROVEN CAPABILITY and NOT yet an operator feature: a worktree-scoped model lane cannot be launched through the operator surfaces today, because the proven run was driven directly against the VMM rather than through ModelLaneStore -> SwarmCoordinator -> WorktreeVmRegistry. Writing 'you can launch a VM lane' would have been the scaffold-lie this packet has already been failed for, and this manual is read by models with no other source of truth.",
+    "known_defect_documented": "The page warns that the compiled-in default VMM and kernel paths are machine-local absolute paths containing a specific user's home directory, and instructs readers to always override them through HANDSHAKE_CH_* rather than rely on the defaults.",
+    "proofs": {
+      "cargo check --features test-utils --all-targets": "exit 0",
+      "user_manual_api_tests": "24 passed, 0 failed",
+      "user_manual_behavior_coverage_tests": "21 passed, 0 failed"
+    },
+    "baseline_held": "Both manual suites match their pre-change baselines exactly (24/0 and 21/0), so the new page was added without weakening or displacing existing manual coverage.",
+    "delivered_by": "KERNEL_BUILDER-20260801-214802",
+    "delivered_at_utc": "2026-08-05T02:30:00Z"
+  },
+  "portability_defect_FIXED_2026_08_05": {
+    "headline": "The portability defect recorded in ac1_model_in_vm_proof_2026_08_05 is FIXED and compile-verified. sandbox/cloud_hypervisor/adapter.rs no longer bakes any machine-local absolute path into the binary.",
+    "was": "Five compile-time constants hardcoded one operator's home directory: DEFAULT_WORK_DIR, DEFAULT_CH_BIN, DEFAULT_CH_REMOTE_BIN, DEFAULT_KERNEL and DEFAULT_INITRAMFS all began '/home/ilja_smets/handshake-sandbox'. They sat directly beneath a doc comment claiming the adapter 'stays disk-agnostic per [GLOBAL-PORTABILITY] (no hardcoded absolute path is baked into a build the operator cannot redirect after a project move)' - the comment and the code contradicted each other.",
+    "now": "A runtime resolver replaces them. default_sandbox_root() resolves in order: HANDSHAKE_SANDBOX_ROOT, then $HOME (or $USERPROFILE on Windows) joined with 'handshake-sandbox', then a bare relative directory as last resort. default_work_dir/default_ch_bin/default_ch_remote_bin/default_kernel/default_initramfs derive from it. The existing HANDSHAKE_CH_* overrides are unchanged and still win, so no operator-facing behaviour changed on a configured host.",
+    "why_it_mattered_beyond_the_rule": "This is also what made the installed binaries invisible to a PATH-based probe and produced the FALSE 'cloud-hypervisor ABSENT' blocker recorded on 2026-08-04: the adapter resolved absolute paths while the probe searched PATH. A runtime-resolved root removes the compile-time personal path that caused that mismatch.",
+    "violations_closed": "CX-109 / CX-109B / GLOBAL-PORTABILITY-005 for this adapter's defaults.",
+    "proof": "cargo check --features test-utils --lib: exit 0, 'Finished dev profile' (13m58s). Only pre-existing unrelated warnings (unused variable packet_path / summary_path / sourced_at_utc / payload_sha256). Verified by grep that no '/home/ilja_smets' literal remains in the adapter's default constants.",
+    "NOT_done_flagged_not_silently_expanded": [
+      "src/backend/handshake_core/src/sandbox/gvisor/adapter.rs still hardcodes the SAME defect at lines ~40 and ~45 (DEFAULT_RUNSC_BIN and DEFAULT_WORK_DIR under /home/ilja_smets/handshake-sandbox). It was NOT in the Operator's stated scope for this MT, so it is flagged rather than silently fixed. Same one-line resolver applies.",
+      "One '/home/ilja_smets/...' literal remains inside a cloud_hypervisor adapter TEST fixture string (persistent-bridge cancel control path). Test-local, not a shipped default.",
+      "AC-1's remaining clause is untouched by this record: the worktree-scoped model LANE wiring (ModelLaneStore -> SwarmCoordinator -> WorktreeVmRegistry) is still unproven, so MT-023 stays READY_FOR_DEV and MUST NOT be promoted."
+    ],
+    "status_unchanged": "lifecycle.status remains READY_FOR_DEV. This record closes a named sub-defect only; it does not advance AC-1.",
+    "fixed_by": "KERNEL_BUILDER-20260805-053606",
+    "fixed_at_utc": "2026-08-05T10:30:00Z"
+  }
+}

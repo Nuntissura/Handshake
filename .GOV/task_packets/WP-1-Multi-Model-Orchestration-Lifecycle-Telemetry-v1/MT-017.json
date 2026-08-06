@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-017",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-08-01T00:00:00Z",
+  "updated_at_utc": "2026-08-05T06:45:00Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
@@ -41,7 +41,7 @@
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: full declared 22-proof suite GREEN at a single frozen revision efea010a with a clean tree. pass=22 fail=0 false_pass_zero_tests=0. Every step reports a non-zero executed count, so no proof passed vacuously.",
+    "proof_status": "READY_FOR_VALIDATION_V5: full declared 22-proof suite GREEN at a single frozen revision efea010a with a clean tree. pass=22 fail=0 false_pass_zero_tests=0. Every step reports a non-zero executed count, so no proof passed vacuously. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker. CAPSTONE STILL OWED: the 22-proof suite must be rerun in full at ONE frozen clean HEAD. The recorded GREEN was at efea010a while current HEAD is 50517aec with ~43 uncommitted files across parallel lanes, so it is stale by construction and cannot be re-declared without a quiet tree.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
     "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_DIAGNOSTICS_USERMANUAL_AND_RUNTIME_AUDIT_GREEN",
@@ -215,7 +215,15 @@
     "HBR-SWARM-002",
     "HBR-MAN-003",
     "HBR-MAN-004",
-    "HBR-VIS-004"
+    "HBR-VIS-004",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005",
+    "HBR-PRIV-006",
+    "HBR-PRIV-007",
+    "HBR-PRIV-008"
   ],
   "hbr_obligations": [
     "INT",
@@ -402,5 +410,55 @@
     "item_1_dependency_remediation_and_frozen_revision": "MET. All declared dependencies (MT-003/004/006/007/008/009/010/011/012/013/014/015) are READY_FOR_VALIDATION_V5, and the full suite ran green at the single frozen revision efea010a with dirty=0.",
     "item_2_internal_diagnostics_and_palmistry": "NEEDS VALIDATOR RULING - NOT claimed as met by this handoff. The V4 fail_report cited internal_diagnostics and Palmistry being 'explicitly deferred' as an INDEPENDENT reason beyond the proof suite, and stated that deferred labels do not satisfy it. Per Codex CX-981-005 those two tiers are BUILT by WP-KERNEL-012 and retrofitted by WP-KERNEL-016, so shipping them is outside WP-1's scope. WP-1 records the honest run-level HBR-INT-009 posture (Flight Recorder WIRED; internal_diagnostics and Palmistry DeferredWithReason at launch, superseded to Wired by the authenticated observation/readback boundary in api/palmistry.rs). The validator must decide whether that satisfies the V4 requirement or whether MT-017 remains blocked on WP-KERNEL-012/016.",
     "item_3_argus_coverage_and_serial_rerun": "PARTIALLY MET / validator to rule. All MT-017 PostgreSQL, Yjs, cancellation, routing, diagnostics, UserManual and native proof commands were rerun SERIALLY with fresh nonce-bound artifacts at one frozen revision (the green suite above). Whether 'production Argus coverage for every WP panel/window' is fully satisfied is a validator judgement; MT-021 added swarm-dispatchable console reachability and settings author_id pins, but its frontend lib-unit suite still shows 9 failures needing a quiet-machine rerun (8 of them in files MT-021 never touched)."
+  },
+  "mixed_suite_contention_cascade_2026_08_05": {
+    "headline": "The mixed-suite failures CASCADE. Which tests fail or hang depends on scheduling, because one test holding a transaction across generation blocks unrelated tests that touch the same rows. This suite cannot be validated at default parallelism until the transaction boundary is fixed.",
+    "evidence_failure_set_is_UNSTABLE": {
+      "run_A_4_threads": "failed = ac9_authority_retry..., ac9_reassignment..., ac9_redispatch..., ac9_replay_rejects_message_and_artifact_projection_drift, mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch, mixed_model_lane_recovery_replays_post_checkpoint..., mt009_kernel_crdt_authority_rejects_truncate. HUNG = ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create, ac9_cancel_terminalizes_parallel_siblings_and_live_sessions.",
+      "run_B_4_threads_after_fixes": "failed = ac9_authority_retry..., ac9_concurrent_production_claims_and_run_extension_are_single_effect_idempotent (NEW), ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation (NEW), ac9_reassignment..., ac9_redispatch..., ac9_replay..., mixed_model_lane_recovery_replays_post_checkpoint... HUNG = ac9_parallel_peer_failure_immediately_cancels_live_sibling (DIFFERENT), mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted (which PASSED in run A).",
+      "what_the_difference_proves": "mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted passed in run A and hung in run B without any change to it or to CRDT code. A test whose outcome flips purely on scheduling is not reporting its own correctness - it is reporting lock contention. Two ac9 tests likewise appeared as failures only in run B."
+    },
+    "my_two_fixes_HELD_in_the_full_run": "mt009_kernel_crdt_authority_rejects_truncate and mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch are ABSENT from run B's failure list, confirming the CASCADE truncate fix and the proposal_ref fixture fix hold under full-suite parallelism, not just in isolation.",
+    "root_cause_is_the_same_one": "Recorded in transaction_across_generation_root_cause_2026_08_05: the routing wave holds a PostgreSQL transaction open across model generation. At default parallelism several tests run waves concurrently against the same managed database, so one stalled wave pins rows and every other test needing them queues. That is why the failing/hanging SET moves between runs.",
+    "VALIDATION_GUIDANCE_until_fixed": "Do NOT validate this binary at default parallelism - the result is not reproducible and will accuse innocent tests. Run it with `-- --test-threads=1`, or per-test with --exact, which is how every fix in this session was actually confirmed. This matters for MT-017's capstone, which declares this binary: a capstone run at default parallelism would produce a different failure list each time.",
+    "still_genuinely_failing_independent_of_contention": [
+      "ac9_replay_rejects_message_and_artifact_projection_drift - CONFIRMED product defect (replay accepts a tampered artifact projection; the added assertions prove the tamper lands). Reproduces in isolation.",
+      "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions - reproduces in isolation; blocked by the transaction-across-generation root cause."
+    ],
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T06:15:00Z"
+  },
+  "advisory_lock_database_scope_cascade_2026_08_05": {
+    "headline": "DEFINITIVE EXPLANATION OF THE MIXED-SUITE CASCADE: PostgreSQL advisory locks are DATABASE-scoped, but this harness isolates tests by SCHEMA inside one shared database. Per-schema isolation therefore does NOT isolate the locks these code paths take, so parallel tests serialize and deadlock across schema boundaries.",
+    "the_two_facts_that_combine": {
+      "1_locks_are_database_wide": "pg_advisory_xact_lock keys live in a single per-DATABASE namespace. Two sessions in different schemas of the same database contend on the same key.",
+      "2_isolation_is_only_per_schema": "Verified directly with psql: the managed cluster has ONE database (`handshake`) containing per-test schemas (mt013_<uuid>, and equivalents for other suites). Confirmed earlier when kernel_process_lifecycle was found once per test schema."
+    },
+    "the_colliding_keyspace": "swarm_orchestration/model_lane.rs::record_or_extend_run_tx takes pg_advisory_xact_lock(hashtextextended($1, 0)) keyed on run_id, AND swarm_orchestration/routing_execution.rs::lock_execution takes pg_advisory_xact_lock(hashtextextended($1, 0)) keyed on execution_id. Same function, same salt (0), same database-wide namespace. record_or_extend_run_tx additionally takes a `SELECT ... FROM model_lane_runs WHERE run_id = $1 FOR UPDATE` row lock in the SAME caller-provided transaction.",
+    "why_this_produces_the_observed_symptoms": [
+      "The failing/hanging SET changes between identical runs, because which test wins a lock depends on scheduling.",
+      "mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted PASSED in one run and HUNG in the next with no change to it or to any CRDT code - it was queued behind another test's transaction, in a different schema.",
+      "Single-test runs (--exact) and single-threaded runs are reliable; that is exactly the configuration in which every fix this session was confirmed.",
+      "The observed blocking chain (holder idle-in-transaction after a scoped read -> a waiter on `transactionid` -> a waiter on `advisory`) is the model_lane run lock and the routing execution lock interacting."
+    ],
+    "relationship_to_the_other_root_cause": "This is SEPARATE from, and compounded by, the transaction-across-generation defect recorded in transaction_across_generation_root_cause_2026_08_05. A transaction held open across inference makes the window enormous; database-wide advisory locks make that window affect UNRELATED tests in other schemas. Either alone is survivable; together they make the suite non-deterministic.",
+    "actionable_consequences": {
+      "for_validation_now": "Run mixed_model_lane_integration_pg_tests with `-- --test-threads=1` (or per-test --exact). A default-parallelism run is not reproducible and will accuse innocent tests. This is already recorded on MT-017, whose capstone declares this binary.",
+      "for_the_harness": "True isolation requires a DATABASE per test (the task_owned_managed_postgres template mode already creates per-test databases) rather than a schema per test, OR the advisory keys must be namespaced per test schema so they cannot collide across concurrent tests.",
+      "for_the_product": "Split the transaction at the generation await so no lane row and no advisory key is held across inference. Anchor identified: model_lane.rs::record_or_extend_run_tx is called from record_prepared_launch (line 245) inside a caller-controlled transaction."
+    },
+    "verification_method": "Two live pg_stat_activity/pg_blocking_pids samples taken DURING the hang windows, plus direct psql inspection of the cluster's database/schema layout. Not inferred from code reading alone.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T06:45:00Z"
+  },
+  "capstone_readiness_UPDATE_2026_08_05": {
+    "headline": "This MT's capstone declares mixed_model_lane_integration_pg_tests. That binary is still NOT capstone-ready, but for a corrected reason, and one of its blocking defects is now fixed.",
+    "fixed": "ac9_replay_rejects_message_and_artifact_projection_drift is FIXED and verified GREEN (117.35s). Root cause was that validate_diagnostics_row_eventledger_authority never covered model_lane_context_bundle_artifacts. See MT-009 artifact_projection_drift_FIXED_2026_08_05.",
+    "still_blocking": "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions remains broken and is now measured as flaky across THREE outcomes with no code change: over 11 isolated --exact --test-threads=1 runs, 7 hung at the 60s cancel bound, 3 failed on teardowns==1 (expected 2), 1 passed. Durations 8.4s-318.1s.",
+    "corrected_cause": "The 'transaction held across model generation' framing is superseded; the transaction is held across a RE-ENTRANT advisory-lock acquisition. Pool exhaustion was probed (max_connections 5 -> 25) and REFUTED - the hang got slower, not fixed. Full evidence in MT-009 cancellation_root_cause_CORRECTED_2026_08_05.",
+    "consequence_for_the_capstone": "A capstone run of this binary cannot be trusted until that cancellation defect is fixed, because the test's own outcome is non-deterministic in isolation - not merely under parallelism. The existing --test-threads=1 guidance is necessary but NOT sufficient.",
+    "status_unchanged": "No lifecycle status was changed by this record.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T08:40:00Z"
   }
 }

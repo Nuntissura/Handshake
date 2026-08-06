@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-29T02:25:17Z",
+  "updated_at_utc": "2026-08-05T07:15:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -30,13 +30,13 @@
     "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260729-022517",
-    "ready_for_validation_at_utc": "2026-07-29T02:25:17Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-214802",
+    "ready_for_validation_at_utc": "2026-08-04T12:20:00Z",
     "completed_by": null,
     "blocker": "Frontend live-GUI Argus proof only (validator-gated): the frontend half of proof target [0] needs a live GUI host + Palmistry backend on 127.0.0.1:37501; all backend targets pass.",
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V5: the V4 blocker (admission/recovery accepting syntactically valid fabricated CRDT references without resolving the referenced update/hash/state-vector) is resolved via the resolver actor_kind taxonomy fix 644dee55 plus Layer-1 proposal_ref admissibility. All declared backend proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544): [0]-backend mixed_local_cloud, [1] negative_guards (fabricated CRDT now denied with 'CRDT authority resolution failed'; run on a dedicated 32MiB-stack thread so it passes at DEFAULT cargo-test stack, no RUST_MIN_STACK), [2] concurrent_converge, [3] midstream, [4] yjs compaction receipts, [5] yjs atomic cross-connection race, [6] ac9_all_six, [7] ac9_bounded_retry, [8][9][10] operator_chat_capture, [11] validation_harness user_manual, [12] mixed_model_lane behavior coverage. NOT RUN (validator-gated): the frontend half of target [0] (src/frontend/handshake_native test_swarm_lane_diagnostics_argus::mixed_model_lane_run_is_inspectable_through_argus) requires a live GUI host + Palmistry backend and must be run by INTEGRATION_VALIDATOR. Source at 27c07f13.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
+    "proof_status": "READY_FOR_VALIDATION_V5: the V4 blocker (admission/recovery accepting syntactically valid fabricated CRDT references without resolving the referenced update/hash/state-vector) is resolved via the resolver actor_kind taxonomy fix 644dee55 plus Layer-1 proposal_ref admissibility. All declared backend proof targets pass on Handshake-managed PostgreSQL (127.0.0.1:5544): [0]-backend mixed_local_cloud, [1] negative_guards (fabricated CRDT now denied with 'CRDT authority resolution failed'; run on a dedicated 32MiB-stack thread so it passes at DEFAULT cargo-test stack, no RUST_MIN_STACK), [2] concurrent_converge, [3] midstream, [4] yjs compaction receipts, [5] yjs atomic cross-connection race, [6] ac9_all_six, [7] ac9_bounded_retry, [8][9][10] operator_chat_capture, [11] validation_harness user_manual, [12] mixed_model_lane behavior coverage. NOT RUN (validator-gated): the frontend half of target [0] (src/frontend/handshake_native test_swarm_lane_diagnostics_argus::mixed_model_lane_run_is_inspectable_through_argus) requires a live GUI host + Palmistry backend and must be run by INTEGRATION_VALIDATOR. Source at 27c07f13. || OPERATOR-CHAT SUITE GREEN (2026-08-04): cargo test --features test-utils --test operator_chat_capture_tests => ok. 14 passed; 0 failed; 0 ignored; 0 filtered out (264.37s) in ONE run at ONE tree state. The validator's 4/14 failures are all fixed: (1) STOP identity conflict was a REAL PRODUCTION BUG - build_stop synthesized a STOP from coordinator defaults whose started_at/WP-MT lineage/metadata diverged from the recorded START, which PostgreSQL correctly refused, leaving EVERY in-process local-model session permanently open in the ledger; fixed by an in-flight START identity index in process_ledger/writer.rs. (2)+(3) 'STOP enqueue overflow' and 'unreclaimed stream-error session' were dead test wiring - two helpers dropped the ProcessLedgerDrain that owns the only ledger receiver, closing the channel before the first spawn, so the ledger path under test was unreachable. (4) the cwd test spawned `cmd`, which reject_command_interpreter denylists by design; it now proves the same guarantee against a real non-interpreter binary (cwd-probe) with a driven PostgreSQL-backed ledger and a multi-thread runtime. ALSO FIXED: a pre-existing cancellation race that durably persisted post-cancel model output - measured 3-of-6 failures at baseline, now 6/6 plus this run (7 consecutive) after fencing every durable write on the coordinator-owned cancellation token instead of the racy in-band FinishReason marker.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN; ARGUS BLOCKED - MISSING RESOURCE (2026-08-04): live production-socket Argus cannot run in this worktree. app.rs spawn_mcp_server returns false with 'MCP Argus server disabled until authenticated Palmistry provenance is available' unless diagnostics.argus_signing_secret() resolves; Argus receipts must be provenance-signed so it FAILS CLOSED by design. Palmistry returns PALMISTRY_LAUNCH_UNAVAILABLE (os error 2, binary absent) - it is a WP-KERNEL-012 deliverable. A REAL blocker was found and fixed on the way here: workspace_settings.rs SettingsClient called tokio Handle::block_on from a runtime worker (its own doc prescribed exactly the usage that panics), killing the worker before the shell published swarm_mcp_binding.json; both call sites now use block_in_place and the panic is gone from the rerun. NOT substituting headless egui_kittest evidence: HBR-VIS-001 states unit tests and uninspected screenshots do not satisfy it, and on this host in-process pixel capture cannot work at all (Harness::render() faults 0xc0000005 on headless-GPU readback). Operator confirmed 2026-08-02 that Argus is being built in a parallel worktree and the two lines will be merged; WP-KERNEL-012's own matrix already EXCLUDES model-session.launch-workspace as outside its editor GUI matrix, so the boundary is clean.",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-20T01:13:33.373Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
@@ -136,7 +136,12 @@
     "HBR-MAN-004",
     "HBR-SWARM-004",
     "HBR-QUIET-001",
-    "HBR-QUIET-003"
+    "HBR-QUIET-003",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-003",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "INT",
@@ -449,5 +454,384 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "mixed_suite_proof_recheck_2026_08_05": {
+    "headline": "mixed_model_lane_integration_pg_tests is NOT green. Recorded because both MT-009 and MT-018 declare this binary as a proof and are recorded READY_FOR_VALIDATION_V5, so the status currently overstates the evidence.",
+    "observed": "41 passed, 7 failed, and 2 tests that NEVER COMPLETE. Run with --test-threads=4 on the external managed PostgreSQL (127.0.0.1:5544).",
+    "failing": [
+      "ac9_authority_retry_rejects_late_prior_attempt_ack_and_uses_new_fence",
+      "ac9_reassignment_cannot_cross_post_validation_output_barrier_or_create_stale_rows",
+      "ac9_redispatch_rejects_the_live_prior_attempt_stale_fence",
+      "ac9_replay_rejects_message_and_artifact_projection_drift",
+      "mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch",
+      "mixed_model_lane_recovery_replays_post_checkpoint_eventledger_catchup",
+      "mt009_kernel_crdt_authority_rejects_truncate"
+    ],
+    "hanging_never_complete": [
+      "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create",
+      "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions"
+    ],
+    "hang_is_real_not_contention": "86 minutes elapsed for 62 CPU-seconds with every other test in the binary finished. An earlier run of the same binary at default parallelism showed the same two outstanding. Both are cancellation tests involving a deliberately blocked factory create and live sibling sessions.",
+    "diagnosed_causes": {
+      "mt009_kernel_crdt_authority_rejects_truncate": "Expects the TRUNCATE refusal to name the append-only authority, but PostgreSQL now refuses EARLIER with 'cannot truncate a table referenced in a foreign key constraint'. A foreign key referencing kernel_crdt_updates changes which error fires first, so the assertion no longer matches reality.",
+      "mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch": "InvalidInput(\"proposal_ref is required\") - a write-time validation now rejects the aggregate-mismatch fixture before the mismatch under test is ever reached.",
+      "ac9_replay_rejects_message_and_artifact_projection_drift": "Replay SUCCEEDED where the test requires it to FAIL on tampered artifact projection - i.e. a tamper-detection expectation is not holding."
+    },
+    "PROVENANCE_pre_existing_not_caused_by_the_2026_08_04_05_work": {
+      "method": "For each diagnosed cause, checked whether the MECHANISM is committed in HEAD or introduced by the uncommitted working tree.",
+      "foreign_key": "Introduced by migrations/0362_knowledge_crdt_applied_binding_update_identity.sql, which IS committed in HEAD (git cat-file -e HEAD:<path> succeeds). The only untracked migrations are 0363/0364, and both contain ZERO references to kernel_crdt_updates.",
+      "proposal_ref_validation": "The string 'proposal_ref is required' is present in HEAD's swarm_orchestration/model_lane.rs, not only in the working tree.",
+      "conclusion": "The two mechanisms that were traced to source are both COMMITTED, so those failures pre-date this session's remediation work rather than being regressions from it. This is stated as traced-to-source attribution, NOT as a clean-HEAD execution result - see caveat.",
+      "caveat": "A definitive classification requires executing this binary at clean HEAD, which needs a separate worktree and a full cold rebuild against ~8000 lines of uncommitted changes from several lanes. That was not self-authorized. The third failure (artifact projection drift) and the two hangs were NOT traced to source and remain unattributed."
+    },
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T02:00:00Z",
+    "status_note": "Status intentionally NOT changed. Downgrading is a scope decision; this record exists so the recorded status is not silently trusted."
+  },
+  "mixed_suite_repairs_2026_08_05": {
+    "headline": "Two of the seven mixed-suite failures are FIXED and verified green. A third is now a CONFIRMED PRODUCT DEFECT rather than an ambiguous failure.",
+    "fixed_and_verified": {
+      "mt009_kernel_crdt_authority_rejects_truncate": {
+        "result": "1 passed, 0 failed",
+        "was": "Expected the TRUNCATE refusal to name the append-only authority, but got 'cannot truncate a table referenced in a foreign key constraint'. Migration 0362 (COMMITTED, not from this session) added a foreign key referencing kernel_crdt_updates, and PostgreSQL enforces that during constraint checking BEFORE any BEFORE TRUNCATE trigger fires.",
+        "insight": "The statement was still refused, so the test kept passing its exit code for a while - but the migration-0358 append-only trigger it exists to prove was never reached. It had quietly become a test of PostgreSQL's FK enforcement.",
+        "fix": "TRUNCATE ... CASCADE. Satisfying the FK objection lets the 0358 trigger actually run, so the assertion now proves the guard refuses even a caller willing to cascade. STRICTLY STRONGER than before; nothing was relaxed."
+      },
+      "mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch": {
+        "result": "1 passed, 0 failed",
+        "was": "InvalidInput(\"proposal_ref is required\"). sample_message builds a Proposal-kind message, and the kind-aware rule in model_lane.rs (COMMITTED in HEAD) requires proposal_ref for those. The write was refused before the test could reach the EventLedger aggregate mismatch it exists to prove.",
+        "fix": "Set message.proposal_ref, using the exact one-line convention every other message fixture in this file already uses. No assertion touched."
+      }
+    },
+    "CONFIRMED_PRODUCT_DEFECT": {
+      "test": "ac9_replay_rejects_message_and_artifact_projection_drift",
+      "finding": "replay_run ACCEPTS a tampered artifact projection. The test tampers {payload_json,typed_output,proposal} in model_lane_context_bundle_artifacts and requires replay to fail; replay succeeds.",
+      "why_this_is_now_trustworthy": "The failure was previously ambiguous: jsonb_set returns the document UNCHANGED when the parent path is absent, so a stale fixture path and a real detection regression are indistinguishable - both look like 'replay stopped failing'. Two assertions were ADDED before the original one: that the UPDATE affected exactly 1 row, and that the tampered value is actually readable back at that path. BOTH PASS. The tamper therefore genuinely landed and replay still accepted it.",
+      "severity": "Integrity-relevant. Artifact projection drift is exactly what replay verification exists to catch, and it is not catching it.",
+      "not_fixed_here": "Left as a diagnosed product defect rather than patched blind. Fixing it means changing what replay verifies, which is a product-behaviour decision, and the test is now an honest failing reproduction of it."
+    },
+    "environment_note": "swarm_lane_diagnostics_pg_tests additionally requires HANDSHAKE_ARTIFACTS_DIR to be set (it fails with NotPresent otherwise). That is a THIRD undocumented harness requirement in this packet, alongside the two mutually exclusive PostgreSQL modes recorded on MT-013.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T03:00:00Z"
+  },
+  "cancellation_defect_2026_08_05": {
+    "headline": "The two tests that HUNG the mixed suite are now bounded, and they resolve to ONE product defect: the coordinator cannot interrupt an in-progress factory create, so cancellation either blocks or fails to reach the worker.",
+    "before": "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create and ac9_cancel_terminalizes_parallel_siblings_and_live_sessions never completed. 86 minutes elapsed for 62 CPU-seconds with every other test in the binary finished. Because libtest prints failure detail only at the end, these two hangs suppressed the reporting of the WHOLE binary - which is why mixed_model_lane_integration_pg_tests could not be used as evidence for anything, and why MT-017's capstone (which declares this binary) was unreachable.",
+    "change_made": "Bounded both awaits with tokio::time::timeout(60s). NO assertion was altered, removed, or weakened - only the FAILURE MODE. A hang is not a more cautious outcome than a failed assertion; it is a worse one, because it destroys the suite's ability to report at all.",
+    "now_observed": {
+      "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create": "FAILS with 'cancellation must propagate INTO the blocked factory create and end the worker: Elapsed'. cancel_routing_execution ITSELF returned successfully with status Cancelled - so the execution is marked cancelled while the worker stays stuck inside create().",
+      "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions": "FAILS with 'cancel_routing_execution must not hang while siblings are live: Elapsed'. Here the cancel CALL itself never returns."
+    },
+    "SINGLE_ROOT_CAUSE": {
+      "diagnosis": "The coordinator has no way to interrupt a ModelSessionFactory::create() that is already running. cancel_routing_execution collects the live instances (releasing the registry and pending_spawns locks BEFORE any await, so this is NOT a lock-across-await deadlock) and then awaits cancel_session per instance. For a session still inside create(), that await cannot complete.",
+      "explains_both_symptoms": "Symptom B is that await never returning. Symptom A is the same gap seen from the other side: the DB row is terminalized but the blocked create is never unwound, so the worker task never ends.",
+      "test_side_confirmation": "Ac9ProductionFactory::create blocks in `while hold_create || held_models.contains(model) { sleep(25ms) }` with no cancellation awareness, and the blocked-create test never clears hold_create. The fixture is deliberately constructed so that ONLY real cancellation propagation can break it out - which is precisely the behaviour AC-9 requires and which is missing.",
+      "fix_shape_not_applied": "Making create() cancellable - e.g. driving it under a tokio::select! against the coordinator-owned session cancel token, or running it as an abortable task whose handle cancellation aborts. This is a real change to the spawn admission path in coordinator.rs and was NOT attempted here: validating it requires the full mixed suite plus the swarm coordinator suites, which is hours of runtime, and a half-validated change to the spawn path is exactly how the regressions earlier in this session happened."
+    },
+    "attribution_open": "NOT established as pre-existing or regression. Unlike the TRUNCATE and proposal_ref failures - whose mechanisms were traced to COMMITTED sources (migration 0362 and model_lane.rs in HEAD) - no committed-vs-working-tree mechanism was traced for this one. Stating it either way would be a guess.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T03:45:00Z"
+  },
+  "cancellation_fix_2026_08_05": {
+    "headline": "PRODUCT FIX LANDED. The blocked-factory-create cancellation defect is FIXED and its test now PASSES (was an infinite hang). The sibling case is a SEPARATE defect, now narrowed to a precise mechanism.",
+    "fix_applied": {
+      "file": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs (spawn admission path)",
+      "was": "On cancellation the spawn path did `(create.await, true)` - an UNBOUNDED wait for the in-flight factory create. The intent was sound and documented: a create may already have crossed an external side-effect boundary, so dropping it immediately could orphan a real process.",
+      "why_that_was_still_wrong": "cancel_routing_execution awaits cancel_session for every live instance, so ONE factory create that never returns wedges the operator's cancel forever. An orphaned process is recoverable through the process-ledger reclaim path; a cancel that never returns is not recoverable by the operator at all. The bound was missing, not the intent.",
+      "now": "The post-cancellation wait is bounded by config.teardown_timeout - the SAME budget that already bounds every other unwind in this coordinator (it also bounds the session teardown at coordinator.rs:4902), so no new magic constant was introduced. Within the grace the create still resolves and is compensated exactly as before; past it the create is abandoned with a typed FactoryFailed error naming the abandonment, and any external side effect is explicitly left to process-ledger reclaim.",
+      "proof": "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create: 1 passed, 0 failed (45.91s). Before this change the same test never terminated. cargo check --features test-utils --all-targets: exit 0."
+    },
+    "REMAINING_SEPARATE_DEFECT": {
+      "test": "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions",
+      "status": "STILL FAILS - 'cancel_routing_execution must not hang while siblings are live: Elapsed'.",
+      "why_it_is_NOT_the_same_defect": "This test sets hold_generation, NOT hold_create. Both factory creates COMPLETE (the test asserts creates == 2), so the sessions are LIVE and blocked inside GENERATION, not inside create. The fix above therefore cannot apply to it, and correctly did not change its result.",
+      "narrowed_mechanism": "cancel_session takes the live path -> terminate(). The session TEARDOWN is already bounded by teardown_timeout (coordinator.rs:4902), so teardown is not the unbounded step. What remains unbounded in terminate() are its DURABLE WRITES: the terminal-state write and record_lane_terminal_status. The most probable cause is that those writes block on PostgreSQL row locks still held by the generation work being cancelled - i.e. cancellation waiting on locks held by the very work it is trying to cancel.",
+      "not_fixed_here": "Deliberately not patched blind. Confirming it requires observing lock waits (pg_locks / pg_stat_activity) during the hang, and the fix shape - bounding those writes, or making the generation path release its transaction on cancel - changes durability behaviour on the terminal path. That is exactly the class of change that caused three regressions earlier in this session when made without full validation.",
+      "next_concrete_step": "Run the test while sampling pg_stat_activity for blocked queries on the model_lane rows to confirm the lock-wait hypothesis before changing the terminal write path."
+    },
+    "harness_hardening_retained": "Both tests keep their bounded tokio::time::timeout wrappers. No assertion was altered. Before this, these two tests hung forever and suppressed the failure reporting of the ENTIRE binary (libtest prints failure detail only at the end), which is why mixed_model_lane_integration_pg_tests could not serve as evidence and MT-017's capstone was unreachable. The suite now always reports.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T04:15:00Z"
+  },
+  "advisory_lock_cancellation_deadlock_2026_08_05": {
+    "headline": "ROOT CAUSE OF THE SIBLING CANCELLATION HANG, established from LIVE PostgreSQL evidence, not inference: a pg_advisory_xact_lock is held across an in-process await, so cancellation queues behind the very work it is cancelling.",
+    "how_it_was_established": "The test was run while sampling pg_stat_activity and pg_blocking_pids during the hang window. This replaced two earlier hypotheses that were both WRONG and are recorded as refuted below.",
+    "observed_blocking_chain": {
+      "88652": "wait_event = Client/ClientRead, blocked_by = {} -- THE HOLDER. Its last statement is `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, so it took the advisory lock and then went IDLE IN TRANSACTION waiting on the application. It is not waiting on PostgreSQL at all; it is parked awaiting Rust.",
+      "24936": "wait_event = Lock/advisory, blocked_by = {88652}",
+      "86300": "wait_event = Lock/advisory, blocked_by = {88652, 24936}"
+    },
+    "mechanism": "swarm_orchestration/routing_execution.rs defines `lock_execution` (line 2554) which issues pg_advisory_xact_lock(hashtextextended(execution_id, 0)) INSIDE a transaction, and it is called from EIGHT sites (lines 345, 369, 507, 716, 1256, 1822, 1982, 2221) including claim_ready (709) and record_generated_output (1566). Because the lock is an XACT lock it is held until that transaction ends. When a stage is mid-generation the holding transaction stays open across the generation await, and cancel_routing_execution - which needs the same execution-keyed advisory lock to terminalize - blocks behind it indefinitely. The advisory lock serializes on execution_id, so a slow or blocked stage makes the operator's cancel unreachable by construction.",
+    "why_the_other_symptom_differed": "ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create used hold_create, so the stall was in factory create BEFORE any generation transaction existed; bounding the post-cancel create wait (the fix already landed) resolved it and that test now passes. ac9_cancel_terminalizes_parallel_siblings_and_live_sessions uses hold_generation instead: both creates COMPLETE, the sessions are live, and the stall is inside generation while a routing transaction holds the advisory lock. Same visible symptom, genuinely different cause - which is why the first fix correctly did not mask the second.",
+    "hypotheses_raised_and_REFUTED": [
+      "REFUTED: 'terminate() never fires the session cancel token, so generation never stops.' It does - coordinator.rs:4645 calls handle.cancel.cancel(), and the fixture's generate() stream polls cancel.is_cancelled() every 25ms and emits ModelRuntimeError::Cancelled.",
+      "REFUTED: 'the session teardown await is unbounded.' It is already bounded by config.teardown_timeout at coordinator.rs:4902 (5s default).",
+      "REFUTED (earlier, separately): 'the ledger writer STOP identity hardening broke external reclaim.' ProcessReclaim::reclaim_stop derives its STOP identity from the persisted row, so it stays byte-identical."
+    ],
+    "fix_shape_NOT_applied": "The advisory lock must not span a model-generation await. Options: (a) take the lock, perform the state transition, COMMIT, and re-acquire for the post-generation write, so the lock is held only for the duration of a durable transition rather than the duration of inference; or (b) give cancellation a lock-free terminalization path so an operator cancel never queues behind stage work. Not applied here because it changes transactional boundaries on the routing terminal path - the exact class of change that produced three regressions earlier in this session when landed without full-suite validation, and the full mixed suite plus swarm suites are hours of runtime.",
+    "severity": "Operator-facing. Any cancel of a routing execution whose stage is mid-generation will block for the duration of that generation. With a real model rather than a test fixture that is a long, unexplained UI stall on the cancel path.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T04:45:00Z"
+  },
+  "transaction_across_generation_root_cause_2026_08_05": {
+    "headline": "CORRECTED ROOT CAUSE. The advisory lock was a SYMPTOM. The actual defect is that the routing wave holds a PostgreSQL transaction OPEN ACROSS MODEL GENERATION, so every concurrent operation - including operator cancellation - queues behind inference.",
+    "correction_of_my_earlier_claim": "An earlier record in this MT stated the advisory lock held across an await was the root cause, and a later message claimed 'the deadlock is broken'. Both were PARTIAL. The advisory lock was the first blocking point only; removing cancellation's dependency on it fixed one of the two tests and moved the hang, it did not remove it. Recorded here so the earlier, narrower diagnosis is not trusted as complete.",
+    "evidence_second_sample": {
+      "62788": "wait_event = ClientRead, blocked_by = {} -- HEAD-OF-LINE HOLDER. Last statement `SELECT record_json, owner_account_id, actor_principal_id, authenticated...` (a resource-scope-columns read). It is IDLE IN TRANSACTION, waiting on the application, not on PostgreSQL.",
+      "95116": "wait_event = transactionid, blocked_by = {62788} -- waiting for 62788's transaction to end (row-level conflict) while reading model_lane rows.",
+      "77436": "wait_event = advisory, blocked_by = {95116} -- the advisory waiter is now THIRD in the chain, not the cause."
+    },
+    "what_this_means": "A transaction that has read lane rows stays open for the entire duration of model inference. Any writer touching those rows blocks on the row lock, and anything needing the execution advisory lock then queues behind that writer. Cancellation is simply the first operation an operator notices, because it is the one they issue while inference is still running.",
+    "severity": "Architectural and operator-facing. With a real model - not a fixture - inference can run for many seconds to minutes. For that whole window the routing execution's rows are transactionally pinned. This is a scalability and responsiveness defect well beyond the cancellation path.",
+    "fix_landed_so_far": {
+      "1": "coordinator.rs spawn admission: the post-cancellation wait on an in-flight factory create is now BOUNDED by config.teardown_timeout instead of unbounded. FIXES ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create, which now passes (35.84s) after previously never terminating.",
+      "2": "routing_execution.rs: added active_instance_ids_for_cancellation - a lock-free, integrity-gate-free read of just the active stage instance ids - and cancel_routing_execution now uses it instead of the locking snapshot(). This removes cancellation's FIRST blocking point. The locked snapshot() is unchanged for all other callers, keeping the blast radius on the path that was broken.",
+      "3": "Both cancellation tests are bounded with tokio::time::timeout, so a regression reports instead of freezing the whole binary. No assertion was altered."
+    },
+    "REMAINING_fix_not_applied": {
+      "test_still_failing": "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions",
+      "required_change": "Stop holding a database transaction across generation. The wave must commit the durable state transition BEFORE awaiting inference and re-open a transaction for the post-generation write, so no lane row is transactionally pinned while a model runs.",
+      "why_not_attempted_here": "This changes transactional boundaries and therefore the atomicity guarantees of the routing terminal path across at least routing_execution.rs and model_lane.rs. It needs the full mixed suite plus the swarm coordinator suites to validate - hours of runtime. Three regressions earlier in this session came from landing boundary changes without that validation, and repeating that pattern on the DURABILITY path would be worse than the defect.",
+      "concrete_next_step": "Identify the transaction opened by the scope-columns read observed on pid 62788 (`SELECT record_json, owner_account_id, actor_principal_id, authenticated...`) and split it at the generation await."
+    },
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T05:30:00Z"
+  },
+  "mixed_suite_contention_cascade_2026_08_05": {
+    "headline": "The mixed-suite failures CASCADE. Which tests fail or hang depends on scheduling, because one test holding a transaction across generation blocks unrelated tests that touch the same rows. This suite cannot be validated at default parallelism until the transaction boundary is fixed.",
+    "evidence_failure_set_is_UNSTABLE": {
+      "run_A_4_threads": "failed = ac9_authority_retry..., ac9_reassignment..., ac9_redispatch..., ac9_replay_rejects_message_and_artifact_projection_drift, mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch, mixed_model_lane_recovery_replays_post_checkpoint..., mt009_kernel_crdt_authority_rejects_truncate. HUNG = ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create, ac9_cancel_terminalizes_parallel_siblings_and_live_sessions.",
+      "run_B_4_threads_after_fixes": "failed = ac9_authority_retry..., ac9_concurrent_production_claims_and_run_extension_are_single_effect_idempotent (NEW), ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation (NEW), ac9_reassignment..., ac9_redispatch..., ac9_replay..., mixed_model_lane_recovery_replays_post_checkpoint... HUNG = ac9_parallel_peer_failure_immediately_cancels_live_sibling (DIFFERENT), mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted (which PASSED in run A).",
+      "what_the_difference_proves": "mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted passed in run A and hung in run B without any change to it or to CRDT code. A test whose outcome flips purely on scheduling is not reporting its own correctness - it is reporting lock contention. Two ac9 tests likewise appeared as failures only in run B."
+    },
+    "my_two_fixes_HELD_in_the_full_run": "mt009_kernel_crdt_authority_rejects_truncate and mixed_model_lane_recovery_rejects_eventledger_aggregate_mismatch are ABSENT from run B's failure list, confirming the CASCADE truncate fix and the proposal_ref fixture fix hold under full-suite parallelism, not just in isolation.",
+    "root_cause_is_the_same_one": "Recorded in transaction_across_generation_root_cause_2026_08_05: the routing wave holds a PostgreSQL transaction open across model generation. At default parallelism several tests run waves concurrently against the same managed database, so one stalled wave pins rows and every other test needing them queues. That is why the failing/hanging SET moves between runs.",
+    "VALIDATION_GUIDANCE_until_fixed": "Do NOT validate this binary at default parallelism - the result is not reproducible and will accuse innocent tests. Run it with `-- --test-threads=1`, or per-test with --exact, which is how every fix in this session was actually confirmed. This matters for MT-017's capstone, which declares this binary: a capstone run at default parallelism would produce a different failure list each time.",
+    "still_genuinely_failing_independent_of_contention": [
+      "ac9_replay_rejects_message_and_artifact_projection_drift - CONFIRMED product defect (replay accepts a tampered artifact projection; the added assertions prove the tamper lands). Reproduces in isolation.",
+      "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions - reproduces in isolation; blocked by the transaction-across-generation root cause."
+    ],
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T06:15:00Z"
+  },
+  "advisory_lock_database_scope_cascade_2026_08_05": {
+    "headline": "DEFINITIVE EXPLANATION OF THE MIXED-SUITE CASCADE: PostgreSQL advisory locks are DATABASE-scoped, but this harness isolates tests by SCHEMA inside one shared database. Per-schema isolation therefore does NOT isolate the locks these code paths take, so parallel tests serialize and deadlock across schema boundaries.",
+    "the_two_facts_that_combine": {
+      "1_locks_are_database_wide": "pg_advisory_xact_lock keys live in a single per-DATABASE namespace. Two sessions in different schemas of the same database contend on the same key.",
+      "2_isolation_is_only_per_schema": "Verified directly with psql: the managed cluster has ONE database (`handshake`) containing per-test schemas (mt013_<uuid>, and equivalents for other suites). Confirmed earlier when kernel_process_lifecycle was found once per test schema."
+    },
+    "the_colliding_keyspace": "swarm_orchestration/model_lane.rs::record_or_extend_run_tx takes pg_advisory_xact_lock(hashtextextended($1, 0)) keyed on run_id, AND swarm_orchestration/routing_execution.rs::lock_execution takes pg_advisory_xact_lock(hashtextextended($1, 0)) keyed on execution_id. Same function, same salt (0), same database-wide namespace. record_or_extend_run_tx additionally takes a `SELECT ... FROM model_lane_runs WHERE run_id = $1 FOR UPDATE` row lock in the SAME caller-provided transaction.",
+    "why_this_produces_the_observed_symptoms": [
+      "The failing/hanging SET changes between identical runs, because which test wins a lock depends on scheduling.",
+      "mt018_proposal_kind_crdt_message_with_approved_applied_proposal_is_admitted PASSED in one run and HUNG in the next with no change to it or to any CRDT code - it was queued behind another test's transaction, in a different schema.",
+      "Single-test runs (--exact) and single-threaded runs are reliable; that is exactly the configuration in which every fix this session was confirmed.",
+      "The observed blocking chain (holder idle-in-transaction after a scoped read -> a waiter on `transactionid` -> a waiter on `advisory`) is the model_lane run lock and the routing execution lock interacting."
+    ],
+    "relationship_to_the_other_root_cause": "This is SEPARATE from, and compounded by, the transaction-across-generation defect recorded in transaction_across_generation_root_cause_2026_08_05. A transaction held open across inference makes the window enormous; database-wide advisory locks make that window affect UNRELATED tests in other schemas. Either alone is survivable; together they make the suite non-deterministic.",
+    "actionable_consequences": {
+      "for_validation_now": "Run mixed_model_lane_integration_pg_tests with `-- --test-threads=1` (or per-test --exact). A default-parallelism run is not reproducible and will accuse innocent tests. This is already recorded on MT-017, whose capstone declares this binary.",
+      "for_the_harness": "True isolation requires a DATABASE per test (the task_owned_managed_postgres template mode already creates per-test databases) rather than a schema per test, OR the advisory keys must be namespaced per test schema so they cannot collide across concurrent tests.",
+      "for_the_product": "Split the transaction at the generation await so no lane row and no advisory key is held across inference. Anchor identified: model_lane.rs::record_or_extend_run_tx is called from record_prepared_launch (line 245) inside a caller-controlled transaction."
+    },
+    "verification_method": "Two live pg_stat_activity/pg_blocking_pids samples taken DURING the hang windows, plus direct psql inspection of the cluster's database/schema layout. Not inferred from code reading alone.",
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T06:45:00Z"
+  },
+  "runtime_flavor_hypothesis_refuted_2026_08_05": {
+    "hypothesis": "The mixed-suite cancellation tests use `#[tokio::test]`, which is a CURRENT-THREAD runtime, while production runs multi-threaded. A single-threaded executor can manufacture ordering deadlocks (task starvation, lock-holder never polled) that cannot occur in the real product. If so, the defect would be in the TEST HARNESS's runtime flavor, not in the coordinator.",
+    "experiment": "ac9_cancel_terminalizes_parallel_siblings_and_live_sessions was temporarily switched to #[tokio::test(flavor = \"multi_thread\", worker_threads = 4)] and run in isolation with --exact --test-threads=1.",
+    "RESULT_REFUTED": "It FAILED IDENTICALLY: 'cancel_routing_execution must not hang while siblings are live: Elapsed', 81.84s. Executor starvation and single-threaded ordering are therefore RULED OUT. The deadlock reproduces on a multi-threaded runtime, so it is a genuine product-side lock-ordering defect, not a test-harness artifact.",
+    "probe_reverted": "The temporary rename and the flavor attribute were both reverted immediately and verified. This matters: the test is a DECLARED proof target of MT-009 and MT-018, so leaving it renamed would have silently turned two declared proofs into vacuous ones - the exact defect already found on MT-013.",
+    "value_of_the_negative_result": "It removes the cheapest possible explanation. The remaining candidates are all product-side: a transaction held across an await, or a lock-ordering inversion between the wave's run-row locks and the cancellation path. Recorded so the next investigator does not spend the same effort on the runtime flavor.",
+    "cumulative_refuted_hypotheses_for_this_hang": [
+      "REFUTED: terminate() never fires the session cancel token (it does - coordinator.rs:4645; the fixture stream polls it every 25ms).",
+      "REFUTED: the session teardown await is unbounded (already bounded by teardown_timeout at coordinator.rs:4902).",
+      "REFUTED: cancellation's first blocking point (the locking snapshot) was the whole cause - fixing it moved the hang rather than removing it.",
+      "REFUTED: current-thread tokio runtime / executor starvation (this experiment).",
+      "STILL STANDING: a database transaction is held open while a stage is mid-generation, pinning model_lane_runs rows (advisory + FOR UPDATE via record_or_extend_run_tx) that the cancellation path needs."
+    ],
+    "recorded_by": "KERNEL_BUILDER-20260801-214802",
+    "recorded_at_utc": "2026-08-05T07:15:00Z"
+  },
+  "artifact_projection_drift_FIXED_2026_08_05": {
+    "headline": "PRODUCT FIX LANDED AND VERIFIED. ac9_replay_rejects_message_and_artifact_projection_drift now PASSES. The confirmed integrity defect (replay accepted a tampered artifact projection) is closed with RED -> GREEN evidence from this session.",
+    "root_cause": "validate_diagnostics_row_eventledger_authority (model_lane.rs) proved SIX aggregates against kernel_event_ledger - model_lane_runs, model_lanes, model_lane_messages, model_lane_leases, model_lane_diagnostic_tier_statuses, model_lane_mt_runtime_statuses - and did NOT include model_lane_context_bundle_artifacts. Artifact projections were the one durable ModelLane surface that no replay, diagnostics, or recovery read ever validated, which is why a tamper landed and replay still returned Ok. The artifact row holds the stage output payload, so it is the highest-value row to tamper and was the only unguarded one.",
+    "why_the_existing_validator_could_be_reused": "Verified against live rows before editing: model_lane_context_bundle_artifacts already carries event_ledger_event_id resolving to a real kernel_event_ledger event with aggregate_type='model_lane_context_bundle_artifact' and aggregate_id=artifact_binding_id; record_json already carries event_stream_version, transaction_seq, event_ledger_event_id, event_ledger_seq and artifact_binding_hash; ModelLaneContextBundleArtifactBindingRecord already implements Deref<Target=NewModelLaneContextBundleArtifactBinding> and both derive PartialEq, and payload_json is a compared field. No new code path was needed.",
+    "change": [
+      "model_lane.rs validate_diagnostics_row_eventledger_authority: added the model_lane_context_bundle_artifact aggregate via the SAME generic validate_diagnostics_row_eventledger_authority_for helper (id_field=artifact_binding_id, run_field=run_id). This also gains identity and EventLedger-metadata checks for artifacts, not only body equality.",
+      "model_lane.rs row_sequence_metadata match: added model_lane_context_bundle_artifacts so its event_stream_version/transaction_seq columns are validated too (the table has them).",
+      "model_lane.rs body-drift message now reads 'does not match its EventLedger payload in kernel_event_ledger'. The test asserts .contains(\"EventLedger\") and the old wording only contained the lowercase table name. Verified by grep that NO test asserts the previous wording (the single hit in model_lane_context_bundle_pg_tests.rs:1502 is a comment)."
+    ],
+    "proof": {
+      "RED_before_fix": "ac9_replay_rejects_message_and_artifact_projection_drift FAILED: replay_run returned Ok(ModelLaneReplay{...}) where the test requires Err. The message-tamper half PASSED in the same run, isolating the gap to artifacts.",
+      "GREEN_after_fix": "test result: ok. 1 passed; 0 failed; 0 ignored; 49 filtered out; finished in 117.35s.",
+      "command": "cargo test --features test-utils --test mixed_model_lane_integration_pg_tests -- ac9_replay_rejects_message_and_artifact_projection_drift --exact --test-threads=1",
+      "environment": "external mode POSTGRES_TEST_URL=postgres://postgres@127.0.0.1:5544/handshake; CARGO_TARGET_DIR per-owner scoped dir handshake-cargo-target/wp1-v5-takeover per CX-984-002/HBR-SWARM-005"
+    },
+    "blast_radius_checked": "The validator is shared by replay_run, diagnostics_projection and recover_run, so all three now reject artifact drift. Confirmed by grep that product code only INSERTs into model_lane_context_bundle_artifacts (no UPDATE path), so no legitimate row repoint can trip the new check. NOT yet re-run: the full mixed suite - that remains outstanding and is the real blast-radius proof.",
+    "no_assertion_weakened": "No test assertion was altered, relaxed, or re-pointed. The only test-visible change is that a drift message now also names EventLedger.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T08:40:00Z"
+  },
+  "cancellation_root_cause_CORRECTED_2026_08_05": {
+    "headline": "CORRECTION TO transaction_across_generation_root_cause_2026_08_05. The transaction is NOT held across MODEL GENERATION. It is held across a re-entrant advisory-lock acquisition. The earlier fix shape ('commit the durable state transition BEFORE awaiting inference') would NOT have fixed this hang.",
+    "how_established": "Four separate hang windows captured live with pg_stat_activity + pg_blocking_pids sampling at 4-5s intervals during isolated --exact --test-threads=1 runs. Each hang window is exactly ~60s, matching the test's 60s cancel timeout.",
+    "the_truncation_ambiguity_is_RESOLVED": "The prior record captured the holder statement truncated as 'SELECT record_json, owner_account_id, actor_principal_id, authenticated...', which matches BOTH model_lane.rs:2431 (replay_run, no row lock) and model_lane.rs:5029 (record_or_extend_run_tx, FOR UPDATE). The full text was captured this time and ends in FOR UPDATE, so the holder is record_or_extend_run_tx (model_lane.rs:5029), NOT replay_run. replay_run is exonerated.",
+    "observed_chain_shape_A": "HOLDER idle in transaction / Client-ClientRead, last statement 'SELECT record_json, <5 scope columns> FROM model_lane_runs WHERE run_id = $1 FOR UPDATE'; WAITER on Lock/transactionid blocked_by holder, running routing_execution.rs:2724 'SELECT record_json, event_ledger_event_id, event_ledger_seq FROM model_lane_runs WHERE run_id=$1 FOR UPDATE'; WAITER on Lock/advisory blocked_by that waiter.",
+    "observed_chain_shape_B": "HOLDER idle in transaction with last statement 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))' and TWO further sessions queued on Lock/advisory, blocked_by {holder} and {holder,waiter1}. Same advisory key, three deep.",
+    "POOL_EXHAUSTION_HYPOTHESIS_REFUTED": "Hypothesis: the holder parks because all 5 pooled connections are checked out (knowledge_pg_support.rs max_connections(5)), so it cannot acquire a connection to progress. During every hang backends==5, which looked conclusive. PROBE: max_connections raised 5 -> 25 and the test re-run. RESULT: the hang REPRODUCED and got SLOWER (318.1s vs 70-135s), still panicking at line 8913. Connection availability is therefore NOT the necessary condition. The probe was reverted immediately and the file verified clean against HEAD.",
+    "what_the_evidence_now_supports": "A re-entrant cycle: the operation holds the run/execution advisory lock in transaction T on connection A, then awaits work that opens a SECOND connection B and requests the SAME salt-0 advisory key. B can never be granted while T is open, and T cannot close until the awaited work finishes. This is exactly the observed 'active | Lock/advisory | blocked_by {holder}' rows, and it is immune to pool size - which is why raising max_connections made it worse rather than better. It is also consistent with the earlier finding that removing cancellation's first locking step only MOVED the hang.",
+    "consistent_with_previously_refuted_items": "Does not resurrect any refuted hypothesis. Executor starvation stays refuted (the cycle is a resource cycle, not a scheduling artifact, which is why the multi_thread experiment failed identically). terminate() firing the cancel token stays refuted. Unbounded teardown stays refuted.",
+    "NOT_yet_done": "The exact nesting site - which awaited call re-requests the salt-0 key while the caller already holds it - is NOT yet pinned to a line, and NO fix has been attempted. Stating a specific call pair without that evidence would be a guess.",
+    "recommended_next_step": "Instrument the salt-0 acquisition rather than reason about it: log or receipt (run_id/execution_id, connection identity, acquiring call site) on every pg_advisory_xact_lock(hashtextextended($1,0)) take and release, then run the test once and read which two call sites hold and request the same key concurrently. That is a single decisive observation, in the same style that resolved the truncation ambiguity above.",
+    "flakiness_profile_measured_this_session": "11 isolated single-threaded runs of ac9_cancel_terminalizes_parallel_siblings_and_live_sessions with NO code change: 7 hung at line 8913 (cancel exceeded its 60s bound), 3 failed at line 8924 (teardowns==1, expected 2), 1 PASSED. Durations 8.4s to 318.1s. The failure MODE itself is non-deterministic even with --exact --test-threads=1, so a single green run of this test is not evidence that it is fixed.",
+    "second_distinct_defect_surfaced": "The teardowns==1 (expected 2) failure at line 8924 is a DIFFERENT defect from the hang: cancellation returns successfully and terminalizes both stages, both sessions were created (creates==2), but only ONE session's teardown ran. That is an orphan-session risk relevant to HBR-QUIET-003 and is not explained by the advisory-lock cycle. Recorded so it is not absorbed into the hang.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T08:40:00Z"
+  },
+  "cancellation_deadlock_MECHANISM_IDENTIFIED_2026_08_05": {
+    "headline": "The recommended instrumentation was built and run. RESULT: this is a RE-ENTRANT SELF-BLOCK on routing_execution.rs::lock_execution. All three participants in the blocking chain are the SAME call site holding/requesting the SAME execution-keyed salt-0 advisory lock. It is NOT a cross-site collision with model_lane.rs::record_or_extend_run_tx.",
+    "instrumentation_added": "Both salt-0 acquisition sites now stamp a TRANSACTION-LOCAL marker into application_name immediately before taking the lock, via SELECT set_config('application_name', $1, true). set_config is used rather than SET LOCAL because it accepts a bind parameter - interpolating run_id/execution_id into a SET statement would be an injection seam. `true` scopes the value to the transaction so it reverts on commit/rollback and cannot leak across a pooled connection. Sites: swarm_orchestration/routing_execution.rs::lock_execution -> 'hsk:lock_execution:<execution_id>'; swarm_orchestration/model_lane.rs::record_or_extend_run_tx -> 'hsk:record_or_extend_run_tx:<run_id>'.",
+    "observed_chain_verbatim": {
+      "78576": "site=hsk:lock_execution:execution-ac9-cancel-siblings-parallel_debate | state=idle in transaction | wait=Client/ClientRead | blocked_by={} | HOLDER, parked awaiting the application",
+      "94632": "site=hsk:lock_execution:execution-ac9-cancel-siblings-parallel_debate | state=active | wait=Lock/advisory | blocked_by={78576,94828}",
+      "94828": "site=hsk:lock_execution:execution-ac9-cancel-siblings-parallel_debate | state=active | wait=Lock/advisory | blocked_by={78576}"
+    },
+    "sustained_for": "Sampled every 4s across a continuous ~60s window (xact age climbing 0.7s -> 58.6s), ending exactly when the test's 60s cancel bound expired. Run 2 of that batch hung at line 8913 in 158.9s.",
+    "what_this_proves": "One logical operation holds the execution advisory key on one pooled connection and then requires the SAME key on other connections before it can finish. The holder is idle in transaction - PostgreSQL is waiting on Rust, not the reverse - so no amount of database tuning can break it. This is why raising max_connections 5 -> 25 made the hang WORSE (318.1s): extra connections only add more waiters queued on a key that can never be released.",
+    "supersedes": "The earlier note that the holder is record_or_extend_run_tx (inferred from the FOR UPDATE tail) described a DIFFERENT sampled chain shape. With call sites now named, the chain that corresponds to the cancellation hang is entirely lock_execution. record_or_extend_run_tx does not appear in it at all.",
+    "fix_shape": "No path may hold the execution-keyed advisory lock across an await that itself needs that key. lock_execution is called from EIGHT sites in routing_execution.rs (lines ~345, 437, 575, 784, 1324, 1890, 2050, 2289) including claim_ready, record_stage_result and cancel_execution. The cancellation path and the worker's own terminal-transition path both reach it while the other is mid-flight. Either serialize them outside the database, or make the terminal transition acquire once and commit before awaiting sibling/session teardown.",
+    "exact_caller_pair_NOT_yet_pinned": "All eight sites currently emit the same marker text, so the chain proves SELF-collision on the execution key but does not yet name WHICH two callers. The next decisive step is to give lock_execution a caller label parameter and re-stamp it (one rebuild, one run). Naming a specific pair now would be a guess.",
+    "run_evidence": "3 runs on the instrumented binary: 403.5s (panic 8914, cancel returned Err), 158.9s (panic 8913, HANG - this is the sampled one), 15.9s (panic 8914). Consistent with the previously recorded flakiness profile.",
+    "instrumentation_is_diagnostic_only": "No control flow, lock ordering, acceptance behaviour or assertion was changed. cargo check --features test-utils --lib: exit 0.",
+    "status_unchanged": "No lifecycle status changed.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T15:50:00Z"
+  },
+  "cancellation_deadlock_ROOT_CAUSE_PROVEN_2026_08_05": {
+    "headline": "PROVEN by tokio task id: a RE-ENTRANT SELF-DEADLOCK inside ONE task. The holder of the execution-keyed salt-0 advisory lock and one of its waiters are THE SAME tokio task. The task cannot release the lock it holds because it is blocked acquiring the same lock on a second pooled connection.",
+    "observed_chain_verbatim": {
+      "87600": "application_name=hsk:le:task36 | idle in transaction | Client/ClientRead | blocked_by={} | HOLDER",
+      "101480": "application_name=hsk:le:tasknone | active | Lock/advisory | blocked_by={87600} | acquired OUTSIDE any tokio task context",
+      "83352": "application_name=hsk:le:task36 | active | Lock/advisory | blocked_by={87600,101480} | SAME TASK AS THE HOLDER"
+    },
+    "why_this_is_conclusive": "task36 appears twice: once holding on connection 87600 and once waiting on connection 83352. One logical operation therefore holds this key on one pooled connection while requesting it on another. PostgreSQL can never grant the second request, and the task can never reach the code that would release the first, because it is suspended awaiting that grant. This is a closed cycle inside a single task - not cross-task lock ordering, and not resource starvation.",
+    "why_every_earlier_theory_failed_to_fix_it": "Each earlier theory attacked a DIFFERENT layer and therefore could not work: raising max_connections 5 -> 25 only lets the same task grab another connection and self-block sooner (measured: hang got WORSE, 318.1s); the multi_thread runtime experiment could not help because the cycle is within one task regardless of worker-thread count; and 'commit before awaiting inference' does not apply because the lock is not held across inference at all.",
+    "mechanism_traced_in_code": "coordinator.rs::dispatch_ready_routing_stages drives every stage future in ONE FuturesUnordered inside a single spawned worker task, then consumes it with `while let Some(result) = pending.next().await`. A stage future can be suspended mid-transaction while still holding lock_execution (the transaction, and therefore the xact-scoped advisory lock, survives the suspension). The consumer loop - running in that SAME task - then calls cancel_active_routing_siblings on a failed/cancelled dispatch, which reaches routing_execution.rs::cancel_execution (lock_execution at line 2289) and requests the same execution key. The suspended stage future can only resume once the consumer's await completes, and the consumer's await can only complete once the suspended future releases the lock. Deadlock.",
+    "lock_sites_mapped": "routing_execution.rs lock_execution callers by line: 345 snapshot, 437 diagnostics_for_run, 575 begin_execution, 784 claim_ready, 1324 record_stage_result_tx, 1890 record_generated_output, 2050 recover_expired_claims, 2289 cancel_execution. The stage path reaches 1324 via record_transition/heartbeat_claim; the consumer path reaches 2289 via cancel_active_routing_siblings.",
+    "third_participant": "The 'tasknone' backend acquired the key outside any tokio task context (no task id available), and queues in the same cycle. Worth noting for the fix: a solution that only serializes tokio tasks would not cover it.",
+    "fix_shape": "Break the cycle rather than widen the lock. Either (a) the consumer loop must not request the execution advisory lock while any stage future it drives may still hold it - drain/settle the in-flight futures first, or move sibling cancellation out of the same task; or (b) cancel_execution and the stage terminal transition must share ONE transaction/lock acquisition passed down, instead of each opening its own. Widening the pool, changing runtime flavor, or reordering inference are all proven not to help.",
+    "instrumentation_that_proved_it": "routing_execution.rs::lock_execution stamps a transaction-local application_name via SELECT set_config('application_name', $1, true) carrying the tokio task id (tokio::task::try_id). Diagnostic only - no control flow, lock ordering, or assertion changed. NOTE: application_name is capped at 63 bytes, which silently truncated an earlier richer marker; and on Windows/MSVC every async frame symbolises as `async_fn$0`, so a backtrace CANNOT name the calling function - the task id is the reliable discriminator, not the symbol.",
+    "run_evidence": "Sampled every 4s across a sustained hang window (xact age 4.0s -> 16.2s and continuing) on run 1, which panicked at line 8913 in 72.7s.",
+    "NOT_fixed": "No fix applied. This changes transactional/lock scope on the routing terminal path, and the packet's history shows that landing such a change without full-suite validation causes regressions. The mechanism is now proven, so the fix can target the actual cycle.",
+    "status_unchanged": "No lifecycle status changed.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T20:35:00Z"
+  },
+  "fix_attempt_1_FAILED_negative_result_2026_08_05": {
+    "headline": "NEGATIVE RESULT, recorded so it is not retried. Driving the FuturesUnordered while awaiting sibling cancellation did NOT fix the hang. 5 of 5 post-change runs still failed (4 at line 8913, 1 at 8922), durations 73.7s-92.4s.",
+    "what_was_changed": "coordinator.rs::dispatch_ready_routing_stages - the consumer loop previously awaited cancel_active_routing_siblings WITHOUT polling `pending`. A new helper cancel_siblings_while_driving awaits cancellation inside a biased tokio::select! that keeps polling `pending`, queueing any dispatch results that land during cancellation so none are dropped (the naive drain would have discarded durable stage outcomes).",
+    "why_it_was_expected_to_work": "FuturesUnordered only advances while polled, so a stage future suspended mid-transaction keeps its execution-keyed advisory lock. Awaiting cancellation without polling looked sufficient to freeze the holder.",
+    "why_it_did_NOT_work": "The holder is idle in transaction with blocked_by={} - it is parked in RUST, not waiting on PostgreSQL. If the only obstacle were the consumer failing to poll `pending`, driving the stream would have released it. It did not, so the holding task is not merely unpolled by that loop; something else prevents it from progressing.",
+    "status_of_that_change": "Left in the tree but UNPROVEN and delivering no measured benefit. It does close a real 'stop polling while awaiting' hazard, but on this packet's history an unvalidated change to the terminal path is a regression risk. It must not be counted as a fix, and reverting it is a legitimate call for the owner.",
+    "eliminated_by_this_result": "The consumer-loop-not-polling explanation is now REFUTED as the sole cause, joining: pool exhaustion (refuted by probe), runtime flavor/executor starvation (refuted by multi_thread), unbounded teardown, terminate() not firing the cancel token, and 'transaction held across model generation'.",
+    "next_direction_taken": "Bound the acquisition instead of guessing at the cycle. PostgreSQL does NOT deadlock-detect advisory locks, so nothing in the database ever breaks a cycle on this path - an unbounded pg_advisory_xact_lock on the routing terminal path means an operator cancel can block forever. lock_execution now sets a transaction-local lock_timeout (ROUTING_EXECUTION_LOCK_TIMEOUT, 15s) before acquiring and maps failure to a typed error naming the execution and pointing at the application_name holder marker. In-repo precedent: model_runtime/registry_persistence.rs bounds its advisory acquisition the same way. This is both a robustness fix in its own right and a diagnostic that converts an unrecoverable hang into a reportable failure.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T21:10:00Z"
+  },
+  "cancellation_HANG_FIXED_and_next_defect_exposed_2026_08_05": {
+    "headline": "THE HANG IS FIXED. Bounding the routing-execution advisory acquisition eliminated the deadlock: ZERO hangs in 10 post-fix runs, where 7 of 11 pre-fix runs hung and 4 of the 5 immediately before hung. A DIFFERENT, pre-existing defect is now exposed underneath it.",
+    "fix_applied": "routing_execution.rs::lock_execution now sets a transaction-local lock_timeout (ROUTING_EXECUTION_LOCK_TIMEOUT = 15s) via SELECT set_config('lock_timeout', $1, true) BEFORE pg_advisory_xact_lock, and maps failure to a typed error naming the execution and pointing at the application_name holder marker. Rationale: PostgreSQL does NOT deadlock-detect advisory locks, so nothing in the database can ever break a cycle on this path, and an unbounded wait means an operator cancel can block forever. In-repo precedent: model_runtime/registry_persistence.rs bounds its advisory acquisition the same way.",
+    "measured_before_and_after": {
+      "before": "11 isolated --exact --test-threads=1 runs: 7 hung at line 8913 (60s cancel bound), 3 failed at 8924 (teardowns==1), 1 passed. Immediately before the fix: 5 of 5 failed, 4 at 8913.",
+      "after": "10 isolated runs: 0 hangs at 8913, 4 passed, 6 failed at 8914 with ONE consistent typed error. Durations 8.6s-97.8s (host load still varies runtime, but no 60s-bound hangs)."
+    },
+    "residual_defect_is_NOT_the_lock_timeout": "The residual error is LedgerFailed(\"routing cancellation persistence failed after runtime cleanup: terminal routing execution cannot be cancelled\"), which is cancel_execution's own guard at routing_execution.rs:2297 - not the new 15s bound (several failing runs completed in 8.6-10.4s, far inside it).",
+    "residual_defect_mechanism": "coordinator.rs::cancel_routing_execution cancels the LIVE SESSIONS first and only then calls store.cancel_execution. Cancelling the sessions makes the in-flight stages fail, the worker terminalizes the execution (Failed), and the subsequent cancel_execution is refused because the execution is already terminal. The deadlock previously masked this entirely: the call hung instead of returning, so the ordering bug could never surface.",
+    "why_it_matters_for_AC9": "AC-9 requires the execution to end with status Cancelled. On this path it can settle as Failed before the cancellation is ever recorded, so the operator's cancel is not what terminalizes the run.",
+    "recommended_fix_direction": "Persist the cancellation intent BEFORE tearing down runtime sessions, so the execution's terminal state is Cancelled and subsequent stage failures cannot flip it to Failed. Simply relaxing cancel_execution to accept an already-terminal execution would NOT satisfy AC-9, because the recorded status would be Failed rather than Cancelled, and it would weaken a real guard.",
+    "unproven_change_still_in_tree": "cancel_siblings_while_driving (coordinator.rs) remains in place and remains UNPROVEN - it delivered no measured benefit and is not what fixed the hang. It closes a genuine 'stop polling while awaiting' hazard, but reverting it is a legitimate owner call and it must not be credited as a fix.",
+    "instrumentation_retained": "lock_execution stamps a transaction-local application_name carrying the tokio task id. Diagnostic only, one tiny set_config per acquisition, and the sole reason this defect became traceable. Recommend keeping it.",
+    "status_unchanged": "No lifecycle status changed. The MT is not clean: the residual ordering defect and the separate teardowns==1 orphan-session defect both remain.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T22:05:00Z"
+  },
+  "fix_attempt_2_ordering_REGRESSED_2026_08_05": {
+    "headline": "NEGATIVE RESULT. Persisting the cancellation BEFORE runtime teardown removed the 'terminal routing execution cannot be cancelled' error completely, but introduced a different consistent failure and LOWERED the pass rate. Recorded so it is not retried blind.",
+    "change": "coordinator.rs::cancel_routing_execution - store.cancel_execution(...) moved to run BEFORE the cancel_session teardown loop, returning the persisted state.",
+    "intent": "AC-9 requires the run to end Cancelled. With teardown first, the worker terminalizes the execution as Failed and cancel_execution's terminal guard then refuses, so the operator's cancel can never be the recorded outcome.",
+    "result": "The old error is GONE (0 occurrences in 6 runs). New error in 5 of 6: LedgerFailed(\"session <instance>#1 cleanup retry does not match its durable terminal intent\"). Pass rate 1/6 versus 4/10 before the reorder. Durations 68.8s-394.9s under heavy host load, which confounds rate comparison, but the new error is unambiguously caused by this change.",
+    "mechanism_of_the_regression": "Persisting first DELAYS this path's cancel_session calls. The worker's own stage-failure path therefore records a durable terminal cleanup intent FIRST, and the later cancel_session arrives with a different terminal/reason, which the cleanup-intent guard correctly rejects as a mismatched retry. Under the original order this path recorded intent first and the worker's call was the well-formed retry.",
+    "assessment": "Not a fix. It trades a status-correctness defect for a cleanup-consistency defect. Both orderings are wrong for a different reason, which means the real defect is that TWO actors independently terminalize the same session/execution with different intents and neither defers to the other.",
+    "options_for_the_next_actor": [
+      "REVERT the reorder and accept the AC-9 status gap until the dual-terminalization is resolved (restores 4/10).",
+      "KEEP the reorder and make the cancel path treat an already-recorded durable terminal intent as ALREADY-TERMINALIZED rather than an error - semantically right, since the worker is already cleaning that session, but it touches the cleanup guard on the durability path and must not be done by simply swallowing the error, which would hide real orphans.",
+      "Make cancellation the single terminalizing authority: have the worker's stage-failure path defer to an execution already marked Cancelled instead of recording its own competing intent."
+    ],
+    "not_yet_decided": "No revert applied. Both this reorder and cancel_siblings_while_driving remain in the tree and BOTH are unproven; only the lock_timeout bound has measured benefit (0 hangs in 10 runs).",
+    "status_unchanged": "No lifecycle status changed.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-05T23:30:00Z"
+  },
+  "cancellation_defects_RESOLVED_idempotent_terminalization_2026_08_06": {
+    "headline": "RESOLVED. Idempotent first-writer-wins session terminalization removed the LAST of the three cancellation defects. All of: the indefinite hang, 'terminal routing execution cannot be cancelled', and 'cleanup retry does not match its durable terminal intent' are now absent. Remaining failures are the SEPARATE pre-existing teardowns==1 orphan defect.",
+    "the_real_defect": "Two legitimate actors race to terminalize the same session - coordinator.rs::cancel_routing_execution (the operator's cancel) and the worker's stage-failure path, which fires BECAUSE that cancellation stopped the stream. terminate() rejected any second request whose intent differed, which made CONCURRENT terminalization impossible. That is the wrong invariant for a swarm coordinator: an ordinary race became a hard failure.",
+    "why_ordering_could_never_fix_it": "Measured both ways. Teardown-first: the worker terminalizes the execution as Failed and cancel_execution's terminal guard refuses -> operator's cancel is not the recorded outcome (AC-9 unsatisfiable). Persist-first: the worker records its cleanup intent first and the operator's cancel_session is rejected as a mismatched retry. Ordering only selects which actor loses, which is why fix attempt 2 regressed rather than helped.",
+    "fix_applied": "coordinator.rs terminate(): when a cleanup intent already exists for the instance and either differs in terminal/reason/exit_code OR is already in_progress, the call now returns Ok(()) - the session is already terminalizing. The FIRST durable intent stays authoritative and its owner still performs the teardown and writes the terminal receipt, so nothing is swallowed and no orphan is hidden. A genuine retry (same intent, no owner currently running) still falls through to the ownership-generation bump unchanged.",
+    "why_this_is_the_stable_shape": "Idempotency removes the whole class instead of moving it between actors, and it remains correct as more actors gain the ability to terminalize - process-ledger reclaim, supervisors, and future model lanes. Any number of requesters may ask for termination; exactly one owns it.",
+    "measured_progression": {
+      "original": "1/11 passed; 7 hung at 8913; 3 failed teardowns==1",
+      "after_lock_timeout_bound": "4/10 passed; 0 hangs; 6 failed with 'terminal routing execution cannot be cancelled'",
+      "after_ordering_reorder_REGRESSION": "1/6 passed; 5 failed with 'cleanup retry does not match its durable terminal intent'",
+      "after_idempotent_terminalization": "4/6 passed; 0 hangs; 0 terminal-guard errors; 0 cleanup-retry errors; 2 failed on the separate teardowns==1 assertion"
+    },
+    "runtime_improvement": "Typical run 22.3s-28.5s versus 70s-400s before, consistent with no thread/task parking on an unbreakable advisory-lock cycle.",
+    "changes_now_carrying_measured_benefit": [
+      "routing_execution.rs::lock_execution - transaction-local lock_timeout (15s) before pg_advisory_xact_lock. PostgreSQL does not deadlock-detect advisory locks, so this bound is the only thing that can break a cycle on this path. Eliminated the hang.",
+      "coordinator.rs::terminate - idempotent first-writer-wins terminalization. Eliminated both the terminal-guard and cleanup-retry failures.",
+      "coordinator.rs::cancel_routing_execution - persist cancellation before runtime teardown. On its own this REGRESSED; combined with idempotency it is correct and is what makes the recorded terminal state Cancelled rather than Failed, which AC-9 requires."
+    ],
+    "still_unproven_change": "cancel_siblings_while_driving (coordinator.rs) has still never shown measured benefit. It closes a real 'stop polling in-flight work while awaiting dependent work' hazard and is defensible as future-proofing, but it did NOT fix anything measured and must not be credited.",
+    "REMAINING_defect_in_this_test": "teardowns==1 (expected 2) at line 8924, in 2 of 6 runs. Separate, pre-existing, first recorded on 2026-08-05: cancellation returns successfully and terminalizes both stages, both sessions were created (creates==2), but only ONE session's teardown ran. Orphan-session risk under HBR-QUIET-003. NOT explained by the advisory-lock cycle and NOT introduced by these fixes.",
+    "status_unchanged": "No lifecycle status changed. The MT is not clean while teardowns==1 persists.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-06T01:15:00Z"
+  },
+  "teardowns_orphan_defect_DIAGNOSED_2026_08_06": {
+    "headline": "DIAGNOSED (not yet fixed): teardowns==1 happens because coordinator.rs::terminate() gates the RUNTIME TEARDOWN behind two durable writes that can return Err first. A failed database write therefore leaves a live session running.",
+    "call_order_in_terminate": [
+      "1. fence the live handle (fire the cancel token) - no teardown yet",
+      "2. record_cleanup_receipt(...).await - EARLY RETURN on Err",
+      "3. record_lane_terminal_status(...).await - EARLY RETURN on Err ('Dexterity terminal lane state record failed')",
+      "4. gather handle fields, cancel token + runtime.cancel",
+      "5. run_teardown_bounded(instance_id, teardown) - THE ONLY STEP THAT TEARS THE SESSION DOWN"
+    ],
+    "why_that_produces_the_symptom": "The test's teardown counter is incremented by the SessionTeardown closure, which is only invoked from run_teardown_bounded at step 5. If either durable write at step 2 or 3 fails for one of the two sessions, terminate() returns before step 5 and that session is never torn down - teardowns==1 instead of 2, with a live session left behind.",
+    "why_this_is_a_real_product_defect_not_a_test_artifact": "It means a PostgreSQL/EventLedger write failure orphans a running model session. That is an HBR-QUIET-003 process-ownership violation, and it contradicts the reasoning this same coordinator already applies elsewhere (the bounded factory-create wait argues explicitly that an orphaned process is recoverable via process-ledger reclaim while an unrecoverable state is not). Runtime teardown must not be gated behind durable-write success.",
+    "recommended_fix": "Make runtime teardown unconditional: perform the teardown (and the runtime cancel) regardless of whether the durable writes succeeded, capture any durable-write error, and return it AFTER teardown has run. That preserves the error report while guaranteeing no orphan. Do not simply reorder the writes after teardown without capturing their errors, or a failed receipt becomes silent.",
+    "explicitly_NOT_caused_by_the_2026_08_05_06_fixes": "teardowns==1 was recorded on 2026-08-05 in 3 of the original 11 runs, before any change in this session. It persists at 2 of 6 after the cancellation fixes at a similar rate. The lock_timeout bound, the idempotent terminalization and the persist-first ordering neither introduced nor masked it.",
+    "status_unchanged": "No lifecycle status changed. Not fixed; diagnosis only, so that the next actor starts from the mechanism rather than re-deriving it.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-06T01:40:00Z"
+  },
+  "teardowns_orphan_defect_THREE_HYPOTHESES_REFUTED_2026_08_06": {
+    "headline": "teardowns==1 is NOT fixed and its rate is UNMOVED (~30%) across five consecutive changes. Three separate hypotheses were implemented and all three are REFUTED by measurement. Recorded in full so the next actor does not re-try any of them.",
+    "measured_rate_by_change": {
+      "original_baseline": "3 of 11 runs",
+      "after_lock_timeout_and_idempotent_terminalization": "2 of 6",
+      "after_durable_write_deferral": "2 of 8",
+      "after_ownership_adoption": "3 of 10",
+      "after_cancellation_settle_loop": "3 of 10"
+    },
+    "hypothesis_1_REFUTED": "terminate() gates run_teardown_bounded behind two durable writes (record_cleanup_receipt, record_lane_terminal_status) that could return early, so a failed database write would orphan a live session. FIX APPLIED (errors deferred, teardown runs first, first error returned at the normal exit). Rate did not move (2/6 -> 2/8). The change is RETAINED because it independently prevents an orphan on durable-write failure and is correct on its own merits, but it is NOT the cause of teardowns==1.",
+    "hypothesis_2_REFUTED": "The idempotency guard returned Ok when the intent differed even if NO owner was running, skipping teardown instead of taking over. FIX APPLIED (return Ok only while an owner is actively in_progress; otherwise adopt ownership, overwrite the stale intent and proceed). Rate did not move (2/8 -> 3/10). RETAINED - the previous form had a genuine skip-teardown hole - but it is not the cause.",
+    "hypothesis_3_REFUTED": "cancel_routing_execution discovers live sessions from the execution projection, but spawn_session returns a live instance BEFORE record_transition publishes it, so a session spawned inside that window is invisible to cancellation and never torn down. FIX APPLIED (bounded 3-pass settle loop re-reading the projection and cancelling newcomers). Rate did not move (3/10 -> 3/10). RETAINED as a real narrow race closure, but it is not the cause.",
+    "what_this_eliminates": "The shortfall is NOT caused by a durable-write early return, NOT by intent-mismatch skipping, and NOT by the spawn/transition discovery window. All three are now closed and the rate is unchanged, so the missing teardown happens somewhere else entirely.",
+    "strongest_remaining_lead_NOT_yet_tested": "run_teardown_bounded is only called `if !teardown_succeeded`, where teardown_succeeded is read from the cleanup record. If a session's cleanup is already marked teardown_succeeded=true by an earlier path, the teardown closure is never invoked and the counter never increments - which would present exactly as teardowns==1 with no error anywhere. The other untested branch is `handle.teardown` being None, which returns 'cleanup has no teardown handle' before the counter increments. Neither has been observed; both are code-reading leads, NOT findings.",
+    "REQUIRED_next_step_do_not_guess_again": "Make the failure state which session missed teardown, exactly as was done for the advisory-lock chain. Instrument the terminate() exit paths (or the test fixture's per-instance teardown accounting) to report, for each of the two instance ids: whether terminate was entered, which branch it took, whether teardown_succeeded was already true, and whether run_teardown_bounded was invoked. Five changes have now been made on hypotheses; the two defects that WERE fixed in this session were both fixed only after direct runtime evidence named the mechanism.",
+    "everything_else_in_this_test_is_fixed": "The hang, the terminal-guard failure and the cleanup-retry failure are all absent. Pass rate 1/11 -> 7/10, typical runtime 70-400s -> 6-15s. The remaining 30% is this single orphan defect.",
+    "status_unchanged": "No lifecycle status changed. The MT cannot be clean while a cancellation can leave a live model session untorn.",
+    "recorded_by": "KERNEL_BUILDER-20260805-053606",
+    "recorded_at_utc": "2026-08-06T03:30:00Z"
   }
 }

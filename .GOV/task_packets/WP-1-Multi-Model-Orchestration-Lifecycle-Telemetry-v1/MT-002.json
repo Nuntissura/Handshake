@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-002",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
+  "updated_at_utc": "2026-08-04T21:55:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-002.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -36,7 +36,7 @@
     "blocker": null,
     "missing_resource": null,
     "proof_status": "READY_FOR_VALIDATION_V5: all four declared proof targets pass on real Handshake-managed PostgreSQL (port 5544) at source 4066e9c1 (HEAD a63af726 is additive-only, no change to these paths). model_lane_schema_pg_tests 4/4 green (persists_and_replays_eventledger_rows, dexterity_launch_records_real_swarm_spawn_session_runtime_path, rejects_missing_locus_binding_and_idempotency_conflict, serializes_competing_terminal_updates), 34.65s; user_manual_api_tests::model_lane_schema_user_manual_entry_is_current green. The V4 blocker (schema regression did not return) is resolved: the fail-closed CRDT admission Layer-1 fix (validate_message_authority, commit 4066e9c1) makes the shared-schema path admissible and the suite returns green.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN; HBR-PRIV PARTIAL (2026-08-04): shared account-bound scope substrate PROVEN - tests/model_lane_resource_scope_pg_tests.rs 7 passed/0 failed against real managed PostgreSQL (migrations 0363+0364, swarm_orchestration/resource_scope.rs, api/account_scope.rs), including a documented falsifiability check: inverting the cross-account assertion produced a real NotFound(\"run_id run-bob\") failure before being restored, and a POSITIVE CONTROL proves the owning account can still read its own run so the negatives cannot pass vacuously. Covering this MT: two_accounts_cannot_read_each_others_lane_rows; one_account_cannot_read_across_its_own_workspaces; an_unattributed_legacy_row_is_denied_not_grandfathered - i.e. durable ModelLane rows are owner-scoped, workspace-narrowed, and pre-0363 unattributed rows are DENIED rather than grandfathered. STILL OWED: MT-002-specific: schema/manual proofs rerun at a frozen tree once packet churn settles.",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
@@ -125,7 +125,11 @@
     "HBR-SWARM-004",
     "HBR-MAN-004",
     "HBR-INT-009",
-    "HBR-SWARM-001"
+    "HBR-SWARM-001",
+    "HBR-PRIV-001",
+    "HBR-PRIV-002",
+    "HBR-PRIV-004",
+    "HBR-PRIV-005"
   ],
   "hbr_obligations": [
     "INT",
@@ -306,5 +310,16 @@
       "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
       "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
+  },
+  "v5_declared_proof_reverification_2026_08_04": {
+    "declared_proofs_reverified": {
+      "model_lane_schema_pg_tests": "4 passed, 0 failed",
+      "user_manual_api_tests (contains model_lane_schema_user_manual_entry_is_current)": "24 passed, 0 failed"
+    },
+    "note": "All four declared proof_targets are covered: three live in model_lane_schema_pg_tests, the fourth is a named test inside user_manual_api_tests, which was executed in full rather than filtered.",
+    "context": "Re-executed at the current HEAD, i.e. WITH the HBR-PRIV account-scope substrate (migrations 0363+0364, resource_scope.rs, api/account_scope.rs) already in place. That is the point of the re-run: the PRIV work changed the read/write boundary these surfaces sit on, so a green recorded before it no longer evidences anything. Managed PostgreSQL at 127.0.0.1:5544.",
+    "reverified_by": "KERNEL_BUILDER-20260801-214802",
+    "reverified_at_utc": "2026-08-04T21:55:00Z",
+    "status_unchanged": "Remains READY_FOR_VALIDATION_V5. This attaches fresh execution evidence; it does not change any acceptance criterion, and no test was added, filtered, or weakened to obtain it."
   }
 }
