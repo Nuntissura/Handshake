@@ -385,6 +385,11 @@ try {
             }
             $frames.Add((Assert-Png -Path ([string]$shot.path) -ExpectedSha256 ([string]$shot.sha256)))
         }
+        # Independently of what the run asserted about itself: a before/after pair with identical
+        # bytes reproduced the pre-action frame and cannot evidence the navigation destination.
+        if ([string]$state.screenshots.before.sha256 -ceq [string]$state.screenshots.after.sha256) {
+            throw "Canonical frames for $($state.state) are byte-identical; the after frame is a stale pre-navigation capture"
+        }
         if ([string]$state.observed_navigation_content_id -cne [string]$state.expected_navigation_content_id) {
             throw "Canonical navigation identity mismatch for $($state.state)"
         }

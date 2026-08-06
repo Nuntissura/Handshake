@@ -1448,9 +1448,16 @@ fn resolve_locus_ref_against_real_pg_live() {
         });
         let after_screenshot_path =
             artifact_dir.join(format!("mt068-locus-{state_label}-after.png"));
-        let after_screenshot = match harness
-            .render_proof_frame("MT-068 post-navigation state requires a material harness render")
-        {
+        // Capture the SETTLED post-navigation frame. The canonical receipt and the AccessKit snapshot
+        // terminalize in the dispatch frame while wgpu still owns the PRECEDING painted frame, so a
+        // plain `render_proof_frame` here reproduces the pre-navigation pixels: a first run of this
+        // proof wrote an `after` PNG byte-identical to its `before`, still showing the Wiki Page tab,
+        // while the product had in fact already routed. That is a stale visual artifact, not a
+        // product defect — but it also cannot evidence the navigation destination, so this seam
+        // advances one ordinary application frame before capturing.
+        let after_screenshot = match harness.render_settled_proof_frame(
+            "MT-068 post-navigation state requires a material harness render",
+        ) {
             Some(image) => {
                 image
                     .save(&after_screenshot_path)
@@ -1472,6 +1479,16 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "reason": "headless matrix run; canonical screenshot marker carries the typed deferral"
             }),
         };
+        // A captured pair MUST differ. Identical bytes mean the artifact reproduced the pre-action
+        // frame and therefore cannot show the navigation destination, no matter what the receipt and
+        // the live app state say.
+        if before_screenshot["status"] == "CAPTURED" && after_screenshot["status"] == "CAPTURED" {
+            assert_ne!(
+                before_screenshot["sha256"], after_screenshot["sha256"],
+                "AC-003 LIVE: the {state_label} before/after canonical frames must differ; identical \
+                 bytes are a stale pre-navigation capture that cannot evidence the routed destination"
+            );
+        }
         let resolved_row =
             wait_for_native_fr_with_frames(&be, &mut harness, "locus_ref_resolved", |row| {
                 row["payload"]["native_payload"]["locus_uri"].as_str() == Some(uri)
