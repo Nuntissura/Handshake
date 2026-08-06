@@ -4574,7 +4574,10 @@ impl RichEditorWidget {
             egui::pos2(rect.min.x + 1.0, rect.center().y),
             egui::Align2::LEFT_CENTER,
             &spec.label,
-            egui::FontId::proportional(super::line_layout::BASE_FONT_SIZE),
+            // MT-116: the galley's OWN size for this atom, not the BASE_FONT_SIZE constant. The pill
+            // rect above is derived from that galley, so using the constant here made pill and label
+            // disagree at every editor font size except the default (and in every heading block).
+            egui::FontId::proportional(spec.font_size),
             spec.fg,
         );
 
@@ -6112,6 +6115,13 @@ struct WikilinkChipSpec {
     fg: egui::Color32,
     /// The chip display label (the resolved/`?`-prefixed text).
     label: String,
+    /// WP-KERNEL-012 MT-116: the EXACT font size the galley laid this atom out with, so the painted
+    /// label is measured by the same metric that produced `local_start`/`local_end`. Painting the label
+    /// at the `BASE_FONT_SIZE` CONSTANT while sizing the pill from a galley laid out at the user's
+    /// configured `editor_font_size` (and, for a heading block, at `HEADING_SCALE`-multiplied size) made
+    /// the two disagree: at any size above the constant the label overflowed its pill, and below it the
+    /// pill ran wide. This carries the block's resolved style size so pill and label cannot drift.
+    font_size: f32,
     /// WP-KERNEL-012 MT-057: `Some(title)` when this wikilink is UNRESOLVED against the resolver index
     /// (the click offers a "Create note \"{title}\"" affordance). `None` when the link resolved (or is
     /// a code ref / known-kind chip not subject to create-from-unresolved). The title is the trimmed
@@ -6206,6 +6216,10 @@ fn wikilink_chip_specs(
                     create_title,
                     ambiguity_matches,
                     leaf_index,
+                    // MT-116: the SAME resolved style size `layout_block_with_base` used for this
+                    // block's galley above, so the pill measured from that galley and the label painted
+                    // into it share one metric (headings included, via HEADING_SCALE).
+                    font_size: super::line_layout::block_style_with_base(block, base_font_size).size,
                 });
                 char_cursor = end;
             }
@@ -6311,6 +6325,85 @@ impl PaneFactory for RichEditorPaneFactory {
 /// Re-export the shell live-a11y check so a caller (or test) can assert the editor's
 /// emitted interactive nodes all carry an author_id through the SAME gate the shell uses.
 pub use accessibility::assert_no_unnamed_interactive;
+
+#[cfg(test)]
+mod mt116_chip_metric_tests {
+    use super::*;
+    use crate::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
+    use crate::rich_editor::wikilinks::resolver::ResolverIndex;
+    use crate::theme::HsPalette;
+
+    /// Build the chip specs for a one-atom block at `base_font_size`, through the real
+    /// `wikilink_chip_specs` path (a genuine egui `Painter`, the same `line_layout` the painter uses).
+    fn specs_at(kind: NodeKind, base_font_size: f32) -> Vec<f32> {
+        let mut block = BlockNode::new(kind);
+        block.children.push(Child::HsLink(HsLinkNode::new(
+            "wp",
+            // A realistic 44-character work-unit id — the length that first exposed this defect.
+            "WP-Mt116-35a73618e39a4bbc954a88ea172513aa",
+            "",
+        )));
+        let palette = HsPalette::dark();
+        let index = ResolverIndex::new();
+        let ctx = egui::Context::default();
+        let mut sizes = Vec::new();
+        let _ = ctx.run(Default::default(), |ctx| {
+            let painter = ctx.layer_painter(egui::LayerId::background());
+            sizes = wikilink_chip_specs(&block, &palette, 2000.0, false, base_font_size, &painter, &index)
+                .iter()
+                .map(|s| s.font_size)
+                .collect();
+        });
+        sizes
+    }
+
+    /// WP-KERNEL-012 MT-116. The chip pill rect is measured from a galley laid out at the block's
+    /// RESOLVED style size, while the label used to be painted at the `BASE_FONT_SIZE` CONSTANT. At any
+    /// editor font size other than the default the two disagreed, so a long id painted outside its pill.
+    /// This pins them to ONE metric. If someone reverts the paint site to the constant, this goes red.
+    #[test]
+    fn mt116_chip_font_size_tracks_the_galley_not_the_base_constant() {
+        use crate::rich_editor::renderer::line_layout::{
+            block_style_with_base, resolved_base_font_size, BASE_FONT_SIZE, HEADING_SCALE,
+        };
+
+        // A LARGER-than-default editor font: the case where the label overflowed its pill.
+        let big = 22.0_f32;
+        let body = specs_at(NodeKind::Paragraph, big);
+        assert_eq!(body.len(), 1, "one hsLink atom => one chip spec");
+        assert!(
+            (body[0] - resolved_base_font_size(big)).abs() < f32::EPSILON,
+            "body chip must be measured at the editor font size, got {} want {}",
+            body[0],
+            resolved_base_font_size(big)
+        );
+        assert!(
+            (body[0] - BASE_FONT_SIZE).abs() > f32::EPSILON,
+            "the regression guard is vacuous unless this size DIFFERS from the constant"
+        );
+
+        // A heading scales further still (HEADING_SCALE), which the constant never accounted for.
+        let level = crate::rich_editor::document_model::node::HeadingLevel::new(1);
+        let heading = specs_at(NodeKind::Heading(level), big);
+        let want = resolved_base_font_size(big) * HEADING_SCALE[0];
+        assert!(
+            (heading[0] - want).abs() < 0.01,
+            "heading chip must carry the HEADING_SCALE-multiplied size, got {} want {want}",
+            heading[0]
+        );
+
+        // And the spec must agree with the very helper `layout_block_with_base` uses for the galley.
+        let mut b = BlockNode::new(NodeKind::Paragraph);
+        b.children.push(Child::Text(
+            crate::rich_editor::document_model::node::TextLeaf::new("x"),
+        ));
+        assert!(
+            (block_style_with_base(&b, big).size - resolved_base_font_size(big)).abs()
+                < f32::EPSILON,
+            "spec size and galley size must come from the same helper"
+        );
+    }
+}
 
 #[cfg(test)]
 mod tests {
