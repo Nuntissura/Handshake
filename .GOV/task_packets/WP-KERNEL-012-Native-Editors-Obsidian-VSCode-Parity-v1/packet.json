@@ -850,7 +850,33 @@
         ],
         "why_this_is_probably_but_not_provably_fine": "MT-113 designed the bound so any id that ALREADY FITS is BYTE-IDENTICAL, and proved it with mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition over an adversarial corpus. If that holds, untouched surfaces cannot change. But \"probably\" is not proof, and MT-113 itself disclosed that roughly 80 other *_author_id() sites still format ids directly and are NOT bounded by construction - see RD-WP012-UNBOUNDED-AUTHOR-ID-SITES-REMAIN. The residual risk is concentrated in exactly the binaries listed above.",
         "recommended_action": "MT-108 item 11 already requires running every current-source integration binary with --no-fail-fast, which would close this. Prioritise the ten listed binaries in that sweep and treat any observer-related failure there as MT-113 fallout rather than a new defect. Cheap alternative if the full sweep slips: run just those ten.",
-        "severity_note": "Recorded as a COVERAGE gap, not a known break. No failure has been observed in these binaries; they simply have not been exercised since the contract moved."
+        "severity_note": "Recorded as a COVERAGE gap, not a known break. No failure has been observed in these binaries; they simply have not been exercised since the contract moved.",
+        "partial_closure_2026_08_06": {
+          "at_utc": "2026-08-06T23:39:31.469Z",
+          "by": "KERNEL_BUILDER-20260805-054937",
+          "action": "KERNEL_BUILDER RAN the five of ten that need no integration feature, rather than leaving the gap purely recorded.",
+          "green": [
+            "test_context_menu_surfaces => 35 passed / 0 failed",
+            "test_embeds_argus => 1 passed / 0 failed",
+            "test_interconnect_ckc_to_note => 18 passed / 0 failed / 1 ignored"
+          ],
+          "red_1_order_dependent": {
+            "test": "test_app_host_mount_secondary::relevant_memory_shows_endpoint_missing_empty_state",
+            "full_binary_run": "FAILED — 50 passed / 1 failed. A second panic also appeared on an unnamed thread at test_app_host_mount_secondary.rs:3540, indicating cross-thread interference under cargo default parallelism.",
+            "in_isolation": "PASSES — 1 passed / 0 failed / 50 filtered, printing \"relevant_memory: ever_requested=true got_blocker=true\".",
+            "diagnosis": "ORDER- or PARALLELISM-DEPENDENT, NOT MT-113 fallout. Same class MT-108 remediation item 5 warns about (and note item 5 own named example, mounted_backlink_event_retries_when_bus_is_contended, was measured EARLIER this session as already passing, so item 5 premise is stale while THIS instance is live).",
+            "severity": "Real. A test that passes alone and fails in its own binary will make the MT-108 full-suite sweep non-deterministic."
+          },
+          "red_2_needs_diagnosis": {
+            "test": "test_event_emitter::event_emitter_native_editor_round_trip",
+            "result": "FAILED in the full binary (32 passed / 1 failed) AND in isolation with the complete environment set.",
+            "first_failure_was_MY_error": "The initial batch run omitted HANDSHAKE_TEST_STAGE_BINDING_ROOT and the fixture correctly refused with \"a proof must never publish a native-MCP binding into the operator live app-data\". That guard is CORRECT and was not weakened; the variable was supplied and the test re-run.",
+            "real_failure": "With the full environment supplied it still fails at test_event_emitter.rs:2299 — \"timed out waiting for three ordered production-emitter events\", having received at least one event carrying the server-derived actor_id handshake-native:{pid}:{birth}.",
+            "why_it_matters": "This is the MT-111 production emitter round-trip on the MT-109 gated route — precisely the seam MT-111, MT-115 and MT-120 all touch. It is UNDIAGNOSED: it could be PostgreSQL contention under a loaded machine, or a real ordering regression. It must NOT be assumed environmental.",
+            "routing": "Hand to a sub-agent for diagnosis before the MT-108 capstone sweep, since a red here would otherwise surface as an unexplained capstone failure."
+          },
+          "remaining_untested": "The five integration-gated binaries (test_canvas_board_argus, test_completion_hover_accesskit, test_embeds, test_graph_view_argus, test_undo_scope) still need --features integration plus a backend and PostgreSQL."
+        }
       }
     ]
   },
