@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [
       "MT-029"
     ],
@@ -57,15 +57,19 @@
       "ac_114_3_no_product_change": "CONFIRMED. git diff HEAD~1 HEAD --stat shows a single file, src/frontend/handshake_native/src/find_in_files.rs, +50/-2, entirely inside the #[cfg(test)] mod tests block that opens at line 4199. No product behaviour was altered to make the test pass.",
       "final_results": "PT-114-1: cargo test --lib <exact test> => EXIT 0, 1 passed / 0 failed. FULL LIB SUITE: cargo test --lib => EXIT 0, 2043 passed / 0 failed / 0 ignored / 0 filtered in 6.81s. The handshake-native library suite is now entirely green; it was 2042 passed / 1 failed before this change.",
       "pt_114_2_disclosed_gap": {
-        "status": "NOT_RE_RUN_BUT_STRUCTURALLY_UNAFFECTED",
-        "honest_statement": "PT-114-2 asks that the MT-029 AC-7 stale-guard proof still passes unchanged. That mounted proof was NOT re-executed here: it needs real managed PostgreSQL, and PostgreSQL is not currently running (the sub-agents holding it were killed by the platform session limit). Stated as an unrun proof rather than claimed.",
-        "structural_argument": "The edit is confined to the #[cfg(test)] mod tests block at find_in_files.rs:4199. A cfg(test) lib module is compiled ONLY for cargo test --lib; integration binaries such as test_find_in_files link the library compiled WITHOUT cfg(test). The MT-029 mounted proof therefore cannot observe this change. This is a structural argument, not a substitute for the run.",
-        "unit_level_evidence_that_ac7_holds": "preview_stale_result_guard passed inside the 2043-test green lib run, and the NEW restore_bookmark AC-7 reachability assertion passed, meaning the stale warning genuinely fired through the real restore path.",
-        "routing": "The validator should re-run the MT-029 AC-7 mounted proof once managed PostgreSQL is available."
+        "status": "CLOSED_PROVEN_AGAINST_REAL_POSTGRESQL",
+        "closed_at_utc": "2026-08-06T17:50:22.018Z",
+        "command": "cargo test --features integration --test test_find_in_files find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_roundtrip -- --exact --nocapture --test-threads=1",
+        "result": "EXIT 0, 1 passed / 0 failed / 0 ignored / 28 filtered, 81.49s.",
+        "environment": "HEAD 28b8bdea. Live internal PostgreSQL 16 at 127.0.0.1:5544, database handshake_wp_kernel_012_mt_029 (the exact database the MT-029 proof used). Current-source backend binary, HSK_PSQL_BIN bound, HANDSHAKE_GPU_SCREENSHOT=1.",
+        "significance": "The MT-029 AC-7 mounted stale-guard proof passes UNCHANGED with the corrected assertion in place. This is the external-resource proof RC-005 requires; the earlier structural argument (a #[cfg(test)] lib module is never linked into an integration binary) is now backed by an actual run rather than standing alone.",
+        "incidental_coverage": "HEAD 28b8bdea also contains the MT-116 chip font-metric change, so this run additionally proves MT-116 did not regress the Find-in-Files mounted surface."
       },
       "kb_ready_checklist_receipt": {
         "verdict": "PASS",
-        "blockers": 0
+        "blockers": 0,
+        "gate_ordering_corrected": "The checklist was run to a PASS receipt BEFORE this status write, correcting the earlier ordering error in which the status was written first and the checklist then returned BLOCKED.",
+        "emitted_to": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
       },
       "lifecycle_invariant_repaired": "RC-006 flagged a REAL violation: this MT was authored with claimed_by null and would have crossed the READY_FOR_VALIDATION boundary unclaimed. claimed_by is now recorded. The checklist caught an authoring defect in an MT KERNEL_BUILDER itself created.",
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED.",
@@ -77,8 +81,13 @@
         "self_assessment": "This is a KERNEL_BUILDER process error, recorded rather than hidden: the checklist must be run BEFORE the status write, not after. The implementation itself is sound and fully proven at unit level; only the gate ordering was wrong.",
         "blocker_to_clear": "PT-114-2 - re-run the MT-029 AC-7 mounted stale-guard proof against real managed PostgreSQL. PostgreSQL is not currently running because the platform session limit killed the sub-agents that had it provisioned.",
         "what_is_already_proven": "PT-114-1 GREEN (baseline EXIT 101 reproduced first, then EXIT 0) and the full handshake-native lib suite GREEN at 2043 passed / 0 failed / 0 ignored / 0 filtered, up from 2042 passed / 1 failed. The code change is complete and committed at 9ef2c041; only the external-resource proof remains."
+      },
+      "postgresql_availability_correction": {
+        "note": "KERNEL_BUILDER earlier reported this proof BLOCKED on an unavailable PostgreSQL requiring operator elevation. That was WRONG and is corrected here rather than quietly dropped. Handshake internal PostgreSQL is NOT the postgresql-x64-16 Windows service on port 5432 (that service is stopped and irrelevant); it is a separate already-running instance on 127.0.0.1:5544, PID 36052. The earlier port scan used a pattern that skipped 5544. run_mt068_locus_proof.ps1 documents this instance as an existing internal server that proofs must never start or stop."
       }
-    }
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-06T17:50:22.018Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937"
   },
   "scope": {
     "summary": "Correct the stale assertion in restore_bookmark_centrally_invalidates_results_cache_and_pending_reads so it matches the AC-7 stale-result-guard contract that MT-029 deliberately implemented.",
