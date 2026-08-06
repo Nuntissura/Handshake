@@ -631,13 +631,21 @@ fn post_body_matches_verified_native_editor_schema() {
         "session_id must be a NON-NIL UUID (backend 400s otherwise)"
     );
     assert_eq!(obj["kind"], "document_saved");
-    assert_eq!(obj["actor_id"], "hsk:native_editor:pane-rich");
-    assert_eq!(obj["actor_kind"], "human");
     assert_eq!(obj["pane_id"], "pane-rich");
     assert_eq!(obj["surface"], "pane-rich");
-    assert_eq!(obj["workspace_id"], "WS-7");
     assert_eq!(obj["work_packet_id"], NATIVE_EDITOR_WORK_PACKET_ID);
     assert_eq!(obj["payload"]["content_hash"], "a".repeat(64));
+
+    // MT-111 / AC-111-3: identity is NOT client authority under the MT-109 envelope contract. The
+    // workspace travels in the `/workspaces/{id}/...` path segment and the actor comes from the
+    // authenticated native-MCP binding, so all three identity fields are omitted and the server fills
+    // them before the first durable write.
+    for forbidden in ["actor_id", "actor_kind", "workspace_id"] {
+        assert!(
+            !obj.contains_key(forbidden),
+            "'{forbidden}' is server-derived under MT-109 and must never be client-authored"
+        );
+    }
 
     // deny_unknown_fields: ONLY allowed snake_case keys may appear.
     let allowed: std::collections::HashSet<&str> = [
@@ -646,11 +654,8 @@ fn post_body_matches_verified_native_editor_schema() {
         "ts_utc",
         "session_id",
         "kind",
-        "actor_id",
-        "actor_kind",
         "pane_id",
         "surface",
-        "workspace_id",
         "work_packet_id",
         "payload",
     ]
@@ -663,6 +668,31 @@ fn post_body_matches_verified_native_editor_schema() {
         );
     }
     println!("RISK-1/MC-1: build_post_body carries every required native-editor field, snake_case");
+}
+
+// ── MT-111 / AC-111-1 + AC-111-2: the ingest URL is workspace-scoped and the transport presents the
+// live native-MCP binding credential (the header the MT-109 middleware authenticates). ──────────────
+
+#[test]
+fn ingest_url_is_workspace_scoped_and_credential_comes_from_the_on_disk_binding() {
+    let transport = RuntimeChatLedgerTransport::with_session_id("http://test", uuid_session());
+    let ev = NativeEditorEvent::document_saved(
+        "DOC-9",
+        "a".repeat(64),
+        "pane-rich",
+        native_editor_actor_id("pane-rich"),
+        "WS-7",
+    );
+    assert_eq!(
+        transport.url_for(&ev),
+        "http://test/api/workspaces/WS-7/flight_recorder/native_editor_event",
+        "AC-111-1: the removed unscoped ingestion path is unreachable from this client"
+    );
+    assert_eq!(
+        handshake_native::event_emitter::HSK_HEADER_SESSION_TOKEN,
+        "x-hsk-session-token",
+        "AC-111-2: the credential rides the exact header capture_context reads"
+    );
 }
 
 // ── AC-4: a failed emit lands in the error ring, no panic ─────────────────────────────────────────────
@@ -1888,6 +1918,13 @@ fn no_repo_local_artifact_dir() {
 
 #[test]
 fn event_emitter_native_editor_round_trip() {
+    // WP-KERNEL-012 MT-111 / AC-111-7: MT-109 gates the WHOLE flight-recorder route group. This
+    // harness both WRITES (through the production emitter inside the mounted app) and READS the
+    // recorder, so it must present a REAL native-MCP binding exactly as a real client does. Published
+    // BEFORE the backend is selected so an owned child inherits the same app-data root and both
+    // processes resolve the same `swarm_mcp_binding.json`. Nothing about the authorization is
+    // weakened: a missing, forged, or stale binding still fails closed with HSK-401-FR-SESSION.
+    let native_binding = pg_proof_support::RealNativeMcpBinding::publish();
     let mut managed_backend = pg_proof_support::require_reachable_backend();
     let backend_binding = managed_backend.owned_backend_binding_receipt();
     let backend_pid = managed_backend.owned_process_id();
@@ -2226,14 +2263,15 @@ fn event_emitter_native_editor_round_trip() {
                 .build()
                 .expect("build bounded MT-036 poll client")
                 .get(format!("{base}/api/flight_recorder"))
-                .query(&[
-                    (
-                        "actor_id",
-                        handshake_native::event_emitter::DEFAULT_ACTOR_ID,
-                    ),
-                    ("wsid", workspace.as_str()),
-                    ("event_type", "system"),
-                ])
+                // MT-111 / AC-111-2: the recorder read is authenticated, not anonymous.
+                .header(
+                    handshake_native::event_emitter::HSK_HEADER_SESSION_TOKEN,
+                    native_binding.token(),
+                )
+                // MT-111 / AC-111-3: `actor_id` is no longer client authority, so it is no longer a
+                // usable client-side filter either - the durable attribution is server-derived from
+                // the authenticated binding. Scope by workspace (the ownership boundary) instead.
+                .query(&[("wsid", workspace.as_str()), ("event_type", "system")])
                 .send()
                 .await
                 .expect("GET flight recorder");
@@ -2246,7 +2284,9 @@ fn event_emitter_native_editor_round_trip() {
             let matching = rows
                 .iter()
                 .filter(|row| {
-                    row["actor_id"] == handshake_native::event_emitter::DEFAULT_ACTOR_ID
+                    row["actor_id"]
+                        .as_str()
+                        .is_some_and(|actor_id| actor_id.starts_with("handshake-native:"))
                         && row["wsids"]
                             .as_array()
                             .is_some_and(|ids| ids.iter().any(|id| id == &workspace))
@@ -2282,7 +2322,11 @@ fn event_emitter_native_editor_round_trip() {
         assert!(uuid::Uuid::parse_str(trace_id).is_ok());
         assert!(matching.iter().all(|row| {
             row["event_type"] == "system"
-                && row["actor_id"] == handshake_native::event_emitter::DEFAULT_ACTOR_ID
+                // AC-111-3: SERVER-derived attribution from the authenticated native-MCP binding,
+                // never the caller's or emitter's own actor id.
+                && row["actor_id"]
+                    .as_str()
+                    .is_some_and(|actor_id| actor_id.starts_with("handshake-native:"))
                 && row["trace_id"] == trace_id
                 && row["session_span_id"] == trace_id
                 && row["payload"]["schema_version"] == NATIVE_EDITOR_SCHEMA_VERSION
@@ -2362,7 +2406,19 @@ fn event_emitter_native_editor_round_trip() {
         "sha256": file_sha256(&test_executable),
         "size_bytes": std::fs::metadata(&test_executable).expect("test exe metadata").len(),
     });
-    let mut argus = CanonicalArgusDriver::bind(app_harness.state(), "mt036-v4-round-trip");
+    // WP-KERNEL-012 MT-111 / AC-111-7: bind the real Argus server IN THE CURRENT app-data root
+    // (never a second scoped root). `CanonicalArgusDriver::bind` would redirect `%LOCALAPPDATA%` and
+    // publish a DIFFERENT binding there, while the backend child — spawned with the root established
+    // above — keeps authenticating against THIS root. The mounted Flight Recorder pane read would
+    // then present a credential the backend never issued and fail closed with HSK-401-FR-SESSION.
+    // Publishing into the shared root is the same pattern MT-066's mounted proof uses, and it is what
+    // the MT-111 client's per-request binding re-read is designed for: the app's own MCP server
+    // republishes here, and the very next recorder request picks that credential up.
+    let mut argus = CanonicalArgusDriver::bind_in_current_app_data(
+        app_harness.state(),
+        "mt036-v4-round-trip",
+        app_harness.state().mcp_token(),
+    );
     let mut action_proof = Vec::new();
 
     argus.click_expect_applied_and_reinspect(&mut app_harness, "menu-operator");

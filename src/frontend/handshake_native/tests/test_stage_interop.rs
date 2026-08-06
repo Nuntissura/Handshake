@@ -567,6 +567,17 @@ impl LiveWorkspaceGuard<'_> {
         if !self.native_fr_event_ids.contains(&event_id) {
             self.native_fr_event_ids.push(event_id);
         }
+        // WP-KERNEL-012 MT-111: MT-109 made the DURABLE Flight Recorder id a workspace-scoped
+        // DERIVATION of the client event id, while the EventLedger idempotency keys are still built
+        // from the CLIENT id (now prefixed with the workspace). Track the client id too, so
+        // `cleanup_native_fr_ledger` can still name the exact ledger rows this proof minted instead of
+        // silently deleting nothing and then failing `finish_and_assert_zero`.
+        if let Some(client_event_id) = row["payload"]["client_event_id"].as_str() {
+            let client_event_id = client_event_id.to_owned();
+            if !self.native_fr_event_ids.contains(&client_event_id) {
+                self.native_fr_event_ids.push(client_event_id);
+            }
+        }
     }
 
     fn track_stage_artifact(&mut self, artifact: &StageArtifactRef) {
@@ -605,9 +616,21 @@ impl LiveWorkspaceGuard<'_> {
             .native_fr_event_ids
             .iter()
             .flat_map(|event_id| {
+                // MT-111: MT-109 partitioned the native-editor EventLedger idempotency keys by
+                // workspace (`native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`).
+                // Both spellings are named so this fixture cleans up rows minted before and after that
+                // change; every key is still scoped to THIS proof's own event ids.
                 [
                     format!("native-editor-fr-pending:{event_id}"),
                     format!("native-editor-fr-complete:{event_id}"),
+                    format!(
+                        "native-editor-fr-pending:{}:{event_id}",
+                        self.workspace_id
+                    ),
+                    format!(
+                        "native-editor-fr-complete:{}:{event_id}",
+                        self.workspace_id
+                    ),
                 ]
             })
             .map(|key| format!("'{}'", key.replace('\'', "''")))

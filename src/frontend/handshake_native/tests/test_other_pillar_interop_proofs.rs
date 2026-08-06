@@ -2014,9 +2014,17 @@ fn other_pillar_fr_route_resolved() {
         fr_src.contains("\"/flight_recorder\""),
         "flight_recorder.rs must register the GET /flight_recorder read route"
     );
+    // MT-111: the ingestion route is WORKSPACE-SCOPED and capability-gated. MT-109 removed the
+    // unscoped `POST /flight_recorder/native_editor_event` path, so asserting only the relative
+    // suffix would keep passing against a route that no longer exists on its own.
     assert!(
-        fr_src.contains("\"/flight_recorder/native_editor_event\""),
-        "flight_recorder.rs must register the native-editor FR ingestion route"
+        fr_src.contains("\"/workspaces/:workspace_id\"")
+            && fr_src.contains("\"/flight_recorder/native_editor_event\""),
+        "flight_recorder.rs must register the workspace-scoped native-editor FR ingestion route"
+    );
+    assert!(
+        fr_src.contains("authorize_flight_recorder_request"),
+        "the flight-recorder route group must stay behind its fail-closed capability middleware"
     );
     // The FR ingestion closed vocabulary accepts the 5 interop kinds emitted by the frontend.
     for kind in [
@@ -2056,7 +2064,8 @@ fn other_pillar_fr_route_resolved() {
     println!(
         "FR-route + interop routes RESOLVED (backend source scan): api/mod.rs declares+wires \
          stage/calendar/locus/flight_recorder; GET /api/flight_recorder + POST \
-         /flight_recorder/native_editor_event registered; the FR ingestion accepts the 5 interop kinds \
+         /api/workspaces/{{workspace_id}}/flight_recorder/native_editor_event registered behind the \
+         fail-closed capability middleware; the FR ingestion accepts the 5 interop kinds \
          emitted by the managed-runtime scenarios."
     );
 }

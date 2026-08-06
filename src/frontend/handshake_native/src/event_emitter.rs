@@ -8,11 +8,28 @@
 //!
 //! ## Runtime path
 //!
-//! The producer posts the closed `hsk.native_editor@0.1` envelope to the verified
-//! `POST /api/flight_recorder/native_editor_event` authority route. The backend records an
-//! `editor_edit` Flight Recorder event with the supplied actor, pane, workspace, action and payload,
-//! and mirrors the same event id into PostgreSQL EventLedger. Dispatch stays bounded and off-frame;
-//! failures remain visible in the cap-20 error ring.
+//! The producer posts the closed `hsk.native_editor@0.1` envelope to the workspace-scoped,
+//! capability-gated authority route
+//! `POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event`. The backend records an
+//! `editor_edit` Flight Recorder event with the SERVER-DERIVED actor and workspace plus the supplied
+//! pane, action and payload, and mirrors the same event id into PostgreSQL EventLedger. Dispatch stays
+//! bounded and off-frame; failures remain visible in the cap-20 error ring.
+//!
+//! ## Authorization (WP-KERNEL-012 MT-109 boundary, wired here by MT-111)
+//!
+//! The whole flight-recorder route group is behind fail-closed capability middleware:
+//!
+//! * Every request MUST carry the `x-hsk-session-token` header holding the per-session native-MCP
+//!   token from the canonical on-disk binding ([`crate::mcp::binding_path`]). No token, a forged
+//!   token, or a binding whose recorded owner process is gone is `401 HSK-401-FR-SESSION`.
+//! * `actor_id`, `actor_kind` and `workspace_id` are NO LONGER client authority. This client OMITS
+//!   all three: the path segment carries the workspace and the authenticated binding carries the
+//!   actor, so the server fills them. A client-authored value that disagrees is rejected `403`
+//!   (`HSK-403-FR-ACTOR-SPOOF` / `HSK-403-FR-WORKSPACE`) BEFORE any durable write.
+//!
+//! A missing binding is surfaced as the typed [`EmitError::MissingSessionBinding`] and a rejected one
+//! as [`EmitError::SessionRejected`] — both land in the shared error ring the FlightRecorderPane
+//! renders, so an authorization outage is never a silent drop.
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -561,6 +578,17 @@ pub enum EmitError {
     /// The ordered worker did not return a persistence receipt inside the caller's hard bound. The
     /// event may have been queued, but persistence is unknown and must not be reported as success.
     PersistenceTimeout { event_id: String, timeout_ms: u64 },
+    /// MT-111: the native-MCP session credential the MT-109 flight-recorder middleware requires could
+    /// not be resolved (binding file absent, unreadable, malformed, or tokenless). The POST is NOT
+    /// attempted: an unauthenticated request is rejected `401 HSK-401-FR-SESSION` anyway, and dropping
+    /// the event silently would hide a real ingestion outage. Carries the exact binding path so the
+    /// operator can see WHICH credential file is missing.
+    MissingSessionBinding { path: String, reason: String },
+    /// MT-111: the backend rejected the presented credential or the capability behind it
+    /// (`401 HSK-401-FR-SESSION`, `403 HSK-403-FR-CAPABILITY`, `403 HSK-403-FR-ACTOR-SPOOF`,
+    /// `403 HSK-403-FR-WORKSPACE`). Kept distinct from [`Self::Transport`] so the operator sees an
+    /// AUTHORIZATION failure rather than a network failure. No durable write occurred.
+    SessionRejected { status: u16, error_code: String },
 }
 
 impl std::fmt::Display for EmitError {
@@ -587,6 +615,14 @@ impl std::fmt::Display for EmitError {
             } => write!(
                 f,
                 "native-editor persistence receipt timed out: event_id={event_id}, timeout_ms={timeout_ms}"
+            ),
+            EmitError::MissingSessionBinding { path, reason } => write!(
+                f,
+                "native-MCP session binding unavailable, flight-recorder emit not attempted: path={path}, reason={reason}"
+            ),
+            EmitError::SessionRejected { status, error_code } => write!(
+                f,
+                "flight-recorder authorization rejected: status={status}, error={error_code}"
             ),
         }
     }
@@ -697,6 +733,11 @@ fn record_emit_failure_diagnostic(entry: &EmitErrorEntry) {
         EmitError::PendingOverflow { .. } => 5,
         EmitError::Transport(_) => 6,
         EmitError::PersistenceTimeout { .. } => 7,
+        // MT-111: authorization failure classes are distinct diagnostic kinds so Tier 2
+        // internal_diagnostics can tell a missing credential from a rejected one without
+        // recording the token, the path, or any event payload.
+        EmitError::MissingSessionBinding { .. } => 8,
+        EmitError::SessionRejected { .. } => 9,
     };
     let timestamp_nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -909,6 +950,70 @@ pub trait EventLedgerTransport: Send + Sync {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>>;
 }
 
+/// The header the MT-109 flight-recorder capability middleware authenticates against. Its value is the
+/// per-session native-MCP token published in the on-disk binding.
+pub const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
+
+/// Why the native-MCP session credential could not be resolved. Carries the exact binding path so the
+/// operator sees WHICH file is missing or malformed rather than a generic auth failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionBindingUnavailable {
+    /// The canonical binding path that was consulted.
+    pub path: String,
+    /// A concrete machine/operator-readable reason (io error, parse error, or contract violation).
+    pub reason: String,
+}
+
+impl std::fmt::Display for SessionBindingUnavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "native-MCP binding {}: {}", self.path, self.reason)
+    }
+}
+
+impl std::error::Error for SessionBindingUnavailable {}
+
+/// Resolve the native-MCP session credential every flight-recorder request must present (MT-111).
+///
+/// **Which token.** The `token` field of the canonical on-disk native-MCP binding
+/// (`{local_app_data}/handshake/swarm_mcp_binding.json`, [`crate::mcp::binding_path`]). That exact file
+/// is what `handshake_core`'s `capture_context` reads, so it is the ONLY credential that can
+/// authenticate. An in-process copy of this app's own token is deliberately NOT used: if another app
+/// instance republished the canonical binding, the in-process copy is stale and the backend — which
+/// only ever consults the file — would reject it.
+///
+/// **How it refreshes on rebind.** The binding is re-read on EVERY request and never cached.
+/// Publication is an atomic replace, so a rebind (new port, new token, new owning process) is picked up
+/// by the very next event with no cache-invalidation logic to get wrong. The file is a few hundred
+/// bytes and is read on the off-frame dispatch worker, never on the egui frame thread (HBR-QUIET).
+///
+/// **When it is absent.** Returns [`SessionBindingUnavailable`] naming the path and the reason.
+/// Callers MUST surface that as a typed, operator-visible error and MUST NOT fall back to an
+/// unauthenticated request: the MT-109 boundary would reject it `401 HSK-401-FR-SESSION`, and silently
+/// dropping the event would hide a real ingestion outage.
+pub fn flight_recorder_session_token() -> Result<String, SessionBindingUnavailable> {
+    let path = crate::mcp::binding_path();
+    let display = path.display().to_string();
+    let unavailable = |reason: String| SessionBindingUnavailable {
+        path: display.clone(),
+        reason,
+    };
+    let bytes = std::fs::read(&path).map_err(|error| unavailable(format!("read failed: {error}")))?;
+    let binding: JsonValue =
+        serde_json::from_slice(&bytes).map_err(|error| unavailable(format!("parse failed: {error}")))?;
+    let token = binding
+        .get("token")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| unavailable("binding carries no token field".to_owned()))?;
+    // Mirror the backend's own acceptance shape so a malformed credential fails HERE with a precise
+    // reason instead of as an opaque 401 after a pointless round trip.
+    if token.len() != 64 || !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(unavailable(
+            "binding token is not the required 64 hex characters".to_owned(),
+        ));
+    }
+    Ok(token.to_owned())
+}
+
 /// Production transport for the verified native-editor Flight Recorder ingestion route. The historical
 /// type name is retained for source compatibility with dependent MTs; it now carries the native-editor
 /// envelope and never routes native actions through Runtime Chat.
@@ -970,7 +1075,7 @@ impl RuntimeChatLedgerTransport {
     ///
     /// The workspace therefore comes from the EVENT rather than from construction time, because a
     /// single transport instance serves whichever workspace the event belongs to.
-    fn url_for(&self, event: &NativeEditorEvent) -> String {
+    pub fn url_for(&self, event: &NativeEditorEvent) -> String {
         format!(
             "{}/api/workspaces/{}/flight_recorder/native_editor_event",
             self.base_url, event.workspace_id
@@ -981,20 +1086,36 @@ impl RuntimeChatLedgerTransport {
     pub fn session_id(&self) -> &str {
         &self.session_id
     }
+
+    /// The app/model session lane this transport was built for.
+    ///
+    /// MT-111: this is DIAGNOSTIC ONLY and is no longer put on the wire. Under the MT-109 envelope
+    /// contract `actor_kind` is derived from the authenticated native-MCP binding; a client-authored
+    /// value that disagreed would be rejected `403 HSK-403-FR-ACTOR-SPOOF` before any durable write.
+    pub fn actor_kind(&self) -> &str {
+        &self.actor_kind
+    }
 }
 
 impl EventLedgerTransport for RuntimeChatLedgerTransport {
+    /// MT-111 / MT-109 envelope contract: `actor_id`, `actor_kind` and `workspace_id` are OMITTED.
+    ///
+    /// They are no longer client authority. The workspace comes from the `:workspace_id` path segment
+    /// ([`RuntimeChatLedgerTransport::url_for`]) and the actor from the authenticated native-MCP
+    /// binding, and the server fills both into the canonical envelope before the first durable write.
+    /// Omitting rather than echoing them is deliberate: the server-derived actor id is
+    /// `handshake-native:{pid}:{process_birth_fingerprint}`, which this client cannot restate without
+    /// duplicating server identity derivation, and any drift would be rejected `403
+    /// HSK-403-FR-ACTOR-SPOOF`. `event.actor_id` and `event.workspace_id` remain the LOCAL routing and
+    /// diagnostic identity (workspace-mismatch rejection, error ring, pane rendering).
     fn build_post_body(&self, event: &NativeEditorEvent) -> JsonValue {
         json!({
             "schema_version": NATIVE_EDITOR_SCHEMA_VERSION,
             "event_id": event.event_id,
             "ts_utc": event.ts_utc,
             "kind": event.action.as_str(),
-            "actor_id": event.actor_id,
-            "actor_kind": self.actor_kind,
             "pane_id": event.pane_id,
             "surface": event.pane_id,
-            "workspace_id": event.workspace_id,
             "session_id": self.session_id,
             "work_packet_id": NATIVE_EDITOR_WORK_PACKET_ID,
             "payload": event.payload,
@@ -1009,19 +1130,45 @@ impl EventLedgerTransport for RuntimeChatLedgerTransport {
         let url = self.url_for(&event);
         let body = self.build_post_body(&event);
         Box::pin(async move {
+            // Resolved as LATE as possible so a rebind that lands between queueing and dispatch is
+            // still honoured. Fail-closed: with no credential the request is not sent at all.
+            let token = flight_recorder_session_token().map_err(|unavailable| {
+                EmitError::MissingSessionBinding {
+                    path: unavailable.path,
+                    reason: unavailable.reason,
+                }
+            })?;
             let resp = client
                 .post(&url)
+                .header(HSK_HEADER_SESSION_TOKEN, &token)
                 .json(&body)
                 .send()
                 .await
                 .map_err(|e| EmitError::Transport(format!("network: {e}")))?;
             let status = resp.status();
             if status.is_success() {
-                Ok(())
-            } else {
-                let text = resp.text().await.unwrap_or_default();
-                Err(EmitError::Transport(format!("status {status}: {text}")))
+                return Ok(());
             }
+            let text = resp.text().await.unwrap_or_default();
+            if matches!(status.as_u16(), 401 | 403) {
+                // The MT-109 boundary answers with a typed `{"error":"HSK-4xx-FR-..."}` body. Surface
+                // that exact code so the operator can tell a stale binding from a denied capability
+                // from an attribution mismatch.
+                let error_code = serde_json::from_str::<JsonValue>(&text)
+                    .ok()
+                    .and_then(|value| {
+                        value
+                            .get("error")
+                            .and_then(JsonValue::as_str)
+                            .map(str::to_owned)
+                    })
+                    .unwrap_or_else(|| text.clone());
+                return Err(EmitError::SessionRejected {
+                    status: status.as_u16(),
+                    error_code,
+                });
+            }
+            Err(EmitError::Transport(format!("status {status}: {text}")))
         })
     }
 }
@@ -1585,13 +1732,19 @@ mod tests {
         let parsed = uuid::Uuid::parse_str(sid).expect("session_id parses as UUID");
         assert_ne!(parsed, uuid::Uuid::nil(), "session_id must be non-nil");
         assert_eq!(obj["kind"], "document_saved");
-        assert_eq!(obj["actor_id"], "hsk:native_editor:pane-rich");
-        assert_eq!(obj["actor_kind"], "human");
         assert_eq!(obj["pane_id"], "pane-rich");
         assert_eq!(obj["surface"], "pane-rich");
-        assert_eq!(obj["workspace_id"], "WS-9");
         assert_eq!(obj["work_packet_id"], NATIVE_EDITOR_WORK_PACKET_ID);
         assert_eq!(obj["payload"]["content_hash"], "f".repeat(64));
+        // MT-111 / AC-111-3: identity is NOT client authority. The workspace travels in the path and
+        // the actor comes from the authenticated native-MCP binding, so none of the three identity
+        // fields may appear in the body.
+        for forbidden in ["actor_id", "actor_kind", "workspace_id"] {
+            assert!(
+                !obj.contains_key(forbidden),
+                "{forbidden} is server-derived under MT-109 and must not be client-authored"
+            );
+        }
         // NO unknown/camelCase keys (deny_unknown_fields would 400). Only the allowed snake_case keys.
         let allowed: std::collections::HashSet<&str> = [
             "schema_version",
@@ -1599,11 +1752,8 @@ mod tests {
             "ts_utc",
             "session_id",
             "kind",
-            "actor_id",
-            "actor_kind",
             "pane_id",
             "surface",
-            "workspace_id",
             "work_packet_id",
             "payload",
         ]
@@ -1615,6 +1765,28 @@ mod tests {
                 "unexpected key {k} (would trip deny_unknown_fields)"
             );
         }
+    }
+
+    /// AC-111-1: the ingestion URL is workspace-scoped and takes its workspace from the EVENT, so one
+    /// transport instance serves whichever workspace an event belongs to. The removed unscoped path
+    /// must not be reachable from this client.
+    #[test]
+    fn ingest_url_is_workspace_scoped_from_the_event() {
+        let transport = RuntimeChatLedgerTransport::with_session_id(
+            "http://test",
+            uuid::Uuid::new_v4().to_string(),
+        );
+        let event = NativeEditorEvent::document_saved(
+            "DOC-1",
+            "a".repeat(64),
+            "pane-rich",
+            DEFAULT_ACTOR_ID,
+            "WS-42",
+        );
+        assert_eq!(
+            transport.url_for(&event),
+            "http://test/api/workspaces/WS-42/flight_recorder/native_editor_event"
+        );
     }
 
     #[test]
@@ -1891,8 +2063,29 @@ mod tests {
         }
         let posted = mock.posted.lock().unwrap();
         assert_eq!(posted.len(), 2);
-        assert_eq!(posted[0]["actor_id"], "canonical-save-actor");
-        assert_eq!(posted[1]["actor_id"], "emitter-actor");
+        // MT-111 / AC-111-3: the LOCAL identities above are still distinct (they drive workspace
+        // routing, the payload receipt fields, and the error ring), but neither reaches the wire as
+        // authority. Under the MT-109 envelope contract the server derives `actor_id` from the
+        // authenticated native-MCP binding; a client-authored value that disagreed would be rejected
+        // `403 HSK-403-FR-ACTOR-SPOOF` before any durable write, so the client omits it entirely.
+        for body in posted.iter() {
+            assert!(
+                body.get("actor_id").is_none(),
+                "actor_id is server-derived and must not be client-authored: {body}"
+            );
+            assert!(
+                body.get("actor_kind").is_none(),
+                "actor_kind is server-derived and must not be client-authored: {body}"
+            );
+            assert!(
+                body.get("workspace_id").is_none(),
+                "workspace_id is carried by the route path, not the body: {body}"
+            );
+        }
+        // The authenticated save still ships its receipt attribution INSIDE the closed payload, which
+        // is what `validate_document_save_receipt` authenticates against.
+        assert_eq!(posted[0]["payload"]["actor_kind"], "operator");
+        assert_eq!(posted[0]["payload"]["save_receipt_event_id"], "KE-receipt");
     }
 
     #[test]

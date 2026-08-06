@@ -710,7 +710,9 @@ fn spawn_argus_code_symbol_server(
             let is_flight_recorder =
                 request_text.contains("GET /api/flight_recorder?wsid=default-project ");
             let is_native_editor_event =
-                request_text.contains("POST /api/flight_recorder/native_editor_event ");
+                request_text.contains(
+                    "POST /api/workspaces/default-project/flight_recorder/native_editor_event ",
+                );
             let is_document_draft =
                 request_text.contains("GET /knowledge/documents/DOC-ARGUS-34/draft ");
             let is_document_backlinks =
@@ -2296,7 +2298,9 @@ fn mt034_canonical_argus_create_open_and_reveal() {
                 || request.contains("GET /workspaces/default-project/memory/proposals?limit=200 ")
                 || request.contains("POST /workspaces/default-project/loom/search-v2 ")
                 || request.contains("GET /api/flight_recorder?wsid=default-project ")
-                || request.contains("POST /api/flight_recorder/native_editor_event ")
+                || request.contains(
+                    "POST /api/workspaces/default-project/flight_recorder/native_editor_event ",
+                )
                 || request.contains("GET /knowledge/documents/DOC-ARGUS-34/draft ")
                 || request.contains("GET /knowledge/documents/DOC-ARGUS-34/backlinks "))
         })

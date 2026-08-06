@@ -903,6 +903,272 @@ impl Mt064FemsProposalFlowCompletion {
     }
 }
 
+// ── WP-KERNEL-012 MT-065 V5: canonical FEMS SWARM-FLOW action completion ─────────────────────────
+//
+// `validation_v4` failed MT-065 because EVERY canonical action receipt in the FEMS-03 swarm proof
+// terminated `indeterminate`. MT-033 (menu open / command palette), MT-035 (EDIT menu open), MT-046
+// (Quick Switcher open) and MT-064 (select-all / palette row / class radio / confirm) already publish
+// action-specific completion tokens for their own controls, so this MT owns ONLY the four remaining
+// FEMS-03 steps that still had no authoritative terminal predicate:
+//
+//   * `menu.editors.relevant-memory`      (TRANSIENT target — the EDITORS menu closes)
+//   * `editor.fems.memorypack-refresh`    (PERSISTENT target — the Refresh control stays mounted)
+//   * `fems-propose-cancel`               (TRANSIENT target — the proposal dialog closes)
+//   * `tab-{pane_id}-{index}`             (DURABLE target — the tab stays mounted and becomes selected)
+//
+// Each step terminalizes ONLY on its own authoritative post-state, read from the live app model and
+// the SAME fresh snapshot the `ActionChannel` acknowledges — never on the click being consumed and
+// never on the target disappearing:
+//
+//   * relevant-memory leaf -> the Relevant Memory utility surface is the ACTIVE tab on the active
+//     pane AND its `relevant-memory-panel` + `editor.fems.memorypack-status` nodes are addressable,
+//   * memorypack refresh   -> the panel's completed-refresh counter AND its refresh generation are
+//     both STRICTLY NEWER than the values the previously published snapshot carried, the read is no
+//     longer in flight, the mounted status node reports a terminal `ready`/`empty`/`error` state, and
+//     the context key still matches the one declared before dispatch (a click without the observed
+//     generation transition stays non-terminal),
+//   * propose cancel       -> the dialog is CLOSED (no pending dialog and `fems-propose-dialog` is
+//     absent from the fresh tree) and `fems-propose-status` reports
+//     `state=cancelled;outcome=cancelled_before_submit` for THAT exact operation_id; any other
+//     terminal outcome for the same operation publishes a typed terminal FAILURE,
+//   * tab activation       -> the exact pane's `active_index` is the clicked tab index and that pane
+//     is the active pane. This one uses the SAME-TARGET token form (the tab is durable and its
+//     activation is synchronous), so an activation that does not happen simply fails to advance the
+//     generation and the receipt stays `Indeterminate` exactly as before — it can never regress an
+//     unrelated suite's tab click into a typed rejection.
+//
+// The observer is proof-only: it never gates product behavior (every route works identically with no
+// Argus binding open), so an un-instrumented host is unaffected.
+
+/// Durable `Role::Status` observer publishing MT-065 FEMS swarm-flow action completion.
+pub const MT065_FEMS_SWARM_FLOW_COMPLETION_AUTHOR_ID: &str = "mt065.fems-swarm-flow-completion";
+const MT065_FEMS_SWARM_FLOW_EFFECT: &str = "mt065.fems-swarm-flow";
+const MT065_FEMS_SWARM_FLOW_CONTEXT: &str = "wp-kernel-012-mt-065-v5";
+/// The EDITORS menu leaf that opens the mounted FEMS Relevant Memory utility surface.
+const MT065_RELEVANT_MEMORY_MENU_TARGET: &str = "menu.editors.relevant-memory";
+/// BOUNDED observation window for one swarm-flow action, mirroring MT-064/MT-079: an observer that
+/// stays `Pending` forever would silently strand every later action as `Indeterminate`, which is a
+/// worse failure than an honest typed rejection. Deliberately longer than the `ActionChannel` lease
+/// so an expired receipt still leaves a settled, non-Pending observer baseline behind.
+const MT065_PENDING_OBSERVATION_WINDOW: std::time::Duration = std::time::Duration::from_secs(12);
+
+/// The exact authoritative post-state one bound MT-065 swarm-flow action is waiting for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Mt065SwarmFlowExpectation {
+    /// The EDITORS leaf mounted the FEMS Relevant Memory utility surface as the active tab.
+    OpenRelevantMemoryPane,
+    /// The Refresh control forced a NEW live MemoryPack read to a terminal state.
+    RefreshMemoryPack {
+        context_key: String,
+        prior_completed: u64,
+        prior_generation: u64,
+    },
+    /// Cancel closed the proposal dialog for THIS operation without submitting.
+    CancelProposalDialog { operation_id: String },
+}
+
+/// The authoritative live MemoryPack read state sampled from the mounted MT-063 panel (never from the
+/// AccessKit projection), used both as the published prior baseline and as the terminal predicate.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct Mt065MemoryPackState {
+    context_key: String,
+    completed: u64,
+    generation: u64,
+    in_flight: bool,
+    state: String,
+    items: usize,
+}
+
+impl Mt065MemoryPackState {
+    fn is_terminal(&self) -> bool {
+        !self.in_flight && matches!(self.state.as_str(), "ready" | "empty" | "error")
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Mt065FemsSwarmFlowCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    expectation: Option<Mt065SwarmFlowExpectation>,
+    pending_since: Option<std::time::Instant>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+    /// Per-tab SAME-TARGET activation tokens, keyed by the tab's stable AccessKit author id.
+    tab_activation: BTreeMap<String, (u64, crate::mcp::action::ClickCompletionState)>,
+    /// The tab target whose activation has already been acknowledged for the in-flight dispatch, so
+    /// one click can never advance the same-target generation twice.
+    tab_activation_bound: Option<String>,
+}
+
+impl Default for Mt065FemsSwarmFlowCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            expectation: None,
+            pending_since: None,
+            terminal_detail: None,
+            terminal_error: None,
+            tab_activation: BTreeMap::new(),
+            tab_activation_bound: None,
+        }
+    }
+}
+
+impl Mt065FemsSwarmFlowCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    /// The declaration a steerable swarm-flow control publishes as its AccessKit `value`.
+    ///
+    /// While an action bound to THIS exact control is open the ORIGINAL semantic is republished
+    /// verbatim, because `crate::mcp::action` requires a persistent target's post-action declaration
+    /// to advance by exactly one generation while carrying an unchanged semantic tuple.
+    fn declaration(
+        &self,
+        author_id: &str,
+        semantic_value: &str,
+        persistent_target: bool,
+    ) -> Option<String> {
+        let bound_to_this_target = self.pending_target.as_deref() == Some(author_id);
+        let semantic_value = if bound_to_this_target {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        if persistent_target {
+            crate::mcp::action::serialize_persistent_observer_click_target(
+                MT065_FEMS_SWARM_FLOW_EFFECT,
+                MT065_FEMS_SWARM_FLOW_CONTEXT,
+                self.generation,
+                MT065_FEMS_SWARM_FLOW_COMPLETION_AUTHOR_ID,
+                semantic_value,
+            )
+        } else {
+            (!self.is_pending())
+                .then(|| {
+                    crate::mcp::action::serialize_observer_click_target(
+                        MT065_FEMS_SWARM_FLOW_EFFECT,
+                        MT065_FEMS_SWARM_FLOW_CONTEXT,
+                        self.generation,
+                        MT065_FEMS_SWARM_FLOW_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                })
+                .flatten()
+        }
+    }
+
+    fn begin(
+        &mut self,
+        target: String,
+        semantic_value: String,
+        expectation: Mt065SwarmFlowExpectation,
+    ) {
+        if self.is_pending() {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(target);
+        self.semantic_value = Some(semantic_value);
+        self.expectation = Some(expectation);
+        self.pending_since = Some(std::time::Instant::now());
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
+
+    fn observation_window_elapsed(&self) -> bool {
+        self.is_pending()
+            && self
+                .pending_since
+                .is_some_and(|since| since.elapsed() >= MT065_PENDING_OBSERVATION_WINDOW)
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+            self.terminal_error = None;
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    /// The SAME-TARGET activation token a durable pane tab publishes as its AccessKit `value`.
+    fn tab_token(&self, author_id: &str) -> Option<String> {
+        let (generation, state) = self
+            .tab_activation
+            .get(author_id)
+            .copied()
+            .unwrap_or((0, crate::mcp::action::ClickCompletionState::Ready));
+        crate::mcp::action::serialize_same_target_click_completion(
+            &format!("mt065.activate-{author_id}"),
+            MT065_FEMS_SWARM_FLOW_CONTEXT,
+            generation,
+            state,
+        )
+    }
+
+    /// Advance the exact tab's same-target generation by one and publish `Applied`.
+    fn complete_tab_activation(&mut self, author_id: &str) {
+        let entry = self
+            .tab_activation
+            .entry(author_id.to_owned())
+            .or_insert((0, crate::mcp::action::ClickCompletionState::Ready));
+        entry.0 = entry.0.wrapping_add(1);
+        entry.1 = crate::mcp::action::ClickCompletionState::Applied;
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT065_FEMS_SWARM_FLOW_EFFECT,
+                    MT065_FEMS_SWARM_FLOW_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT065_FEMS_SWARM_FLOW_EFFECT,
+                    MT065_FEMS_SWARM_FLOW_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT065_FEMS_SWARM_FLOW_EFFECT,
+                    MT065_FEMS_SWARM_FLOW_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Mt036FlightRecorderOpenCompletion {
     generation: u64,
@@ -1001,6 +1267,394 @@ impl Mt036FlightRecorderOpenCompletion {
                 )
             }
             crate::mcp::action::ClickCompletionState::Failed => None,
+        }
+    }
+}
+
+// ── WP-KERNEL-012 MT-079 V5: canonical HOST-MOUNT lifecycle action completion ────────────────────
+//
+// `validation_v4` failed MT-079 because every canonical action in the two MT-079 proofs reached
+// `canonical_argus_driver::finish` without an authoritative, action-specific terminal binding: the
+// steered host-mount controls published no completion token, so `crate::mcp::action` had nothing to
+// acknowledge and could only fall back to the conservative `Indeterminate` verdict. "A pane looks
+// mounted now" and "the menu leaf disappeared" are NOT proof that THAT click produced THAT effect.
+//
+// This extends the EXISTING opt-in completion-token mechanism (`handshake.click-completion/v1`,
+// observer mode) — the same shape MT-024 (sidebar pin removal), MT-028 (Notes-Search navigation),
+// MT-036 (Flight Recorder open) and MT-064 (FEMS proposal flow) already prove — instead of inventing
+// a parallel one. ONE durable `Role::Status` observer serves the three host-mount lifecycle steps
+// whose click target is TRANSIENT (it disappears with its menu) and whose effect is a pane/tab
+// mutation the surviving tree cannot causally attribute on its own:
+//
+//   * `menu.view.open-*`      OPEN one editor surface on the module target pane
+//   * `tab-close-{pane}-{i}`  CLOSE one exact mounted tab
+//   * `ctx-menu.pane.pop_out` DETACH one exact mounted pane into its own window
+//
+// Each step terminalizes ONLY on its own authoritative post-state, captured from the LIVE tab/pane
+// model (never from the click being consumed and never from the target disappearing):
+//
+//   * open  -> the exact target pane's active tab carries the intended `PaneType` with no content id,
+//              the pane's tab count moved by EXACTLY the reuse-or-create delta recorded before
+//              dispatch, and the TOTAL tab count across every pane moved by the same delta (so a
+//              duplicate pane opened anywhere is a typed FAILURE, not a silent pass),
+//   * close -> the exact closed tab identity is ABSENT from its pane, that pane lost exactly one tab,
+//              and no sibling pane's tab count changed,
+//   * popout-> the exact pane id is registered popped-out in the live `PopOutManager` and its record
+//              still exists in the registry (a detached pane is moved, never destroyed).
+//
+// The observer is proof-only: it never gates product behavior (every route works identically with no
+// Argus binding open), so an un-instrumented host is unaffected.
+
+/// Durable `Role::Status` observer publishing MT-079 host-mount action completion.
+pub const MT079_HOST_MOUNT_COMPLETION_AUTHOR_ID: &str = "mt079.host-mount-completion";
+const MT079_HOST_MOUNT_EFFECT: &str = "mt079.host-mount";
+const MT079_HOST_MOUNT_CONTEXT: &str = "wp-kernel-012-mt-079-v5";
+/// BOUNDED observation window for one host-mount action, mirroring MT-028/MT-064's rationale: an
+/// observer that stays `Pending` forever would silently strand every later action as `Indeterminate`,
+/// which is a worse failure than an honest typed rejection.
+const MT079_HOST_MOUNT_OBSERVATION_WINDOW: std::time::Duration = std::time::Duration::from_secs(12);
+/// The pane-header context menu's "Pop Out Pane" leaf (`ctx-menu.{pane_ids::POP_OUT}`).
+const MT079_PANE_POP_OUT_TARGET: &str = "ctx-menu.pane.pop_out";
+/// The tab context menu's "Pop Out" leaf (`ctx-menu.{tab_ids::POP_OUT}`).
+const MT079_TAB_POP_OUT_TARGET: &str = "ctx-menu.tab.pop_out";
+
+/// The exact authoritative post-state one bound MT-079 host-mount action is waiting for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Mt079HostMountExpectation {
+    /// A VIEW > Open Editor Surfaces leaf opened one surface on the module target pane.
+    OpenSurface {
+        target_pane_id: String,
+        pane_type_label: String,
+        /// The target pane's tab count BEFORE dispatch.
+        prior_pane_tabs: usize,
+        /// The total tab count across EVERY pane before dispatch (the duplicate-pane guard).
+        prior_total_tabs: usize,
+        /// `true` when the target pane already hosted this surface, so the open must REUSE it and the
+        /// counts must not move at all.
+        expect_reuse: bool,
+    },
+    /// A tab close button removed one exact mounted tab.
+    CloseTab {
+        pane_id: String,
+        closed_pane_type_label: String,
+        closed_content_id: Option<String>,
+        prior_pane_tabs: usize,
+        prior_total_tabs: usize,
+        /// Sibling pane tab counts before dispatch; a close must not disturb any of them.
+        prior_sibling_tabs: Vec<(String, usize)>,
+    },
+    /// A pane-header / tab "Pop Out" detached one exact pane into its own window.
+    PopOut { pane_id: String },
+}
+
+/// The live host-mount facts the reconciler compares an expectation against. Sampled from the
+/// authoritative tab/pane model each snapshot pass, never from the AccessKit projection.
+#[derive(Debug, Clone, Default)]
+struct Mt079HostMountObservation {
+    pane_tabs: Vec<(String, usize)>,
+    total_tabs: usize,
+    active_pane_id: Option<String>,
+    active_tab_pane_type_label: Option<String>,
+    active_tab_content_id: Option<String>,
+    target_pane_hosts_type: bool,
+    target_pane_type_instances: usize,
+    closed_identity_absent: bool,
+    popped_out: bool,
+    pane_record_present: bool,
+}
+
+impl Mt079HostMountObservation {
+    fn pane_tabs_for(&self, pane_id: &str) -> Option<usize> {
+        self.pane_tabs
+            .iter()
+            .find(|(id, _)| id == pane_id)
+            .map(|(_, count)| *count)
+    }
+}
+
+/// One durable MT-079 host-mount observer. Mirrors the proven MT-024 / MT-028 / MT-064 observer
+/// shape: a monotonic generation, the exact pending target, the pre-dispatch semantic that binds the
+/// receipt causally, a bounded observation window, and a terminal detail carrying the authoritative
+/// post-state an external verifier can recompute.
+#[derive(Debug, Clone)]
+struct Mt079HostMountCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    expectation: Option<Mt079HostMountExpectation>,
+    pending_since: Option<std::time::Instant>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl Default for Mt079HostMountCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            expectation: None,
+            pending_since: None,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt079HostMountCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    /// The declaration a steerable host-mount control publishes as its AccessKit `value`. Every
+    /// MT-079 host-mount target is TRANSIENT (the owning menu closes on activation), so a declaration
+    /// is published only while the observer is settled — a stale declaration can never race a live
+    /// transition, and the acknowledgement requires the target to be gone.
+    fn declaration(&self, semantic_value: &str) -> Option<String> {
+        (!self.is_pending())
+            .then(|| {
+                crate::mcp::action::serialize_observer_click_target(
+                    MT079_HOST_MOUNT_EFFECT,
+                    MT079_HOST_MOUNT_CONTEXT,
+                    self.generation,
+                    MT079_HOST_MOUNT_COMPLETION_AUTHOR_ID,
+                    semantic_value,
+                )
+            })
+            .flatten()
+    }
+
+    fn begin(
+        &mut self,
+        target: String,
+        semantic_value: String,
+        expectation: Mt079HostMountExpectation,
+    ) -> bool {
+        if self.is_pending() {
+            return false;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(target);
+        self.semantic_value = Some(semantic_value);
+        self.expectation = Some(expectation);
+        self.pending_since = Some(std::time::Instant::now());
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        true
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+            self.terminal_error = None;
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observation_window_elapsed(&self) -> bool {
+        self.is_pending()
+            && self
+                .pending_since
+                .is_some_and(|since| since.elapsed() >= MT079_HOST_MOUNT_OBSERVATION_WINDOW)
+    }
+
+    /// Terminalize against the AUTHORITATIVE live tab/pane observation. A mismatch that is still
+    /// inside the bounded window stays `Pending` (the effect may not have landed yet); a DUPLICATE or
+    /// a sibling-disturbing outcome is a typed FAILURE immediately, because those can never become
+    /// correct by waiting.
+    fn reconcile(&mut self, observed: &Mt079HostMountObservation) {
+        if !self.is_pending() {
+            return;
+        }
+        let Some(expectation) = self.expectation.clone() else {
+            return;
+        };
+        match expectation {
+            Mt079HostMountExpectation::OpenSurface {
+                ref target_pane_id,
+                ref pane_type_label,
+                prior_pane_tabs,
+                prior_total_tabs,
+                expect_reuse,
+            } => {
+                let expected_delta = usize::from(!expect_reuse);
+                let pane_tabs = observed.pane_tabs_for(target_pane_id);
+                let detail = serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_079.open_surface_post_state@1",
+                    "target_pane_id": target_pane_id,
+                    "pane_type_label": pane_type_label,
+                    "expected_reuse": expect_reuse,
+                    "prior_pane_tabs": prior_pane_tabs,
+                    "observed_pane_tabs": pane_tabs,
+                    "prior_total_tabs": prior_total_tabs,
+                    "observed_total_tabs": observed.total_tabs,
+                    "active_pane_id": observed.active_pane_id,
+                    "active_tab_pane_type": observed.active_tab_pane_type_label,
+                    "active_tab_content_id": observed.active_tab_content_id,
+                    "target_pane_type_instances": observed.target_pane_type_instances,
+                })
+                .to_string();
+                // A duplicate instance of the intended surface on the target pane, or more than the
+                // intended delta anywhere, can never become correct: fail it typed straight away.
+                if observed.target_pane_type_instances > 1
+                    || observed.total_tabs > prior_total_tabs.saturating_add(expected_delta)
+                {
+                    self.complete_failed(
+                        format!(
+                            "MT-079 open of {pane_type_label} on {target_pane_id} produced a duplicate pane instance"
+                        ),
+                        detail,
+                    );
+                    return;
+                }
+                let landed = observed.active_pane_id.as_deref() == Some(target_pane_id.as_str())
+                    && observed.active_tab_pane_type_label.as_deref()
+                        == Some(pane_type_label.as_str())
+                    && observed.active_tab_content_id.is_none()
+                    && pane_tabs == Some(prior_pane_tabs.saturating_add(expected_delta))
+                    && observed.total_tabs == prior_total_tabs.saturating_add(expected_delta)
+                    && observed.target_pane_type_instances == 1;
+                if landed {
+                    self.complete_applied(detail);
+                } else if self.observation_window_elapsed() {
+                    self.complete_failed(
+                        format!(
+                            "MT-079 open of {pane_type_label} did not reach the target pane within the bounded {}s window",
+                            MT079_HOST_MOUNT_OBSERVATION_WINDOW.as_secs()
+                        ),
+                        detail,
+                    );
+                }
+            }
+            Mt079HostMountExpectation::CloseTab {
+                ref pane_id,
+                ref closed_pane_type_label,
+                ref closed_content_id,
+                prior_pane_tabs,
+                prior_total_tabs,
+                ref prior_sibling_tabs,
+            } => {
+                let pane_tabs = observed.pane_tabs_for(pane_id);
+                let siblings_intact = prior_sibling_tabs.iter().all(|(sibling, count)| {
+                    observed.pane_tabs_for(sibling) == Some(*count)
+                });
+                let detail = serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_079.close_tab_post_state@1",
+                    "pane_id": pane_id,
+                    "closed_pane_type_label": closed_pane_type_label,
+                    "closed_content_id": closed_content_id,
+                    "closed_identity_absent": observed.closed_identity_absent,
+                    "prior_pane_tabs": prior_pane_tabs,
+                    "observed_pane_tabs": pane_tabs,
+                    "prior_total_tabs": prior_total_tabs,
+                    "observed_total_tabs": observed.total_tabs,
+                    "prior_sibling_tabs": prior_sibling_tabs,
+                    "observed_sibling_tabs": observed.pane_tabs,
+                    "siblings_intact": siblings_intact,
+                })
+                .to_string();
+                if !siblings_intact {
+                    self.complete_failed(
+                        format!("MT-079 close on {pane_id} disturbed a sibling pane's tabs"),
+                        detail,
+                    );
+                    return;
+                }
+                let closed = observed.closed_identity_absent
+                    && pane_tabs == Some(prior_pane_tabs.saturating_sub(1))
+                    && observed.total_tabs == prior_total_tabs.saturating_sub(1);
+                if closed {
+                    self.complete_applied(detail);
+                } else if self.observation_window_elapsed() {
+                    self.complete_failed(
+                        format!(
+                            "MT-079 close of {closed_pane_type_label} on {pane_id} did not remove the exact tab within the bounded {}s window",
+                            MT079_HOST_MOUNT_OBSERVATION_WINDOW.as_secs()
+                        ),
+                        detail,
+                    );
+                }
+            }
+            Mt079HostMountExpectation::PopOut { ref pane_id } => {
+                let detail = serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_079.popout_post_state@1",
+                    "pane_id": pane_id,
+                    "popped_out": observed.popped_out,
+                    "pane_record_present": observed.pane_record_present,
+                })
+                .to_string();
+                if observed.popped_out && observed.pane_record_present {
+                    self.complete_applied(detail);
+                } else if self.observation_window_elapsed() {
+                    self.complete_failed(
+                        format!(
+                            "MT-079 pop-out of {pane_id} did not reach the detached host within the bounded {}s window",
+                            MT079_HOST_MOUNT_OBSERVATION_WINDOW.as_secs()
+                        ),
+                        detail,
+                    );
+                }
+            }
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            crate::mcp::action::ClickCompletionState::Ready => {
+                // A settled Ready baseline must ALWAYS be publishable, including before the first
+                // host-mount action: without it every declaration would reference a missing observer
+                // and every action would terminate `Indeterminate`.
+                crate::mcp::action::serialize_observer_click_state(
+                    MT079_HOST_MOUNT_EFFECT,
+                    MT079_HOST_MOUNT_CONTEXT,
+                    self.generation,
+                    self.state,
+                    None,
+                    None,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT079_HOST_MOUNT_EFFECT,
+                    MT079_HOST_MOUNT_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT079_HOST_MOUNT_EFFECT,
+                    MT079_HOST_MOUNT_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT079_HOST_MOUNT_EFFECT,
+                    MT079_HOST_MOUNT_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
         }
     }
 }
@@ -5065,6 +5719,9 @@ pub struct HandshakeApp {
     mt035_argus_action_completion: Mt035ArgusActionCompletion,
     /// MT-036 V4 action completion for the transient menu leaf which mounts Flight Recorder.
     mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion,
+    /// WP-KERNEL-012 MT-079 V5: the durable observer that terminalises canonical host-mount
+    /// open-surface / close-tab / pop-out actions against authoritative live tab+pane state.
+    mt079_host_mount_completion: Mt079HostMountCompletion,
     /// MT-046 V4 action completion for the transient menu leaves which mount Quick Switcher.
     mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion,
     /// MT-046 V4 payload-bound completion for a Quick Switcher query and exact mounted result.
@@ -5078,6 +5735,13 @@ pub struct HandshakeApp {
     /// MT-064 V5: the durable observer that terminalizes each mounted FEMS proposal-flow action
     /// against its OWN authoritative post-state.
     mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion,
+    /// MT-065 V5: the durable observer that terminalizes the remaining FEMS swarm-flow actions
+    /// (Relevant Memory pane open, MemoryPack refresh, proposal cancel, tab activation).
+    mt065_fems_swarm_flow_completion: Mt065FemsSwarmFlowCompletion,
+    /// MT-065 V5: the live MemoryPack read state published by the PREVIOUS snapshot projection. A
+    /// refresh receipt binds to a STRICTLY NEWER generation/completed pair than the snapshot the
+    /// client actually inspected before dispatch, never to a value sampled after the click landed.
+    mt065_prior_memory_pack: Mt065MemoryPackState,
     /// WP-KERNEL-012 MT-028: shell-owned durable observer for Notes-Search result navigation.
     mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion,
     /// MT-029 V5: shell-owned durable observer for Find-in-Files result navigation.
@@ -6777,12 +7441,15 @@ impl HandshakeApp {
             mt034_last_resolved_code_ref: None,
             mt035_argus_action_completion: Mt035ArgusActionCompletion::default(),
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
+            mt079_host_mount_completion: Mt079HostMountCompletion::default(),
             mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
             mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
             mt046_ckc_module_completion: Mt046CkcModuleCompletion::default(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion::default(),
             mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion::default(),
+            mt065_fems_swarm_flow_completion: Mt065FemsSwarmFlowCompletion::default(),
+            mt065_prior_memory_pack: Mt065MemoryPackState::default(),
             mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion::default(),
             mt029_find_result_open_completion: Mt029FindResultOpenCompletion::default(),
             mt029_find_result_routed: None,
@@ -9295,6 +9962,471 @@ impl HandshakeApp {
         self.mt064_prior_proposal_operation_id = self.mt064_current_operation_id();
     }
 
+    // ── WP-KERNEL-012 MT-065 V5 ─────────────────────────────────────────────────────────────────
+
+    /// Sample the AUTHORITATIVE live MemoryPack read state from the mounted MT-063 panel. This is the
+    /// same state machine the panel projects into `editor.fems.memorypack-status`, read from the app
+    /// model rather than re-parsed out of the AccessKit projection.
+    fn mt065_memory_pack_state(&self) -> Mt065MemoryPackState {
+        self.editor_mounts
+            .secondary
+            .relevant_memory
+            .lock()
+            .map(|panel| {
+                let context_key = panel
+                    .last_context()
+                    .map(crate::fems::memory_client::MemoryContext::context_key)
+                    .unwrap_or_else(|| "none".to_owned());
+                let (state, items) = if panel.blocker().is_some() {
+                    ("error".to_owned(), 0)
+                } else if panel.in_flight() {
+                    ("loading".to_owned(), 0)
+                } else if let Some(pack) = panel.current() {
+                    let items = pack.items.len();
+                    (if items == 0 { "empty" } else { "ready" }.to_owned(), items)
+                } else {
+                    ("idle".to_owned(), 0)
+                };
+                Mt065MemoryPackState {
+                    context_key,
+                    completed: panel.completed_refreshes(),
+                    generation: panel.refresh_generation(),
+                    in_flight: panel.in_flight(),
+                    state,
+                    items,
+                }
+            })
+            .unwrap_or_default()
+    }
+
+    /// The mounted FEMS Relevant Memory utility surface's pane type.
+    fn mt065_relevant_memory_pane_type() -> PaneType {
+        crate::editor_pane_factories::placeholder_pane_type(
+            crate::editor_pane_factories::RELEVANT_MEMORY_PANE_LABEL,
+        )
+    }
+
+    /// Resolve a tab AccessKit author id back to its exact `(pane, index)` in the live tab model.
+    /// The author id is matched through the production [`crate::tab_bar::tab_author_id_for`] contract
+    /// (which owns the pane-a User Manual stable-id override) rather than parsed by hand.
+    fn mt065_resolve_tab_target(&self, author_id: &str) -> Option<(PaneId, usize)> {
+        self.tab_bar_states.iter().find_map(|(pane_id, bar)| {
+            bar.tabs.iter().enumerate().find_map(|(index, tab)| {
+                (crate::tab_bar::tab_author_id_for(pane_id.as_ref(), index, &tab.pane_type)
+                    == author_id)
+                    .then(|| (pane_id.clone(), index))
+            })
+        })
+    }
+
+    /// The ONE shared intent helper both the declaration and the dispatch binding build their
+    /// semantic from, so an inspected declaration and its bound completion can never drift into
+    /// differently-shaped JSON (the acknowledgement compares them byte-for-byte). Volatile pre-state
+    /// (refresh counters) lives in the observer's expectation, never in the semantic, because the
+    /// declaration is published one snapshot BEFORE the dispatch frame.
+    fn mt065_semantic(&self, author_id: &str) -> Option<String> {
+        match author_id {
+            MT065_RELEVANT_MEMORY_MENU_TARGET => Some(
+                serde_json::json!({
+                    "action": "mt065.open-relevant-memory-pane",
+                    "target": author_id,
+                    "pane_label": crate::editor_pane_factories::RELEVANT_MEMORY_PANE_LABEL,
+                    "expected_panel":
+                        crate::fems::relevant_memory_panel::RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+                    "expected_status":
+                        crate::fems::relevant_memory_panel::RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+                })
+                .to_string(),
+            ),
+            crate::fems::relevant_memory_panel::RELEVANT_MEMORY_REFRESH_AUTHOR_ID => Some(
+                serde_json::json!({
+                    "action": "mt065.refresh-memory-pack",
+                    "target": author_id,
+                    "context_key": self.mt065_memory_pack_state().context_key,
+                    "expected_status":
+                        crate::fems::relevant_memory_panel::RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+                })
+                .to_string(),
+            ),
+            crate::fems::memory_proposal::FEMS_PROPOSE_CANCEL_AUTHOR_ID => {
+                let operation = self.memory_proposal_operation.as_ref()?;
+                Some(
+                    serde_json::json!({
+                        "action": "mt065.cancel-memory-proposal",
+                        "target": author_id,
+                        "operation_id": operation.operation_id,
+                        "workspace_id": operation.workspace_id,
+                        "expected_dialog_absent":
+                            crate::fems::memory_proposal::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                        "expected_status":
+                            crate::fems::memory_proposal::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+                        "expected_state": "cancelled",
+                        "expected_outcome": "cancelled_before_submit",
+                    })
+                    .to_string(),
+                )
+            }
+            _ => None,
+        }
+    }
+
+    /// `true` only for a declaration THIS observer authored for THIS target. Neighbouring observers
+    /// (MT-033's menu/palette declarations, MT-064's proposal-flow declarations) can address adjacent
+    /// nodes, so a receipt is never bound to another mechanism's semantic.
+    fn mt065_declaration_is_own(declared_semantic: &str, author_id: &str) -> bool {
+        serde_json::from_str::<serde_json::Value>(declared_semantic)
+            .ok()
+            .is_some_and(|value| {
+                value["target"].as_str() == Some(author_id)
+                    && matches!(
+                        value["action"].as_str(),
+                        Some(
+                            "mt065.open-relevant-memory-pane"
+                                | "mt065.refresh-memory-pack"
+                                | "mt065.cancel-memory-proposal"
+                        )
+                    )
+            })
+    }
+
+    /// Bind an Argus-dispatched swarm-flow control BEFORE the same captured snapshot is acknowledged.
+    /// Without this the first post-dispatch snapshot would still show the observer at its pre-click
+    /// generation and the `ActionChannel` would terminalize the receipt `Indeterminate`.
+    fn reconcile_mt065_fems_swarm_flow_completion(&mut self) {
+        if self.mt065_fems_swarm_flow_completion.is_pending() {
+            return;
+        }
+        let activation = self
+            .mcp_action_channel
+            .lock()
+            .map(|channel| channel.unique_dispatched_activation())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+        let Some((author_id, _payload, declared_semantic)) = activation else {
+            return;
+        };
+        let Some(declared_semantic) = declared_semantic
+            .filter(|semantic| Self::mt065_declaration_is_own(semantic, &author_id))
+        else {
+            return;
+        };
+        let Ok(declared) = serde_json::from_str::<serde_json::Value>(&declared_semantic) else {
+            return;
+        };
+        let prior = self.mt065_prior_memory_pack.clone();
+        let expectation = match declared["action"].as_str() {
+            Some("mt065.open-relevant-memory-pane") => {
+                Mt065SwarmFlowExpectation::OpenRelevantMemoryPane
+            }
+            Some("mt065.refresh-memory-pack") => {
+                let Some(context_key) = declared["context_key"].as_str() else {
+                    return;
+                };
+                Mt065SwarmFlowExpectation::RefreshMemoryPack {
+                    context_key: context_key.to_owned(),
+                    prior_completed: prior.completed,
+                    prior_generation: prior.generation,
+                }
+            }
+            Some("mt065.cancel-memory-proposal") => {
+                let Some(operation_id) = declared["operation_id"].as_str() else {
+                    return;
+                };
+                Mt065SwarmFlowExpectation::CancelProposalDialog {
+                    operation_id: operation_id.to_owned(),
+                }
+            }
+            _ => return,
+        };
+        let current_semantic = self.mt065_semantic(&author_id);
+        self.mt065_fems_swarm_flow_completion.begin(
+            author_id,
+            declared_semantic.clone(),
+            expectation,
+        );
+        if current_semantic.as_deref() != Some(declared_semantic.as_str()) {
+            // The exact declared context no longer exists at dispatch time. That is a causally owned
+            // failure of THIS action, not an unknown outcome, so it publishes a typed terminal
+            // failure instead of decaying into a silent Indeterminate.
+            self.mt065_fems_swarm_flow_completion.complete_failed(
+                "stale MT-065 swarm-flow context changed between inspect and dispatch".to_owned(),
+                serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_065.stale_context@1",
+                    "declared_semantic": declared_semantic,
+                    "current_semantic": current_semantic,
+                })
+                .to_string(),
+            );
+        }
+    }
+
+    /// Terminalize the bound swarm-flow action from its OWN authoritative post-state.
+    fn advance_mt065_fems_swarm_flow_completion(
+        &mut self,
+        snapshot: &crate::accessibility::UiTreeSnapshot,
+    ) {
+        if !self.mt065_fems_swarm_flow_completion.is_pending() {
+            return;
+        }
+        let Some(expectation) = self.mt065_fems_swarm_flow_completion.expectation.clone() else {
+            return;
+        };
+        match expectation {
+            Mt065SwarmFlowExpectation::OpenRelevantMemoryPane => {
+                let panel_author_id =
+                    crate::fems::relevant_memory_panel::RELEVANT_MEMORY_PANEL_AUTHOR_ID;
+                let status_author_id =
+                    crate::fems::relevant_memory_panel::RELEVANT_MEMORY_STATUS_AUTHOR_ID;
+                let mounted = Self::mt064_snapshot_has(snapshot, panel_author_id)
+                    && Self::mt064_snapshot_has(snapshot, status_author_id);
+                let relevant_memory_type = Self::mt065_relevant_memory_pane_type();
+                let active_pane_id = self.active_pane.clone();
+                let active_tab_is_pane = active_pane_id.as_ref().is_some_and(|pane_id| {
+                    self.tab_bar_states
+                        .get(pane_id)
+                        .and_then(|bar| bar.active())
+                        .is_some_and(|tab| tab.pane_type == relevant_memory_type)
+                });
+                if mounted && active_tab_is_pane {
+                    self.mt065_fems_swarm_flow_completion.complete_applied(
+                        serde_json::json!({
+                            "schema_id":
+                                "hsk.wp_kernel_012.mt_065.open_relevant_memory_terminal_detail@1",
+                            "target_author_id": MT065_RELEVANT_MEMORY_MENU_TARGET,
+                            "active_pane_id": active_pane_id.as_ref().map(ToString::to_string),
+                            "pane_label": crate::editor_pane_factories::RELEVANT_MEMORY_PANE_LABEL,
+                            "panel_author_id": panel_author_id,
+                            "status_author_id": status_author_id,
+                            "status_value": Self::mt064_snapshot_value(snapshot, status_author_id),
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            Mt065SwarmFlowExpectation::RefreshMemoryPack {
+                context_key,
+                prior_completed,
+                prior_generation,
+            } => {
+                let status_author_id =
+                    crate::fems::relevant_memory_panel::RELEVANT_MEMORY_STATUS_AUTHOR_ID;
+                let live = self.mt065_memory_pack_state();
+                // The MOUNTED status node must carry the SAME terminal counters in this exact fresh
+                // tree; an app-side field alone is not an observable post-state.
+                let mounted_status = Self::mt064_snapshot_value(snapshot, status_author_id);
+                let mounted_agrees = mounted_status.as_deref().is_some_and(|value| {
+                    mt064_structured_field(value, "completed")
+                        .and_then(|completed| completed.parse::<u64>().ok())
+                        == Some(live.completed)
+                        && mt064_structured_field(value, "generation")
+                            .and_then(|generation| generation.parse::<u64>().ok())
+                            == Some(live.generation)
+                        && mt064_structured_field(value, "state") == Some(live.state.as_str())
+                });
+                let newer = live.completed > prior_completed && live.generation > prior_generation;
+                if newer && live.is_terminal() && live.context_key == context_key && mounted_agrees
+                {
+                    self.mt065_fems_swarm_flow_completion.complete_applied(
+                        serde_json::json!({
+                            "schema_id":
+                                "hsk.wp_kernel_012.mt_065.memorypack_refresh_terminal_detail@1",
+                            "target_author_id":
+                                crate::fems::relevant_memory_panel::RELEVANT_MEMORY_REFRESH_AUTHOR_ID,
+                            "status_author_id": status_author_id,
+                            "context_key": context_key,
+                            "prior_completed": prior_completed,
+                            "prior_generation": prior_generation,
+                            "completed": live.completed,
+                            "generation": live.generation,
+                            "state": live.state,
+                            "items": live.items,
+                            "status_value": mounted_status,
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            Mt065SwarmFlowExpectation::CancelProposalDialog { operation_id } => {
+                let dialog_author_id = crate::fems::memory_proposal::FEMS_PROPOSE_DIALOG_AUTHOR_ID;
+                let status_author_id = crate::fems::memory_proposal::FEMS_PROPOSE_STATUS_AUTHOR_ID;
+                let Some(app_status) = self.memory_proposal_status_value.clone() else {
+                    return;
+                };
+                if mt064_structured_field(&app_status, "operation_id")
+                    != Some(operation_id.as_str())
+                {
+                    return;
+                }
+                let mounted_status = Self::mt064_snapshot_value(snapshot, status_author_id);
+                if mounted_status.as_deref() != Some(app_status.as_str()) {
+                    return;
+                }
+                let dialog_closed = self.pending_memory_proposal.is_none()
+                    && !Self::mt064_snapshot_has(snapshot, dialog_author_id);
+                let state = mt064_structured_field(&app_status, "state");
+                let outcome = mt064_structured_field(&app_status, "outcome");
+                let detail = serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_065.cancel_terminal_detail@1",
+                    "target_author_id": crate::fems::memory_proposal::FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+                    "operation_id": operation_id,
+                    "dialog_author_id": dialog_author_id,
+                    "dialog_absent": !Self::mt064_snapshot_has(snapshot, dialog_author_id),
+                    "pending_dialog_cleared": self.pending_memory_proposal.is_none(),
+                    "status_author_id": status_author_id,
+                    "status_value": app_status,
+                })
+                .to_string();
+                match (state, outcome) {
+                    (Some("cancelled"), Some("cancelled_before_submit")) if dialog_closed => {
+                        self.mt065_fems_swarm_flow_completion
+                            .complete_applied(detail);
+                    }
+                    (Some("cancelled"), Some("cancelled_before_submit")) => {}
+                    (Some(state), _) => {
+                        // A different terminal status for THIS operation is a causally owned FAILURE
+                        // of this exact cancel click, never a silent success.
+                        self.mt065_fems_swarm_flow_completion.complete_failed(
+                            format!(
+                                "mounted proposal cancel reached terminal state={state} outcome={}",
+                                outcome.unwrap_or("unknown")
+                            ),
+                            detail,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    /// Advance the SAME-TARGET activation token for a durable pane tab. Tab activation is applied
+    /// synchronously by `split_layout`, so the exact post-state is already authoritative on the first
+    /// post-dispatch snapshot. An activation that did NOT happen simply leaves the generation
+    /// unchanged and the receipt stays `Indeterminate` — it is never turned into a typed rejection.
+    fn reconcile_mt065_tab_activation(&mut self) {
+        let dispatched = self.mt033_dispatched_target();
+        let already_bound = dispatched.as_deref().is_some_and(|target| {
+            self.mt065_fems_swarm_flow_completion
+                .tab_activation_bound
+                .as_deref()
+                == Some(target)
+        });
+        if already_bound {
+            // The SAME dispatch is still in flight; one click advances the generation exactly once.
+            return;
+        }
+        self.mt065_fems_swarm_flow_completion.tab_activation_bound = None;
+        let Some(target) = dispatched else {
+            return;
+        };
+        if !crate::tab_bar::is_tab_author_id(&target) {
+            return;
+        }
+        let Some((pane_id, index)) = self.mt065_resolve_tab_target(&target) else {
+            return;
+        };
+        let activated = self
+            .tab_bar_states
+            .get(&pane_id)
+            .is_some_and(|bar| bar.active_index == index)
+            && self.active_pane.as_ref() == Some(&pane_id);
+        if activated {
+            self.mt065_fems_swarm_flow_completion
+                .complete_tab_activation(&target);
+            self.mt065_fems_swarm_flow_completion.tab_activation_bound = Some(target);
+        }
+    }
+
+    /// Project the MT-065 swarm-flow declarations, the per-tab activation tokens, and the durable
+    /// completion observer into the fresh snapshot the `ActionChannel` acknowledges.
+    fn project_mt065_fems_swarm_flow_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        self.reconcile_mt065_fems_swarm_flow_completion();
+        self.advance_mt065_fems_swarm_flow_completion(snapshot);
+        // BOUNDED polling: a predicate that never appears fails with a TYPED rejection instead of
+        // leaving the observer pending forever (which would block every later action from binding).
+        if self
+            .mt065_fems_swarm_flow_completion
+            .observation_window_elapsed()
+        {
+            let expectation = self.mt065_fems_swarm_flow_completion.expectation.clone();
+            let live = self.mt065_memory_pack_state();
+            self.mt065_fems_swarm_flow_completion.complete_failed(
+                format!(
+                    "MT-065 swarm-flow completion predicate did not appear within the bounded {}s observation window",
+                    MT065_PENDING_OBSERVATION_WINDOW.as_secs()
+                ),
+                serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_065.observation_window_elapsed@1",
+                    "expectation": format!("{expectation:?}"),
+                    "observed_memory_pack_state": format!("{live:?}"),
+                    "observed_proposal_status_value": self.memory_proposal_status_value,
+                })
+                .to_string(),
+            );
+        }
+        self.reconcile_mt065_tab_activation();
+
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                // The Refresh control intentionally stays mounted (and briefly disabled) across its
+                // async read, so it declares the stricter PERSISTENT form; the menu leaf and the
+                // dialog Cancel button disappear with their surface and declare the transient form.
+                let persistent_target = author_id
+                    == crate::fems::relevant_memory_panel::RELEVANT_MEMORY_REFRESH_AUTHOR_ID;
+                let semantic = self.mt065_semantic(author_id)?;
+                self.mt065_fems_swarm_flow_completion
+                    .declaration(author_id, &semantic, persistent_target)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        let tab_tokens = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                if !crate::tab_bar::is_tab_author_id(author_id) {
+                    return None;
+                }
+                self.mt065_fems_swarm_flow_completion
+                    .tab_token(author_id)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in tab_tokens {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        if let Some(value) = self.mt065_fems_swarm_flow_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT065_FEMS_SWARM_FLOW_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT065_FEMS_SWARM_FLOW_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT065_FEMS_SWARM_FLOW_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-065 FEMS swarm flow completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+
+        // Record the prior LAST, so the next dispatch's expectation carries the read state THIS exact
+        // snapshot published rather than the post-click state it is meant to be compared against.
+        self.mt065_prior_memory_pack = self.mt065_memory_pack_state();
+    }
+
     fn mt035_live_context(&self) -> Option<egui::Context> {
         self.frame_ctx.clone()
     }
@@ -9560,6 +10692,320 @@ impl HandshakeApp {
                     node_id: egui::Id::new(MT035_ARGUS_ACTION_COMPLETION_AUTHOR_ID).value(),
                     role: "Status".to_owned(),
                     label: Some("MT-035 unified undo action completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
+    // ── WP-KERNEL-012 MT-079 V5: host-mount lifecycle action completion ─────────────────────────────
+
+    /// The exact `PaneType` a VIEW > Open Editor Surfaces leaf opens, for the leaves whose route is a
+    /// plain `open_content_on_active_pane(pane_type, None)`. `menu.view.open-wiki-projection` is
+    /// deliberately absent: with no bound projection it opens the Quick Switcher rather than a pane,
+    /// so a pane-delta expectation would be a lie about what that leaf does.
+    fn mt079_view_surface_pane_type(author_id: &str) -> Option<PaneType> {
+        let pane_type = match author_id {
+            "menu.view.open-code-editor" => PaneType::CodeSymbol,
+            "menu.view.open-rich-note" => PaneType::LoomWikiPage,
+            "menu.view.open-runtime-chat" => PaneType::RuntimeChat,
+            "menu.view.open-canvas" => PaneType::AtelierEditor,
+            "menu.view.open-loom-search" => PaneType::LoomSearchV2,
+            "menu.view.open-find-in-files" => PaneType::FindInFiles,
+            "menu.view.open-daily-journal" => PaneType::LoomDailyJournal,
+            "menu.view.open-knowledge-graph" => crate::editor_pane_factories::placeholder_pane_type(
+                crate::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+            ),
+            "menu.view.open-folders" => crate::editor_pane_factories::placeholder_pane_type(
+                crate::editor_pane_factories::FOLDER_TREE_PANE_LABEL,
+            ),
+            "menu.view.open-tags" => crate::editor_pane_factories::placeholder_pane_type(
+                crate::editor_pane_factories::TAGS_PANE_LABEL,
+            ),
+            "menu.view.open-block-collections" => {
+                crate::editor_pane_factories::placeholder_pane_type(
+                    crate::editor_pane_factories::BLOCK_COLLECTIONS_PANE_LABEL,
+                )
+            }
+            "menu.view.open-diff-editor" => crate::editor_pane_factories::placeholder_pane_type(
+                crate::editor_pane_factories::DIFF_MERGE_PANE_LABEL,
+            ),
+            _ => return None,
+        };
+        Some(pane_type)
+    }
+
+    /// The ONE shared intent helper both the declaration and the dispatch binding build their
+    /// semantic from, so an inspected declaration and its bound completion can never drift into
+    /// differently-shaped JSON (the acknowledgement compares them byte-for-byte). Deliberately
+    /// IDENTITY-ONLY: volatile pre-state (tab counts) lives in the observer's expectation, never in
+    /// the semantic, because the declaration is published one snapshot before the dispatch frame.
+    fn mt079_open_surface_semantic(author_id: &str) -> Option<String> {
+        let pane_type = Self::mt079_view_surface_pane_type(author_id)?;
+        Some(
+            serde_json::json!({
+                "action": "mt079.open-editor-surface",
+                "target": author_id,
+                "pane_type": pane_type.label(),
+            })
+            .to_string(),
+        )
+    }
+
+    /// The shared intent helper for a tab close button (`tab-close-{pane_id}-{index}`).
+    fn mt079_close_tab_semantic(author_id: &str, pane_id: &str, index: usize) -> String {
+        serde_json::json!({
+            "action": "mt079.close-mounted-tab",
+            "target": author_id,
+            "pane_id": pane_id,
+            "tab_index": index,
+        })
+        .to_string()
+    }
+
+    /// The shared intent helper for a pane-header / tab "Pop Out" entry. The detached pane identity is
+    /// deliberately NOT part of the semantic: the context-menu owner is not addressable from the
+    /// snapshot projection, so including it would let the declaration and the dispatch binding drift.
+    /// The exact pane id is carried by the expectation and republished in the terminal detail.
+    fn mt079_pop_out_semantic(author_id: &str) -> String {
+        serde_json::json!({
+            "action": "mt079.pop-out-mounted-pane",
+            "target": author_id,
+        })
+        .to_string()
+    }
+
+    /// Parse a tab close button's stable `tab-close-{pane_id}-{index}` author id. Pane ids themselves
+    /// contain `-`, so the INDEX is split off the tail.
+    fn mt079_parse_tab_close_author_id(author_id: &str) -> Option<(String, usize)> {
+        let rest = author_id.strip_prefix("tab-close-")?;
+        let (pane_id, index) = rest.rsplit_once('-')?;
+        if pane_id.is_empty() {
+            return None;
+        }
+        Some((pane_id.to_owned(), index.parse().ok()?))
+    }
+
+    /// Sample the AUTHORITATIVE live tab/pane facts the host-mount observer reconciles against.
+    fn mt079_host_mount_observation(&self) -> Mt079HostMountObservation {
+        let mut pane_tabs: Vec<(String, usize)> = self
+            .tab_bar_states
+            .iter()
+            .map(|(pane_id, bar)| (pane_id.as_ref().to_owned(), bar.tabs.len()))
+            .collect();
+        pane_tabs.sort();
+        let total_tabs = pane_tabs.iter().map(|(_, count)| *count).sum();
+        let active_tab = self
+            .active_pane
+            .as_ref()
+            .and_then(|pane_id| self.tab_bar_states.get(pane_id))
+            .and_then(|bar| bar.active());
+        let mut observation = Mt079HostMountObservation {
+            pane_tabs,
+            total_tabs,
+            active_pane_id: self.active_pane.as_ref().map(ToString::to_string),
+            active_tab_pane_type_label: active_tab.map(|tab| tab.pane_type.label()),
+            active_tab_content_id: active_tab.and_then(|tab| tab.content_id.clone()),
+            ..Mt079HostMountObservation::default()
+        };
+        match self.mt079_host_mount_completion.expectation.as_ref() {
+            Some(Mt079HostMountExpectation::OpenSurface {
+                target_pane_id,
+                pane_type_label,
+                ..
+            }) => {
+                let instances = self
+                    .tab_bar_states
+                    .get(&PaneId::from(target_pane_id.as_str()))
+                    .map(|bar| {
+                        bar.tabs
+                            .iter()
+                            .filter(|tab| {
+                                &tab.pane_type.label() == pane_type_label
+                                    && tab.content_id.is_none()
+                            })
+                            .count()
+                    })
+                    .unwrap_or_default();
+                observation.target_pane_hosts_type = instances > 0;
+                observation.target_pane_type_instances = instances;
+            }
+            Some(Mt079HostMountExpectation::CloseTab {
+                pane_id,
+                closed_pane_type_label,
+                closed_content_id,
+                ..
+            }) => {
+                observation.closed_identity_absent = self
+                    .tab_bar_states
+                    .get(&PaneId::from(pane_id.as_str()))
+                    .map(|bar| {
+                        !bar.tabs.iter().any(|tab| {
+                            &tab.pane_type.label() == closed_pane_type_label
+                                && &tab.content_id == closed_content_id
+                        })
+                    })
+                    .unwrap_or(true);
+            }
+            Some(Mt079HostMountExpectation::PopOut { pane_id }) => {
+                let pane_id = PaneId::from(pane_id.as_str());
+                observation.popped_out = self.popout_manager.is_popped_out(&pane_id);
+                observation.pane_record_present = self
+                    .pane_registry
+                    .lock()
+                    .map(|registry| registry.get(&pane_id).is_some())
+                    .unwrap_or(false);
+            }
+            None => {}
+        }
+        observation
+    }
+
+    /// Bind the canonical Argus click that is dispatching THIS frame to a VIEW open-surface action.
+    /// Captures the pre-dispatch tab facts so the reconciler can prove an exact reuse-or-create
+    /// outcome (and reject a duplicate) rather than accepting "a matching pane exists now".
+    fn mt079_begin_open_surface(&mut self, author_id: &str) -> bool {
+        let Some(pane_type) = Self::mt079_view_surface_pane_type(author_id) else {
+            return false;
+        };
+        let Some(semantic) = Self::mt079_open_surface_semantic(author_id) else {
+            return false;
+        };
+        let Some(target_pane) = self.module_target_pane() else {
+            return false;
+        };
+        let pane_type_label = pane_type.label();
+        let prior_pane_tabs = self
+            .tab_bar_states
+            .get(&target_pane)
+            .map(|bar| bar.tabs.len())
+            .unwrap_or_default();
+        let expect_reuse = self
+            .tab_bar_states
+            .get(&target_pane)
+            .map(|bar| {
+                bar.tabs
+                    .iter()
+                    .any(|tab| tab.pane_type.label() == pane_type_label && tab.content_id.is_none())
+            })
+            .unwrap_or(false);
+        let prior_total_tabs = self
+            .tab_bar_states
+            .values()
+            .map(|bar| bar.tabs.len())
+            .sum();
+        self.mt079_host_mount_completion.begin(
+            author_id.to_owned(),
+            semantic,
+            Mt079HostMountExpectation::OpenSurface {
+                target_pane_id: target_pane.as_ref().to_owned(),
+                pane_type_label,
+                prior_pane_tabs,
+                prior_total_tabs,
+                expect_reuse,
+            },
+        )
+    }
+
+    /// Bind a canonical Argus tab-close click to its exact closed tab identity + sibling baseline.
+    fn mt079_begin_close_tab(&mut self, author_id: &str, pane_id: &PaneId, index: usize) -> bool {
+        let Some(bar) = self.tab_bar_states.get(pane_id) else {
+            return false;
+        };
+        let Some(tab) = bar.tabs.get(index) else {
+            return false;
+        };
+        let closed_pane_type_label = tab.pane_type.label();
+        let closed_content_id = tab.content_id.clone();
+        let prior_pane_tabs = bar.tabs.len();
+        let prior_total_tabs = self
+            .tab_bar_states
+            .values()
+            .map(|bar| bar.tabs.len())
+            .sum();
+        let mut prior_sibling_tabs: Vec<(String, usize)> = self
+            .tab_bar_states
+            .iter()
+            .filter(|(sibling, _)| *sibling != pane_id)
+            .map(|(sibling, bar)| (sibling.as_ref().to_owned(), bar.tabs.len()))
+            .collect();
+        prior_sibling_tabs.sort();
+        let semantic = Self::mt079_close_tab_semantic(author_id, pane_id.as_ref(), index);
+        self.mt079_host_mount_completion.begin(
+            author_id.to_owned(),
+            semantic,
+            Mt079HostMountExpectation::CloseTab {
+                pane_id: pane_id.as_ref().to_owned(),
+                closed_pane_type_label,
+                closed_content_id,
+                prior_pane_tabs,
+                prior_total_tabs,
+                prior_sibling_tabs,
+            },
+        )
+    }
+
+    /// Bind a canonical Argus "Pop Out" click to its exact detached pane identity.
+    fn mt079_begin_pop_out(&mut self, author_id: &str, pane_id: &PaneId) -> bool {
+        let semantic = Self::mt079_pop_out_semantic(author_id);
+        self.mt079_host_mount_completion.begin(
+            author_id.to_owned(),
+            semantic,
+            Mt079HostMountExpectation::PopOut {
+                pane_id: pane_id.as_ref().to_owned(),
+            },
+        )
+    }
+
+    /// Project the MT-079 host-mount declarations onto every steerable host-mount target present in
+    /// the fresh snapshot, reconcile the in-flight action against authoritative live tab/pane state,
+    /// and publish the durable observer the ActionChannel acknowledges.
+    fn project_mt079_host_mount_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        let observation = self.mt079_host_mount_observation();
+        self.mt079_host_mount_completion.reconcile(&observation);
+
+        let mut declarations: Vec<(String, String)> = Vec::new();
+        for node in snapshot.iter_nodes() {
+            let Some(author_id) = node.author_id.as_deref() else {
+                continue;
+            };
+            let semantic = if let Some(semantic) = Self::mt079_open_surface_semantic(author_id) {
+                semantic
+            } else if let Some((pane_id, index)) = Self::mt079_parse_tab_close_author_id(author_id) {
+                Self::mt079_close_tab_semantic(author_id, &pane_id, index)
+            } else if matches!(
+                author_id,
+                MT079_PANE_POP_OUT_TARGET | MT079_TAB_POP_OUT_TARGET
+            ) {
+                Self::mt079_pop_out_semantic(author_id)
+            } else {
+                continue;
+            };
+            if let Some(value) = self.mt079_host_mount_completion.declaration(&semantic) {
+                declarations.push((author_id.to_owned(), value));
+            }
+        }
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        if let Some(value) = self.mt079_host_mount_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT079_HOST_MOUNT_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT079_HOST_MOUNT_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT079_HOST_MOUNT_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-079 host-mount action completion".to_owned()),
                     value: Some(value),
                     disabled: false,
                     actions: Vec::new(),
@@ -9979,6 +11425,11 @@ impl HandshakeApp {
             self.project_mt064_fems_proposal_flow_completion(&mut snapshot);
             self.project_mt028_loom_search_open_completion(&mut snapshot);
             self.project_mt029_find_result_open_completion(&mut snapshot);
+            self.project_mt079_host_mount_completion(&mut snapshot);
+            // MT-065 V5 projects LAST: it owns only the four FEMS swarm-flow targets no earlier
+            // observer claims, so publishing it last keeps its declarations from being overwritten
+            // without ever overwriting another mechanism's declaration.
+            self.project_mt065_fems_swarm_flow_completion(&mut snapshot);
             match self.mcp_action_channel.lock() {
                 Ok(mut channel) => channel.acknowledge_after_render(&snapshot),
                 Err(poisoned) => poisoned.into_inner().acknowledge_after_render(&snapshot),
@@ -10287,12 +11738,15 @@ impl HandshakeApp {
             mt034_last_resolved_code_ref: None,
             mt035_argus_action_completion: Mt035ArgusActionCompletion::default(),
             mt036_flight_recorder_open_completion: Mt036FlightRecorderOpenCompletion::default(),
+            mt079_host_mount_completion: Mt079HostMountCompletion::default(),
             mt046_quick_switcher_open_completion: Mt046QuickSwitcherOpenCompletion::default(),
             mt046_quick_switcher_search_completion: Mt046QuickSwitcherSearchCompletion::default(),
             mt046_ckc_module_completion: Mt046CkcModuleCompletion::default(),
             mt042_graph_open_completion: Mt042GraphOpenCompletion::default(),
             mt024_sidebar_pin_removal_completion: Mt024SidebarPinRemovalCompletion::default(),
             mt064_fems_proposal_flow_completion: Mt064FemsProposalFlowCompletion::default(),
+            mt065_fems_swarm_flow_completion: Mt065FemsSwarmFlowCompletion::default(),
+            mt065_prior_memory_pack: Mt065MemoryPackState::default(),
             mt028_loom_search_open_completion: Mt028LoomSearchOpenCompletion::default(),
             mt029_find_result_open_completion: Mt029FindResultOpenCompletion::default(),
             mt029_find_result_routed: None,
@@ -20142,6 +21596,17 @@ impl HandshakeApp {
             // `dispatch_palette_action` path the command palette also calls, so the menu open and the
             // palette open reach the SAME `open_content_on_active_pane` primitive (no forked open logic).
             MenuBarAction::OpenViewSurface(command_id) => {
+                // WP-KERNEL-012 MT-079 V5: bind the canonical Argus click that is dispatching THIS
+                // leaf to the durable host-mount observer BEFORE the open runs, so the pre-dispatch
+                // tab facts are the ones the reconciler compares the post-state against. Attribution
+                // is by the exact dispatched click target (the MT-036 discipline), so a pointer-driven
+                // operator open never binds a receipt.
+                let attributed = self
+                    .mt033_dispatched_target()
+                    .filter(|target| Self::mt079_view_surface_pane_type(target).is_some());
+                if let Some(target) = attributed {
+                    self.mt079_begin_open_surface(&target);
+                }
                 self.dispatch_palette_action(ctx, command_id)
             }
             MenuBarAction::AppCommand(command_id) => self.dispatch_palette_action(ctx, command_id),
@@ -26758,6 +28223,24 @@ impl HandshakeApp {
                     let repaint = ctx.clone();
                     rt.spawn(async move {
                         let result = async {
+                            // MT-111 / AC-111-4: the recorder read is capability-gated by MT-109. An
+                            // OMITTED OR BLANK `wsid` escalates to `fr.read.global`, which is granted
+                            // to NO profile and therefore always 403s, so a blank active workspace is
+                            // a typed local failure instead of a request that can never succeed.
+                            if workspace.trim().is_empty() {
+                                return Err(
+                                    "no active workspace bound: a scoped GET /api/flight_recorder?wsid= \
+                                     cannot be issued (an unscoped read requires fr.read.global, which \
+                                     is granted to no profile)"
+                                        .to_owned(),
+                                );
+                            }
+                            // MT-111 / AC-111-2: present the same live native-MCP binding credential
+                            // the ingestion path presents. Fail-closed and typed when it is absent —
+                            // never an unauthenticated read that silently renders an empty pane.
+                            let session_token =
+                                crate::event_emitter::flight_recorder_session_token()
+                                    .map_err(|unavailable| unavailable.to_string())?;
                             // Workspace is the security/ownership boundary. Do not pre-filter to the
                             // native-editor `system` actor here: the mounted pane also renders the
                             // canonical FEMS lifecycle families (FR-EVT-MEM-001..005), whose event
@@ -26765,6 +28248,10 @@ impl HandshakeApp {
                             // the trust boundary for which workspace rows become visible.
                             let resp = client
                                 .get(&url)
+                                .header(
+                                    crate::event_emitter::HSK_HEADER_SESSION_TOKEN,
+                                    &session_token,
+                                )
                                 .query(&[("wsid", workspace.as_str())])
                                 .send()
                                 .await
@@ -32129,9 +33616,12 @@ impl HandshakeApp {
                     // the shared InteractionBus at shell startup (the first frame with a bound workspace
                     // + runtime). Previously `set_event_emitter` had ZERO production callers, so every
                     // LIVE emit call site (rich save / rich undo / route-to-stage) was a guaranteed
-                    // no-op. The emitter uses the verified native-editor transport at
-                    // `POST /api/flight_recorder/native_editor_event`; any rejected event lands in the
-                    // bounded ERROR RING surfaced by FlightRecorderPane. The
+                    // no-op. The emitter uses the verified native-editor transport at the MT-109
+                    // workspace-scoped, capability-gated route
+                    // `POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event`
+                    // (MT-111); any rejected event — including a missing or rejected native-MCP
+                    // session credential — lands in the bounded ERROR RING surfaced by
+                    // FlightRecorderPane. The
                     // FlightRecorderPane is rebuilt over the SAME fetch cell with the emitter's ring so
                     // the pane EXPLAINS emit failures (the MT-036 empty-state contract).
                     //
@@ -32709,6 +34199,23 @@ impl HandshakeApp {
         // The split host only emits close intent. Reconcile here, where dirty confirmation, document
         // panel lifetime, and LSP close are all available as one atomic host responsibility.
         if self.pending_dirty_code_tab_close.is_none() {
+            // WP-KERNEL-012 MT-079 V5: bind the canonical Argus close click to the durable host-mount
+            // observer BEFORE the tab is removed, so the exact closed identity + sibling baseline are
+            // captured from live state rather than reconstructed after the fact.
+            let close_target = self.mt033_dispatched_target().filter(|target| {
+                Self::mt079_parse_tab_close_author_id(target).is_some()
+            });
+            if let Some(target) = close_target {
+                if let Some((pane_id, index)) = Self::mt079_parse_tab_close_author_id(&target) {
+                    let pane_id = PaneId::from(pane_id.as_str());
+                    if tab_close_requests
+                        .iter()
+                        .any(|request| request.pane_id == pane_id && request.tab_index == index)
+                    {
+                        self.mt079_begin_close_tab(&target, &pane_id, index);
+                    }
+                }
+            }
             let stable_targets = tab_close_requests.into_iter().filter_map(|request| {
                 self.tab_bar_states
                     .get(&request.pane_id)
@@ -32821,6 +34328,18 @@ impl HandshakeApp {
         // several somehow arrive, the last wins (the single `pop_out_request` slot). Applied at the top
         // of the next frame by the existing MT-008 pop-out lifecycle.
         if let Some(pane_id) = pop_out_requests.last() {
+            // WP-KERNEL-012 MT-079 V5: attribute a canonical Argus "Pop Out" click to the durable
+            // host-mount observer, carrying the EXACT pane the confirmed menu entry detaches.
+            let pop_out_target = self.mt033_dispatched_target().filter(|target| {
+                matches!(
+                    target.as_str(),
+                    MT079_PANE_POP_OUT_TARGET | MT079_TAB_POP_OUT_TARGET
+                )
+            });
+            if let Some(target) = pop_out_target {
+                let pane_id = pane_id.clone();
+                self.mt079_begin_pop_out(&target, &pane_id);
+            }
             self.request_pop_out(pane_id.clone());
         }
 

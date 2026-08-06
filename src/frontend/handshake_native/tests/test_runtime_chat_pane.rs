@@ -425,7 +425,7 @@ fn runtime_chat_real_post_maps_router_404_to_typed_endpoint_missing() {
     );
     assert_ne!(
         client.probed_path(),
-        "/api/flight_recorder/runtime_chat_event",
+        "/api/workspaces/default-project/flight_recorder/runtime_chat_event",
         "Flight Recorder runtime-chat event ingestion is observability, not chat send/receive"
     );
     let panel = Arc::new(Mutex::new(RuntimeChatPanel::new(

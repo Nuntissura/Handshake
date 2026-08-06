@@ -3951,3 +3951,118 @@ fn unlock_file(file: &File) -> std::io::Result<()> {
         Err(std::io::Error::last_os_error())
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// WP-KERNEL-012 MT-111 / AC-111-7 — honest Flight Recorder credentials for TEST HARNESSES.
+//
+// MT-109 put fail-closed capability middleware over the WHOLE flight-recorder route group, so a
+// harness that previously read or wrote the recorder unauthenticated now gets `401
+// HSK-401-FR-SESSION`. The ONLY correct fix is to present a REAL native-MCP binding, exactly as the
+// mounted native client does. Nothing here weakens, bypasses, feature-gates, or stubs the boundary:
+// a missing, forged, or stale binding still fails closed.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// The per-user app-data environment variable the product resolves its binding path from.
+#[cfg(target_os = "windows")]
+pub const NATIVE_BINDING_APP_DATA_ENV: &str = "LOCALAPPDATA";
+#[cfg(not(target_os = "windows"))]
+pub const NATIVE_BINDING_APP_DATA_ENV: &str = "XDG_DATA_HOME";
+
+/// The app-data environment variable is process-global, so two suites in one test binary would
+/// otherwise authenticate against each other's binding root. The guard holds this for its lifetime.
+static NATIVE_BINDING_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// A REAL native-MCP session binding published for the CURRENT process into the isolated
+/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` app-data root, using the product's own publication API.
+///
+/// The credential is genuine in every respect `handshake_core`'s `capture_context` checks: a 64-hex
+/// per-session token, this process's PID, and this process's OS-issued birth identity.
+///
+/// **Order matters.** Publish this BEFORE selecting or starting the managed backend, because setting
+/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is what forces `pg_proof_support` to OWN its backend child, and
+/// the child must inherit the redirected app-data root so both processes resolve the SAME
+/// `swarm_mcp_binding.json`.
+pub struct RealNativeMcpBinding {
+    binding_path: PathBuf,
+    previous_env: Option<std::ffi::OsString>,
+    token: String,
+    _env_lock: std::sync::MutexGuard<'static, ()>,
+}
+
+impl RealNativeMcpBinding {
+    pub fn publish() -> Self {
+        let env_lock = NATIVE_BINDING_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let root = PathBuf::from(
+            std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").expect(
+                "HANDSHAKE_TEST_STAGE_BINDING_ROOT is required: a proof must never publish a native-MCP \
+                 binding into the operator's live app-data",
+            ),
+        );
+        assert!(
+            root.is_absolute(),
+            "HANDSHAKE_TEST_STAGE_BINDING_ROOT must be an absolute isolated root"
+        );
+        std::fs::create_dir_all(root.join("handshake"))
+            .unwrap_or_else(|error| panic!("create binding root {}: {error}", root.display()));
+        let previous_env = std::env::var_os(NATIVE_BINDING_APP_DATA_ENV);
+        std::env::set_var(NATIVE_BINDING_APP_DATA_ENV, &root);
+        let binding_path = handshake_native::mcp::binding_path();
+        assert_eq!(
+            binding_path,
+            root.join("handshake")
+                .join(handshake_native::mcp::BINDING_FILE_NAME),
+            "the redirected app-data root must be the product binding root"
+        );
+
+        let token = format!(
+            "{:032x}{:032x}",
+            uuid::Uuid::new_v4().as_u128(),
+            uuid::Uuid::new_v4().as_u128()
+        );
+        assert_eq!(token.len(), 64, "a session token is 64 hex characters");
+        let binding = handshake_native::mcp::McpBinding::for_current_process(
+            "127.0.0.1:1".to_owned(),
+            None,
+            token.clone(),
+        )
+        .expect("the current proof process has a verifiable OS birth identity");
+        handshake_native::mcp::write_binding(&binding)
+            .expect("publish the real native-MCP session binding");
+
+        Self {
+            binding_path,
+            previous_env,
+            token,
+            _env_lock: env_lock,
+        }
+    }
+
+    /// The exact credential to send in the `x-hsk-session-token` header.
+    pub fn token(&self) -> &str {
+        &self.token
+    }
+
+    pub fn binding_path(&self) -> &Path {
+        &self.binding_path
+    }
+}
+
+impl Drop for RealNativeMcpBinding {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.binding_path);
+        match self.previous_env.take() {
+            Some(previous) => std::env::set_var(NATIVE_BINDING_APP_DATA_ENV, previous),
+            None => std::env::remove_var(NATIVE_BINDING_APP_DATA_ENV),
+        }
+    }
+}
+
+/// Read the live credential from whatever binding is currently published, through the SAME product
+/// resolver the mounted client uses. Panics with the concrete reason when no binding is available,
+/// so an unauthenticated read can never be mistaken for "the recorder is empty".
+pub fn live_flight_recorder_session_token() -> String {
+    handshake_native::event_emitter::flight_recorder_session_token()
+        .unwrap_or_else(|error| panic!("MT-109 gates Flight Recorder access: {error}"))
+}

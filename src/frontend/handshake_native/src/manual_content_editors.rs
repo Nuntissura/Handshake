@@ -1013,7 +1013,15 @@ command-palette.option.hs-flight-palette-open. The mounted pane is flight-record
 fr-event-{event_id} and shows action, actor_id, and RFC3339 timestamp. A canonical menu activation settles at \
 mt036.flight-recorder-open-completion only after a fresh projected tree contains flight-recorder-pane. On open, and whenever Refresh is \
 pressed through flight-recorder.refresh, the shell issues GET /api/flight_recorder with only \
-wsid=<active workspace>. While that one bounded request is active, flight-recorder.loading-status is the \
+wsid=<active workspace>. That read is authorized, not anonymous: the whole flight-recorder route group \
+is behind fail-closed capability middleware, so the shell also sends the x-hsk-session-token header \
+carrying the per-session native-MCP token read fresh from the on-disk binding \
+{local_app_data}/handshake/swarm_mcp_binding.json. A missing, malformed, or stale binding fails closed \
+with 401 HSK-401-FR-SESSION and the pane shows the typed failure at flight-recorder.load-failure; it \
+never renders an empty pane as if no events existed. An omitted or blank wsid escalates to the \
+fr.read.global capability, which is granted to NO profile and therefore always returns 403 \
+HSK-403-FR-CAPABILITY, so the shell refuses to issue an unscoped read and reports that no active \
+workspace is bound. While that one bounded request is active, flight-recorder.loading-status is the \
 readable JSON loading authority with its exact active_request_generation. A Refresh pressed while a GET is active remains queued and runs after that \
 delivery; it does not start an unbounded parallel fetch or leave a perpetual spinner. The workspace filter \
 is the runtime-derived ownership boundary; the closed reader then accepts native-editor rows and exact canonical \
@@ -1028,9 +1036,18 @@ generation renders its current event ids and reaches typed Failed with the match
 when loading fails. Recent native emit failures are listed under flight-recorder.error-ring as \
 flight-recorder.emit-error-{index}. Editor Settings therefore exposes \
 settings-editor-flight-recorder-posture: Flight Recorder has no dedicated preference or disable toggle. \
+Ingestion is workspace-scoped and capability-gated: the shell posts to \
+POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event with the same \
+x-hsk-session-token native-MCP credential, and the path segment is the workspace authority. The \
+unscoped POST /api/flight_recorder/native_editor_event route no longer exists. \
 The native POST envelope is closed: schema_version=hsk.native_editor@0.1; event_id=non-nil UUID; \
-ts_utc=RFC3339; kind=one accepted action; actor_id, pane_id, and workspace_id=non-empty strings; \
-actor_kind=optional human|agent|system; surface=optional non-empty string (otherwise pane_id); \
+ts_utc=RFC3339; kind=one accepted action; pane_id=non-empty string; \
+actor_id, actor_kind and workspace_id are NOT client authority - each is optional and, when present, \
+must exactly equal the authenticated context or the request is rejected 403 HSK-403-FR-ACTOR-SPOOF / \
+403 HSK-403-FR-WORKSPACE before any durable write; the shell OMITS all three so the server derives \
+them (actor_id=handshake-native:{pid}:{process_birth_fingerprint} from the binding, \
+actor_kind=optional human|agent|system derived as human for an operator binding, workspace_id from the \
+path); surface=optional non-empty string (otherwise pane_id); \
 session_id=optional non-nil UUID; work_packet_id=optional non-empty string; payload=an object no larger than 64 KiB. \
 Each action payload is also closed and required-key typed: document_saved={document_id:string, \
 content_hash:sha256,save_receipt_event_id:string,actor_kind:string,kernel_task_run_id:string, \
@@ -1053,13 +1070,23 @@ stage_embed_back, calendar_event_bound, activity_span_correlated, locus_ref_reso
 locus_reverse_lookup. Unknown actions, unknown payload fields, missing required fields, wrong types, malformed \
 UUIDs/timestamps, and cross-identity rows fail closed. The reader skips unrelated traffic and quarantines \
 malformed native-editor or FEMS candidates with an operator-visible rejection reason instead of displaying \
-them as trusted history. Actor attribution is explicit: the current shell binds human edits to \
-native_editor_human and never reuses the last model-launch request as if it were a live actor lease. An \
+them as trusted history. Actor attribution is explicit and SERVER-derived: the durable row's actor_id is \
+minted by the backend from the authenticated native-MCP binding, never from anything the client sends. \
+The shell's own local identity - it binds human edits to \
+native_editor_human and never reuses the last model-launch request as if it were a live actor lease - now \
+drives only local routing, the payload receipt fields, and the error ring. An \
 identity-aware emitter may use a model/session actor only when the shell has an authoritative live binding. \
 Emit work stays off the egui frame thread and uses a bounded queue. Transport, backpressure, no-runtime, \
-closed-worker, and workspace-mismatch failures enter the shared in-memory error ring (latest 20), which the \
+closed-worker, workspace-mismatch, missing-session-binding, and authorization-rejected failures enter the \
+shared in-memory error ring (latest 20), which the \
 pane renders below the durable rows; this ring explains recent local failures but is not durable authority. \
-Recovery: restore handshake_core/PostgreSQL reachability, inspect the error ring and quarantine message, then \
+A missing-session-binding entry names the exact binding path and means the emit was NOT attempted, because \
+an unauthenticated post would be rejected 401 HSK-401-FR-SESSION; an authorization-rejected entry carries the \
+exact status plus the HSK-4xx-FR error code the backend returned and means no durable write occurred. The \
+binding is re-read from disk on every request, so republishing it is picked up by the very next event with \
+no app restart. \
+Recovery: restore handshake_core/PostgreSQL reachability, confirm the native-MCP binding file exists and its \
+recorded owner process is still live, inspect the error ring and quarantine message, then \
 press Refresh. The backend's durable pending-mirror receipt and reconciler repair interrupted EventLedger -> \
 Flight Recorder mirror windows; never fabricate a row or treat an empty pane as proof that no action occurred. \
 Use internal_diagnostics for in-process health/backend-down evidence and Palmistry for freeze/crash survival; \
@@ -2178,6 +2205,16 @@ event_id. A partial, failed, or blocked terminal status publishes a typed termin
 success, and an unmounted status node or a mismatched operation identity never terminalizes the receipt. \
 The GO menu (menu-go) and GO -> Command Palette (menu.go.command-palette) carry the same menu-open and \
 command-palette-open completion tokens the OPERATOR entries already use. \
+mt065.fems-swarm-flow-completion is the click-completion observer for the remaining swarm-flow steps: \
+menu.editors.relevant-memory terminalizes only when the Relevant Memory surface is the ACTIVE tab and \
+relevant-memory-panel plus editor.fems.memorypack-status are addressable; editor.fems.memorypack-refresh \
+terminalizes only on a STRICTLY NEWER refresh generation AND completed count for the same context key with \
+a terminal ready/empty/error status, so a click without that observed transition stays non-terminal; \
+fems-propose-cancel terminalizes only when fems-propose-dialog is gone and fems-propose-status reports \
+`state=cancelled;outcome=cancelled_before_submit` for that exact operation_id, and any other terminal \
+outcome for the same operation publishes a typed terminal FAILURE. Each mounted pane tab \
+(tab-{pane_id}-{index}) additionally carries a same-target activation token that acknowledges a tab click \
+only when that pane's selected tab index and the active pane both match the clicked tab. \
 A no-context model can drive panel-open -> refresh -> propose -> confirm entirely through these stable \
 AccessKit author_ids and inspect the result with list_widgets + screenshot. Durable memory authority and \
 FR-EVT-MEM-001 proposal provenance live in handshake_core PostgreSQL/EventLedger. The workspace-scoped Flight \

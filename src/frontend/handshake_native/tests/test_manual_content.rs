@@ -737,6 +737,16 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
                 "latest 20",
                 "never reuses the last model-launch request",
                 "pending-mirror receipt and reconciler",
+                // WP-KERNEL-012 MT-111 / AC-111-6 (HBR-MAN-001/003): the manual must document the
+                // MT-109 authorization boundary the shell actually depends on at runtime, not the
+                // retired unauthenticated contract.
+                "x-hsk-session-token",
+                "swarm_mcp_binding.json",
+                "HSK-401-FR-SESSION",
+                "fr.read.global",
+                "POST /api/workspaces/{workspace_id}/flight_recorder/native_editor_event",
+                "HSK-403-FR-ACTOR-SPOOF",
+                "missing-session-binding",
             ],
         ),
         (

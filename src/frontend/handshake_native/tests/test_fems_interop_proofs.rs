@@ -54,10 +54,14 @@ use screenshot_harness::ScreenshotHarness as Harness;
 
 // REUSE (AC-065-07): the MT-063 FEMS read client + Relevant Memory panel, the MT-064 propose dialog +
 // proposal model, and the MT-041 AccessKit-id conventions — all imported, never re-created here.
-use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::app::{
+    HandshakeApp, HealthDisplayState, MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::cursor::Cursor;
 use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
+use handshake_native::command_palette::PALETTE_DIALOG_AUTHOR_ID;
+use handshake_native::editor_pane_factories::RELEVANT_MEMORY_PANE_LABEL;
 use handshake_native::event_emitter::{
     NativeEditorEventEmitter, RuntimeChatLedgerTransport, DEFAULT_ACTOR_ID,
 };
@@ -70,9 +74,9 @@ use handshake_native::fems::memory_proposal::{
     compute_memory_commit_report_hash, content_hash_of_selection, fems_class_author_id,
     review_proposal, submit_proposal_and_emit, HandshakeCoreClient, MemoryClass,
     MemoryProposalError, ProposalReviewAck, ProposalReviewDecision, ProposalSubmitOutcome,
-    ProposeDialogOutcome, FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_COMMAND_ID,
-    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID,
-    FEMS_REVIEW_APPROVE_AUTHOR_ID, FEMS_REVIEW_REJECT_AUTHOR_ID,
+    ProposeDialogOutcome, FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+    FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+    FEMS_PROPOSE_STATUS_AUTHOR_ID, FEMS_REVIEW_APPROVE_AUTHOR_ID, FEMS_REVIEW_REJECT_AUTHOR_ID,
 };
 use handshake_native::fems::relevant_memory_panel::{
     mem_item_author_id, mem_source_author_id, RELEVANT_MEMORY_LIST_AUTHOR_ID,
@@ -82,6 +86,7 @@ use handshake_native::fems::relevant_memory_panel::{
 use handshake_native::interop::{EditorSurfaceKind, InteractionBus, SharedSelection};
 use handshake_native::mcp::UiAction;
 use handshake_native::pane_registry::{PaneId, PaneType};
+use handshake_native::quick_switcher::{SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_SEARCH_AUTHOR_ID};
 use handshake_native::tab_bar::tab_author_id_for;
 
 #[path = "native_gui_support/canonical_argus_driver.rs"]
@@ -213,7 +218,7 @@ const FEMS_REQUIRED_CAPABILITIES: [&str; 4] = [
     "GET /workspaces/{id}/memory/pack",
     "POST+GET /workspaces/{id}/memory/proposals",
     "POST /workspaces/{id}/memory/proposals/{proposal_id}/review",
-    "POST /api/flight_recorder/native_editor_event kind=memory_write_proposed",
+    "POST /api/workspaces/{id}/flight_recorder/native_editor_event kind=memory_write_proposed",
 ];
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -554,6 +559,20 @@ impl LiveBackend {
             .header("x-hsk-session-run-id", "wp-kernel-012-validation-v2")
     }
 
+    /// MT-109 (fixed by MT-111's canonical helper): EVERY Flight Recorder read is an AUTHENTICATED
+    /// read. The credential is resolved through the PRODUCT resolver
+    /// (`handshake_native::event_emitter::flight_recorder_session_token`) from the genuine native-MCP
+    /// binding this live proof session published, never from a test-local copy or a stub, so an
+    /// unauthenticated 401 can never be mistaken for "the recorder is empty".
+    fn flight_recorder_ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        let token = pg_proof_support::live_flight_recorder_session_token();
+        assert_eq!(
+            token, self.session_token,
+            "the Flight Recorder credential must be the genuine published native-MCP session binding"
+        );
+        self.workspace_ident(request)
+    }
+
     fn get_json(&self, path: &str) -> serde_json::Value {
         let url = format!("{}{path}", self.base);
         self.rt.block_on(async {
@@ -828,8 +847,7 @@ impl LiveBackend {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
             loop {
                 let rows: serde_json::Value = self
-                    .client
-                    .get(&url)
+                    .flight_recorder_ident(self.client.get(&url))
                     .timeout(std::time::Duration::from_secs(5))
                     .send()
                     .await
@@ -896,8 +914,7 @@ impl LiveBackend {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
             loop {
                 let rows: serde_json::Value = self
-                    .client
-                    .get(&url)
+                    .flight_recorder_ident(self.client.get(&url))
                     .timeout(std::time::Duration::from_secs(5))
                     .send()
                     .await
@@ -960,8 +977,7 @@ impl LiveBackend {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
             loop {
                 let rows: serde_json::Value = self
-                    .client
-                    .get(&url)
+                    .flight_recorder_ident(self.client.get(&url))
                     .timeout(std::time::Duration::from_secs(5))
                     .send()
                     .await
@@ -1058,8 +1074,7 @@ impl LiveBackend {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
             loop {
                 let rows: serde_json::Value = self
-                    .client
-                    .get(&url)
+                    .flight_recorder_ident(self.client.get(&url))
                     .timeout(std::time::Duration::from_secs(5))
                     .send()
                     .await
@@ -2051,28 +2066,189 @@ fn argus_click(
     argus.click_from_snapshot_and_reinspect(harness, author_id, before)
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// FEMS-03 terminal-receipt binding (validation_v4 remediation items 1-8).
+//
+// EVERY canonical action dispatched by the FEMS-03 swarm proof is recorded as ONE ordered row that
+// carries its target, expected action, action-specific completion predicate, terminal receipt status,
+// and observed effect. `argus_step` refuses to return until the driver has rebound the action to its
+// authoritative terminal snapshot AND the named predicate has passed against that exact tree, so a
+// dispatch-only, target-disappearance, or same-process "we know it worked" acknowledgement can never
+// be recorded as completion.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/// One ordered canonical action + its bound terminal receipt.
+struct ArgusActionRow {
+    target: String,
+    expected_action: &'static str,
+    predicate_ids: Vec<String>,
+    observation: ArgusObservation,
+}
+
+impl ArgusActionRow {
+    fn to_evidence(&self, order: usize) -> serde_json::Value {
+        serde_json::json!({
+            "order": order,
+            "target": self.target,
+            "expected_action": self.expected_action,
+            "completion_predicate_ids": self.predicate_ids,
+            "receipt_id": self.observation.receipt_id,
+            "terminal_status": self.observation.receipt_status,
+            "terminal_refreshed": self.observation.terminal_refreshed,
+            "correlation_id": self.observation.correlation_id,
+            "agent_id": self.observation.agent_id,
+            "terminal_observed_sequence": self.observation.terminal_observed_sequence,
+            "target_selected_before": self.observation.target_selected_before,
+            "target_selected_after": self.observation.target_selected_after,
+            "observed_effect": self.observation.terminal_predicates,
+            "before_inspect": self.observation.before,
+            "after_reinspect": self.observation.after,
+        })
+    }
+}
+
+/// Capture the exact terminal row for the LATEST canonical action after its predicates are bound.
+fn finish_argus_row(
+    argus: &CanonicalArgusDriver,
+    target: &str,
+    predicate_ids: &[&str],
+) -> ArgusActionRow {
+    let observation = argus.latest_terminal_observation();
+    assert_eq!(
+        observation.receipt_status, "applied",
+        "{target} must terminalize with an action-specific Applied receipt bound to {predicate_ids:?}; \
+         dispatch alone, target disappearance, and same-process state knowledge are not completion"
+    );
+    ArgusActionRow {
+        target: target.to_owned(),
+        expected_action: "Click",
+        predicate_ids: predicate_ids.iter().map(|id| (*id).to_owned()).collect(),
+        observation,
+    }
+}
+
+/// Dispatch ONE canonical Argus click and bind its action-specific terminal predicate.
+fn argus_step(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    target: &str,
+    predicate_id: &str,
+    evidence: serde_json::Value,
+    predicate: impl FnOnce(&serde_json::Value, &HandshakeApp) -> bool,
+) -> ArgusActionRow {
+    let _dispatched = argus_click(argus, harness, target);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        harness,
+        predicate_id,
+        evidence,
+        predicate,
+    );
+    finish_argus_row(argus, target, &[predicate_id])
+}
+
+/// The structured value of a mounted status node inside an authoritative canonical tree.
+fn terminal_status_value(after: &serde_json::Value, author_id: &str) -> Option<String> {
+    canonical_argus_driver::json_node_by_author_id(after, author_id)
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        .map(ToOwned::to_owned)
+}
+
+/// A canonical menu-category click is complete only when its own leaf is addressable in the exact
+/// authoritative post-action tree (remediation item 2 — the observable expanded/open menu state).
+fn menu_open_step(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    menu_target: &str,
+    expected_leaf: &'static str,
+    predicate_id: &str,
+) -> ArgusActionRow {
+    argus_step(
+        argus,
+        harness,
+        menu_target,
+        predicate_id,
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.menu_open_evidence@1",
+            "menu_target": menu_target,
+            "expected_leaf": expected_leaf,
+        }),
+        move |after, _app| json_has_author_id(after, expected_leaf),
+    )
+}
+
 fn open_proposal_dialog_via_argus(
     argus: &mut CanonicalArgusDriver,
     harness: &mut Harness<'_, HandshakeApp>,
-    observations: &mut Vec<ArgusObservation>,
+    rows: &mut Vec<ArgusActionRow>,
+    attempt_label: &str,
 ) {
     for _attempt in 0..12 {
         for _ in 0..15 {
             harness.run_steps(1);
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-        observations.push(argus_click(argus, harness, "menu-go"));
-        observations.push(argus_click(argus, harness, "menu.go.command-palette"));
+        rows.push(menu_open_step(
+            argus,
+            harness,
+            "menu-go",
+            "menu.go.command-palette",
+            &format!("mt065.menu-go.expanded.{attempt_label}"),
+        ));
+        // Remediation item 3: the transient palette row terminalizes on PALETTE VISIBILITY, not on
+        // the menu row surviving the click.
+        rows.push(argus_step(
+            argus,
+            harness,
+            "menu.go.command-palette",
+            &format!("mt065.command-palette.visible.{attempt_label}"),
+            serde_json::json!({
+                "schema_id": "hsk.wp_kernel_012.mt_065.palette_visible_evidence@1",
+                "expected_dialog": PALETTE_DIALOG_AUTHOR_ID,
+                "expected_row": FEMS_PALETTE_ROW_AUTHOR_ID,
+            }),
+            |after, _app| {
+                json_has_author_id(after, PALETTE_DIALOG_AUTHOR_ID)
+                    && json_has_author_id(after, FEMS_PALETTE_ROW_AUTHOR_ID)
+            },
+        ));
         let row = find_node(&harness.root(), FEMS_PALETTE_ROW_AUTHOR_ID)
             .expect("canonical Argus palette row is mounted");
         assert_eq!(row.role, "ListBoxOption");
-        observations.push(argus_click(argus, harness, FEMS_PALETTE_ROW_AUTHOR_ID));
+        // Remediation item 3: the palette option terminalizes on PROPOSAL-DIALOG VISIBILITY.
+        let dialog_row = argus_click(argus, harness, FEMS_PALETTE_ROW_AUTHOR_ID);
         for _ in 0..40 {
             harness.run_steps(1);
             if find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some() {
-                return;
+                break;
             }
             std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        if find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some() {
+            let dialog_predicate_id = format!("mt065.propose-dialog.visible.{attempt_label}");
+            argus.assert_latest_terminal_predicate_with_app_evidence(
+                harness,
+                &dialog_predicate_id,
+                serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_065.propose_dialog_visible_evidence@1",
+                    "expected_dialog": FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+                    "expected_class_state": FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+                    "expected_confirm": FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+                    "expected_cancel": FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+                }),
+                |after, _app| {
+                    json_has_author_id(after, FEMS_PROPOSE_DIALOG_AUTHOR_ID)
+                        && json_has_author_id(after, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID)
+                        && json_has_author_id(after, FEMS_PROPOSE_CONFIRM_AUTHOR_ID)
+                        && json_has_author_id(after, FEMS_PROPOSE_CANCEL_AUTHOR_ID)
+                },
+            );
+            rows.push(finish_argus_row(
+                argus,
+                FEMS_PALETTE_ROW_AUTHOR_ID,
+                &[dialog_predicate_id.as_str()],
+            ));
+            return;
         }
         let status =
             find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID).and_then(|node| node.value);
@@ -2083,24 +2259,31 @@ fn open_proposal_dialog_via_argus(
         assert!(
             reentry_blocked,
             "canonical Argus palette click did not materialize proposal dialog and was not a \
-             transient review-queue reentry block; status={status:?}; tree={}",
+             transient review-queue reentry block; status={status:?}; receipt={:?}; tree={}",
+            (dialog_row.receipt_id, &dialog_row.receipt_status),
             accesskit_author_dump(&harness.root())
         );
     }
     panic!("canonical Argus proposal dialog did not open after bounded retries");
 }
 
+/// Drive palette -> dialog -> cancel -> reopen -> class -> confirm entirely through canonical Argus,
+/// binding an action-specific terminal predicate to EVERY dispatched receipt. Returns the persisted
+/// proposal identity carried by the confirm receipt's own terminal status.
 fn drive_propose_command_via_argus(
     argus: &mut CanonicalArgusDriver,
     harness: &mut Harness<'_, HandshakeApp>,
     class: MemoryClass,
     live: &LiveBackend,
     workspace_id: &str,
-    observations: &mut Vec<ArgusObservation>,
+    rows: &mut Vec<ArgusActionRow>,
 ) -> String {
     let before_cancel = live.canonical_fems_mutation_counts(workspace_id);
-    open_proposal_dialog_via_argus(argus, harness, observations);
-    observations.push(argus_click(argus, harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID));
+    open_proposal_dialog_via_argus(argus, harness, rows, "first");
+
+    // Remediation item 6 (cancel): the dialog must be CLOSED and the canonical proposal/memory counts
+    // UNCHANGED after a bounded worker drain. Target disappearance alone is not completion.
+    let _cancel_dispatch = argus_click(argus, harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
     let cancelled = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "outcome") == Some("cancelled_before_submit")
     });
@@ -2110,21 +2293,178 @@ fn drive_propose_command_via_argus(
         harness.run_steps(1);
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
+    let after_cancel = live.canonical_fems_mutation_counts(workspace_id);
     assert_eq!(
-        live.canonical_fems_mutation_counts(workspace_id),
-        before_cancel,
+        after_cancel, before_cancel,
         "Argus cancel must roll back without a proposal or memory mutation"
     );
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        harness,
+        "mt065.propose-cancel.dialog-closed-counts-unchanged",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.cancel_evidence@1",
+            "expected_dialog_absent": FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+            "expected_status": FEMS_PROPOSE_STATUS_AUTHOR_ID,
+            "canonical_counts_before": [before_cancel.0, before_cancel.1],
+            "canonical_counts_after_bounded_drain": [after_cancel.0, after_cancel.1],
+        }),
+        |after, _app| {
+            let status = terminal_status_value(after, FEMS_PROPOSE_STATUS_AUTHOR_ID);
+            !json_has_author_id(after, FEMS_PROPOSE_DIALOG_AUTHOR_ID)
+                && status.as_deref().is_some_and(|value| {
+                    structured_field(value, "state") == Some("cancelled")
+                        && structured_field(value, "outcome") == Some("cancelled_before_submit")
+                })
+        },
+    );
+    rows.push(finish_argus_row(
+        argus,
+        FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+        &["mt065.propose-cancel.dialog-closed-counts-unchanged"],
+    ));
 
-    open_proposal_dialog_via_argus(argus, harness, observations);
-    observations.push(argus_click(argus, harness, &fems_class_author_id(class)));
-    observations.push(argus_click(argus, harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID));
+    open_proposal_dialog_via_argus(argus, harness, rows, "second");
+
+    // Remediation item 5 (class): the selected radio value must prove the class became AUTHORITATIVE.
+    let class_target = fems_class_author_id(class);
+    let class_wire = class.wire().to_owned();
+    let expected_wire = class_wire.clone();
+    rows.push(argus_step(
+        argus,
+        harness,
+        &class_target,
+        "mt065.class.selected-value-authoritative",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.class_evidence@1",
+            "expected_class_state": FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID,
+            "expected_selected_class": class_wire,
+        }),
+        move |after, _app| {
+            terminal_status_value(after, FEMS_PROPOSE_CLASS_STATE_AUTHOR_ID).is_some_and(|value| {
+                structured_field(&value, "selected_class") == Some(expected_wire.as_str())
+                    && structured_field(&value, "proposal_class") == Some(expected_wire.as_str())
+            })
+        },
+    ));
+
+    // Remediation item 6 (confirm): the dialog must transition through submission to a TERMINAL
+    // status carrying the exact persisted proposal_id and correlated EventLedger event_id. The
+    // second, identity-correlating predicate is bound by the caller after the live read-back.
+    let _confirm_dispatch = argus_click(argus, harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
     let status = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "outcome") == Some("event_persisted")
     });
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        harness,
+        "mt065.confirm.submission-reached-terminal-status",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.confirm_terminal_evidence@1",
+            "expected_status": FEMS_PROPOSE_STATUS_AUTHOR_ID,
+            "expected_state": "completed",
+            "expected_outcome": "event_persisted",
+        }),
+        |after, _app| {
+            terminal_status_value(after, FEMS_PROPOSE_STATUS_AUTHOR_ID).is_some_and(|value| {
+                structured_field(&value, "state") == Some("completed")
+                    && structured_field(&value, "outcome") == Some("event_persisted")
+                    && structured_field(&value, "proposal_id")
+                        .is_some_and(|id| !id.is_empty() && id != "none")
+                    && structured_field(&value, "event_id")
+                        .is_some_and(|id| !id.is_empty() && id != "none")
+            })
+        },
+    );
     structured_field(&status, "proposal_id")
         .expect("Argus proposal status carries proposal_id")
         .to_owned()
+}
+
+/// The FEMS-03 Quick Switcher leg, driven through CANONICAL ARGUS so every dispatched receipt in this
+/// proof is an exported canonical observation (remediation item 7 — a complete ordered 1:1 list).
+fn open_indexed_code_symbol_via_argus(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    fixture: &CodeAuthorityFixture,
+    rows: &mut Vec<ArgusActionRow>,
+) {
+    harness.run_steps(3);
+    rows.push(menu_open_step(
+        argus,
+        harness,
+        "menu-edit",
+        "menu.edit.quick-switcher",
+        "mt065.menu-edit.expanded.quick-switcher",
+    ));
+    // Remediation item 3: the transient Quick Switcher menu row terminalizes on QUICK-SWITCHER
+    // VISIBILITY, never on the row remaining mounted.
+    rows.push(argus_step(
+        argus,
+        harness,
+        "menu.edit.quick-switcher",
+        "mt065.quick-switcher.visible",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.quick_switcher_evidence@1",
+            "expected_dialog": SWITCHER_DIALOG_AUTHOR_ID,
+            "expected_search": SWITCHER_SEARCH_AUTHOR_ID,
+        }),
+        |after, app| {
+            app.quick_switcher_open()
+                && json_has_author_id(after, SWITCHER_DIALOG_AUTHOR_ID)
+                && json_has_author_id(after, SWITCHER_SEARCH_AUTHOR_ID)
+        },
+    ));
+    let search = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(SWITCHER_SEARCH_AUTHOR_ID))
+        .expect("production Quick Switcher search input");
+    search.type_text(&fixture.symbol_name);
+    let search_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        harness.run_steps(1);
+        if harness
+            .state()
+            .quick_switcher_search_results()
+            .iter()
+            .any(|hit| hit.source_kind == "symbol" && hit.ref_id == fixture.symbol_entity_id)
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < search_deadline,
+            "timed out waiting for indexed symbol in production Quick Switcher"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    harness.key_press(egui::Key::Enter);
+    let navigation_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let target = fixture
+        .target_path
+        .canonicalize()
+        .unwrap_or_else(|_| fixture.target_path.clone());
+    loop {
+        harness.run_steps(1);
+        let active = PathBuf::from(harness.state().active_mounted_code_panel().file_path());
+        if active.canonicalize().ok().as_ref() == Some(&target) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < navigation_deadline,
+            "timed out waiting for production code-symbol navigation to open {}; active_path={}",
+            target.display(),
+            active.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert_eq!(
+        harness
+            .state()
+            .active_mounted_code_panel()
+            .buffer()
+            .to_string(),
+        fixture.content,
+        "production code-symbol navigation opens the exact indexed bytes"
+    );
 }
 
 /// True if `s` contains no decimal-digit run of length >= 4 (a heuristic for "no random numeric segment").
@@ -3605,39 +3945,87 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    let mut rows: Vec<ArgusActionRow> = Vec::new();
+    open_indexed_code_symbol_via_argus(&mut argus, &mut harness, &fixture, &mut rows);
     let selection = text_range("pane-a", 0, fixture.content.len(), &fixture.content);
     let before_inspect = inspect_until(&mut argus, &mut harness, "menu-editors", 60);
-    let mut observations = Vec::new();
 
     // Open the real mounted Relevant Memory pane through the operator menu, then wait for the app-hosted
     // live MemoryPack read. Force a second real read through the panel's stable Refresh AccessKit control.
-    observations.push(argus_click(&mut argus, &mut harness, "menu-editors"));
-    observations.push(argus_click(
+    rows.push(menu_open_step(
+        &mut argus,
+        &mut harness,
+        "menu-editors",
+        "menu.editors.relevant-memory",
+        "mt065.menu-editors.expanded",
+    ));
+    // Remediation item 3: the transient EDITORS row terminalizes on RELEVANT MEMORY PANE ACTIVATION.
+    rows.push(argus_step(
         &mut argus,
         &mut harness,
         "menu.editors.relevant-memory",
+        "mt065.relevant-memory.pane-activated",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.relevant_memory_evidence@1",
+            "expected_panel": RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+            "expected_status": RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+            "expected_pane_label": RELEVANT_MEMORY_PANE_LABEL,
+        }),
+        |after, app| {
+            let relevant_memory_type = PaneType::Placeholder(RELEVANT_MEMORY_PANE_LABEL.to_owned());
+            json_has_author_id(after, RELEVANT_MEMORY_PANEL_AUTHOR_ID)
+                && json_has_author_id(after, RELEVANT_MEMORY_STATUS_AUTHOR_ID)
+                && app.active_pane().is_some_and(|pane_id| {
+                    app.tab_bar_states()
+                        .get(pane_id)
+                        .and_then(|bar| bar.active())
+                        .is_some_and(|tab| tab.pane_type == relevant_memory_type)
+                })
+        },
     ));
-    assert!(
-        find_node(&harness.root(), RELEVANT_MEMORY_PANEL_AUTHOR_ID).is_some(),
-        "AccessKit panel-open action mounts the real Relevant Memory pane"
-    );
     let first_status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "state") == Some("empty")
     });
     let before_refresh = structured_field(&first_status, "completed")
         .and_then(|value| value.parse::<u64>().ok())
         .expect("MemoryPack status carries completed refresh count");
+    let before_generation = structured_field(&first_status, "generation")
+        .and_then(|value| value.parse::<u64>().ok())
+        .expect("MemoryPack status carries a refresh generation");
     let panel_node_id = find_node(&harness.root(), RELEVANT_MEMORY_PANEL_AUTHOR_ID)
         .expect("mounted panel node")
         .node_id;
     let status_node_id = find_node(&harness.root(), RELEVANT_MEMORY_STATUS_AUTHOR_ID)
         .expect("mounted status node")
         .node_id;
-    observations.push(argus_click(
+    // Remediation item 4: the refresh receipt binds to a STRICTLY NEWER generation AND completed
+    // counter plus a terminal ready/empty/error status for the same context. A click without that
+    // observed transition must remain non-terminal.
+    rows.push(argus_step(
         &mut argus,
         &mut harness,
         RELEVANT_MEMORY_REFRESH_AUTHOR_ID,
+        "mt065.memorypack.newer-generation-and-terminal-status",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.memorypack_refresh_evidence@1",
+            "expected_status": RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+            "prior_completed": before_refresh,
+            "prior_generation": before_generation,
+        }),
+        move |after, _app| {
+            terminal_status_value(after, RELEVANT_MEMORY_STATUS_AUTHOR_ID).is_some_and(|value| {
+                let completed = structured_field(&value, "completed")
+                    .and_then(|completed| completed.parse::<u64>().ok());
+                let generation = structured_field(&value, "generation")
+                    .and_then(|generation| generation.parse::<u64>().ok());
+                completed.is_some_and(|completed| completed > before_refresh)
+                    && generation.is_some_and(|generation| generation > before_generation)
+                    && matches!(
+                        structured_field(&value, "state"),
+                        Some("ready" | "empty" | "error")
+                    )
+            })
+        },
     ));
     let second_status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "completed")
@@ -3667,7 +4055,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
         .to_string_lossy()
         .replace('\\', "/")
         .to_ascii_lowercase();
-    let code_tab_author_id = harness
+    let (code_pane_id, code_tab_index, code_tab_author_id) = harness
         .state()
         .tab_bar_states()
         .iter()
@@ -3675,17 +4063,78 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
             bar.tabs.iter().enumerate().find_map(|(index, tab)| {
                 (tab.pane_type == PaneType::CodeSymbol
                     && tab.content_id.as_deref() == Some(target_content_id.as_str()))
-                .then(|| tab_author_id_for(pane_id.as_ref(), index, &tab.pane_type))
+                .then(|| {
+                    (
+                        pane_id.as_ref().to_owned(),
+                        index,
+                        tab_author_id_for(pane_id.as_ref(), index, &tab.pane_type),
+                    )
+                })
             })
         })
         .expect("indexed target code tab remains model-addressable after Relevant Memory refresh");
-    observations.push(argus_click(&mut argus, &mut harness, &code_tab_author_id));
+    // Remediation item 5: the tab receipt binds to the DURABLE selected-tab / active-pane identity.
+    let expected_pane = PaneId::from(code_pane_id.as_str());
+    let expected_content_id = target_content_id.clone();
+    rows.push(argus_step(
+        &mut argus,
+        &mut harness,
+        &code_tab_author_id,
+        "mt065.tab.selected-tab-and-active-pane-identity",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.tab_activation_evidence@1",
+            "expected_pane_id": code_pane_id,
+            "expected_tab_index": code_tab_index,
+            "expected_pane_type": "CodeSymbol",
+            "expected_content_id": target_content_id,
+        }),
+        move |_after, app| {
+            app.active_pane() == Some(&expected_pane)
+                && app
+                    .tab_bar_states()
+                    .get(&expected_pane)
+                    .filter(|bar| bar.active_index == code_tab_index)
+                    .and_then(|bar| bar.active())
+                    .is_some_and(|tab| {
+                        tab.pane_type == PaneType::CodeSymbol
+                            && tab.content_id.as_deref() == Some(expected_content_id.as_str())
+                    })
+        },
+    ));
     harness.run_steps(2);
-    observations.push(argus_click(&mut argus, &mut harness, "menu-edit"));
-    observations.push(argus_click(
+    rows.push(menu_open_step(
+        &mut argus,
+        &mut harness,
+        "menu-edit",
+        "menu.edit.select-all",
+        "mt065.menu-edit.expanded.select-all",
+    ));
+    // Remediation item 3: the transient select-all row terminalizes on the DURABLE EDITOR SELECTION
+    // STATE the MT-064 shared-selection observer publishes, not on the row remaining mounted.
+    let selected_len = fixture.content.len();
+    rows.push(argus_step(
         &mut argus,
         &mut harness,
         "menu.edit.select-all",
+        "mt065.select-all.editor-selection-state",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.select_all_evidence@1",
+            "expected_selection_state": MT064_SHARED_SELECTION_STATE_AUTHOR_ID,
+            "expected_pane_id": code_pane_id,
+            "expected_start": 0,
+            "expected_end": selected_len,
+        }),
+        move |after, _app| {
+            terminal_status_value(after, MT064_SHARED_SELECTION_STATE_AUTHOR_ID).is_some_and(
+                |value| {
+                    structured_field(&value, "start") == Some("0")
+                        && structured_field(&value, "end")
+                            == Some(selected_len.to_string().as_str())
+                        && structured_field(&value, "len")
+                            == Some(selected_len.to_string().as_str())
+                },
+            )
+        },
     ));
     harness.run_steps(2);
 
@@ -3695,7 +4144,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
         MemoryClass::Procedural,
         &live,
         &workspace_id,
-        &mut observations,
+        &mut rows,
     );
     cleanup.capture_proposal(proposal_id.clone());
 
@@ -3714,11 +4163,87 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     assert_exact_proposal_readback(&readback, &proposal_id, &expected);
     let fr_row = live.poll_exact_fr_event(&workspace_id, &proposal_id);
     assert_exact_proposal_and_canonical_fr_ledger(&live, &proposal_id, &workspace_id, &fr_row);
+    let ledger_event_id = fr_row["event_id"]
+        .as_str()
+        .expect("correlated FR-EVT-MEM-001 row carries its EventLedger event_id")
+        .to_owned();
+
+    // Remediation item 6 (confirm, second half): the SAME terminal confirm receipt must carry the
+    // EXACT persisted proposal_id and the correlated EventLedger event_id. This binds a second
+    // predicate to the still-latest confirm observation, so the correlation lives inside the receipt
+    // rather than beside it. No canonical action has been dispatched since the confirm click.
+    let correlated_proposal_id = proposal_id.clone();
+    let correlated_event_id = ledger_event_id.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt065.confirm.persisted-proposal-and-ledger-event-correlated",
+        serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_065.confirm_correlation_evidence@1",
+            "expected_status": FEMS_PROPOSE_STATUS_AUTHOR_ID,
+            "persisted_proposal_id": proposal_id,
+            "event_ledger_event_id": ledger_event_id,
+            "proposal_readback_id": readback["proposal_id"],
+            "flight_recorder_row_event_id": fr_row["event_id"],
+        }),
+        move |after, _app| {
+            terminal_status_value(after, FEMS_PROPOSE_STATUS_AUTHOR_ID).is_some_and(|value| {
+                structured_field(&value, "proposal_id") == Some(correlated_proposal_id.as_str())
+                    && structured_field(&value, "event_id") == Some(correlated_event_id.as_str())
+            })
+        },
+    );
+    rows.push(finish_argus_row(
+        &argus,
+        FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+        &[
+            "mt065.confirm.submission-reached-terminal-status",
+            "mt065.confirm.persisted-proposal-and-ledger-event-correlated",
+        ],
+    ));
+
     let after_reinspect = argus.inspect(&mut harness);
     assert!(
         json_has_author_id(&after_reinspect, FEMS_PROPOSE_STATUS_AUTHOR_ID),
         "fresh canonical argus.inspect sees the terminal FEMS status node"
     );
+
+    // Remediation item 7: the exported evidence must be a COMPLETE ordered 1:1 action/receipt list.
+    // Every receipt this proof dispatched is a canonical Argus observation, so the terminal snapshot's
+    // receipt ledger and the exported rows must agree exactly, in order.
+    let dispatched_receipt_ids = after_reinspect["action_receipts"]
+        .as_array()
+        .expect("terminal canonical snapshot carries the action-receipt ledger")
+        .iter()
+        .filter_map(|receipt| receipt["receipt_id"].as_u64())
+        .collect::<Vec<_>>();
+    let exported_receipt_ids = rows
+        .iter()
+        .map(|row| row.observation.receipt_id)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        argus.dispatched_action_count(),
+        rows.len(),
+        "every dispatched canonical action must be exported as an ordered receipt row"
+    );
+    assert_eq!(
+        exported_receipt_ids, dispatched_receipt_ids,
+        "the exported canonical action list must be a complete ordered 1:1 match with the terminal \
+         snapshot's receipt ledger (no receipt may be dispatched without an exported observation)"
+    );
+    for row in &rows {
+        assert_eq!(
+            row.observation.receipt_status, "applied",
+            "receipt {} for {} must be terminal Applied, not {}",
+            row.observation.receipt_id, row.target, row.observation.receipt_status
+        );
+        assert!(
+            row.observation.terminal_refreshed && !row.observation.terminal_predicates.is_empty(),
+            "receipt {} for {} must be rebound to its authoritative terminal snapshot with at least \
+             one action-specific completion predicate",
+            row.observation.receipt_id,
+            row.target
+        );
+    }
 
     let source_sha = current_source_sha();
     let proof_source_blob = current_proof_source_blob();
@@ -3729,52 +4254,102 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     std::fs::create_dir_all(&artifact_dir)
         .expect("create external MT-065 canonical Argus artifact directory");
     let screenshot_path = artifact_dir.join("mt065-fems-interop-canonical-argus.png");
-    harness
-        .render()
-        .expect("MT-065 requires a material screenshot, not a typed screenshot error")
-        .save(&screenshot_path)
-        .expect("save MT-065 canonical Argus screenshot");
-    assert!(screenshot_path.is_file());
-    let evidence_path = artifact_dir.join("mt065-fems-interop-canonical-argus.json");
-    let receipts = observations
-        .iter()
-        .map(|observation| {
+    // Remediation item 9: GPU/headless honesty. An ordinary headless run records a TYPED DEFERRED
+    // screenshot outcome and stays green on the receipt gate; the official MT-065 visual proof runs
+    // through the governed GPU supervisor (HANDSHAKE_GPU_SCREENSHOT=1), where a material PNG is
+    // MANDATORY. AC-065-04 is never satisfied by a DEFERRED visual outcome.
+    let gpu_screenshot_run = screenshot_harness::screenshot_marker::gpu_screenshot_enabled();
+    let frame = harness.render_settled_proof_frame(
+        "MT-065 FEMS-03 requires a material screenshot on the governed GPU proof run",
+    );
+    let screenshot_status = match frame {
+        Some(image) => {
+            image
+                .save(&screenshot_path)
+                .expect("save MT-065 canonical Argus screenshot");
+            assert!(
+                screenshot_path.is_file(),
+                "the governed GPU run must leave a material MT-065 PNG on disk"
+            );
+            "CAPTURED"
+        }
+        None => {
+            assert!(
+                !gpu_screenshot_run,
+                "AC-065-04 is not satisfied by a DEFERRED visual outcome on a declared GPU run"
+            );
+            "DEFERRED"
+        }
+    };
+    let screenshot_outcome = harness
+        .last_screenshot_outcome()
+        .map(|outcome| {
             serde_json::json!({
-                "receipt_id": observation.receipt_id,
-                "receipt_status": observation.receipt_status,
-                "agent_id": observation.agent_id,
-                "before_inspect": observation.before,
-                "after_reinspect": observation.after,
+                "run_id": outcome.run_id,
+                "outcome_id": outcome.outcome_id,
+                "scenario_id": outcome.scenario_id,
+                "status": outcome.status,
+                "frame_path": outcome.frame_path,
+                "gpu_screenshot_enabled": outcome.gpu_screenshot_enabled,
             })
         })
+        .expect("every render records a durable typed screenshot outcome");
+    assert_eq!(
+        screenshot_outcome["status"].as_str(),
+        Some(screenshot_status),
+        "the durable screenshot marker must agree with the recorded proof status"
+    );
+
+    let evidence_path = artifact_dir.join("mt065-fems-interop-canonical-argus.json");
+    let action_receipts = rows
+        .iter()
+        .enumerate()
+        .map(|(index, row)| row.to_evidence(index + 1))
         .collect::<Vec<_>>();
     std::fs::write(
         &evidence_path,
         serde_json::to_vec_pretty(&serde_json::json!({
-            "schema_id": "handshake.mt065-canonical-argus-proof.v1",
+            "schema_id": "handshake.mt065-canonical-argus-proof.v2",
             "source_sha": source_sha,
             "proof_source_blob": proof_source_blob,
             "workspace_id": workspace_id,
             "proposal_id": proposal_id,
+            "event_ledger_event_id": ledger_event_id,
             "before_inspect": before_inspect,
             "after_reinspect": after_reinspect,
-            "action_receipts": receipts,
+            "dispatched_action_count": argus.dispatched_action_count(),
+            "exported_action_count": rows.len(),
+            "dispatched_receipt_ids": dispatched_receipt_ids,
+            "action_receipts": action_receipts,
             "memory_pack_status": second_status,
             "proposal_readback": readback,
             "fr_event": fr_row,
             "screenshot": screenshot_path,
+            "screenshot_status": screenshot_status,
+            "screenshot_outcome": screenshot_outcome,
         }))
         .expect("serialize MT-065 canonical Argus evidence"),
     )
     .expect("write MT-065 canonical Argus evidence");
     assert!(evidence_path.is_file());
+    cleanup.clean_and_verify();
+    // Remediation items 8 + 11: the STRICT close-out gate runs BEFORE any success line is printed.
+    // `finish_require_no_indeterminate` rejects an indeterminate action and `finish` additionally
+    // requires every receipt to be rebound to an authoritative terminal snapshot with a passing
+    // action-specific predicate. A failing run therefore panics here and can never emit
+    // "FEMS-03 PROVEN".
+    argus.finish_require_no_indeterminate();
     println!(
-        "FEMS-03 PROVEN (live): canonical argus.inspect->argus.click->receipt->fresh inspect drove panel-open->MemoryPack-refresh ({second_status})->palette->dialog->cancel->reopen->class->confirm and drained proposal {proposal_id}; source_sha={source_sha}; screenshot={}; evidence={}; exact row={readback}; FR row={fr_row}",
+        "FEMS-03 PROVEN (live, after the canonical receipt-terminalization gate): {} canonical \
+         actions drove quick-switcher->panel-open->MemoryPack-refresh ({second_status})->tab->\
+         select-all->palette->dialog->cancel->reopen->class->confirm; every receipt terminal Applied \
+         with an action-specific predicate; drained proposal {proposal_id} correlated to EventLedger \
+         event {ledger_event_id}; source_sha={source_sha}; screenshot={} ({screenshot_status}); \
+         evidence={}; exact row={readback}; FR row={fr_row}",
+        rows.len(),
         screenshot_path.display(),
         evidence_path.display(),
     );
-    cleanup.clean_and_verify();
-    argus.finish();
 }
 
 /// A procedural proposal created through the mounted native controls remains review-gated in canonical

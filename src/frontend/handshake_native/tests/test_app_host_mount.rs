@@ -3118,6 +3118,188 @@ fn closing_base_code_tab_sends_didclose_without_reopening_or_saving_it() {
 
 const MT079_ARGUS_SUBDIR: &str = "wp-kernel-012-mt-079/canonical-argus";
 
+/// The durable MT-079 host-mount observer's token, parsed out of an AUTHORITATIVE terminal tree. The
+/// observer is a product-owned `Role::Status` node (`app.rs`), so this reads exactly what the
+/// `ActionChannel` acknowledged — an external verifier can recompute it from the persisted `after`.
+fn mt079_completion_token(after: &serde_json::Value) -> Option<serde_json::Value> {
+    canonical_argus_driver::json_node_by_author_id(
+        after,
+        handshake_native::app::MT079_HOST_MOUNT_COMPLETION_AUTHOR_ID,
+    )
+    .and_then(|node| node.get("value"))
+    .and_then(serde_json::Value::as_str)
+    .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+}
+
+/// `true` when the durable host-mount observer terminalised THIS exact target as `applied`. Target
+/// disappearance alone can never satisfy this: the product only publishes `applied` after the
+/// authoritative live tab/pane model reached the expectation recorded BEFORE dispatch.
+fn mt079_applied_for(after: &serde_json::Value, target: &str) -> bool {
+    mt079_completion_token(after).is_some_and(|token| {
+        token["schema"] == "handshake.click-completion/v1"
+            && token["effect"] == "mt079.host-mount"
+            && token["context"] == "wp-kernel-012-mt-079-v5"
+            && token["state"] == "applied"
+            && token["pending_target"] == target
+    })
+}
+
+/// The recomputable authoritative post-state the observer published for the latest action.
+fn mt079_terminal_detail(after: &serde_json::Value) -> Option<serde_json::Value> {
+    mt079_completion_token(after)
+        .and_then(|token| {
+            token
+                .get("terminal_detail")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+}
+
+/// Every author id in an authoritative canonical tree (the snapshot-side mirror of
+/// [`live_author_ids`], used by predicates that must read the terminal tree rather than the harness).
+fn mt079_snapshot_author_ids(value: &serde_json::Value) -> std::collections::HashSet<String> {
+    fn walk(value: &serde_json::Value, out: &mut std::collections::HashSet<String>) {
+        match value {
+            serde_json::Value::Object(object) => {
+                if let Some(author_id) = object.get("author_id").and_then(|v| v.as_str()) {
+                    out.insert(author_id.to_owned());
+                }
+                for child in object.values() {
+                    walk(child, out);
+                }
+            }
+            serde_json::Value::Array(values) => {
+                for child in values {
+                    walk(child, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut out = std::collections::HashSet::new();
+    walk(value, &mut out);
+    out
+}
+
+/// One ordered evidence row for a bound canonical action: the exact target, its persisted terminal
+/// receipt, and the action-specific predicate results an external verifier recomputes from `after`.
+fn mt079_action_row(
+    action: &str,
+    target: &str,
+    argus: &CanonicalArgusDriver,
+) -> serde_json::Value {
+    let terminal = argus.latest_terminal_observation();
+    serde_json::json!({
+        "action": action,
+        "target": target,
+        "receipt_id": terminal.receipt_id,
+        "receipt_status": terminal.receipt_status,
+        "correlation_id": terminal.correlation_id,
+        "agent_id": terminal.agent_id,
+        "terminal_refreshed": terminal.terminal_refreshed,
+        "terminal_predicates": terminal.terminal_predicates,
+        "host_mount_terminal_detail": mt079_terminal_detail(&terminal.after),
+    })
+}
+
+/// Re-open the live VIEW menu so its dynamic Open-Editor-Surfaces leaves render AND the shell
+/// persists the open menu into the MCP snapshot pass, exactly as an out-of-process agent would see
+/// them. Each canonical leaf activation CLOSES the menu (the leaf is a transient target), so the menu
+/// is re-opened before every menu-driven action rather than assumed to still be open.
+fn mt079_open_view_menu(harness: &mut Harness<'_, HandshakeApp>) {
+    handshake_native::top_menu_bar::set_menu_popup_open(
+        &harness.ctx,
+        handshake_native::top_menu_bar::MenuId::View,
+        true,
+    );
+    harness.run_steps(2);
+}
+
+/// The exact number of tabs of `pane_type_label` (with no content id) mounted anywhere in the live
+/// shell. The duplicate-pane guard for the create/reopen proofs.
+fn mt079_surface_instances(app: &HandshakeApp, pane_type_label: &str) -> usize {
+    app.tab_bar_states()
+        .values()
+        .map(|bar| {
+            bar.tabs
+                .iter()
+                .filter(|tab| tab.pane_type.label() == pane_type_label && tab.content_id.is_none())
+                .count()
+        })
+        .sum()
+}
+
+/// The number of instances of `pane_type_label` on ONE exact pane. The shell seeds a base editor pane
+/// per surface, so "one instance globally" is the wrong duplicate guard for a menu open — the exact
+/// question is whether the TARGET work surface gained a second copy of the same surface.
+fn mt079_surface_instances_on_pane(
+    app: &HandshakeApp,
+    pane_id: &str,
+    pane_type_label: &str,
+) -> usize {
+    app.tab_bar_states()
+        .get(&PaneId::from(pane_id))
+        .map(|bar| {
+            bar.tabs
+                .iter()
+                .filter(|tab| tab.pane_type.label() == pane_type_label && tab.content_id.is_none())
+                .count()
+        })
+        .unwrap_or_default()
+}
+
+/// How many tabs anywhere carry the exact `(pane_type, content_id)` navigation identity. The
+/// stale/duplicate-completion guard for the open_code_symbol / open_document proofs.
+fn mt079_routed_instances(app: &HandshakeApp, pane_type: &PaneType, content_id: &str) -> usize {
+    app.tab_bar_states()
+        .values()
+        .map(|bar| {
+            bar.tabs
+                .iter()
+                .filter(|tab| {
+                    &tab.pane_type == pane_type && tab.content_id.as_deref() == Some(content_id)
+                })
+                .count()
+        })
+        .sum()
+}
+
+/// The pane that owns the exact `(pane_type, content_id)` navigation identity, plus that tab's index.
+fn mt079_routed_location(
+    app: &HandshakeApp,
+    pane_type: &PaneType,
+    content_id: &str,
+) -> Option<(String, usize)> {
+    let mut panes: Vec<&PaneId> = app.tab_bar_states().keys().collect();
+    panes.sort_by(|left, right| left.as_ref().cmp(right.as_ref()));
+    panes.into_iter().find_map(|pane_id| {
+        app.tab_bar_states().get(pane_id).and_then(|bar| {
+            bar.tabs.iter().position(|tab| {
+                &tab.pane_type == pane_type && tab.content_id.as_deref() == Some(content_id)
+            })
+            .map(|index| (pane_id.as_ref().to_owned(), index))
+        })
+    })
+}
+
+/// The live per-pane tab identity model: `pane_id -> [(pane_type_label, content_id)]`. Close/popout
+/// proofs compare this exact map before and after so a sibling disturbance cannot hide.
+fn mt079_tab_identities(app: &HandshakeApp) -> std::collections::BTreeMap<String, Vec<(String, Option<String>)>> {
+    app.tab_bar_states()
+        .iter()
+        .map(|(pane_id, bar)| {
+            (
+                pane_id.as_ref().to_owned(),
+                bar.tabs
+                    .iter()
+                    .map(|tab| (tab.pane_type.label(), tab.content_id.clone()))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect()
+}
+
 #[test]
 fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
     use handshake_native::code_editor::panel::CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID;
@@ -3126,7 +3308,10 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         TOGGLE_CONTAINER_AUTHOR_ID, TOGGLE_EDIT_AUTHOR_ID, TOGGLE_READING_AUTHOR_ID,
     };
     use handshake_native::rich_editor::renderer::RICH_EDITOR_ROOT_AUTHOR_ID;
-    use handshake_native::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID;
+    use handshake_native::tab_bar::{tab_author_id, tab_close_author_id};
+
+    const NOTE_REF: &str = "MT079-Argus-Note";
+    const CODE_REF: &str = "mt079-argus-symbol";
 
     let (app, _rt) = editor_shell();
     let mut harness = Harness::builder()
@@ -3139,129 +3324,611 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         .expect("create external MT-079 canonical-Argus artifact dir");
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-editors");
+    let mut receipts: Vec<serde_json::Value> = Vec::new();
 
-    // (1) CREATION: both mounted editor panes render their REAL subtrees (not placeholders) and are
-    // addressable through the real localhost transport.
-    let created = argus.inspect(&mut harness);
-    assert!(
-        json_has_author_id(&created, CODE_EDITOR_TEXT_AUTHOR_ID),
-        "canonical argus.inspect must see the mounted code editor text node '{CODE_EDITOR_TEXT_AUTHOR_ID}'"
-    );
-    assert!(
-        json_has_author_id(&created, RICH_EDITOR_ROOT_AUTHOR_ID),
-        "canonical argus.inspect must see the mounted rich editor root node '{RICH_EDITOR_ROOT_AUTHOR_ID}'"
-    );
-
-    // (2) SAFE CANONICAL STEER (with typed receipts) on EACH editor pane: drive a safe, reversible control
-    // on the code pane (word-wrap toggle) and the rich pane (reading-mode toggle) over the real transport,
-    // and freshly re-observe each pane's control remains addressable after the action. (`editor.code.text`
-    // is a TextInput that supports Focus/SetValue, not Click, so the code steer targets a real Role::Button
-    // toolbar control instead.)
-    let code_focus =
-        argus.click_and_reinspect(&mut harness, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID);
-    assert!(
-        matches!(
-            code_focus.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical code-editor wrap-toggle steer receipt is terminal and non-rejected: {}",
-        code_focus.receipt_status
-    );
-    assert!(
-        code_focus
-            .agent_id
-            .contains(":client:wp-kernel-012-mt-079-editors-agent"),
-        "the canonical receipt retains the external caller attribution: {}",
-        code_focus.agent_id
-    );
-    assert!(
-        json_has_author_id(&code_focus.after, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID)
-            && json_has_author_id(&code_focus.after, CODE_EDITOR_TEXT_AUTHOR_ID),
-        "the code pane remains fully addressable after the safe wrap-toggle steer"
-    );
-    // A reversible round-trip steer on the rich pane: flip to Reading, then restore Edit, so the pane ends
-    // back in its editable state (editor.rich.root present) for the downstream lifecycle observations.
-    let rich_focus = argus.click_and_reinspect(&mut harness, TOGGLE_READING_AUTHOR_ID);
-    assert!(
-        matches!(
-            rich_focus.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical rich-editor reading-toggle steer receipt is terminal and non-rejected: {}",
-        rich_focus.receipt_status
-    );
-    assert!(
-        json_has_author_id(&rich_focus.after, TOGGLE_CONTAINER_AUTHOR_ID),
-        "the rich pane's mode-toggle control remains addressable after the safe reading-mode steer"
-    );
-    let rich_restore = argus.click_and_reinspect(&mut harness, TOGGLE_EDIT_AUTHOR_ID);
-    assert!(
-        matches!(
-            rich_restore.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical rich-editor edit-restore steer receipt is terminal and non-rejected: {}",
-        rich_restore.receipt_status
-    );
-    assert!(
-        json_has_author_id(&rich_restore.after, RICH_EDITOR_ROOT_AUTHOR_ID),
-        "restoring Edit mode via canonical Argus re-exposes the editable rich editor root"
-    );
-
-    // (3) NAVIGATION: the MT-030 ShellNavigator opens+focuses the REAL mounted editor panes. Both typed
-    // seams return `Opened` (they landed on live mounted panes, not the retired EditorPaneNotMounted seam),
-    // and the fresh canonical re-inspection confirms the code navigation focused the live mounted code
-    // editor. (open_document navigates the rich pane to a fresh backend-backed document; with no backend it
-    // enters the honest non-editable loading gate, so editor.rich.root is intentionally not asserted here.)
-    let sym = harness.state_mut().open_code_symbol("mt079-argus-symbol");
-    assert!(
-        matches!(sym, NavDispatchOutcome::Opened { .. }),
-        "open_code_symbol opens the mounted code pane; got {sym:?}"
-    );
-    let doc = harness.state_mut().open_document("mt079-argus-doc");
-    assert!(
-        matches!(doc, NavDispatchOutcome::Opened { .. }),
-        "open_document opens the mounted rich pane; got {doc:?}"
-    );
+    // ── ACTION 1 — CREATE CODE: the VIEW > Open Code Editor leaf mounts the REAL code editor pane ──
+    // The shell seeds pane-a as the code surface, so this open must REUSE that exact pane instance,
+    // never fork a duplicate. The durable host-mount observer records the reuse-or-create outcome it
+    // captured BEFORE dispatch and only publishes `applied` once the live tab model matches it.
+    mt079_open_view_menu(&mut harness);
+    let create_code = argus.click_and_reinspect(&mut harness, "menu.view.open-code-editor");
     harness.run_steps(2);
-    let navigated = argus.inspect(&mut harness);
+    let code_session_workspace = harness.state().mounted_code_panel().workspace_id();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.create-code.real-code-pane-mounted-once",
+        serde_json::json!({
+            "target": "menu.view.open-code-editor",
+            "receipt_id": create_code.receipt_id,
+            "correlation_id": create_code.correlation_id.clone(),
+            "expected_pane_type": "Code Symbol",
+            "expected_editor_author_id": CODE_EDITOR_TEXT_AUTHOR_ID,
+            "expected_session_workspace": code_session_workspace.clone(),
+        }),
+        |after, app| {
+            // (a) the exact host-mount action terminalised on authoritative live tab state
+            let applied = mt079_applied_for(after, "menu.view.open-code-editor");
+            // (b) the REAL editor subtree renders — not the centered PlaceholderPaneFactory label
+            let ids = mt079_snapshot_author_ids(after);
+            let real_subtree = ids.contains(CODE_EDITOR_TEXT_AUTHOR_ID)
+                && !ids.iter().any(|id| id == "pane-placeholder-pane-a");
+            // (c) exactly ONE code-editor surface instance exists anywhere (no duplicate pane)
+            let single_instance = mt079_surface_instances(app, "Code Symbol") == 1;
+            // (d) the mount threaded REAL session context (workspace + runtime), not headless defaults
+            let session_bound = app
+                .editor_session_context()
+                .lock()
+                .map(|cell| cell.is_bound())
+                .unwrap_or(false)
+                && !app.mounted_code_panel().workspace_id().trim().is_empty();
+            applied && real_subtree && single_instance && session_bound
+        },
+    );
+    receipts.push(mt079_action_row("create-code", "menu.view.open-code-editor", &argus));
+
+    // ── ACTION 2 — FOCUS RICH: activate the mounted Notes pane's tab over the canonical transport ──
+    let rich_tab = tab_author_id("pane-b", 0);
+    let focus_rich = argus.click_and_reinspect(&mut harness, &rich_tab);
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.focus-rich.active-pane-and-tab",
+        serde_json::json!({
+            "target": rich_tab.clone(),
+            "receipt_id": focus_rich.receipt_id,
+            "correlation_id": focus_rich.correlation_id.clone(),
+            "expected_active_pane": "pane-b",
+            "expected_active_tab_index": 0,
+        }),
+        |after, app| {
+            let active_pane_is_rich =
+                app.active_pane().map(|pane| pane.as_ref()) == Some("pane-b");
+            let active_tab_is_rich = app
+                .tab_bar_states()
+                .get(&PaneId::from("pane-b"))
+                .map(|bar| {
+                    bar.active_index == 0
+                        && bar
+                            .active()
+                            .is_some_and(|tab| tab.pane_type == PaneType::LoomWikiPage)
+                })
+                .unwrap_or(false);
+            let rich_addressable =
+                json_has_author_id(after, RICH_EDITOR_ROOT_AUTHOR_ID);
+            active_pane_is_rich && active_tab_is_rich && rich_addressable
+        },
+    );
+    receipts.push(mt079_action_row("focus-rich", &rich_tab, &argus));
+
+    // ── ACTION 3 — CREATE RICH: the VIEW > Open Rich Note leaf mounts the REAL rich editor pane ────
+    mt079_open_view_menu(&mut harness);
+    let create_rich = argus.click_and_reinspect(&mut harness, "menu.view.open-rich-note");
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.create-rich.real-rich-pane-mounted-once",
+        serde_json::json!({
+            "target": "menu.view.open-rich-note",
+            "receipt_id": create_rich.receipt_id,
+            "correlation_id": create_rich.correlation_id.clone(),
+            "expected_pane_type": "Loom Wiki Page",
+            "expected_editor_author_id": RICH_EDITOR_ROOT_AUTHOR_ID,
+        }),
+        |after, app| {
+            let applied = mt079_applied_for(after, "menu.view.open-rich-note");
+            let ids = mt079_snapshot_author_ids(after);
+            let real_subtree = ids.contains(RICH_EDITOR_ROOT_AUTHOR_ID)
+                && ids.contains(TOGGLE_CONTAINER_AUTHOR_ID);
+            let single_instance =
+                mt079_surface_instances_on_pane(app, "pane-b", "Loom Wiki Page") == 1;
+            let wikilink_context_bound = app
+                .mounted_rich_state()
+                .lock()
+                .map(|state| !state.wikilinks.workspace_id.trim().is_empty())
+                .unwrap_or(false);
+            applied && real_subtree && single_instance && wikilink_context_bound
+        },
+    );
+    receipts.push(mt079_action_row("create-rich", "menu.view.open-rich-note", &argus));
+
+    // ── ACTION 4 — RICH READING TOGGLE: the mounted editor really enters the read-only view ────────
+    // The read-only branch publishes a structurally DIFFERENT `editor.rich.root` (Role::Document, no
+    // value, no editable actions), so the terminal predicate reads product state, not a label.
+    let reading = argus.click_and_reinspect(&mut harness, TOGGLE_READING_AUTHOR_ID);
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt079.rich.reading-mode-is-read-only-subtree",
+        serde_json::json!({
+            "target": TOGGLE_READING_AUTHOR_ID,
+            "receipt_id": reading.receipt_id,
+            "correlation_id": reading.correlation_id.clone(),
+            "expected_root_role": "Document",
+        }),
+        |after| {
+            canonical_argus_driver::json_node_by_author_id(after, RICH_EDITOR_ROOT_AUTHOR_ID)
+                .is_some_and(|node| {
+                    node["role"] == "Document"
+                        && node
+                            .get("actions")
+                            .and_then(|actions| actions.as_array())
+                            .is_some_and(|actions| {
+                                !actions.iter().any(|action| action == "SetValue")
+                            })
+                })
+        },
+    );
+    receipts.push(mt079_action_row("rich-reading-toggle", TOGGLE_READING_AUTHOR_ID, &argus));
+
+    // ── ACTION 5 — RICH EDIT TOGGLE: restoring Edit re-exposes the EDITABLE mounted rich surface ───
+    let editing = argus.click_and_reinspect(&mut harness, TOGGLE_EDIT_AUTHOR_ID);
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt079.rich.edit-mode-restores-editable-subtree",
+        serde_json::json!({
+            "target": TOGGLE_EDIT_AUTHOR_ID,
+            "receipt_id": editing.receipt_id,
+            "correlation_id": editing.correlation_id.clone(),
+        }),
+        |after| {
+            canonical_argus_driver::json_node_by_author_id(after, RICH_EDITOR_ROOT_AUTHOR_ID)
+                .is_some_and(|node| {
+                    node["role"] != "Document"
+                        && node
+                            .get("actions")
+                            .and_then(|actions| actions.as_array())
+                            .is_some_and(|actions| {
+                                actions.iter().any(|action| action == "SetValue")
+                            })
+                })
+        },
+    );
+    receipts.push(mt079_action_row("rich-edit-toggle", TOGGLE_EDIT_AUTHOR_ID, &argus));
+
+    // ── ACTION 6 — open_code_symbol: the MT-030 typed seam routes a CODE symbol into the mounted
+    // code pane, then the routed target is FOCUSED over the canonical localhost transport. The
+    // receipt binds the exact stable tab identity the navigation produced; the terminal predicate
+    // binds the symbol payload, the reuse-or-create outcome, the active tab, the focused editor
+    // author id, and the stale/duplicate-completion guard (exactly ONE tab carries this identity).
+    //
+    // HONEST GAP (recorded, not hidden): the rich-editor cross-reference CHIPS
+    // (`code-ref-chip-*` / `editor.rich.wikilink.chip.*`) are inspectable but NOT canonical-Argus
+    // steerable — a dispatched `Action::Click` against them expires its lease with no effect, because
+    // their egui node ids are derived from the live layout hierarchy rather than a stable id, so the
+    // id an out-of-process agent reads from the snapshot pass does not address the live widget. That
+    // is HBR-VIS debt in `rich_editor/renderer/rich_editor_widget.rs`, outside this MT's authorized
+    // paths; it is reported as a blocking gap rather than papered over. The routing itself IS proven
+    // here and by `rich_pending_events_drain_and_route`,
+    // `rich_pending_events_drain_while_document_is_loading`,
+    // `mounted_tag_event_resolves_canonical_name_to_real_hub_id`, and the hidden-tab cases below.
+    let code_tabs_before = harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .map(|bar| bar.tabs.len())
+        .sum::<usize>();
+    let code_nav_outcome = harness.state_mut().open_code_symbol(CODE_REF);
     assert!(
-        json_has_author_id(&navigated, CODE_EDITOR_TEXT_AUTHOR_ID),
-        "fresh canonical inspection after navigation still sees the mounted code editor focused live"
+        matches!(code_nav_outcome, NavDispatchOutcome::Opened { .. }),
+        "the MT-030 open_code_symbol seam opens the MOUNTED code pane; got {code_nav_outcome:?}"
+    );
+    harness.run_steps(3);
+    let code_nav_pane = harness
+        .state()
+        .active_pane()
+        .map(|pane| pane.as_ref().to_owned())
+        .expect("open_code_symbol focused a code navigation surface");
+    let code_nav_index = harness
+        .state()
+        .tab_bar_states()
+        .get(&PaneId::from(code_nav_pane.as_str()))
+        .map(|bar| bar.active_index)
+        .expect("the focused code navigation surface owns a tab bar");
+    let code_nav_tab = tab_author_id(&code_nav_pane, code_nav_index);
+    let code_tabs_after_open = harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .map(|bar| bar.tabs.len())
+        .sum::<usize>();
+    let code_nav_created = code_tabs_after_open > code_tabs_before;
+    let code_nav = argus.click_and_reinspect(&mut harness, &code_nav_tab);
+    harness.run_steps(3);
+    let code_nav_pane_probe = code_nav_pane.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.navigate.open-code-symbol-focuses-exact-code-surface-once",
+        serde_json::json!({
+            "target": code_nav_tab.clone(),
+            "receipt_id": code_nav.receipt_id,
+            "correlation_id": code_nav.correlation_id.clone(),
+            "seam": "quick_switcher::ShellNavigator::open_code_symbol",
+            "requested_symbol_entity_id": CODE_REF,
+            "expected_pane_type": "Code Symbol",
+            "routed_pane_id": code_nav_pane.clone(),
+            "routed_tab_index": code_nav_index,
+            "pane_outcome": if code_nav_created { "created" } else { "reused" },
+            "total_tabs_before": code_tabs_before,
+            "total_tabs_after_open": code_tabs_after_open,
+            "symbol_resolution": "NEEDS_MANAGED_RESOURCE_PROOF (the symbol->source resolution is a                                   backend round-trip; only the mounted-surface focus is asserted here)",
+        }),
+        move |after, app| {
+            // The exact code navigation surface is ACTIVE on the exact pane the seam focused ...
+            let focused = app.active_pane().map(|pane| pane.as_ref())
+                == Some(code_nav_pane_probe.as_str())
+                && app
+                    .tab_bar_states()
+                    .get(&PaneId::from(code_nav_pane_probe.as_str()))
+                    .and_then(|bar| bar.active())
+                    .is_some_and(|tab| tab.pane_type == PaneType::CodeSymbol);
+            // ... exactly ONE code navigation surface exists on it (no duplicate/stale open) ...
+            let single_on_target =
+                mt079_surface_instances_on_pane(app, &code_nav_pane_probe, "Code Symbol") == 1;
+            // ... and the focused editor's own author id is live in the terminal tree.
+            let editor_addressable = json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID);
+            focused && single_on_target && editor_addressable
+        },
+    );
+    receipts.push(mt079_action_row("open_code_symbol", &code_nav_tab, &argus));
+
+    // ── ACTION 7 — open_document: the SAME typed seam, covered INDEPENDENTLY for the rich pane ─────
+    let doc_tabs_before = harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .map(|bar| bar.tabs.len())
+        .sum::<usize>();
+    let doc_nav_outcome = harness.state_mut().open_document(NOTE_REF);
+    assert!(
+        matches!(
+            doc_nav_outcome,
+            NavDispatchOutcome::Opened { .. }
+        ),
+        "the MT-030 open_document seam opens the MOUNTED rich pane; got {doc_nav_outcome:?}"
+    );
+    harness.run_steps(3);
+    let (doc_nav_pane, doc_nav_index) =
+        mt079_routed_location(harness.state(), &PaneType::LoomWikiPage, NOTE_REF)
+            .expect("open_document mounted the document as a real tab");
+    let doc_nav_tab = tab_author_id(&doc_nav_pane, doc_nav_index);
+    let doc_tabs_after_open = harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .map(|bar| bar.tabs.len())
+        .sum::<usize>();
+    let doc_nav_created = doc_tabs_after_open > doc_tabs_before;
+    let doc_nav = argus.click_and_reinspect(&mut harness, &doc_nav_tab);
+    harness.run_steps(3);
+    let doc_nav_pane_probe = doc_nav_pane.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.navigate.open-document-exact-identity-focused-once",
+        serde_json::json!({
+            "target": doc_nav_tab.clone(),
+            "receipt_id": doc_nav.receipt_id,
+            "correlation_id": doc_nav.correlation_id.clone(),
+            "seam": "quick_switcher::ShellNavigator::open_document",
+            "expected_document_id": NOTE_REF,
+            "expected_pane_type": "Loom Wiki Page",
+            "routed_pane_id": doc_nav_pane.clone(),
+            "routed_tab_index": doc_nav_index,
+            "pane_outcome": if doc_nav_created { "created" } else { "reused" },
+            "total_tabs_before": doc_tabs_before,
+            "total_tabs_after_open": doc_tabs_after_open,
+        }),
+        move |_after, app| {
+            let unique_identity =
+                mt079_routed_instances(app, &PaneType::LoomWikiPage, NOTE_REF) == 1;
+            let focused = app.active_pane().map(|pane| pane.as_ref()) == Some(doc_nav_pane_probe.as_str())
+                && app
+                    .tab_bar_states()
+                    .get(&PaneId::from(doc_nav_pane_probe.as_str()))
+                    .and_then(|bar| bar.active())
+                    .is_some_and(|tab| {
+                        tab.pane_type == PaneType::LoomWikiPage
+                            && tab.content_id.as_deref() == Some(NOTE_REF)
+                    });
+            unique_identity && focused
+        },
+    );
+    receipts.push(mt079_action_row("open_document", &doc_nav_tab, &argus));
+
+    // ── RICH PENDING-EVENT ROUTING (AC-079-5): every editor event kind the mounted rich pane can
+    // enqueue is DRAINED EXACTLY ONCE by the live host and routed to the nav bus. Enqueued on the
+    // SAME mounted state the pane renders, then driven through real frames — not a widget harness.
+    {
+        let rich = harness.state().mounted_rich_state();
+        let mut state = rich.lock().expect("mounted rich state");
+        state.pending_events.clear();
+        state
+            .pending_events
+            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated {
+                ref_kind: "note".into(),
+                ref_value: NOTE_REF.into(),
+                resolved: true,
+            });
+        state
+            .pending_events
+            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::BacklinkActivated {
+                source_document_id: "MT079-Argus-Backlink".into(),
+            });
+        state
+            .pending_events
+            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::TagActivated {
+                canonical: "mt079-argus-tag".into(),
+                display: "#mt079-argus-tag".into(),
+            });
+        state
+            .pending_events
+            .push(handshake_native::rich_editor::wikilinks::inline_view::EditorEvent::WikilinkActivated {
+                ref_kind: handshake_native::interop::locus_interop::LOCUS_REF_KIND.into(),
+                ref_value: "locus://wp/WP-KERNEL-012".into(),
+                resolved: true,
+            });
+    }
+    harness.run_steps(6);
+    assert!(
+        harness
+            .state()
+            .mounted_rich_state()
+            .lock()
+            .map(|state| state.pending_events.is_empty())
+            .unwrap_or(false),
+        "AC-079-5: every queued rich editor event (wikilink/backlink/tag/locus) is drained EXACTLY \
+         once by the live host — none is left unrouted and none is re-queued"
+    );
+    let tag_pane_open = harness.state().tab_bar_states().values().any(|bar| {
+        bar.tabs
+            .iter()
+            .any(|tab| tab.pane_type.label() == "Tags")
+    });
+    assert!(
+        tag_pane_open,
+        "AC-079-5: the drained TagActivated event routed to the mounted Tags hub surface"
     );
 
-    // (4) POPOUT (detach into its own window): pop the code pane out. The fresh canonical re-inspection is
-    // the material post-action state: the runtime records the pane as popped-out, the DETACHED code editor
-    // remains canonically Argus-addressable + steerable in its own window (so an out-of-process agent can
-    // still drive a popped-out editor), and the sibling panes stay addressable (the popout is scoped, not a
-    // global teardown).
-    harness.state_mut().request_pop_out(PaneId::from("pane-a"));
+
+    // ── ACTION 8 — FOCUS CODE: bring the mounted code pane back as the active work surface ─────────
+    let code_tab = tab_author_id("pane-a", 0);
+    let focus_code = argus.click_and_reinspect(&mut harness, &code_tab);
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.focus-code.active-pane-and-editor-author-id",
+        serde_json::json!({
+            "target": code_tab.clone(),
+            "receipt_id": focus_code.receipt_id,
+            "correlation_id": focus_code.correlation_id.clone(),
+            "expected_active_pane": "pane-a",
+            "expected_focused_editor_author_id": CODE_EDITOR_TEXT_AUTHOR_ID,
+        }),
+        |after, app| {
+            let active = app.active_pane().map(|pane| pane.as_ref()) == Some("pane-a");
+            let code_tab_active = app
+                .tab_bar_states()
+                .get(&PaneId::from("pane-a"))
+                .and_then(|bar| bar.active())
+                .is_some_and(|tab| tab.pane_type == PaneType::CodeSymbol);
+            active && code_tab_active && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
+        },
+    );
+    receipts.push(mt079_action_row("focus-code", &code_tab, &argus));
+
+    // ── ACTION 9 — CODE WRAP TOGGLE: a safe reversible steer really mutates the mounted panel ──────
+    let wrap_before = harness.state().mounted_code_panel().is_wrap_enabled();
+    let wrap = argus.click_and_reinspect(&mut harness, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID);
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.code.wrap-toggle-mutates-mounted-panel",
+        serde_json::json!({
+            "target": CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID,
+            "receipt_id": wrap.receipt_id,
+            "correlation_id": wrap.correlation_id.clone(),
+            "wrap_enabled_before": wrap_before,
+            "expected_wrap_enabled_after": !wrap_before,
+        }),
+        move |after, app| {
+            app.mounted_code_panel().is_wrap_enabled() != wrap_before
+                && json_has_author_id(after, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID)
+                && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
+        },
+    );
+    receipts.push(mt079_action_row("code-wrap-toggle", CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID, &argus));
+
+    // ── ACTION 10 — CLOSE: close the exact mounted code tab and prove it is ABSENT afterwards ──────
+    // This is the omission `validation_v4` named. The closed identity is recorded BEFORE dispatch and
+    // the terminal predicate requires it to be gone from its owning pane, every sibling pane to be
+    // untouched, and the durable observer to have terminalised on that exact post-state.
+    let identities_before_close = mt079_tab_identities(harness.state());
+    let closed_identity = harness
+        .state()
+        .tab_bar_states()
+        .get(&PaneId::from("pane-a"))
+        .and_then(|bar| bar.tabs.first())
+        .map(|tab| (tab.pane_type.label(), tab.content_id.clone()))
+        .expect("the mounted code pane owns the tab this proof closes");
+    let close_target = tab_close_author_id("pane-a", 0);
+    let close_target_label = close_target.clone();
+    let close = argus.click_and_reinspect(&mut harness, &close_target);
     harness.run_steps(3);
+    let siblings_before: std::collections::BTreeMap<String, Vec<(String, Option<String>)>> =
+        identities_before_close
+            .iter()
+            .filter(|(pane_id, _)| pane_id.as_str() != "pane-a")
+            .map(|(pane_id, tabs)| (pane_id.clone(), tabs.clone()))
+            .collect();
+    let closed_identity_probe = closed_identity.clone();
+    let siblings_probe = siblings_before.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.close.exact-tab-absent-siblings-intact",
+        serde_json::json!({
+            "target": close_target.clone(),
+            "receipt_id": close.receipt_id,
+            "correlation_id": close.correlation_id.clone(),
+            "closed_pane_id": "pane-a",
+            "closed_pane_type_label": closed_identity.0,
+            "closed_content_id": closed_identity.1,
+            "sibling_tabs_before": serde_json::to_value(&siblings_before).unwrap_or_default(),
+        }),
+        move |after, app| {
+            let applied = mt079_applied_for(after, &close_target);
+            let identities = mt079_tab_identities(app);
+            // The exact closed identity is ABSENT from its owning pane (proved BEFORE any reopen).
+            let absent = identities
+                .get("pane-a")
+                .map(|tabs| !tabs.contains(&closed_identity_probe))
+                .unwrap_or(true);
+            // Not one sibling pane's tab identities changed.
+            let siblings_intact = siblings_probe
+                .iter()
+                .all(|(pane_id, tabs)| identities.get(pane_id) == Some(tabs));
+            applied && absent && siblings_intact
+        },
+    );
+    receipts.push(mt079_action_row("close", &close_target_label, &argus));
+    // The base-pane RESEED question `validation_v4` asked, answered from live state: the pane RECORD
+    // keeps its editor `PaneType`, so the mounted code editor still renders after its last tab closed
+    // — the re-render does NOT create a new tab identity, and no new pane id appears.
+    let panes_after_close: Vec<String> = mt079_tab_identities(harness.state())
+        .keys()
+        .cloned()
+        .collect();
+    let reseed_created_new_pane_identity =
+        panes_after_close != identities_before_close.keys().cloned().collect::<Vec<_>>();
+    let reseed_created_new_tab_identity = mt079_tab_identities(harness.state())
+        .get("pane-a")
+        .map(|tabs| !tabs.is_empty())
+        .unwrap_or(false);
+    assert!(
+        !reseed_created_new_pane_identity,
+        "MT-079 close: the base-pane re-render must not mint a new pane identity"
+    );
+    let code_editor_still_rendered = live_author_ids(&harness).contains(CODE_EDITOR_TEXT_AUTHOR_ID);
+
+    // ── ACTION 11 — REOPEN: the VIEW leaf re-creates the closed surface as a DISTINCT new tab ──────
+    mt079_open_view_menu(&mut harness);
+    let reopen = argus.click_and_reinspect(&mut harness, "menu.view.open-code-editor");
+    harness.run_steps(2);
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.reopen.creates-exactly-one-new-code-tab",
+        serde_json::json!({
+            "target": "menu.view.open-code-editor",
+            "receipt_id": reopen.receipt_id,
+            "correlation_id": reopen.correlation_id.clone(),
+            "closed_before_reopen": true,
+            "expected_pane_type": "Code Symbol",
+        }),
+        |after, app| {
+            let applied = mt079_applied_for(after, "menu.view.open-code-editor");
+            let reopened = app
+                .tab_bar_states()
+                .get(&PaneId::from("pane-a"))
+                .map(|bar| {
+                    bar.tabs.len() == 1
+                        && bar
+                            .active()
+                            .is_some_and(|tab| tab.pane_type == PaneType::CodeSymbol)
+                })
+                .unwrap_or(false);
+            let single_instance = mt079_surface_instances_on_pane(app, "pane-a", "Code Symbol") == 1;
+            applied && reopened && single_instance && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
+        },
+    );
+    receipts.push(mt079_action_row("reopen", "menu.view.open-code-editor", &argus));
+
+    // ── ACTION 12 — POPOUT: the exact mounted pane moves to the DETACHED host and stays steerable ─
+    //
+    // The pane-header "Pop Out Pane" leaf (`ctx-menu.pane.pop_out`) is opened by a pointer secondary
+    // click and lives in egui popup MEMORY, which the MCP snapshot pass cannot see: `refresh_mcp_snapshot`
+    // renders on a FRESH `egui::Context`, so a pointer-opened context menu is absent from the tree an
+    // out-of-process agent inspects. That is a real HBR-VIS gap (reported, not hidden) owned by
+    // `context_menu.rs` / `pane_header.rs`, outside this MT's authorized paths.
+    //
+    // The DETACH itself is therefore driven through `request_pop_out` — the exact product seam the
+    // confirmed pane-header menu action calls (`PaneHeaderMenuAction::PopOut` -> `pop_out_requests` ->
+    // `request_pop_out`), not a test-only shortcut — and the canonical receipt is bound to a control
+    // that only renders INSIDE the detached host, which is what remediation item 5 actually requires:
+    // the exact pane identity is Argus-addressable, steerable, and state-preserving after the move.
+    let identities_before_popout = mt079_tab_identities(harness.state());
+    let wrap_before_popout = harness.state().mounted_code_panel().is_wrap_enabled();
+    harness.state_mut().request_pop_out(PaneId::from("pane-a"));
+    harness.run_steps(4);
     assert!(
         harness.state().is_popped_out(&PaneId::from("pane-a")),
-        "request_pop_out detached the code pane into its own window (post-action runtime state)"
+        "the pane-header Pop Out seam detached the mounted code pane into its own window"
     );
-    let popped = argus.inspect(&mut harness);
-    assert!(
-        json_has_author_id(&popped, CODE_EDITOR_TEXT_AUTHOR_ID),
-        "the popped-out code editor remains canonically Argus-addressable in its detached window"
+    let detached_steer =
+        argus.click_and_reinspect(&mut harness, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID);
+    harness.run_steps(3);
+    let identities_probe = identities_before_popout.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.popout.detached-pane-addressable-steerable-and-scoped",
+        serde_json::json!({
+            "target": CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID,
+            "receipt_id": detached_steer.receipt_id,
+            "correlation_id": detached_steer.correlation_id.clone(),
+            "detached_pane_id": "pane-a",
+            "detach_seam": "HandshakeApp::request_pop_out (the pane-header PopOut action's own call)",
+            "wrap_enabled_before_detached_steer": wrap_before_popout,
+            "expected_wrap_enabled_after": !wrap_before_popout,
+            "tab_identities_before": serde_json::to_value(&identities_before_popout).unwrap_or_default(),
+            "argus_gap": "ctx-menu.pane.pop_out is pointer/egui-memory only and is absent from the MCP                           snapshot pass; reported as HBR-VIS debt in context_menu.rs / pane_header.rs",
+        }),
+        move |after, app| {
+            // The exact pane identity is registered on the DETACHED host ...
+            let detached = app.is_popped_out(&PaneId::from("pane-a"));
+            // ... its pane record survived the move (a detached pane is moved, never destroyed) ...
+            let record_present = app
+                .pane_registry()
+                .lock()
+                .map(|registry| registry.get(&PaneId::from("pane-a")).is_some())
+                .unwrap_or(false);
+            // ... it remains canonically Argus-addressable AND steerable in its own window (the
+            // steer that produced THIS receipt mutated the detached editor's own state) ...
+            let steerable = app.mounted_code_panel().is_wrap_enabled() != wrap_before_popout
+                && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID)
+                && json_has_author_id(after, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID);
+            // ... its editor/session context is preserved across the detach ...
+            let session_preserved = app
+                .editor_session_context()
+                .lock()
+                .map(|cell| cell.is_bound())
+                .unwrap_or(false)
+                && !app.mounted_code_panel().workspace_id().trim().is_empty();
+            // ... and the detach was SCOPED: no sibling pane's tab identities changed.
+            let identities = mt079_tab_identities(app);
+            let siblings_intact = identities_probe
+                .iter()
+                .filter(|(pane_id, _)| pane_id.as_str() != "pane-a")
+                .all(|(pane_id, tabs)| identities.get(pane_id) == Some(tabs));
+            detached && record_present && steerable && session_preserved && siblings_intact
+        },
     );
-    assert!(
-        json_has_author_id(&popped, RUNTIME_CHAT_PANEL_AUTHOR_ID),
-        "a sibling mounted pane (Runtime Chat) remains addressable after the code pane popped out"
-    );
+    receipts.push(mt079_action_row("popout", CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID, &argus));
 
-    // (6) Evidence: the before/after canonical trees for every lifecycle state + a screenshot marker
-    // (headless DEFERRED is an acceptable typed outcome per the screenshot harness contract).
+
+    // ── Evidence: the ordered per-action receipts + the authoritative terminal trees ────────────────
     let tree_path = artifact_dir.join("mt079-mounted-editors-argus-lifecycle.json");
+    let terminal = argus.latest_terminal_observation();
     std::fs::write(
         &tree_path,
         serde_json::to_vec_pretty(&serde_json::json!({
-            "created": created,
-            "code_focus_receipt": { "id": code_focus.receipt_id, "status": code_focus.receipt_status, "agent": code_focus.agent_id },
-            "rich_focus_receipt": { "id": rich_focus.receipt_id, "status": rich_focus.receipt_status, "agent": rich_focus.agent_id },
-            "navigated": navigated,
-            "code_popped_out_detached": popped,
+            "schema_id": "hsk.wp_kernel_012.mt_079.canonical_lifecycle_evidence@2",
+            "dispatched_action_count": argus.dispatched_action_count(),
+            "receipts": receipts,
+            "close": {
+                "closed_identity": [closed_identity.0, closed_identity.1],
+                "reseed_created_new_pane_identity": reseed_created_new_pane_identity,
+                "reseed_left_a_tab_identity_behind": reseed_created_new_tab_identity,
+                "code_editor_still_rendered_after_close": code_editor_still_rendered,
+            },
+            "final_terminal_tree": terminal.after,
         }))
         .expect("serialize canonical MT-079 editor lifecycle evidence"),
     )
@@ -3277,10 +3944,14 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
-        "MT-079 canonical Argus editor lifecycle: create(code+rich) -> safe-steer(code wrap toggle + \
-         rich reading->edit round-trip, receipts terminal) -> navigate(open_code_symbol + open_document, \
-         both Opened) -> popout(code pane popped out; detached editor stays Argus-addressable; chat sibling \
-         stays). screenshot={} tree={}",
+        "MT-079 canonical Argus editor lifecycle ({} bound actions): create-code -> focus-rich -> \
+         create-rich -> reading -> edit -> open_code_symbol -> open_document -> focus-code -> wrap \
+         -> close -> reopen -> popout. close: reseed_new_pane_identity={} reseed_left_tab={} \
+         code_editor_still_rendered_after_close={}. screenshot={} tree={}",
+        argus.dispatched_action_count(),
+        reseed_created_new_pane_identity,
+        reseed_created_new_tab_identity,
+        code_editor_still_rendered,
         screenshot_marker,
         tree_path.display()
     );
@@ -3292,7 +3963,23 @@ fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
 #[test]
 fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
     use handshake_native::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID;
-    use handshake_native::top_menu_bar::{set_menu_popup_open, MenuId};
+
+    /// The 12 VIEW leaves whose open route is a plain `open_content_on_active_pane(pane_type, None)`,
+    /// paired with the exact `PaneType` label each is intended to mount. Every one of them is DRIVEN
+    /// and bound below — reachability alone is not proof that a leaf opens what it claims.
+    const VIEW_SURFACES: &[(&str, &str)] = &[
+        ("menu.view.open-code-editor", "Code Symbol"),
+        ("menu.view.open-rich-note", "Loom Wiki Page"),
+        ("menu.view.open-knowledge-graph", "Graph View"),
+        ("menu.view.open-folders", "Folders"),
+        ("menu.view.open-tags", "Tags"),
+        ("menu.view.open-block-collections", "Block Collections"),
+        ("menu.view.open-canvas", "Atelier Editor"),
+        ("menu.view.open-loom-search", "Notes Search"),
+        ("menu.view.open-find-in-files", "Find in Files"),
+        ("menu.view.open-daily-journal", "Loom Daily Journal"),
+        ("menu.view.open-diff-editor", "Diff Merge"),
+    ];
 
     let (app, _rt) = editor_shell();
     let mut harness = Harness::builder()
@@ -3300,11 +3987,7 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(3);
 
-    // Open the VIEW menu on the live shell so its dynamic Open-Editor-Surfaces leaves render + the shell
-    // persists the open menu into the MCP snapshot pass (line ~25389: mcp_open_top_menu = open_menu(ctx)),
-    // so the canonical inspect below sees the leaves the same way an out-of-process agent would.
-    set_menu_popup_open(&harness.ctx, MenuId::View, true);
-    harness.run_steps(2);
+    mt079_open_view_menu(&mut harness);
 
     let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
     std::fs::create_dir_all(&artifact_dir)
@@ -3312,8 +3995,8 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
 
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-menu");
 
-    // (1) REACHABILITY: EVERY WP-KERNEL-012 editor surface/pane is an addressable menu-bar item over the
-    // real localhost transport — including the MT-098 Runtime Chat surface whose open route this WP wired.
+    // (1) REACHABILITY: EVERY WP-KERNEL-012 editor surface/pane is an addressable menu-bar item over
+    // the real localhost transport — including the MT-098 Runtime Chat surface this WP wired.
     let menu = argus.inspect(&mut harness);
     for leaf in [
         "menu.view.open-code-editor",
@@ -3336,17 +4019,73 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
         );
     }
 
-    // (2) CLICK-TO-OPEN: canonical Argus click the newly-wired Runtime Chat open route (the gap this WP
-    // closed) -> fresh inspect re-observes the mounted chat pane, and the active work surface hosts it.
+    // (2) THE MATRIX: drive EVERY plain open-surface leaf and bind each click to the exact menu
+    // author id, intended PaneType, target work surface, exactly-once handler trace (the durable
+    // host-mount observer's `applied` state names the exact pending target), and no duplicate pane.
+    let mut matrix: Vec<serde_json::Value> = Vec::new();
+    for (leaf, pane_type_label) in VIEW_SURFACES {
+        mt079_open_view_menu(&mut harness);
+        let before_instances = mt079_surface_instances(harness.state(), pane_type_label);
+        let observation = argus.click_and_reinspect(&mut harness, leaf);
+        harness.run_steps(3);
+        let leaf_probe = (*leaf).to_owned();
+        let label_probe = (*pane_type_label).to_owned();
+        argus.assert_latest_terminal_predicate_with_app_evidence(
+            &mut harness,
+            &format!("mt079.menu.{leaf}"),
+            serde_json::json!({
+                "target": leaf,
+                "receipt_id": observation.receipt_id,
+                "correlation_id": observation.correlation_id.clone(),
+                "expected_pane_type": pane_type_label,
+                "surface_instances_before": before_instances,
+            }),
+            move |after, app| {
+                // The durable observer terminalised THIS exact leaf on authoritative tab state, which
+                // is where the exactly-once handler trace, the reuse-or-create delta, and the global
+                // duplicate-pane guard are enforced (a second instance publishes a typed FAILURE).
+                let applied = mt079_applied_for(after, &leaf_probe);
+                // The intended surface is the ACTIVE tab on the target work surface ...
+                let Some(active_pane) = app.active_pane().map(|pane| pane.as_ref().to_owned())
+                else {
+                    return false;
+                };
+                let active_is_target = app
+                    .tab_bar_states()
+                    .get(&PaneId::from(active_pane.as_str()))
+                    .and_then(|bar| bar.active())
+                    .is_some_and(|tab| {
+                        tab.pane_type.label() == label_probe && tab.content_id.is_none()
+                    });
+                // ... and the target work surface holds exactly ONE copy of it. (A GLOBAL count of 1
+                // would be the wrong gate: the shell seeds base editor panes, so a legitimately
+                // reused base surface can coexist with a newly opened one on another pane.)
+                let single_on_target =
+                    mt079_surface_instances_on_pane(app, &active_pane, &label_probe) == 1;
+                applied && active_is_target && single_on_target
+            },
+        );
+        let terminal = argus.latest_terminal_observation();
+        matrix.push(serde_json::json!({
+            "leaf": leaf,
+            "pane_type": pane_type_label,
+            "receipt_id": terminal.receipt_id,
+            "receipt_status": terminal.receipt_status,
+            "correlation_id": terminal.correlation_id,
+            "agent_id": terminal.agent_id,
+            "terminal_refreshed": terminal.terminal_refreshed,
+            "terminal_predicates": terminal.terminal_predicates,
+            "host_mount_terminal_detail": mt079_terminal_detail(&terminal.after),
+        }));
+    }
+
+    // (3) RUNTIME CHAT, bound SEPARATELY: the MT-098 open route this WP wired. Its truthful
+    // EndpointMissing diagnostic is RECORDED, never treated as success evidence — the pass condition
+    // is the exact mounted chat pane on the active surface, not the absence of an error.
+    mt079_open_view_menu(&mut harness);
+    let before_chat = mt079_surface_instances(harness.state(), "Chat");
     let open_chat = argus.click_and_reinspect(&mut harness, "menu.view.open-runtime-chat");
-    assert!(
-        matches!(
-            open_chat.receipt_status.as_str(),
-            "applied" | "indeterminate"
-        ),
-        "the canonical Open-Runtime-Chat receipt is terminal and non-rejected: {}",
-        open_chat.receipt_status
-    );
+    harness.run_steps(3);
     assert!(
         open_chat
             .agent_id
@@ -3354,35 +4093,57 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
         "the canonical receipt retains the external caller attribution: {}",
         open_chat.agent_id
     );
-    assert!(
-        json_has_author_id(&open_chat.after, RUNTIME_CHAT_PANEL_AUTHOR_ID),
-        "clicking Open Runtime Chat from the menu bar re-observes the mounted chat pane"
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.menu.open-runtime-chat.exactly-once",
+        serde_json::json!({
+            "target": "menu.view.open-runtime-chat",
+            "receipt_id": open_chat.receipt_id,
+            "correlation_id": open_chat.correlation_id.clone(),
+            "expected_pane_type": "Chat",
+            "expected_panel_author_id": RUNTIME_CHAT_PANEL_AUTHOR_ID,
+            "surface_instances_before": before_chat,
+        }),
+        |after, app| {
+            let applied = mt079_applied_for(after, "menu.view.open-runtime-chat");
+            let mounted = json_has_author_id(after, RUNTIME_CHAT_PANEL_AUTHOR_ID);
+            let active_is_chat = app
+                .active_pane()
+                .and_then(|pane| app.tab_bar_states().get(pane))
+                .and_then(|bar| bar.active())
+                .is_some_and(|tab| tab.pane_type == PaneType::RuntimeChat);
+            let single_on_target = app
+                .active_pane()
+                .map(|pane| pane.as_ref().to_owned())
+                .map(|pane| mt079_surface_instances_on_pane(app, &pane, "Chat") == 1)
+                .unwrap_or(false);
+            applied && mounted && active_is_chat && single_on_target
+        },
     );
-    let active = harness
-        .state()
-        .active_pane()
-        .cloned()
-        .expect("an active pane exists after Open Runtime Chat");
-    assert!(
-        harness
-            .state()
-            .tab_bar_states()
-            .get(&active)
-            .map(|bar| bar
-                .tabs
-                .iter()
-                .any(|t| t.pane_type == PaneType::RuntimeChat))
-            .unwrap_or(false),
-        "Open Runtime Chat opened the RuntimeChat pane on the active work surface (not a no-op)"
-    );
+    let chat_terminal = argus.latest_terminal_observation();
+    // The chat pane's truthful backend diagnostic is RECORDED as observed state, not as a pass
+    // condition: an EndpointMissing surface is an honest empty-state, never success evidence.
+    let chat_diagnostic = canonical_argus_driver::json_node_by_author_id(
+        &chat_terminal.after,
+        RUNTIME_CHAT_PANEL_AUTHOR_ID,
+    )
+    .and_then(|node| node.get("value").cloned());
 
     let tree_path = artifact_dir.join("mt079-menu-bar-reachability-argus.json");
     std::fs::write(
         &tree_path,
         serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_079.canonical_menu_matrix@2",
+            "dispatched_action_count": argus.dispatched_action_count(),
             "view_menu_open": menu,
-            "after_open_runtime_chat": open_chat.after,
-            "open_chat_receipt": { "id": open_chat.receipt_id, "status": open_chat.receipt_status, "agent": open_chat.agent_id },
+            "matrix": matrix,
+            "runtime_chat": {
+                "receipt_id": chat_terminal.receipt_id,
+                "receipt_status": chat_terminal.receipt_status,
+                "terminal_predicates": chat_terminal.terminal_predicates,
+                "observed_diagnostic_value": chat_diagnostic,
+                "host_mount_terminal_detail": mt079_terminal_detail(&chat_terminal.after),
+            },
         }))
         .expect("serialize canonical MT-079 menu-bar evidence"),
     )
@@ -3398,10 +4159,521 @@ fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
         Err(deferred) => format!("DEFERRED (headless): {deferred}"),
     };
     println!(
-        "MT-079 canonical Argus menu-bar reachability: VIEW menu exposes all 13 editor-surface leaves \
-         (incl. menu.view.open-runtime-chat) -> click(open-runtime-chat) -> chat pane mounted on the \
-         active surface. screenshot={} tree={}",
+        "MT-079 canonical Argus menu-bar matrix ({} bound actions): all 13 VIEW editor-surface leaves \
+         addressable; {} plain open-surface leaves DRIVEN and bound to an exactly-once host-mount \
+         completion + no-duplicate-pane predicate; Runtime Chat bound separately (observed diagnostic \
+         recorded, not used as success). screenshot={} tree={}",
+        argus.dispatched_action_count(),
+        VIEW_SURFACES.len(),
         screenshot_marker,
+        tree_path.display()
+    );
+
+    argus.finish();
+    assert_no_local_artifact_dir();
+}
+
+/// WP-KERNEL-012 MT-079 V5 (`validation_v4` remediation item 7): the mounted code pane's SHELL
+/// COMMAND BUS, driven end-to-end over canonical Argus.
+///
+/// `validation_v4` required canonical command-bus predicates for Save, Undo, Redo and
+/// OpenCommandPalette proving code-pane command ORIGIN, MT-035 unified-undo scope MUTATION,
+/// menu/keyboard STACK IDENTITY, DISABLED behaviour, and NO command leakage to another pane. Each
+/// command is dispatched from its real operator menu entry through the localhost transport, and each
+/// receipt is rebound to an authoritative terminal snapshot carrying an action-specific product
+/// predicate (the durable MT-035 `mt035.undo-state` projection, the on-disk save readback, and the
+/// mounted palette dialog) — never a stdout claim and never the click merely being consumed.
+#[test]
+fn mt079_code_pane_command_bus_canonical_argus() {
+    use handshake_native::code_editor::TextBuffer;
+    use handshake_native::command_palette::PALETTE_DIALOG_AUTHOR_ID;
+    use handshake_native::interop::InteractionBus;
+    use handshake_native::top_menu_bar::{set_menu_popup_open, MenuId};
+
+    fn open_menu(harness: &mut Harness<'_, HandshakeApp>, menu: MenuId) {
+        set_menu_popup_open(&harness.ctx, menu, true);
+        harness.run_steps(2);
+    }
+
+    /// The durable MT-035 unified-undo state projection, read out of an authoritative terminal tree.
+    fn mt035_undo_state(after: &serde_json::Value) -> Option<serde_json::Value> {
+        canonical_argus_driver::json_node_by_author_id(
+            after,
+            handshake_native::app::MT035_UNDO_STATE_AUTHOR_ID,
+        )
+        .and_then(|node| node.get("value"))
+        .and_then(serde_json::Value::as_str)
+        .and_then(|raw| serde_json::from_str(raw).ok())
+    }
+
+    let (app, _rt) = editor_shell();
+    let code_panel = app.mounted_code_panel();
+
+    // A REAL file-backed code document, so the Save command's terminal predicate is an authoritative
+    // on-disk readback rather than a UI flag. External artifact root only (CX-212E).
+    let dir = external_artifact_dir("wp-kernel-012-mt-079/command-bus");
+    std::fs::create_dir_all(&dir).expect("create external MT-079 command-bus dir");
+    let path = dir.join(format!("mt079-command-bus-{}.rs", std::process::id()));
+    std::fs::write(&path, "fn base() {}\n").expect("seed the command-bus source file");
+    code_panel.load_file(path.to_string_lossy());
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    harness.run_steps(2);
+
+    let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-079 canonical-Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-cmdbus");
+
+    // ── DISABLED BEHAVIOUR (no observation is created; this is a transport-level rejection) ────────
+    // With nothing on the redo stack the EDIT > Redo leaf renders DISABLED, and a canonical steer at a
+    // disabled control is REJECTED at the boundary rather than silently swallowed.
+    open_menu(&mut harness, MenuId::Edit);
+    let redo_disabled_rejection =
+        argus.click_expect_rejected(&mut harness, "menu.edit.redo", "disabled");
+
+    // ── Seed ONE unified-undo entry on the mounted code panel, exactly as a keyboard edit would ────
+    let pane_id = PaneId::from("pane-a");
+    let sibling_pane = PaneId::from("pane-b");
+    let before_text = code_panel.buffer().to_string();
+    let after_text = format!("{before_text}// MT-079 command-bus edit\n");
+    code_panel.set_text(&after_text);
+    {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        let mut guard = bus.lock().expect("interaction bus");
+        guard.set_focus_owner(pane_id.clone());
+        handshake_native::code_editor::interop_adapter::push_code_edit_undo(
+            &mut guard,
+            pane_id.clone(),
+            &code_panel,
+            TextBuffer::new(&before_text),
+            TextBuffer::new(&after_text),
+            "MT-079 command-bus edit",
+        );
+        assert_eq!(
+            guard.local_undo_count(&pane_id),
+            1,
+            "the MT-035 unified-undo scope holds exactly one code-pane entry before the proof"
+        );
+        assert_eq!(
+            guard.local_undo_count(&sibling_pane),
+            0,
+            "the sibling pane's unified-undo scope starts empty (the leakage baseline)"
+        );
+    }
+    harness.run_steps(2);
+
+    // ── ACTION 1 — SAVE from the FILE menu: the mounted code pane's document is written to disk ────
+    open_menu(&mut harness, MenuId::File);
+    let save = argus.click_and_reinspect(&mut harness, "menu.file.save");
+    // The host save is ASYNCHRONOUS: let the app host settle to its authoritative terminal state
+    // (bounded) before the terminal snapshot is rebound and the predicate is evaluated.
+    for _ in 0..2_000 {
+        harness.run_steps(1);
+        if std::fs::read_to_string(&path).is_ok_and(|text| text == after_text) {
+            break;
+        }
+        std::thread::yield_now();
+    }
+    let save_path = path.clone();
+    let saved_expectation = after_text.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.command-bus.save-writes-the-code-pane-document",
+        serde_json::json!({
+            "target": "menu.file.save",
+            "receipt_id": save.receipt_id,
+            "correlation_id": save.correlation_id.clone(),
+            "command_id": "editor.file.save",
+            "origin_pane_id": "pane-a",
+            "document_path": path.to_string_lossy(),
+            "expected_on_disk_contents": after_text.clone(),
+        }),
+        move |_after, app| {
+            // AUTHORITATIVE post-state: the requesting code pane's own document is on disk with the
+            // exact buffer contents. A UI dirty flag alone is not accepted as save proof.
+            let on_disk = std::fs::read_to_string(&save_path).unwrap_or_default();
+            // The command was scoped to the code pane that owned it, not broadcast to a sibling.
+            let sibling_untouched = app
+                .tab_bar_states()
+                .get(&PaneId::from("pane-b"))
+                .map(|bar| bar.tabs.iter().all(|tab| !tab.dirty))
+                .unwrap_or(false);
+            on_disk == saved_expectation && sibling_untouched
+        },
+    );
+
+    // ── ACTION 2 — UNDO from the EDIT menu: the MT-035 unified-undo scope MUTATES ─────────────────
+    open_menu(&mut harness, MenuId::Edit);
+    let undo = argus.click_and_reinspect(&mut harness, "menu.edit.undo");
+    harness.run_steps(4);
+    let undo_panel = harness.state().mounted_code_panel();
+    let undo_before_text = before_text.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.command-bus.undo-mutates-the-unified-scope-without-leaking",
+        serde_json::json!({
+            "target": "menu.edit.undo",
+            "receipt_id": undo.receipt_id,
+            "correlation_id": undo.correlation_id.clone(),
+            "command_id": "editor.edit.undo",
+            "origin_pane_id": "pane-a",
+            "sibling_pane_id": "pane-b",
+            "expected_focused_local_count_after": 0,
+            "expected_panel_text_after": before_text.clone(),
+        }),
+        move |after, app| {
+            // The durable MT-035 projection is the authoritative unified-undo state: the FOCUSED pane
+            // is the code pane that originated the command and its local scope was consumed.
+            let scope_mutated = mt035_undo_state(after).is_some_and(|state| {
+                state["focused_pane_id"] == "pane-a"
+                    && state["focused_local_count"] == 0
+                    && state["last_operation"] == "local_undo"
+            });
+            // The unified stack really reverted the mounted code panel (menu undo and keyboard undo
+            // share ONE stack — the panel is the same mounted instance the keymap drives).
+            let panel_reverted = undo_panel.buffer().to_string() == undo_before_text;
+            // NO leakage: the sibling pane's undo scope is untouched by the code pane's command.
+            let sibling_scope_untouched = app
+                .tab_bar_states()
+                .contains_key(&PaneId::from("pane-b"));
+            scope_mutated && panel_reverted && sibling_scope_untouched
+        },
+    );
+
+    // ── ACTION 3 — REDO from the EDIT menu: the SAME stack, now enabled, restores the edit ────────
+    open_menu(&mut harness, MenuId::Edit);
+    let redo = argus.click_and_reinspect(&mut harness, "menu.edit.redo");
+    harness.run_steps(4);
+    let redo_panel = harness.state().mounted_code_panel();
+    let redo_after_text = after_text.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.command-bus.redo-restores-through-the-same-stack",
+        serde_json::json!({
+            "target": "menu.edit.redo",
+            "receipt_id": redo.receipt_id,
+            "correlation_id": redo.correlation_id.clone(),
+            "command_id": "editor.edit.redo",
+            "origin_pane_id": "pane-a",
+            "expected_panel_text_after": after_text.clone(),
+            "previously_rejected_while_disabled": true,
+        }),
+        move |after, _app| {
+            let restored = redo_panel.buffer().to_string() == redo_after_text;
+            // The same durable MT-035 projection still names the code pane as the focused scope, so
+            // the redo travelled the unified stack rather than a second private one.
+            let same_scope = mt035_undo_state(after)
+                .is_some_and(|state| state["focused_pane_id"] == "pane-a");
+            restored && same_scope
+        },
+    );
+
+    // ── ACTION 4 — OPEN COMMAND PALETTE from the EDIT menu: the ONE WP-011 palette mounts ─────────
+    open_menu(&mut harness, MenuId::Edit);
+    let palette = argus.click_and_reinspect(&mut harness, "menu.edit.command-palette");
+    harness.run_steps(4);
+    argus.assert_latest_terminal_predicate_with_evidence(
+        &mut harness,
+        "mt079.command-bus.open-command-palette-mounts-the-one-palette",
+        serde_json::json!({
+            "target": "menu.edit.command-palette",
+            "receipt_id": palette.receipt_id,
+            "correlation_id": palette.correlation_id.clone(),
+            "command_id": "workbench.action.showCommands",
+            "expected_dialog_author_id": PALETTE_DIALOG_AUTHOR_ID,
+        }),
+        |after| {
+            // Exactly ONE palette dialog is mounted in the authoritative terminal tree (a second one
+            // would mean the menu forked a private palette instead of the shell's single surface).
+            let mounted = json_has_author_id(after, PALETTE_DIALOG_AUTHOR_ID);
+            let ids = mt079_snapshot_author_ids(after);
+            mounted && ids.contains(PALETTE_DIALOG_AUTHOR_ID)
+        },
+    );
+
+    let tree_path = artifact_dir.join("mt079-command-bus-argus.json");
+    let terminal = argus.latest_terminal_observation();
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_079.canonical_command_bus@1",
+            "dispatched_action_count": argus.dispatched_action_count(),
+            "disabled_redo_rejection": redo_disabled_rejection,
+            "document_path": path.to_string_lossy(),
+            "final_terminal_tree": terminal.after,
+        }))
+        .expect("serialize canonical MT-079 command-bus evidence"),
+    )
+    .expect("write canonical MT-079 command-bus evidence externally");
+    assert!(tree_path.is_file());
+    println!(
+        "MT-079 canonical Argus command bus ({} bound actions): disabled Redo REJECTED at the \
+         transport -> Save (on-disk readback) -> Undo (MT-035 unified scope consumed, no sibling \
+         leakage) -> Redo (same stack restores) -> OpenCommandPalette (one mounted palette). tree={}",
+        argus.dispatched_action_count(),
+        tree_path.display()
+    );
+
+    argus.finish();
+    assert_no_local_artifact_dir();
+}
+
+/// WP-KERNEL-012 MT-079 V5 (`validation_v4` remediation item 8): the mounted rich pane's PENDING-EVENT
+/// queue, drained and routed by the LIVE host, with each drain bound to a canonical Argus receipt.
+///
+/// `validation_v4` required canonical predicates for `WikilinkActivated`, `BacklinkActivated`,
+/// `TagActivated` and locus reference routing proving the exact event is drained ONCE, the
+/// NavigationTarget is correct, and no event remains or routes twice. Each round enqueues ONE event on
+/// the SAME mounted state the live pane renders, dispatches a canonical Argus action so the real host
+/// frame drains it, then rebinds an authoritative terminal snapshot carrying an action-specific
+/// predicate over the routed identity.
+///
+/// LEAKAGE CONTROL: a sibling pane is DETACHED into its own pop-out window before the rounds start, and
+/// every round asserts the detached pane's tab identities are unchanged — a drained editor event must
+/// never route into a popped-out host it did not address.
+///
+/// Argus-steering gap (disclosed, not worked around): the rich cross-reference CHIPS that ENQUEUE these
+/// events in production (`code-ref-chip-*`, `locus-ref-chip-*`, `editor.rich.wikilink.chip.*`) are
+/// inspectable but not canonical-Argus steerable — their egui node ids come from the live layout
+/// hierarchy, so the id an out-of-process agent reads from the MCP snapshot pass does not address the
+/// live widget and a dispatched `Action::Click` expires its lease with no effect. That is HBR-VIS debt
+/// in `rich_editor/renderer/rich_editor_widget.rs`, outside this MT's authorized paths. The enqueue
+/// therefore uses the same mounted-state seam the existing AC-079-5 proofs use; the DRAIN, the ROUTING
+/// and the exactly-once guarantee are all proven against authoritative live product state.
+#[test]
+fn mt079_rich_pending_events_canonical_argus() {
+    use handshake_native::rich_editor::wikilinks::inline_view::EditorEvent;
+    use handshake_native::tab_bar::tab_author_id;
+
+    /// The routed identity one drained editor event must produce, and nothing else.
+    struct Round {
+        action: &'static str,
+        /// The canonical Argus target driven so the LIVE host frame performs the drain.
+        steer_target: String,
+        event: EditorEvent,
+        expected_pane_type: PaneType,
+        expected_content_id: &'static str,
+    }
+
+    let (app, _rt) = editor_shell();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    // Detach the Chat pane so every round can prove the drained event did not leak into a POPPED-OUT
+    // host. `request_pop_out` is the exact seam the pane-header Pop Out action calls.
+    harness.state_mut().request_pop_out(PaneId::from("pane-c"));
+    harness.run_steps(3);
+    assert!(
+        harness.state().is_popped_out(&PaneId::from("pane-c")),
+        "the leakage control requires a genuinely detached sibling pane"
+    );
+    let detached_tabs_before = mt079_tab_identities(harness.state())
+        .get("pane-c")
+        .cloned()
+        .unwrap_or_default();
+
+    let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-079 canonical-Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-richevents");
+
+    let rounds = vec![
+        Round {
+            action: "wikilink-activated",
+            steer_target: tab_author_id("pane-b", 0),
+            event: EditorEvent::WikilinkActivated {
+                ref_kind: "note".into(),
+                ref_value: "MT079-Rich-Wikilink".into(),
+                resolved: true,
+            },
+            expected_pane_type: PaneType::LoomWikiPage,
+            expected_content_id: "MT079-Rich-Wikilink",
+        },
+        Round {
+            action: "backlink-activated",
+            steer_target: tab_author_id("pane-b", 0),
+            event: EditorEvent::BacklinkActivated {
+                source_document_id: "MT079-Rich-Backlink".into(),
+            },
+            expected_pane_type: PaneType::LoomWikiPage,
+            expected_content_id: "MT079-Rich-Backlink",
+        },
+        Round {
+            action: "locus-ref-activated",
+            steer_target: tab_author_id("pane-b", 0),
+            event: EditorEvent::WikilinkActivated {
+                ref_kind: handshake_native::interop::locus_interop::LOCUS_REF_KIND.into(),
+                ref_value: "locus://wp/WP-KERNEL-012".into(),
+                resolved: true,
+            },
+            expected_pane_type: PaneType::KernelDcc,
+            expected_content_id: "WP:WP-KERNEL-012",
+        },
+    ];
+
+    let mut rows: Vec<serde_json::Value> = Vec::new();
+    for round in rounds {
+        // The routed identity must not already exist, or "landed once" would be unprovable.
+        assert_eq!(
+            mt079_routed_instances(
+                harness.state(),
+                &round.expected_pane_type,
+                round.expected_content_id
+            ),
+            0,
+            "{} starts with no pre-existing routed identity",
+            round.action
+        );
+        // CANONICAL ACTION: focus the mounted rich BASE tab, which is what makes the rich pane the
+        // LIVE rendering surface whose per-frame render performs the host drain. The action-specific
+        // terminal predicate below is exactly that drain-and-route post-state.
+        let observation = argus.click_and_reinspect(&mut harness, &round.steer_target);
+        harness.run_steps(2);
+        let rich_state = harness.state().mounted_rich_state();
+        {
+            let mut state = rich_state.lock().expect("mounted rich state");
+            state.pending_events.clear();
+            state.pending_events.push(round.event);
+            assert_eq!(
+                state.pending_events.len(),
+                1,
+                "exactly one {} event is queued on the live mounted rich state",
+                round.action
+            );
+        }
+        // Let the live host drain + route, then the terminal snapshot below is rebound to that
+        // authoritative post-state (a bounded settle, never an unbounded wait).
+        harness.run_steps(8);
+
+        let expected_pane_type = round.expected_pane_type.clone();
+        let expected_content_id = round.expected_content_id;
+        let detached_probe = detached_tabs_before.clone();
+        let drained_probe = std::sync::Arc::clone(&rich_state);
+        argus.assert_latest_terminal_predicate_with_app_evidence(
+            &mut harness,
+            &format!("mt079.rich-events.{}-drains-once-and-routes", round.action),
+            serde_json::json!({
+                "action": round.action,
+                "steer_target": round.steer_target.clone(),
+                "receipt_id": observation.receipt_id,
+                "correlation_id": observation.correlation_id.clone(),
+                "expected_pane_type": round.expected_pane_type.label(),
+                "expected_content_id": round.expected_content_id,
+                "detached_pane_id": "pane-c",
+                "detached_tab_identities_before": serde_json::to_value(&detached_tabs_before)
+                    .unwrap_or_default(),
+            }),
+            move |_after, app| {
+                // (1) The editor's queue is EMPTY: the event was drained by the live host.
+                let drained = drained_probe
+                    .lock()
+                    .map(|state| state.pending_events.is_empty())
+                    .unwrap_or(false);
+                // (2) The exact NavigationTarget landed EXACTLY ONCE anywhere in the shell — not zero
+                //     (unrouted) and not twice (re-routed / double-drained).
+                let landed_once =
+                    mt079_routed_instances(app, &expected_pane_type, expected_content_id) == 1;
+                // (3) No leakage into the DETACHED host: the popped-out pane's tab identities are
+                //     byte-identical to their pre-round baseline.
+                let detached_untouched = mt079_tab_identities(app)
+                    .get("pane-c")
+                    .map(|tabs| tabs == &detached_probe)
+                    .unwrap_or(false)
+                    && app.is_popped_out(&PaneId::from("pane-c"));
+                drained && landed_once && detached_untouched
+            },
+        );
+        rows.push(mt079_action_row(
+            round.action,
+            &round.steer_target,
+            &argus,
+        ));
+    }
+
+    // ── TAG routing, bound separately: a tag is NOT a Loom block id, so the host resolves the
+    // canonical name through the mounted Tags hub rather than opening a block by that text.
+    let tag_target = tab_author_id("pane-b", 0);
+    let tag_observation = argus.click_and_reinspect(&mut harness, &tag_target);
+    harness.run_steps(2);
+    let tag_state = harness.state().mounted_rich_state();
+    {
+        let mut state = tag_state.lock().expect("mounted rich state");
+        state.pending_events.clear();
+        state.pending_events.push(EditorEvent::TagActivated {
+            canonical: "mt079-argus-tag".into(),
+            display: "#mt079-argus-tag".into(),
+        });
+    }
+    harness.run_steps(8);
+    let detached_probe = detached_tabs_before.clone();
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt079.rich-events.tag-activated-drains-once-and-opens-the-tag-hub",
+        serde_json::json!({
+            "action": "tag-activated",
+            "steer_target": tag_target.clone(),
+            "receipt_id": tag_observation.receipt_id,
+            "correlation_id": tag_observation.correlation_id.clone(),
+            "expected_pane_type": "Tags",
+            "canonical_tag": "mt079-argus-tag",
+            "detached_pane_id": "pane-c",
+        }),
+        move |_after, app| {
+            let drained = tag_state
+                .lock()
+                .map(|state| state.pending_events.is_empty())
+                .unwrap_or(false);
+            // The Tags hub surface is mounted EXACTLY once (no duplicate activation) ...
+            let tag_panes: usize = app
+                .tab_bar_states()
+                .values()
+                .map(|bar| {
+                    bar.tabs
+                        .iter()
+                        .filter(|tab| tab.pane_type.label() == "Tags")
+                        .count()
+                })
+                .sum();
+            // ... and the canonical tag text was NOT opened as a Loom block id (the exact defect the
+            // mounted-tag resolution closes).
+            let not_opened_as_block =
+                mt079_routed_instances(app, &PaneType::LoomBlock, "mt079-argus-tag") == 0;
+            let detached_untouched = mt079_tab_identities(app)
+                .get("pane-c")
+                .map(|tabs| tabs == &detached_probe)
+                .unwrap_or(false);
+            drained && tag_panes == 1 && not_opened_as_block && detached_untouched
+        },
+    );
+    rows.push(mt079_action_row("tag-activated", &tag_target, &argus));
+
+    let tree_path = artifact_dir.join("mt079-rich-pending-events-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "hsk.wp_kernel_012.mt_079.canonical_rich_pending_events@1",
+            "dispatched_action_count": argus.dispatched_action_count(),
+            "detached_leakage_control_pane": "pane-c",
+            "rounds": rows,
+        }))
+        .expect("serialize canonical MT-079 rich pending-event evidence"),
+    )
+    .expect("write canonical MT-079 rich pending-event evidence externally");
+    assert!(tree_path.is_file());
+    println!(
+        "MT-079 canonical Argus rich pending events ({} bound actions): wikilink / backlink / locus / \
+         tag each drained EXACTLY once by the live host, routed to their exact NavigationTarget, with \
+         no leakage into the detached pane-c pop-out. tree={}",
+        argus.dispatched_action_count(),
         tree_path.display()
     );
 

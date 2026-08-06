@@ -2017,13 +2017,16 @@ fn find_in_files_search_find_in_files_replace_cycle_find_in_files_bookmark_round
     let mut argus = CanonicalArgusDriver::bind(&production_app, "mt029-find-in-files");
     let _managed_wgpu_guard = wgpu_guard();
     // The mounted proof surface is deliberately WIDER than the focused unit harnesses: the production
-    // shell lays the Find pane out as one column of the live pane grid, and at 900px the query /
-    // toggles / Search / Preview / Apply / Cancel / Bookmark controls are cropped by the neighbouring
-    // pane. A validator must be able to SEE the requested surface in the captured frame, so the
-    // managed run uses a viewport that renders the whole panel inside its real pane.
+    // shell lays the Find pane out as ONE COLUMN of the live pane grid (Find | Wiki | Chat), so the
+    // pane is roughly a quarter of the viewport. At 900px the query / toggles / Search / Preview /
+    // Apply / Cancel / Bookmark controls were cropped by the neighbouring pane, and at 1800px Cancel
+    // and Bookmark Search were still clipped at the pane boundary. A validator must be able to SEE the
+    // requested surface in the captured frame, so the managed run uses a viewport whose Find column is
+    // wide enough to render every requested control inside its REAL production pane — the panel is not
+    // detached, resized, or given a special capture-only layout.
     let mut ui_harness = Harness::builder()
         .proof_mt_id("MT-029")
-        .with_size(egui::vec2(1800.0, 1100.0))
+        .with_size(egui::vec2(2560.0, 1200.0))
         .wgpu()
         .build_state(
             |ctx, app: &mut handshake_native::app::HandshakeApp| app.ui(ctx),
