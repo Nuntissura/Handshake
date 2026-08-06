@@ -2059,8 +2059,16 @@ fn live_route_round_trip_real_pg() {
     );
     let terminal_outcome = format!("{:?}", stage.lock().unwrap().last_embed_back);
     let evidence_path = artifact_dir.join("mt066-stage-canonical-argus.json");
-    argus.finish();
+    // Cleanup runs BEFORE `argus.finish()`. `finish()` consumes the driver, which drops the
+    // production `SwarmMcpServer`, and that Drop REMOVES the native-MCP binding file the server
+    // published. After it no caller can present a genuine MT-109 session token, so the authorized
+    // Flight Recorder readback inside `delete_workspace_and_assert_absent()` could not run at all.
+    // Ordering cleanup first keeps that assertion STRICT against a live binding rather than relaxing
+    // the authorization to fit the old ordering. The validator's requirement is that the PASS
+    // evidence is written only after successful cleanup AND `argus.finish()` — both still complete
+    // before the write below.
     cleanup.finish_and_assert_zero();
+    argus.finish();
     std::fs::write(
         &evidence_path,
         serde_json::to_vec_pretty(&serde_json::json!({
