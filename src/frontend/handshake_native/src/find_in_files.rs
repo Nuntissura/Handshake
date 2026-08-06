@@ -201,16 +201,28 @@ const MAX_TERMINAL_DETAIL_AUDIT_ROWS: usize = 8;
 
 /// Keep the contract base id on the factory's stable primary-pane lease; deterministically scope
 /// every additional mounted instance so Argus never sees duplicate targets.
+///
+/// This is the STATIC-id scope helper: `author_id` must already be a bounded, product-authored
+/// constant (`find-in-files.query`, ...). Content-derived routes must NOT be scoped through here —
+/// they compose their scope in one step through [`compose_author_id`], which is the only path that
+/// can shorten the CONTENT when the pane suffix no longer fits. Pane-scoping an already-oversized
+/// base cannot be repaired at this layer, so it trips the authoring-time assertion instead of
+/// silently emitting an unaddressable route.
 pub fn pane_scoped_author_id(author_id: &str, secondary_pane_id: Option<&str>) -> String {
     let Some(pane_id) = secondary_pane_id else {
         return author_id.to_owned();
     };
-    let mut encoded = String::with_capacity(pane_id.len() * 2);
-    for byte in pane_id.as_bytes() {
-        use std::fmt::Write as _;
-        write!(&mut encoded, "{byte:02x}").expect("write PaneId byte hex");
+    let verbatim = format!("{author_id}.pane-{}", encode_author_id_component(pane_id));
+    if verbatim.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES {
+        return verbatim;
     }
-    format!("{author_id}.pane-{encoded}")
+    let digested = format!("{author_id}.pane-{}", digest_author_id_component(pane_id));
+    debug_assert!(
+        digested.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+        "pane-scoped author_id is {} bytes, over the {MAX_COMPLETION_TARGET_AUTHOR_BYTES}-byte canonical completion target budget; base author_id `{author_id}` is not bounded — compose content-derived routes through compose_author_id instead",
+        digested.len()
+    );
+    digested
 }
 
 /// 24-char context window each side of a match preview (the React `MATCH_PREVIEW_CONTEXT_CHARS`).
@@ -223,6 +235,60 @@ pub const MAX_WORKSPACE_SEARCH_BOOKMARKS: usize = 20;
 /// reader). Asserted in the bookmark-blob test.
 pub const WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID: &str = "hsk.workspace_search_bookmark_state@1";
 
+/// Bound on [`SearchBookmark::stable_id`] (MT-113). Chosen so the derived
+/// `bookmark_remove_semantic_value` JSON stays FAR inside the canonical 2048-byte `semantic_value`
+/// budget, while leaving every realistic saved search (a query of roughly 450 characters or fewer) in
+/// the byte-identical verbatim regime.
+pub const MAX_BOOKMARK_STABLE_ID_BYTES: usize = 1024;
+
+// ── Bounded author_id composition (MT-113) ────────────────────────────────────────────────────────────
+//
+// A content-derived `author_id` is the ONLY name Argus has for a control, and the canonical
+// `handshake.click-completion/v1` contract bounds every author-id-shaped token field at
+// [`MAX_COMPLETION_TARGET_AUTHOR_BYTES`]. Before MT-113, composition was UNBOUNDED: a saved-search id
+// hex-encodes the query and `bookmark_*_author_id` hex-encodes THAT result (a 4x expansion of the
+// original user bytes), so a 23-character query overran the 256-byte `pending_target` budget,
+// `serialize_*` returned `None`, the observer node carried NO value, and every action on that control
+// terminalised `indeterminate` FOREVER with no diagnostic anywhere. Composition is therefore bounded
+// BY CONSTRUCTION here rather than policed downstream.
+//
+// The encoding is a deterministic two-regime function of the exact component tuple:
+//
+//   * VERBATIM  — lowercase bytewise UTF-8 hex, used whenever the FULL composed route (INCLUDING its
+//                 optional `.pane-<hex>` scope) already fits the budget. Every id that fits today is
+//                 therefore byte-identical after MT-113 and stays exactly reversible.
+//   * DIGESTED  — `zsha256-<64 lowercase hex>` per component, used only when the verbatim form would
+//                 overrun. `z` is outside the hex alphabet, so a digested component can NEVER collide
+//                 with a verbatim one, and SHA-256 keeps distinct content on distinct routes.
+//
+// INJECTIVITY: the two regimes are disjoint per component and `.` never occurs inside a component, so
+// the composed route parses back to its component tuple unambiguously; distinct tuples therefore map
+// to distinct routes (digested components under SHA-256 collision resistance).
+//
+// RESOLVABILITY: exact string-only reversal is mathematically impossible in the digested regime — no
+// bounded string can injectively encode unbounded input — so a digested route is resolved by
+// RECOMPUTATION against the live candidate set. [`hit_identity_from_result_author_id_in`] is TOTAL
+// where the string-only [`hit_identity_from_result_author_id`] is partial, and it is exactly how the
+// production panel already resolves an activated route (it recomposes the id per row).
+
+/// The canonical byte budget for any author-id-shaped completion-token field. Composition is bounded
+/// to the STRICTER of the two token budgets (`pending_target`/`observer_author_id` at 256 B, `context`
+/// at 512 B) so a synchronous control and its asynchronous sibling can never diverge in provability
+/// for the SAME id — see `mcp::action::MAX_CLICK_COMPLETION_AUTHOR_BYTES` for the asymmetry rationale.
+pub const MAX_COMPLETION_TARGET_AUTHOR_BYTES: usize =
+    crate::mcp::action::MAX_CLICK_COMPLETION_AUTHOR_BYTES;
+
+/// The canonical byte budget for the pre-dispatch `semantic_value` an observer declaration carries.
+pub const MAX_COMPLETION_SEMANTIC_BYTES: usize =
+    crate::mcp::action::MAX_CLICK_COMPLETION_SEMANTIC_BYTES;
+
+/// Sentinel introducing a DIGESTED author_id component. `z` is outside the lowercase-hex alphabet, so
+/// a digested component is unambiguously distinguishable from a verbatim one at every position.
+pub const AUTHOR_ID_DIGEST_SENTINEL: &str = "zsha256-";
+
+/// Byte length of one digested component (`zsha256-` + 64 hex characters).
+const DIGESTED_AUTHOR_ID_COMPONENT_BYTES: usize = AUTHOR_ID_DIGEST_SENTINEL.len() + 64;
+
 fn encode_author_id_component(value: &str) -> String {
     let mut encoded = String::with_capacity(value.len() * 2);
     for byte in value.as_bytes() {
@@ -230,6 +296,70 @@ fn encode_author_id_component(value: &str) -> String {
         let _ = write!(encoded, "{byte:02x}");
     }
     encoded
+}
+
+/// The bounded, injective stand-in for a component whose verbatim hex would overrun the route budget.
+/// It digests the exact UTF-8 BYTES, so a multibyte codepoint or grapheme cluster is never split.
+fn digest_author_id_component(value: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = format!(
+        "{AUTHOR_ID_DIGEST_SENTINEL}{:x}",
+        Sha256::digest(value.as_bytes())
+    );
+    debug_assert_eq!(digest.len(), DIGESTED_AUTHOR_ID_COMPONENT_BYTES);
+    digest
+}
+
+fn join_author_id(prefix: &str, components: &[String], pane: Option<&str>) -> String {
+    let mut composed = String::from(prefix);
+    for (index, component) in components.iter().enumerate() {
+        if index > 0 {
+            composed.push('.');
+        }
+        composed.push_str(component);
+    }
+    if let Some(pane) = pane {
+        composed.push_str(".pane-");
+        composed.push_str(pane);
+    }
+    composed
+}
+
+/// Compose a content-derived route that is GUARANTEED to fit [`MAX_COMPLETION_TARGET_AUTHOR_BYTES`],
+/// INCLUDING its optional pane scope, for ARBITRARY user content.
+///
+/// The reduction order is fixed so the result is a pure function of `(prefix, components, pane)`:
+/// verbatim -> digest the content components -> digest the pane component. Nothing here can widen the
+/// budget, so user content can never silently disable a control's completion token again.
+fn compose_author_id(prefix: &str, components: &[&str], secondary_pane_id: Option<&str>) -> String {
+    let verbatim: Vec<String> = components
+        .iter()
+        .map(|component| encode_author_id_component(component))
+        .collect();
+    let pane_verbatim = secondary_pane_id.map(encode_author_id_component);
+    let composed = join_author_id(prefix, &verbatim, pane_verbatim.as_deref());
+    if composed.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES {
+        // The overwhelmingly common path, and the one that keeps every already-working route
+        // byte-identical: the verbatim encoding is emitted UNCHANGED whenever it fits.
+        return composed;
+    }
+    let digested: Vec<String> = components
+        .iter()
+        .map(|component| digest_author_id_component(component))
+        .collect();
+    let composed = join_author_id(prefix, &digested, pane_verbatim.as_deref());
+    if composed.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES {
+        return composed;
+    }
+    let pane_digested = secondary_pane_id.map(digest_author_id_component);
+    let composed = join_author_id(prefix, &digested, pane_digested.as_deref());
+    debug_assert!(
+        composed.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+        "composed author_id is {} bytes, over the {MAX_COMPLETION_TARGET_AUTHOR_BYTES}-byte canonical completion target budget even fully digested; prefix `{prefix}` plus {} components does not fit the route contract",
+        composed.len(),
+        components.len()
+    );
+    composed
 }
 
 fn decode_author_id_component(value: &str) -> Option<String> {
@@ -244,16 +374,33 @@ fn decode_author_id_component(value: &str) -> Option<String> {
 }
 
 /// The result-row author_id for a hit. Both identity components are encoded byte-for-byte so distinct
-/// UTF-8 backend identities can never collapse onto the same AccessKit route.
+/// UTF-8 backend identities can never collapse onto the same AccessKit route, and the composed route is
+/// bounded so an arbitrarily long backend `ref_id` (a file path, for example) cannot silently disable
+/// this row's completion token.
 pub fn result_author_id(source_kind: &str, ref_id: &str) -> String {
-    format!(
-        "{RESULT_AUTHOR_ID_PREFIX}{}.{}",
-        encode_author_id_component(source_kind),
-        encode_author_id_component(ref_id)
+    pane_scoped_result_author_id(source_kind, ref_id, None)
+}
+
+/// [`result_author_id`] composed together with its pane scope in ONE bounded step, so the SCOPED route
+/// also fits the canonical completion target budget.
+pub fn pane_scoped_result_author_id(
+    source_kind: &str,
+    ref_id: &str,
+    secondary_pane_id: Option<&str>,
+) -> String {
+    compose_author_id(
+        RESULT_AUTHOR_ID_PREFIX,
+        &[source_kind, ref_id],
+        secondary_pane_id,
     )
 }
 
 /// Reverse an AccessKit result route into the exact backend `(source_kind, ref_id)` identity.
+///
+/// EXACT for the verbatim regime, which is every route whose composed form fits the budget — the case
+/// MT-029's `accesskit_result_ids_are_utf8_injective_and_exactly_reversible` pins. A route carrying a
+/// DIGESTED component (over-budget content) or a pane scope is not reversible from the string alone;
+/// use [`hit_identity_from_result_author_id_in`], which resolves by recomputation and is total.
 pub fn hit_identity_from_result_author_id(author_id: &str) -> Option<(String, String)> {
     let encoded = author_id.strip_prefix(RESULT_AUTHOR_ID_PREFIX)?;
     let (source_kind, ref_id) = encoded.split_once('.')?;
@@ -266,44 +413,111 @@ pub fn hit_identity_from_result_author_id(author_id: &str) -> Option<(String, St
     ))
 }
 
+/// Resolve ANY result route — verbatim or digested, scoped or unscoped — back to the exact backend
+/// identity that produced it, by recomposing each live candidate through the SAME bounded composer.
+///
+/// This is the resolution the production panel already performs implicitly (it recomposes the route for
+/// every rendered row), lifted into a reusable, total function so a bounded route is never a dead end.
+pub fn hit_identity_from_result_author_id_in<'a, I>(
+    author_id: &str,
+    candidates: I,
+    secondary_pane_id: Option<&str>,
+) -> Option<(String, String)>
+where
+    I: IntoIterator<Item = (&'a str, &'a str)>,
+{
+    if secondary_pane_id.is_none() {
+        if let Some(identity) = hit_identity_from_result_author_id(author_id) {
+            return Some(identity);
+        }
+    }
+    candidates.into_iter().find_map(|(source_kind, ref_id)| {
+        (pane_scoped_result_author_id(source_kind, ref_id, secondary_pane_id) == author_id)
+            .then(|| (source_kind.to_owned(), ref_id.to_owned()))
+    })
+}
+
 /// The preview-item author_id for a planned document:
 /// `find-in-files.preview.{lowercase_hex(document_id.as_bytes())}`.
 pub fn preview_author_id(document_id: &str) -> String {
-    format!(
-        "{PREVIEW_AUTHOR_ID_PREFIX}{}",
-        encode_author_id_component(document_id)
-    )
+    pane_scoped_preview_author_id(document_id, None)
+}
+
+/// See [`preview_author_id`]; composes the pane scope in the same bounded step.
+pub fn pane_scoped_preview_author_id(document_id: &str, secondary_pane_id: Option<&str>) -> String {
+    compose_author_id(PREVIEW_AUTHOR_ID_PREFIX, &[document_id], secondary_pane_id)
 }
 
 /// Exact before-content label for one planned document.
 pub fn preview_before_author_id(document_id: &str) -> String {
-    format!(
-        "{PREVIEW_BEFORE_AUTHOR_ID_PREFIX}{}",
-        encode_author_id_component(document_id)
+    pane_scoped_preview_before_author_id(document_id, None)
+}
+
+/// See [`preview_before_author_id`]; composes the pane scope in the same bounded step.
+pub fn pane_scoped_preview_before_author_id(
+    document_id: &str,
+    secondary_pane_id: Option<&str>,
+) -> String {
+    compose_author_id(
+        PREVIEW_BEFORE_AUTHOR_ID_PREFIX,
+        &[document_id],
+        secondary_pane_id,
     )
 }
 
 /// Exact after-content label for one planned document.
 pub fn preview_after_author_id(document_id: &str) -> String {
-    format!(
-        "{PREVIEW_AFTER_AUTHOR_ID_PREFIX}{}",
-        encode_author_id_component(document_id)
+    pane_scoped_preview_after_author_id(document_id, None)
+}
+
+/// See [`preview_after_author_id`]; composes the pane scope in the same bounded step.
+pub fn pane_scoped_preview_after_author_id(
+    document_id: &str,
+    secondary_pane_id: Option<&str>,
+) -> String {
+    compose_author_id(
+        PREVIEW_AFTER_AUTHOR_ID_PREFIX,
+        &[document_id],
+        secondary_pane_id,
     )
 }
 
-/// Stable per-bookmark Restore route using the lowercase bytewise UTF-8 hex contract.
+/// Stable per-bookmark Restore route using the lowercase bytewise UTF-8 hex contract, bounded so a long
+/// saved query cannot push the route past the canonical completion target budget.
 pub fn bookmark_restore_author_id(bookmark_id: &str) -> String {
-    format!(
-        "{BOOKMARK_RESTORE_AUTHOR_ID_PREFIX}{}",
-        encode_author_id_component(bookmark_id)
+    pane_scoped_bookmark_restore_author_id(bookmark_id, None)
+}
+
+/// See [`bookmark_restore_author_id`]; composes the pane scope in the same bounded step.
+pub fn pane_scoped_bookmark_restore_author_id(
+    bookmark_id: &str,
+    secondary_pane_id: Option<&str>,
+) -> String {
+    compose_author_id(
+        BOOKMARK_RESTORE_AUTHOR_ID_PREFIX,
+        &[bookmark_id],
+        secondary_pane_id,
     )
 }
 
 /// Stable per-bookmark Remove route using the lowercase bytewise UTF-8 hex contract.
+///
+/// This is the exact route MT-029 measured as UNPROVABLE for a 23-character search query: it is derived
+/// from [`SearchBookmark::stable_id`], which already hex-encodes the query, so the second hex pass was a
+/// 4x expansion of the original user bytes. It is now bounded by construction.
 pub fn bookmark_remove_author_id(bookmark_id: &str) -> String {
-    format!(
-        "{BOOKMARK_REMOVE_AUTHOR_ID_PREFIX}{}",
-        encode_author_id_component(bookmark_id)
+    pane_scoped_bookmark_remove_author_id(bookmark_id, None)
+}
+
+/// See [`bookmark_remove_author_id`]; composes the pane scope in the same bounded step.
+pub fn pane_scoped_bookmark_remove_author_id(
+    bookmark_id: &str,
+    secondary_pane_id: Option<&str>,
+) -> String {
+    compose_author_id(
+        BOOKMARK_REMOVE_AUTHOR_ID_PREFIX,
+        &[bookmark_id],
+        secondary_pane_id,
     )
 }
 
@@ -1066,6 +1280,14 @@ impl SearchBookmark {
     /// by its UTF-8 byte length and encoded with lowercase bytewise hex, so case, Unicode, empty fields,
     /// and option values cannot collapse onto another saved search. Re-saving the same semantic search
     /// still replaces (dedups) the prior bookmark.
+    ///
+    /// MT-113: the id is BOUNDED at [`MAX_BOOKMARK_STABLE_ID_BYTES`]. A saved search whose verbatim id
+    /// would overrun switches every component to its `zsha256-` digest behind the SAME `.{len}-` framing.
+    /// That keeps the id injective (the byte length is still framed and the digest is collision
+    /// resistant) and keeps dedup exact (it stays a pure function of the semantic tuple), while
+    /// preventing a long query from pushing the derived `bookmark_remove_semantic_value` past the
+    /// canonical 2048-byte `semantic_value` budget — the same silent-token failure class this MT closes
+    /// for `pending_target`. Every id that fits today is byte-identical.
     pub fn stable_id(&self) -> String {
         let components = [
             self.query.trim(),
@@ -1077,13 +1299,31 @@ impl SearchBookmark {
             if self.is_regex { "true" } else { "false" },
         ];
 
-        let mut stable = String::from("bookmark-v1");
-        for component in components {
-            use std::fmt::Write as _;
-            let _ = write!(stable, ".{}-", component.len());
-            stable.push_str(&encode_author_id_component(component));
+        let compose = |digested: bool| {
+            let mut stable = String::from("bookmark-v1");
+            for component in components {
+                use std::fmt::Write as _;
+                let _ = write!(stable, ".{}-", component.len());
+                stable.push_str(&if digested {
+                    digest_author_id_component(component)
+                } else {
+                    encode_author_id_component(component)
+                });
+            }
+            stable
+        };
+
+        let verbatim = compose(false);
+        if verbatim.len() <= MAX_BOOKMARK_STABLE_ID_BYTES {
+            return verbatim;
         }
-        stable
+        let digested = compose(true);
+        debug_assert!(
+            digested.len() <= MAX_BOOKMARK_STABLE_ID_BYTES,
+            "digested bookmark stable_id is {} bytes, over the {MAX_BOOKMARK_STABLE_ID_BYTES}-byte bound",
+            digested.len()
+        );
+        digested
     }
 
     /// The display label (the React `bookmarkLabelForSearch`): the query if any, else the kind/filters.
@@ -1351,7 +1591,51 @@ impl ActionCompletion {
         )
     }
 
+    /// Publish the observer's state, or — when the token genuinely cannot be composed — the TYPED
+    /// MT-113 completion-unavailable marker in its place.
+    ///
+    /// Before MT-113 a failed composition simply produced `None`: the observer node carried NO value,
+    /// the MCP boundary saw an absent token, and the action terminalised `indeterminate` with no
+    /// diagnostic anywhere. Composition is now bounded so an over-budget author id cannot reach this
+    /// point, but the marker keeps the failure NAMED rather than silent for every remaining cause.
     fn observer_value(&self, effect: &str, context: &str) -> Option<String> {
+        self.observer_token_value(effect, context).or_else(|| {
+            let (field, bytes, budget) = self.token_overrun()?;
+            crate::mcp::action::click_completion_unavailable_value(
+                effect,
+                context,
+                self.generation,
+                field,
+                bytes,
+                budget,
+            )
+        })
+    }
+
+    /// The exact token field that cannot be carried, measured against its canonical budget.
+    fn token_overrun(&self) -> Option<(&'static str, usize, usize)> {
+        if let Some(target) = self.target.as_deref() {
+            if target.len() > MAX_COMPLETION_TARGET_AUTHOR_BYTES {
+                return Some((
+                    "pending_target",
+                    target.len(),
+                    MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+                ));
+            }
+        }
+        if let Some(semantic) = self.semantic.as_deref() {
+            if semantic.len() > MAX_COMPLETION_SEMANTIC_BYTES {
+                return Some((
+                    "semantic_value",
+                    semantic.len(),
+                    MAX_COMPLETION_SEMANTIC_BYTES,
+                ));
+            }
+        }
+        None
+    }
+
+    fn observer_token_value(&self, effect: &str, context: &str) -> Option<String> {
         match self.state {
             crate::mcp::action::ClickCompletionState::Ready => {
                 crate::mcp::action::serialize_observer_click_state(
@@ -3549,9 +3833,14 @@ fn show_with_author_scope(
         ui.separator();
         ui.label(egui::RichText::new("Saved searches").strong());
         for bm in &state.bookmarks {
+            // Content-derived routes compose their pane scope INSIDE the bounded composer (MT-113):
+            // `scoped(...)` can only shorten the pane component, never the content, so pane-scoping an
+            // already-oversized base would still overrun the canonical completion target budget.
             let restore_base_author_id = bookmark_restore_author_id(&bm.id);
-            let restore_scoped_author_id = scoped(&restore_base_author_id);
-            let remove_scoped_author_id = scoped(&bookmark_remove_author_id(&bm.id));
+            let restore_scoped_author_id =
+                pane_scoped_bookmark_restore_author_id(&bm.id, secondary_pane_id);
+            let remove_scoped_author_id =
+                pane_scoped_bookmark_remove_author_id(&bm.id, secondary_pane_id);
             // Restore is purely local and keeps its row mounted -> same-target acknowledgement.
             let restore_completion = state.same_target_completion_value(
                 BOOKMARK_RESTORE_COMPLETION_EFFECT,
@@ -3636,7 +3925,11 @@ fn show_with_author_scope(
                     });
                     let row = inner.response.interact(egui::Sense::click());
                     let row_base_author_id = result_author_id(&hit.source_kind, &hit.ref_id);
-                    let row_scoped_author_id = scoped(&row_base_author_id);
+                    let row_scoped_author_id = pane_scoped_result_author_id(
+                        &hit.source_kind,
+                        &hit.ref_id,
+                        secondary_pane_id,
+                    );
                     accessibility::emit_interactive_node(ui.ctx(), row.id, &row_scoped_author_id);
                     // Under the shell, activating a row REPLACES this surface with the routed editor,
                     // so the row is a TRANSIENT observer target bound to the shell-owned navigation
@@ -3696,7 +3989,8 @@ fn show_with_author_scope(
             .show(ui, |ui| {
                 for plan in &state.preview_plans {
                     let preview_row_base_author_id = preview_author_id(&plan.document_id);
-                    let preview_row_author_id = scoped(&preview_row_base_author_id);
+                    let preview_row_author_id =
+                        pane_scoped_preview_author_id(&plan.document_id, secondary_pane_id);
                     let preview_open = state
                         .expanded_preview_document_ids
                         .contains(&plan.document_id);
@@ -3713,9 +4007,10 @@ fn show_with_author_scope(
                                 .weak(),
                         );
                         ui.ctx().accesskit_node_builder(before.id, |node| {
-                            node.set_author_id(scoped(&preview_before_author_id(
+                            node.set_author_id(pane_scoped_preview_before_author_id(
                                 &plan.document_id,
-                            )));
+                                secondary_pane_id,
+                            ));
                             node.set_label("Replacement preview before");
                             node.set_value(plan.before_preview.clone());
                         });
@@ -3725,7 +4020,10 @@ fn show_with_author_scope(
                                 .weak(),
                         );
                         ui.ctx().accesskit_node_builder(after.id, |node| {
-                            node.set_author_id(scoped(&preview_after_author_id(&plan.document_id)));
+                            node.set_author_id(pane_scoped_preview_after_author_id(
+                                &plan.document_id,
+                                secondary_pane_id,
+                            ));
                             node.set_label("Replacement preview after");
                             node.set_value(plan.after_preview.clone());
                         });
@@ -3816,8 +4114,10 @@ fn show_with_author_scope(
         state.record_same_target_activation(&restore_author_id);
     }
     if let Some(id) = remove_bookmark_id {
+        // The observer's `pending_target` MUST be the exact route the row published, so it is composed
+        // through the SAME bounded composer rather than by pane-scoping an unbounded base (MT-113).
         state.bookmark_action.begin(
-            scoped(&bookmark_remove_author_id(&id)),
+            pane_scoped_bookmark_remove_author_id(&id, secondary_pane_id),
             FindInFilesPanelState::bookmark_remove_semantic_value(&id),
         );
         state.remove_bookmark(search_client, workspace_id, &id);
@@ -5442,5 +5742,568 @@ mod tests {
             state.preview_plans.is_empty(),
             "MT-029 AC-7: a stale preview computes NOTHING"
         );
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════════════════
+    // MT-113 — bounded author_id composition (AC-113-1/2/4/5, PT-113-1, PT-113-2)
+    // ══════════════════════════════════════════════════════════════════════════════════════════════
+
+    /// The exact pre-MT-113 composition, reproduced verbatim so byte-identity is proven against the
+    /// REAL legacy algorithm rather than against a remembered description of it.
+    fn legacy_verbatim_route(prefix: &str, components: &[&str], pane: Option<&str>) -> String {
+        let mut composed = String::from(prefix);
+        for (index, component) in components.iter().enumerate() {
+            if index > 0 {
+                composed.push('.');
+            }
+            composed.push_str(&encode_author_id_component(component));
+        }
+        if let Some(pane) = pane {
+            composed.push_str(".pane-");
+            composed.push_str(&encode_author_id_component(pane));
+        }
+        composed
+    }
+
+    fn bookmark_with_query(query: &str) -> SearchBookmark {
+        let mut bookmark = SearchBookmark {
+            id: String::new(),
+            label: String::new(),
+            query: query.to_owned(),
+            kind: KindFilter::All,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-08-05T00:00:00Z".to_owned(),
+        };
+        bookmark.id = bookmark.stable_id();
+        bookmark.label = bookmark.display_label();
+        bookmark
+    }
+
+    /// Deterministic adversarial corpus for PT-113-1. Every entry is built by appending WHOLE `&str`
+    /// atoms, so a generated input can never split a codepoint: multibyte scalars, 4-byte astral
+    /// scalars and multi-codepoint grapheme clusters are always appended intact.
+    fn adversarial_author_id_inputs() -> Vec<String> {
+        let atoms: [&str; 16] = [
+            "a",
+            "authentication middleware refactor",
+            "r\u{e9}sum\u{e9}",
+            "\u{6587}\u{6863}",
+            "\u{1F469}\u{200D}\u{1F4BB}", // ZWJ grapheme cluster of 4-byte scalars
+            "\u{1F1F3}\u{1F1F1}",         // regional-indicator pair: one grapheme, two scalars
+            "e\u{0301}\u{0323}",          // base + two combining marks: one grapheme cluster
+            "\u{10348}",                  // 4-byte astral scalar
+            "\u{202E}rtl-override",       // bidi control
+            ".",                          // the route separator itself
+            "..",
+            "pane-",
+            "zsha256-deadbeef", // an input that MIMICS the digest sentinel
+            "0123456789abcdef", // an input shaped exactly like verbatim hex output
+            " leading and trailing ",
+            "/path/with/slashes:and:colons?and=query",
+        ];
+        let mut generated = Vec::new();
+        let mut state: u64 = 0x5DEE_CE66_D113_0001;
+        for target_len in [
+            0usize, 1, 11, 21, 22, 23, 24, 40, 64, 100, 128, 256, 512, 1024, 4096,
+        ] {
+            for variant in 0..4u32 {
+                let mut value = String::new();
+                while value.len() < target_len {
+                    state = state
+                        .wrapping_mul(6_364_136_223_846_793_005)
+                        .wrapping_add(1_442_695_040_888_963_407)
+                        ^ u64::from(variant);
+                    let atom = atoms[(state >> 33) as usize % atoms.len()];
+                    value.push_str(atom);
+                }
+                generated.push(value);
+            }
+        }
+        generated.extend(atoms.iter().map(|atom| (*atom).to_owned()));
+        generated.push(String::new());
+        generated.push("a".repeat(22));
+        generated.push("a".repeat(23));
+        generated.push("\u{1F469}\u{200D}\u{1F4BB}".repeat(200));
+        generated
+    }
+
+    /// PT-113-1 / AC-113-1. Over generated long, multibyte and adversarial inputs (grapheme clusters
+    /// and 4-byte codepoints included, never split): every composed route — scoped and unscoped —
+    /// stays inside the canonical completion-target budget and its completion token ALWAYS
+    /// serializes. The bound holds for the content, for the pane scope, and for both together.
+    #[test]
+    fn mt113_pt1_composed_author_ids_stay_in_budget_and_always_serialize() {
+        let long_pane = "\u{1F469}\u{200D}\u{1F4BB}".repeat(64);
+        let panes: [Option<&str>; 4] = [
+            None,
+            Some("pane-b"),
+            Some("6f0f2b0e-1c2d-4f3a-9b8c-7d6e5f4a3b2c"),
+            Some(long_pane.as_str()),
+        ];
+        let mut checked = 0usize;
+        for value in adversarial_author_id_inputs() {
+            let bookmark = bookmark_with_query(&value);
+            assert!(
+                bookmark.id.len() <= MAX_BOOKMARK_STABLE_ID_BYTES,
+                "bookmark stable_id is {} bytes for a {}-byte query",
+                bookmark.id.len(),
+                value.len()
+            );
+            let semantic = FindInFilesPanelState::bookmark_remove_semantic_value(&bookmark.id);
+            assert!(
+                semantic.len() <= MAX_COMPLETION_SEMANTIC_BYTES,
+                "bookmark remove semantic_value is {} bytes",
+                semantic.len()
+            );
+            for pane in panes {
+                let routes = [
+                    (
+                        "bookmark-remove",
+                        pane_scoped_bookmark_remove_author_id(&bookmark.id, pane),
+                    ),
+                    (
+                        "bookmark-restore",
+                        pane_scoped_bookmark_restore_author_id(&bookmark.id, pane),
+                    ),
+                    ("result", pane_scoped_result_author_id("file", &value, pane)),
+                    ("preview", pane_scoped_preview_author_id(&value, pane)),
+                    (
+                        "preview-before",
+                        pane_scoped_preview_before_author_id(&value, pane),
+                    ),
+                    (
+                        "preview-after",
+                        pane_scoped_preview_after_author_id(&value, pane),
+                    ),
+                ];
+                for (label, route) in routes {
+                    assert!(
+                        route.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+                        "{label} route is {} bytes for a {}-byte input (pane {pane:?}); the canonical budget is {MAX_COMPLETION_TARGET_AUTHOR_BYTES}",
+                        route.len(),
+                        value.len()
+                    );
+                    assert!(
+                        !route.chars().any(char::is_control),
+                        "{label} route must stay control-character free"
+                    );
+                    // The exact call that returned `None` before MT-113.
+                    assert!(
+                        crate::mcp::action::serialize_observer_click_state(
+                            BOOKMARK_COMPLETION_EFFECT,
+                            "find-in-files.bookmark:ws-1",
+                            7,
+                            crate::mcp::action::ClickCompletionState::Pending,
+                            Some(&route),
+                            Some(&semantic),
+                        )
+                        .is_some(),
+                        "{label} route ({} bytes) did not serialize a Pending observer token",
+                        route.len()
+                    );
+                    // The SAME id must also be legal in the wider `context` field, so a synchronous
+                    // control and its asynchronous sibling can never diverge (AC-113-4).
+                    assert!(
+                        crate::mcp::action::serialize_same_target_click_completion(
+                            BOOKMARK_RESTORE_COMPLETION_EFFECT,
+                            &route,
+                            1,
+                            crate::mcp::action::ClickCompletionState::Applied,
+                        )
+                        .is_some(),
+                        "{label} route is legal as pending_target but not as context"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(
+            checked > 1_000,
+            "the property corpus must be substantial: {checked}"
+        );
+    }
+
+    /// AC-113-1 regression pin: the exact inputs MT-029 measured. 22 characters already fitted, 23
+    /// characters overran at 260 bytes, and the 34-character operator example composed a 304-byte
+    /// route whose token was silently dropped.
+    #[test]
+    fn mt113_measured_regression_inputs_now_compose_in_budget() {
+        for query in [
+            "a".repeat(22),
+            "a".repeat(23),
+            "authentication middleware refactor".to_owned(),
+        ] {
+            let bookmark = bookmark_with_query(&query);
+            let remove = bookmark_remove_author_id(&bookmark.id);
+            let restore = bookmark_restore_author_id(&bookmark.id);
+            assert!(
+                remove.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES
+                    && restore.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+                "query {:?} composes remove={} restore={} bytes",
+                query,
+                remove.len(),
+                restore.len()
+            );
+            let semantic = FindInFilesPanelState::bookmark_remove_semantic_value(&bookmark.id);
+            assert!(
+                crate::mcp::action::serialize_observer_click_state(
+                    BOOKMARK_COMPLETION_EFFECT,
+                    "find-in-files.bookmark:ws-1",
+                    1,
+                    crate::mcp::action::ClickCompletionState::Pending,
+                    Some(&remove),
+                    Some(&semantic),
+                )
+                .is_some(),
+                "query {query:?} must publish a Pending observer token"
+            );
+        }
+    }
+
+    /// AC-113-2 and the hard backward-compatibility constraint: EVERY route that fits today is
+    /// BYTE-IDENTICAL after MT-113. Proven against the legacy algorithm itself, over the same
+    /// adversarial corpus, for every composition site and every pane scope.
+    #[test]
+    fn mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition() {
+        let panes: [Option<&str>; 3] = [
+            None,
+            Some("pane-b"),
+            Some("6f0f2b0e-1c2d-4f3a-9b8c-7d6e5f4a3b2c"),
+        ];
+        let mut identical = 0usize;
+        let mut bounded = 0usize;
+        for value in adversarial_author_id_inputs() {
+            for pane in panes {
+                let cases = [
+                    (
+                        BOOKMARK_REMOVE_AUTHOR_ID_PREFIX,
+                        vec![value.as_str()],
+                        pane_scoped_bookmark_remove_author_id(&value, pane),
+                    ),
+                    (
+                        BOOKMARK_RESTORE_AUTHOR_ID_PREFIX,
+                        vec![value.as_str()],
+                        pane_scoped_bookmark_restore_author_id(&value, pane),
+                    ),
+                    (
+                        PREVIEW_AUTHOR_ID_PREFIX,
+                        vec![value.as_str()],
+                        pane_scoped_preview_author_id(&value, pane),
+                    ),
+                    (
+                        PREVIEW_BEFORE_AUTHOR_ID_PREFIX,
+                        vec![value.as_str()],
+                        pane_scoped_preview_before_author_id(&value, pane),
+                    ),
+                    (
+                        PREVIEW_AFTER_AUTHOR_ID_PREFIX,
+                        vec![value.as_str()],
+                        pane_scoped_preview_after_author_id(&value, pane),
+                    ),
+                    (
+                        RESULT_AUTHOR_ID_PREFIX,
+                        vec!["file", value.as_str()],
+                        pane_scoped_result_author_id("file", &value, pane),
+                    ),
+                ];
+                for (prefix, components, actual) in cases {
+                    let legacy = legacy_verbatim_route(prefix, &components, pane);
+                    if legacy.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES {
+                        assert_eq!(
+                            actual, legacy,
+                            "a route that already fits MUST be byte-identical after MT-113"
+                        );
+                        identical += 1;
+                    } else {
+                        assert_ne!(
+                            actual, legacy,
+                            "an over-budget route must have been bounded"
+                        );
+                        assert!(actual.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES);
+                        bounded += 1;
+                    }
+                }
+            }
+        }
+        assert!(
+            identical > 100,
+            "byte-identity must be exercised broadly: {identical}"
+        );
+        assert!(
+            bounded > 100,
+            "bounding must be exercised broadly: {bounded}"
+        );
+    }
+
+    /// AC-113-2: `SearchBookmark::stable_id` is likewise byte-identical wherever it already fits, so
+    /// persisted bookmark identity and its dedup semantics are unchanged for real saved searches.
+    #[test]
+    fn mt113_bookmark_stable_id_is_byte_identical_where_it_fits_and_still_dedups() {
+        let legacy_stable_id = |bookmark: &SearchBookmark| {
+            let components = [
+                bookmark.query.trim(),
+                bookmark.kind.wire(),
+                bookmark.tag_filter.trim(),
+                bookmark.path_filter.trim(),
+                if bookmark.case_sensitive {
+                    "true"
+                } else {
+                    "false"
+                },
+                if bookmark.whole_word { "true" } else { "false" },
+                if bookmark.is_regex { "true" } else { "false" },
+            ];
+            let mut stable = String::from("bookmark-v1");
+            for component in components {
+                use std::fmt::Write as _;
+                let _ = write!(stable, ".{}-", component.len());
+                stable.push_str(&encode_author_id_component(component));
+            }
+            stable
+        };
+        let mut seen: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        for value in adversarial_author_id_inputs() {
+            let bookmark = bookmark_with_query(&value);
+            let legacy = legacy_stable_id(&bookmark);
+            if legacy.len() <= MAX_BOOKMARK_STABLE_ID_BYTES {
+                assert_eq!(bookmark.id, legacy, "in-budget stable_id must not change");
+            }
+            assert!(bookmark.id.len() <= MAX_BOOKMARK_STABLE_ID_BYTES);
+            // Dedup is still an exact function of the semantic tuple.
+            assert_eq!(bookmark.id, bookmark_with_query(&value).id);
+            if let Some(previous) = seen.insert(bookmark.id.clone(), value.clone()) {
+                assert_eq!(
+                    previous, value,
+                    "two distinct saved searches collided on one id"
+                );
+            }
+        }
+    }
+
+    /// AC-113-1 plus the injectivity requirement: distinct content NEVER collapses onto one route,
+    /// across the verbatim regime, the digested regime, and the boundary between them — including
+    /// inputs deliberately shaped like verbatim hex and like the digest sentinel.
+    #[test]
+    fn mt113_bounded_routes_stay_injective_across_both_regimes() {
+        let panes: [Option<&str>; 3] = [None, Some("pane-b"), Some("pane-c")];
+        let mut seen: std::collections::HashMap<String, (String, Option<&str>)> =
+            std::collections::HashMap::new();
+        for value in adversarial_author_id_inputs() {
+            for pane in panes {
+                let route = pane_scoped_bookmark_remove_author_id(&value, pane);
+                if let Some((previous, previous_pane)) =
+                    seen.insert(route.clone(), (value.clone(), pane))
+                {
+                    assert!(
+                        previous == value && previous_pane == pane,
+                        "route collision: {previous:?}/{previous_pane:?} and {value:?}/{pane:?} both compose {route}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// The resolvability requirement: a BOUNDED route is still resolvable back to the exact target it
+    /// addresses. String-only reversal stays exact in the verbatim regime (MT-029's contract); the
+    /// digested regime resolves by recomputation against the live candidate set, which is exactly how
+    /// the production panel matches an activated row.
+    #[test]
+    fn mt113_bounded_result_routes_remain_resolvable_to_their_exact_identity() {
+        let long_path = format!("/{}/deep/nested/path.md", "segment".repeat(40));
+        let candidates: Vec<(&str, &str)> = vec![
+            ("loom_block", "blk/1:x"),
+            ("document", "KRD-1:/foo?x=1"),
+            ("\u{6587}\u{6863}", "r\u{e9}sum\u{e9}/\u{6771}\u{4eac}"),
+            ("file", long_path.as_str()),
+            ("file", "/short.md"),
+        ];
+        for pane in [None, Some("6f0f2b0e-1c2d-4f3a-9b8c-7d6e5f4a3b2c")] {
+            for (source_kind, ref_id) in candidates.iter().copied() {
+                let route = pane_scoped_result_author_id(source_kind, ref_id, pane);
+                assert!(route.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES);
+                assert_eq!(
+                    hit_identity_from_result_author_id_in(&route, candidates.iter().copied(), pane),
+                    Some((source_kind.to_owned(), ref_id.to_owned())),
+                    "every bounded route must resolve back to its exact backend identity"
+                );
+            }
+        }
+        // The long path is the case that is NOT string-reversible; it is still exactly resolvable.
+        let digested = result_author_id("file", &long_path);
+        assert!(
+            digested.contains(AUTHOR_ID_DIGEST_SENTINEL),
+            "the over-budget path must have taken the digested regime"
+        );
+        assert_eq!(
+            hit_identity_from_result_author_id(&digested),
+            None,
+            "a digested route is honestly NOT string-reversible"
+        );
+        assert_eq!(
+            hit_identity_from_result_author_id_in(&digested, candidates.iter().copied(), None),
+            Some(("file".to_owned(), long_path.clone()))
+        );
+    }
+
+    /// AC-113-5 (headless half): the production panel, rendered with a bookmark saved from a REALISTIC
+    /// long query, publishes a Remove row whose completion observer carries a real token naming that
+    /// exact route. This is the precise state that produced a permanently `indeterminate` receipt
+    /// before MT-113 — the observer node carried no value at all.
+    #[test]
+    fn mt113_long_query_bookmark_remove_publishes_an_observable_completion_token() {
+        use egui_kittest::kittest::NodeT as _;
+        use std::sync::{Arc, Mutex};
+
+        let query = "authentication middleware refactor across the workspace";
+        let bookmark = bookmark_with_query(query);
+        let remove_route = bookmark_remove_author_id(&bookmark.id);
+        assert!(
+            legacy_verbatim_route(BOOKMARK_REMOVE_AUTHOR_ID_PREFIX, &[&bookmark.id], None).len()
+                > MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+            "this proof is only meaningful for a query whose LEGACY route overran the budget"
+        );
+        let mut panel = FindInFilesPanelState::new();
+        panel.bind_workspace(Some("ws-mt113"), 0);
+        panel.bookmarks = vec![bookmark.clone()];
+        let panel = Arc::new(Mutex::new(panel));
+        let render_state = Arc::clone(&panel);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build current-thread runtime");
+        let search_client = crate::backend_client::WorkspaceSearchClient::new(
+            "http://127.0.0.1:1",
+            runtime.handle().clone(),
+        );
+        let doc_client = crate::backend_client::RichDocClient::new(
+            "http://127.0.0.1:1",
+            runtime.handle().clone(),
+        );
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(900.0, 760.0))
+            .build_ui(move |ui| {
+                let palette = crate::theme::HsTheme::Dark.palette();
+                let mut on_open = |_hit: &crate::backend_client::LoomGraphSearchHit| {};
+                let mut callbacks = FindInFilesCallbacks {
+                    on_open_hit: &mut on_open,
+                };
+                show(
+                    ui,
+                    &mut render_state.lock().unwrap(),
+                    &palette,
+                    &search_client,
+                    &doc_client,
+                    Some("ws-mt113"),
+                    &mut callbacks,
+                );
+            });
+        // The panel keeps requesting repaints while it settles, so step a bounded number of
+        // frames instead of running to quiescence.
+        harness.run_steps(8);
+
+        fn node_value(harness: &egui_kittest::Harness<'_, ()>, author_id: &str) -> Option<String> {
+            use egui_kittest::kittest::NodeT as _;
+            harness
+                .root()
+                .children_recursive()
+                .find(|node| node.accesskit_node().author_id() == Some(author_id))
+                .and_then(|node| node.accesskit_node().value())
+        }
+
+        let observer_before = node_value(&harness, BOOKMARK_COMPLETION_AUTHOR_ID)
+            .expect("the bookmark completion observer must publish a Ready token");
+        assert!(
+            observer_before.contains("handshake.click-completion/v1"),
+            "observer must carry the canonical schema, got {observer_before}"
+        );
+
+        harness
+            .root()
+            .children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(remove_route.as_str()))
+            .expect("the long-query bookmark must publish an addressable Remove row")
+            .click_accesskit();
+        // The panel keeps requesting repaints while it settles, so step a bounded number of
+        // frames instead of running to quiescence.
+        harness.run_steps(8);
+
+        let observer_after = node_value(&harness, BOOKMARK_COMPLETION_AUTHOR_ID)
+            .expect("MT-113: the observer MUST still carry a token after a long-query Remove");
+        assert!(
+            observer_after.contains(&remove_route),
+            "the observer token must name the exact clicked route {remove_route}; got {observer_after}"
+        );
+        assert!(
+            !observer_after.contains("click-completion-unavailable"),
+            "a bounded route must never publish the completion-unavailable marker: {observer_after}"
+        );
+    }
+
+    /// PT-113-2 pin, restated inside the lib so a future edit to composition trips here too: the
+    /// MT-029 exact-reversibility contract and its literal route strings are unchanged.
+    #[test]
+    fn mt113_mt029_exact_reversibility_contract_is_unchanged() {
+        for (kind, reference) in [
+            ("loom_block", "blk/1:x"),
+            ("loom_block", "blk-1-x"),
+            ("\u{6587}\u{6863}", "r\u{e9}sum\u{e9}/\u{6771}\u{4eac}"),
+            ("document", "KRD-1:/foo?x=1"),
+        ] {
+            let route = result_author_id(kind, reference);
+            assert_eq!(
+                hit_identity_from_result_author_id(&route),
+                Some((kind.to_owned(), reference.to_owned()))
+            );
+        }
+        assert_eq!(
+            bookmark_restore_author_id("saved:\u{6587}/1"),
+            "find-in-files.bookmark-restore.73617665643ae696872f31"
+        );
+        assert_eq!(
+            bookmark_remove_author_id("saved:\u{6587}/1"),
+            "find-in-files.bookmark-remove.73617665643ae696872f31"
+        );
+    }
+
+    /// Baseline reproduction 1, now a permanent regression pin. FAILED at bce12043 with a 304-byte
+    /// route whose Pending observer token did not serialize.
+    #[test]
+    fn mt113_baseline_long_query_bookmark_remove_completion_token_is_silently_dropped() {
+        let bookmark = bookmark_with_query("authentication middleware refactor");
+        let remove_route = bookmark_remove_author_id(&bookmark.id);
+        let semantic = FindInFilesPanelState::bookmark_remove_semantic_value(&bookmark.id);
+        assert!(
+            crate::mcp::action::serialize_observer_click_state(
+                BOOKMARK_COMPLETION_EFFECT,
+                "find-in-files.bookmark:ws-1",
+                1,
+                crate::mcp::action::ClickCompletionState::Pending,
+                Some(&remove_route),
+                Some(&semantic),
+            )
+            .is_some(),
+            "MT-113: a {}-character query composed a {}-byte Remove route; its Pending observer token did NOT serialize",
+            bookmark.query.chars().count(),
+            remove_route.len(),
+        );
+    }
+
+    /// Baseline reproduction 2, now a permanent regression pin. FAILED at bce12043: a 23-character
+    /// query composed a 260-byte route.
+    #[test]
+    fn mt113_baseline_twenty_three_character_query_is_the_first_failing_input() {
+        for length in [22usize, 23, 24, 64, 512] {
+            let bookmark = bookmark_with_query(&"a".repeat(length));
+            let route = bookmark_remove_author_id(&bookmark.id);
+            assert!(
+                route.len() <= MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+                "a {length}-character query composes a {}-byte route",
+                route.len()
+            );
+        }
     }
 }

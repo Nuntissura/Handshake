@@ -49,11 +49,38 @@ const ACTION_LEASE_TIMEOUT: Duration = Duration::from_secs(5);
 /// Generic controls never receive this schema and therefore retain conservative `Indeterminate`
 /// click receipts.
 const CLICK_COMPLETION_SCHEMA: &str = "handshake.click-completion/v1";
+
+/// Reserved, typed value published in place of a completion token that could NOT be composed (MT-113).
+///
+/// It is deliberately a DIFFERENT schema from [`CLICK_COMPLETION_SCHEMA`], so it can never be mistaken
+/// for an acknowledgement: [`parse_click_completion_token`] rejects it exactly as it rejects any other
+/// non-token value. The MCP boundary reads it for ONE purpose — to turn a SILENT `indeterminate` into a
+/// NAMED one that says which field overran which budget.
+const CLICK_COMPLETION_UNAVAILABLE_SCHEMA: &str = "handshake.click-completion-unavailable/v1";
 const MAX_CLICK_COMPLETION_TOKEN_BYTES: usize = 4096;
 const MAX_CLICK_COMPLETION_EFFECT_BYTES: usize = 128;
+/// `context` is a PRODUCT-AUTHORED scope string (it may legitimately carry more than a bare author_id,
+/// e.g. `"<effect>:<scope>"`), so it is budgeted wider than an author-id-shaped field.
+///
+/// MT-113 / AC-113-4 — the 512 vs 256 asymmetry is INTENTIONAL and is now safe by construction: it used
+/// to mean the SAME derived id was legal as `context` (synchronous same-target control) but illegal as
+/// `pending_target` (asynchronous observer sibling), so a control proved fine while its sibling could
+/// never terminalise. Content-derived routes are now composed against the STRICTER budget
+/// ([`MAX_CLICK_COMPLETION_AUTHOR_BYTES`], re-exported as
+/// `find_in_files::MAX_COMPLETION_TARGET_AUTHOR_BYTES`), so any id that fits one field fits the other
+/// and the two can no longer diverge in provability. The invariant
+/// `MAX_CLICK_COMPLETION_AUTHOR_BYTES <= MAX_CLICK_COMPLETION_CONTEXT_BYTES` is asserted in the unit
+/// tests; widening the author budget instead would have weakened bounded-token flood control for every
+/// MT that emits a token.
 const MAX_CLICK_COMPLETION_CONTEXT_BYTES: usize = 512;
-const MAX_CLICK_COMPLETION_AUTHOR_BYTES: usize = 256;
-const MAX_CLICK_COMPLETION_SEMANTIC_BYTES: usize = 2048;
+/// Byte budget for every AUTHOR-ID-SHAPED token field (`observer_author_id`, `pending_target`, and the
+/// SetValue token's `target`). This is the canonical bound every content-derived `author_id` in the
+/// product must be composed against; see `find_in_files::compose_author_id`.
+pub const MAX_CLICK_COMPLETION_AUTHOR_BYTES: usize = 256;
+/// Byte budget for the pre-dispatch `semantic_value` that binds an observer acknowledgement to WHAT is
+/// being acted on. Also composed from user content (a saved-search identity, for example), so it is
+/// bounded at the product side exactly like an author id.
+pub const MAX_CLICK_COMPLETION_SEMANTIC_BYTES: usize = 2048;
 const MAX_CLICK_COMPLETION_ERROR_BYTES: usize = 1024;
 const MAX_CLICK_COMPLETION_DETAIL_BYTES: usize = 2048;
 
@@ -99,6 +126,16 @@ pub(crate) fn serialize_set_value_completion(
         generation,
         applied_value: applied_value.map(str::to_owned),
     };
+    if token.target.len() > MAX_CLICK_COMPLETION_AUTHOR_BYTES {
+        // Same authoring contract as the click token: an over-budget SetValue target would silently
+        // strip this control's acknowledgement (MT-113).
+        debug_assert!(
+            false,
+            "set-value-completion field `target` is {} bytes, over its {MAX_CLICK_COMPLETION_AUTHOR_BYTES}-byte budget; compose content-derived author ids through the bounded composer",
+            token.target.len()
+        );
+        return None;
+    }
     if !token.valid() {
         return None;
     }
@@ -251,12 +288,110 @@ fn valid_click_token_field(value: &str, max_bytes: usize) -> bool {
     !value.is_empty() && value.len() <= max_bytes && !value.chars().any(char::is_control)
 }
 
+/// A typed record that a completion token could NOT be composed because an AUTHOR-ID-SHAPED field
+/// overran its byte budget (MT-113). Serialized onto the node in place of the missing token so the
+/// failure is NAMED at the proof surface instead of being an absent value nobody can attribute.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClickCompletionUnavailable {
+    pub schema: String,
+    pub effect: String,
+    pub context: String,
+    pub generation: u64,
+    /// Which token field could not be carried (`pending_target`, `observer_author_id`, `target`, ...).
+    pub field: String,
+    pub bytes: usize,
+    pub budget: usize,
+}
+
+/// The author-id-shaped field of `token` that overruns its budget, if any. Author-id fields are singled
+/// out because they are the ONLY token fields composed from unbounded user content, and because an
+/// over-budget author id makes the control permanently unobservable rather than merely losing detail
+/// (`terminal_error`/`terminal_detail` are clamped by the product before they reach this layer).
+fn overrun_author_field(token: &ClickCompletionToken) -> Option<(&'static str, usize)> {
+    for (field, value) in [
+        ("observer_author_id", token.observer_author_id.as_deref()),
+        ("pending_target", token.pending_target.as_deref()),
+    ] {
+        if let Some(value) = value {
+            if value.len() > MAX_CLICK_COMPLETION_AUTHOR_BYTES {
+                return Some((field, value.len()));
+            }
+        }
+    }
+    None
+}
+
+/// Build the typed completion-unavailable value a product-side observer publishes when its token could
+/// not be composed. Bounded exactly like a token: an unavailable marker can never itself overrun.
+pub(crate) fn click_completion_unavailable_value(
+    effect: &str,
+    context: &str,
+    generation: u64,
+    field: &str,
+    bytes: usize,
+    budget: usize,
+) -> Option<String> {
+    let marker = ClickCompletionUnavailable {
+        schema: CLICK_COMPLETION_UNAVAILABLE_SCHEMA.to_owned(),
+        effect: effect.to_owned(),
+        context: context.to_owned(),
+        generation,
+        field: field.to_owned(),
+        bytes,
+        budget,
+    };
+    if !valid_click_token_field(&marker.effect, MAX_CLICK_COMPLETION_EFFECT_BYTES)
+        || !valid_click_token_field(&marker.context, MAX_CLICK_COMPLETION_CONTEXT_BYTES)
+        || !valid_click_token_field(&marker.field, MAX_CLICK_COMPLETION_EFFECT_BYTES)
+    {
+        return None;
+    }
+    let encoded = serde_json::to_string(&marker).ok()?;
+    (encoded.len() <= MAX_CLICK_COMPLETION_TOKEN_BYTES).then_some(encoded)
+}
+
+/// Parse a typed completion-unavailable marker. Returns `None` for a real token, for junk, and for any
+/// oversized value, so it can never widen what counts as an acknowledgement.
+pub(crate) fn parse_click_completion_unavailable(raw: &str) -> Option<ClickCompletionUnavailable> {
+    if raw.len() > MAX_CLICK_COMPLETION_TOKEN_BYTES {
+        return None;
+    }
+    let marker: ClickCompletionUnavailable = serde_json::from_str(raw).ok()?;
+    (marker.schema == CLICK_COMPLETION_UNAVAILABLE_SCHEMA).then_some(marker)
+}
+
 fn serialize_click_completion_token(token: &ClickCompletionToken) -> Option<String> {
     if !token.valid_common() {
         return None;
     }
     let encoded = serde_json::to_string(token).ok()?;
     (encoded.len() <= MAX_CLICK_COMPLETION_TOKEN_BYTES).then_some(encoded)
+}
+
+/// The single authoring entry point every `serialize_*` helper funnels through.
+///
+/// The author-id budget is checked BEFORE the mode-specific shape gate, because the shape gates call
+/// `valid_common()` and would otherwise short-circuit an over-budget id into a silent `None` — exactly
+/// the failure MT-113 exists to eliminate. An author_id this long can only come from a composition site
+/// that bypassed the bounded composer, so it is an AUTHORING defect, not untrusted runtime input: it
+/// fails LOUD in debug builds, and the product-side observer publishes the typed unavailable marker so
+/// a release build still NAMES the failure at the proof surface instead of dropping it.
+fn serialize_click_completion_token_checked(
+    token: &ClickCompletionToken,
+    shape_valid: fn(&ClickCompletionToken) -> bool,
+) -> Option<String> {
+    if let Some((field, bytes)) = overrun_author_field(token) {
+        debug_assert!(
+            false,
+            "click-completion field `{field}` is {bytes} bytes, over its {MAX_CLICK_COMPLETION_AUTHOR_BYTES}-byte budget; compose content-derived author ids through the bounded composer (find_in_files::compose_author_id) instead of formatting them directly"
+        );
+        let _ = (field, bytes);
+        return None;
+    }
+    shape_valid(token)
+        .then(|| serialize_click_completion_token(token))
+        .flatten()
 }
 
 fn parse_click_completion_token(raw: &str) -> Option<ClickCompletionToken> {
@@ -291,10 +426,7 @@ pub(crate) fn serialize_same_target_click_completion(
         terminal_error: None,
         terminal_detail: None,
     };
-    token
-        .valid_same_target()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(&token, ClickCompletionToken::valid_same_target)
 }
 
 /// Serialize an observer-mode target declaration. `generation` is the exact stable non-Pending
@@ -323,10 +455,10 @@ pub(crate) fn serialize_observer_click_target(
         terminal_error: None,
         terminal_detail: None,
     };
-    token
-        .valid_observer_target_declaration()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(
+        &token,
+        ClickCompletionToken::valid_observer_target_declaration,
+    )
 }
 
 /// Serialize an observer-mode declaration for a control that intentionally remains mounted after
@@ -355,10 +487,10 @@ pub(crate) fn serialize_persistent_observer_click_target(
         terminal_error: None,
         terminal_detail: None,
     };
-    token
-        .valid_observer_target_declaration()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(
+        &token,
+        ClickCompletionToken::valid_observer_target_declaration,
+    )
 }
 
 /// Serialize an observer-mode declaration for a Retry-style control whose success removes the
@@ -386,10 +518,10 @@ pub(crate) fn serialize_flexible_observer_click_target(
         terminal_error: None,
         terminal_detail: None,
     };
-    token
-        .valid_observer_target_declaration()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(
+        &token,
+        ClickCompletionToken::valid_observer_target_declaration,
+    )
 }
 
 /// Serialize a durable observer's state. Ready observers carry no pending target/value; Pending and
@@ -417,10 +549,7 @@ pub(crate) fn serialize_observer_click_state(
         terminal_error: None,
         terminal_detail: None,
     };
-    token
-        .valid_observer_state()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(&token, ClickCompletionToken::valid_observer_state)
 }
 
 /// Serialize a successful observer terminal state with bounded action-specific proof detail. The
@@ -449,10 +578,7 @@ pub(crate) fn serialize_observer_click_applied(
         terminal_error: None,
         terminal_detail: Some(terminal_detail.to_owned()),
     };
-    token
-        .valid_observer_state()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(&token, ClickCompletionToken::valid_observer_state)
 }
 
 /// Serialize a terminal failure for an exact observer-backed click. The target declaration and the
@@ -483,10 +609,7 @@ pub(crate) fn serialize_observer_click_failure(
         terminal_error: Some(terminal_error.to_owned()),
         terminal_detail: terminal_detail.map(str::to_owned),
     };
-    token
-        .valid_observer_state()
-        .then(|| serialize_click_completion_token(&token))
-        .flatten()
+    serialize_click_completion_token_checked(&token, ClickCompletionToken::valid_observer_state)
 }
 
 /// A model-facing UI action, addressed by a widget's stable `author_id`. This is the typed core the
@@ -1383,6 +1506,20 @@ enum ClickCompletionAcknowledgement {
     },
 }
 
+/// Name a missing completion token when the product published the typed MT-113 unavailable marker in
+/// its place, so the receipt says WHICH field overran WHICH budget instead of the generic "malformed".
+fn unavailable_reason(observed: Option<&str>, fallback: &str) -> String {
+    observed
+        .and_then(parse_click_completion_unavailable)
+        .map(|marker| {
+            format!(
+                "completion token unavailable: field `{}` is {} bytes, over its {}-byte budget (effect `{}`, generation {}); this control cannot be terminalised until its author_id is composed within budget",
+                marker.field, marker.bytes, marker.budget, marker.effect, marker.generation
+            )
+        })
+        .unwrap_or_else(|| fallback.to_owned())
+}
+
 fn acknowledge_click_completion(
     pending: &PendingAction,
     snapshot: &UiTreeSnapshot,
@@ -1413,7 +1550,11 @@ fn acknowledge_click_completion(
                 );
             }
             let Some(applied) = node.value.as_deref().and_then(parse_click_completion_token) else {
-                return indeterminate(observed, "same-target completion token is malformed");
+                let reason = unavailable_reason(
+                    node.value.as_deref(),
+                    "same-target completion token is malformed",
+                );
+                return indeterminate(observed, &reason);
             };
             let generation_matches = baseline
                 .generation
@@ -1473,7 +1614,11 @@ fn acknowledge_click_completion(
                 .as_deref()
                 .and_then(parse_click_completion_token)
             else {
-                return indeterminate(observed, "observer completion token is malformed");
+                let reason = unavailable_reason(
+                    observer.value.as_deref(),
+                    "observer completion token is malformed",
+                );
+                return indeterminate(observed, &reason);
             };
             let post_target = snapshot.find_unique_by_author_id(&pending.author_id);
             if declaration.persistent_target
@@ -4308,5 +4453,183 @@ mod tests {
             ),
             Err(ActionError::InvalidValue { .. })
         ));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════════════════════
+    // MT-113 — an over-budget author_id can no longer fail SILENTLY (AC-113-3, AC-113-4)
+    // ══════════════════════════════════════════════════════════════════════════════════════════════
+
+    /// AC-113-3, half one: composing a token around an author-id-shaped field that overruns its budget
+    /// is an AUTHORING defect, and it is now LOUD in debug builds instead of returning a quiet `None`.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "over its 256-byte budget")]
+    fn mt113_over_budget_pending_target_is_loud_at_authoring_time() {
+        let oversized = "x".repeat(MAX_CLICK_COMPLETION_AUTHOR_BYTES + 1);
+        let _ = serialize_observer_click_state(
+            "find-in-files.bookmark-persist",
+            "find-in-files.bookmark:ws-1",
+            1,
+            ClickCompletionState::Pending,
+            Some(&oversized),
+            Some("remove|bookmark-1"),
+        );
+    }
+
+    /// AC-113-3, same rule for the observer's own id.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "over its 256-byte budget")]
+    fn mt113_over_budget_observer_author_id_is_loud_at_authoring_time() {
+        let oversized = "x".repeat(MAX_CLICK_COMPLETION_AUTHOR_BYTES + 1);
+        let _ = serialize_flexible_observer_click_target(
+            "find-in-files.bookmark-persist",
+            "find-in-files.bookmark:ws-1",
+            1,
+            &oversized,
+            "remove|bookmark-1",
+        );
+    }
+
+    /// AC-113-3, half two: when a completion token genuinely cannot be composed, the product publishes
+    /// the TYPED unavailable marker and the canonical receipt NAMES the exact field, size and budget.
+    /// Before MT-113 this surfaced as an absent value and a generic "malformed" rejection that told an
+    /// operator or a model nothing about why the control could never terminalise.
+    #[test]
+    fn mt113_completion_unavailable_marker_names_the_failure_at_the_proof_surface() {
+        let (effect, context, observer, target, semantic) = (
+            "find-in-files.bookmark-persist",
+            "find-in-files.bookmark:ws-1",
+            "find-in-files.bookmark-completion",
+            "find-in-files.bookmark-remove.deadbeef",
+            "remove|bookmark-1",
+        );
+        let marker = click_completion_unavailable_value(
+            effect,
+            context,
+            4,
+            "pending_target",
+            304,
+            MAX_CLICK_COMPLETION_AUTHOR_BYTES,
+        )
+        .expect("the unavailable marker is itself bounded and always serializes");
+
+        // It can NEVER be mistaken for an acknowledgement.
+        assert!(
+            parse_click_completion_token(&marker).is_none(),
+            "the unavailable marker must not parse as a completion token"
+        );
+        let parsed = parse_click_completion_unavailable(&marker).expect("marker round-trips");
+        assert_eq!(parsed.field, "pending_target");
+        assert_eq!(parsed.bytes, 304);
+        assert_eq!(parsed.budget, MAX_CLICK_COMPLETION_AUTHOR_BYTES);
+        assert!(
+            parse_click_completion_unavailable(
+                &serialize_observer_click_state(
+                    effect,
+                    context,
+                    4,
+                    ClickCompletionState::Ready,
+                    None,
+                    None
+                )
+                .unwrap()
+            )
+            .is_none(),
+            "a real token must never parse as an unavailable marker"
+        );
+
+        let mut snapshot = fixture_snapshot();
+        snapshot.root.children.push(clickable_node(
+            target,
+            400,
+            serialize_flexible_observer_click_target(effect, context, 3, observer, semantic),
+        ));
+        snapshot.root.children.push(observer_node(
+            observer,
+            401,
+            serialize_observer_click_state(
+                effect,
+                context,
+                3,
+                ClickCompletionState::Ready,
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(&snapshot, target, UiAction::Click)
+            .expect("queue observer-backed bookmark Remove");
+        channel.drain_revalidated_into_events(&snapshot);
+        snapshot
+            .root
+            .children
+            .retain(|node| node.author_id.as_deref() != Some(target));
+        top_level_node_mut(&mut snapshot, observer).value = Some(marker);
+        channel.acknowledge_after_render(&snapshot);
+
+        let receipt = terminal_receipt(&mut channel, outcome.receipt_id);
+        assert_eq!(
+            receipt.status,
+            ActionReceiptStatus::Indeterminate,
+            "an unavailable token still fails CLOSED - it never becomes Applied"
+        );
+        let rejection = receipt
+            .rejection
+            .expect("an indeterminate receipt must carry a reason");
+        for expected in [
+            "completion token unavailable",
+            "pending_target",
+            "304",
+            "256",
+        ] {
+            assert!(
+                rejection.contains(expected),
+                "the receipt must name {expected}; got {rejection}"
+            );
+        }
+    }
+
+    /// AC-113-4: the `pending_target` (256 B) versus `context` (512 B) asymmetry can no longer make a
+    /// synchronous control and its asynchronous sibling diverge, because composition is bounded to the
+    /// STRICTER budget. An id at exactly the author budget is legal in BOTH fields; one byte more is
+    /// legal in neither (the author field asserts, the context field cannot receive an id at all
+    /// because nothing composes one that long any more).
+    #[test]
+    fn mt113_author_budget_is_the_stricter_of_the_two_so_siblings_cannot_diverge() {
+        assert!(
+            MAX_CLICK_COMPLETION_AUTHOR_BYTES <= MAX_CLICK_COMPLETION_CONTEXT_BYTES,
+            "the author budget must remain the stricter of the two"
+        );
+        let at_budget = "a".repeat(MAX_CLICK_COMPLETION_AUTHOR_BYTES);
+        assert!(
+            serialize_observer_click_state(
+                "find-in-files.bookmark-persist",
+                "find-in-files.bookmark:ws-1",
+                1,
+                ClickCompletionState::Pending,
+                Some(&at_budget),
+                Some("remove|bookmark-1"),
+            )
+            .is_some(),
+            "an id at exactly the author budget must be a legal pending_target"
+        );
+        assert!(
+            serialize_same_target_click_completion(
+                "find-in-files.bookmark-restore",
+                &at_budget,
+                1,
+                ClickCompletionState::Applied,
+            )
+            .is_some(),
+            "the SAME id must be legal as the synchronous sibling's context"
+        );
+        assert_eq!(
+            crate::find_in_files::MAX_COMPLETION_TARGET_AUTHOR_BYTES,
+            MAX_CLICK_COMPLETION_AUTHOR_BYTES,
+            "the product composer must bind to the canonical contract constant, not a copy"
+        );
     }
 }
