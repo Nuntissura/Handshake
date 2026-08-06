@@ -933,6 +933,48 @@ struct ProposalCommitAck {
     committed_at: String,
 }
 
+/// THE canonical FEMS memory-proposal request identity (WP-KERNEL-012 MT-112, AC-112-1).
+///
+/// SHA-256 over the domain tag `fems-memory-proposal-request-v2` + NUL, followed by
+/// ELEVEN length-prefixed components (big-endian u64 byte length, then UTF-8 bytes) in
+/// exactly this order:
+///
+///  1. `workspace_id`                            (route workspace, not trimmed)
+///  2. `class.wire()`                            (not trimmed)
+///  3. `content`                                 (not trimmed)
+///  4. `source.document_id`                      (`str::trim`)
+///  5. `source.selection_start`                  (decimal text)
+///  6. `source.selection_end`                    (decimal text)
+///  7. `source.content_hash`                     (`str::trim`)
+///  8. `source.document_content_hash`            (`normalized_optional`)
+///  9. `source.pane_id`                          (`normalized_optional`)
+/// 10. `source.workspace_id`                     (`normalized_optional`)
+/// 11. `sha256_hex(source_document_content)`     (absent => "")
+///
+/// `actor_id` is DELIBERATELY EXCLUDED. `same_logical_proposal` in
+/// `storage::fems_memory` strips `actor_id` from intake replay equality because the
+/// router derives it from the live native binding, so an exact retry from a later
+/// authenticated session must converge on the same row. Hashing `actor_id` into the
+/// identity would fork that retry into a duplicate proposal and contradict the retry
+/// contract this function exists to serve. Attribution is not weakened: `actor_id`
+/// stays in the stored proposal payload and in the immutable `ARTIFACT_PROPOSED`
+/// EventLedger receipt (`KernelActor`), which is where attribution is authoritative.
+///
+/// AC-112-3 - components 8 and 11 always carry the SAME value, and that is intentional,
+/// not a duplicated component. The intake gate below makes it an invariant: the
+/// canonical-code branch rejects any proposal where
+/// `sha256_hex(source_document_content) != source.document_content_hash`, and the
+/// rich-document and Loom-reference branches reject a proposal that carries either
+/// field, leaving both components "". Migration 0345 hashed `document_content_hash`
+/// twice for exactly this reason - a stored proposal row never persists
+/// `source_document_content`, so `document_content_hash` is the only SQL-derivable
+/// expression of component 11. That second occurrence is load-bearing and is retained;
+/// only the extra `actor_id` component was dropped when 0365 superseded 0345.
+///
+/// SQL parity lives in `migrations/0365_fems_proposal_request_id_canonical_identity.sql`
+/// as the shipped `fems_proposal_request_id(...)` function. Do NOT hand-copy this
+/// expression into a third site: the Rust/SQL split MT-112 repairs was introduced by
+/// exactly that.
 fn stable_proposal_request_id(
     workspace_id: &str,
     request: &ProposalRequest,
@@ -1199,11 +1241,28 @@ async fn create_memory_proposal(
                     // BlockRef/NodeRef selections deliberately carry a canonical Loom address rather
                     // than materialized block text. Accept that address only when the referenced block
                     // exists in this exact workspace; arbitrary loom:// strings remain rejected.
+                    // AC-112-5: `document_id` is CLIENT-SUPPLIED PROVENANCE being
+                    // validated, not the route resource. The route resource is the
+                    // workspace, and it is checked at the top of this handler where a
+                    // missing workspace is (and stays) 404. Once we are here the
+                    // document_id has resolved to no rich document, no canonical code
+                    // source and no Loom block, which is the same fail-closed
+                    // provenance rejection every other gate in this handler answers
+                    // with 400. Letting `StorageError::NotFound` reach `storage_error`
+                    // returned 404 and made "your provenance is bad" indistinguishable
+                    // from "this workspace is gone", so the provenance rejection is
+                    // normalized to 400 here. Fail-closed behavior is unchanged -
+                    // nothing is stored either way; only the status contract is fixed.
                     let loom_block = state
                         .storage
                         .get_loom_block(&workspace_id, document_id)
                         .await
-                        .map_err(storage_error)?;
+                        .map_err(|error| match error {
+                            StorageError::NotFound(_) => bad_request(
+                                "proposal provenance document_id does not resolve to a rich document, a canonical code source, or a Loom block in this workspace",
+                            ),
+                            other => storage_error(other),
+                        })?;
                     let canonical_ref = format!("loom://{document_id}");
                     if loom_block.workspace_id != workspace_id
                         || request.source_document_content.is_some()
@@ -2293,7 +2352,29 @@ mod tests {
 
         let up = include_str!("../../migrations/0345_fems_memory_workspace_authority.sql");
         let down = include_str!("../../migrations/0345_fems_memory_workspace_authority.down.sql");
+        // AC-112-2: 0345 is already applied in the field and its checksum is immutable, so
+        // convergence ships as the superseding 0365 instead of an edit to 0345. The deployed
+        // chain is 0345 THEN 0365 and this proof now runs the real files in that real order.
+        // Every assertion below is unchanged and still demands a byte-for-byte match with the
+        // Rust derivation.
+        let up_0365 =
+            include_str!("../../migrations/0365_fems_proposal_request_id_canonical_identity.sql");
+        let down_0365 = include_str!(
+            "../../migrations/0365_fems_proposal_request_id_canonical_identity.down.sql"
+        );
         sqlx::raw_sql(up).execute(&mut *tx).await?;
+        let request_id_before_0365: String = sqlx::query_scalar(
+            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
+        )
+        .bind(old_proposal_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        assert_ne!(
+            request_id_before_0365, expected_request_id,
+            "0345 alone must still produce its own twelve-component identity; if this ever \
+             matches, 0345 was edited in place and AC-112-2 was violated"
+        );
+        sqlx::raw_sql(up_0365).execute(&mut *tx).await?;
         let migrated_request_id: String = sqlx::query_scalar(
             "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
         )
@@ -2341,6 +2422,18 @@ mod tests {
         .execute(&mut *tx)
         .await?;
 
+        // Reverse deployment order: 0365 rolls back before 0345.
+        sqlx::raw_sql(down_0365).execute(&mut *tx).await?;
+        let rolled_back_request_id: String = sqlx::query_scalar(
+            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
+        )
+        .bind(old_proposal_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        assert_eq!(
+            rolled_back_request_id, request_id_before_0365,
+            "the 0365 down path must restore the exact pre-0365 identity from its journal"
+        );
         sqlx::raw_sql(down).execute(&mut *tx).await?;
         let preserved_json_request_id: String = sqlx::query_scalar(
             "SELECT proposal ->> 'request_id' FROM fems_memory_proposals WHERE proposal_id = $1",
@@ -2350,6 +2443,7 @@ mod tests {
         .await?;
         assert_eq!(preserved_json_request_id, explicit_request_id);
         sqlx::raw_sql(up).execute(&mut *tx).await?;
+        sqlx::raw_sql(up_0365).execute(&mut *tx).await?;
         let restored_request_id: String = sqlx::query_scalar(
             "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
         )
@@ -2357,6 +2451,25 @@ mod tests {
         .fetch_one(&mut *tx)
         .await?;
         assert_eq!(restored_request_id, explicit_request_id);
+        // PT-112-3: the canonical identity survives the full up/down/up round trip.
+        let reconverged_request_id: String = sqlx::query_scalar(
+            "SELECT request_id FROM fems_memory_proposals WHERE proposal_id = $1",
+        )
+        .bind(old_proposal_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        assert_eq!(
+            reconverged_request_id, expected_request_id,
+            "the canonical identity must survive a full 0345/0365 up-down-up round trip"
+        );
+        let rows_after_round_trip: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM fems_memory_proposals")
+                .fetch_one(&mut *tx)
+                .await?;
+        assert_eq!(
+            rows_after_round_trip, 2,
+            "AC-112-6: re-keying must not lose, duplicate, or orphan a proposal row"
+        );
 
         let retry = sqlx::query(
             r#"
@@ -2386,6 +2499,195 @@ mod tests {
             "retry must converge after down/up"
         );
         tx.rollback().await?;
+        Ok(())
+    }
+
+    /// PT-112-2 differential proof. The Rust derivation and the SHIPPED SQL derivation
+    /// (`fems_proposal_request_id`, created by migration 0365) must agree byte-for-byte
+    /// across the `actor_id` and content-hash edge cases, the superseded migration-0345
+    /// twelve-component expression must be shown to DISAGREE so this proof cannot pass
+    /// vacuously, and two callers that differ only by `actor_id` must converge on one
+    /// identity because that is what the retry contract in `same_logical_proposal`
+    /// requires.
+    #[tokio::test]
+    async fn canonical_request_identity_matches_shipped_sql_across_actor_and_hash_edges(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let workspace_id = format!("WS-MT112-{}", Uuid::now_v7());
+        let content = "identity edge content";
+
+        let code_document = format!("xxx{content}");
+        let code_document_hash = hex::encode(Sha256::digest(code_document.as_bytes()));
+
+        let mut whitespace_source = valid_source(&workspace_id, "  doc-mt112-ws\u{3000}", content);
+        whitespace_source.pane_id = Some("\t\u{2003}pane-ws\u{3000}\r".to_owned());
+        let mut code_source = valid_source(&workspace_id, "KSRC-mt112", content);
+        code_source.document_content_hash = Some(code_document_hash);
+        let mut bare_source = valid_source(&workspace_id, "doc-mt112-bare", content);
+        bare_source.pane_id = None;
+        bare_source.workspace_id = None;
+
+        let fixtures: Vec<(&str, ProposalRequest)> = vec![
+            (
+                "actor_id absent",
+                ProposalRequest {
+                    request_id: None,
+                    class: ProposalClass::Semantic,
+                    content: content.to_owned(),
+                    source: valid_source(&workspace_id, "doc-mt112", content),
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: None,
+                },
+            ),
+            (
+                "actor_id present (differs from the previous fixture ONLY by actor_id)",
+                ProposalRequest {
+                    request_id: None,
+                    class: ProposalClass::Semantic,
+                    content: content.to_owned(),
+                    source: valid_source(&workspace_id, "doc-mt112", content),
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: Some("actor-plain".to_owned()),
+                },
+            ),
+            (
+                "actor_id, document_id and pane_id padded with Unicode whitespace",
+                ProposalRequest {
+                    request_id: None,
+                    class: ProposalClass::Episodic,
+                    content: content.to_owned(),
+                    source: whitespace_source,
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: Some("\u{00a0}\tactor-ws\u{205f}\n".to_owned()),
+                },
+            ),
+            (
+                "canonical code snapshot: components 8 and 11 carry the same hash",
+                ProposalRequest {
+                    request_id: None,
+                    class: ProposalClass::Procedural,
+                    content: content.to_owned(),
+                    source: code_source,
+                    source_document_content: Some(code_document),
+                    review_gated: Some(true),
+                    actor_id: Some("actor-code".to_owned()),
+                },
+            ),
+            (
+                "every optional provenance field absent",
+                ProposalRequest {
+                    request_id: None,
+                    class: ProposalClass::Semantic,
+                    content: content.to_owned(),
+                    source: bare_source,
+                    source_document_content: None,
+                    review_gated: Some(true),
+                    actor_id: None,
+                },
+            ),
+        ];
+
+        for (label, request) in &fixtures {
+            let rust_id = stable_proposal_request_id(&workspace_id, request)
+                .expect("canonical Rust request identity");
+            let document_content_hash =
+                normalized_optional(request.source.document_content_hash.as_deref());
+            let source_document_hash = request
+                .source_document_content
+                .as_deref()
+                .map(|content| hex::encode(Sha256::digest(content.as_bytes())))
+                .unwrap_or_default();
+            // AC-112-3: canonical components 8 and 11 are provably the same value for
+            // every proposal intake can accept, which is why migration 0345 could hash
+            // `document_content_hash` twice and why that second occurrence is retained.
+            assert_eq!(
+                document_content_hash,
+                source_document_hash.as_str(),
+                "fixture `{label}` violates the components 8 == 11 intake invariant"
+            );
+
+            let sql_id: String = sqlx::query_scalar(
+                "SELECT fems_proposal_request_id($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+            )
+            .bind(&workspace_id)
+            .bind(request.class.wire())
+            .bind(&request.content)
+            .bind(request.source.document_id.trim())
+            .bind(request.source.selection_start.to_string())
+            .bind(request.source.selection_end.to_string())
+            .bind(request.source.content_hash.trim())
+            .bind(document_content_hash)
+            .bind(normalized_optional(request.source.pane_id.as_deref()))
+            .bind(normalized_optional(request.source.workspace_id.as_deref()))
+            .bind(source_document_hash.as_str())
+            .fetch_one(&state.postgres_pool)
+            .await?;
+            assert_eq!(
+                sql_id, rust_id,
+                "Rust and shipped-SQL identity diverge for fixture `{label}`"
+            );
+
+            // The superseded migration-0345 twelve-component expression, reproduced here
+            // ONLY as a negative control. It must still disagree with the canonical
+            // identity for EVERY fixture, including the ones carrying no actor_id at all:
+            // the framing is length-prefixed, so even a zero-length extra component
+            // changes the digest.
+            let legacy_0345_id: String = sqlx::query_scalar(
+                r#"
+                SELECT 'derived-sha256:' || encode(digest(
+                    convert_to('fems-memory-proposal-request-v2', 'UTF8') || decode('00', 'hex') ||
+                    int8send(octet_length($1::text)::bigint) || convert_to($1, 'UTF8') ||
+                    int8send(octet_length($2::text)::bigint) || convert_to($2, 'UTF8') ||
+                    int8send(octet_length($3::text)::bigint) || convert_to($3, 'UTF8') ||
+                    int8send(octet_length($4::text)::bigint) || convert_to($4, 'UTF8') ||
+                    int8send(octet_length($5::text)::bigint) || convert_to($5, 'UTF8') ||
+                    int8send(octet_length($6::text)::bigint) || convert_to($6, 'UTF8') ||
+                    int8send(octet_length($7::text)::bigint) || convert_to($7, 'UTF8') ||
+                    int8send(octet_length($8::text)::bigint) || convert_to($8, 'UTF8') ||
+                    int8send(octet_length($9::text)::bigint) || convert_to($9, 'UTF8') ||
+                    int8send(octet_length($10::text)::bigint) || convert_to($10, 'UTF8') ||
+                    int8send(octet_length($11::text)::bigint) || convert_to($11, 'UTF8') ||
+                    int8send(octet_length($12::text)::bigint) || convert_to($12, 'UTF8'),
+                    'sha256'), 'hex')
+                "#,
+            )
+            .bind(&workspace_id)
+            .bind(request.class.wire())
+            .bind(&request.content)
+            .bind(request.source.document_id.trim())
+            .bind(request.source.selection_start.to_string())
+            .bind(request.source.selection_end.to_string())
+            .bind(request.source.content_hash.trim())
+            .bind(document_content_hash)
+            .bind(normalized_optional(request.source.pane_id.as_deref()))
+            .bind(normalized_optional(request.source.workspace_id.as_deref()))
+            .bind(normalized_optional(request.actor_id.as_deref()))
+            .bind(document_content_hash)
+            .fetch_one(&state.postgres_pool)
+            .await?;
+            assert_ne!(
+                legacy_0345_id, rust_id,
+                "fixture `{label}` cannot prove convergence: the superseded 0345 expression \
+                 already agreed with the canonical identity, so this proof would be vacuous"
+            );
+        }
+
+        // The retry contract: `same_logical_proposal` strips actor_id from intake replay
+        // equality, so two callers whose requests differ ONLY by actor_id must land on one
+        // identity and therefore one row. This is the concrete reason actor_id is excluded
+        // from the canonical component list (AC-112-1).
+        let without_actor = stable_proposal_request_id(&workspace_id, &fixtures[0].1)
+            .expect("identity without actor_id");
+        let with_actor = stable_proposal_request_id(&workspace_id, &fixtures[1].1)
+            .expect("identity with actor_id");
+        assert_eq!(
+            without_actor, with_actor,
+            "an exact retry from a later authenticated session must converge on one identity"
+        );
+
         Ok(())
     }
 
@@ -3179,26 +3481,16 @@ mod tests {
         let derived_request_id =
             stable_proposal_request_id(&workspace_id, &request).expect("derived request identity");
 
-        // Independently mirror the migration expression in PostgreSQL so any Rust/SQL
-        // identity drift fails this deployment-convergence proof.
+        // MT-112: derive through the SHIPPED SQL definition of the canonical identity
+        // instead of a hand-copied mirror. The hand-copy this replaces is exactly how the
+        // Rust/SQL identity split arose - it silently drifted from the migration it claimed
+        // to mirror (it hashed `sha256(source_document_content)` at position 12 while
+        // migration 0345 hashed `document_content_hash` there), so it could not catch the
+        // drift it existed to catch. `fems_proposal_request_id` is created by migration
+        // 0365 and is the same function the migration derives with, so any Rust/SQL
+        // divergence now fails this deployment-convergence proof for real.
         let sql_request_id: String = sqlx::query_scalar(
-            r#"
-            SELECT 'derived-sha256:' || encode(digest(
-                convert_to('fems-memory-proposal-request-v2', 'UTF8') || decode('00', 'hex') ||
-                int8send(octet_length($1::text)::bigint) || convert_to($1, 'UTF8') ||
-                int8send(octet_length($2::text)::bigint) || convert_to($2, 'UTF8') ||
-                int8send(octet_length($3::text)::bigint) || convert_to($3, 'UTF8') ||
-                int8send(octet_length($4::text)::bigint) || convert_to($4, 'UTF8') ||
-                int8send(octet_length($5::text)::bigint) || convert_to($5, 'UTF8') ||
-                int8send(octet_length($6::text)::bigint) || convert_to($6, 'UTF8') ||
-                int8send(octet_length($7::text)::bigint) || convert_to($7, 'UTF8') ||
-                int8send(octet_length($8::text)::bigint) || convert_to($8, 'UTF8') ||
-                int8send(octet_length($9::text)::bigint) || convert_to($9, 'UTF8') ||
-                int8send(octet_length($10::text)::bigint) || convert_to($10, 'UTF8') ||
-                int8send(octet_length($11::text)::bigint) || convert_to($11, 'UTF8') ||
-                int8send(octet_length($12::text)::bigint) || convert_to($12, 'UTF8'),
-                'sha256'), 'hex')
-            "#,
+            "SELECT fems_proposal_request_id($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
         )
         .bind(&workspace_id)
         .bind(request.class.wire())
@@ -3212,7 +3504,6 @@ mod tests {
         ))
         .bind(normalized_optional(request.source.pane_id.as_deref()))
         .bind(normalized_optional(request.source.workspace_id.as_deref()))
-        .bind(normalized_optional(request.actor_id.as_deref()))
         .bind(
             request
                 .source_document_content
