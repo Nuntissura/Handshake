@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-06T23:24:24.044Z",
+  "updated_at_utc": "2026-08-06T23:31:25.457Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -571,7 +571,14 @@
     "finding_3_library_suite_is_green": {
       "measured_result": "cargo test --lib => EXIT 0, 2043 passed / 0 failed / 0 ignored / 0 filtered in 6.81s. The complete handshake-native library suite is GREEN.",
       "what_changed": "It was 2042 passed / 1 failed. The single failure was find_in_files::tests::restore_bookmark_centrally_invalidates_results_cache_and_pending_reads, closed under MT-114 as a stale TEST assertion (the product was contract-correct per MT-029 AC-7). Committed at 9ef2c041.",
-      "scope_note": "This closes the library portion of AC-108-3. The integration-binary portion and the governed live tests remain to be measured, and several require managed PostgreSQL."
+      "scope_note": "This closes the library portion of AC-108-3. The integration-binary portion and the governed live tests remain to be measured, and several require managed PostgreSQL.",
+      "superseded_by_current_head": {
+        "measured_at_utc": "2026-08-06T23:31:25.456Z",
+        "head": "fef0faa9 (MT-119 layout fix) — includes MT-114, MT-116, MT-113 and MT-119.",
+        "result": "cargo test --lib => EXIT 0, 2058 passed / 0 failed / 0 ignored / 0 filtered, 8.17s.",
+        "progression": "2042 passed / 1 failed at the start of this session -> 2043/0 after MT-114 corrected the stale bookmark assertion -> 2044/0 after MT-116 added its chip-metric guard -> 2058/0 now, the remaining additions being MT-113 bounded-author_id tests. The library portion of AC-108-3 is GREEN at current head and the count has only ever moved up.",
+        "note_for_the_capstone": "Use THIS figure, not the 2043 recorded earlier in this same finding. Per-suite counts in this WP have repeatedly gone stale within hours; gate on zero failures plus a nonzero executed count rather than on any historical number."
+      }
     },
     "what_remains_unmeasured": "Integration binaries beyond test_loom_address, the Palmistry tests, the headless supervisor run, and the real-GPU supervisor run are NOT yet measured at current HEAD. PostgreSQL was not running at measurement time (the sub-agents holding it were killed by a platform session limit), so no PG-backed proof was executed. Stated as unmeasured rather than assumed green.",
     "honesty_note": "These findings do NOT constitute an MT-108 PASS and no verdict is issued. They exist so the capstone run is configured correctly and does not spend a cycle re-fixing a test that already passes.",
