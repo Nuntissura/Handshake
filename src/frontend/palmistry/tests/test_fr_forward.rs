@@ -31,14 +31,21 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use palmistry::fr_forward::{
     build_survivor_forward_body, FrForwardBlocker, FrForwarder, FrSchemaCompat,
-    FR_INGESTION_FOLLOW_ON_WP, FR_ROUTE_PATH,
+    FR_INGESTION_FOLLOW_ON_WP,
 };
+
+/// WP-KERNEL-012 MT-115: the path the AC-013-3 STUB serves. It is a TEST-LOCAL constant on purpose.
+/// MT-109 removed the unscoped `/api/flight_recorder/runtime_chat_event` the production module used
+/// to export, and nothing has replaced it, so there is no product route to reference here. The stub
+/// models the FUTURE WP-KERNEL-016 survivor ingestion shape; naming it locally keeps that clearly a
+/// test fixture rather than a claim that the product exposes this route.
+const WP016_STUB_INGEST_PATH: &str = "/api/wp016/palmistry_survivor_forward";
 use palmistry::freeze_detect::FreezeReport;
 use palmistry::survivor_store::{SurvivorProbeResult, SurvivorRecord, SurvivorStore};
 
 /// What a one-shot stub server observed about the single request it served (sent back to the test).
 struct StubObservation {
-    /// The HTTP request line (e.g. `POST /api/flight_recorder/runtime_chat_event HTTP/1.1`).
+    /// The HTTP request line (e.g. `POST /api/wp016/palmistry_survivor_forward HTTP/1.1`).
     request_line: String,
     /// The parsed JSON body (the forwarder posts JSON).
     body: serde_json::Value,
@@ -183,7 +190,11 @@ fn faithful_forward_posts_verified_route_and_body_then_marks_forwarded_idempoten
     // why production runs behind FrSchemaCompat::Incompatible until WP-016 lands. This test proves the
     // forward MECHANISM is correct + live the instant that gap closes — not that the live FR accepts it.
     let (base_url, rx, handle) = spawn_stub(200);
-    let forwarder = FrForwarder::with_compat(&base_url, FrSchemaCompat::Compatible);
+    let forwarder = FrForwarder::with_compat(
+        &base_url,
+        Some(WP016_STUB_INGEST_PATH.to_owned()),
+        FrSchemaCompat::Compatible,
+    );
 
     let dir = temp_dir("faithful");
     let _g = DirGuard(dir.clone());
@@ -213,7 +224,7 @@ fn faithful_forward_posts_verified_route_and_body_then_marks_forwarded_idempoten
         .expect("stub must have observed the forward request");
     assert!(
         obs.request_line
-            .starts_with(&format!("POST {FR_ROUTE_PATH} ")),
+            .starts_with(&format!("POST {WP016_STUB_INGEST_PATH} ")),
         "the forward must hit the verified FR route, got '{}'",
         obs.request_line
     );
@@ -286,7 +297,11 @@ fn forward_against_rejecting_route_is_rejected_blocker() {
     // AC-013-4: a COMPATIBLE route that REJECTS the body (400) yields Rejected{status} — the record stays
     // pending (never marked forwarded). Bounded: the stub replies 400 promptly.
     let (base_url, _rx, handle) = spawn_stub(400);
-    let forwarder = FrForwarder::with_compat(&base_url, FrSchemaCompat::Compatible);
+    let forwarder = FrForwarder::with_compat(
+        &base_url,
+        Some(WP016_STUB_INGEST_PATH.to_owned()),
+        FrSchemaCompat::Compatible,
+    );
     let err = forwarder
         .forward(&freeze_record())
         .expect_err("a 400 must be a Rejected blocker, never Ok");
@@ -301,7 +316,11 @@ fn forward_against_rejecting_route_is_rejected_blocker() {
 fn forward_against_absent_route_is_route_absent_blocker() {
     // AC-013-4: a COMPATIBLE route that is UNREACHABLE yields RouteAbsent — bounded (the blocking client's
     // connect timeout), never hangs. Port 1 is reliably refused.
-    let forwarder = FrForwarder::with_compat("http://127.0.0.1:1", FrSchemaCompat::Compatible);
+    let forwarder = FrForwarder::with_compat(
+        "http://127.0.0.1:1",
+        Some(WP016_STUB_INGEST_PATH.to_owned()),
+        FrSchemaCompat::Compatible,
+    );
     let err = forwarder
         .forward(&freeze_record())
         .expect_err("an absent route must block");
@@ -317,7 +336,11 @@ fn recovery_drain_forwards_pending_and_leaves_blocked_pending() {
     // marks them; a record that hits a typed blocker stays pending for the next recovery. Here we model
     // the drain explicitly over the store + a compatible stub for the faithful path.
     let (base_url, rx, handle) = spawn_stub(200);
-    let forwarder = FrForwarder::with_compat(&base_url, FrSchemaCompat::Compatible);
+    let forwarder = FrForwarder::with_compat(
+        &base_url,
+        Some(WP016_STUB_INGEST_PATH.to_owned()),
+        FrSchemaCompat::Compatible,
+    );
 
     let dir = temp_dir("recovery-drain");
     let _g = DirGuard(dir.clone());
@@ -343,6 +366,6 @@ fn recovery_drain_forwards_pending_and_leaves_blocked_pending() {
         .expect("the drain must have forwarded the pending record");
     assert!(obs
         .request_line
-        .starts_with(&format!("POST {FR_ROUTE_PATH} ")));
+        .starts_with(&format!("POST {WP016_STUB_INGEST_PATH} ")));
     let _ = handle.join();
 }

@@ -2707,21 +2707,28 @@ fn ac5_atelier_side_panel_loads_from_live_pg() {
 struct WorkspacePgCleanup {
     base: String,
     workspace_id: String,
-    native_fr_event_ids: Vec<String>,
+    /// WP-KERNEL-012 MT-115: the CLIENT event ids, not the durable recorder ids. MT-109 keys the
+    /// EventLedger mirror rows `native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`
+    /// while `GET /api/flight_recorder` returns the DERIVED, workspace-scoped `event_id`. Cleaning up
+    /// on the derived id (or without the workspace segment) matches zero rows and still reports
+    /// success, which is how orphaned mirror rows survive a "clean" proof run.
+    native_fr_client_event_ids: Vec<String>,
     save_receipt_event_ids: Vec<String>,
     armed: bool,
 }
 
 #[cfg(feature = "integration")]
 impl WorkspacePgCleanup {
-    fn track_native_fr_event(&mut self, event_id: &str) {
-        uuid::Uuid::parse_str(event_id).expect("native Flight Recorder event id is a UUID");
+    fn track_native_fr_client_event(&mut self, client_event_id: &str) {
+        uuid::Uuid::parse_str(client_event_id)
+            .expect("native Flight Recorder client event id is a UUID");
         if !self
-            .native_fr_event_ids
+            .native_fr_client_event_ids
             .iter()
-            .any(|tracked| tracked == event_id)
+            .any(|tracked| tracked == client_event_id)
         {
-            self.native_fr_event_ids.push(event_id.to_owned());
+            self.native_fr_client_event_ids
+                .push(client_event_id.to_owned());
         }
     }
 
@@ -2744,8 +2751,11 @@ impl WorkspacePgCleanup {
         // window where the backend has appended a save or native-FR row but HTTP/JSON readback fails
         // before the test can learn its durable event id.
         let workspace_id = self.workspace_id.replace('\'', "''");
+        // MT-115: read the CLIENT event id straight out of the stored envelope. `aggregate_id` is the
+        // MT-109 workspace-scoped derivation and can never reconstruct the mirror's idempotency key.
         let discovered = run_psql(&format!(
-            "SELECT event_id || '|' || aggregate_type || '|' || aggregate_id \
+            "SELECT event_id || '|' || aggregate_type || '|' \
+                 || COALESCE(payload #>> '{{envelope,event_id}}', aggregate_id) \
              FROM kernel_event_ledger \
              WHERE (aggregate_type='native_editor_event' \
                     AND payload #>> '{{envelope,workspace_id}}'='{workspace_id}') \
@@ -2759,21 +2769,22 @@ impl WorkspacePgCleanup {
             let mut fields = line.splitn(3, '|');
             let event_id = fields.next().expect("owned EventLedger event id");
             let aggregate_type = fields.next().expect("owned EventLedger aggregate type");
-            let aggregate_id = fields.next().expect("owned EventLedger aggregate id");
+            let client_or_aggregate_id = fields.next().expect("owned EventLedger aggregate id");
             match aggregate_type {
-                "native_editor_event" => self.track_native_fr_event(aggregate_id),
+                "native_editor_event" => self.track_native_fr_client_event(client_or_aggregate_id),
                 "knowledge_rich_document" => self.track_save_receipt(event_id),
                 other => panic!("unexpected owned EventLedger aggregate type {other}"),
             }
         }
 
+        let workspace_key_segment = self.workspace_id.clone();
         let native_keys = self
-            .native_fr_event_ids
+            .native_fr_client_event_ids
             .iter()
-            .flat_map(|event_id| {
+            .flat_map(|client_event_id| {
                 [
-                    format!("native-editor-fr-pending:{event_id}"),
-                    format!("native-editor-fr-complete:{event_id}"),
+                    format!("native-editor-fr-pending:{workspace_key_segment}:{client_event_id}"),
+                    format!("native-editor-fr-complete:{workspace_key_segment}:{client_event_id}"),
                 ]
             })
             .map(|key| format!("'{}'", key.replace('\'', "''")))
@@ -2807,12 +2818,17 @@ impl WorkspacePgCleanup {
                                                     FROM knowledge_rich_documents \
                                                     WHERE workspace_id='{workspace_id}'))) \
              THEN RAISE EXCEPTION 'MT-033 owned EventLedger cleanup left rows'; \
+             END IF; \
+             IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                        WHERE idempotency_key LIKE 'native-editor-fr-pending:{workspace_id}:%' \
+                           OR idempotency_key LIKE 'native-editor-fr-complete:{workspace_id}:%') \
+             THEN RAISE EXCEPTION 'MT-033 workspace-partitioned native FR mirror rows survived cleanup'; \
              END IF; END $mt033_native_fr_cleanup$; COMMIT; \
-             SELECT json_build_object('native_fr_event_ids', ARRAY[{event_ids}]::text[], \
+             SELECT json_build_object('native_fr_client_event_ids', ARRAY[{event_ids}]::text[], \
              'save_receipt_event_ids', ARRAY[{save_event_ids}]::text[], \
              'ledger_rows_absent', true);",
             event_ids = self
-                .native_fr_event_ids
+                .native_fr_client_event_ids
                 .iter()
                 .map(|event_id| format!("'{}'", event_id.replace('\'', "''")))
                 .collect::<Vec<_>>()
@@ -2824,7 +2840,7 @@ impl WorkspacePgCleanup {
                 .collect::<Vec<_>>()
                 .join(","),
         ));
-        self.native_fr_event_ids.clear();
+        self.native_fr_client_event_ids.clear();
         self.save_receipt_event_ids.clear();
         receipt
     }
@@ -2949,11 +2965,19 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
     use handshake_native::command_registry::CMD_EDITOR_FILE_SAVE;
     use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 
+    // WP-KERNEL-012 MT-115 / MT-109 boundary: publish a REAL native-MCP session binding for THIS
+    // process BEFORE the managed backend is selected, so the fixture-owned backend inherits the same
+    // redirected app-data root and resolves the SAME `swarm_mcp_binding.json`. This is also what lets
+    // the mounted shell's own event emitter reach the capability-gated ingestion route. Nothing is
+    // weakened: an absent, forged, or stale binding still fails closed at the middleware.
+    let native_binding = pg_proof_support::RealNativeMcpBinding::publish();
+    let session_token = native_binding.token().to_owned();
     let mut managed_backend = pg_proof_support::require_live_backend();
     let managed_base = managed_backend.base.clone();
     let runtime = tokio::runtime::Runtime::new().expect("integration runtime");
     runtime.block_on(async {
         let base = managed_base;
+        let session_token = session_token.as_str();
         let client = reqwest::Client::builder()
             .pool_max_idle_per_host(2)
             .connect_timeout(std::time::Duration::from_secs(2))
@@ -2978,7 +3002,7 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
         let mut workspace_cleanup = WorkspacePgCleanup {
             base: base.clone(),
             workspace_id: workspace_id.clone(),
-            native_fr_event_ids: Vec::new(),
+            native_fr_client_event_ids: Vec::new(),
             save_receipt_event_ids: Vec::new(),
             armed: true,
         };
@@ -3249,8 +3273,12 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             std::time::Instant::now() + std::time::Duration::from_secs(5);
         let route_row = loop {
             rich_harness.run_steps(1);
+            // MT-115: MT-109 gates this read. Present the SAME genuine native-MCP credential the
+            // mounted client presents; without it the response is `401 HSK-401-FR-SESSION`, whose
+            // empty body would read as "the route receipt never arrived".
             let rows: serde_json::Value = client
                 .get(format!("{base}/api/flight_recorder?wsid={workspace_id}"))
+                .header("x-hsk-session-token", session_token)
                 .send()
                 .await
                 .expect("fresh Flight Recorder route readback")
@@ -3280,9 +3308,20 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             .as_str()
             .expect("route Flight Recorder event id")
             .to_owned();
+        // MT-115: the durable `event_id` above is MT-109's workspace-scoped derivation. The
+        // EventLedger mirror is keyed on the CLIENT event id, which the recorder row preserves
+        // separately, so cleanup and the exact-row assertion below must both use THIS id.
+        let route_client_event_id = route_row["payload"]["client_event_id"]
+            .as_str()
+            .expect("route Flight Recorder row preserves its client event id")
+            .to_owned();
+        assert_ne!(
+            route_client_event_id, route_event_id,
+            "MT-109 derives a workspace-scoped durable id distinct from the client receipt id"
+        );
         // Arm panic/drop cleanup as soon as the durable identity becomes observable. Every later
         // assertion may fail independently, but none may strand either exact EventLedger row.
-        workspace_cleanup.track_native_fr_event(&route_event_id);
+        workspace_cleanup.track_native_fr_client_event(&route_client_event_id);
         let route_causal_action_id = route_row["payload"]["native_payload"]["causal_action_id"]
             .as_str()
             .expect("route Flight Recorder causal action id")
@@ -3303,9 +3342,13 @@ fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
+        // MT-115: MT-109's mirror keys carry the AUTHENTICATED workspace plus the CLIENT event id.
+        // The previously asserted unpartitioned key matched zero rows in both counters, so a missing
+        // mirror and a present one were indistinguishable — this assertion could only ever have
+        // passed by returning "0|0", which it did not assert against.
         let ledger_counts = run_psql(&format!(
-            "SELECT COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-pending:{route_event_id}') \
-             || '|' || COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-complete:{route_event_id}') \
+            "SELECT COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-pending:{workspace_id}:{route_client_event_id}') \
+             || '|' || COUNT(*) FILTER (WHERE idempotency_key='native-editor-fr-complete:{workspace_id}:{route_client_event_id}') \
              FROM kernel_event_ledger;"
         ));
         assert_eq!(

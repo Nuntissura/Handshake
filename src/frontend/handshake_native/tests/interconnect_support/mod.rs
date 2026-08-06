@@ -715,6 +715,16 @@ mod pg_proof_support;
 // Each integration test crate consumes a different fixture entrypoint.
 pub use pg_proof_support::DEFAULT_BASE;
 
+/// WP-KERNEL-012 MT-115: the canonical MT-111 Flight Recorder credential helpers, re-exported so a
+/// suite that consumes this fixture through `interconnect_support` presents the SAME genuine
+/// native-MCP binding as `pg_proof_support`'s direct consumers. MT-109 made the whole flight-recorder
+/// route group fail-closed (`401 HSK-401-FR-SESSION`), and a 401 is indistinguishable from "the
+/// recorder is empty", so there must be exactly one credential mechanism, never a second one.
+#[allow(unused_imports)]
+pub use pg_proof_support::{
+    live_flight_recorder_session_token, RealNativeMcpBinding, NATIVE_BINDING_APP_DATA_ENV,
+};
+
 pub struct LiveBackend {
     inner: pg_proof_support::LiveBackend,
     cleanup_complete: bool,

@@ -404,26 +404,46 @@ fn replace_unrelated_sibling_panes_with_manual(app: &mut HandshakeApp, workspace
 struct LiveWorkspaceGuard<'a> {
     backend: &'a interconnect_support::LiveBackend,
     workspace_id: String,
-    native_fr_event_ids: Vec<String>,
+    /// MT-115: the genuine native-MCP session credential every Flight Recorder read presents. MT-109
+    /// made the whole recorder route group fail-closed, and a `401 HSK-401-FR-SESSION` renders as an
+    /// EMPTY row array — indistinguishable from "the workspace really has no residue". A cleanup gate
+    /// that read unauthenticated would therefore report a clean workspace while leaving every row.
+    session_token: String,
+    /// MT-115: the CLIENT event ids (`payload.client_event_id`). MT-109 derives the durable
+    /// `event_id` as a workspace-scoped SHA-256 of (workspace_id, client_event_id), while the
+    /// EventLedger mirror keys stay
+    /// `native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}`. Keying cleanup on the
+    /// durable id (or omitting the workspace) deletes NOTHING and still reports success.
+    native_fr_client_event_ids: Vec<String>,
     cleaned: bool,
 }
 
 impl LiveWorkspaceGuard<'_> {
     fn track_native_fr(&mut self, row: &serde_json::Value) {
-        let event_id = row["event_id"]
+        let client_event_id = row["payload"]["client_event_id"]
             .as_str()
+            .or_else(|| row["event_id"].as_str())
             .filter(|value| !value.trim().is_empty())
-            .unwrap_or_else(|| panic!("MT-067 native FR row lacks event_id: {row}"));
-        uuid::Uuid::parse_str(event_id).expect("MT-067 native FR event_id is a UUID");
-        if !self.native_fr_event_ids.iter().any(|id| id == event_id) {
-            self.native_fr_event_ids.push(event_id.to_owned());
+            .unwrap_or_else(|| {
+                panic!("MT-067 native FR row lacks payload.client_event_id and event_id: {row}")
+            });
+        uuid::Uuid::parse_str(client_event_id)
+            .expect("MT-067 native FR client_event_id is a UUID");
+        if !self
+            .native_fr_client_event_ids
+            .iter()
+            .any(|id| id == client_event_id)
+        {
+            self.native_fr_client_event_ids
+                .push(client_event_id.to_owned());
         }
     }
 
     fn cleanup_native_fr_ledger(&mut self) {
-        let rows = self
-            .backend
-            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        let rows = self.backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", self.workspace_id),
+            &self.session_token,
+        );
         if let Some(rows) = rows.as_array() {
             for row in rows {
                 if row["event_id"].as_str().is_some() {
@@ -431,14 +451,19 @@ impl LiveWorkspaceGuard<'_> {
                 }
             }
         }
-        if !self.native_fr_event_ids.is_empty() {
+        if !self.native_fr_client_event_ids.is_empty() {
+            let workspace_id = self.workspace_id.clone();
             let keys = self
-                .native_fr_event_ids
+                .native_fr_client_event_ids
                 .iter()
-                .flat_map(|event_id| {
+                .flat_map(|client_event_id| {
                     [
-                        format!("native-editor-fr-pending:{event_id}"),
-                        format!("native-editor-fr-complete:{event_id}"),
+                        format!(
+                            "native-editor-fr-pending:{workspace_id}:{client_event_id}"
+                        ),
+                        format!(
+                            "native-editor-fr-complete:{workspace_id}:{client_event_id}"
+                        ),
                     ]
                 })
                 .map(|key| sql_literal(&key))
@@ -457,7 +482,31 @@ impl LiveWorkspaceGuard<'_> {
             self.backend
                 .run_fixture_sql("mt067-native-fr-ledger-cleanup", &sql);
         }
-        self.native_fr_event_ids.clear();
+        self.native_fr_client_event_ids.clear();
+        // MT-115 closing gate: sweep the WHOLE workspace key prefix, so a mirror row this proof never
+        // observed through the recorder read (or one written after the last read) still cannot
+        // survive. A "we deleted the rows we happened to see" cleanup is exactly how the previously
+        // unpartitioned keys reported success while orphaning every row.
+        let workspace_pending_like =
+            sql_literal(&format!("native-editor-fr-pending:{}:%", self.workspace_id));
+        let workspace_complete_like =
+            sql_literal(&format!("native-editor-fr-complete:{}:%", self.workspace_id));
+        let sweep = format!(
+            "BEGIN; \
+             DELETE FROM kernel_event_ledger \
+             WHERE idempotency_key LIKE {workspace_pending_like} \
+                OR idempotency_key LIKE {workspace_complete_like}; \
+             DO $mt067_fr_sweep$ BEGIN \
+               IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                          WHERE idempotency_key LIKE {workspace_pending_like} \
+                             OR idempotency_key LIKE {workspace_complete_like}) THEN \
+                 RAISE EXCEPTION 'MT-067 workspace-partitioned native FR ledger sweep left rows behind'; \
+               END IF; \
+             END $mt067_fr_sweep$; \
+             COMMIT;"
+        );
+        self.backend
+            .run_fixture_sql("mt067-native-fr-ledger-workspace-sweep", &sweep);
     }
 
     fn cleanup_workspace_bridge_ledger_and_assert_zero(&self) {
@@ -512,9 +561,13 @@ impl LiveWorkspaceGuard<'_> {
         );
         self.backend
             .run_fixture_sql("mt067-workspace-bridge-ledger-cleanup", &sql);
-        let flight_recorder_rows = self
-            .backend
-            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        // MT-115: this zero-residue assertion is the one place an unauthenticated read is most
+        // dangerous — a 401 returns nothing to parse and an authorized-but-empty read returns `[]`,
+        // so reading without the credential would turn "every row is still there" into a PASS.
+        let flight_recorder_rows = self.backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", self.workspace_id),
+            &self.session_token,
+        );
         assert!(
             flight_recorder_rows
                 .as_array()
@@ -725,15 +778,24 @@ fn seed_explicit_legacy_calendar_fixture(
     backend.run_fixture_sql("mt067-calendar-event", &sql);
 }
 
+/// MT-115: `session_token` is the genuine published native-MCP credential. It is a REQUIRED
+/// parameter rather than a resolve-at-call-site lookup because this poll also runs inside a canonical
+/// Argus window, and an unauthenticated (or wrong-binding) read returns a `401` whose body parses to
+/// no rows — which this loop would report as "the automatic row never arrived", i.e. a product defect
+/// that does not exist.
 fn wait_for_calendar_fr(
     backend: &interconnect_support::LiveBackend,
     workspace_id: &str,
+    session_token: &str,
     kind: &str,
     matches_fixture: impl Fn(&serde_json::Value) -> bool,
 ) -> serde_json::Value {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
-        let rows = backend.get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+        let rows = backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={workspace_id}"),
+            session_token,
+        );
         if let Some(row) = rows.as_array().and_then(|rows| {
             rows.iter()
                 .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
@@ -861,6 +923,35 @@ fn spawn_mock(
         request_line
     });
     (base_url, handle)
+}
+
+/// WP-KERNEL-012 MT-115: a REAL native-MCP session binding for a MOUNTED (stub-server) proof.
+///
+/// MT-109 made the flight-recorder route group fail-closed and MT-111 rewired the production emitter
+/// to match: it resolves `x-hsk-session-token` from the on-disk binding and, without one, returns
+/// `EmitError::MissingSessionBinding` and never issues the request at all. A mounted proof therefore
+/// needs a genuine binding for TWO different reasons:
+///   * a POSITIVE FR assertion (`event_bound_fr_posts >= 1`) cannot be satisfied without it, and
+///   * a NEGATIVE FR assertion (`native_fr_posts == 0`) is VACUOUS without it — it would pass even if
+///     the product wrongly tried to emit, because the emitter aborts before the socket.
+/// The transient stub does not validate the credential; the point is that the PRODUCT path is able to
+/// produce the request, so the counter measures product behavior rather than a missing credential.
+struct MountedNativeBinding {
+    // Declaration order IS drop order: release the binding (restoring the app-data variable and
+    // deleting the binding file) BEFORE the root directory that contains it is removed.
+    _binding: interconnect_support::RealNativeMcpBinding,
+    _root: ForcedOwnedBackendEnv,
+}
+
+impl MountedNativeBinding {
+    fn install() -> Self {
+        let root = ForcedOwnedBackendEnv::install();
+        let binding = interconnect_support::RealNativeMcpBinding::publish();
+        Self {
+            _binding: binding,
+            _root: root,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -1378,6 +1469,14 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     assert_mt067_matrix_source_identity();
     let _server_guard = mounted_server_test_guard();
     let _owned_backend_env = ForcedOwnedBackendEnv::install();
+    // WP-KERNEL-012 MT-115 / MT-109 boundary: the whole flight-recorder route group is fail-closed.
+    // Publish a REAL native-MCP session binding for THIS process BEFORE the managed backend is
+    // selected, so the fixture-owned child inherits the same redirected app-data root and both
+    // processes resolve the SAME `swarm_mcp_binding.json`. The mounted app's own event emitter reads
+    // this binding too, so the automatic native-editor events below can actually be ingested.
+    // Nothing here weakens the boundary: a missing, forged, or stale binding still fails closed.
+    let native_binding = interconnect_support::RealNativeMcpBinding::publish();
+    let session_token = native_binding.token().to_owned();
     let backend_binary_from_env = PathBuf::from(
         std::env::var_os("HSK_TEST_BACKEND_BIN")
             .expect("exact-source proof requires HSK_TEST_BACKEND_BIN"),
@@ -1446,7 +1545,8 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     let mut cleanup = LiveWorkspaceGuard {
         backend: &live,
         workspace_id: workspace_id.clone(),
-        native_fr_event_ids: Vec::new(),
+        session_token: session_token.clone(),
+        native_fr_client_event_ids: Vec::new(),
         cleaned: false,
     };
     let source_id = format!("cal-src-{}", uuid::Uuid::new_v4().simple());
@@ -1668,21 +1768,21 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     // date B, so the final proof excludes these exact causal rows rather than accepting the first match.
     let first_date_label = date.format("%Y-%m-%d").to_string();
     let initial_bound_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "calendar_event_bound", |row| {
+        wait_for_calendar_fr(&live, &workspace_id, &session_token, "calendar_event_bound", |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["date"].as_str()
                     == Some(first_date_label.as_str())
         });
     let initial_first_span_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
+        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
                     == Some(first_span_id.as_str())
         });
     let initial_second_span_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
+        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
@@ -1720,9 +1820,16 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         .state_mut()
         .clear_fems_overlay_for_integration_test();
     harness.run_steps(2);
-    let mut date_nav_argus = canonical_argus_driver::CanonicalArgusDriver::bind(
+    // MT-115: bind Argus in the CURRENT app-data root carrying the SAME session token as the already
+    // published native-MCP binding. `CanonicalArgusDriver::bind` would install its own scoped
+    // app-data root, which silently re-points the mounted app's event emitter at a binding the
+    // fixture-owned backend cannot see — every automatic native-editor event emitted inside the Argus
+    // window would then 401 and the `wait_for_calendar_fr` polls below would report a non-existent
+    // product defect. One process, one genuine credential.
+    let mut date_nav_argus = canonical_argus_driver::CanonicalArgusDriver::bind_in_current_app_data(
         harness.state(),
         "mt067-live-date-navigation",
+        handshake_native::mcp::SessionToken::from_hex(session_token.clone()),
     );
     let date_nav_before = date_nav_argus.inspect(&mut harness);
     assert!(
@@ -1808,14 +1915,14 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     // These are the new date-B rows; the date-A event ids are explicitly excluded so a stale multi-day
     // projection cannot satisfy the terminal predicate by coincidence.
     let calendar_event_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "calendar_event_bound", |row| {
+        wait_for_calendar_fr(&live, &workspace_id, &session_token, "calendar_event_bound", |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["date"].as_str()
                     == Some(second_date_label.as_str())
         });
     let first_span_activity_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
+        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
@@ -1823,7 +1930,7 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
                 && row["event_id"].as_str() != Some(initial_first_span_fr_id.as_str())
         });
     let activity_fr =
-        wait_for_calendar_fr(&live, &workspace_id, "activity_span_correlated", |row| {
+        wait_for_calendar_fr(&live, &workspace_id, &session_token, "activity_span_correlated", |row| {
             row["payload"]["native_payload"]["calendar_event_id"].as_str()
                 == Some(event_id.as_str())
                 && row["payload"]["native_payload"]["activity_span_id"].as_str()
@@ -1918,7 +2025,6 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
     ));
     let date_nav_receipt_id = date_nav_observation.receipt_id;
     let date_nav_receipt_status = date_nav_observation.receipt_status.clone();
-    date_nav_argus.finish();
 
     // The loop can observe the async delivery immediately after the frame rendered its cleared
     // in-flight state. Render once more so AccessKit reflects the newly delivered date-B chip before
@@ -2000,7 +2106,10 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         correlated_ts > bound_ts,
         "the exact ActivitySpan correlation must be strictly later than its exact CalendarEvent binding"
     );
-    let all_fr = live.get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let all_fr = live.get_json_with_session_token(
+        &format!("/api/flight_recorder?wsid={workspace_id}"),
+        &session_token,
+    );
     let all_fr = all_fr.as_array().expect("workspace FR rows are an array");
     let bound_rows = all_fr
         .iter()
@@ -2055,6 +2164,11 @@ fn open_or_create_daily_note_is_idempotent_against_real_pg_live() {
         "each exact seeded span must have one A receipt and one B receipt, with no other span ids"
     );
     cleanup.assert_cleanup();
+    // MT-115 ordering (the MT-066 precedent): `finish()` consumes the driver and DROPS the
+    // `SwarmMcpServer`, whose `Drop` deletes the on-disk native-MCP binding. After that no caller can
+    // present a genuine token, so every authorized recorder read and the zero-residue cleanup gate
+    // above must run FIRST. The canonical terminal-predicate assertion still precedes this call.
+    date_nav_argus.finish();
     write_mt067_proof_bundle(
         "live-date-navigation",
         date_nav_receipt_id,
@@ -2582,6 +2696,9 @@ fn mounted_three_503s_are_retry_exhausted_after_exactly_three_gets() {
 #[test]
 fn mounted_navigation_while_old_get_is_in_flight_cancels_without_fr_residue() {
     let _server_guard = mounted_server_test_guard();
+    // MT-115: without a genuine binding the `native_fr_posts == 0` assertion below is vacuous — the
+    // emitter would fail closed before the socket regardless of what the product decided to emit.
+    let _native_binding = MountedNativeBinding::install();
     let workspace_id = "WS-MT067-CANCEL";
     let first_date = chrono::Local::now().date_naive();
     let second_date = first_date
@@ -2710,6 +2827,9 @@ fn assert_mounted_activity_failure(
     expected_failure: CalendarReadFailure,
     expected_activity_reads: usize,
 ) {
+    // MT-115: this helper asserts a POSITIVE `event_bound_fr_posts` count, which the MT-109-gated
+    // production emitter can only satisfy with a genuine native-MCP binding.
+    let _native_binding = MountedNativeBinding::install();
     let workspace_id = match mode {
         MountedEventMode::EventThenActivityNotFound => "WS-MT067-ACTIVITY-404",
         MountedEventMode::EventThenActivityUnavailable => "WS-MT067-ACTIVITY-503",
@@ -2820,6 +2940,9 @@ fn mounted_activity_404_and_503_preserve_event_without_activity_fr() {
 #[test]
 fn mounted_journal_503_exhaustion_clears_stale_projection_and_skips_calendar() {
     let _server_guard = mounted_server_test_guard();
+    // MT-115: publish a genuine native-MCP binding so the `native_fr_posts == 0` assertion below
+    // measures product behavior instead of the MT-109-gated emitter failing closed before the socket.
+    let _native_binding = MountedNativeBinding::install();
     let workspace_id = "WS-MT067-JOURNAL-503";
     let date = d(2026, 8, 2);
     let (base_url, stop, counts, server) = spawn_transient_mounted_calendar_server(
@@ -2899,6 +3022,9 @@ fn mounted_journal_503_exhaustion_clears_stale_projection_and_skips_calendar() {
 #[test]
 fn mounted_malformed_calendar_response_is_invalid_after_one_get() {
     let _server_guard = mounted_server_test_guard();
+    // MT-115: publish a genuine native-MCP binding so the `native_fr_posts == 0` assertion below
+    // measures product behavior instead of the MT-109-gated emitter failing closed before the socket.
+    let _native_binding = MountedNativeBinding::install();
     let workspace_id = "WS-MT067-MALFORMED";
     let date = d(2026, 8, 3);
     let (base_url, stop, counts, server) = spawn_transient_mounted_calendar_server(

@@ -6,10 +6,21 @@
 //! route (reuse-via-API), so the evidence rejoins the governed business-event ledger and the §10.12.5
 //! Diagnostics Panel Tier-3 section becomes populated post-recovery.
 //!
-//! # The EXISTING verified route (reuse-via-API, FR kept as-is — HARD)
+//! # WP-KERNEL-012 MT-115 — THE ROUTE THIS MODULE TARGETED NO LONGER EXISTS
 //!
-//! [`FR_ROUTE_PATH`] = `POST /api/flight_recorder/runtime_chat_event` is the VERIFIED FR ingestion
-//! endpoint. The in-repo reference for its EXACT accepted body shape + requirements is
+//! MT-109 removed the unscoped `POST /api/flight_recorder/runtime_chat_event` and replaced the whole
+//! flight-recorder route group with workspace-scoped, capability-gated routes that require a live
+//! native-MCP session credential. Palmistry has no workspace id and, by design, runs when the app is
+//! frozen or dead — exactly when no live binding can exist. It therefore satisfies neither half of
+//! the new contract. The route constant is REMOVED (see the note above `FrForwarder`), the forwarder
+//! now takes its target path explicitly, and production binds NONE. Nothing regressed into silence:
+//! the typed [`FrForwardBlocker::SchemaIncompatible`] deferral to [`FR_INGESTION_FOLLOW_ON_WP`] still
+//! fires before any network call, and each survivor record stays local and flagged pending.
+//!
+//! # The formerly-existing route (historical, kept for the closed-schema evidence below)
+//!
+//! `POST /api/flight_recorder/runtime_chat_event` WAS the FR ingestion endpoint. The in-repo
+//! reference for its EXACT accepted body shape + requirements is
 //! `handshake_native/src/event_emitter.rs` (the MT-036 `RuntimeChatLedgerTransport`), which posts to
 //! exactly this route and documents (verified against `src/backend/handshake_core`):
 //!   1. the body is `RuntimeChatEventV0_1` with `#[serde(deny_unknown_fields)]` — ONLY the known keys
@@ -47,9 +58,28 @@ use serde_json::{json, Value as JsonValue};
 
 use crate::survivor_store::SurvivorRecord;
 
-/// The EXISTING verified Flight Recorder ingestion route path (reuse-via-API; never invented, never
-/// edited). The in-repo reference for the accepted body is `handshake_native/src/event_emitter.rs`.
-pub const FR_ROUTE_PATH: &str = "/api/flight_recorder/runtime_chat_event";
+// ── WP-KERNEL-012 MT-115: the removed route constant ──────────────────────────────────────────────
+//
+// This module used to export `FR_ROUTE_PATH = "/api/flight_recorder/runtime_chat_event"`, described as
+// "the EXISTING verified FR ingestion endpoint". WP-KERNEL-012 MT-109 DELETED that route. The
+// flight-recorder route group is now workspace-scoped and capability-gated:
+// `POST /api/workspaces/{workspace_id}/flight_recorder/runtime_chat_event`, behind fail-closed
+// middleware that requires an `x-hsk-session-token` matching the on-disk native-MCP binding whose
+// recorded owner process is still ALIVE with the same OS birth identity
+// (`handshake_core::api::stage::capture_context`).
+//
+// Palmistry can satisfy NEITHER half, and not by accident:
+//   * it has no workspace id, so it cannot form the path, and
+//   * it is an out-of-process watcher whose entire reason to exist is surviving a Handshake freeze or
+//     crash — precisely when the app process is gone and `process_birth_identity` therefore fails, so
+//     even reading the app's binding file yields `401 HSK-401-FR-SESSION` (`StaleBinding`).
+//
+// So the constant was not merely stale, it named a route Palmistry could never have used. It is
+// REMOVED rather than renamed or re-pointed, so no future reader (or WP-KERNEL-016 implementer)
+// believes an ingestion route already exists. The forwarder now takes the target path EXPLICITLY;
+// production binds none, which is the honest state of the world. The typed
+// [`FrForwardBlocker::SchemaIncompatible`] deferral to [`FR_INGESTION_FOLLOW_ON_WP`] is unchanged and
+// still short-circuits every production forward BEFORE any network call.
 
 /// The verified default FR base URL (the loopback the Handshake backend serves on — the in-repo
 /// reference 127.0.0.1:37501). A caller may override it (tests point at a local stub).
@@ -233,14 +263,19 @@ pub fn build_survivor_forward_body(record: &SurvivorRecord) -> JsonValue {
     })
 }
 
-/// The recovery-time FR forwarder. Holds a blocking reqwest client + the FR base URL + a stable non-nil
-/// session UUID (the route requires one). It posts to the EXISTING [`FR_ROUTE_PATH`] (reuse-via-API).
-/// `compat` is the honesty verdict on whether the target route can FAITHFULLY carry a survivor record:
-/// for the real (existing) FR it is [`FrSchemaCompat::Incompatible`] (the typed blocker), for a WP-016
-/// ingestion shape / the AC-013-3 stub it is [`FrSchemaCompat::Compatible`] (a real forward).
+/// The recovery-time FR forwarder. Holds a blocking reqwest client, the FR base URL, the EXPLICIT
+/// ingestion path (MT-115: `None` in production, because MT-109 removed the route this module used to
+/// name and nothing has replaced it), and a stable non-nil session UUID. `compat` is the honesty
+/// verdict on whether the target route can FAITHFULLY carry a survivor record: for the real FR it is
+/// [`FrSchemaCompat::Incompatible`] (the typed blocker), for a future WP-016 ingestion shape or the
+/// AC-013-3 stub it is [`FrSchemaCompat::Compatible`] (a real forward).
 pub struct FrForwarder {
     client: reqwest::blocking::Client,
     base_url: String,
+    /// MT-115: the EXPLICIT ingestion path this forwarder posts to, or `None` when no survivor
+    /// ingestion route is bound. Production binds `None` — MT-109 removed the route this module used
+    /// to hardcode, and nothing has replaced it (see the module-level note above).
+    route_path: Option<String>,
     session_uuid: String,
     compat: FrSchemaCompat,
 }
@@ -251,16 +286,25 @@ impl FrForwarder {
     /// a `forward` of any survivor record returns [`FrForwardBlocker::SchemaIncompatible`] (HONEST, not
     /// faked), because the kept-as-is chat-event route cannot carry the survivor shape (AC-013-4). The
     /// record stays local + pending; WP-016 adds the proper ingestion shape.
+    /// MT-115: NO ingestion path is bound, because none exists. The honesty gate returns
+    /// [`FrForwardBlocker::SchemaIncompatible`] before any URL is needed, so this is not a hidden
+    /// default — it is the accurate statement that the survivor record has nowhere faithful to go.
     pub fn for_existing_fr(base_url: impl Into<String>) -> Self {
-        Self::with_compat(base_url, runtime_chat_event_compatibility())
+        Self::with_compat(base_url, None, runtime_chat_event_compatibility())
     }
 
-    /// Build a forwarder with an EXPLICIT compatibility verdict + base URL. `FrSchemaCompat::Compatible`
-    /// is used for a route that CAN carry the survivor shape (the WP-016 ingestion endpoint, or the
-    /// AC-013-3 stub) — a forward then really posts + marks forwarded. `Incompatible` returns the typed
-    /// blocker. The blocking reqwest client uses a bounded connect+read timeout so a forward can NEVER
-    /// hang the watcher (a dead/absent FR returns a RouteAbsent blocker promptly).
-    pub fn with_compat(base_url: impl Into<String>, compat: FrSchemaCompat) -> Self {
+    /// Build a forwarder with an EXPLICIT ingestion path + compatibility verdict + base URL.
+    /// `FrSchemaCompat::Compatible` is used for a route that CAN carry the survivor shape (a future
+    /// WP-016 ingestion endpoint, or the AC-013-3 stub) — a forward then really posts + marks
+    /// forwarded. `Incompatible` returns the typed blocker. `route_path` is `Option` and REQUIRED at
+    /// the call site rather than defaulted, so no caller can inherit a route that does not exist. The
+    /// blocking reqwest client uses a bounded connect+read timeout so a forward can NEVER hang the
+    /// watcher (a dead/absent FR returns a RouteAbsent blocker promptly).
+    pub fn with_compat(
+        base_url: impl Into<String>,
+        route_path: Option<String>,
+        compat: FrSchemaCompat,
+    ) -> Self {
         let client = reqwest::blocking::Client::builder()
             .connect_timeout(Duration::from_secs(2))
             .timeout(Duration::from_secs(5))
@@ -269,15 +313,18 @@ impl FrForwarder {
         Self {
             client,
             base_url: base_url.into(),
+            route_path,
             // A stable non-nil UUID for the route's required session_id (the route 400s a nil/non-UUID).
             session_uuid: new_uuid_string(),
             compat,
         }
     }
 
-    /// The full forward URL (`<base>/api/flight_recorder/runtime_chat_event`).
-    pub fn url(&self) -> String {
-        format!("{}{}", self.base_url.trim_end_matches('/'), FR_ROUTE_PATH)
+    /// The full forward URL, or `None` when no survivor ingestion path is bound (production).
+    pub fn url(&self) -> Option<String> {
+        self.route_path
+            .as_ref()
+            .map(|path| format!("{}{}", self.base_url.trim_end_matches('/'), path))
     }
 
     /// The non-nil session UUID this forwarder stamps on the route's required `session_id`.
@@ -317,10 +364,18 @@ impl FrForwarder {
 
         // Compatible route (WP-016 ingestion / the AC-013-3 stub): post the survivor-faithful body and
         // honor the real HTTP outcome. A bounded-timeout blocking POST so a dead FR cannot hang.
+        // MT-115: a Compatible verdict with NO bound ingestion path is reported as an absent route,
+        // never as a silent success. This is unreachable in the shipped composition, where
+        // `for_existing_fr` always short-circuits above.
+        let url = self.url().ok_or_else(|| FrForwardBlocker::RouteAbsent {
+            reason: "no survivor ingestion route is bound (MT-109 removed the unscoped Flight \
+                     Recorder ingestion path and nothing has replaced it)"
+                .to_owned(),
+        })?;
         let body = build_survivor_forward_body(record);
         let resp = self
             .client
-            .post(self.url())
+            .post(url)
             .json(&body)
             .send()
             .map_err(|e| FrForwardBlocker::RouteAbsent {
@@ -497,7 +552,11 @@ mod tests {
     fn forward_against_absent_compatible_route_is_route_absent_blocker() {
         // A COMPATIBLE route that is unreachable yields RouteAbsent (the record stays pending) — bounded,
         // never hangs. Port 1 is reliably refused.
-        let fwd = FrForwarder::with_compat("http://127.0.0.1:1", FrSchemaCompat::Compatible);
+        let fwd = FrForwarder::with_compat(
+            "http://127.0.0.1:1",
+            Some("/api/wp016/survivor_forward".to_owned()),
+            FrSchemaCompat::Compatible,
+        );
         let err = fwd
             .forward(&freeze_record())
             .expect_err("absent route must block");
@@ -505,5 +564,38 @@ mod tests {
             matches!(err, FrForwardBlocker::RouteAbsent { .. }),
             "got {err:?}"
         );
+    }
+
+    #[test]
+    fn production_forwarder_binds_no_ingestion_route() {
+        // MT-115: the shipped composition (`main.rs` -> `for_existing_fr`) binds NO ingestion path,
+        // because MT-109 removed the one this module used to hardcode. A future reader must not be
+        // able to conclude from this file that a survivor-ingestion route exists.
+        let fwd = FrForwarder::for_existing_fr("http://127.0.0.1:37501");
+        assert!(
+            fwd.url().is_none(),
+            "production must not name a Flight Recorder survivor-ingestion route"
+        );
+    }
+
+    #[test]
+    fn compatible_forwarder_without_a_route_reports_absent_never_success() {
+        // Fail-closed: a Compatible verdict with no bound path is an honest RouteAbsent blocker, not a
+        // silent Ok. The record stays local and pending.
+        let fwd = FrForwarder::with_compat(
+            "http://127.0.0.1:1",
+            None,
+            FrSchemaCompat::Compatible,
+        );
+        let err = fwd
+            .forward(&freeze_record())
+            .expect_err("an unbound route must block, never succeed");
+        match err {
+            FrForwardBlocker::RouteAbsent { reason } => assert!(
+                reason.contains("no survivor ingestion route is bound"),
+                "got {reason}"
+            ),
+            other => panic!("expected RouteAbsent, got {other:?}"),
+        }
     }
 }

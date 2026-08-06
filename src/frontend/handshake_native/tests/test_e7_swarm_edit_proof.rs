@@ -1863,12 +1863,76 @@ fn swarm_edit_proof_all_steps() {
 /// workspace, all editor mutations originate at stable AccessKit nodes, both agents race the same
 /// optimistic version, the loser refetches and merges, and success is written only after durable
 /// reload, live search, attribution, EventLedger/Flight-Recorder idempotency, and cleanup pass.
+/// WP-KERNEL-012 MT-115: an isolated app-data root for this bounded child's native-MCP binding.
+///
+/// It MUST be installed before the managed backend is selected. Setting
+/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` forces `pg_proof_support` to OWN its backend child, and only an
+/// owned child inherits the redirected app-data root that makes the app, this proof, and the backend
+/// resolve one `swarm_mcp_binding.json`. It never touches the operator's live app data.
+struct Mt043NativeBindingRoot {
+    previous: Option<std::ffi::OsString>,
+    root: PathBuf,
+}
+
+impl Mt043NativeBindingRoot {
+    fn install(nonce: &str) -> Self {
+        let sanitized = nonce
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() || character == '-' {
+                    character
+                } else {
+                    '-'
+                }
+            })
+            .collect::<String>();
+        let root = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .ancestors()
+                    .nth(4)
+                    .expect("handshake_native crate must be nested below the shared worktree root")
+                    .join("Handshake_Artifacts")
+                    .join("handshake-test")
+            })
+            .join("wp-kernel-012-mt-115")
+            .join("native-mcp-binding")
+            .join(format!("run-{sanitized}"));
+        std::fs::create_dir_all(&root).expect("create MT-043 native-MCP binding root");
+        let root = std::fs::canonicalize(&root).expect("canonicalize MT-043 binding root");
+        let previous = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT");
+        std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root);
+        Self { previous, root }
+    }
+}
+
+impl Drop for Mt043NativeBindingRoot {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", value),
+            None => std::env::remove_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT"),
+        }
+        let _ = std::fs::remove_dir_all(&self.root);
+    }
+}
+
 fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     let started = Instant::now();
     let deadline = started + Duration::from_secs(24);
     let nonce = std::env::var(MT043_ATTEMPT_ID_ENV)
         .unwrap_or_else(|_| format!("{}-{}", std::process::id(), uuid::Uuid::new_v4()));
     let mut live_log = ProofLog::begin_live_attempt(&nonce);
+    // WP-KERNEL-012 MT-115 / MT-109 boundary: the whole flight-recorder route group is fail-closed.
+    // Publish a REAL native-MCP session binding for THIS bounded child process BEFORE the managed
+    // backend is selected — setting `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is also what makes the
+    // fixture OWN its backend child, and the child must inherit the redirected app-data root so both
+    // processes resolve the SAME `swarm_mcp_binding.json`. The mounted app's own emitter reads this
+    // binding too, so the automatic `document_saved` events polled for below can be ingested at all.
+    // Nothing here weakens the boundary: an absent, forged, or stale binding still fails closed.
+    let _binding_root = Mt043NativeBindingRoot::install(&nonce);
+    let native_binding = interconnect_support::RealNativeMcpBinding::publish();
+    let session_token = native_binding.token().to_owned();
     let live = interconnect_support::require_reachable_backend();
     let title = format!("SwarmProofNote-{nonce}");
     let workspace = live.create_workspace(&format!("mt043-{nonce}"));
@@ -2739,15 +2803,26 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
         .build()
         .expect("bounded MT-043 HTTP client");
     let (automatic_fr, automatic_merge_fr) = {
-        let mut poll_flight_recorder = |actor_id: &str, receipt: &str| {
+        let mut poll_flight_recorder = |save_actor_id: &str, receipt: &str| {
             let fr_deadline = Instant::now() + Duration::from_secs(5);
             loop {
                 app_harness.run_steps(1);
+                // MT-115 / MT-109: the read is capability-gated, so present the genuine native-MCP
+                // credential — an unauthenticated read is `401` and reads back as "no rows arrived".
+                //
+                // The `actor_id=` filter is deliberately GONE. MT-109 made the recorder actor
+                // SERVER-derived (`handshake-native:{pid}:{birth}`), so filtering on the document
+                // save's own `x-hsk-actor-id` matches zero rows even when the event landed
+                // perfectly. Per-agent attribution now lives in the immutable native payload
+                // (`save_receipt_event_id` + run ids), which is what this loop already selects on and
+                // what the assertions below compare; the server-derived recorder identity is
+                // asserted separately.
                 let rows: serde_json::Value = runtime.block_on(async {
                     http.get(format!(
-                        "{}/api/flight_recorder?wsid={workspace_id}&actor_id={actor_id}",
+                        "{}/api/flight_recorder?wsid={workspace_id}",
                         live.base
                     ))
+                    .header("x-hsk-session-token", session_token.as_str())
                     .send()
                     .await
                     .expect("FR GET")
@@ -2775,7 +2850,7 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
                 }
                 assert!(
                     Instant::now() < fr_deadline,
-                    "automatic authentic document_saved row for actor {actor_id} receipt {receipt} did not arrive within five seconds"
+                    "automatic authentic document_saved row for save actor {save_actor_id} receipt {receipt} did not arrive within five seconds"
                 );
                 std::thread::sleep(Duration::from_millis(10));
             }
@@ -2785,6 +2860,25 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
             poll_flight_recorder(&merge_attribution.actor_id, &merge_receipt),
         )
     };
+    // MT-115 / MT-109 attribution: the recorder actor is derived from the AUTHENTICATED native-MCP
+    // session, never from the client. Assert the durable attribution IS the server-derived native
+    // identity and is NOT the client-supplied save actor — the exact property MT-109 exists to hold.
+    for (row, save_actor_id) in [
+        (&automatic_fr, &app_attribution.actor_id),
+        (&automatic_merge_fr, &merge_attribution.actor_id),
+    ] {
+        let recorder_actor = row["payload"]["actor_id"]
+            .as_str()
+            .expect("native-editor Flight Recorder row carries a server-derived actor id");
+        assert!(
+            recorder_actor.starts_with("handshake-native:"),
+            "MT-109 requires the recorder actor to be the authenticated native session, got {recorder_actor}"
+        );
+        assert_ne!(
+            recorder_actor, save_actor_id,
+            "the client-supplied document-save actor must never become the recorder attribution"
+        );
+    }
     assert_ne!(
         automatic_fr["event_id"].as_str(),
         Some(app_receipt.as_str())
@@ -3079,6 +3173,29 @@ fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
     assert!(
         Instant::now() < deadline,
         "complete MT-043 scenario exceeded 30 seconds"
+    );
+    // MT-115: the native-editor EventLedger MIRROR rows are keyed
+    // `native-editor-fr-{pending,complete}:{workspace_id}:{client_event_id}` and carry no
+    // `workspace_id` COLUMN, so the workspace DELETE below cascades nothing for them. Sweep the whole
+    // workspace key prefix while the workspace still exists, then fail closed. Without this the
+    // automatic `document_saved` rows this proof just produced survive as orphaned residue.
+    live.run_fixture_sql(
+        "mt043-native-fr-ledger-workspace-sweep",
+        &format!(
+            "BEGIN; \
+             DELETE FROM kernel_event_ledger \
+             WHERE idempotency_key LIKE {pending_like} OR idempotency_key LIKE {complete_like}; \
+             DO $mt043_fr_sweep$ BEGIN \
+               IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                          WHERE idempotency_key LIKE {pending_like} \
+                             OR idempotency_key LIKE {complete_like}) THEN \
+                 RAISE EXCEPTION 'MT-043 workspace-partitioned native FR ledger sweep left rows behind'; \
+               END IF; \
+             END $mt043_fr_sweep$; \
+             COMMIT;",
+            pending_like = sql_literal(&format!("native-editor-fr-pending:{workspace_id}:%")),
+            complete_like = sql_literal(&format!("native-editor-fr-complete:{workspace_id}:%")),
+        ),
     );
     assert!(matches!(
         live.delete_workspace(&workspace_id),
