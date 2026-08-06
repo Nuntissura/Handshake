@@ -873,6 +873,16 @@
               "classification": "TEST ROBUSTNESS under parallelism, NOT a product defect and NOT MT-113 fallout. The product behaviour it asserts (the shell drives the FEMS read, and a 404 surfaces as a typed blocker) is demonstrably correct when given time.",
               "how_to_fix_without_weakening_anything": "Do NOT relax the ASSERTIONS - ever_in_flight and the typed blocker are the real contract and must stay. The 10s wall-clock deadline is the fragile part. Prefer making the wait condition-based with a generous bound, or serialising this test, over simply enlarging the constant. Note MT-113 hit a sibling of this class and solved it properly with an explicit quiescence gate rather than a longer sleep - the same instinct applies here.",
               "impact_on_the_capstone": "MT-108 item 11 requires the full suite to pass. A test that is green alone and red in its own binary makes that sweep NON-DETERMINISTIC, so this must be fixed before the capstone rather than discovered inside it. Recording it now is the difference between a known 10-minute fix and an unexplained capstone failure."
+            },
+            "RESOLVED": {
+              "at_utc": "2026-08-06T23:48:30.754Z",
+              "commit": "2c0aa139",
+              "fix": "Widened the server ANTI-HANG GUARD from 10s to 120s in tests/test_app_host_mount_secondary.rs, with the reasoning documented at the site.",
+              "precise_root_cause": "The two bounds were mismatched in KIND: the client loop is ITERATION-bounded (80 x run_steps(2) plus a 25ms sleep) while the server guard was TIME-bounded at 10s. Under cargo default 51-way parallelism the client fixed iterations outlast a 10s clock, the server thread panics, and server.join() converts that into a failure of an otherwise-correct test.",
+              "hypothesis_checked_and_rejected": "A fixed-port collision between parallel tests was the obvious explanation and is WRONG - the server binds an EPHEMERAL port via listener.local_addr(). Verified in source before changing anything.",
+              "nothing_weakened": "No assertion was relaxed. ever_in_flight (AC-080-5) and the typed blocker remain exactly as written, and the widened guard CANNOT mask a defect: if the shell never issues the read, the client loop still completes and ever_in_flight still fails.",
+              "verified": "cargo test --test test_app_host_mount_secondary => EXIT 0, 51 passed / 0 failed (was 50 passed / 1 failed).",
+              "capstone_impact": "One source of MT-108 full-suite non-determinism is removed."
             }
           },
           "red_2_needs_diagnosis": {
