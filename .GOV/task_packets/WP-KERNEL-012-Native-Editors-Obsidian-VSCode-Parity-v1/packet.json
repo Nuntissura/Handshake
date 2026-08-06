@@ -897,9 +897,9 @@
               "deterministic": "CONFIRMED DETERMINISTIC, not contention. It failed in the full binary, then again in isolation with the complete environment, on an otherwise IDLE machine with no other cargo build or agent running. Contention was the obvious hypothesis and it is ruled out.",
               "the_assertion": "test_event_emitter.rs:2296 polls GET /api/flight_recorder?wsid={ws}&event_type=system and breaks only when EXACTLY THREE rows match a filter requiring (a) actor_id starting with \"handshake-native:\" AND (b) the wsids array containing this workspace. It times out because FEWER THAN THREE ever match.",
               "what_does_arrive": "Rows DO arrive and DO satisfy the filter - the dumped rows carry event_type \"system\", a populated wsids array, and a server-derived actor_id of the handshake-native:{pid}:{birth_fingerprint} form. So the emitter, the MT-109 authorization and the workspace scoping are all working. The shortfall is in the COUNT, not in authorization or attribution.",
-              "count_caveat_stated_honestly": "The dump suggested TWO matching rows rather than three, but that was read from a truncated grep and was NOT rigorously counted. Treat \"fewer than three\" as established and the exact figure as unconfirmed.",
               "why_this_is_a_promising_lead": "The test comment at :2271 records that MT-111 removed actor_id as client authority, so the test was rewritten to scope by WORKSPACE instead. If one of the three emissions no longer carries this workspace in wsids - or is no longer emitted at all - after the MT-111 rewire, this is MT-111 fallout rather than flake. MT-115 separately found FOUR vacuous assertions in this same emitter/recorder area, so the area has a track record.",
-              "next_step_for_the_agent": "Identify WHICH of the three expected emissions is missing (dump all rows for the workspace WITHOUT the filter, then compare against the three the test drives), and determine whether it is not emitted, emitted without the workspace in wsids, or emitted with a non-native actor_id. Do NOT relax the ==3 assertion to make it pass; MT-115 already had to un-vacuum four assertions in this area."
+              "next_step_for_the_agent": "Identify WHICH of the three expected emissions is missing (dump all rows for the workspace WITHOUT the filter, then compare against the three the test drives), and determine whether it is not emitted, emitted without the workspace in wsids, or emitted with a non-native actor_id. Do NOT relax the ==3 assertion to make it pass; MT-115 already had to un-vacuum four assertions in this area.",
+              "count_now_exact": "The earlier \"fewer than three, exact figure unconfirmed\" caveat is resolved: it is exactly TWO, confirmed by ledger query."
             },
             "ledger_evidence_2_of_3": {
               "at_utc": "2026-08-06T23:44:43.882Z",
@@ -918,6 +918,16 @@
               "consequence_if_confirmed": "RED 2 is NOT an independent defect and NOT MT-111 fallout as first supposed. It is MT-120 manifesting in a SECOND test, which means test_event_emitter is a second casualty of the same unsatisfiable clause and will go green when MT-120 lands — no separate fix, and NO test edit at all. The earlier note suggesting the test might be stale like MT-114 is superseded by this.",
               "confirmation_step_still_required": "Confirm the ABSENT row is document_saved specifically — dump all recorder rows for the run workspace WITHOUT the actor_id/wsids filter and check which of the three event names is missing. This is recorded as a hypothesis, not a finding, because that check has NOT been run.",
               "do_not": "Do NOT edit test_event_emitter to accommodate this. If the hypothesis holds, the test is CORRECT and the product contract is the defect. MT-115 already had to un-vacuum four assertions in this exact area."
+            },
+            "CONFIRMED_IS_MT120": {
+              "at_utc": "2026-08-06T23:52:25.452Z",
+              "status": "HYPOTHESIS CONFIRMED — this is now a FINDING, not a supposition.",
+              "confirming_query": "SELECT DISTINCT payload::jsonb->'envelope'->>'kind', count(*) FROM kernel_event_ledger WHERE idempotency_key LIKE 'native-editor-fr-%' GROUP BY 1.",
+              "result": "canvas_node_placed = 8 rows, undo_fired = 8 rows, document_saved = ZERO rows.",
+              "interpretation": "Two of the three emissions mirror on every run; document_saved NEVER reaches the EventLedger. That is exactly the 2-of-3 shortfall the test reports, and it matches MT-115 runtime proof that document_saved ingestion returns HTTP 400 HSK-400-INVALID-EVENT while undo_fired on the same authenticated session returns 200.",
+              "therefore": "test_event_emitter::event_emitter_native_editor_round_trip is a SECOND CASUALTY of the MT-120 unsatisfiable receipt-ownership clause. It is NOT an independent defect, NOT MT-111 fallout, and NOT a stale test. The test is CORRECT: it asserts three emissions and the product genuinely fails to deliver one of them.",
+              "action": "NO fix and NO test edit here. It will go green when MT-120 lands. Added to MT-120 acceptance evidence.",
+              "value_note": "This also retires the earlier MT-111 suspicion, which would otherwise have sent an agent hunting a regression in the wrong module."
             }
           },
           "remaining_untested": "The five integration-gated binaries (test_canvas_board_argus, test_completion_hover_accesskit, test_embeds, test_graph_view_argus, test_undo_scope) still need --features integration plus a backend and PostgreSQL."

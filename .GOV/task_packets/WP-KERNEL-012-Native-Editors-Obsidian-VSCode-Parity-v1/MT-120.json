@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-08-06T23:50:35.306Z",
+  "updated_at_utc": "2026-08-06T23:52:25.452Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -71,7 +71,8 @@
       "AC-120-2: THE BINDING IS NOT WEAKENED. A save receipt minted by principal A must still be unclaimable by principal B - prove it with a negative test. Deleting or relaxing the actor comparison is an automatic rejection of this MT.",
       "AC-120-3: test_e7_swarm_edit_proof goes green, closing the MT-115 PT-115-1 blocker (it is currently 24 passed / 1 failed).",
       "AC-120-4: test_flight_recorder_authz still passes unchanged at 12 tests - the MT-109 negative suite must not regress.",
-      "AC-120-5: a real end-to-end product save emits document_saved and it INGESTS at runtime, proven live rather than in a stub."
+      "AC-120-5: a real end-to-end product save emits document_saved and it INGESTS at runtime, proven live rather than in a stub.",
+      "AC-120-6: test_event_emitter::event_emitter_native_editor_round_trip goes GREEN with NO edit to the test. It requires three mirrored emissions and currently receives two, because document_saved is rejected at ingestion (confirmed: zero document_saved rows in the ledger against 8 each for canvas_node_placed and undo_fired). If this MT is fixed correctly the third emission lands on its own."
     ],
     "proof_targets": [
       "PT-120-1: the RED reproduced first (HTTP 400 HSK-400-INVALID-EVENT on a legitimate save), then green.",
@@ -82,7 +83,9 @@
       "recorded_at_utc": "2026-08-06T23:50:35.306Z",
       "finding": "test_event_emitter::event_emitter_native_editor_round_trip is very likely a SECOND test failing on this same clause. It drives three emissions — document_saved, canvas_node_placed, undo_fired — and requires all three to mirror, but the ledger shows only two mirroring on every run (2 FLIGHT_RECORDER_MIRROR_PENDING + 2 RECORDED across four distinct process identities). That matches document_saved being rejected at ingestion with HTTP 400 while the other two succeed.",
       "implication": "AC-120-3 currently names only test_e7_swarm_edit_proof. If confirmed, fixing MT-120 should ALSO turn test_event_emitter green with no test edit, and that binary should be added to the MT-120 acceptance evidence.",
-      "caveat": "Recorded as a hypothesis. Confirm by dumping the unfiltered recorder rows for the run workspace and identifying which of the three event names is absent."
+      "caveat": "Recorded as a hypothesis. Confirm by dumping the unfiltered recorder rows for the run workspace and identifying which of the three event names is absent.",
+      "status": "CONFIRMED BY LEDGER QUERY",
+      "confirming_evidence": "Envelope kinds in kernel_event_ledger for native-editor-fr-% keys: canvas_node_placed = 8, undo_fired = 8, document_saved = ZERO. The save event never reaches the ledger, which is precisely the ingestion rejection this MT fixes."
     }
   },
   "hbr_obligations": {
