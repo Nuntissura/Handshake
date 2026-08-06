@@ -937,5 +937,21 @@
       "evidence": "A dedicated top-level Editors menu exists: MenuId::Editors in src/frontend/handshake_native/src/top_menu_bar.rs, author_id menu-editors, fixed AccessKit id 98 (MENU_BAR_NODE_ID_BASE + 6), added by this work packet MT-035. It surfaces the native-editor commands - Outline, Relevant Memory, Outgoing Links, Stage, Route to Stage, Embed Stage Capture, Sidebar, Daily Journal, Format Document, Next/Prev Diagnostic, Rename Symbol, Quick Fix. Every top-level menu button is a real Role::MenuItem node, and KERNEL_BUILDER verified the enum, the author_id mapping, and the fixed-id assignment directly in source."
     },
     "residual": "Final closure of this requirement waits on the remaining MTs landing their own same-change manual updates and on MT-111 correcting the flight-recorder entry."
+  },
+  "operator_requirement_verification_manual_settings_menubar": {
+    "verified_at_utc": "2026-08-06T23:26:33.283Z",
+    "verified_by": "KERNEL_BUILDER-20260805-054937",
+    "operator_requirements_covered": [
+      "Ensure the internal Handshake user manual covers this work packet so future models and operators can use it.",
+      "Ensure Options/Settings exposes the correct features for this work packet.",
+      "Provide an operator-facing dropdown menu-bar item for this work packet."
+    ],
+    "verdict": "SATISFIED AT HEAD, AND TEST-GATED RATHER THAN MERELY PRESENT.",
+    "runtime_evidence": "cargo test --test test_manual_content => EXIT 0, 39 passed / 0 failed / 0 ignored / 0 filtered, 2.78s. Run at HEAD by KERNEL_BUILDER rather than asserted from inspection.",
+    "menu_bar": "The operator-facing dropdown is the EDITORS menu (author_id menu-editors), the 7th top-level menu added by MT-035, carrying 13 leaves: outline, relevant-memory, outgoing-links, stage, route-to-stage, embed-stage-capture, sidebar, journal, format-document, next-diagnostic, prev-diagnostic, rename-symbol, quick-fix. test_manual_content ITERATES top_menu_bar::EDITORS_MENU_LEAF_AUTHOR_IDS and asserts a manual row exists for every leaf, so a new leaf without documentation fails the suite. mt104_terminal_menu_author_id_is_live_clickable_run_leaf additionally proves a menu leaf is a LIVE CLICKABLE control, not just a registered id.",
+    "settings": "settings_editor_section.rs (1531 lines) exposes the WP-012 editor surface: 12 editor preferences, wrap column, syntax palette plus per-token swatches, per-command keybindings with resets, preference provenance, and explicit posture disclosures for wiki projection, runtime chat, flight recorder and atelier/CKC stage. mt104_settings_diagnostics_ids_are_live_after_settings_search proves the diagnostics ids are LIVE after a Settings search, i.e. reachable by an operator rather than merely declared.",
+    "manual": "manual_content_editors.rs is the in-app manual surface, and coverage is ENFORCED by 39 tests including per-MT assertions (mt034_manual_covers_canonical_argus_restart_conflict_stale_and_diagnostics, mt066_stage_manual_covers_canonical_argus_recovery_and_three_tier_posture, mt074_other_pillar_manual_documents_canonical_argus_matrix_and_calendar_diagnostics), selectability checks (mt104_manual_topics_are_selectable_in_manual_pane, wave5_surface_topics_are_selectable_in_manual_pane) and a no-context-facts check (wave5_surface_topics_exist_and_carry_real_no_context_facts). MT-068 additionally CORRECTED the manual during this session, removing guidance that told future models \"The immediate action receipt may be indeterminate\" - false after MT-068 and directly contrary to the V4 gate.",
+    "why_this_is_durable_rather_than_a_point_in_time_check": "The requirement is satisfied by a GATE, not by an inspection. Any future MT that adds an EDITORS leaf, a manual topic or a Settings diagnostics id without documenting it turns test_manual_content red. That is what keeps the requirement true as MT-117, MT-118, MT-119 and MT-120 land.",
+    "remaining_obligation": "MT-117 (Stage/Calendar completion observers) and MT-120 (document_saved attribution) will change documented behaviour, so both carry a MAN obligation. This suite must be re-run after they land; it is the mechanism that will catch them if they forget."
   }
 }
