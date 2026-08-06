@@ -812,6 +812,17 @@
         "evidence": "It flaked on the MT-113 agent once before it added an explicit quiescence gate: observer not pending AND the row declaration stable across consecutive frames.",
         "risk": "MT-029 avoids this only ACCIDENTALLY, by happening to have intervening actions between the two bookmark actions. Any future MT that shares one observer across two controls will hit it and is likely to misdiagnose it as a product defect.",
         "recommended_fix": "Document the quiescence gate as the standard pattern for shared observers in the internal manual, and consider making the driver surface a clearer diagnostic distinguishing \"you dispatched too early\" from \"the target genuinely drifted\"."
+      },
+      {
+        "id": "RD-WP012-INSPECT-TREE-BOUNDS-ARE-NOT-MOUNTED-GEOMETRY",
+        "raised_at_utc": "2026-08-06T23:21:07.088Z",
+        "raised_by": "KERNEL_BUILDER-20260805-054937",
+        "status": "OPEN_PROOF_INFRASTRUCTURE_HAZARD",
+        "finding": "The bounds carried by nodes in the argus.inspect() tree do NOT describe the mounted frame. inspect() -> capture_mcp_snapshot_for_navigation (app.rs:12159) -> refresh_mcp_snapshot(), which renders on a FRESH egui::Context, so the geometry belongs to a synthetic re-render.",
+        "hard_evidence": "A containment assertion written during MT-119 read the Restore control right edge as 2605.875px inside a 2560px-wide harness - beyond the entire window - while the GPU frame captured by the SAME run shows both controls comfortably inside the Find-in-Files pane.",
+        "impact": "Any geometry, containment, clipping or overlap assertion sourced from the inspect tree is unsound and will produce false positives or false negatives. This is a live risk for HBR-VIS acceptance and for the MT-108 pixel-row gates, which reason about what is materially visible.",
+        "known_sibling_hazard": "The same fresh-context render is already known to make egui::Memory-backed state (popup and context menus) read back EMPTY. The bounds consequence is newly recorded here.",
+        "recommended_fix": "Either expose the mounted rects through a dedicated product seam, or restrict visual acceptance to the captured frame itself. Additionally, document in the internal manual that inspect-tree bounds are NOT operator-visible geometry, so no future MT builds a proof on them."
       }
     ]
   },
