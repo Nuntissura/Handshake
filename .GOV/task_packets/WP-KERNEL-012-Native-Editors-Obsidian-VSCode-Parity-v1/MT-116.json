@@ -31,17 +31,42 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-068"
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Surfaced during MT-068 V4 remediation by DIRECT frame inspection. The MT-068 agent judged that fixing it means touching shared rich-editor line-layout, which carries cross-MT visual regression risk against MT-034/MT-042/MT-074 chip surfaces, and deliberately routed it instead of rushing a shared-layout change inside a proof-cycle. KERNEL_BUILDER accepts that judgement: this is the correct call, and the defect is recorded here so it is not lost."
+    "creation_reason": "Surfaced during MT-068 V4 remediation by DIRECT frame inspection. The MT-068 agent judged that fixing it means touching shared rich-editor line-layout, which carries cross-MT visual regression risk against MT-034/MT-042/MT-074 chip surfaces, and deliberately routed it instead of rushing a shared-layout change inside a proof-cycle. KERNEL_BUILDER accepts that judgement: this is the correct call, and the defect is recorded here so it is not lost.",
+    "claimed_at_utc": "2026-08-06T17:39:09.334Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_at_utc": "2026-08-06T17:39:09.334Z",
+      "implemented_by": "KERNEL_BUILDER-20260805-054937",
+      "previous_status": "READY_FOR_DEV",
+      "status_rationale": "Held at CLAIMED, NOT READY_FOR_VALIDATION. The code fix is complete and unit-proven, but PT-116-1 (a mounted frame with a 44-character id, OPENED and inspected) is NOT satisfied, and the KB ready-checklist would BLOCK on it. Transitioning anyway would repeat the gate-ordering error made on MT-114.",
+      "root_cause_found_and_it_is_NOT_cosmetic": {
+        "correction_to_the_original_diagnosis": "The MT was opened describing a COSMETIC pill-width mismatch at 44-character ids. That framing is WRONG and is corrected here. The defect is a real rendering bug affecting EVERY chip at any non-default editor font size and EVERY chip inside a heading block, at any id length. The 44-character id merely made it visible.",
+        "mechanism": "rich_editor_widget.rs painted the chip label with egui::FontId::proportional(line_layout::BASE_FONT_SIZE), a CONSTANT fixed at 15.0. The pill rect it painted the label into is derived from chip_rect_for_span over a galley laid out by layout_block_with_base(.., base_font_size), where base_font_size = state.editor_font_size() - the USER-CONFIGURED size exposed in Settings as settings-editor-font-size. Whenever that size is not exactly 15.0 the pill and the label are measured by DIFFERENT metrics: above 15.0 the label overflows its pill, below it the pill runs wide.",
+        "heading_case_missed_entirely": "A heading block scales further still. line_layout::block_style_with_base routes NodeKind::Heading to heading_with_base, which multiplies by HEADING_SCALE ([1.8, 1.5, 1.25]). The constant never accounted for that, so a chip in an H1 was painted at 15.0 inside a pill measured at 1.8x the editor size - a far larger mismatch than the reported symptom.",
+        "proof_the_two_paths_are_now_single_sourced": "line_layout.rs:325 - layout_block_atoms_with_base does `let style = block_style_with_base(block, base_font_size)`, and the hsLink atom is laid out at line 355 via text_format_for_run(&[Mark::Link{..}], style, ..). The spec now calls the SAME block_style_with_base(block, base_font_size).size. Pill metric and label metric therefore come from one helper and cannot drift."
+      },
+      "fix": "Added `font_size: f32` to WikilinkChipSpec, populated from block_style_with_base(block, base_font_size).size at the spec site, and changed the paint site to egui::FontId::proportional(spec.font_size). Two files, both inside allowed_paths. No behavioural change at the default 15.0 editor size, which is why every existing visual baseline stays valid.",
+      "font_family_checked_not_assumed": "text_format_for_run selects CODE_FAMILY when style.force_monospace (code blocks). The proportional family at the paint site is nevertheless correct, because the pill overlay only exists in AtomPaint::ChipCovered contexts - top-level paragraphs and headings. Nested list/quote/code/table content is AtomPaint::Visible and has NO chip overlay (line_layout.rs:346-353). Verified rather than assumed.",
+      "results": "cargo test --lib => EXIT 0, 2044 passed / 0 failed / 0 ignored / 0 filtered. That is 2043 pre-existing (already restored to green by MT-114) plus the new MT-116 guard. No regression.",
+      "regression_guard_added": "mt116_chip_metric_tests::mt116_chip_font_size_tracks_the_galley_not_the_base_constant drives the REAL wikilink_chip_specs path with a genuine egui Painter and a realistic 44-character work-unit id. It asserts the body chip carries the editor font size, that this size DIFFERS from BASE_FONT_SIZE (so the guard cannot be vacuous), that an H1 chip carries the HEADING_SCALE-multiplied size, and that the value agrees with the helper the galley itself uses.",
+      "disclosed_gaps": [
+        "GUARD SCOPE, STATED PLAINLY: the new test pins the SPEC value, not the paint call. Reverting only the paint site to the constant would NOT turn this test red. Closing that needs an assertion over the painted output, which lives in tests/ - OUTSIDE this MT allowed_paths (inline_view.rs and rich_editor_widget.rs only). Not silently expanded.",
+        "PT-116-1 NOT SATISFIED: no mounted frame with a 44-character id has been captured and OPENED at a NON-DEFAULT editor font size. At the default 15.0 the old and new code paint identically, so a default-size frame would prove nothing. Authoring that proof requires a test file, again outside allowed_paths. This is the single blocker to READY_FOR_VALIDATION.",
+        "AC-116-3 INCOMPLETE: a GPU-enabled test_locus_interop run (the MT-068 chip surface) was STARTED as the cross-MT regression check but had not reported when this record was written - stated as in-flight, NOT as a pass. The MT-034 / MT-042 / MT-074 chip surfaces were NOT re-run; MT-074 is mid-remediation and its proof does not currently pass, so it cannot serve as a baseline."
+      ],
+      "scope_question_for_operator": "MT-116 allowed_paths cover only the two src/ rendering files, but its own AC-116-2 and PT-116-1 demand a mounted visual proof, which can only live in tests/. The contract is internally inconsistent. Either allowed_paths should extend to src/frontend/handshake_native/tests/**, or the visual proof should move to a successor MT. Flagged rather than resolved unilaterally.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
+    }
   },
   "scope": {
     "summary": "The cross-reference chip pill background is rendered slightly narrower than its own label, so with long ids the tail of the id paints just outside the pill.",
