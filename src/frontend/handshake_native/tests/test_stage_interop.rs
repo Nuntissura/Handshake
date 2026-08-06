@@ -1573,6 +1573,16 @@ fn live_route_round_trip_real_pg() {
         json_has_author_id(&open_editors.after, "menu.editors.route-to-stage"),
         "fresh Argus inspection observes the mounted Route selection to Stage leaf"
     );
+    // WP-KERNEL-012 MT-027 V5 (commit d896bbd9) tightened the SHARED canonical Argus contract: at
+    // `finish()` every dispatched action must be rebound to an authoritative terminal snapshot AND
+    // carry at least one passing action-specific terminal predicate. MT-066's actions predate that
+    // contract, so each one below now binds its own predicate. This strengthens the proof — the
+    // predicate is recomputed against the terminal tree, it is never a pass flag.
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "mt066-editors-menu-exposes-route-to-stage",
+        |after| json_has_author_id(after, "menu.editors.route-to-stage"),
+    );
     let ctx = host_ctx
         .lock()
         .expect("MT-066 host context lock")
@@ -1623,7 +1633,14 @@ fn live_route_round_trip_real_pg() {
         );
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let busy_inspect = argus.inspect(&mut harness);
+    let busy_inspect = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "mt066-route-busy-retains-status-and-retry",
+        |after| {
+            json_has_author_id(after, STAGE_ROUTE_STATUS_AUTHOR_ID)
+                && json_has_author_id(after, STAGE_ROUTE_RETRY_AUTHOR_ID)
+        },
+    );
     let busy_stage_snapshot = stage.lock().unwrap().clone();
     assert!(
         json_has_author_id(&busy_inspect, STAGE_ROUTE_STATUS_AUTHOR_ID)
@@ -1737,7 +1754,11 @@ fn live_route_round_trip_real_pg() {
         Some(retained_causal_action_id.as_str()),
         "retry preserves the retained route's exact causal action id"
     );
-    let route_recovered_inspect = argus.inspect(&mut harness);
+    let route_recovered_inspect = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "mt066-route-retry-renders-routed-content",
+        |after| json_has_author_id(after, STAGE_ROUTED_CONTENT_AUTHOR_ID),
+    );
     assert!(
         json_has_author_id(&route_recovered_inspect, STAGE_ROUTED_CONTENT_AUTHOR_ID),
         "fresh canonical Argus inspection observes routed content after retry"
@@ -1789,7 +1810,11 @@ fn live_route_round_trip_real_pg() {
             .starts_with("POST /workspaces/"),
         "typed endpoint-absent outcome comes from the real create request"
     );
-    let error_inspect = argus.inspect(&mut harness);
+    let error_inspect = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "mt066-capture-endpoint-absent-surfaces-typed-status",
+        |after| json_has_author_id(after, STAGE_EMBED_BACK_STATUS_AUTHOR_ID),
+    );
     assert!(
         json_has_author_id(&error_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID),
         "fresh canonical Argus inspection observes the terminal typed error"
@@ -1992,7 +2017,18 @@ fn live_route_round_trip_real_pg() {
         drop(stage_state);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let recovered_inspect = argus.inspect(&mut harness);
+    let recovered_inspect = argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "mt066-capture-recovered-shows-embed-status-and-routed-content",
+        |after| {
+            json_has_author_id(after, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
+                && json_has_author_id(after, STAGE_ROUTED_CONTENT_AUTHOR_ID)
+                && !json_has_author_id(
+                    after,
+                    handshake_native::project_tree::PROJECT_TREE_RETRY_AUTHOR_ID,
+                )
+        },
+    );
     assert!(
         json_has_author_id(&recovered_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
             && json_has_author_id(&recovered_inspect, STAGE_ROUTED_CONTENT_AUTHOR_ID),
