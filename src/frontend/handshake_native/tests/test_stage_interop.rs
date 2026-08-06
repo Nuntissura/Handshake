@@ -597,10 +597,27 @@ impl LiveWorkspaceGuard<'_> {
     }
 
     fn cleanup_native_fr_ledger(&mut self) {
-        let rows = self.backend.get_json_with_session_token(
-            &format!("/api/flight_recorder?wsid={}", self.workspace_id),
-            &live_binding_session_token(),
-        );
+        // Discovering event ids over HTTP needs the MT-109 session; the SQL residue cleanup that
+        // follows does not. During `Drop` recovery the mounted app may already be gone, taking its
+        // published binding with it, so in that case skip only the authorized discovery step rather
+        // than abandoning cleanup entirely. The strict `finish_and_assert_zero` path always has a
+        // live binding and therefore always performs the read.
+        let rows = match try_live_binding_session_token() {
+            Ok(session_token) => self.backend.get_json_with_session_token(
+                &format!("/api/flight_recorder?wsid={}", self.workspace_id),
+                &session_token,
+            ),
+            Err(reason) if std::thread::panicking() => {
+                eprintln!(
+                    "MT-066 cleanup skipped authorized Flight Recorder discovery during unwinding \
+                     ({reason}); scoped SQL residue cleanup still runs."
+                );
+                serde_json::Value::Array(Vec::new())
+            }
+            Err(reason) => panic!(
+                "MT-109 capability-gated Flight Recorder read requires the live native-MCP binding: {reason}"
+            ),
+        };
         for row in rows.as_array().into_iter().flatten() {
             if matches!(
                 row["payload"]["kind"].as_str(),
@@ -805,14 +822,28 @@ impl LiveWorkspaceGuard<'_> {
             (200..300).contains(&status) || status == 404,
             "MT-066 managed workspace cleanup returned {status}"
         );
-        let rows = self.backend.get_json_with_session_token(
-            &format!("/api/flight_recorder?wsid={}", self.workspace_id),
-            &live_binding_session_token(),
-        );
-        assert!(
-            rows.as_array().is_some_and(Vec::is_empty),
-            "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
-        );
+        match try_live_binding_session_token() {
+            Ok(session_token) => {
+                let rows = self.backend.get_json_with_session_token(
+                    &format!("/api/flight_recorder?wsid={}", self.workspace_id),
+                    &session_token,
+                );
+                assert!(
+                    rows.as_array().is_some_and(Vec::is_empty),
+                    "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
+                );
+            }
+            // Same rule as `cleanup_native_fr_ledger`: only during unwinding, when the mounted app
+            // has already taken its binding away, is the authorized readback skipped. The workspace
+            // DELETE above still happened; only its FR readback assertion is unavailable.
+            Err(reason) if std::thread::panicking() => eprintln!(
+                "MT-066 cleanup skipped the authorized Flight Recorder readback assertion during \
+                 unwinding ({reason}); the workspace DELETE itself still ran."
+            ),
+            Err(reason) => panic!(
+                "MT-109 capability-gated Flight Recorder read requires the live native-MCP binding: {reason}"
+            ),
+        }
         self.workspace_deleted = true;
     }
 
@@ -885,20 +916,26 @@ impl Drop for LiveWorkspaceGuard<'_> {
 /// sends. Nothing about the authorization is weakened, bypassed, feature-gated, or stubbed: a
 /// missing, forged, or stale binding still fails closed with `HSK-401-FR-SESSION`.
 fn live_binding_session_token() -> String {
+    try_live_binding_session_token().unwrap_or_else(|reason| {
+        panic!("MT-109 capability-gated Flight Recorder read requires the live native-MCP binding: {reason}")
+    })
+}
+
+/// Fallible twin of [`live_binding_session_token`]. The strict proof path uses the panicking form;
+/// `Drop` recovery uses this one, because by the time a guard drops during unwinding the mounted app
+/// (and therefore its published binding) may already be gone. Recovery must not be BLOCKED by that —
+/// but it must also never invent a credential, so a missing binding simply skips the authorized HTTP
+/// steps and leaves the SQL residue cleanup, which needs no session, to do its work.
+fn try_live_binding_session_token() -> Result<String, String> {
     let path = handshake_native::mcp::binding_path();
-    let bytes = std::fs::read(&path).unwrap_or_else(|error| {
-        panic!(
-            "MT-109 capability-gated Flight Recorder read requires the live native-MCP binding at \
-             {}: {error}",
-            path.display()
-        )
-    });
+    let bytes = std::fs::read(&path)
+        .map_err(|error| format!("read native-MCP binding {}: {error}", path.display()))?;
     let binding: serde_json::Value = serde_json::from_slice(&bytes)
-        .unwrap_or_else(|error| panic!("parse live native-MCP binding {}: {error}", path.display()));
+        .map_err(|error| format!("parse native-MCP binding {}: {error}", path.display()))?;
     binding["token"]
         .as_str()
-        .expect("live native-MCP binding carries a session token")
-        .to_owned()
+        .map(str::to_owned)
+        .ok_or_else(|| format!("native-MCP binding {} carries no token", path.display()))
 }
 
 fn wait_for_native_fr(
@@ -923,7 +960,11 @@ fn wait_for_native_fr(
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "automatic {kind} Flight Recorder row did not arrive within five seconds"
+            "automatic {kind} Flight Recorder row did not arrive within five seconds. \
+             Recorder rows currently visible for this workspace: {rows}. \
+             (If a {kind} row IS present above, the emit succeeded and the fixture predicate is \
+             what failed — MT-109 made the durable FR `event_id` a workspace-scoped DERIVATION of \
+             the client id, so matching on a client-side receipt id no longer works.)"
         );
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
