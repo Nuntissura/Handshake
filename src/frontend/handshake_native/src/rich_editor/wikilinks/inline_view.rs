@@ -257,6 +257,54 @@ pub fn locus_ref_chip_occurrence_author_id(
     }
 }
 
+/// Decode one escaped Locus author-id component. The exact inverse of
+/// [`encode_locus_author_id_component`]: the reserved markers are restored first and `%25` last, so the
+/// mapping stays injective in both directions.
+fn decode_locus_author_id_component(encoded: &str) -> String {
+    encoded
+        .replace("%2D%2Dpath%2D", LOCUS_OCCURRENCE_PATH_MARKER)
+        .replace("%2D%2Dview%2D", LOCUS_PANE_VIEW_MARKER)
+        .replace("%25", "%")
+}
+
+/// Recover the exact canonical `locus://{kind}/{id}` URI a mounted Locus chip author id addresses — the
+/// inverse of [`locus_ref_chip_author_id`] / [`locus_ref_chip_occurrence_author_id`].
+///
+/// WP-KERNEL-012 MT-068 V5 uses this so the SHELL can publish a chip's click-completion declaration
+/// straight from the authoritative MCP snapshot: the declaration a chip carries and the identity its
+/// completion binds are then the same tuple the click path itself stages, with no second source of
+/// truth. The occurrence/view suffixes are split at their FIRST marker, which is unambiguous because
+/// [`encode_locus_author_id_component`] escapes any literal marker inside an authored id.
+///
+/// Returns `None` for any id that is not a canonical Locus chip id (including the defensive
+/// `locus-ref-chip-unknown-{hash}` fallback, which is deliberately not invertible), and for any id
+/// whose decoded identity does not reproduce the same author id through the forward mapping.
+pub fn locus_ref_uri_from_chip_author_id(author_id: &str) -> Option<String> {
+    let rest = author_id.strip_prefix("locus-ref-chip-")?;
+    let (kind_segment, encoded) = rest.split_once('-')?;
+    if !matches!(kind_segment, "wp" | "mt") {
+        return None;
+    }
+    let encoded = encoded
+        .split_once(LOCUS_OCCURRENCE_PATH_MARKER)
+        .map_or(encoded, |(head, _)| head);
+    let encoded = encoded
+        .split_once(LOCUS_PANE_VIEW_MARKER)
+        .map_or(encoded, |(head, _)| head);
+    if encoded.is_empty() {
+        return None;
+    }
+    let id = decode_locus_author_id_component(encoded);
+    let uri = format!(
+        "{}{kind_segment}/{id}",
+        crate::interop::locus_interop::LOCUS_URI_SCHEME
+    );
+    // Fail closed unless the decoded identity reproduces this exact base author id through the SAME
+    // forward mapping the renderer uses. A lossy or non-canonical id is never silently mis-addressed.
+    (locus_ref_chip_author_id(&uri) == format!("locus-ref-chip-{kind_segment}-{encoded}"))
+        .then_some(uri)
+}
+
 /// The SHORT display name for a Locus `locus://` ref: the work-unit id (e.g. `locus://wp/WP-KERNEL-012` ->
 /// `WP-KERNEL-012`). Falls back to the whole value when it does not parse (never a panic).
 pub fn locus_ref_short_name(ref_value: &str) -> String {

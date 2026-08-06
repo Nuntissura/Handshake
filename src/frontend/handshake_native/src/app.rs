@@ -466,6 +466,261 @@ impl Mt029FindResultOpenCompletion {
     }
 }
 
+// ── WP-KERNEL-012 MT-068 V5: canonical mounted Locus chip navigation completion ──────────────────
+//
+// `validation_v4` remediation item 6 requires every canonical Argus action on the Locus surface to be
+// bound to a fresh terminal observation AND an exact navigation identity, and explicitly forbids
+// accepting immediate click dispatch as final proof. Before this observer a `locus-ref-chip-*` click
+// terminated `Indeterminate` through `crate::mcp::action`'s conservative fallback — literally "click
+// was dispatched, but this target exposes no action-specific completion predicate" — because the chip
+// published no completion token at all.
+//
+// This extends the EXISTING opt-in `handshake.click-completion/v1` observer mechanism, the same shape
+// MT-024, MT-026, MT-028, MT-029, MT-042, MT-064 and MT-079 already prove; it does not invent a second
+// one. A Locus chip is a TRANSIENT target: activating it routes a `KernelDcc` WP/MT tab onto the active
+// pane, replacing the rich-document view the chip was painted in, so the chip is gone by the time the
+// receipt is acknowledged and its completion must outlive it. The shell therefore owns one durable
+// `Role::Status` observer that publishes `Applied` ONLY when the exact declared work-unit identity is
+// mounted as a `KernelDcc` tab bound to that record's canonical navigator content id.
+//
+// The observer is proof-only: it never gates product behavior (a Locus chip navigates identically with
+// no Argus binding open), so an un-instrumented host is unaffected.
+/// Durable `Role::Status` observer publishing MT-068 Locus chip navigation completion.
+pub const MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID: &str = "mt068.locus-ref-open-completion";
+const MT068_LOCUS_REF_OPEN_EFFECT: &str = "mt068.locus-ref-open";
+const MT068_LOCUS_REF_OPEN_CONTEXT: &str = "mt068.locus-ref-open:shell";
+/// BOUNDED observation window for one Locus navigation, mirroring the MT-028/MT-029 rationale: an
+/// observer that stayed Pending forever would silently strand every later action as `Indeterminate`,
+/// so an unreached navigation publishes a TYPED terminal rejection instead of an honest-looking hang.
+const MT068_LOCUS_REF_OPEN_OBSERVATION_WINDOW: std::time::Duration =
+    std::time::Duration::from_secs(12);
+
+/// The exact navigation a dispatched Locus chip click must produce.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Mt068LocusRouted {
+    /// `work_packet` | `microtask` — the resolved kind, matching the Flight Recorder `target_kind`.
+    target_kind: String,
+    /// The work-unit id exactly as authored (case preserved).
+    target_id: String,
+    /// The canonical navigator content id (`WP:{id}` for a work packet, `MT::{id}` for a microtask).
+    content_id: String,
+    /// The pane type label the navigator routed the record onto.
+    pane_type_label: String,
+}
+
+impl Mt068LocusRouted {
+    /// The identity a mounted `locus-ref-chip-*` author id addresses, derived through the renderer's own
+    /// author-id mapping so the declaration and the completion bind the same tuple.
+    fn for_chip_author_id(author_id: &str) -> Option<Self> {
+        let uri = crate::rich_editor::wikilinks::inline_view::locus_ref_uri_from_chip_author_id(
+            author_id,
+        )?;
+        let locus = crate::interop::locus_interop::parse_locus_ref(&uri)?;
+        Some(Self::for_locus_ref(&locus))
+    }
+
+    fn for_locus_ref(locus: &crate::interop::locus_interop::LocusRef) -> Self {
+        match locus.kind {
+            crate::interop::locus_interop::LocusRefKind::WorkPacket => Self {
+                target_kind: "work_packet".to_owned(),
+                target_id: locus.id.clone(),
+                content_id: format!("WP:{}", locus.id),
+                pane_type_label: PaneType::KernelDcc.label().to_owned(),
+            },
+            crate::interop::locus_interop::LocusRefKind::Microtask => Self {
+                target_kind: "microtask".to_owned(),
+                target_id: locus.id.clone(),
+                content_id: format!("MT::{}", locus.id),
+                pane_type_label: PaneType::KernelDcc.label().to_owned(),
+            },
+        }
+    }
+
+    /// The declaration/observer semantic value. Byte-identical at declaration time and at dispatch
+    /// binding time, because both derive it from this same tuple.
+    fn semantic(&self, target_author_id: &str) -> String {
+        serde_json::json!({
+            "action": "open-locus-ref",
+            "target_author_id": target_author_id,
+            "target_kind": self.target_kind,
+            "target_id": self.target_id,
+            "content_id": self.content_id,
+        })
+        .to_string()
+    }
+}
+
+/// The shell-owned durable observer that terminalizes MT-068 Locus chip navigation.
+#[derive(Debug, Clone)]
+struct Mt068LocusRefOpenCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    target: Option<String>,
+    semantic: Option<String>,
+    expected: Option<Mt068LocusRouted>,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+    pending_since: Option<std::time::Instant>,
+}
+
+impl Default for Mt068LocusRefOpenCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            target: None,
+            semantic: None,
+            expected: None,
+            terminal_detail: None,
+            terminal_error: None,
+            pending_since: None,
+        }
+    }
+}
+
+impl Mt068LocusRefOpenCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    /// The TRANSIENT observer-target declaration a mounted chip publishes while the observer is settled.
+    /// A chip declares nothing while a navigation is in flight, so a stale declaration can never race a
+    /// live generation transition.
+    fn declaration(&self, semantic: &str) -> Option<String> {
+        if self.is_pending() {
+            return None;
+        }
+        crate::mcp::action::serialize_observer_click_target(
+            MT068_LOCUS_REF_OPEN_EFFECT,
+            MT068_LOCUS_REF_OPEN_CONTEXT,
+            self.generation,
+            MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+            semantic,
+        )
+    }
+
+    fn begin(&mut self, target: String, semantic: String, expected: Mt068LocusRouted) {
+        if self.is_pending() {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.target = Some(target);
+        self.semantic = Some(semantic);
+        self.expected = Some(expected);
+        self.terminal_detail = None;
+        self.terminal_error = None;
+        self.pending_since = Some(std::time::Instant::now());
+    }
+
+    /// Terminalize against the AUTHORITATIVE routed pane state. `routed` is the exact navigation this
+    /// shell performed from the MT-068 locus drain; `mounted` proves the routed tab is bound to that
+    /// record's canonical content id right now.
+    ///
+    /// Returns `true` when the routed record was CONSUMED as proof, so the caller can clear it. A
+    /// navigation record is single-use: without that, clicking the same chip twice would let the second
+    /// action terminalize against the FIRST action's still-mounted tab (the MT-027 same-target defect
+    /// class) instead of requiring a fresh navigation of its own.
+    fn complete_if_routed(&mut self, routed: Option<&Mt068LocusRouted>, mounted: bool) -> bool {
+        if !self.is_pending() {
+            return false;
+        }
+        let Some(expected) = self.expected.clone() else {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error =
+                Some("locus chip declaration carried no canonical work-unit identity".to_owned());
+            return false;
+        };
+        if routed.is_some_and(|routed| *routed == expected) && mounted {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "routed_target_kind": expected.target_kind,
+                    "routed_target_id": expected.target_id,
+                    "routed_content_id": expected.content_id,
+                    "routed_pane_type": expected.pane_type_label,
+                    "mounted_tab_bound_to_record": true,
+                })
+                .to_string(),
+            );
+            return true;
+        }
+        if self
+            .pending_since
+            .is_some_and(|since| since.elapsed() >= MT068_LOCUS_REF_OPEN_OBSERVATION_WINDOW)
+        {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(format!(
+                "Locus navigation for {} did not reach a mounted {} tab within the bounded {}s window",
+                expected.content_id,
+                expected.pane_type_label,
+                MT068_LOCUS_REF_OPEN_OBSERVATION_WINDOW.as_secs()
+            ));
+            self.terminal_detail = Some(
+                serde_json::json!({
+                    "expected_content_id": expected.content_id,
+                    "expected_pane_type": expected.pane_type_label,
+                    "observed_routed_content_id": routed.map(|routed| routed.content_id.clone()),
+                    "mounted_tab_bound_to_record": mounted,
+                })
+                .to_string(),
+            );
+        }
+        false
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            // A settled Ready baseline must ALWAYS be publishable, including before the first
+            // navigation: without it a chip would declare against a missing observer and every Locus
+            // click would fall back to `Indeterminate`.
+            crate::mcp::action::ClickCompletionState::Ready => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT068_LOCUS_REF_OPEN_EFFECT,
+                    MT068_LOCUS_REF_OPEN_CONTEXT,
+                    self.generation,
+                    self.state,
+                    None,
+                    None,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT068_LOCUS_REF_OPEN_EFFECT,
+                    MT068_LOCUS_REF_OPEN_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.target.as_deref(),
+                    self.semantic.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT068_LOCUS_REF_OPEN_EFFECT,
+                    MT068_LOCUS_REF_OPEN_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_detail.as_deref().unwrap_or("{}"),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT068_LOCUS_REF_OPEN_EFFECT,
+                    MT068_LOCUS_REF_OPEN_CONTEXT,
+                    self.generation,
+                    self.target.as_deref()?,
+                    self.semantic.as_deref()?,
+                    self.terminal_error
+                        .as_deref()
+                        .unwrap_or("Locus chip navigation failed"),
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Mt028LoomSearchOpenCompletion {
     generation: u64,
@@ -5750,6 +6005,10 @@ pub struct HandshakeApp {
     mt029_find_result_routed: Option<Mt029FindResultRouted>,
     /// The exact navigation the MT-028 open queue last performed (block, content type, routed pane).
     mt028_loom_search_routed: Option<Mt028LoomSearchRouted>,
+    /// MT-068 V5: shell-owned durable observer for Locus WP/MT chip navigation.
+    mt068_locus_ref_open_completion: Mt068LocusRefOpenCompletion,
+    /// The exact navigation the MT-068 locus drain last performed (kind, id, routed content id).
+    mt068_locus_ref_routed: Option<Mt068LocusRouted>,
     /// MT-064 V5: the shared-selection fingerprint published by the PREVIOUS snapshot projection. A
     /// select-all receipt requires the live selection to have moved off this exact value, so an
     /// already-full selection can never be replayed as proof of the dispatched click.
@@ -7454,6 +7713,8 @@ impl HandshakeApp {
             mt029_find_result_open_completion: Mt029FindResultOpenCompletion::default(),
             mt029_find_result_routed: None,
             mt028_loom_search_routed: None,
+            mt068_locus_ref_open_completion: Mt068LocusRefOpenCompletion::default(),
+            mt068_locus_ref_routed: None,
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
             mcp_token: crate::mcp::SessionToken::generate(),
@@ -11318,6 +11579,86 @@ impl HandshakeApp {
         }
     }
 
+    /// MT-068 V5: project the shell-owned Locus chip navigation observer into the authoritative MCP
+    /// snapshot and publish each mounted chip's transient target declaration.
+    ///
+    /// `begin` binds the exact dispatched chip and the semantic tuple that chip already declared, so a
+    /// receipt can never be attached to a different work unit. The terminal transition requires the
+    /// routed record identity this shell actually navigated to be mounted as a `KernelDcc` tab bound to
+    /// that record's canonical content id — never the click being consumed, never the chip vanishing.
+    fn project_mt068_locus_ref_open_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        if !self.mt068_locus_ref_open_completion.is_pending() {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((target, _payload, Some(semantic))) = activation {
+                if let Some(expected) = Mt068LocusRouted::for_chip_author_id(&target) {
+                    if semantic == expected.semantic(&target) {
+                        self.mt068_locus_ref_open_completion
+                            .begin(target, semantic, expected);
+                    }
+                }
+            }
+        }
+
+        let routed = self.mt068_locus_ref_routed.clone();
+        let mounted = routed.as_ref().is_some_and(|routed| {
+            self.tab_bar_states.values().any(|bar| {
+                bar.tabs.iter().any(|tab| {
+                    tab.pane_type.label() == routed.pane_type_label
+                        && tab.content_id.as_deref() == Some(routed.content_id.as_str())
+                })
+            })
+        });
+        if self
+            .mt068_locus_ref_open_completion
+            .complete_if_routed(routed.as_ref(), mounted)
+        {
+            // The navigation record has now been consumed as this action's proof; a later action must
+            // produce its own.
+            self.mt068_locus_ref_routed = None;
+        }
+
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                let identity = Mt068LocusRouted::for_chip_author_id(author_id)?;
+                let semantic = identity.semantic(author_id);
+                self.mt068_locus_ref_open_completion
+                    .declaration(&semantic)
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        if let Some(value) = self.mt068_locus_ref_open_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some("MT-068 Locus reference navigation completion".to_owned()),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
     fn project_mt046_ckc_module_completion(
         &mut self,
         snapshot: &mut crate::accessibility::UiTreeSnapshot,
@@ -11425,6 +11766,7 @@ impl HandshakeApp {
             self.project_mt064_fems_proposal_flow_completion(&mut snapshot);
             self.project_mt028_loom_search_open_completion(&mut snapshot);
             self.project_mt029_find_result_open_completion(&mut snapshot);
+            self.project_mt068_locus_ref_open_completion(&mut snapshot);
             self.project_mt079_host_mount_completion(&mut snapshot);
             // MT-065 V5 projects LAST: it owns only the four FEMS swarm-flow targets no earlier
             // observer claims, so publishing it last keeps its declarations from being overwritten
@@ -11751,6 +12093,8 @@ impl HandshakeApp {
             mt029_find_result_open_completion: Mt029FindResultOpenCompletion::default(),
             mt029_find_result_routed: None,
             mt028_loom_search_routed: None,
+            mt068_locus_ref_open_completion: Mt068LocusRefOpenCompletion::default(),
+            mt068_locus_ref_routed: None,
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
             mcp_token: crate::mcp::SessionToken::generate(),
@@ -24305,7 +24649,7 @@ impl HandshakeApp {
                             match parsed {
                                 Some(locus) => {
                                     self.emit_locus_interop_events(ctx, locus.clone());
-                                    match locus.kind {
+                                    let locus_outcome = match locus.kind {
                                         crate::interop::locus_interop::LocusRefKind::WorkPacket => {
                                             crate::quick_switcher::ShellNavigator::open_work_packet(
                                                 self, &locus.id,
@@ -24316,7 +24660,21 @@ impl HandshakeApp {
                                                 self, &locus.id, None,
                                             )
                                         }
+                                    };
+                                    // MT-068 V5: record the EXACT navigation this activation performed so
+                                    // the durable Locus completion observer terminalizes against a real
+                                    // routed identity rather than the click merely being consumed. Only a
+                                    // successful `Opened` outcome is recorded; any other outcome leaves the
+                                    // previous routed identity untouched and the observer times out into a
+                                    // TYPED rejection.
+                                    if matches!(
+                                        locus_outcome,
+                                        crate::quick_switcher::NavDispatchOutcome::Opened { .. }
+                                    ) {
+                                        self.mt068_locus_ref_routed =
+                                            Some(Mt068LocusRouted::for_locus_ref(&locus));
                                     }
+                                    locus_outcome
                                 }
                                 // Unparseable locus ref: open as a Loom block reference so the click
                                 // surfaces a typed status rather than silently dropping.
@@ -31261,6 +31619,19 @@ impl HandshakeApp {
                                 }
                             };
                             self.nav_pending_label = None;
+                            // MT-068 V5: record the EXACT navigation this drain performed so the durable
+                            // Locus completion observer can terminalize against a real routed identity
+                            // instead of the click merely having been consumed. Only a successful
+                            // `Opened` outcome is recorded; a `NoTargetPane`/`Unsupported` outcome leaves
+                            // the previous routed identity untouched and the observer times out into a
+                            // TYPED rejection.
+                            if matches!(
+                                outcome,
+                                crate::quick_switcher::NavDispatchOutcome::Opened { .. }
+                            ) {
+                                self.mt068_locus_ref_routed =
+                                    Some(Mt068LocusRouted::for_locus_ref(&locus));
+                            }
                             self.surface_nav_outcome(&outcome);
                         }
                         None => {

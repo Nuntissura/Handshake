@@ -779,15 +779,24 @@ and never fabricates a record. Persisted locus refs, including original-case WP/
 backend restart and rich-document reload; reverse lookup is read-only and returns the exact persisted \
 document once per ref. For canonical operation, use a fresh argus.inspect to discover \
 locus-ref-chip-wp-{WP_ID} or locus-ref-chip-mt-{MT_ID}, call argus.click on that exact stable target, then \
-use a second fresh argus.inspect. The immediate action receipt may be indeterminate; navigation is proven \
-only when the fresh inspection carries the same receipt/agent attribution and the mounted navigator focuses \
-WP:{WP_ID} or MT::{MT_ID}. For a grey unresolved chip, inspect it but do not infer that the route is absent: \
+use a second fresh argus.inspect. A mounted Locus chip publishes an action-specific completion declaration \
+naming the durable observer mt068.locus-ref-open-completion, so its receipt terminalizes applied only after \
+the exact declared work unit is mounted as a Kernel DCC tab; an immediate dispatch is never completion. \
+Navigation is proven when the fresh inspection carries the same receipt/agent attribution, the receipt reads \
+applied, and the mounted navigator focuses WP:{WP_ID} or MT::{MT_ID}. If the routed tab never appears the \
+observer publishes a typed rejection after a bounded 12-second window instead of staying pending forever. \
+For a grey unresolved chip, inspect it but do not infer that the route is absent: \
 querying the live ref distinguishes record NotFound from LocusReadApiUnavailable. Restore an unavailable \
 route and reload the document; repair or remove a genuinely stale record id instead of retrying it as a \
 transport failure. HBR-INT-009 diagnostic posture for Locus: Flight Recorder/EventLedger = \
 WIRED through the structured locus_ref_resolved event after successful forward resolution and the \
 locus_reverse_lookup event when persisted referencing documents are found. Inspect those events by \
-workspace and locus_uri to confirm the read sequence; failed resolution emits no fabricated success event, \
+workspace and locus_uri to confirm the read sequence. Flight Recorder reads and native-editor writes are \
+capability-gated, so present the live native-MCP session credential in x-hsk-session-token; an absent, \
+forged, or stale binding fails closed with 401 and must never be read as an empty recorder. Their \
+EventLedger mirror rows are workspace-partitioned as \
+native-editor-fr-pending:{workspace_id}:{event_id} and native-editor-fr-complete:{workspace_id}:{event_id}. \
+Failed resolution emits no fabricated success event, \
 so restore the route or record and repeat the canonical click/re-observation flow. The knowledge-document \
 save remains a separate operation with its existing EventLedger receipt. \
 internal_diagnostics = DEFERRED-with-reason because the current generic backend-health surface has no \

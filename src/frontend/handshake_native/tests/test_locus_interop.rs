@@ -31,7 +31,7 @@
 //!   and no SQLite authority is introduced.
 //! - AC-010: `cargo test -p handshake-native test_locus_interop` passes with no panics (this file).
 
-use std::io::{BufRead, Read, Write};
+use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -42,6 +42,9 @@ use egui_kittest::kittest::{NodeT, Queryable};
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 use sha2::{Digest, Sha256};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
@@ -52,9 +55,6 @@ use handshake_native::interop::{
     dispatch_locus_ref_open, normalize_locus_id, parse_locus_ref, CrossRefError, DocumentRef,
     FindNotesHttp, FindNotesSearch, InteractionBus, LocusInteropError, LocusInteropService,
     LocusRefKind, CMD_OPEN_LOCUS_REF, LOCUS_REF_KIND,
-};
-use handshake_native::mcp::{
-    ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD, ARGUS_INSPECT_METHOD,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
@@ -79,7 +79,9 @@ use handshake_native::theme::HsTheme;
 // Shared managed-PostgreSQL fixture. The default live proofs attach to a healthy root-managed backend or
 // start an already-built product executable, create an isolated workspace, and never invoke Cargo.
 mod pg_proof_support;
-use pg_proof_support::{require_live_backend, LiveBackend};
+use pg_proof_support::{
+    live_flight_recorder_session_token, require_live_backend, LiveBackend, RealNativeMcpBinding,
+};
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -116,8 +118,10 @@ const MT068_RELEVANT_SOURCE_PATHS: &[&str] = &[
     "src/frontend/handshake_native/src/manual_content_editors.rs",
     "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
     "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
     "src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs",
     "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/run_mt068_locus_proof.ps1",
     "src/frontend/handshake_native/tests/test_locus_interop.rs",
     "src/frontend/handshake_native/tests/test_manual_content.rs",
 ];
@@ -229,339 +233,41 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
-/// Isolate the production Argus discovery binding under the external proof root. This uses the same
-/// platform app-data indirection as the shipped server while preventing a test from overwriting a live
-/// Handshake process's binding.
-struct ScopedArgusAppData {
-    variable: &'static str,
+/// Isolate the native-MCP discovery binding under the external proof root for the WHOLE proof.
+///
+/// This must be installed BEFORE the managed backend is selected: setting
+/// `HANDSHAKE_TEST_STAGE_BINDING_ROOT` is what makes `pg_proof_support` OWN its backend child, and the
+/// child must inherit the redirected app-data root so BOTH processes resolve the SAME
+/// `swarm_mcp_binding.json`. Without it the mounted app's MT-109 capability-gated Flight Recorder
+/// writes and this proof's recorder reads would both fail closed at the middleware.
+struct ScopedLocusBindingRoot {
     previous: Option<std::ffi::OsString>,
     root: PathBuf,
 }
 
-impl ScopedArgusAppData {
-    fn install(root: PathBuf) -> Self {
-        let root = if root.is_absolute() {
-            root
-        } else {
-            std::env::current_dir()
-                .expect("resolve MT-068 Argus current directory")
-                .join(root)
-        };
-        std::fs::create_dir_all(&root).expect("create isolated MT-068 Argus binding root");
+impl ScopedLocusBindingRoot {
+    fn install() -> Self {
+        let root = external_artifact_dir("wp-kernel-012-mt-068/native-mcp-binding").join(format!(
+            "run-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&root).expect("create isolated MT-068 native-MCP binding root");
         let root =
-            std::fs::canonicalize(&root).expect("canonicalize isolated MT-068 Argus binding root");
-        #[cfg(target_os = "windows")]
-        let variable = "LOCALAPPDATA";
-        #[cfg(not(target_os = "windows"))]
-        let variable = "XDG_DATA_HOME";
-        let previous = std::env::var_os(variable);
-        std::env::set_var(variable, &root);
-        Self {
-            variable,
-            previous,
-            root,
-        }
+            std::fs::canonicalize(&root).expect("canonicalize isolated MT-068 binding root");
+        let previous = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT");
+        std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root);
+        Self { previous, root }
     }
 }
 
-impl Drop for ScopedArgusAppData {
+impl Drop for ScopedLocusBindingRoot {
     fn drop(&mut self) {
         match self.previous.take() {
-            Some(value) => std::env::set_var(self.variable, value),
-            None => std::env::remove_var(self.variable),
+            Some(value) => std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", value),
+            None => std::env::remove_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT"),
         }
-        if let Err(error) = std::fs::remove_dir_all(&self.root) {
-            if error.kind() != std::io::ErrorKind::NotFound {
-                panic!(
-                    "remove isolated MT-068 Argus binding root {}: {error}",
-                    self.root.display()
-                );
-            }
-        }
+        let _ = std::fs::remove_dir_all(&self.root);
     }
-}
-
-fn json_has_author_id(value: &serde_json::Value, expected: &str) -> bool {
-    match value {
-        serde_json::Value::Object(object) => {
-            object.get("author_id").and_then(|value| value.as_str()) == Some(expected)
-                || object
-                    .values()
-                    .any(|value| json_has_author_id(value, expected))
-        }
-        serde_json::Value::Array(values) => values
-            .iter()
-            .any(|value| json_has_author_id(value, expected)),
-        _ => false,
-    }
-}
-
-/// A real localhost JSON-RPC client/server loop over the exact snapshot and action channel owned by the
-/// mounted `HandshakeApp`. This is the canonical Argus boundary, not direct kittest activation.
-struct LocusArgusDriver {
-    runtime: tokio::runtime::Runtime,
-    server: SwarmMcpServer,
-    _app_data: ScopedArgusAppData,
-    token: String,
-    client_session_id: String,
-    next_id: u64,
-    clicked_targets: Vec<String>,
-}
-
-impl LocusArgusDriver {
-    fn bind(app: &HandshakeApp) -> Self {
-        let unique = uuid::Uuid::new_v4().simple().to_string();
-        let app_data = ScopedArgusAppData::install(
-            external_artifact_dir("mt068-argus-binding").join(format!("run-{unique}")),
-        );
-        let session_token = SessionToken::from_hex(format!("mt068-locus-{unique}"));
-        let token = session_token.as_hex().to_owned();
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .enable_all()
-            .build()
-            .expect("MT-068 Argus runtime");
-        let server = runtime
-            .block_on(SwarmMcpServer::bind(
-                session_token,
-                app.mcp_snapshot_slot(),
-                app.mcp_action_channel(),
-                Arc::new(|| {
-                    Err(ScreenshotError(
-                        "MT-068 inspect/click proof does not request a screenshot".to_owned(),
-                    ))
-                }),
-            ))
-            .expect("bind the production Argus localhost server");
-        Self {
-            runtime,
-            server,
-            _app_data: app_data,
-            token,
-            client_session_id: "mt068-locus-agent".to_owned(),
-            next_id: 1,
-            clicked_targets: Vec::new(),
-        }
-    }
-
-    fn rpc(&mut self, method: &str, params: serde_json::Value) -> serde_json::Value {
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": self.next_id,
-            "method": method,
-            "params": params,
-            "session_token": self.token,
-            "client_session_id": self.client_session_id,
-        });
-        self.next_id += 1;
-        let mut stream = std::net::TcpStream::connect(self.server.tcp_addr())
-            .expect("connect to production Argus TCP listener");
-        stream
-            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
-            .expect("bound Argus read timeout");
-        writeln!(stream, "{request}").expect("write Argus JSON-RPC request");
-        stream.flush().expect("flush Argus JSON-RPC request");
-        let mut response_line = String::new();
-        std::io::BufReader::new(stream)
-            .read_line(&mut response_line)
-            .expect("read Argus JSON-RPC response");
-        let response: serde_json::Value =
-            serde_json::from_str(response_line.trim()).expect("decode Argus JSON-RPC response");
-        assert!(
-            response.get("error").is_none(),
-            "canonical Argus request failed: {response}"
-        );
-        response
-    }
-
-    fn inspect(&mut self, harness: &mut Harness<'_, HandshakeApp>) -> serde_json::Value {
-        harness.state_mut().capture_mcp_snapshot_for_navigation();
-        self.rpc(ARGUS_INSPECT_METHOD, serde_json::json!({}))["result"].clone()
-    }
-
-    fn click_and_reinspect(
-        &mut self,
-        harness: &mut Harness<'_, HandshakeApp>,
-        author_id: &str,
-    ) -> serde_json::Value {
-        let before = self.inspect(harness);
-        assert!(
-            json_has_author_id(&before, author_id),
-            "canonical argus.inspect sees mounted Locus target {author_id}"
-        );
-        let click = self.rpc(
-            ARGUS_CLICK_METHOD,
-            serde_json::json!({ "target": author_id }),
-        );
-        assert_eq!(click["result"]["queued"], true);
-        assert!(
-            click["result"]["agent_id"]
-                .as_str()
-                .is_some_and(|agent| agent.ends_with(":client:mt068-locus-agent")),
-            "Argus click must retain caller attribution: {click}"
-        );
-        let receipt_id = click["result"]["receipt_id"]
-            .as_u64()
-            .expect("Argus click returns a receipt id");
-        let mut raw_input = egui::RawInput::default();
-        <HandshakeApp as eframe::App>::raw_input_hook(
-            harness.state_mut(),
-            &egui::Context::default(),
-            &mut raw_input,
-        );
-        assert_eq!(
-            raw_input.events.len(),
-            1,
-            "one canonical Argus click drains as one production egui event"
-        );
-        for event in raw_input.events {
-            harness.event(event);
-        }
-        harness.run_steps(3);
-
-        let after = self.inspect(harness);
-        let receipt = after["action_receipts"]
-            .as_array()
-            .and_then(|receipts| {
-                receipts
-                    .iter()
-                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
-            })
-            .expect("fresh argus.inspect returns the click receipt");
-        assert!(
-            receipt["status"]
-                .as_str()
-                .is_some_and(|status| matches!(status, "applied" | "indeterminate")),
-            "Argus receipt is terminal and non-rejected: {receipt}"
-        );
-        let receipt_status = receipt["status"]
-            .as_str()
-            .expect("Argus receipt status")
-            .to_owned();
-        let terminal_observed_sequence =
-            screenshot_harness::screenshot_marker::next_proof_event_sequence();
-        if std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID")
-            .ok()
-            .is_some_and(|run_id| !run_id.trim().is_empty())
-        {
-            std::env::set_var("HANDSHAKE_PROOF_ACTION_RECEIPT_ID", receipt_id.to_string());
-        }
-        let agent_id = click["result"]["agent_id"]
-            .as_str()
-            .expect("Argus click agent id")
-            .to_owned();
-        self.clicked_targets.push(author_id.to_owned());
-        write_mt108_locus_matrix_trace(
-            &self.client_session_id,
-            author_id,
-            receipt_id,
-            &receipt_status,
-            &agent_id,
-            terminal_observed_sequence,
-            &before,
-            &after,
-        );
-        serde_json::json!({
-            "method": ARGUS_CLICK_METHOD,
-            "target": author_id,
-            "before": before,
-            "action_result": click["result"].clone(),
-            "receipt_id": receipt_id,
-            "receipt_status": receipt_status,
-            "agent_id": agent_id,
-            "after": after,
-        })
-    }
-
-    fn finish(mut self) -> serde_json::Value {
-        let entries = self.server.action_log().drain_log();
-        assert_eq!(entries.len(), self.clicked_targets.len());
-        for (entry, target) in entries.iter().zip(&self.clicked_targets) {
-            assert_eq!(entry.op_name, ARGUS_CLICK_METHOD);
-            assert_eq!(&entry.target_key, target);
-            assert!(entry.agent_id.ends_with(":client:mt068-locus-agent"));
-            assert_ne!(entry.node_id, 0);
-        }
-        let evidence = entries
-            .iter()
-            .map(|entry| {
-                serde_json::json!({
-                    "method": entry.op_name,
-                    "target": entry.target_key,
-                    "agent_id": entry.agent_id,
-                    "node_id": entry.node_id,
-                })
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(self.server.leases().active_resource_count(), 0);
-        self.server.shutdown();
-        drop(self.runtime);
-        serde_json::Value::Array(evidence)
-    }
-}
-
-fn write_mt108_locus_matrix_trace(
-    client_session_id: &str,
-    target: &str,
-    receipt_id: u64,
-    receipt_status: &str,
-    agent_id: &str,
-    terminal_observed_sequence: u64,
-    before: &serde_json::Value,
-    after: &serde_json::Value,
-) {
-    let Ok(run_id) = std::env::var("HANDSHAKE_ARGUS_MATRIX_RUN_ID") else {
-        return;
-    };
-    let required = |name: &str| {
-        std::env::var(name)
-            .unwrap_or_else(|_| panic!("{name} is required for the MT-108 Locus matrix run"))
-    };
-    let scenario_id = required("HANDSHAKE_ARGUS_MATRIX_SCENARIO_ID");
-    let surface = required("HANDSHAKE_ARGUS_MATRIX_SURFACE");
-    let edge_state_tag = required("HANDSHAKE_ARGUS_MATRIX_EDGE_STATE");
-    let source_sha = required("HANDSHAKE_ARGUS_MATRIX_SOURCE_SHA");
-    let process_correlation_id = required("HANDSHAKE_PROOF_PROCESS_CORRELATION_ID");
-    let run_dir = PathBuf::from(required("HANDSHAKE_PROOF_ARTIFACT_DIR")).join(&run_id);
-    std::fs::create_dir_all(&run_dir).expect("create MT-108 Locus matrix run directory");
-    let path = run_dir.join("canonical-argus-matrix.jsonl");
-    let row = serde_json::json!({
-        "schema_id": "hsk.native_gui.canonical_argus_matrix_trace@1",
-        "run_id": &run_id,
-        "scenario_id": &scenario_id,
-        "surface": &surface,
-        "edge_state_tag": &edge_state_tag,
-        "source_sha": &source_sha,
-        "process_correlation_id": &process_correlation_id,
-        "process_id": std::process::id(),
-        "client_session_id": client_session_id,
-        "method": ARGUS_CLICK_METHOD,
-        "target": target,
-        "action_value": null,
-        "target_selected_before": null,
-        "target_selected_after": null,
-        "receipt_id": receipt_id,
-        "receipt_status": receipt_status,
-        "agent_id": agent_id,
-        "terminal_observed_sequence": terminal_observed_sequence,
-        "before": before,
-        "after": after,
-    });
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-        .unwrap_or_else(|error| {
-            panic!("open MT-108 Locus matrix trace {}: {error}", path.display())
-        });
-    writeln!(
-        file,
-        "{}",
-        serde_json::to_string(&row).expect("serialize MT-108 Locus matrix trace")
-    )
-    .expect("append MT-108 Locus matrix trace");
-    file.sync_all()
-        .expect("flush MT-108 Locus matrix trace durably");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -905,6 +611,14 @@ fn run_locus_sql(sql: &str) {
     locus_sql_output(sql).expect("MT-068 canonical Locus fixture SQL");
 }
 
+/// Poll the durable native-editor Flight Recorder rows while the mounted app keeps rendering.
+///
+/// WP-KERNEL-012 MT-109 made the WHOLE flight-recorder route group fail-closed, so this presents the
+/// SAME `x-hsk-session-token` credential the mounted native client presents, read from the proof's own
+/// real on-disk native-MCP binding through the product resolver. Nothing is weakened, stubbed, or
+/// bypassed: an absent, forged, or stale binding still fails closed at the middleware, and
+/// `live_flight_recorder_session_token` panics with the concrete reason rather than letting an
+/// unauthenticated read masquerade as "the recorder is empty".
 fn wait_for_native_fr_with_frames(
     backend: &LiveBackend,
     harness: &mut Harness<'_, HandshakeApp>,
@@ -914,10 +628,10 @@ fn wait_for_native_fr_with_frames(
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
-        let rows = backend.get_json(&format!(
-            "/api/flight_recorder?wsid={}",
-            backend.workspace_id
-        ));
+        let rows = backend.get_json_with_session_token(
+            &format!("/api/flight_recorder?wsid={}", backend.workspace_id),
+            &live_flight_recorder_session_token(),
+        );
         if let Some(row) = rows.as_array().and_then(|rows| {
             rows.iter()
                 .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
@@ -1255,11 +969,30 @@ fn resolve_locus_ref_against_real_pg_live() {
     std::fs::create_dir_all(&artifact_dir)
         .expect("create MT-068 canonical Argus artifact directory");
 
+    // Order matters. The isolated binding root forces `pg_proof_support` to own its backend child, so
+    // the child inherits this app-data root and both processes resolve the SAME native-MCP binding.
+    // The first published binding covers the window before the first canonical Argus server binds.
+    let _binding_root = ScopedLocusBindingRoot::install();
+    let bootstrap_binding = RealNativeMcpBinding::publish();
+    assert_eq!(
+        bootstrap_binding.token().len(),
+        64,
+        "MT-109 requires a genuine 64-hex native-MCP session credential"
+    );
+    assert!(
+        bootstrap_binding.binding_path().is_file(),
+        "the real native-MCP binding must exist on disk before the backend starts"
+    );
+
     let mut be: LiveBackend = require_live_backend();
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
-    let wp_id = format!("WP-MT068-{suffix}");
-    let mt_id = format!("MT-MT068-{suffix}");
+    // Deliberately MIXED CASE work-unit ids. Locus ids are case-sensitive PostgreSQL strings while the
+    // reverse-lookup key is the LOWERCASED normalized `locus://` form, so authoring `Mt068` here makes
+    // the canonical RichDocument lookup case-robustness a property of THIS proof rather than only of
+    // the separate ordinary reverse-lookup test.
+    let wp_id = format!("WP-Mt068-{suffix}");
+    let mt_id = format!("MT-Mt068-{suffix}");
     seed_locus_records(&wp_id, &mt_id);
     let mut records_cleanup = LocusRecordCleanup {
         wp_id: wp_id.clone(),
@@ -1412,7 +1145,41 @@ fn resolve_locus_ref_against_real_pg_live() {
                 .all(|document| document.block_id.as_deref() != Some(alias_block_id.as_str())),
             "AC-004 LIVE: {label} exact lookup excludes the noncanonical same-document alias"
         );
+        // AC-004 / remediation item 7: zero duplicate `(document_id, block_id)` results across the
+        // WHOLE returned set, not only for the fixture document. A de-duplication rule that happened to
+        // collapse the fixture while leaving another pair doubled would still be a contract violation.
+        let mut seen_pairs = std::collections::HashSet::new();
+        for document in docs.iter() {
+            assert!(
+                seen_pairs.insert((
+                    document.document_id.clone(),
+                    document.block_id.clone().unwrap_or_default()
+                )),
+                "AC-004 LIVE: {label} reverse lookup must contain zero duplicate (document_id, block_id) pairs: {docs:?}"
+            );
+        }
         reverse_lookup_counts.insert(label.to_owned(), serde_json::json!(matching));
+    }
+    // Remediation item 7: case-robust canonical RichDocument lookup INSIDE this proof. The document
+    // persists the authored mixed-case URIs while both directions key on the lowercased normalized
+    // form, so the assertions above only hold if the lookup is genuinely case-robust.
+    for (label, authored_uri, reference) in [
+        ("WP", wp_uri.as_str(), &wp),
+        ("MT", mt_uri.as_str(), &mt),
+    ] {
+        assert_ne!(
+            reference.normalized, authored_uri,
+            "{label}: the MT-068 canonical proof requires an authored case that differs from the normalized key"
+        );
+        assert_eq!(
+            reference.normalized,
+            authored_uri.to_ascii_lowercase(),
+            "{label}: the normalized key is the lower-cased authored URI (the case-robustness pivot)"
+        );
+        assert!(
+            reserialized.contains(authored_uri),
+            "{label}: the persisted RichDocument retains the authored mixed-case Locus URI"
+        );
     }
 
     // Mount a fresh production rich editor for each shared-navigation chip. The click must route the
@@ -1479,6 +1246,12 @@ fn resolve_locus_ref_against_real_pg_live() {
             egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1440.0, 900.0)),
         )
         .expect("apply valid MT-068 visual proof layout");
+        // Bind the canonical Argus server BEFORE the app renders its first frame. `SwarmMcpServer::bind`
+        // republishes the native-MCP binding for this process with the MOUNTED app's own session token,
+        // which is exactly the credential the app presents on its MT-109 capability-gated Flight
+        // Recorder writes. Binding after the first frames would leave those writes unauthenticated.
+        let mut argus =
+            CanonicalArgusDriver::bind_in_current_app_data(&app, "mt068-locus", app.mcp_token());
         let mut harness = Harness::builder()
             .with_size(egui::vec2(1440.0, 900.0))
             .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -1566,18 +1339,64 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "reason": "headless matrix run; canonical screenshot marker carries the typed deferral"
             }),
         };
-        let mut argus = LocusArgusDriver::bind(harness.state());
-        let argus_observation = argus.click_and_reinspect(&mut harness, &chip_id);
-        let post_action_inspection = &argus_observation["after"];
+        // The SHARED canonical driver (MT-027 V5 contract): the click is only acknowledged once its
+        // receipt has left `queued`/`dispatched`, and `finish()` refuses any action that was not
+        // rebound to an authoritative terminal snapshot carrying a passing action-specific predicate.
+        // The chip's product-side completion observer (MT-068 V5, `app.rs`) terminalizes that receipt
+        // ONLY when the exact declared work unit is mounted as a KernelDcc tab, so an immediate click
+        // dispatch can never stand as final proof.
+        let provisional = argus.click_expect_applied_and_reinspect(&mut harness, &chip_id);
         assert!(
-            post_action_inspection["action_receipts"]
+            json_has_author_id(&provisional.before, &missing_chip_id),
+            "canonical pre-action inspection includes the persisted missing/stale Locus chip"
+        );
+        // Bind the exact navigation identity to a FRESH terminal observation. `TabBarState` is
+        // deliberately not projected as an addressable AccessKit value (a routed tab renders as a
+        // Role::Tab node labelled by pane type), so the predicate reads BOTH the terminal Argus tree
+        // and the live mounted app at the same terminal instant rather than re-reading app state
+        // afterwards, which would not be bound to the observation at all.
+        let expected_content_id_for_predicate = expected_content_id.clone();
+        let chip_id_for_predicate = chip_id.clone();
+        argus.assert_latest_terminal_predicate_with_app_evidence(
+            &mut harness,
+            &format!("mt068-locus-{state_label}-navigates-to-exact-record"),
+            serde_json::json!({
+                "expected_navigation_content_id": expected_content_id,
+                "expected_pane_type": "Kernel DCC",
+                "clicked_chip_author_id": chip_id,
+                "completion_observer_author_id":
+                    handshake_native::app::MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+            }),
+            |after, app| {
+                let routed = app
+                    .active_pane()
+                    .and_then(|pane| app.tab_bar_states().get(pane))
+                    .and_then(|bar| bar.tabs.get(bar.active_index))
+                    .is_some_and(|tab| {
+                        tab.content_id.as_deref() == Some(expected_content_id_for_predicate.as_str())
+                            && tab.pane_type.label() == "Kernel DCC"
+                    });
+                // The source chip is a TRANSIENT target: routing the record replaces the rich-document
+                // view it was painted in, so the authoritative terminal tree must no longer expose it
+                // while the durable completion observer remains addressable.
+                routed
+                    && !json_has_author_id(after, &chip_id_for_predicate)
+                    && json_has_author_id(
+                        after,
+                        handshake_native::app::MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID,
+                    )
+            },
+        );
+        let argus_observation_record = argus.latest_terminal_observation();
+        assert_eq!(
+            argus_observation_record.receipt_status, "applied",
+            "the Locus chip must terminalize on its product-side navigation completion, not on dispatch"
+        );
+        assert!(
+            argus_observation_record.after["action_receipts"]
                 .as_array()
                 .is_some_and(|receipts| !receipts.is_empty()),
             "fresh canonical argus.inspect exposes the navigation receipt"
-        );
-        assert!(
-            json_has_author_id(&argus_observation["before"], &missing_chip_id),
-            "canonical pre-action inspection includes the persisted missing/stale Locus chip"
         );
         let active = harness.state().active_pane().cloned().expect("active pane");
         let active_tab = harness
@@ -1592,6 +1411,19 @@ fn resolve_locus_ref_against_real_pg_live() {
             "the active-pane navigator inserts and focuses the exact Locus target after canonical Argus steering; source_chip_rect={chip_rect:?}"
         );
         let observed_navigation_content_id = active_tab.content_id.clone();
+        let argus_observation = serde_json::json!({
+            "method": "argus.click",
+            "target": chip_id,
+            "before": argus_observation_record.before,
+            "receipt_id": argus_observation_record.receipt_id,
+            "receipt_status": argus_observation_record.receipt_status,
+            "correlation_id": argus_observation_record.correlation_id,
+            "agent_id": argus_observation_record.agent_id,
+            "terminal_refreshed": argus_observation_record.terminal_refreshed,
+            "terminal_predicates": argus_observation_record.terminal_predicates,
+            "terminal_observed_sequence": argus_observation_record.terminal_observed_sequence,
+            "after": argus_observation_record.after,
+        });
         let after_screenshot_path =
             artifact_dir.join(format!("mt068-locus-{state_label}-after.png"));
         let after_screenshot = match harness
@@ -1654,14 +1486,25 @@ fn resolve_locus_ref_against_real_pg_live() {
             "reverse_lookup": reverse_row,
             "causal_order": "resolved_then_reverse_lookup",
         }));
-        let action_log = argus.finish();
+        // Every authorized recorder read is complete, so the driver may now be consumed. `finish()`
+        // drops the SwarmMcpServer, whose Drop REMOVES the native-MCP binding file: any authorized
+        // Flight Recorder read after this point would fail for that reason, not a product defect.
+        // `finish_require_no_indeterminate` additionally refuses to retain any non-`applied` action.
+        argus.finish_require_no_indeterminate();
         argus_state_matrix.push(serde_json::json!({
             "state": state_label,
             "persisted_uri": uri,
             "expected_navigation_content_id": expected_content_id,
             "observed_navigation_content_id": observed_navigation_content_id,
             "observation": argus_observation,
-            "action_log": action_log,
+            "action_log": [{
+                "method": "argus.click",
+                "target": chip_id,
+                "agent_id": argus_observation_record.agent_id,
+                "receipt_id": argus_observation_record.receipt_id,
+                "receipt_status": argus_observation_record.receipt_status,
+                "terminal_predicates": argus_observation_record.terminal_predicates,
+            }],
             "screenshots": {
                 "before": before_screenshot,
                 "after": after_screenshot,
@@ -1682,12 +1525,15 @@ fn resolve_locus_ref_against_real_pg_live() {
         4,
         "two canonical clicks emit resolved + reverse lookup exactly once per URI"
     );
+    // WP-KERNEL-012 MT-109 partitions the native-editor mirror idempotency keys BY WORKSPACE
+    // (`native-editor-fr-{pending,complete}:{workspace_id}:{event_id}`). Matching the unpartitioned
+    // shape would silently find zero rows and turn a real mirror gap into a passing count.
     let eventledger_keys = native_fr_event_ids
         .iter()
         .flat_map(|event_id| {
             [
-                format!("native-editor-fr-pending:{event_id}"),
-                format!("native-editor-fr-complete:{event_id}"),
+                format!("native-editor-fr-pending:{ws}:{event_id}"),
+                format!("native-editor-fr-complete:{ws}:{event_id}"),
             ]
         })
         .collect::<Vec<_>>();
@@ -1697,11 +1543,17 @@ fn resolve_locus_ref_against_real_pg_live() {
         .collect::<Vec<_>>()
         .join(", ");
     let expected_eventledger_rows = eventledger_keys.len();
+    // Remediation item 7: EXACT pending/complete mirror rows. Counting rows alone would accept one key
+    // mirrored twice while another never landed, so the DISTINCT key count is checked against the same
+    // expected total. Both must equal the number of declared keys.
     run_locus_sql(&format!(
-        "DO $mt068_eventledger_proof$ BEGIN \
-         IF (SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql})) \
-            <> {expected_eventledger_rows} \
-         THEN RAISE EXCEPTION 'MT-068 expected {expected_eventledger_rows} native FR EventLedger mirror rows'; \
+        "DO $mt068_eventledger_proof$ \
+         DECLARE total INT; distinct_keys INT; \
+         BEGIN \
+         SELECT COUNT(*), COUNT(DISTINCT idempotency_key) INTO total, distinct_keys \
+           FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql}); \
+         IF total <> {expected_eventledger_rows} OR distinct_keys <> {expected_eventledger_rows} \
+         THEN RAISE EXCEPTION 'MT-068 expected {expected_eventledger_rows} distinct native FR EventLedger mirror rows, got total=% distinct=%', total, distinct_keys; \
          END IF; END $mt068_eventledger_proof$;"
     ));
 
@@ -1721,11 +1573,24 @@ fn resolve_locus_ref_against_real_pg_live() {
         .as_deref()
         .map(sql_literal)
         .unwrap_or_else(|| "NULL".to_owned());
+    // The mounted app legitimately emits MORE native-editor Flight Recorder events than the four this
+    // proof tracks by id, and those rows carry no top-level `payload.workspace_id` — a tracked-id-only
+    // cleanup therefore leaves real residue behind while still reporting zero (the MT-066 finding). The
+    // MT-109 key prefix is exact and carries THIS run's own generated workspace id, so the sweep stays
+    // scoped to this workspace and can never touch another owner's rows.
+    let workspace_pending_like = sql_literal(&format!("native-editor-fr-pending:{ws}:%"));
+    let workspace_complete_like = sql_literal(&format!("native-editor-fr-complete:{ws}:%"));
     run_locus_sql(&format!(
-        "DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql}); \
+        "DELETE FROM kernel_event_ledger \
+           WHERE idempotency_key IN ({eventledger_key_sql}) \
+              OR idempotency_key LIKE {workspace_pending_like} \
+              OR idempotency_key LIKE {workspace_complete_like}; \
          DELETE FROM kernel_event_ledger WHERE event_id = {alias_event}; \
          DO $mt068_eventledger_cleanup$ BEGIN \
-         IF EXISTS (SELECT 1 FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql})) \
+         IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                    WHERE idempotency_key IN ({eventledger_key_sql}) \
+                       OR idempotency_key LIKE {workspace_pending_like} \
+                       OR idempotency_key LIKE {workspace_complete_like}) \
          THEN RAISE EXCEPTION 'MT-068 native FR EventLedger mirror residue remains'; \
          END IF; END $mt068_eventledger_cleanup$;",
         alias_event = alias_event_sql,
@@ -1793,6 +1658,15 @@ fn resolve_locus_ref_against_real_pg_live() {
                 }
             },
             "reverse_lookup_matching_document_counts": reverse_lookup_counts,
+            "reverse_lookup_case_robustness": {
+                "authored_work_packet_uri": wp_uri,
+                "authored_microtask_uri": mt_uri,
+                "normalized_work_packet_key": wp.normalized,
+                "normalized_microtask_key": mt.normalized,
+                "authored_case_differs_from_key": true,
+                "canonical_rich_document_found_via_lowercased_key": true,
+                "duplicate_document_block_pairs": 0,
+            },
             "reverse_lookup_alias_boundary": {
                 "legacy_document_id": legacy_document_id,
                 "alias_block_id": alias_block_id,
@@ -1811,9 +1685,18 @@ fn resolve_locus_ref_against_real_pg_live() {
             },
             "eventledger": {
                 "mirror": "PostgreSQL kernel_event_ledger",
+                "idempotency_key_shape": "native-editor-fr-{pending|complete}:{workspace_id}:{event_id}",
                 "idempotency_keys": eventledger_keys,
                 "pre_cleanup_rows": expected_eventledger_rows,
                 "expected_rows": expected_eventledger_rows,
+                "distinct_keys_verified": true,
+            },
+            "flight_recorder_authorization": {
+                "capability_gate": "WP-KERNEL-012 MT-109 fail-closed flight-recorder route group",
+                "credential": "real native-MCP session binding published for this process",
+                "presented_as": "x-hsk-session-token",
+                "binding_root_isolated": true,
+                "weakened_or_bypassed": false,
             },
             "missing_and_stale": {
                 "live_route_outcome": missing_outcome,
@@ -2659,6 +2542,58 @@ fn ac008_raw_path_suffix_id_cannot_collide_with_repeated_ref_after_reflow() {
         wide_ids,
         "injective identities remain stable when viewport reflow changes chip coordinates"
     );
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// AC-003/AC-008 — the shell derives a chip's completion declaration from its author id, so that
+// mapping must be the EXACT inverse of the renderer's own id construction (MT-068 V5).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn locus_chip_author_id_round_trips_to_its_exact_ref() {
+    use handshake_native::rich_editor::wikilinks::inline_view::locus_ref_uri_from_chip_author_id;
+
+    // Ordinary contract ids, an occurrence-suffixed repeat, and the reserved-token/percent escapes the
+    // forward mapping introduces all recover the exact authored URI.
+    for uri in [
+        "locus://wp/WP-KERNEL-012",
+        "locus://mt/MT-034",
+        "locus://wp/WP-Mt068-0a1b2c",
+        "locus://mt/MT-with%percent",
+        "locus://wp/WP--path-literal",
+        "locus://mt/MT--view-literal",
+    ] {
+        let base = locus_ref_chip_author_id(uri);
+        assert_eq!(
+            locus_ref_uri_from_chip_author_id(&base).as_deref(),
+            Some(uri),
+            "the shell must recover {uri} from its canonical chip author id {base}"
+        );
+        let repeated = locus_ref_chip_occurrence_author_id(uri, &[1, 2], 1);
+        assert_ne!(repeated, base, "a repeated occurrence gets a distinct id");
+        assert_eq!(
+            locus_ref_uri_from_chip_author_id(&repeated).as_deref(),
+            Some(uri),
+            "a repeated occurrence still addresses the same work unit"
+        );
+    }
+
+    // Fail closed for everything that is not a canonical Locus chip id — including the deliberately
+    // non-invertible defensive hash form, so a completion can never be declared against a guess.
+    for not_a_locus_chip in [
+        "code-ref-chip-src/lib.rs#Thing",
+        "locus-ref-chip-unknown-1234567890",
+        "locus-ref-chip-xx-WP-KERNEL-012",
+        "locus-ref-chip-wp-",
+        "locus-ref-chip-",
+        "mt068.locus-ref-open-completion",
+    ] {
+        assert_eq!(
+            locus_ref_uri_from_chip_author_id(not_a_locus_chip),
+            None,
+            "{not_a_locus_chip} must not resolve to a Locus work unit"
+        );
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
