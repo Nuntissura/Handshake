@@ -344,9 +344,16 @@ try {
         $liveCounts.filtered_out -ne ($totalScenarios - 1)) {
         throw "runner-only-live-proof must report exactly 1 passed / 0 failed / 0 ignored / $($totalScenarios - 1) filtered; got $($liveCounts.passed)/$($liveCounts.failed)/$($liveCounts.ignored)/$($liveCounts.filtered_out)"
     }
+    # Under `--nocapture` libtest interleaves the test's own stdout between the `test <name> ... `
+    # prefix and its terminal `ok`, so an anchored `... ok` match is not available here. The exact
+    # counts above already carry the verdict; these two checks additionally prove the scenario really
+    # STARTED (rather than being filtered to nothing) and that no failures section was emitted.
     $liveStdout = Get-Content -LiteralPath $live.stdout_path -Raw
-    if ($liveStdout -notmatch "(?m)^test $([regex]::Escape($LIVE_SCENARIO)) \.\.\. ok") {
-        throw "runner-only-live-proof did not record $LIVE_SCENARIO as ok"
+    if ($liveStdout -notmatch "(?m)^test $([regex]::Escape($LIVE_SCENARIO)) \.\.\.") {
+        throw "runner-only-live-proof never started $LIVE_SCENARIO"
+    }
+    if ($liveStdout -match '(?m)^failures:') {
+        throw "runner-only-live-proof emitted a failures section"
     }
 
     # ── Canonical evidence must be FRESH and bound to THIS source ─────────────────────────────────
