@@ -823,6 +823,34 @@
         "impact": "Any geometry, containment, clipping or overlap assertion sourced from the inspect tree is unsound and will produce false positives or false negatives. This is a live risk for HBR-VIS acceptance and for the MT-108 pixel-row gates, which reason about what is materially visible.",
         "known_sibling_hazard": "The same fresh-context render is already known to make egui::Memory-backed state (popup and context menus) read back EMPTY. The bounds consequence is newly recorded here.",
         "recommended_fix": "Either expose the mounted rects through a dedicated product seam, or restrict visual acceptance to the captured frame itself. Additionally, document in the internal manual that inspect-tree bounds are NOT operator-visible geometry, so no future MT builds a proof on them."
+      },
+      {
+        "id": "RD-WP012-OBSERVER-BINARIES-NOT-REVERIFIED-AFTER-MT113",
+        "raised_at_utc": "2026-08-06T23:32:34.123Z",
+        "raised_by": "KERNEL_BUILDER-20260805-054937",
+        "status": "OPEN_COVERAGE_GAP",
+        "lens": "Adversarial cross-cutting review: which surfaces did a SHARED-CONTRACT change touch that its own verification did not cover?",
+        "finding": "MT-113 changed the SHARED author_id composition contract in mcp/action.rs, which every click-completion observer in the WP depends on. It re-verified NINE suites (MT-024/026/028/029/042/064/065/068/079) and the full library. A grep across tests/ finds NINETEEN binaries referencing click-completion observers, so roughly ten observer-dependent binaries were never re-run against the new contract.",
+        "binaries_not_covered_by_mt113_verification": [
+          "test_app_host_mount_secondary.rs",
+          "test_canvas_board_argus.rs",
+          "test_completion_hover_accesskit.rs",
+          "test_context_menu_surfaces.rs",
+          "test_embeds.rs",
+          "test_embeds_argus.rs",
+          "test_event_emitter.rs",
+          "test_graph_view_argus.rs",
+          "test_interconnect_ckc_to_note.rs",
+          "test_undo_scope.rs"
+        ],
+        "independently_confirmed_green_after_mt113": [
+          "test_manual_content (39 passed / 0 failed, run by KERNEL_BUILDER at HEAD fef0faa9, which is after MT-113 0a1b35aa)",
+          "test_author_id_budget (12 passed / 0 failed, same run window; this is MT-113 own mounted proof)",
+          "The full library suite (2058 passed / 0 failed at fef0faa9)"
+        ],
+        "why_this_is_probably_but_not_provably_fine": "MT-113 designed the bound so any id that ALREADY FITS is BYTE-IDENTICAL, and proved it with mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition over an adversarial corpus. If that holds, untouched surfaces cannot change. But \"probably\" is not proof, and MT-113 itself disclosed that roughly 80 other *_author_id() sites still format ids directly and are NOT bounded by construction - see RD-WP012-UNBOUNDED-AUTHOR-ID-SITES-REMAIN. The residual risk is concentrated in exactly the binaries listed above.",
+        "recommended_action": "MT-108 item 11 already requires running every current-source integration binary with --no-fail-fast, which would close this. Prioritise the ten listed binaries in that sweep and treat any observer-related failure there as MT-113 fallout rather than a new defect. Cheap alternative if the full sweep slips: run just those ten.",
+        "severity_note": "Recorded as a COVERAGE gap, not a known break. No failure has been observed in these binaries; they simply have not been exercised since the contract moved."
       }
     ]
   },
