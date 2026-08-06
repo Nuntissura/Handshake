@@ -3854,32 +3854,61 @@ fn show_with_author_scope(
                 &bookmark_completion_author_id,
                 &FindInFilesPanelState::bookmark_remove_semantic_value(&bm.id),
             );
+            // WP-KERNEL-012 MT-119. The label is USER CONTENT and therefore unbounded: a saved search
+            // carries the operator's whole query. Laying it out FIRST in a left-to-right row let it
+            // consume the full pane width, pushing Restore past the pane edge (only "Re..." survived)
+            // and Remove entirely OFF-PANE. Argus still addressed and clicked Remove — its AccessKit
+            // node existed and terminalized — so an automated proof passed while a human operator could
+            // neither see nor reach the control. Automated terminality and human reachability diverged.
+            //
+            // Fix: reserve the CONTROLS first against the row's right edge, then let the label truncate
+            // into whatever remains. `right_to_left` places the first-added widget rightmost, so Remove
+            // is added before Restore to preserve the visual order [label ... Restore Remove]. The full
+            // query stays recoverable through the hover text (MT-119 AC-119-2 forbids a lossy truncation
+            // that would stop an operator telling two saved searches apart).
+            //
+            // The author_ids are UNCHANGED — they are derived above from the bookmark id and pane scope
+            // (MT-113's bounded composer), never from layout position — so this is layout-only and the
+            // MT-113 identity contract is untouched.
             ui.horizontal(|ui| {
-                ui.label(&bm.label);
-                let restore = ui.small_button("Restore");
-                accessibility::emit_interactive_node(
-                    ui.ctx(),
-                    restore.id,
-                    &restore_scoped_author_id,
-                );
-                ui.ctx().accesskit_node_builder(restore.id, |node| {
-                    if let Some(value) = restore_completion {
-                        node.set_value(value);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let remove = ui.small_button("Remove");
+                    accessibility::emit_interactive_node(
+                        ui.ctx(),
+                        remove.id,
+                        &remove_scoped_author_id,
+                    );
+                    ui.ctx().accesskit_node_builder(remove.id, |node| {
+                        if let Some(value) = remove_declaration {
+                            node.set_value(value);
+                        }
+                    });
+                    if remove.clicked() {
+                        remove_bookmark_id = Some(bm.id.clone());
                     }
-                });
-                if restore.clicked() {
-                    restore_bookmark = Some(bm.clone());
-                }
-                let remove = ui.small_button("Remove");
-                accessibility::emit_interactive_node(ui.ctx(), remove.id, &remove_scoped_author_id);
-                ui.ctx().accesskit_node_builder(remove.id, |node| {
-                    if let Some(value) = remove_declaration {
-                        node.set_value(value);
+                    let restore = ui.small_button("Restore");
+                    accessibility::emit_interactive_node(
+                        ui.ctx(),
+                        restore.id,
+                        &restore_scoped_author_id,
+                    );
+                    ui.ctx().accesskit_node_builder(restore.id, |node| {
+                        if let Some(value) = restore_completion {
+                            node.set_value(value);
+                        }
+                    });
+                    if restore.clicked() {
+                        restore_bookmark = Some(bm.clone());
                     }
+                    // Truncates into the remaining width instead of expanding the row. egui's
+                    // `show_tooltip_when_elided` defaults to TRUE and fires only when the galley was
+                    // actually elided, so the untruncated query stays recoverable on hover EXACTLY when
+                    // it is hidden (MT-119 AC-119-2) and a short, fully visible label pops no redundant
+                    // tooltip. An explicit `.on_hover_text` here would stack a SECOND tooltip on top of
+                    // that built-in one — egui documents combining them as the way to show *different*
+                    // text, which is not what this row wants.
+                    ui.add(egui::Label::new(&bm.label).truncate());
                 });
-                if remove.clicked() {
-                    remove_bookmark_id = Some(bm.id.clone());
-                }
             });
         }
     }
