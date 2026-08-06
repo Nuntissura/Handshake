@@ -5384,8 +5384,33 @@ mod tests {
             saved_at: "2026-07-15T00:00:00Z".into(),
         };
         state.restore_bookmark(&bookmark);
-        assert!(state.results.is_empty());
-        assert_eq!(state.visible_result_count(), 0);
+        // MT-029 AC-7 (stale-result guard). `invalidate_search_inputs` DELIBERATELY RETAINS the last
+        // completed result set and its producer key: clearing either one disables Preview Replace, and a
+        // disabled button can never surface the contract's "Search results are stale" warning. Asserting
+        // that they are cleared would therefore lock in a violation of a validated acceptance criterion.
+        // What `restore_bookmark` MUST invalidate is the PENDING READS and the DERIVED caches — asserted
+        // below, followed by a live proof that this retention is what keeps AC-7 reachable.
+        assert_eq!(
+            state.results.len(),
+            1,
+            "MT-029 AC-7: the completed result set is retained so Preview stays enabled to report staleness"
+        );
+        let current_key = state.current_search_key();
+        assert!(
+            state.result_set_key.is_some(),
+            "MT-029 AC-7: the producer key is retained so the stale comparison has something to compare"
+        );
+        assert_ne!(
+            state.result_set_key.as_deref(),
+            Some(current_key.as_str()),
+            "the retained key must now read STALE against the restored bookmark's search params"
+        );
+        assert_eq!(
+            state.visible_result_count(),
+            1,
+            "the visible cache is invalidated and recomputed, not emptied — no match-option is active, \
+             so every retained hit passes the client-side filter"
+        );
         assert!(state.results_generation > generation_before);
         assert!(state.active_search.is_none() && state.active_preview.is_none());
         assert!(state.search_cell.lock().unwrap().is_empty());
@@ -5393,6 +5418,29 @@ mod tests {
         assert!(
             !state.poll(),
             "old completions cannot be accepted after restore"
+        );
+
+        // AC-7 REACHABILITY, proven through the REAL path rather than a hand-built stale state (which is
+        // what `preview_stale_result_guard` already covers): the retention asserted above is precisely
+        // what lets the guard fire after a bookmark restore. If a future change clears `results` or
+        // `result_set_key` in `invalidate_search_inputs`, this assertion goes red with the reason.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let client = RichDocClient::new("http://test.local", rt.handle().clone());
+        state.run_preview_replace(&client, Some("A"));
+        assert!(
+            state
+                .replace_status
+                .as_deref()
+                .unwrap_or_default()
+                .contains("stale"),
+            "MT-029 AC-7: after restoring a bookmark the stale-result warning must fire, got {:?}",
+            state.replace_status
+        );
+        assert!(
+            state.preview_plans.is_empty(),
+            "MT-029 AC-7: a stale preview computes NOTHING"
         );
     }
 }
