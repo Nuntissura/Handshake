@@ -4230,6 +4230,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
     std::fs::create_dir_all(&artifact_dir)
         .expect("create external MT-079 canonical-Argus artifact dir");
     let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-cmdbus");
+    let mut rows: Vec<serde_json::Value> = Vec::new();
 
     // ── DISABLED BEHAVIOUR (no observation is created; this is a transport-level rejection) ────────
     // With nothing on the redo stack the EDIT > Redo leaf renders DISABLED, and a canonical steer at a
@@ -4308,6 +4309,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             on_disk == saved_expectation && sibling_untouched
         },
     );
+    rows.push(mt079_action_row("save", "menu.file.save", &argus));
 
     // ── ACTION 2 — UNDO from the EDIT menu: the MT-035 unified-undo scope MUTATES ─────────────────
     open_menu(&mut harness, MenuId::Edit);
@@ -4346,6 +4348,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             scope_mutated && panel_reverted && sibling_scope_untouched
         },
     );
+    rows.push(mt079_action_row("undo", "menu.edit.undo", &argus));
 
     // ── ACTION 3 — REDO from the EDIT menu: the SAME stack, now enabled, restores the edit ────────
     open_menu(&mut harness, MenuId::Edit);
@@ -4374,6 +4377,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             restored && same_scope
         },
     );
+    rows.push(mt079_action_row("redo", "menu.edit.redo", &argus));
 
     // ── ACTION 4 — OPEN COMMAND PALETTE from the EDIT menu: the ONE WP-011 palette mounts ─────────
     open_menu(&mut harness, MenuId::Edit);
@@ -4397,6 +4401,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             mounted && ids.contains(PALETTE_DIALOG_AUTHOR_ID)
         },
     );
+    rows.push(mt079_action_row("open-command-palette", "menu.edit.command-palette", &argus));
 
     let tree_path = artifact_dir.join("mt079-command-bus-argus.json");
     let terminal = argus.latest_terminal_observation();
@@ -4406,6 +4411,7 @@ fn mt079_code_pane_command_bus_canonical_argus() {
             "schema_id": "hsk.wp_kernel_012.mt_079.canonical_command_bus@1",
             "dispatched_action_count": argus.dispatched_action_count(),
             "disabled_redo_rejection": redo_disabled_rejection,
+            "commands": rows,
             "document_path": path.to_string_lossy(),
             "final_terminal_tree": terminal.after,
         }))
