@@ -650,6 +650,25 @@ fn wait_for_native_fr_with_frames(
     }
 }
 
+/// The PRODUCER event id a Flight Recorder row belongs to.
+///
+/// WP-KERNEL-012 MT-109 made the DURABLE recorder `event_id` a workspace-scoped DERIVATION of the
+/// client event id — deliberately, so one workspace cannot pre-seed, read back, or reconcile another
+/// workspace's row by guessing a client id. The id the mounted app actually minted travels in
+/// `payload.client_event_id`, and it is that id — not the derived durable one — that
+/// `native-editor-fr-{pending,complete}:{workspace_id}:{event_id}` is built from.
+///
+/// Keying the EventLedger mirror lookup on the durable id therefore matches ZERO rows and would read
+/// as a missing mirror. The legacy `event_id` spelling is retained so rows minted before MT-109 still
+/// resolve.
+fn fr_producer_event_id(row: &serde_json::Value) -> String {
+    row["payload"]["client_event_id"]
+        .as_str()
+        .or_else(|| row["event_id"].as_str())
+        .expect("native Flight Recorder row carries a producer event id")
+        .to_owned()
+}
+
 fn assert_causal_fr_order(first: &serde_json::Value, second: &serde_json::Value, label: &str) {
     let first_ts = first["payload"]["ts_utc"]
         .as_str()
@@ -1187,7 +1206,10 @@ fn resolve_locus_ref_against_real_pg_live() {
     // by the proof.
     let mut argus_state_matrix = Vec::new();
     let mut flight_recorder_matrix = Vec::new();
+    // The PRODUCER (client) ids the EventLedger mirror keys are built from, and separately the DURABLE
+    // workspace-scoped ids the recorder rows carry. MT-109 makes these different values.
     let mut native_fr_event_ids = Vec::new();
+    let mut native_fr_durable_event_ids = Vec::new();
     for (state_label, uri, expected_kind, expected_id, expected_content_id) in [
         (
             "work-packet",
@@ -1473,12 +1495,21 @@ fn resolve_locus_ref_against_real_pg_live() {
         );
         assert_causal_fr_order(&resolved_row, &reverse_row, state_label);
         for row in [&resolved_row, &reverse_row] {
-            let event_id = row["event_id"].as_str().unwrap().to_owned();
+            let durable_event_id = row["event_id"]
+                .as_str()
+                .expect("durable Flight Recorder event id")
+                .to_owned();
             assert!(
-                !native_fr_event_ids.contains(&event_id),
+                !native_fr_durable_event_ids.contains(&durable_event_id),
+                "each automatic Locus event has a distinct durable recorder identity"
+            );
+            native_fr_durable_event_ids.push(durable_event_id);
+            let producer_event_id = fr_producer_event_id(row);
+            assert!(
+                !native_fr_event_ids.contains(&producer_event_id),
                 "each automatic Locus event has a distinct producer identity"
             );
-            native_fr_event_ids.push(event_id);
+            native_fr_event_ids.push(producer_event_id);
         }
         flight_recorder_matrix.push(serde_json::json!({
             "state": state_label,
@@ -1680,7 +1711,9 @@ fn resolve_locus_ref_against_real_pg_live() {
             "flight_recorder": {
                 "diagnostic_tier": "Tier 1 WIRED",
                 "events": flight_recorder_matrix,
-                "event_ids": native_fr_event_ids,
+                "producer_event_ids": native_fr_event_ids,
+                "durable_event_ids": native_fr_durable_event_ids,
+                "mt109_durable_id_is_workspace_scoped_derivation": true,
                 "causal_order_verified": true,
             },
             "eventledger": {
