@@ -930,7 +930,26 @@
               "value_note": "This also retires the earlier MT-111 suspicion, which would otherwise have sent an agent hunting a regression in the wrong module."
             }
           },
-          "remaining_untested": "The five integration-gated binaries (test_canvas_board_argus, test_completion_hover_accesskit, test_embeds, test_graph_view_argus, test_undo_scope) still need --features integration plus a backend and PostgreSQL."
+          "remaining_untested": "The five integration-gated binaries (test_canvas_board_argus, test_completion_hover_accesskit, test_embeds, test_graph_view_argus, test_undo_scope) still need --features integration plus a backend and PostgreSQL.",
+          "gated_five_now_run": {
+            "at_utc": "2026-08-06T23:59:25.435Z",
+            "command": "cargo test --features integration --no-fail-fast --test test_canvas_board_argus --test test_completion_hover_accesskit --test test_embeds --test test_graph_view_argus --test test_undo_scope, with the current-source backend, real PostgreSQL at 127.0.0.1:5544, GPU capture and an isolated stage-binding root.",
+            "green": [
+              "test_embeds => 22 passed / 0 failed / 1 ignored",
+              "test_undo_scope => 41 passed / 0 failed"
+            ],
+            "red": [
+              "test_canvas_board_argus => 13 passed / 3 FAILED",
+              "test_completion_hover_accesskit => 17 passed / 2 FAILED",
+              "test_graph_view_argus => 13 passed / 1 FAILED"
+            ],
+            "total_new_failures": 6,
+            "status": "MEASURED, NOT DIAGNOSED. No cause is claimed for any of the six.",
+            "candidate_causes_none_confirmed": "Could be pre-existing reds that predate this session (as test_event_emitter turned out to be), MT-113 shared-contract fallout, the same 10s-deadline-under-parallelism class as RED 1, or environmental. NOTHING is asserted. The two reds diagnosed earlier tonight went one way each - one a genuine test defect, one a known product defect - so neither guess is safe here.",
+            "why_this_matters_a_lot_for_MT_108": "AC-108-3 requires the FULL suite green. The library alone is 2058 passed / 0 failed, which made the capstone look close. This sweep shows the INTEGRATION surface is not: eight distinct failures are now known across four binaries (six here plus the two found earlier), all in binaries nobody had re-run. The capstone is materially further away than the library figure suggested, and MT-108 should be planned on that basis rather than on the lib number.",
+            "honest_caveat": "These five binaries were selected because they reference completion observers, NOT because they are the whole integration surface. There are 186 test binaries in handshake_native (158 always-on, 28 integration-gated). The true full-suite state remains UNMEASURED; this is a sample, and the sample rate of failure is high.",
+            "next": "Diagnose the six before the capstone sweep, exactly as was done for RED 1 and RED 2. Do not assume any of them is environmental."
+          }
         }
       }
     ]
