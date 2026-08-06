@@ -953,5 +953,18 @@
     "manual": "manual_content_editors.rs is the in-app manual surface, and coverage is ENFORCED by 39 tests including per-MT assertions (mt034_manual_covers_canonical_argus_restart_conflict_stale_and_diagnostics, mt066_stage_manual_covers_canonical_argus_recovery_and_three_tier_posture, mt074_other_pillar_manual_documents_canonical_argus_matrix_and_calendar_diagnostics), selectability checks (mt104_manual_topics_are_selectable_in_manual_pane, wave5_surface_topics_are_selectable_in_manual_pane) and a no-context-facts check (wave5_surface_topics_exist_and_carry_real_no_context_facts). MT-068 additionally CORRECTED the manual during this session, removing guidance that told future models \"The immediate action receipt may be indeterminate\" - false after MT-068 and directly contrary to the V4 gate.",
     "why_this_is_durable_rather_than_a_point_in_time_check": "The requirement is satisfied by a GATE, not by an inspection. Any future MT that adds an EDITORS leaf, a manual topic or a Settings diagnostics id without documenting it turns test_manual_content red. That is what keeps the requirement true as MT-117, MT-118, MT-119 and MT-120 land.",
     "remaining_obligation": "MT-117 (Stage/Calendar completion observers) and MT-120 (document_saved attribution) will change documented behaviour, so both carry a MAN obligation. This suite must be re-run after they land; it is the mechanism that will catch them if they forget."
-  }
+  },
+  "artifact_hygiene_actions": [
+    {
+      "at_utc": "2026-08-06T23:29:53.942Z",
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "action": "RELOCATED a non-standard sibling artifact folder into the sanctioned root.",
+      "operator_instruction": "Direct any non-standard sibling artifact folders there instead of creating them elsewhere; clean Cargo build and test output after use to keep disk use optimal.",
+      "what_was_found": "Handshake Worktrees/handshake-cargo-target/wp-kernel-012-mt-046 - a 4.4 GB cargo target directory (3258 files) sitting OUTSIDE the sanctioned Handshake_Artifacts root. Originally flagged by the MT-065 agent, which correctly did not touch it because it was not its own.",
+      "verified_before_acting": "It is SUPERSEDED and IDLE: its build ran 2026-08-03 01:10-01:30, while the sanctioned copy at Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-046 is NEWER (03:27) and carries the handshake_core.exe the stray lacks. No running process referenced it.",
+      "action_taken": "MOVED (same volume, so instant and non-destructive) to Handshake_Artifacts/handshake-cargo-target/wp-kernel-012-mt-046-STALE-20260803-0130, and the now-empty stray parent directory was removed with rmdir. NOTHING WAS DELETED.",
+      "why_not_deleted": "It predates this session and is not KERNEL_BUILDER own output, and the operator standing rule is to never force-delete. Relocating satisfies the placement instruction immediately and loses nothing, while leaving the disposal decision with the operator.",
+      "operator_decision_requested": "RECOMMEND DELETING it: 4.4 GB of superseded, regenerable build output whose newer complete counterpart already exists in the sanctioned root. The STALE- name prefix makes it unambiguous. Say the word and it goes."
+    }
+  ]
 }
