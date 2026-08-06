@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-08-06T20:32:17.598Z",
+  "updated_at_utc": "2026-08-06T23:50:35.306Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -77,7 +77,13 @@
       "PT-120-1: the RED reproduced first (HTTP 400 HSK-400-INVALID-EVENT on a legitimate save), then green.",
       "PT-120-2: a cross-principal negative test proving A cannot claim B receipt.",
       "PT-120-3: test_e7_swarm_edit_proof and test_flight_recorder_authz both green against real PostgreSQL."
-    ]
+    ],
+    "second_known_casualty": {
+      "recorded_at_utc": "2026-08-06T23:50:35.306Z",
+      "finding": "test_event_emitter::event_emitter_native_editor_round_trip is very likely a SECOND test failing on this same clause. It drives three emissions — document_saved, canvas_node_placed, undo_fired — and requires all three to mirror, but the ledger shows only two mirroring on every run (2 FLIGHT_RECORDER_MIRROR_PENDING + 2 RECORDED across four distinct process identities). That matches document_saved being rejected at ingestion with HTTP 400 while the other two succeed.",
+      "implication": "AC-120-3 currently names only test_e7_swarm_edit_proof. If confirmed, fixing MT-120 should ALSO turn test_event_emitter green with no test edit, and that binary should be added to the MT-120 acceptance evidence.",
+      "caveat": "Recorded as a hypothesis. Confirm by dumping the unfiltered recorder rows for the run workspace and identifying which of the three event names is absent."
+    }
   },
   "hbr_obligations": {
     "PRIV": "Do not surface the derived process identity more widely than the save path requires.",
