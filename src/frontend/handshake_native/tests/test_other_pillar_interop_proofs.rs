@@ -2476,7 +2476,12 @@ fn other_pillar_runtime_readiness_manifest() {
 
 #[test]
 fn other_pillar_every_canonical_action_binds_a_terminal_predicate() {
-    let src = include_str!("test_other_pillar_interop_proofs.rs");
+    // `include_str!` preserves the file bytes, and this file is CRLF. Normalize first: splitting a
+    // CRLF source on a LF-only `#[test]` marker silently yields ONE block whose first line is the
+    // module doc comment, the scan then finds zero scenarios, and the gate would report success while
+    // inspecting nothing. This gate caught exactly that in its own first run.
+    let src = include_str!("test_other_pillar_interop_proofs.rs").replace('\r', "");
+    let src = src.as_str();
     // Every way this suite can dispatch a canonical Argus action. `argus_click` is the suite's own
     // helper around `click_from_snapshot_and_reinspect`; the remaining spellings are the driver's
     // public dispatch surface, listed so a future switch to any of them is still counted.
