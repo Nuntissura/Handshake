@@ -546,5 +546,34 @@
       "Return READY_FOR_VALIDATION for a fresh independent validator without self-issuing PASS or reusing e4148ca9 artifacts as current-head closure."
     ],
     "no_context_instruction": "Read MT-108.json completely, packet.json, SPEC_CURRENT v02.202, every current FAIL_V4 MT report, mt108_argus_matrix.json, run_mt108_argus_proof.ps1, mt108_matrix_verifier.rs, argus_surface_proof.rs, screenshot_marker/harness code, UserManual MT-108 section, and the complete current test inventory. Repair failures under their owning MTs first, resolve the twelve residual dispositions, create a clean committed successor without discarding user work, run both headless and real-GPU supervisors plus explicit aggregate verification, inspect material frames, run the entire native/Palmistry suite and build from the exact same source, and hand off only when AC-108-1/2/3 are all current-head green."
+  },
+  "current_head_findings_2026_08_06": {
+    "schema_id": "hsk.mt_current_state_findings@1",
+    "recorded_at_utc": "2026-08-06T17:23:43.872Z",
+    "recorded_by": "KERNEL_BUILDER-20260805-054937",
+    "source_sha": "9ef2c041",
+    "purpose": "Directly measured current-HEAD state for the MT-108 capstone gates, so the capstone is planned against what is TRUE now rather than against the V4-era failure list. Every line below is a real command result, not an inference.",
+    "finding_1_remediation_item_5_premise_is_STALE": {
+      "item": "validation_v4.remediation_plan item 5 - \"Reproduce and fix test_loom_address::mounted_backlink_event_retries_when_bus_is_contended at current HEAD\".",
+      "measured_result": "THE TEST PASSES AT CURRENT HEAD. It is not failing and there is nothing to fix.",
+      "evidence_isolated": "cargo test --test test_loom_address mounted_backlink_event_retries_when_bus_is_contended -- --exact => EXIT 0, 1 passed / 0 failed / 15 filtered out.",
+      "evidence_full_binary": "cargo test --test test_loom_address (all 16) => the test reports \"ok\". It therefore passes BOTH in isolation AND in a full-binary run, which is exactly the order-dependency check item 5 demanded.",
+      "order_dependency_ruled_out": "The suspected shared-global route was checked directly and does not exist: InteractionBus::get_or_init (interop/interaction_bus.rs:668) stores the bus via ctx.data_mut on the egui Context, so it is per-Context, NOT a process-global static. Each test builds its own Harness and therefore its own bus. There is no cross-test bus sharing to create an order dependency.",
+      "conclusion": "Item 5 should be marked SUPERSEDED-BY-CURRENT-STATE rather than carried into the capstone as outstanding work. Recorded rather than silently dropped."
+    },
+    "finding_2_the_real_red_is_an_environment_gate_not_a_defect": {
+      "measured_result": "The ONLY failing test in test_loom_address at current HEAD is canvas_loom_chip_screenshot, and it fails BY DESIGN when headless.",
+      "headless_failure": "cargo test --test test_loom_address => EXIT 101, 15 passed / 1 failed. Panic at tests/test_loom_address.rs:1108: HBR-VIS: the Canvas loom-address surface must render through wgpu: \"typed DEFERRED screenshot outcome recorded for canvas_loom_chip_screenshot; set HANDSHAKE_GPU_SCREENSHOT=1 on a real-GPU host\". This is the HBR-VIS gate refusing to let a typed DEFERRED close a required pixel row - the gate working correctly, not a product defect.",
+      "gpu_result": "HANDSHAKE_GPU_SCREENSHOT=1 cargo test --test test_loom_address => EXIT 0, 16 passed / 0 failed / 0 ignored / 0 filtered in 6.13s.",
+      "why_this_matters_for_the_capstone": "This directly de-risks remediation items 7 and 9. Item 7 requires that real-GPU-mandatory rows carry MATERIAL captured frames and that a typed DEFERRED may never close a required pixel row; item 9 requires a real-GPU supervisor run. This measurement PROVES the current host can materially capture GPU frames, so the GPU-mandatory rows are achievable here rather than blocked on hardware.",
+      "consequence_for_full_suite_runs": "Any full-suite invocation for AC-108-3 MUST set HANDSHAKE_GPU_SCREENSHOT=1, or HBR-VIS pixel rows will fail as typed DEFERRED and be misread as product failures. This is a run-configuration requirement, not a code fix."
+    },
+    "finding_3_library_suite_is_green": {
+      "measured_result": "cargo test --lib => EXIT 0, 2043 passed / 0 failed / 0 ignored / 0 filtered in 6.81s. The complete handshake-native library suite is GREEN.",
+      "what_changed": "It was 2042 passed / 1 failed. The single failure was find_in_files::tests::restore_bookmark_centrally_invalidates_results_cache_and_pending_reads, closed under MT-114 as a stale TEST assertion (the product was contract-correct per MT-029 AC-7). Committed at 9ef2c041.",
+      "scope_note": "This closes the library portion of AC-108-3. The integration-binary portion and the governed live tests remain to be measured, and several require managed PostgreSQL."
+    },
+    "what_remains_unmeasured": "Integration binaries beyond test_loom_address, the Palmistry tests, the headless supervisor run, and the real-GPU supervisor run are NOT yet measured at current HEAD. PostgreSQL was not running at measurement time (the sub-agents holding it were killed by a platform session limit), so no PG-backed proof was executed. Stated as unmeasured rather than assumed green.",
+    "honesty_note": "These findings do NOT constitute an MT-108 PASS and no verdict is issued. They exist so the capstone run is configured correctly and does not spend a cycle re-fixing a test that already passes."
   }
 }
