@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-063"
@@ -79,6 +79,53 @@
         "src/frontend/handshake_native/tests/test_event_emitter.rs",
         "src/frontend/handshake_native/tests/test_manual_content.rs"
       ]
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-05T13:30:04.042Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-05T13:30:04.042Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "NEEDS_REIMPLEMENTATION_V4",
+      "defect": "validation_v4 FAIL_V4: seven canonical actions in the mounted FEMS propose-to-memory flow were not bound to action-specific completion predicates. Receipt 6 (procedural class radio) and receipt 7 (propose confirm) ended indeterminate, receipt 7 because the confirm button disappears after dispatch.",
+      "outcome": "All seven receipts are now applied with zero indeterminate and zero rejected, and argus.finish_require_no_indeterminate() returns normally (previously plain finish()). Receipt 7 carries a successor predicate that survives TARGET DISAPPEARANCE, whose proposal_id/event_id match both the live PostgreSQL readback and the correlated FR-EVT-MEM-001 row.",
+      "mechanism_note": "Per KERNEL_BUILDER direction the shared tests/native_gui_support/canonical_argus_driver.rs was NOT modified. Remediation item 6 is satisfied entirely PRODUCT-SIDE by one durable Role::Status observer mt064.fems-proposal-flow-completion on the existing handshake.click-completion/v1 schema, plus mt064.shared-selection-state and fems-propose-class-state. All observable state lives on the app/dialog struct rather than egui::Memory, so the fresh-Context trap did not bite.",
+      "terminal_predicates": [
+        "mt064.menu-edit.child-action-surface-open",
+        "mt064.select-all.authoritative-full-document-selection",
+        "mt064.menu-go.child-action-surface-open",
+        "mt064.command-palette.surface-open",
+        "mt064.propose-dialog.mounted-with-required-author-ids",
+        "mt064.class-procedural.selected-and-previewed",
+        "mt064.confirm.successor-terminal-status-event-persisted"
+      ],
+      "proof_evidence": {
+        "negative_tests": "13 passed / 0 failed (mt064_v5_completion_negative_tests)",
+        "memory_proposal": "10 passed / 0 failed",
+        "manual": "39 passed / 0 failed",
+        "canonical_live_pg": "1 passed, exit 0; re-run on final source 1 passed with FINAL_ARGUS_EXIT=0",
+        "backend_fems_regressions": "8 passed / 0 failed, exit 0",
+        "independent_verifier": "38 assertions, verify_exit=0",
+        "artifacts": [
+          "run-9829ef416d9a401fa608ac9cdc75c8b1 SHA-256 93e2117361d520460febfcbf188008ff977a71d4c8c881cd8f5ac2f575829e31",
+          "run-da5a8e762519463386e4fa5887c32f2b SHA-256 50b7cd80ce556c9dc9aa4e1739e463a78d8e8dae21f0172f7ade7a32cdf85457"
+        ],
+        "distinct_runs": "The two runs carry DISTINCT proposal/event ids, proving each persisted its own row rather than replaying a cached artifact.",
+        "mutation_proof": "NON-VACUITY PROVEN BY MUTATION: three product predicates were deliberately weakened and re-run; exactly the three corresponding tests FAILED with their real assertion messages. This also exposed that the class test was initially MASKED by a second invariant, which was then tightened to isolate the class-state predicate before it would bite. Mutations reverted; KERNEL_BUILDER independently confirmed zero mutation markers remain and 13/13 are green.",
+        "kernel_builder_independent_verification": "KERNEL_BUILDER re-opened the canonical artifact directly and confirmed class_steer_receipt_status=applied, confirm_steer_receipt_status=applied, zero occurrences of indeterminate or rejected, a real FR memory_write_proposed event with a concrete actor_id, and finish_require_no_indeterminate() at test line 1018."
+      },
+      "pre_existing_lines_modified": "Only 4 pre-existing lines were modified, all to correct attribution rather than to add scope: added \"menu-go\" to the MT-033 menu-token list; added MenuId::Go => \"menu-go\"; made OpenCommandPalette attribute the ACTUAL dispatched target instead of a hardcoded one; widened the MT-033 semantic match to accept both \"menu.operator.command-palette\" and \"menu.go.command-palette\".",
+      "cross_mt_finding_routed_out": "The proposal-identity divergence between Rust stable_proposal_request_id (11 components, omits actor_id) and migration 0345 (12 components, actor_id at position 11 and document_content_hash DUPLICATED at position 12) is REAL and reproduced, but is NOT MT-064 work. KERNEL_BUILDER verified the provenance with git: migration 0345 was added by 892662e0 (2026-07-23), which IS an ancestor of c7063c24 (MT-064, 2026-07-26), so MT-064 inherited the divergence and did not create it. The earlier MT-109 attribution to the MT-064/MT-065 commits was wrong and has been corrected. Tracked as new MT-112 because convergence requires a superseding migration and a durable-data re-keying decision, and because changing the identity underneath MT-064 would invalidate this freshly proven green V5 proof.",
+      "disclosed_gaps": [
+        "Screenshot is a contract-permitted typed DEFERRED outcome (headless host, no GPU adapter). A real-GPU capture is still owed.",
+        "A pre-existing compile error in tests/test_editor_settings_section_renders.rs (inherited-dirty, 892662e0 lineage) blocked a whole-crate cargo test at the time of the run; MT-064 targets compile clean and the file was untouched by MT-064. That file is owned by MT-072, which has since completed work on it."
+      ],
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     }
   },
   "scope": {

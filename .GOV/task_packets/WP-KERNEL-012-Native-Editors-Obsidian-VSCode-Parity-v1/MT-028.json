@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -44,7 +44,49 @@
     "completed_by": null,
     "ready_for_validation_at_utc": "2026-07-29T13:37:30.0277304Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
-    "ready_for_validation_reason": "MT-028 FAIL_V2 remediation is implemented and runtime-proven: canonical view_def search and knowledge projections are repaired transactionally and replay-idempotently without promoting ambiguous stranded notes; real PostgreSQL migration regression and exact backend app-runtime build pass; Notes Search is mounted in the operator menu and documented in the canonical UserManual; and the committed-source canonical Argus run proves query, results, preview, persisted save-as-view, disjoint empty state, and exact saved-view reopen on the originating pane. Historical validation_v2 remains preserved for independent V3 validation."
+    "ready_for_validation_reason": "MT-028 FAIL_V2 remediation is implemented and runtime-proven: canonical view_def search and knowledge projections are repaired transactionally and replay-idempotently without promoting ambiguous stranded notes; real PostgreSQL migration regression and exact backend app-runtime build pass; Notes Search is mounted in the operator menu and documented in the canonical UserManual; and the committed-source canonical Argus run proves query, results, preview, persisted save-as-view, disjoint empty state, and exact saved-view reopen on the originating pane. Historical validation_v2 remains preserved for independent V3 validation.",
+    "kernel_builder_partial_progress_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T17:50:59.867Z",
+      "status": "IN_PROGRESS_AGENT_TERMINATED_BY_PLATFORM_SESSION_LIMIT",
+      "note": "The implementing sub-agent was terminated mid-work by a platform session limit (external constraint, not a work failure).",
+      "last_reported_state": "The agent reported that the managed receipt and the canonical matrix are bound to the SAME run - which is remediation item 5, the specific same-run binding the V4 validator demanded. It was terminated while inspecting the final run frames and cleaning up superseded evidence plus its scoped target dir.",
+      "remaining_work": "Unverified by KERNEL_BUILDER: the per-row zero-indeterminate inspection (item 4) and the final frame inspection. Do not treat the same-run binding claim as accepted until the fresh matrix rows are opened and confirmed."
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-05T19:55:58.966Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-05T19:55:58.966Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "FAIL_V4",
+      "defect": "validation_v4 FAIL_V4: the fresh run emitted NO current canonical-argus-matrix.jsonl, only a summary assertion claiming terminal predicates were used - a boolean summary claim is not causal action evidence. The retained matrix was bound to an older source run whose click/SetValue actions were indeterminate, including value changes carrying no causal mutation token.",
+      "outcome": "Final run MT028-V5-a6280d31-20260805T194950Z emits a fresh per-action canonical matrix of 12 rows with ZERO indeterminate, every predicate passing, every row terminal_refreshed, and a strictly increasing sequence. Histogram: applied x11, rejected x1.",
+      "matrix_rows": "1 set_value search.query applied; 2 click search.run applied (populated); 3 click facet.note applied; 4 click save-view applied; 5 set_value applied; 6 click search.run applied (empty); 7 set_value applied; 8 click search.run REJECTED (typed, causally owned); 9 set_value applied; 10 click search.run applied (recovered); 11 click facet.view_def applied; 12 click search.result.b39a4e43 applied (reopened).",
+      "rejected_row_is_deliberate": "The single rejected row is the intentional refused-backend case and carries terminal_error \"Loom search failed: http: error sending request for url (http://127.0.0.1:9/...)\". It is a causally OWNED failure, not an unprovable one, which is exactly what the V4 report demanded.",
+      "setvalue_causal_token_confirmed": "record_query_set_value is called ONLY inside input.accesskit_action_requests(resp.id, Action::SetValue), so ordinary typing never advances it. acknowledge_set_value_completion requires observer node identity stable across dispatch, generation == baseline+1, exact target and exact applied_value. The echo path is EXPLICITLY Indeterminate with the message that the requested value is visible but the snapshot carries no causal mutation token. Runtime rows show real tokens, e.g. {\"target\":\"search.query\",\"generation\":1,\"applied_value\":\"mt028needle8514831\"}. State lives on LoomSearchV2PanelState, not egui::Memory, so the fresh-Context trap is avoided.",
+      "same_run_binding_evidence": "Matrix and receipt MATCH on run_id, source_sha a6280d319c75a2627e0897009f2da798933a97be, process_correlation_id, process_id 85148, client_session_id, row_count 12 and indeterminate_row_count 0; every row shares one agent_id and one correlation scope. Identity chains: seeded note/file/tag_hub ids appear verbatim in row 2 result_block_ids; saved-view id b39a4e43-7e7b-437b-a420-80fcccd3d641 appears as receipt saved_view.block_id, as row 4 terminal_detail.saved_view_block_id, AND as row 12 target; backend owned=true sha256 985cd410 against real PostgreSQL handshake_wp_kernel_012_mt_028 at 127.0.0.1:5544 with restart-same-base and persisted_view_reloaded=true; cleanup 204 with workspace_absent_from_fresh_list=true and both view reloads 404; stale-response orphaning proven in both directions. The receipt was copied into its run directory so the pairing cannot be separated.",
+      "visual_evidence": "All 7 frames CAPTURED with gpu=True and each was OPENED and confirmed to render its asserted state: 3 results with amber mark runs (not raw tags); note-facet 1 result; the saved-search confirmation naming the Loom view; 0 results with no stale rows; a visible bounded transport error; 5 results including both view_defs; and the pane switched to Block Collections showing the note.",
+      "eventledger_correlation_closed_by_kernel_builder": {
+        "why": "The sub-agent could not close this without switching the driver to bind_in_current_app_data plus a shared binding root, which would change how MT-028 binds and risk the green 12-row matrix. It correctly refused to unilaterally destabilize a passing proof and escalated instead.",
+        "how": "KERNEL_BUILDER closed it OUT OF BAND with an INDEPENDENT authority read directly against the WP-scoped PostgreSQL database, which is strictly stronger evidence than reading through the app: it does not depend on the client, touches no Argus driver binding, and does not involve the MT-109 recorder gate, so no authorization was bypassed.",
+        "result": "Two correlated kernel_event_ledger rows found for the exact saved-view block id b39a4e43-7e7b-437b-a420-80fcccd3d641: KE-019fd37a-24d0-7761-96ab-14273d7a613b (source_component loom_block_knowledge_bridge, type knowledge_loom_block_indexed) and KE-019fd37a-24d1-7f21-89d4-8ada226624fe (source_component loom_block, type knowledge_loom_block_mutated, operation create_view_definition).",
+        "artifact": "../Handshake_Artifacts/handshake-test/mt028-notes-search-argus-binding/MT-028-eventledger-correlation-kernel-builder.json"
+      },
+      "commit_record_correction": "RECORDED FOR THE VALIDATOR so provenance is not misread: commit 70b41695 is titled as adding product-side causal completion observers for Notes Search, but its PRODUCT diff is rustfmt-only (4 lines in app.rs, 6 in loom_search_v2.rs). ACTION_COMPLETION_AUTHOR_ID and Mt028LoomSearchOpenCompletion are absent at b000307a and present at d896bbd9/5968bb36, so the observers landed EARLIER. The genuine MT-028 delta in 70b41695 is the 212-line test hardening. The observers are real and present at HEAD; only that commit message attribution was misleading.",
+      "no_code_added_in_final_pass": "The final verification pass made ZERO source edits. git status showed only AGENTS.md and CLAUDE.md, the deliberate CX-113A main-only surfaces, left untouched. canonical_argus_driver.rs, finish() and finish_require_no_indeterminate() are byte-identical to HEAD.",
+      "environmental_notes": "Run A failed on the KNOWN spurious shared managed-backend fixture lock (60s timeout) and was waited out rather than worked around; no process was killed. Run B was superseded because concurrent agents committed pg_proof_support/mod.rs - a compiled input of the test binary - after it, so run C re-binds true current HEAD and HEAD did not move during run C. The backend build succeeded at -j 2, confirming the duckdb translation unit failure at higher parallelism is memory pressure rather than a toolchain defect.",
+      "disclosed_gaps": [
+        "Shared-worktree source drift: HEAD moved four times during the session. Run C is clean, but a validator rerunning later may again find HEAD ahead of the proven source.",
+        "Cosmetic only: the mounted Notes Search pane is partially occluded by neighbouring panes; asserted state is legible but facet labels clip. Not chased, as asserted state legibility is sufficient for this MT."
+      ],
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
+    }
   },
   "scope": {
     "summary": "Build the native Rust/egui LoomSearchV2Surface panel - the UI-only counterpart to the React LoomSearchV2Panel (app/src/components/LoomSearchV2Panel.tsx). The backend loom_search_v2 endpoint (POST /workspaces/:workspace_id/loom/search-v2, implemented in KERNEL-009 MT-264) is already complete; this MT wires the existing API to a new native egui panel.\n\nDiff shape: create src/frontend/handshake_native/src/loom_search_v2.rs (new flat module, ~350 lines). Register it as a pub mod in src/frontend/handshake_native/src/lib.rs. Add a LoomSearchV2 pane to the shell's pane registry by reusing the existing pane_registry.rs registration path (the WP-011 pane host - do NOT invent a new panel enum file). Wire the HTTP client calls through the existing backend_client.rs to POST to /workspaces/{id}/loom/search-v2 and to POST /workspaces/{id}/loom/views (save-as-view).\n\nPanel features to implement (parity with React reference):\n1. QUERY BAR: single-line egui::TextEdit bound to a query string field. On Enter key or 'Search' button click, fire async HTTP POST to /workspaces/{workspace_id}/loom/search-v2 with body {query, content_type?, graph_boost: 1.0, limit: 25}. Deserialize LoomSearchV2Response {hits: [{block, score, fts_rank, trgm_sim, vector_sim, edge_degree, highlight}], content_type_facets: BTreeMap<String,i64>, semantic_available: bool, total: i64}.\n2. STATUS LINE: show 'Searching...' during load, '{N} results (semantic on/off)' after response, or error text. Use egui::Label with aria-live equivalent.\n3. CONTENT-TYPE FACETS: after a response, render one toggle button per entry in content_type_facets (sorted by count descending). Each shows '{type} ({count})'. Clicking a facet toggles it as a filter and immediately re-fires the search with that content_type. Active facet visually highlighted (egui::Button::selected or custom fill).\n4. RESULTS LIST: egui::ScrollArea containing one clickable row per LoomSearchV2Hit. Each row shows: block.title (or block_id fallback), block.content_type badge, score formatted to 3 decimal places, and the highlight string. The highlight may contain <mark>...</mark> markers: parse them and render the marked segments in a distinct color (e.g. egui::Color32::YELLOW background on the text run, using egui::RichText or a custom painter). Clicking a row calls the on_open_block callback (routes to the Loom block viewer, wired in the shell via loom_graph.rs).\n5. SAVE AS VIEW: a 'Save as view' button, enabled only when there are results. On click, POST /workspaces/{workspace_id}/loom/views with body {kind: 'table', query: {content_type: <active_facet_or_omit>}, columns: ['title','content_type','updated'], title: 'Search: {query}'}. Show a status label with the new block_id on success or the error string on failure. This reuses the same createBlockView backend path as the MT-262 block-collection view.\n6. STATE MACHINE: loading bool, error Option<String>, view_status Option<String>, response Option<LoomSearchV2Response>, active_content_type Option<String>. Keep all state inside LoomSearchV2PanelState struct.\n\nFiles to create/edit:\n- CREATE: src/frontend/handshake_native/src/loom_search_v2.rs\n- EDIT: src/frontend/handshake_native/src/lib.rs (pub mod loom_search_v2;)\n- EDIT: src/frontend/handshake_native/src/pane_registry.rs (register the LoomSearchV2 pane in the existing WP-011 pane registry)\n- EDIT: src/frontend/handshake_native/src/backend_client.rs (add loom_search_v2 async fn and create_block_view async fn)\n\nImplementation steps:\n1. Define LoomSearchV2PanelState struct with: query: String, active_content_type: Option<String>, response: Option<LoomSearchV2Response>, loading: bool, error: Option<String>, view_status: Option<String>.\n2. Define LoomSearchV2Response, LoomSearchV2Hit, LoomBlock as serde-deserializable structs in src/frontend/handshake_native/src/backend_client.rs (matching the backend JSON schema from storage/loom.rs).\n3. Implement async fn loom_search_v2(base_url, workspace_id, body) -> Result<LoomSearchV2Response, String> using the existing backend_client.rs HTTP client. POST to {base_url}/workspaces/{workspace_id}/loom/search-v2.\n4. Implement async fn create_block_view(base_url, workspace_id, body) -> Result<serde_json::Value, String>. POST to {base_url}/workspaces/{workspace_id}/loom/views.\n5. In the panel show() fn: render query TextEdit + Search button + Save-as-view button in a horizontal strip.\n6. Render status line.\n7. Render facet buttons if response.content_type_facets non-empty (sort by value desc).\n8. Render egui::ScrollArea with result rows. For each hit parse highlight: split on '<mark>' and '</mark>' tokens, build a LayoutJob with alternating normal/highlighted TextFormat runs.\n9. Handle AccessKit (reuse the WP-011 accessibility/ subsystem - accessibility/mod.rs, accessibility/registry.rs, accessibility/snapshot.rs): assign author_ids to query input (id: 'loom-search-v2.query'), search button ('loom-search-v2.search'), save-view button ('loom-search-v2.save-view'), each facet button ('loom-search-v2.facet.{content_type}'), each result row ('loom-search-v2.result.{block_id}'), status label ('loom-search-v2.status'). Use the egui AccessKit integration via accessibility/registry.rs (egui::Id from stable strings) and set role + action where egui_kittest requires.\n10. Async dispatch: egui is single-threaded; use the shell's existing async bridge (tokio one-shot or channel pattern used by other WP-011 surfaces, e.g. event_bus.rs) to fire the search and receive the response on the next frame. Do not block the UI thread.\n\nDependencies/unblock conditions: requires the WP-011 shell pane infrastructure to be loadable (the pane_registry.rs registry must be able to host this pane). The backend /loom/search-v2 endpoint is already live (KERNEL-009 MT-264). No new backend work needed. This MT is self-contained and has no MT-level depends_on within WP-012.\n\nRisk if missed: Loom Search v2 is a core search surface and a dependency for the interconnection proofs (MT-030, MT-044). Missing it means the quick-switcher and parity proof cannot demonstrate the semantic search modality.",
@@ -368,28 +410,28 @@
     }
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-028 FAIL V2. Save-as-view can leave a partially promoted view/index state when later operations fail, and no current canonical Argus run proves search, preview, persistence, and saved-view navigation on the mounted surface.",
+    "remediation_plan": [
+      "Make saved-view promotion/index updates atomic or compensating and add injected-failure plus restart tests against real PostgreSQL.",
+      "Run canonical Argus for query, results, preview, save-as-view, error/empty, and reopened-view states; align canonical UserManual and diagnostics."
+    ],
+    "no_context_instruction": "Read MT-028.json, packet, and current spec. Repair promotion rollback and run the full live search plus Argus proof before READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-028 FAIL V2. Save-as-view can leave a partially promoted view/index state when later operations fail, and no current canonical Argus run proves search, preview, persistence, and saved-view navigation on the mounted surface.",
-  "remediation_plan": [
-    "Make saved-view promotion/index updates atomic or compensating and add injected-failure plus restart tests against real PostgreSQL.",
-    "Run canonical Argus for query, results, preview, save-as-view, error/empty, and reopened-view states; align canonical UserManual and diagnostics."
-  ],
-  "no_context_instruction": "Read MT-028.json, packet, and current spec. Repair promotion rollback and run the full live search plus Argus proof before READY_FOR_VALIDATION_V3."
-},
   "validation_v3": {
     "schema_id": "hsk.mt_remediation_evidence@1",
     "remediated_by": "KERNEL_BUILDER-20260728-221208",

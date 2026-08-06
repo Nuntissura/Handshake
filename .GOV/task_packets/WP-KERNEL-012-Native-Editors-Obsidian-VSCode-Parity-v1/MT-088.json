@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-082",
@@ -45,7 +45,7 @@
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "remediation_v3_review_hardening_completed_at_utc": "2026-07-27T20:17:29.921Z",
     "ready_for_validation_at_utc": "2026-07-27T20:17:29.921Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260726-052638",
+    "ready_for_validation_by": "KERNEL_BUILDER-V4",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_TWO_INDEPENDENT_TECHNICAL_REVIEWS_NO_PRODUCT_BLOCKER_FORMAL_ACCEPTANCE_RESERVED_TO_VALIDATOR",
     "kb_ready_checklist_receipt": {

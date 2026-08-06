@@ -1,0 +1,86 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-112",
+  "title": "B4-MT-112-Converge-Proposal-Request-Id-Identity-Rust-Vs-Migration-0345",
+  "group": "B-Backend-Contract",
+  "created_at_utc": "2026-08-05T13:23:33.064Z",
+  "updated_at_utc": "2026-08-05T13:23:33.064Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Two independent sub-agents (MT-109 and MT-064) reproduced the same defect from different directions. It is real, deterministic, and belongs to no existing MT scope, so it is captured here per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost."
+  },
+  "scope": {
+    "summary": "Converge the FEMS memory-proposal stable request identity between the Rust derivation and migration 0345 so a migrated legacy row and a live retry derive the SAME request_id, restoring retry convergence.",
+    "defect_detail": "Rust stable_proposal_request_id (src/backend/handshake_core/src/api/memory.rs, around lines 954-981) hashes ELEVEN components and OMITS actor_id, ending with the SHA-256 of source_document_content. Migration 0345_fems_memory_workspace_authority.sql (around lines 105-117) hashes TWELVE: it includes actor_id at position 11 and then repeats document_content_hash at position 12 - a duplicate of position 8, which the MT-064 agent assessed as almost certainly a copy/paste error. A migrated legacy row therefore cannot converge with a live retry.",
+    "failing_tests": [
+      "api::memory::legacy_retry_heals_missing_receipt_once_and_converges",
+      "api::memory::migration_0345_old_schema_identity_and_down_up_retry_converge",
+      "api::memory::proposal_missing_provenance_fails_closed"
+    ],
+    "provenance": "VERIFIED BY KERNEL_BUILDER WITH GIT, not assumed. Migration 0345 was added by 892662e0 (2026-07-23), its only commit; git blame attributes every line of the Rust component list to the same commit; and 892662e0 is an ancestor of c7063c24 (MT-064, 2026-07-26). The earlier MT-109 attribution to the MT-064/MT-065 commits was incorrect and has been corrected in MT-109.json. MT-064 and MT-065 inherited this defect.",
+    "why_not_folded_into_mt_064": "Three concrete reasons recorded by the MT-064 agent and accepted by KERNEL_BUILDER: (1) migration files are not in MT-064 authorized paths; (2) migration 0345 is ALREADY APPLIED so its checksum cannot be edited in place - convergence requires a NEW superseding migration or a re-keying of every live proposal identity, which is a durable-data decision needing its own acceptance criteria; (3) MT-064 canonical confirm receipt now binds to an identity produced by that exact Rust path, so changing the identity underneath it would invalidate a freshly proven green V5 proof.",
+    "implementer_assessment_not_a_decision": "The MT-064 agent recommends making the RUST 11-component list canonical, on the grounds that it is what live traffic actually produces and that SQL position 12 is a duplicate of position 8 - then shipping a superseding migration that re-derives legacy request_ids. This is an assessment offered for the authority owner, NOT an authorized decision, because it determines how existing durable rows are re-keyed.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/api/memory.rs",
+      "src/backend/handshake_core/migrations/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/frontend/**",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-112-1: ONE canonical component list and order is chosen and documented, with the rationale recorded in the contract. Rust and SQL derive byte-identical request_ids for the same logical proposal.",
+      "AC-112-2: migration 0345 is NOT edited in place (it is already applied and its checksum is immutable). Convergence ships as a NEW superseding migration that re-derives affected legacy rows, with a stated and tested down path.",
+      "AC-112-3: the duplicated document_content_hash at SQL position 12 is resolved explicitly - either removed as the copy/paste error it appears to be, or retained with a written justification for why the same hash is intentionally hashed twice.",
+      "AC-112-4: legacy_retry_heals_missing_receipt_once_and_converges and migration_0345_old_schema_identity_and_down_up_retry_converge both pass against real PostgreSQL, proving a migrated legacy row and a live retry converge on one identity. Neither test may be weakened or deleted to achieve this.",
+      "AC-112-5: the 400-versus-404 question in proposal_missing_provenance_fails_closed is decided explicitly. get_knowledge_rich_document currently returns storage_error(NotFound) -> 404 (memory.rs around line 555) while the test expects 400. It already fails CLOSED, so this is a status-contract decision, not a security hole - fix whichever side is wrong and record why.",
+      "AC-112-6: no live proposal identity is silently re-keyed without evidence. Prove, before and after, how many rows change identity and that no proposal is lost, duplicated, or orphaned from its receipt/EventLedger correlation."
+    ],
+    "proof_targets": [
+      "PT-112-1: cargo test --lib --features duckdb-flight-recorder,test-utils api::memory:: against real PostgreSQL => the three named tests GREEN with a NONZERO total count.",
+      "PT-112-2: a differential proof that the Rust derivation and the SQL derivation produce identical request_ids across a fixture set that includes the actor_id and content-hash edge cases.",
+      "PT-112-3: up/down/up migration proof on a WP-scoped database showing convergence survives a full round trip."
+    ]
+  },
+  "hbr_obligations": {
+    "INT": "REQUIRED - identity feeds EventLedger correlation and receipt recovery.",
+    "PRIV": "REQUIRED - actor_id participates in (or is deliberately excluded from) the identity; the decision must not weaken attribution.",
+    "MAN": "REQUIRED if any operator- or model-visible contract changes."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

@@ -128,7 +128,50 @@
       "validator_boundary": "validator_verdict remains FAIL_V2 as preserved official history; completed_by remains null. This is an implementer READY_FOR_VALIDATION_V3 handoff, not self-validation."
     },
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-10)",
-    "rfv_evidence_2026_07_10": "WaveA residual hardening addressed (product commit b289993f), each a real fix + real test. DONE: MT-004 (REPLACE_ALL_CAP=1000 + replace_all_capped + auto-scroll match below find-bar + Ctrl+F focus), MT-006 (outline raw-click nav + fold-adjusted landing), MT-013 (offset-0 backspace comment fix + Bold click + overflow popup 2-frame), MT-016 (Code Block description), MT-018 (find keystroke scan + replace-one/all clicks + tall-doc scan), MT-098 (runtime_chat /api route verified + live Send observes EndpointMissing), MT-105 (operation-watchdog hard total-runtime cap), MT-106 palmistry (child-stall NoBaseline observability + poll_observations + main.rs emits Suspected/NoBaseline diagnostics), AC-108-2 systemic (typed screenshot_marker CAPTURED/DEFERRED/BLOCKED so headless sites never silent-GREEN). Proven KERNEL_BUILDER authoritative: test_find_replace 9/0, test_formatting_toolbar 9/0, test_operation_watchdog 12/0, test_outline_provider 4/0, test_screenshot_deferred_marker 3/0 (handshake-native lib clean); palmistry MT-106 child-stall coder-verified 75/75. HONEST SKIPs (typed gaps, not faked): MT-100 terminal cwd (needs a canonical workspace-root plumbing subsystem that does not exist -> NEEDS_WORKSPACE_ROOT_PLUMBING), MT-102 real-GPU worksurface screenshot (headless host -> now covered by the typed DEFERRED marker; run on a real-GPU host for PT-102-B)."
+    "rfv_evidence_2026_07_10": "WaveA residual hardening addressed (product commit b289993f), each a real fix + real test. DONE: MT-004 (REPLACE_ALL_CAP=1000 + replace_all_capped + auto-scroll match below find-bar + Ctrl+F focus), MT-006 (outline raw-click nav + fold-adjusted landing), MT-013 (offset-0 backspace comment fix + Bold click + overflow popup 2-frame), MT-016 (Code Block description), MT-018 (find keystroke scan + replace-one/all clicks + tall-doc scan), MT-098 (runtime_chat /api route verified + live Send observes EndpointMissing), MT-105 (operation-watchdog hard total-runtime cap), MT-106 palmistry (child-stall NoBaseline observability + poll_observations + main.rs emits Suspected/NoBaseline diagnostics), AC-108-2 systemic (typed screenshot_marker CAPTURED/DEFERRED/BLOCKED so headless sites never silent-GREEN). Proven KERNEL_BUILDER authoritative: test_find_replace 9/0, test_formatting_toolbar 9/0, test_operation_watchdog 12/0, test_outline_provider 4/0, test_screenshot_deferred_marker 3/0 (handshake-native lib clean); palmistry MT-106 child-stall coder-verified 75/75. HONEST SKIPs (typed gaps, not faked): MT-100 terminal cwd (needs a canonical workspace-root plumbing subsystem that does not exist -> NEEDS_WORKSPACE_ROOT_PLUMBING), MT-102 real-GPU worksurface screenshot (headless host -> now covered by the typed DEFERRED marker; run on a real-GPU host for PT-102-B).",
+    "kernel_builder_diagnosis_2026_08_05_id_audit": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T09:02:07.158Z",
+      "why_recorded": "AC-108-3 requires the full handshake-native suite green. id_audit_no_documented_author_id_missing_from_live_registry (tests/test_manual_pane_editors.rs:959) is RED with 33 orphans and therefore blocks this capstone. Diagnosed from evidence so the implementer does not have to rediscover it.",
+      "reproduced": "cargo test --test test_manual_pane_editors id_audit_no_documented_author_id_missing_from_live_registry => FAILED, 0 passed / 1 failed, 33 orphans.",
+      "orphans": [
+        "mt036.flight-recorder-open-completion",
+        "flight-recorder.refresh",
+        "flight-recorder.loading-status",
+        "flight-recorder.retry",
+        "flight-recorder.action-completion",
+        "flight-recorder.load-failure",
+        "flight-recorder.quarantine-status",
+        "flight-recorder.error-ring",
+        "menu.editors.outline",
+        "menu.editors.relevant-memory",
+        "menu.editors.outgoing-links",
+        "menu.editors.stage",
+        "menu.editors.route-to-stage",
+        "menu.editors.embed-stage-capture",
+        "menu.editors.sidebar",
+        "menu.editors.journal",
+        "menu.editors.format-document",
+        "menu.editors.next-diagnostic",
+        "menu.editors.prev-diagnostic",
+        "menu.editors.rename-symbol",
+        "menu.editors.quick-fix",
+        "settings-editor-prefs-reset",
+        "settings-syntax-palette-reset",
+        "fems-class-episodic",
+        "fems-class-semantic",
+        "fems-class-procedural",
+        "stage-route-status",
+        "stage-route-retry",
+        "code-symbol-result-{symbol_entity_id}",
+        "code-ref-chip-{symbol_entity_id}",
+        "note-ref-{document_id}"
+      ],
+      "root_cause": "NOT manual drift and NOT a product defect. Every sampled orphan EXISTS in real product source (verified: menu.editors.outline -> top_menu_bar.rs; menu.editors.route-to-stage -> app.rs; fems-class-procedural -> fems/memory_proposal.rs; flight-recorder.retry -> flight_recorder_pane.rs; stage-route-status -> stage_pane.rs; settings-editor-prefs-reset -> settings_editor_section.rs). The audit is over-strict in two distinct ways: (1) its dynamic allowlists were never extended when later MTs added new CONDITIONAL surfaces - EDITOR_MENU_LEAF_AUTHOR_IDS in top_menu_bar.rs enumerates menu.file.* / menu.edit.* / menu.go.* but contains NONE of the 13 menu.editors.* leaves added with the Editors menu, and the settings control/option/swatch lists omit the two reset buttons; the FEMS dialog class radios, flight-recorder pane status/retry nodes, and stage route status/retry nodes have no allowlist at all. These nodes legitimately do not exist in the healthy default tree because the menu is closed, the dialog is closed, and no error state is active. (2) Three entries are PARAMETERIZED TEMPLATES (code-symbol-result-{symbol_entity_id}, code-ref-chip-{symbol_entity_id}, note-ref-{document_id}) that can never appear as literal registry keys and must be pattern-matched or skipped rather than compared literally.",
+      "correct_fix": "Extend the dynamic/conditional allowlists to cover the menu.editors.* leaves, the two settings reset buttons, the fems-class-* radios, the flight-recorder.* status/retry nodes, and stage-route-status/retry; and teach the audit to recognise {placeholder} templates. Each allowlist entry MUST cite the focused test that proves the node in its live conditional state, mirroring how the existing TERMINAL_MENU_AUTHOR_ID and retry entries are justified.",
+      "do_not": "Do NOT satisfy this by deleting manual rows, by blanket-skipping unmatched ids, or by weakening the audit intent. The audit must still FAIL when the manual names a surface that genuinely does not exist at the named contract (HBR-MAN-003 self-consistency). Narrow the exemption to provably-conditional and provably-parameterized ids only.",
+      "ownership_note": "The conditional surfaces belong to MT-035 (Editors menu), MT-036 (flight recorder), MT-064 (FEMS classes), MT-066 (stage route), MT-072 (settings resets) - all of which are already implemented. The AUDIT itself is manual-currency infrastructure, so repairing it sits naturally in MT-108 residual hardening rather than reopening five validated MTs."
+    }
   },
   "scope": {
     "summary": "Deferred residual hardening collected from the 2026-07-02 wave-A adversarial drift audit so approved-minor gaps are not forgotten (operator directive: defer uncorrelated gaps to a future MT in the same WP). Items: (1) MT-004: auto-scroll current match below find-bar occlusion (RISK-004); replace_all over-1000 cap or off-thread run plus progress indicator; kittest typing into find TextEdit. (2) MT-006: outline raw-click navigation kittest; fold-active navigation landing-row test. (3) MT-013: overflow popup 2-frame kittest; Bold toolbar button click kittest; fix stale offset-0 backspace comment in input_handler.rs. (4) MT-016: fix code-block slash-menu description promising a nonexistent language prompt (or implement code-language and table row/col prompts); assert slash char remains after Escape. (5) MT-018: keystroke-driven find-input kittest; replace-one/replace-all click kittests; scrolled-tall-doc highlight integration test. (6) MT-098: live-harness type-and-click send proof observing EndpointMissing; align probed route naming with real backend route conventions. (7) MT-100: workspace-folder resolution residual (process cwd vs chosen folder) tracked to the real /terminal route. (8) MT-102: real-GPU worksurface screenshot captured and visually inspected (PT-102-B). (9) MT-105: decide/implement hard total-runtime cap for forever-ticking operations (deadline currently = progress-gap only). (10) MT-106: surface Suspected/no-baseline child stalls as diagnostics events; make registration-time liveness baseline mandatory via register_file_child. (11) SYSTEMIC: screenshot proof harness must emit an explicit typed DEFERRED/BLOCKED marker instead of silently passing when no wgpu adapter exists, so GREEN never implies pixels on headless hosts. (12) MT-004/MT-009 dep governance nit: Cargo.toml/Cargo.lock rode outside allowed_paths for sanctioned deps - record disposition.",
@@ -412,28 +455,28 @@
     }
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-108 FAIL V2. The new Argus aggregate is limited to exactly seven surfaces and omits other WP panels/windows such as Stage, Calendar, Locus, settings, context menus, and the broader editor host. Its proof files are untracked, ordinary tests require external supervisor environment, no completed external run artifacts exist, and headless screenshot status may be DEFERRED rather than captured.",
+    "remediation_plan": [
+      "Expand the canonical Argus matrix to every WP-owned panel/window and material state, with stable targets, inspect/action/receipt/fresh-reinspect, constrained/edge states, and real captured frames where required.",
+      "Run one bounded supervisor from current source, produce correlated process/PID/source evidence and external artifacts, make ordinary tests hermetic or explicitly ignored runner-only gates, and ensure the full native suite is green."
+    ],
+    "no_context_instruction": "Read MT-108.json, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and current spec. Close all-surface coverage and execute the complete bounded Argus run before READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-108 FAIL V2. The new Argus aggregate is limited to exactly seven surfaces and omits other WP panels/windows such as Stage, Calendar, Locus, settings, context menus, and the broader editor host. Its proof files are untracked, ordinary tests require external supervisor environment, no completed external run artifacts exist, and headless screenshot status may be DEFERRED rather than captured.",
-  "remediation_plan": [
-    "Expand the canonical Argus matrix to every WP-owned panel/window and material state, with stable targets, inspect/action/receipt/fresh-reinspect, constrained/edge states, and real captured frames where required.",
-    "Run one bounded supervisor from current source, produce correlated process/PID/source evidence and external artifacts, make ordinary tests hermetic or explicitly ignored runner-only gates, and ensure the full native suite is green."
-  ],
-  "no_context_instruction": "Read MT-108.json, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and current spec. Close all-surface coverage and execute the complete bounded Argus run before READY_FOR_VALIDATION_V3."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",

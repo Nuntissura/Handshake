@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt070",
       "mode": "VERIFY_AND_PROVE",
@@ -127,6 +127,37 @@
       "proofs": "KERNEL_BUILDER authoritative: mt080_graph_and_canvas_node_availability_from_payload PASS (note node enables Open-Note, non-note disabled->None, stale placement enables Create-note, text card enables Open-Note); test_editor_body_context_menu 4/0; lib placement_menu_availability_reads_payload PASS. 3 pre-existing env failures in test_context_menu_surfaces (explorer_canvas/document_rename, header_targets_present — AccessKit tree missing pane-d, panics :533/:501/:123) VERIFIED unrelated: coder diff of that file is a single additive hunk @941 (the mt080 test), does not touch those tests (grep empty) — same environment/layout class as the earlier ac6/2951 pre-existing failure.",
       "disclosed_waiver_global_scope_005": "allowed_paths[5] named a phantom src/graph/loom_graph.rs (does not exist); the live loom node menu is in src/graph/graph_view.rs (the real file) — disclosed. tests/test_undo_scope.rs +1 (is_text_card param on the shared deliver_canvas_created_placement_for_test accessor from MT-080 FIX A) — minimal, disclosed.",
       "needs_managed_resource_proof": "create-note POST + Peek/go-to-def backend round-trip = live-PG batch."
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-05T08:40:31.740Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-05T08:40:31.740Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "NEEDS_REIMPLEMENTATION_V4",
+      "defect": "validation_v4 FAIL_V4: six tests reached canonical_argus_driver::finish after dispatching actions without rebinding them to authoritative terminal snapshots. test_context_menu_surfaces.rs contained argus finish calls and ZERO assert_latest_terminal_predicate / reinspect_latest_terminal calls, so the failure was systematic rather than one missing assertion.",
+      "outcome": "All six formerly-failing tests pass. 48 passed / 0 failed / 0 ignored across test_context_menu_surfaces (35), test_navigation_bus (8), test_editor_body_context_menu (5); exit 0. 16 action-specific terminal predicates bound before finish, all passed:true after terminal_refreshed.",
+      "additional_defect_found_and_fixed": "REAL product-visible defect: the editor-body matrix clicked menu entries against a SNAPSHOT-ONLY node. The trigger frame only REQUESTS the popup, so the live popup had not painted when the entry click was dispatched - live_present=false, receipt indeterminate, and the MT-048 rename handler never ran. It appeared to pass only because nothing re-checked the handler. The helper now settles one live frame and asserts the live AccessKit tree exposes the entry before steering it; popup-open is bound to the existing handshake.click-completion/v1 same-target token (effect=code-editor.open-context-menu, state=applied, generation>=1) rather than to the popup merely looking open.",
+      "static_regression_gate": "mt070_every_canonical_argus_action_is_terminally_bound_before_finish scans the file via include_str! and requires ACTION -> PREDICATE before the next ACTION or the driver finish. Markers built with concat! so the scanner cannot match its own literals. NON-VACUITY PROVEN: injecting one fake unbound action made it fail naming the exact action and finish line numbers; the injection was then removed. KERNEL_BUILDER independently verified 0 remaining injected markers.",
+      "shared_file_change_disclosed": {
+        "file": "tests/native_gui_support/canonical_argus_driver.rs",
+        "nature": "ADDITIVE ONLY - two new pub fns. assert_latest_terminal_predicate_with_app_evidence (needed because some authoritative effects are not projected into AccessKit: a routed tab renders as Role::Tab labelled by pane type, never by content id) and dispatched_action_count (lets a matrix assert exact/zero canonical dispatch explicitly instead of inferring non-dispatch from unchanged state).",
+        "gate_integrity": "KERNEL_BUILDER independently verified that finish() retains all three assertions verbatim (terminal_refreshed, at-least-one-predicate, all-predicates-pass) and that the new predicate fn calls the same reinspect_latest_terminal and asserts the same passed requirement - it is not a weaker path.",
+        "cross_consumer_check": "Compile-checked against 5 other driver consumers (test_canvas_board_argus, test_graph_view_argus, test_quick_switcher, test_mt108_argus_matrix, test_stage_interop), all exit 0."
+      },
+      "artifacts": "8 source-bound JSON matrices at ../Handshake_Artifacts/handshake-test/mt070-canonical-matrices/, written only AFTER each argus.finish() returns. Editor matrix = 10 ordered one-action/one-receipt rows, every terminal_refreshed=true, every predicate passed=true. Pre-existing write_matrix_trace MT-108 export unchanged.",
+      "disclosed_gaps": [
+        "Peek/Go-to-Definition is bound to the MT-008 request generation advancing EXACTLY ONCE, not to a backend-resolved destination. This mounted panel has no backend and MT-008 owns that path; no destination was fabricated. The byte-offset seam remains separately proven green by test_navigation_bus::code_location_target_applies_byte_offset_in_requested_pane.",
+        "No GPU/PNG screenshot produced (no wgpu adapter on this host). Matches the existing typed HBR-VIS deferral and is NOT claimed as MT-070 evidence.",
+        "Test counts are 35 in test_context_menu_surfaces and 48 aggregate versus the 34/47 recorded in verification_required. This is the added static gate, an ADDITION not a shortfall."
+      ],
+      "dependency_note": "validation_v4 remediation item 9 requires MT-008 to reach an independently validated PASS before MT-070 can pass. MT-008 lifecycle.status is currently READY_FOR_VALIDATION_V4 (already remediated by a prior session); only its stale lifecycle.validator_verdict still reads FAIL_V4. This is therefore a VALIDATOR SEQUENCING requirement, not an outstanding implementation gap. MT-048/049/050/057/030 are all PASS_V1.",
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     }
   },
   "scope": {
@@ -454,28 +485,28 @@
     "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-070 FAIL V2. node_context_items always renders Route to Stage enabled, while node_action_for_id returns no action when has_node_id=false. The UI therefore exposes an enabled dead action, violating the contract that every enabled entry reaches a real handler.",
+    "remediation_plan": [
+      "Gate Route to Stage with has_node_id using the same disabled-reason pattern as other entries, or provide a valid action for the no-id state; add an invariant test that every enabled item resolves.",
+      "Run canonical Argus for each editor context menu and navigation action, including unavailable/disabled states and fresh post-action observation; update canonical UserManual."
+    ],
+    "no_context_instruction": "Read MT-070.json and context_menu_surfaces.rs. Fix the enabled/action mismatch, audit all menus for the same invariant, and prove them through canonical Argus before READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-070 FAIL V2. node_context_items always renders Route to Stage enabled, while node_action_for_id returns no action when has_node_id=false. The UI therefore exposes an enabled dead action, violating the contract that every enabled entry reaches a real handler.",
-  "remediation_plan": [
-    "Gate Route to Stage with has_node_id using the same disabled-reason pattern as other entries, or provide a valid action for the no-id state; add an invariant test that every enabled item resolves.",
-    "Run canonical Argus for each editor context menu and navigation action, including unavailable/disabled states and fresh post-action observation; update canonical UserManual."
-  ],
-  "no_context_instruction": "Read MT-070.json and context_menu_surfaces.rs. Fix the enabled/action mismatch, audit all menus for the same invariant, and prove them through canonical Argus before READY_FOR_VALIDATION_V3."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",

@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -47,7 +47,7 @@
     "remediation_v3_status": "READY_FOR_VALIDATION_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "completed_by": null,
     "ready_for_validation_at_utc": "2026-07-30T01:50:38.6640735Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260728-221208",
+    "ready_for_validation_by": "KERNEL_BUILDER-V4",
     "ready_for_validation_reason": "MT-033 FAIL_V2 remediation is committed at product source b6433155f54ab7f9d4f13b95f1a9bba7fcccdd4b. Real PostgreSQL proves physical Atelier drag-in, exact hsLink save/reload, immutable save receipt, Route-to-Stage flight-recorder and EventLedger correlation, and exact cleanup. Canonical mounted Argus success and typed-failure paths contain stable-target steering, fresh observations, terminal predicates/trees, and directly inspected WGPU captures. The current UserManual covers the workflow and recovery. Official V3 validation remains pending.",
     "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
     "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_INDEPENDENT_ARGUS_ARTIFACT_ROOT_MANUAL_RUNTIME_AND_POSTGRESQL_RECEIPT_REVIEWS_NO_REMAINING_PRODUCT_BLOCKER",

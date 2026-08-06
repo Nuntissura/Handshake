@@ -1,0 +1,147 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-111",
+  "title": "B3-MT-111-Frontend-FlightRecorder-Callers-To-Workspace-Scoped-Authorized-Routes",
+  "group": "B-Backend-Contract",
+  "created_at_utc": "2026-08-05T12:42:00.438Z",
+  "updated_at_utc": "2026-08-05T12:42:00.438Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
+    "depends_on": [
+      "MT-109"
+    ],
+    "blocks": [
+      "MT-066"
+    ],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "MT-109 hardened the flight-recorder route group (fail-closed capability middleware, server-derived actor/workspace attribution, workspace-partitioned idempotency) and REMOVED the unauthenticated unscoped ingestion routes, replacing them with POST /workspaces/:workspace_id/flight_recorder/{native_editor_event,runtime_chat_event}. src/frontend/** is a FORBIDDEN path for MT-109, so its frontend callers were left pointing at routes that no longer exist or now return 403. KERNEL_BUILDER independently CONFIRMED the break rather than accepting it on report: src/frontend/handshake_native/src/event_emitter.rs:964 still formats {base}/api/flight_recorder/native_editor_event, and src/frontend/handshake_native/src/app.rs:26219 still issues an unscoped GET {base}/api/flight_recorder. Neither sends the x-hsk-session-token the new middleware requires. This MT exists so the break is not lost per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet.",
+    "scope_expansion_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "reason": "The MT-027 sub-agent discovered, while working, that the recorder read path is now gated on a real native-MCP session token bound to an on-disk binding file, and was checking whether the frontend exposes that binding so its test could present it HONESTLY. That is direct MT-109 fallout affecting TEST harnesses, not just product callers, so MT-111 scope is widened to cover it rather than leaving each MT to improvise a workaround or quietly weaken the gate.",
+      "risk_if_ignored": "Every MT whose proof reads the Flight Recorder would independently hit a 401 and be tempted to bypass the authorization that MT-109 just installed - silently undoing a real security fix in the name of getting a proof green."
+    },
+    "kernel_builder_partial_implementation_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T19:07:25.807Z",
+      "done": [
+        "AC-111-1 (partial): src/frontend/handshake_native/src/event_emitter.rs no longer posts to the REMOVED unscoped route. fn url() was replaced by fn url_for(&self, event) building POST {base}/api/workspaces/{workspace_id}/flight_recorder/native_editor_event, taking the workspace from the EVENT rather than from construction time because one transport instance serves whichever workspace an event belongs to. The post() call site now uses url_for(&event). The module doc header was corrected in the same change so it no longer documents the retired unscoped route.",
+        "cargo check --lib => exit 0, zero errors, zero new warnings."
+      ],
+      "remaining": [
+        "AC-111-2: the transport does not yet send the native-MCP session binding token header that the MT-109 middleware requires, so these posts will currently receive 401 HSK-401-FR-SESSION. A missing token must surface as a typed operator-visible error rather than a silent drop.",
+        "AC-111-3: confirm the client no longer sends client-authored actor_id/actor_kind/workspace_id as AUTHORITY. build_post_body still stamps actor_id, actor_kind and workspace_id; under the MT-109 contract these are optional and must EXACTLY match the authenticated context or be omitted for the server to fill. Decide and prove which.",
+        "AC-111-4: app.rs:26219 still issues an unscoped GET /api/flight_recorder, which now requires fr.read.global - granted to NO profile - so it will always 403. It must send an explicit ?wsid= scope.",
+        "AC-111-5: live runtime proof against a real backend and real PostgreSQL, including the 401 and 403 negatives.",
+        "AC-111-6: manual_content_editors.rs flight_recorder_body() around line 1015 still documents the retired unscoped GET contract.",
+        "AC-111-7: test harnesses that READ the Flight Recorder must present a genuine binding (discovered by the MT-027 agent)."
+      ],
+      "note": "Implemented directly by KERNEL_BUILDER on a file no running sub-agent owns, to close the most clearly-broken half of a REAL runtime break: with the unscoped route deleted, every native-editor event would otherwise stop reaching the Flight Recorder silently."
+    },
+    "critical_path_note": "ELEVATED TO CRITICAL PATH 2026-08-05: MT-066 live_route_round_trip_real_pg cannot pass until this MT makes the native emitter present its binding token. Proven at runtime: POST /api/workspaces/{id}/flight_recorder/native_editor_event without a token returns 401 HSK-401-FR-SESSION, so the mounted native app can no longer write its own Flight Recorder events and the awaited route FR row never lands.",
+    "ready_for_validation_v4_at_utc": "2026-08-05T23:19:13.141Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-05T23:19:13.141Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "previous_status": "READY_FOR_DEV",
+      "purpose": "Repair the REAL runtime break created when MT-109 correctly removed the unauthenticated unscoped flight-recorder routes: the mounted native app could no longer write its own Flight Recorder events.",
+      "token_contract": {
+        "which": "The token field of the canonical on-disk binding at crate::mcp::binding_path() - the exact file handshake_core capture_context reads. The in-process mcp_token was DELIBERATELY not used: if another instance republished the canonical file, the in-process copy is stale while the backend only consults the file.",
+        "refresh": "No cache. Re-read on EVERY request, resolved as late as possible inside the async POST body on the off-frame dispatch worker (never the egui frame thread). Publication is an atomic replace, so a rebind with a new port/token/owning process is picked up by the very next event with no invalidation logic.",
+        "absence": "Typed EmitError::MissingSessionBinding{path,reason}; the POST is NOT attempted. It lands in the shared ErrorRing and renders as flight-recorder.emit-error-{index} with an AccessKit value, and record_emit_failure_diagnostic gets a distinct Tier-2 kind. A rejected credential is EmitError::SessionRejected{status,error_code} carrying the exact HSK-4xx-FR-* code. Never a silent drop.",
+        "identity": "build_post_body now OMITS actor_id, actor_kind and workspace_id entirely - the path segment carries the workspace, the binding carries the actor, and the server fills both. event.actor_id/event.workspace_id remain local routing and diagnostic identity only."
+      },
+      "live_proof": "test_flight_recorder_authz against a real backend and real PostgreSQL: 12 passed / 0 failed (132.90s), final re-run 1 passed. The binding is published through the product own mcp::write_binding with a real PID and OS birth identity - not a mock.",
+      "negatives_proven_live": [
+        "POST without header => 401 HSK-401-FR-SESSION",
+        "GET without header => 401",
+        "actor_id mismatch with a VALID token => 403 HSK-403-FR-ACTOR-SPOOF, and the scoped read confirms NO durable row",
+        "body workspace_id != path => 403 HSK-403-FR-WORKSPACE, no durable row",
+        "unscoped GET WITH a valid credential => 403 HSK-403-FR-CAPABILITY (fr.read.global granted to no profile)",
+        "empty binding root => typed EmitError::MissingSessionBinding surfaced in the operator-visible error ring",
+        "POSITIVE: production emitter lands a durable row read back via ?wsid= with server-derived actor_id (handshake-native: prefix), different from the caller actor and from DEFAULT_ACTOR_ID, payload.workspace_id equal to the path workspace"
+      ],
+      "mt066_blocker_status": "MECHANISM CLEARED, END-TO-END RUN NOT YET EXECUTED. The named failure - RuntimeChatLedgerTransport::post sending only .json(&body), giving 401 so the FR row never landed - is fixed and proven live. MT-066 wait_for_native_fr already presents live_binding_session_token() and its mounted app publishes a real binding before the route action, which the per-request re-read picks up. live_route_round_trip_real_pg could NOT be run because it aborts at test_stage_interop.rs:956 refusing dirty relevant source, and committing would have swept MT-079 and MT-029 in-flight work into this commit. The confirmation run must happen after the worktree is committed and clean.",
+      "second_mt109_fallout_found_and_fixed": "DISCLOSED out-of-AC unblocking work per GLOBAL-SCOPE-005. MT-066 harness LiveWorkspaceGuard::cleanup_native_fr_ledger builds keys native-editor-fr-{pending,complete}:{event_id}, but MT-109 partitioned those keys as ...:{workspace_id}:{client_event_id} AND the FR row event_id is now the workspace-scoped DERIVED uuid rather than the client id - so its cleanup would delete NOTHING and then fail finish_and_assert_zero. Minimal additive fix in test_stage_interop.rs: track_native_fr also records payload.client_event_id and the cleanup names both key spellings, still scoped to its own event ids. COMPILE-VERIFIED ONLY - the MT-066 lane must confirm at runtime.",
+      "disclosed_gaps": [
+        "PALMISTRY still targets the removed unscoped route (src/frontend/palmistry/fr_forward.rs:52 FR_ROUTE_PATH). Outside MT-111 allowed_paths and NOT a mechanical rename: Palmistry is an out-of-process watcher with no workspace id and no native-MCP binding, so it cannot satisfy either half of the new contract. It already returns a typed SchemaIncompatible blocker deferred to WP-KERNEL-016, so nothing regressed into silence, but the constant is now dead. Needs its own MT and a design decision. -> tracked as MT-115.",
+        "AC-111-7 complete in MECHANISM, partial in APPLICATION. The canonical shared helper exists and is applied to test_flight_recorder_authz and test_event_emitter. Seven other suites still read the recorder with NO credential and will 401: test_calendar_interop (4 sites), test_ckc_embed (1), test_e7_swarm_edit_proof (1), test_fems_interop_proofs (5 of 7), test_locus_interop (1), test_other_pillar_interop_proofs (6), test_code_note_cross_ref (2, stub server). Each needs RealNativeMcpBinding::publish() BEFORE its backend selection - suite-specific ordering the agent could not verify without running seven heavy live proofs. It chose to REPORT rather than make unverifiable edits across seven other MTs proofs, which is the right call. -> tracked as MT-115.",
+        "document_saved FR events now require the save receipt ledger actor_id to equal the server-derived handshake-native:{pid}:{fingerprint} (validate_document_save_receipt, flight_recorder.rs:897), but the frontend save path sends its own x-hsk-actor-id, so document_saved native-editor events will likely 400 HSK-400-INVALID-EVENT. Not on MT-066 path and not covered by any AC-111-*, so not chased - but it is a REAL MT-109 consequence needing an owner. -> tracked as MT-115."
+      ],
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
+    }
+  },
+  "scope": {
+    "summary": "Rewire every Handshake frontend caller of the flight-recorder API onto the MT-109 workspace-scoped, capability-gated routes, sending the native-MCP session binding token, and stop sending client-authored actor/workspace identity that the backend now derives and rejects on mismatch.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/event_emitter.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/flight_recorder_pane.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/**",
+      "src/frontend/handshake_native/tests/native_gui_support/**",
+      "src/frontend/handshake_native/tests/pg_proof_support/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-111-1: every frontend POST of a native-editor or runtime-chat flight-recorder event targets POST /workspaces/{workspace_id}/flight_recorder/{native_editor_event|runtime_chat_event} with a real workspace id; zero references to the removed unscoped ingestion paths remain in src/frontend/**.",
+      "AC-111-2: every frontend flight-recorder request carries the native-MCP session binding token header the MT-109 middleware requires; a request without it is proven to receive 401 HSK-401-FR-SESSION and to be surfaced to the operator as a typed error rather than a silent drop.",
+      "AC-111-3: the frontend no longer sends client-authored actor_id/actor_kind/workspace_id as authority. Either omit them and let the server derive them, or send values that exactly match the authenticated context; a deliberate mismatch is proven to be rejected 403 before any durable write.",
+      "AC-111-4: the flight-recorder read surface (app.rs unscoped GET /api/flight_recorder and the flight-recorder pane) sends an explicit ?wsid= scope, because unscoped reads now require fr.read.global which is granted to NO profile and therefore always 403.",
+      "AC-111-5: runtime proof against a real backend and real PostgreSQL that an editor event emitted from the mounted frontend is durably recorded with SERVER-derived attribution and is readable back through the scoped read path; plus the negative cases in AC-111-2 and AC-111-3.",
+      "AC-111-6: the in-product UserManual flight-recorder entry is corrected in the same change - manual_content_editors.rs:1015 still documents the retired unscoped GET /api/flight_recorder contract (HBR-MAN-001/003).",
+      "AC-111-7 [ADDED 2026-08-05 from MT-027 discovery]: every TEST HARNESS that reads the Flight Recorder must present a genuine native-MCP session token bound to a real on-disk binding file, exactly as a real client does. The MT-109 middleware now gates recorder reads, so harnesses that previously read unauthenticated will 401. This MUST be solved by presenting a REAL binding - never by weakening, bypassing, or feature-gating away the new authorization. If a harness cannot obtain a binding, that is a blocking gap to report, not a reason to relax the gate."
+    ],
+    "proof_targets": [
+      "PT-111-1: cargo test -p handshake-native event_emitter -- --nocapture against a real backend => scoped-path, token, and server-derived-attribution assertions GREEN.",
+      "PT-111-2: grep proof that src/frontend/** contains zero occurrences of the removed unscoped ingestion path.",
+      "PT-111-3: live round trip - emit from the mounted frontend, read back through the scoped read path, assert server-derived actor/workspace on the persisted row."
+    ]
+  },
+  "hbr_obligations": {
+    "MAN": "REQUIRED - AC-111-6 corrects the retired manual contract in the same change.",
+    "INT": "REQUIRED - the event must reach the real EventLedger/Flight Recorder authority path.",
+    "PRIV": "REQUIRED - this MT exists because attribution and workspace scope are now server-derived security boundaries; negative cross-workspace proof is mandatory."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-114",
+  "title": "E4-MT-114-Correct-Stale-Bookmark-Invalidation-Test-Assertion-To-Match-AC-7-Stale-Guard-Contract",
+  "group": "E4-Search",
+  "created_at_utc": "2026-08-05T20:24:20.583Z",
+  "updated_at_utc": "2026-08-05T20:24:20.583Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-029"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Surfaced during MT-029 V4 remediation. The MT-029 agent was asked to route it rather than fix it, and its analysis is accepted: the TEST is wrong, not the product. Split into its own MT because editing a test assertion mid-proof-cycle is exactly the move the V4 instruction warns against, and because the change needs its own before/after evidence that AC-7 still holds."
+  },
+  "scope": {
+    "summary": "Correct the stale assertion in restore_bookmark_centrally_invalidates_results_cache_and_pending_reads so it matches the AC-7 stale-result-guard contract that MT-029 deliberately implemented.",
+    "the_defect_is_in_the_test_not_the_product": {
+      "failing_test": "find_in_files::tests::restore_bookmark_centrally_invalidates_results_cache_and_pending_reads, currently RED at HEAD.",
+      "what_it_asserts": "state.results.is_empty() after restore_bookmark() calls invalidate_search_inputs().",
+      "why_the_product_is_correct": "invalidate_search_inputs() deliberately RETAINS the result set, with an in-code rationale: \"Keep the last completed result set and its producer key long enough for the mounted Preview action to report the contract explicit stale-result warning. Clearing either here made the button disabled, so the UI could never exercise the stale guard.\"",
+      "contract_that_requires_retention": "MT-029 AC-7: \"Stale-result guard: if query changes after search and before preview, Preview Replace shows Search results are stale; run Search again.\" Clearing results/result_set_key makes Preview DISABLED, so the guard becomes unreachable and AC-7 cannot hold. Fixing the product to satisfy this assertion would therefore silently BREAK a validated acceptance criterion.",
+      "conclusion": "The implementation is contract-correct. The assertion is stale drift left behind by MT-029 own stale-guard remediation. The fix is a contract-aligned test-expectation correction, not a product change."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/find_in_files.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-114-1: the assertion is corrected to the actual contract - results and result_set_key are RETAINED after restore_bookmark, and pending reads are invalidated - with a comment citing MT-029 AC-7 so the next reader does not re-break it.",
+      "AC-114-2: prove AC-7 STILL HOLDS after the change: a mounted case where the query changes after search and before preview shows the stale-result warning and Preview remains ENABLED enough to surface it.",
+      "AC-114-3: the test passes, and no product behaviour in find_in_files.rs is altered to achieve it. Any product change is an automatic rejection of this MT premise and must be escalated instead."
+    ],
+    "proof_targets": [
+      "PT-114-1: cargo test -p handshake-native find_in_files -- restore_bookmark_centrally_invalidates_results_cache_and_pending_reads => passes.",
+      "PT-114-2: the MT-029 AC-7 stale-guard proof still passes unchanged."
+    ]
+  },
+  "hbr_obligations": {
+    "VIS": "Not applicable unless a visible surface changes.",
+    "MAN": "Not applicable - no product behaviour change."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

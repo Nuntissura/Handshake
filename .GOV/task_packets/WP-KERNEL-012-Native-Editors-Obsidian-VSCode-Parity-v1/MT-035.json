@@ -14,7 +14,7 @@
   "title": "E5-MT-035-UnifiedUndoScope",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T21:27:02.9216175Z",
+  "updated_at_utc": "2026-08-02T05:10:59.8097153Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-035.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-05T10:55:27.452Z",
@@ -99,11 +99,19 @@
         "previous_status": "CLAIMED_V3_REMEDIATION",
         "new_status": "READY_FOR_VALIDATION_V3",
         "previous_active": true
+      },
+      {
+        "at_utc": "2026-08-02T05:10:59.8097153Z",
+        "by": "KERNEL_BUILDER-V4",
+        "reason": "V4 remediation replaced the incomplete in-memory Argus check with a durable canonical six-action receipt/tree proof and six directly inspected mounted 1400x900 phase frames; added exact pending, typed retry, focused-local, settlement, observer-cleanup, and restart-empty state seams; hardened fast settlement and cross-MT observer isolation; and passed the required configured integration+WGPU invocation with 31 passed, 0 failed, 0 ignored. The owned current-source backend used PostgreSQL 127.0.0.1:5544 and exact PID 30012 was stopped and reaped.",
+        "previous_status": "FAIL_V4",
+        "new_status": "READY_FOR_VALIDATION_V4",
+        "previous_active": false
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-31T08:34:04.940Z",
+    "ready_for_validation_at_utc": "2026-08-02T05:10:59.8097153Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-31T08:34:04.940Z)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260707-224033",
@@ -726,5 +734,33 @@
     "no_context_instruction": "Read MT-035.json completely, then packet.json, WP_VALIDATOR_PROTOCOL.md, ARGUS_VISUAL_INSPECTION_PROTOCOL.md, and SPEC_CURRENT v02.202. Preserve the green unified undo implementation and the user's unrelated AGENTS.md, CLAUDE.md, and test_find_in_files.rs changes. Convert the current in-memory Argus check into a durable terminal-receipt proof with action-specific predicates, settle the pending compensation before argus.finish, add full mounted-shell before/after/restart captures with undo-count pane context, run all 31 cases in one configured current-source-backend plus real-PostgreSQL invocation, inspect every fresh receipt/tree/PNG, require zero indeterminate or unresolved actions, then return READY_FOR_VALIDATION_V4 without self-issuing PASS.",
     "remediation_required": true,
     "residual_uncertainty": "Product undo behavior is strongly green. Remaining uncertainty is confined to model-steering causality, compensation settlement in the Argus proof, and whether the indicator behaves correctly in its mounted pane-header context rather than in a detached component crop."
+  },
+  "remediation_v4_completion_2026_08_02": {
+    "schema_id": "hsk.mt_remediation_completion@1",
+    "status": "READY_FOR_VALIDATION_V4",
+    "updated_at_utc": "2026-08-02T05:10:59.8097153Z",
+    "remediated_by": "KERNEL_BUILDER-V4",
+    "validator_verdict_preserved": "FAIL_V4",
+    "product_worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-native-editors-v1",
+    "canonical_proof": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-035-v4/mt035-v4-56460-1785647390721098200/mt035-v4-canonical-argus-proof.json",
+    "proof_summary": "Six attributed canonical Argus actions with unique correlations and passing terminal predicates; five Applied receipts and one typed Rejected retry; zero indeterminate actions, unresolved actions, pending click-completion observers, pending compensations, or active compensation futures; six unobstructed mounted 1400x900 frames directly inspected against their matching trees.",
+    "configured_suite": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration,wgpu_screenshots --test test_undo_scope -- --nocapture --test-threads=1",
+      "environment": {
+        "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target",
+        "HANDSHAKE_TEST_PG_DSN": "postgresql://postgres@127.0.0.1:5544/handshake",
+        "HSK_TEST_BACKEND_BIN": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+        "HANDSHAKE_GPU_SCREENSHOT": "1"
+      },
+      "result": "PASS: 31 passed, 0 failed, 0 ignored, 0 measured, 0 filtered out; test execution 77.43s; process exit 0.",
+      "owned_backend": {
+        "pid": 30012,
+        "base_url": "http://127.0.0.1:53334",
+        "binary_sha256": "10fe333d452fdf7bb427ece36f8b0d52b724ddb75014ef59348f9ca4174b210e",
+        "database": "postgresql://postgres@127.0.0.1:5544/handshake",
+        "teardown": "Owned workspace deleted; exact PID stopped and reaped; PID absent and port listener count zero after command."
+      }
+    },
+    "adversarial_review": "PASS: independent reviewer directly inspected every final PNG and JSON/tree surface, verified hashes, correlations, receipt sequence, predicates, stable source identity, strict-finish zeros, full 31/31 result, and found no unresolved V4 acceptance blocker."
   }
 }

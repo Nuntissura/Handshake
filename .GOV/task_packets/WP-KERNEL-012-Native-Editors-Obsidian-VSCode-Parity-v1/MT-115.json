@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-115",
+  "title": "B5-MT-115-Complete-MT109-Authorization-Fallout-Palmistry-Harnesses-And-Document-Saved-Attribution",
+  "group": "B-Backend-Contract",
+  "created_at_utc": "2026-08-05T23:19:13.141Z",
+  "updated_at_utc": "2026-08-05T23:19:13.141Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-109",
+      "MT-111"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Three distinct consequences of the MT-109 authorization hardening that MT-111 correctly identified but could not close within its allowed_paths or without unverifiable edits across seven other MTs proofs. Captured so none is lost, per the Operator standing deferral rule."
+  },
+  "scope": {
+    "summary": "Close the remaining MT-109 authorization fallout: the Palmistry forwarder design question, the seven test harnesses that still read the recorder without a credential, and document_saved actor attribution.",
+    "part_1_palmistry": {
+      "problem": "src/frontend/palmistry/fr_forward.rs:52 FR_ROUTE_PATH still names the REMOVED unscoped /api/flight_recorder/runtime_chat_event. The constant is now dead.",
+      "why_not_a_rename": "Palmistry is an OUT-OF-PROCESS watcher whose entire purpose is surviving Handshake freezes and crashes. It has NO workspace id and NO native-MCP binding, so it can satisfy NEITHER half of the new contract (workspace-scoped path + session token). This is a genuine design question, not a mechanical fix.",
+      "options_for_the_authority_owner": "Either (a) give Palmistry a distinct capability and an out-of-process credential path appropriate to a watcher that must work when the app is dead, or (b) route Palmistry forwarding through a different ingestion boundary entirely, or (c) formally confirm the existing typed SchemaIncompatible deferral to WP-KERNEL-016 and REMOVE the dead constant so no future reader believes the route still exists.",
+      "current_safety": "It already returns a typed SchemaIncompatible blocker, so nothing regressed into silence."
+    },
+    "part_2_test_harness_credentials": {
+      "problem": "Seven suites still read the Flight Recorder with NO credential and will 401 under the MT-109 gate: test_calendar_interop (4 sites), test_ckc_embed (1), test_e7_swarm_edit_proof (1), test_fems_interop_proofs (5 of 7), test_locus_interop (1), test_other_pillar_interop_proofs (6), test_code_note_cross_ref (2, stub server).",
+      "mechanism_already_exists": "MT-111 added the canonical shared helper: RealNativeMcpBinding plus live_flight_recorder_session_token() in tests/pg_proof_support/mod.rs, already applied successfully in test_flight_recorder_authz and test_event_emitter. MT-027 and MT-066 independently proved the same publish-a-real-binding pattern.",
+      "requirement": "Each suite needs RealNativeMcpBinding::publish() BEFORE its backend selection; the ordering is suite-specific. Under NO circumstances weaken, stub, feature-gate or bypass the authorization to make a suite green - present a genuine binding or report a blocking gap."
+    },
+    "part_3_document_saved_attribution": {
+      "problem": "validate_document_save_receipt (flight_recorder.rs:897) now requires the save receipt ledger actor_id to equal the server-derived handshake-native:{pid}:{fingerprint}, but the frontend save path sends its own x-hsk-actor-id, so document_saved native-editor events will likely 400 HSK-400-INVALID-EVENT.",
+      "note": "Predicted from source by the MT-111 agent and NOT yet reproduced at runtime. Reproduce it first; if it does not reproduce, record that plainly and close this part."
+    },
+    "allowed_paths": [
+      "src/frontend/palmistry/**",
+      "src/frontend/handshake_native/tests/**",
+      "src/frontend/handshake_native/src/**",
+      "src/backend/handshake_core/src/api/flight_recorder.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-115-1: the Palmistry question is RESOLVED by an explicit decision (credentialed watcher path, alternative ingestion boundary, or confirmed deferral with the dead constant removed) - not left as a dangling constant.",
+      "AC-115-2: all seven listed suites present a GENUINE binding and their recorder reads succeed, with zero weakening/stubbing/feature-gating of the MT-109 authorization. Any suite that cannot is reported as a typed blocking gap.",
+      "AC-115-3: document_saved attribution is either reproduced-and-fixed so a real frontend save lands a durable FR row, or proven not to reproduce, with runtime evidence either way.",
+      "AC-115-4: no MT-109 negative regresses - the 401/403 suite from test_flight_recorder_authz still passes unchanged."
+    ],
+    "proof_targets": [
+      "PT-115-1: each of the seven suites executed live against real PostgreSQL with a real binding, exit 0.",
+      "PT-115-2: test_flight_recorder_authz re-run unchanged, 12 passed.",
+      "PT-115-3: a real frontend document save proven to land (or proven to fail with a named typed error) at runtime."
+    ]
+  },
+  "hbr_obligations": {
+    "PRIV": "REQUIRED - this is authorization and attribution work; negative proof is mandatory.",
+    "INT": "REQUIRED - the events must reach the real EventLedger/Flight Recorder authority path."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

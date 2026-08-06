@@ -14,7 +14,7 @@
   "title": "E5-MT-036-UnifiedEventLedgerExtensionSeams",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T21:30:36.2514788Z",
+  "updated_at_utc": "2026-08-02T06:54:02.5051303Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-036.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -38,10 +38,10 @@
       "MT-046"
     ],
     "validator_verdict": "FAIL_V4",
-    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
-    "ready_for_validation_at_utc": "2026-07-17T22:13:50Z",
-    "proof_status": "PARTIAL_V3_REMEDIATION_BLOCKED: product commits b9845c4757d70adcc27bd297c7e99c58c88d4429 and 459cd05504c774b01a4b981e5e0d2b1536bb40a9 wire Flight Recorder diagnostics and repair the live Notes File Save proof readiness race. Exact live real-PostgreSQL/backend proof now passes on committed head: cargo test --test test_event_emitter -j 1 event_emitter_native_editor_round_trip -- --exact --nocapture returned 1 passed/0 failed against HSK_TEST_BASE=http://127.0.0.1:37501 and HANDSHAKE_TEST_PG_DSN=postgresql://postgres@127.0.0.1:5545/handshake. Not READY_FOR_VALIDATION_V3: the full declared test_event_emitter proof suite timed out during compile after 20 minutes, and cargo check also timed out after current edits. MT-035 dependency also remains CLAIMED_V3_REMEDIATION pending its own live-backend proof/status update.",
-    "post_implementation_adversarial_review_status": "PASS_2026-07-17_THIRD_REVIEW_NO_BLOCKING_FINDINGS",
+    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-V4-REMEDIATION",
+    "ready_for_validation_at_utc": "2026-08-02T06:54:02.5051303Z",
+    "proof_status": "PASS_V4_REMEDIATION: one configured current-source backend/real-PostgreSQL integration+GPU run passed 22/22 with six canonical Flight Recorder actions, zero indeterminate/unresolved actions, exact three-event ledger ordering/correlation, four directly inspected mounted-shell PNG/tree pairs, matching three-tier diagnostics, workspace cleanup, and exact owned-backend teardown. Canonical bundle SHA-256 a55ac977654e13136af3eb0803b8620f5a0771fde08795af0173aa1518499e45.",
+    "post_implementation_adversarial_review_status": "PASS_V4_INDEPENDENT_ADVERSARIAL_REVIEW_2026-08-02_NO_BLOCKING_FINDINGS",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260731-195928",
     "validated_at_utc": "2026-07-31T21:30:36.2514788Z",
@@ -96,14 +96,22 @@
         "previous_status": "CLAIMED_V3_REMEDIATION",
         "new_status": "READY_FOR_VALIDATION_V3",
         "previous_active": true
+      },
+      {
+        "at_utc": "2026-08-02T06:54:02.5051303Z",
+        "by": "KERNEL_BUILDER-WP-KERNEL-012-V4-REMEDIATION",
+        "reason": "Implemented every MT-036 FAIL_V4 remediation item in the existing real-PostgreSQL mounted test: canonical stable-target open/Refresh/failure/Retry/recovery actions with attributed terminal receipts and fresh request generations; exact event, trace, workspace, actor, schema, diagnostics, and executable bindings; full mounted-shell PNG/tree evidence; zero indeterminate/unresolved actions; and deterministic workspace/backend cleanup. The full configured suite passed 22/22 and an independent adversarial reviewer returned PASS. The official validator_verdict remains FAIL_V4 as historical authority; this builder transition requests V4 revalidation.",
+        "previous_status": "FAIL_V4",
+        "new_status": "READY_FOR_VALIDATION_V4",
+        "previous_active": false
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260708-undo",
     "claimed_at_utc": "2026-07-08T17:47:27.434Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-31T09:07:45.296Z",
-    "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-31T09:07:45.296Z)",
+    "ready_for_validation_at_utc": "2026-08-02T06:54:02.5051303Z",
+    "kb_ready_checklist_receipt": "PASS_V4_REMEDIATION (canonical proof bundle a55ac977654e13136af3eb0803b8620f5a0771fde08795af0173aa1518499e45; independent adversarial review PASS)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260708-undo",
       "mode": "GAP-fixed (coder a2332fac + KERNEL_BUILDER authoritative proof)",
@@ -506,6 +514,109 @@
     "Wire or explicitly disposition all three diagnostic tiers and capture the applicable canonical Argus or TraceProjection evidence; make canonical UserManual entries code-truthful."
   ],
   "no_context_instruction": "Read MT-036.json, HBR-INT-009, packet, and current spec. Close the three-tier and projection proof gaps, then return READY_FOR_VALIDATION_V3."
+  },
+  "remediation_v4": {
+    "status": "READY_FOR_VALIDATION_V4",
+    "updated_at_utc": "2026-08-02T06:54:02.5051303Z",
+    "validator_verdict_preserved": "FAIL_V4",
+    "implemented_repairs": [
+      "Extended the existing real-PostgreSQL mounted-shell proof with canonical Operator-menu open, Refresh, injected transport failure, failed Retry/remount, and recovered Retry actions through stable product targets.",
+      "Bound all six actions to attributed terminal receipts, before/after tree hashes and generations, exact request generations, terminal predicates, workspace/trace/event identities, and unique diagnostics correlation IDs.",
+      "Added a stable explicit AccessKit action-completion observer and synchronized each live WGPU capture with the terminal ActionChannel snapshot.",
+      "Captured and directly inspected full 1400x900 mounted-shell loading, refreshed, failed-Retry, and recovered PNG/tree pairs with pane-c selected, readable exact event rows, no dialogs, and no obscuring FEMS overlay.",
+      "Documented the Flight Recorder operator/model workflow, inputs, outputs, navigation, stable controls, failure modes, recovery, diagnostics, and cleanup in the internal Handshake manual."
+    ],
+    "configured_proof": {
+      "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --features integration,wgpu_screenshots --test test_event_emitter -- --nocapture --test-threads=1",
+      "environment": {
+        "CARGO_TARGET_DIR": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target",
+        "HANDSHAKE_TEST_PG_DSN": "postgresql://postgres@127.0.0.1:5544/handshake",
+        "HSK_TEST_BACKEND_BIN": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-cargo-target/debug/handshake_core.exe",
+        "HANDSHAKE_GPU_SCREENSHOT": "1"
+      },
+      "result": "PASS: 22 passed, 0 failed, 0 ignored, 0 filtered out",
+      "proof_bundle": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-036-v4/53352-6d42cc594bb8418e88b71541e698eed4/proof-bundle.json",
+      "proof_bundle_sha256": "a55ac977654e13136af3eb0803b8620f5a0771fde08795af0173aa1518499e45",
+      "run_id": "53352-6d42cc594bb8418e88b71541e698eed4",
+      "trace_id": "b960ae0a-55f3-4793-b19a-8a1adc6eb389",
+      "workspace_id": "019fc137-6892-7a63-b40c-30e7f598d99e"
+    },
+    "action_matrix": {
+      "actions": 6,
+      "sequence": [
+        "Operator menu open",
+        "Flight Recorder open and Loading observation",
+        "Refresh to exact durable rows",
+        "Refresh against unavailable backend to typed failure",
+        "Retry against unavailable backend with transient acknowledgement/remount",
+        "Retry after backend restoration to exact recovered rows"
+      ],
+      "request_generations": "2 through 6",
+      "terminal_receipts": 6,
+      "zero_indeterminate": true,
+      "zero_unresolved": true
+    },
+    "ledger_evidence": {
+      "exact_newest_first_actions": [
+        "undo_fired",
+        "canvas_node_placed",
+        "document_saved"
+      ],
+      "event_ids": [
+        "4fc4c5a0-9014-4304-b72d-75e1cdc1d029",
+        "d997ba70-b0cf-4626-8cdb-fc787fc08d6e",
+        "fd16d25e-9aa2-4d9f-97d0-d17c2c98ee6f"
+      ],
+      "actor_id": "native_editor_human",
+      "schema": "hsk.native_editor@0.1",
+      "exact_count": 3
+    },
+    "direct_visual_review": {
+      "result": "PASS",
+      "captures": [
+        "loading",
+        "refreshed",
+        "failed-retry",
+        "recovered"
+      ],
+      "finding": "All four full mounted-shell captures and matching semantic trees were directly inspected. Pane-c is selected with a readable Flight Recorder heading and state-specific controls/rows; refreshed and recovered show the exact three events; failure shows the typed error and Retry; no dialog, overlap, clipping, or FEMS overlay obscures the proof surface."
+    },
+    "diagnostics_evidence": {
+      "tier_1": "Flight Recorder/EventLedger exact durable rows",
+      "tier_2": "internal_diagnostics exact request Start/Recovered or Start/Failed pairs",
+      "tier_3": "Palmistry shared numeric ring projection",
+      "exact_rows": 10,
+      "request_pairs": 5
+    },
+    "cleanup": {
+      "workspace_deleted": true,
+      "owned_backend_reaped": true,
+      "owned_backend_pid": 58288,
+      "owned_backend_port": 59711,
+      "runtime_data_directory_absent": true,
+      "independent_postgresql_workspace_count": 0
+    },
+    "independent_adversarial_review": {
+      "result": "PASS",
+      "reviewed_at_utc": "2026-08-02T06:54:02.5051303Z",
+      "finding": "No acceptance-blocking implementation or proof defect was found after independent source, hash, executable, receipt, tree, PNG, PostgreSQL cleanup, port, process, and runtime-directory checks."
+    },
+    "scope_expansion": [
+      {
+        "path": "src/frontend/handshake_native/src/app.rs",
+        "reason": "Required for the production Operator-menu route, mounted pane selection, app-owned open completion, and stable action acknowledgement demanded by FAIL_V4."
+      },
+      {
+        "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "reason": "Required by the operator's work-packet-wide internal user-manual requirement for this operator/model-facing feature."
+      },
+      {
+        "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+        "reason": "Required to prove the internal manual retains the no-context Flight Recorder runtime facts."
+      }
+    ],
+    "blockers": [],
+    "ready_for_validation_v4": true
   },
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",

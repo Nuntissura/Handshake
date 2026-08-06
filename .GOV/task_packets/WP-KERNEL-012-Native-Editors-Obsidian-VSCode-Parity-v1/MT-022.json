@@ -14,7 +14,7 @@
   "title": "E3-MT022-FolderTreeColorLabels",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T20:53:03.8973659Z",
+  "updated_at_utc": "2026-08-01T08:40:30.7157715Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-022.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -84,24 +84,12 @@
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260723-082350",
-    "ready_for_validation_at_utc": "2026-07-24T09:20:00.000Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
-    "ready_for_validation_summary": "MT-022 V3: atomic EventLedger-receipt boundary proven on real PostgreSQL (append + rollback-on-ledger-failure + restart readback), canonical Argus inspect/steer/re-observe on the mounted panel incl. empty state, and code-truthful three-tier (FR/internal_diagnostics/Palmistry) UserManual posture. Official validator verdict PENDING; completed_by null.",
-    "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
-    "missing_resource": {
-      "status": "NEEDS_MANAGED_RESOURCE_PROOF",
-      "reason": "No seeded Handshake-managed PostgreSQL/backend environment was available for the live folder list/children/recolor persistence tests.",
-      "missing_env": [
-        "HANDSHAKE_TEST_WORKSPACE_ID",
-        "HANDSHAKE_TEST_GRAPH_WORKSPACE_ID",
-        "HANDSHAKE_BACKEND_URL",
-        "DATABASE_URL",
-        "HANDSHAKE_TEST_DB_URL",
-        "HANDSHAKE_TEST_FOLDER_ID",
-        "HSK_TEST_FOLDER_ID"
-      ],
-      "required_resource": "Seeded live Handshake-managed PostgreSQL workspace with >=2 Loom folders, child blocks, and a folder-001 recolor target for folder list/children/recolor persistence proofs."
-    },
+    "ready_for_validation_at_utc": "2026-08-01T08:40:30.7157715Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260801-020817",
+    "ready_for_validation_summary": "MT-022 V4 remediation: exact mounted folder Open is causally bound to the current workspace, action generation, fresh child-list request, and terminal sequence; concurrent folder failures remain node-owned and visible; leaf semantics are Click-only and visibly indented. Focused library 15/15, mounted host 9/9, manual 2/2, loss-server GET-PATCH-GET, owned real-PostgreSQL 1/1, and cleanup-gated GPU Argus 1/1 all pass. Fresh JSON receipt is Applied with generation=request=terminal=1 and fresh PNG directly shows the child row. Independent adversarial review PASS. Validator verdict remains FAIL_V4 for independent revalidation; completed_by remains null.",
+    "external_resource_proof_status": "PASS_V4_REAL_POSTGRESQL_GPU",
+    "missing_resource": null,
+    "proof_status": "IMPLEMENTER_PROOFS_PASS_VALIDATOR_REVALIDATION_PENDING",
     "kb_ready_checklist_receipt": {
       "verdict": "PASS",
       "generated_at_utc": "2026-07-04T22:46:42.761Z",

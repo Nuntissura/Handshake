@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt068",
       "mode": "VERIFY_AND_PROVE",
@@ -129,6 +129,78 @@
         "AC-002 live locus resolution stays a permanently-gated typed blocker until a backend /locus/ route exists",
         "blocks MT-073 (Locus panel consumes find_documents_referencing)"
       ]
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-06T12:48:02.302Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-06T12:48:02.302Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "NEEDS_REIMPLEMENTATION_V4",
+      "defect": "validation_v4: the Locus chip click terminalized Indeterminate through the product OWN fallback - \"click was dispatched, but this target exposes no action-specific completion predicate\" - which is literally immediate click dispatch accepted as final proof. The proof was additionally not bound to a clean source provenance.",
+      "root_cause_is_product_side": "Consistent with every other V4 FAIL in this WP, the indeterminate was produced PRODUCT-SIDE in src/frontend/handshake_native/src/mcp/action.rs, not by the driver. A Locus chip is a TRANSIENT target: activating it routes a KernelDcc tab over the rich-document view the chip was painted in, so the chip no longer exists when the receipt is acknowledged and its completion must OUTLIVE it.",
+      "fix": "Added a shell-owned DURABLE Role::Status observer mt068.locus-ref-open-completion on the EXISTING handshake.click-completion/v1 mechanism - the same shape MT-024/026/028/029/042/064/079 already prove, not a second mechanism. It publishes Applied ONLY when the exact declared work unit is mounted as a Kernel DCC tab bound to that record canonical navigator content id; otherwise it publishes a TYPED rejection after a bounded 12s window rather than hanging Pending and silently stranding later actions as Indeterminate. Navigation records are single-use so a repeat click cannot reuse the prior tab. locus_ref_uri_from_chip_author_id is the fail-closed INVERSE of the renderer own author-id construction, so declaration and completion bind one tuple. The observer is proof-only: a Locus chip navigates identically with no Argus binding open.",
+      "driver_untouched": "canonical_argus_driver.rs was NOT modified and finish() / finish_require_no_indeterminate() were NOT weakened. INDEPENDENTLY VERIFIED by KERNEL_BUILDER: the proof artifact records driver blob 4de06dcf6af6dbcda60613beb595a90b6b87cfb3, byte-identical to git rev-parse HEAD of that path, and git diff over the five MT-068 commits shows the driver absent from the changed set.",
+      "final_results": "Run E at HEAD 4b57df5892017557bdebbcedc2c123f1dd50278b. Four supervisor stages all exit 0, timed_out=false, leaked_process_count=0: build-current-source-backend, scenario-inventory, ordinary-suite, runner-only-live-proof. Ordinary: 32 passed / 0 failed / 1 ignored / 0 filtered. Live: 1 passed / 0 failed / 32 filtered. source.relevant_source_clean=true and transitive_runtime_source_clean=true with known dirty limited to AGENTS.md and CLAUDE.md.",
+      "kernel_builder_independent_verification": "KERNEL_BUILDER parsed mt068-locus-canonical-argus.json directly rather than accepting the agent report: ZERO occurrences of \"indeterminate\" in the entire artifact; matrix[0] predicate mt068-locus-work-packet-navigates-to-exact-record passed=true and matrix[1] predicate mt068-locus-microtask-navigates-to-exact-record passed=true; both receipts status=applied; both terminal_refreshed=true; status=PASS; cleanup all-zero; flight_recorder_authorization.weakened_or_bypassed=false. Both source blobs re-derived from git and matched.",
+      "visual_evidence_opened_by_kernel_builder": "KERNEL_BUILDER OPENED the after-frames rather than trusting the report. WP-after: active tab locus://wp/WP-Mt068-35a73618e39a4bbc954a88ea172513aa, pane renders Kernel DCC / pane-b / WP:WP-Mt068-35a73618e39a4bbc954a88ea172513aa. MT-after: active tab locus://mt/MT-Mt068-..., pane renders Kernel DCC / pane-b / MT::MT-Mt068-35a73618e39a4bbc954a88ea172513aa. Both readable, non-overlapping, and each showing its OWN distinct record.",
+      "stale_frame_defect_found_and_proven_fixed": "The agent disclosed that run D passed every gate while the WP-after frame was BYTE-IDENTICAL to WP-before (render_proof_frame paints the PRECEDING frame). KERNEL_BUILDER CONFIRMED this independently by hashing every retained run: run-a018be6c has WP-before = WP-after = MT-after = 48dd16fe (the after frame literally equals the before frame), and runs f1a50099 / a34b06dd have WP-after byte-identical to MT-after. Only the FINAL run 4b57df58 has three distinct hashes - before cbb81652, WP-after ff68a67d, MT-after eb92fcd1 - so the switch to render_settled_proof_frame plus the byte-identical-pair rejection is proven effective on the evidence, not merely asserted.",
+      "cross_mt_defects_found_and_fixed": [
+        "MT-109 RECORDER AUTH: Flight Recorder reads were unauthenticated and therefore failed closed. The proof now publishes a real native-MCP session binding before the backend starts and presents it as x-hsk-session-token. Authorization was NOT weakened, bypassed, feature-gated or stubbed.",
+        "LEDGER KEY SHAPE: the mirror lookup keyed on the durable event_id, but MT-109 builds the key from payload.client_event_id (the durable id is a workspace-scoped derivation). A direct query after the failure found all 8 rows present - the proof was looking in the wrong place, not the product dropping rows. Same class as the MT-066 finding, independently rediscovered here.",
+        "STALE AFTER-FRAMES: see stale_frame_defect_found_and_proven_fixed. Both the proof and the supervisor now reject byte-identical before/after pairs."
+      ],
+      "zero_residue_verified_by_direct_query": "Agent own query, independent of the run claims: work_packets=0, micro_tasks=0, knowledge_rich_documents=0, documents=0, workspaces=0, native-editor FR ledger=0. HONEST DISCLOSURE CARRIED FORWARD: 3 rows carry the run workspace id - KNOWLEDGE_RICH_DOCUMENT_SAVED, KNOWLEDGE_LOOM_BLOCK_INDEXED, KNOWLEDGE_RICH_DOCUMENT_DELETED. These are append-only BUSINESS history of the fixture own document lifecycle (the third literally records the cleanup). They were deliberately NOT deleted because that would falsify an append-only audit trail; the supervisor records the count without gating on it. KERNEL_BUILDER accepts this reasoning and records it rather than burying it.",
+      "scope_expansion_disclosure": {
+        "status": "AWAITING_OPERATOR_WAIVER",
+        "rule": "GLOBAL-SCOPE-005 - out-of-scope work performed only as far as needed to unblock, then disclosed in full with the why and the complete list of what was touched.",
+        "forbidden_paths_respected": "YES - no .GOV/**, no src/backend/**, no app/src/** legacy React was touched.",
+        "declared_allowed_paths": [
+          "src/frontend/handshake_native/src/interop/locus_interop.rs",
+          "src/frontend/handshake_native/src/interop/mod.rs",
+          "src/frontend/handshake_native/src/interop/cross_ref.rs",
+          "src/frontend/handshake_native/tests/test_locus_interop.rs"
+        ],
+        "in_scope_changed": [
+          "src/frontend/handshake_native/tests/test_locus_interop.rs"
+        ],
+        "out_of_scope_changed": [
+          {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "why": "The shell-owned durable observer must live where the shell lives. A Locus chip is destroyed by its own navigation, so a completion scoped to interop/ could not outlive the target it reports on. Structurally impossible inside allowed_paths."
+          },
+          {
+            "path": "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
+            "why": "locus_ref_uri_from_chip_author_id is the fail-closed inverse of the chip author-id construction that already lives in this file. Placing the inverse anywhere else guarantees the two drift apart silently."
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/run_mt068_locus_proof.ps1",
+            "why": "New file. The bounded external supervisor that the MT own proof target requires (the live test is ignore-gated as \"requires managed PostgreSQL and bounded external supervisor\")."
+          },
+          {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "why": "Operator standing requirement: the internal Handshake user manual must cover this work packet. The existing manual text actively taught future models that \"The immediate action receipt may be indeterminate\" - FALSE after this MT and directly contrary to the V4 gate. Leaving it would have propagated the exact defect being remediated."
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_manual_content.rs",
+            "why": "Asserts the manual text above; must move with it or the suite goes red."
+          }
+        ]
+      },
+      "disclosed_gaps": [
+        "COSMETIC, DELIBERATELY NOT FIXED, ROUTED TO MT-116: with 44-character ids the chip pill background renders slightly narrower than its label, so the id tail sits just outside the pill. At 3x magnification the label reads exactly once and is fully readable, so the V4 \"overlapping/garbled glyph runs\" defect IS closed. Likely a galley-font vs BASE_FONT_SIZE width mismatch; fixing it means touching shared line-layout with cross-MT visual regression risk, so it was routed rather than rushed.",
+        "Item 4 (MT-034 dependency) is validator sequencing and was left untouched as instructed.",
+        "MT-074 (test_other_pillar_interop_proofs) also drives locus-ref-chip-wp ids. Its driver accepts applied, so the stricter status SHOULD be compatible, but MT-068 did not run it. Carried into the MT-074 brief as a required check rather than assumed.",
+        "The scoped cargo target wp012-mt068 is retained for the validator (a ~40-minute rebuild); delete at WP closeout."
+      ],
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0,
+        "emitted_to": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
+        "note": "RC-002 and RC-003 auto-findings were VACUOUS because this contract declares scope.allowed_paths while the checklist greps for owned_files. Both were therefore verified MANUALLY and the vacuity recorded as WP-level debt rather than silently accepted."
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     }
   },
   "scope": {
@@ -432,28 +504,28 @@
     }
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-068 FAIL V2. Locus WP/MT cross-reference UI lacks a current canonical Argus inspect/steer/re-observe run over real persisted references. Mock or AccessKit coverage does not establish resolution, reverse lookup, navigation, and typed missing/stale behavior on the mounted surface.",
+    "remediation_plan": [
+      "Seed real persisted WP/MT references and prove forward resolution, reverse lookup, missing/stale references, restart readback, and exact navigation receipts.",
+      "Drive the mounted Locus interaction through canonical Argus with stable targets, safe action, and fresh post-action inspection; align canonical UserManual diagnostics."
+    ],
+    "no_context_instruction": "Read MT-068.json and current authorities. Prove real persisted reference behavior and canonical Argus interaction before READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-068 FAIL V2. Locus WP/MT cross-reference UI lacks a current canonical Argus inspect/steer/re-observe run over real persisted references. Mock or AccessKit coverage does not establish resolution, reverse lookup, navigation, and typed missing/stale behavior on the mounted surface.",
-  "remediation_plan": [
-    "Seed real persisted WP/MT references and prove forward resolution, reverse lookup, missing/stale references, restart readback, and exact navigation receipts.",
-    "Drive the mounted Locus interaction through canonical Argus with stable targets, safe action, and fresh post-action inspection; align canonical UserManual diagnostics."
-  ],
-  "no_context_instruction": "Read MT-068.json and current authorities. Prove real persisted reference behavior and canonical Argus interaction before READY_FOR_VALIDATION_V3."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",

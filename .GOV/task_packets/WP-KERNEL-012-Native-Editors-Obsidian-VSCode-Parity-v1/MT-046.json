@@ -14,7 +14,7 @@
   "title": "E8-MT046-InterconnectionScenarioProofs",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T22:44:10.2012618Z",
+  "updated_at_utc": "2026-08-03T07:01:17.058Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-046.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -39,7 +39,7 @@
     ],
     "blocks": [],
     "validator_verdict": "FAIL_V4",
-    "proof_status": "READY_FOR_VALIDATION_V3: current-head interconnection capstone rerun passed against owned live backend/PostgreSQL. test_interconnect_ckc_to_note 7/7, test_interconnect_note_code_crossref 6/6 after setting HSK_PSQL_BIN to the installed PostgreSQL psql.exe, test_interconnect_loom_backlink_search 8/8 with IC-13 typed HSK-409-LOOM-AI-NO-MODEL skip, test_interconnect_shared_undo_ledger 5/5. Manifest sanity: 18 entries, 17 PASS, 1 SKIPPED, 0 FAIL. MT-034, MT-035, and MT-036 are READY_FOR_VALIDATION_V3.",
+    "proof_status": "READY_FOR_VALIDATION_V4: source-bound canonical supervisor runs MT046-RUN-2E381429-V4-01 and MT046-RUN-2E381429-V4-02 both PASS at 2e38142955565c601b0f638850148b950b792751. Each immutable run has the exact 18-scenario set, 17 PASS plus only the authorized typed IC-13 HSK-409-LOOM-AI-NO-MODEL skip, 18 unique sealed attempts, 19 exact workspace cleanups, and canonical Argus terminal proof. Run 2 proves immutable baseline preservation, identical accepted projection, distinct attempts, and zero cross-run attempt overlap.",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "WP_VALIDATOR-20260731-195928",
     "validated_at_utc": "2026-07-31T22:44:10.2012618Z",
@@ -106,10 +106,12 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260708-vandp",
-    "claimed_at_utc": "2026-07-08T18:04:39.357Z",
+    "claimed_by": "KERNEL_BUILDER-20260802-191035",
+    "claimed_at_utc": "2026-08-02T19:14:14.9035845Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-31T09:35:48.900Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260802-191035",
+    "ready_for_validation_at_utc": "2026-08-03T07:01:17.058Z",
+    "ready_for_validation_summary": "MT-046 V4 remediation: canonical supervisor provenance, exact one-to-one 18-scenario discovery, current-source backend/PostgreSQL binding, process containment, immutable receipts, canonical Argus trace/frame causality, IC-07 pre-dispatch rejection evidence, workspace cleanup, and second-run idempotency all passed in two fresh source-identical runs. Summary and immutable-run SHA-256 sidecars verified; terminal screenshots inspected. Official validator verdict remains FAIL_V4 pending V4 validation; completed_by remains null.",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-31T09:35:48.900Z)",
     "rfv_evidence_2026_07_08": {
       "by": "KERNEL_BUILDER-20260708-vandp",

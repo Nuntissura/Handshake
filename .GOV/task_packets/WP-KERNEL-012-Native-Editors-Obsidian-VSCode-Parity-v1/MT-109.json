@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -58,7 +58,61 @@
     "claimed_by": "KERNEL_BUILDER-20260723-082350",
     "claimed_at_utc": "2026-07-23T15:40:05.803Z",
     "remediation_v3_in_progress": false,
-    "ready_for_validation_summary": "MT-109 V3 (backend-only): /memory/pack is side-effect-free proven under 2000 attacker-context reads (no write amplification); capability-based authorization replaces spoofable x-hsk-actor-* headers; FR-EVT-MEM-001..005 payloads; faithful commit-outbox crash-recovery (genuine durable window -> restart projector recovery). Targeted real-PG run 5/5 green. Validator PENDING; completed_by null."
+    "ready_for_validation_summary": "MT-109 V3 (backend-only): /memory/pack is side-effect-free proven under 2000 attacker-context reads (no write amplification); capability-based authorization replaces spoofable x-hsk-actor-* headers; FR-EVT-MEM-001..005 payloads; faithful commit-outbox crash-recovery (genuine durable window -> restart projector recovery). Targeted real-PG run 5/5 green. Validator PENDING; completed_by null.",
+    "ready_for_validation_v4_at_utc": "2026-08-05T12:44:55.013Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-05T12:44:55.013Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "NEEDS_REIMPLEMENTATION_V4",
+      "defect": "validation_v4 FAIL_V4, a REAL security hole: the flight-recorder route group had no authorization at all, and record_native_editor_event trusted caller-supplied actor_id/workspace_id from the JSON body and persisted them into authoritative PostgreSQL/EventLedger/Flight Recorder attribution. An unauthenticated caller could forge actor/workspace-attributed events or read recorder data across workspaces. The declared proof command also ran ZERO tests because it omitted the feature gate, a false green.",
+      "security_boundary_implemented": {
+        "middleware": "authorize_flight_recorder_request installed with middleware::from_fn_with_state over the ENTIRE route group before with_state, mirroring the proven api::memory pattern. Authenticates via stage::capture_context (live native-MCP binding token + process-birth identity) -> 401 HSK-401-FR-SESSION. Resolves one capability per route class via capability_registry.profile_can -> 403 HSK-403-FR-CAPABILITY. Emits one redacted capability_action FR event for EVERY allow and deny; audit-write failure fails the request CLOSED with 500. Injects a RecorderAuthority request extension so handlers read identity only from there, never from headers or body.",
+        "capabilities": "fr.read (existing) plus new fr.read.global, fr.ingest.runtime_chat, fr.ingest.native_editor. Operator receives the three scoped ones. fr.read.global is deliberately granted to NO profile, so unscoped cross-workspace enumeration is fail-closed. KERNEL_BUILDER verified it is defined but absent from the grant list.",
+        "routes": "The unscoped POST /flight_recorder/{native_editor_event,runtime_chat_event} paths are REMOVED. Both are now POST /workspaces/:workspace_id/flight_recorder/... so the path itself is the workspace authority, validated against a real canonical workspace row before any write. An unknown workspace returns the same 403 HSK-403-FR-WORKSPACE as unauthorized, so existence is never disclosed.",
+        "envelope_contract": "actor_id / actor_kind / workspace_id are no longer client authority. Optional; if present they must EXACTLY match the authenticated context or the request is rejected before any durable write; if absent the server fills them. Canonicalization overwrites them from context BEFORE validate_document_save_receipt, so a save receipt can only be claimed by the principal that minted it.",
+        "idempotency": "workspace_scoped_fr_event_id(workspace_id, client_event_id), a deterministic SHA-256-derived RFC 9562 v8 UUID, is now the durable FR/EventLedger identity; aggregate id and idempotency keys carry the workspace. Cross-workspace event-id pre-emption can no longer create a conflict, be read back, or be reconciled. The ack returns both event_id (client) and fr_event_id (durable).",
+        "reads": "GET /flight_recorder and /events require fr.read; omitting or blanking the wsid query additionally requires fr.read.global -> 403 and audited. The authenticated scope is applied LAST and UNCONDITIONALLY after every other filter, so no actor/actor_id/surface/event_type/event_id combination can widen it; a cross-workspace event_id returns 200 with an empty list rather than an error."
+      },
+      "proof_evidence": {
+        "cargo_check": "exit 0, 0 errors (--features duckdb-flight-recorder,test-utils)",
+        "flight_recorder_suite": "37 passed / 0 failed, exit 0 (540.97s)",
+        "zero_test_guard": "cargo test --lib native_editor under DEFAULT features now reports 0 passed / 0 failed / 1 IGNORED with the guard naming the missing feature, instead of a silent zero-test false green. Closes remediation item 8.",
+        "authorization_tests": "8 new tests through the REAL mounted router with a real binding file: unauthenticated/forged token -> 401 on all four routes with zero native-editor residue and exact deny audits; valid context lacking fr.read.global -> 403 plus audit and no mutation; spoofed actor_id/actor_kind/body workspace -> 403 with zero residue; clean envelope -> accepted with server-derived FR and EventLedger attribution; cross-workspace pre-emption -> disjoint aggregates and no read leakage; filter-widening blocked on both GET aliases; runtime-chat capability-gated and path-bound.",
+        "environment": "WP-scoped managed PostgreSQL cluster on port 5571 with an isolated data dir. No SQLite, no mocks.",
+        "kernel_builder_independent_verification": "KERNEL_BUILDER directly confirmed: the middleware layer is applied to the route group; the workspace-scoped ingestion routes exist; fr.read.global is defined but intentionally absent from the Operator grant list; and the frontend breakage below is REAL (event_emitter.rs:964 and app.rs:26219 still target removed/unscoped routes)."
+      },
+      "disclosed_gaps": [
+        "CROSS-MT, NOT CAUSED BY THIS DIFF: 3 api::memory:: tests fail deterministically (legacy_retry_heals_missing_receipt_once_and_converges, migration_0345_old_schema_identity_and_down_up_retry_converge, proposal_missing_provenance_fails_closed). The entire memory.rs change here is a 7-line test-module import alias and every failing assertion is in code byte-identical to HEAD; traced to commits c7063c24 fix(MT-064) and ea5e2947 fix(MT-065) of 2026-07-26. CONCRETE DEFECT FOUND: stable_proposal_request_id (memory.rs around lines 954-981) hashes ELEVEN components and OMITS actor_id, while migration 0345_fems_memory_workspace_authority.sql (around lines 105-117) hashes TWELVE including actor_id at position 11 and uses document_content_hash at position 12. A migrated legacy row therefore derives a different request_id than a live retry computes, which is exactly the retry-convergence break those tests exist to catch. Separately, proposal_missing_provenance_fails_closed expects 400 but get_knowledge_rich_document returns NotFound -> 404 (memory.rs around line 555); it still fails closed, only the status differs. Choosing the canonical identity shape has durable-data consequences across MTs and is deliberately NOT decided inside MT-109 authorization scope. KERNEL_BUILDER routed this finding to the live MT-064 session for an ownership judgment.",
+        "FRONTEND BREAKAGE IS EXPECTED AND DEFERRED TO NEW MT-111: src/frontend/** is a forbidden path for MT-109, so its callers still target the removed/unscoped routes. CONFIRMED by KERNEL_BUILDER rather than accepted on report: event_emitter.rs:964 formats the removed native_editor_event path and app.rs:26219 issues an unscoped GET /api/flight_recorder which is now 403 because fr.read.global is ungranted; neither sends the required session token. MT-111 was created in this work packet so the break is not lost.",
+        "test_other_pillar_interop_proofs.rs:2018 asserts the backend source contains the native_editor_event literal; still satisfied via the NATIVE_EDITOR_INGEST_PATH constant."
+      ],
+      "environment_disclosure": "fsync, synchronous_commit and full_page_writes were set off on the THROWAWAY WP-scoped cluster (port 5571) only, a test-infrastructure speedup on a disposable cluster. No test or gate was weakened and the shared 5544 cluster was untouched. That cluster was left running (PID 84360) so proofs stay reproducible.",
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED.",
+      "out_of_scope_edit_waiver": {
+        "status": "GRANTED_BY_OPERATOR",
+        "granted_at_utc": "2026-08-05T13:01:40.178Z",
+        "granted_by": "OPERATOR",
+        "recorded_by": "KERNEL_BUILDER-20260805-054937",
+        "scope": "src/backend/handshake_core/src/capabilities.rs (+18 lines: 3 capability ids and 3 Operator grants)",
+        "why": "Remediation step 1 explicitly requires defining the new capabilities in the CANONICAL capability registry, which lives in this file. The middleware cannot be fail-closed without them.",
+        "disclosure_note": "MT-109 V1 mechanical FAIL was exactly changed-files-outside-packet-scope, so this needs an explicit Operator decision. api/stage.rs and api/memory.rs are inside src/api/ and therefore within allowed_paths.",
+        "operator_statement": "Operator 2026-08-05: scope expansion for MT-109 granted.",
+        "governance_basis": "HBR-STOP-005 / GLOBAL-SCOPE-005: the out-of-scope edit was disclosed with its reason and the full list of touched files before the grant was requested."
+      },
+      "provenance_correction_2026_08_05": {
+        "by": "KERNEL_BUILDER-20260805-054937",
+        "at_utc": "2026-08-05T13:23:33.064Z",
+        "correction": "The MT-109 report attributed the proposal-identity divergence to commits c7063c24 fix(MT-064) and ea5e2947 fix(MT-065) of 2026-07-26. THAT ATTRIBUTION IS WRONG and is corrected here. KERNEL_BUILDER independently verified with git: migration 0345_fems_memory_workspace_authority.sql was ADDED by 892662e0 (2026-07-23 17:32, a WIP state-recovery checkpoint carrying MT-008/067/070 RFV_V3 work plus migrations 0342-0353 and the canonical Argus driver), which is its only commit; git blame shows every line of the Rust component list last touched by 892662e0; and git merge-base --is-ancestor confirms 892662e0 IS an ancestor of c7063c24. The migration therefore already existed when the MT-064 and MT-065 commits landed. MT-064 and MT-065 INHERITED the divergence; they did not create it.",
+        "effect": "No blame attaches to MT-064 or MT-065 for this defect. The divergence is tracked as its own work item, MT-112, because resolving it is a durable-data decision rather than a bug fix inside any existing MT scope."
+      }
+    }
   },
   "scope": {
     "summary": "Backend counterpart for the native editors WP: FR native-editor event ingestion, FEMS memory-pack read route, review-gated memory-proposal intake. Discovered by the 2026-07-02 drift audit as verified typed blockers behind MT-036 (event emitter has no ingestible backend shape), MT-063 (no /memory/pack route; client shape drift vs ace::MemoryPack), MT-064 (no /memory/proposals route), MT-074 (5 expected FR event kinds emitted by nothing and ingestible by nothing). Survivor-forward ingestion (MT-093) intentionally stays WP-KERNEL-016 scope - do not fold it in here.",
@@ -92,6 +146,12 @@
       }
     ],
     "proof_targets": [
+      "PT-109-1 [CORRECTED 2026-08-05 per validation_v4 remediation item 8]: cargo test --lib --features duckdb-flight-recorder,test-utils api::flight_recorder:: -- --test-threads=4 => MUST report a NONZERO test count. The previously declared command omitted --features duckdb-flight-recorder and therefore ran 0 tests while filtering out 1875, which the validator correctly called a zero-test false green. A guard now fails the run if the MT-109 filter matches zero tests.",
+      "PT-109-2: cargo test --lib --features duckdb-flight-recorder,test-utils api::memory:: -- --test-threads=4 => memory suite (see disclosed cross-MT failures).",
+      "PT-109-3: cargo check --lib --features duckdb-flight-recorder,test-utils => exit 0.",
+      "PT-109-4: authorization negatives through the REAL mounted router with a real binding file: unauthenticated/forged token => 401 on all four routes with zero residue; valid context without capability => 403 + audit + no mutation; spoofed actor/body workspace => 403 before any durable write; cross-workspace event-id pre-emption => disjoint aggregates and no read leakage; filter-widening blocked on both GET aliases."
+    ],
+    "proof_targets_superseded_2026_08_05": [
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml <new fr ingestion tests> (managed PG auto-boot)",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml <memory pack + proposal route tests> (managed PG auto-boot)"
     ]

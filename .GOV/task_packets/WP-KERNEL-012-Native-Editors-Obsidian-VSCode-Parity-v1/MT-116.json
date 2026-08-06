@@ -1,0 +1,84 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-116",
+  "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
+  "group": "E6-Interop",
+  "created_at_utc": "2026-08-06T12:50:39.525Z",
+  "updated_at_utc": "2026-08-06T12:50:39.525Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-068"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Surfaced during MT-068 V4 remediation by DIRECT frame inspection. The MT-068 agent judged that fixing it means touching shared rich-editor line-layout, which carries cross-MT visual regression risk against MT-034/MT-042/MT-074 chip surfaces, and deliberately routed it instead of rushing a shared-layout change inside a proof-cycle. KERNEL_BUILDER accepts that judgement: this is the correct call, and the defect is recorded here so it is not lost."
+  },
+  "scope": {
+    "summary": "The cross-reference chip pill background is rendered slightly narrower than its own label, so with long ids the tail of the id paints just outside the pill.",
+    "observed_defect": {
+      "symptom": "With a 44-character work-unit id, the chip pill background is narrower than the label it contains, so the end of the id renders outside the pill boundary.",
+      "severity": "COSMETIC. Explicitly NOT the V4 defect: the V4 finding was \"overlapping/garbled glyph runs\", and that IS closed - at 3x magnification the label reads exactly once, as a single glyph run, fully legible. This is a containment/width issue only.",
+      "evidence": "MT-068 run E frames under ../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-068/canonical-argus/run-4b57df589201-822e39a9b79e40168aac60b582179ccd/ (mt068-locus-work-packet-before.png shows the two resolved chips plus the red unresolved -MISSING chip).",
+      "suspected_cause": "A galley-font vs BASE_FONT_SIZE width mismatch: the pill background is measured with a different font metric than the one the label is finally laid out with, so the measured advance width is short.",
+      "why_not_fixed_in_mt068": "Out of MT-068 allowed_paths and it touches SHARED line-layout used by every chip surface in the WP. A width change made inside a live proof cycle could silently shift MT-034, MT-042 and MT-074 visual baselines with no regression coverage to catch it."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": [
+      "AC-116-1: the pill background width is derived from the SAME font metric that lays out the label, so the rendered label is fully contained within its pill for ids up to at least 44 characters.",
+      "AC-116-2: proven by direct frame inspection at a magnification where the label is legible - the frame must be OPENED and described, not merely captured. State the exact id length tested.",
+      "AC-116-3: NO regression to the chip surfaces owned by MT-034, MT-042, MT-068 and MT-074. Re-run their visual proofs and confirm no frame regressions, since this edits shared line-layout.",
+      "AC-116-4: the resolved (green), unresolved (red -MISSING) and code-ref chip variants are ALL checked, not just the resolved work-packet case."
+    ],
+    "proof_targets": [
+      "PT-116-1: a mounted frame containing a 44-character-id chip, opened and inspected, showing the full label inside the pill.",
+      "PT-116-2: MT-068 test_locus_interop ordinary suite still green (32 passed / 0 failed / 1 ignored at the time of writing).",
+      "PT-116-3: no byte-identical before/after frame pairs - a known failure mode in this WP where render_proof_frame paints the PRECEDING frame; use render_settled_proof_frame."
+    ],
+    "implementation_notes": "Read the MT-068 remediation_v4 record first. The single-use navigation record and the mt068.locus-ref-open-completion observer are NOT part of this MT - do not disturb them. This MT is layout-only."
+  },
+  "hbr_obligations": {
+    "VIS": "IN SCOPE and central - this MT exists purely to correct a visual containment defect. Frames must be opened and inspected, never just captured.",
+    "MAN": "Update the internal manual only if chip appearance guidance changes."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

@@ -14,7 +14,7 @@
   "title": "E5-MT-034-CodeNoteCrossRefs",
   "group": "E5 Interconnection / melt-together",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T21:21:28.6047070Z",
+  "updated_at_utc": "2026-08-02T04:20:01.6247579Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-034.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-031",
@@ -108,6 +108,14 @@
         "previous_status": "CLAIMED_V3_REMEDIATION",
         "new_status": "READY_FOR_VALIDATION_V3",
         "previous_active": true
+      },
+      {
+        "at_utc": "2026-08-02T04:20:01.6247579Z",
+        "by": "KERNEL_BUILDER-V4",
+        "reason": "MT-034 V4 remediation completed: current-source focused integration is 19/19 green against managed PostgreSQL; canonical mounted Argus proves slash/create, exact symbol reveal, and exact note reveal with three Applied receipts, distinct correlations, fresh dialog generation, clean terminal trees, and directly inspected readable WGPU frames; final adversarial re-review reports no remaining blocker.",
+        "previous_status": "FAIL_V4",
+        "new_status": "READY_FOR_VALIDATION_V4",
+        "previous_active": false
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
@@ -118,14 +126,14 @@
     "remediation_v3_status": "IMPLEMENTATION_AND_PROOF_COMPLETE_SCOPE_WAIVER_PENDING",
     "scope_waiver_pending": false,
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-30T17:27:18.890Z",
-    "ready_for_validation_by": "KERNEL_BUILDER",
-    "ready_for_validation_reason": "Operator granted the pending backend and UserManual scope waiver on 2026-07-30T17:27:18.890Z. Current V3 implementation and proof were already complete at product source 5bbe4fdf3cb6786f65cc8827bbd9494f3c9dafd5.",
-    "proof_status": "PASS_V3_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
-    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V3_ROOT_REVIEW_NO_REMAINING_PRODUCT_BLOCKER",
-    "external_resource_proof_status": "PASS_V3_REAL_POSTGRESQL",
+    "ready_for_validation_at_utc": "2026-08-02T04:20:01.6247579Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-V4",
+    "ready_for_validation_reason": "Current-source V4 remediation and proof complete. Full focused integration passed 19/19; canonical Argus proof has three Applied receipts, three distinct run-scoped correlations, dialog generation 0->1, clean create/open/reveal trees, exact symbol/note identities, and readable directly inspected 1920x1000 frames. Final independent adversarial re-review returned PASS with no remaining blocker.",
+    "proof_status": "PASS_V4_IMPLEMENTER_PROOF_PENDING_OFFICIAL_VALIDATOR",
+    "post_implementation_adversarial_review_status": "READY_FOR_VALIDATION_V4_INDEPENDENT_REVIEW_PASS_NO_REMAINING_PRODUCT_BLOCKER",
+    "external_resource_proof_status": "PASS_V4_REAL_POSTGRESQL",
     "missing_resource": null,
-    "ready_for_validation_summary": "MT-034 V3 product implementation and proof are complete at committed source 5bbe4fdf. Default cross-ref, exact live PostgreSQL, canonical mounted Argus/WGPU, UserManual, cross-ref library, compile, artifact-root, receipt-parse, direct-image inspection, and cleanup surfaces pass. The operator granted the pending backend and UserManual scope waiver, so the V3 lifecycle transition is now READY_FOR_VALIDATION_V3. Historical FAIL_V1/FAIL_V2 records remain preserved; the current validator verdict is PENDING_V3.",
+    "ready_for_validation_summary": "MT-034 V4 remediation is complete at current source candidate 8de72ebe-worktree-c784edf998011ca2. Full focused integration passed 19/19 against managed PostgreSQL. Fresh canonical Argus/WGPU proof has three Applied receipts, zero indeterminate actions, three distinct correlations, fresh slash-dialog generation, exact code-line and rich-document reveals, zero unexpected alias/error states, and directly inspected readable frames. Historical validator verdicts remain preserved for official V4 revalidation.",
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",

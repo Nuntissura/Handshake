@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-014",
@@ -152,6 +152,140 @@
       ],
       "lineage_boundary": "MT-066 frontend remediation binds the current Stage API and shared runtime dependencies. Backend Stage/Canvas migrations and storage work are shared dependency implementation and are not attributed to MT-066, whose forbidden src/backend/** boundary remains explicit for validator lineage.",
       "validation_instruction": "Independent validator must rerun from current product state; this handoff does not self-issue PASS."
+    },
+    "kernel_builder_implementation_evidence_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T08:30:34.061Z",
+      "purpose": "Live schema evidence gathered BEFORE implementation to settle validation_v4 remediation items 1 and 2, which warned: do not hard-code only the two constraints observed in these runs.",
+      "query": "SELECT referencing table/column/conname and confdeltype FROM pg_constraint WHERE contype=f AND confrelid=kernel_event_ledger::regclass (run against live PostgreSQL 16 on 127.0.0.1:5544, database handshake_wp_kernel_012_mt_024).",
+      "finding_total_fks_targeting_kernel_event_ledger": 68,
+      "finding_delete_rules": {
+        "RESTRICT": 53,
+        "NO_ACTION": 14,
+        "SET_NULL": 1
+      },
+      "finding_blocking_fks": 67,
+      "validator_named_two_confirmed": [
+        "loom_canvas_boards.event_ledger_event_id -> RESTRICT (loom_canvas_boards_event_ledger_event_id_fkey)",
+        "loom_block_knowledge_bridge.index_event_id -> RESTRICT (loom_block_knowledge_bridge_index_event_id_fkey)"
+      ],
+      "sample_other_blockers": [
+        "loom_blocks.event_ledger_event_id",
+        "loom_edges.event_ledger_event_id",
+        "kernel_crdt_updates.event_ledger_event_id",
+        "kernel_crdt_snapshots.event_ledger_event_id",
+        "knowledge_rich_documents.promotion_receipt_event_id",
+        "knowledge_rich_documents.deleted_receipt_event_id",
+        "knowledge_crdt_ai_edit_proposals.recorded_event_id",
+        "knowledge_ingestion_receipts.receipt_event_id"
+      ],
+      "implementation_directive": "CONFIRMS the remediation_plan item 1 preference. Do NOT implement the hand-enumerated SQL cleanup path as the primary strategy: 67 of 68 foreign keys targeting kernel_event_ledger are RESTRICT or NO ACTION, so any hard-coded list of referencing tables will be incomplete on the day it is written and will silently rot as new tables are added. The cleanup MUST drive the canonical product-owned workspace DELETE API first so the product owns its own cascade boundary, and only then remove explicitly tracked Stage/Flight-Recorder residue the API does not own. If any explicit SQL remains necessary, it MUST derive the referencing set DYNAMICALLY from pg_constraint at runtime rather than from a literal list, and MUST stay transactionally scoped to the exact generated workspace/stage-artifact/job/event ids (never TRUNCATE, never broad source-component deletion, because parallel WP agents share this server).",
+      "verification_note": "This evidence is schema-level and was gathered read-only; it does not by itself prove the cleanup ordering fix. The MT still requires the live live_route_round_trip_real_pg run with zero scoped residue and the two regression fixtures the validator demanded."
+    },
+    "kernel_builder_implementation_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T18:21:07.035Z",
+      "implemented_directly_by_kernel_builder": "Sub-agents were unavailable (platform session limit), so KERNEL_BUILDER implemented this MT directly.",
+      "code_changes": {
+        "file": "src/frontend/handshake_native/tests/test_stage_interop.rs",
+        "item_1_and_4_ordering": "finish_and_assert_zero REORDERED: delete_workspace_and_assert_absent() now runs FIRST so the product-owned workspace DELETE API owns its own cascade boundary, then cleanup_all_and_assert_zero() removes only the residue that API does not own. The V3 order deleted kernel_event_ledger rows while workspace-owned rows still referenced them under RESTRICT, which is the foreign-key violation the validator reproduced.",
+        "item_2_dynamic_fk_detach": "NEW detach_ledger_references() walks pg_constraint at RUNTIME for every foreign key whose confrelid is kernel_event_ledger, then nulls each NULLABLE referencing column and deletes rows whose referencing column is NOT NULL - scoped strictly to the tracked event ids. This directly answers the validator instruction not to hard-code only the two observed constraints: a live schema inspection found 68 such foreign keys (53 RESTRICT, 14 NO ACTION, 1 SET NULL), so 67 can block a ledger delete and any literal list would be incomplete on the day it is written.",
+        "item_3_scoping": "Cleanup remains transactionally scoped to the exact generated workspace, artifact, job and event ids. No TRUNCATE and no broad source-component deletion, because parallel work-packet agents share this PostgreSQL server.",
+        "item_5_idempotent_drop": "Drop is now idempotent and NON-DUPLICATIVE. Two new completion flags (native_fr_cleanup_done, stage_side_effect_cleanup_done) mean each phase runs at most once. When the thread is already panicking, Drop performs best-effort recovery and emits a deterministic diagnostic naming which phase failed INSTEAD of raising a second identical panic that previously buried the primary defect. Drop also uses the same workspace-DELETE-first ordering.",
+        "item_6_regression_fixtures": "Two focused regression fixtures added, one per reproduced foreign-key path: mt066_canvas_board_event_ledger_reference_does_not_block_cleanup (loom_canvas_boards.event_ledger_event_id) and mt066_knowledge_bridge_index_event_reference_does_not_block_cleanup (loom_block_knowledge_bridge.index_event_id). Each seeds a REAL ledger event plus a real referencing row, asserts via pg_constraint that the constraint still exists (so the fixture fails loudly rather than becoming silently vacuous if the schema changes), runs the full cleanup, and independently re-reads to prove the tracked event is gone. Shared body parameterised by (table, column) because the defect class is any row referencing a tracked ledger event, not those two tables specifically."
+      },
+      "item_7_source_cleanliness": "RESOLVED by commit 5dc08b0f, which committed the inherited and in-flight work WITHOUT discarding it. The validator forbade weakening current_runtime_source_tree, expanding its exceptions, or using git clean/reset/stash; committing satisfies both constraints because it PRESERVES the work and produces the clean HEAD the proof binds to. AGENTS.md and CLAUDE.md remain intentionally uncommitted as main-only surfaces per CX-113A, and the proof gates already exclude them.",
+      "compile_status": "cargo check --test test_stage_interop => exit 0, zero errors, zero new warnings.",
+      "proof_status": "NOT YET PROVEN AT RUNTIME. The first run correctly REFUSED to execute: the fixture requires an explicit HSK_TEST_BACKEND_BIN from an isolated current-source cargo build (pg_proof_support/mod.rs:492) rather than trusting an arbitrary binary - the provenance gate working as designed. A current-source handshake_core is being built into the KERNEL_BUILDER scoped target dir; the regression fixtures and live_route_round_trip_real_pg must then pass before this MT can move to READY_FOR_VALIDATION_V4.",
+      "anticipated_cross_mt_risk": "delete_workspace_and_assert_absent() calls GET /api/flight_recorder, which MT-109 has just made capability-gated. If these fixtures now receive 401/403, that is the MT-109 test-harness fallout already captured as MT-111 AC-111-7, and it MUST be resolved by presenting a genuine native-MCP session binding - never by weakening the new authorization.",
+      "deferred_not_done": "Remediation item 2 also suggests relocating run-generated proof logs/manifests (tests/fixtures/swarm_edit_proof_log.txt, tests/perf_proof/perf_manifest.json) out of tracked test-source paths into ../Handshake_Artifacts. NOT done here: those files are owned by MT-043 (PASS_V4) and MT-045 (READY_FOR_VALIDATION_V4), and the Operator standing rule forbids touching an MT that has already passed unless its dependencies change. The immediate blocker is resolved by the commit; the relocation remains a durable improvement for a future MT."
+    },
+    "kernel_builder_proof_outcome_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T20:08:26.831Z",
+      "headline": "The runtime proof FOUND FOUR GENUINE DEFECTS in the KERNEL_BUILDER implementation. They are recorded plainly because this is exactly why runtime proof is required and compile-clean is not evidence.",
+      "build": "cargo build --bin handshake_core --features app-runtime -j 2 => EXIT 0 in 26m32s, no cl.exe failure at the duckdb translation unit. This confirms the earlier failures were memory pressure at higher parallelism, not a toolchain defect. The provenance gate accepted HSK_TEST_BACKEND_BIN untouched.",
+      "first_run_of_kernel_builder_code_unmodified": "cargo test --features integration --test test_stage_interop mt066_ => FAILED, 0 passed / 2 failed, EXIT 101.",
+      "defects_in_kernel_builder_implementation": {
+        "D1_detach_could_never_execute": {
+          "severity": "FATAL",
+          "detail": "detach_ledger_references cast the scoped id array ::text[]::uuid[], but kernel_event_ledger.event_id is TEXT, not uuid, and all 68 referencing columns are therefore text as well. Proven directly: SELECT 'x'::text = ANY('{}'::text[]::uuid[]) raises \"operator does not exist: text = uuid\" at PLAN time, so it fires even on an empty array; and real ids are KE-<uuid>, so ARRAY['KE-...']::text[]::uuid[] raises \"invalid input syntax for type uuid\". Every call to cleanup_stage_side_effects_and_assert_zero would have died.",
+          "fix": "Comparison stays in text."
+        },
+        "D2_detached_set_did_not_match_deleted_set": {
+          "severity": "HIGH",
+          "detail": "The detach was scoped only to stage_event_ids, but the DELETE also removes workspace-matched, idempotency-key-matched and artifact-derived events — leaving exactly the RESTRICT window the V3 run tripped over.",
+          "fix": "The detach now runs INSIDE the same transaction, immediately after mt066_stage_cleanup_events is built, and drives that temp table. This also makes remediation item 3 (transactionally scoped) literally true; it was two separate psql transactions before."
+        },
+        "D3_regression_fixtures_were_vacuous": {
+          "severity": "HIGH_AND_IRONIC",
+          "detail": "The fixture comment claimed to seed a real ledger event AND a real referencing row in one transaction, but the SQL only inserted the ledger row. No loom_canvas_boards or loom_block_knowledge_bridge row was ever created, so nothing could block the delete. The fixtures would have passed while proving NOTHING - precisely the silently-vacuous failure mode the fixture comment itself warned about.",
+          "fix": "Real loom_blocks parent plus a real loom_canvas_boards row with a valid hsk.loom_canvas_board@1 board_state, and real knowledge_entities plus a real loom_block_knowledge_bridge row, with a new pre-cleanup assertion that the referencing row actually exists."
+        },
+        "D4_seed_insert_omitted_nine_not_null_columns": {
+          "severity": "BLOCKING",
+          "detail": "The seed INSERT omitted event_version, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, event_type, actor_kind, actor_id and payload_hash, failing with \"null value in column event_version ... violates not-null constraint\". It also used '{uuid}'::uuid for a text KE- column.",
+          "fix": "All NOT NULL columns supplied; the fixture now deliberately seeds a production-shaped KE-<uuid> id, because a bare UUID would have MASKED D1."
+        }
+      },
+      "non_vacuity_proven_by_forced_red": "With the detach temporarily disabled (switch since removed, never committed), the fixtures reproduced the validator exact V4 failure on demand: \"update or delete on table kernel_event_ledger violates foreign key constraint loom_canvas_boards_event_ledger_event_id_fkey ... Key (event_id)=(KE-f7433139-...) is still referenced\". The fixtures also deliberately run residue cleanup BEFORE the workspace DELETE (the exact V3 order) so they pin the detach itself rather than riding the product cascade.",
+      "kernel_builder_drop_design_validated": "The Drop redesign was CORRECT and worked under a real forced failure: exactly ONE primary panic plus the deterministic \"drop-recovery could not fully clean workspace ... the ORIGINAL panic above is the primary defect\" diagnostic, with no duplicate backtrace, and zero residue left behind.",
+      "regression_fixtures_now_pass": "cargo test --features integration --test test_stage_interop mt066_ => ok, 2 passed / 0 failed, EXIT 0. Run twice, the final run at committed HEAD.",
+      "zero_residue_verified": "Read-only after every run: workspaces=0, loom_canvas_boards=0, loom_block_knowledge_bridge=0, loom_blocks=0, stage_capture_artifacts=0, ai_jobs=0, knowledge_entities=0, knowledge_rich_documents=0, ledger stage-capture/native-editor-fr rows=0. Two workspaces left by the pre-fix failed run plus a probe workspace were also removed.",
+      "mt109_read_side_solved_with_a_real_binding": "Added LiveBackend::get_json_with_session_token (additive, in a V3 scope-authority path) plus live_binding_session_token(), reading the token from the proof own real on-disk swarm_mcp_binding.json. The fixtures publish a genuine binding with real pid and real OS process-birth identity before the owned backend starts, and all 6 recorder reads use it. An absent, forged or stale binding still fails closed. Nothing was weakened, stubbed, feature-gated or bypassed.",
+      "BLOCKER_live_proof_depends_on_mt111": {
+        "status": "BLOCKED_ON_MT-111",
+        "proof": "live_route_round_trip_real_pg FAILS at test_stage_interop.rs:901 with \"automatic route_to_stage Flight Recorder row did not arrive within five seconds\". Root cause proven at runtime against a backend the agent started and stopped itself: POST /api/workspaces/{id}/flight_recorder/native_editor_event with no token returns HTTP 401 {\"error\":\"HSK-401-FR-SESSION\"}, and GET /api/flight_recorder?wsid={id} with no token returns 401.",
+        "cause": "RuntimeChatLedgerTransport::post in src/frontend/handshake_native/src/event_emitter.rs - the SOLE production transport, wired at lines 1128/1139/1153/1173 - sends only .json(&body) and NO x-hsk-session-token. MT-109 fail-closed middleware covers the entire route group, so the mounted native app can no longer write its own Flight Recorder events and the route FR row never lands.",
+        "why_not_fixed_here": "event_emitter.rs is outside MT-066 allowed_paths and outside its V3 scope-authority list, and this is precisely MT-111 AC-111-2 / AC-111-7. Threading the MCP session token into the emitter - which token, refresh on rebind, error surface - is a real security-shaped product change that MT-111 owns. Nothing was weakened, stubbed, feature-gated or bypassed to work around it.",
+        "consequence": "MT-066 CANNOT reach READY_FOR_VALIDATION_V4 until MT-111 makes the native emitter present its binding token. MT-111 is therefore on the critical path for MT-066."
+      },
+      "disclosures": [
+        "Source-cleanliness race: a concurrent MT-027 agent was live in this worktree and committed the MT-066 changes into its own commits fcf49702 and a6280d31 - work preserved and verified byte-identical to the working tree. The MT-066 agent made one commit, 110389fd, snapshotting MT-027 in-flight test_block_collection_view.rs so the gate could bind a clean HEAD, following the same preservation pattern as the existing 5968bb36/fcf49702. Nothing discarded; no reset/clean/stash/checkout; no push.",
+        "Scoped target dir wp012-mt066 intentionally retained (covered by RD-WP012-SCOPED-ARTIFACT-RETENTION-DEFERRAL): it holds the provenance-gated current-source handshake_core.exe and compiled test binary needed for the immediate post-MT-111 rerun; deleting it costs a 27-minute rebuild.",
+        "No orphan processes remain (handshake_core and test_stage_interop counts both 0)."
+      ]
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-06T05:32:38.430Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-06T05:32:38.430Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "NEEDS_REIMPLEMENTATION_V4",
+      "defect": "validation_v4: LiveWorkspaceGuard cleanup deleted kernel_event_ledger rows while workspace-owned rows still referenced them under RESTRICT, so cleanup tripped a foreign-key violation; Drop then re-ran the same failing cleanup and emitted a SECOND identical panic that buried the primary defect; and the source-provenance gate refused to run at all while the runtime tree was dirty.",
+      "final_results": "live_route_round_trip_real_pg => EXIT 0, 1 passed / 0 failed, 41.47s, source_sha 7e2601c72dc2890cea413e93f4199a7836158187, tree c8334c8c0825. mt066_ regression fixtures => EXIT 0, 2 passed / 0 failed, 28.74s. No rebuild needed; the mtime provenance gate held. relevant_source_clean=true and transitive_runtime_source_clean=true with known dirty limited to AGENTS.md and CLAUDE.md.",
+      "zero_residue_verified_by_direct_query": "workspaces=0, loom_canvas_boards=0, loom_block_knowledge_bridge=0, loom_blocks=0, stage_capture_artifacts=0, ai_jobs=0, knowledge_entities=0, knowledge_rich_documents=0, ledger_native_editor_fr=0, ledger_stage_capture=0. 14 stale rows left by the agent own earlier FAILED runs were removed first, so these numbers are genuinely clean rather than incidentally empty.",
+      "visual_evidence_opened": "Both PNGs opened at 1100x760, readable and non-overlapping. BUSY frame: \"Route to Stage is busy; the request was retained. Use Retry Route to Stage.\" with an ENABLED Retry control, routed content showing nothing routed, and Capture/Embed-back disabled. RECOVERED frame: routed content carrying the EXACT bytes including the accented character and the LF, plus the embed status naming artifact STGA-019fd58b0d387110bed8bb4e142bed92 with sha 6cb9c37f3600 matching the evidence JSON, and no Load-failed or project-tree retry state.",
+      "additional_evidence": "Dead-owner recovery proven (owner_live_after_reap=false); restart reclaimed the EXACT listener 127.0.0.1:53942 with post_restart_artifact_readback=true; capture_error is a typed EndpointAbsent with artifact_fabricated=false.",
+      "kernel_builder_implementation_defects_found_by_the_proof": {
+        "note": "Recorded plainly. The KERNEL_BUILDER-authored implementation compiled cleanly and was substantially non-functional; only the runtime proof exposed it. This is the strongest argument in this WP for the no-scaffolding, runtime-proof rule.",
+        "d1": "detach_ledger_references cast the id array ::text[]::uuid[], but kernel_event_ledger.event_id is TEXT - the comparison raised operator does not exist: text = uuid at PLAN time, so EVERY cleanup call would have died.",
+        "d2": "The detach was scoped only to stage_event_ids while the DELETE also removes workspace-, idempotency-key- and artifact-derived events, leaving exactly the RESTRICT window V3 tripped on. Fixed by running the detach INSIDE the same transaction driving the temp table.",
+        "d3": "The regression fixtures were VACUOUS - the comment claimed to seed a referencing row but the SQL only inserted the ledger row, so nothing could block the delete. Fixed with real loom_blocks + loom_canvas_boards and real knowledge_entities + loom_block_knowledge_bridge rows plus a pre-cleanup existence assertion.",
+        "d4": "The seed INSERT omitted nine NOT NULL columns and used a uuid cast for a text KE- column.",
+        "d5": "live_binding_session_token() hard-panicked during Drop recovery once the app and its binding were gone, aborting residue cleanup. Made fallible ONLY while unwinding (try_live_binding_session_token); the strict path still panics on a missing binding.",
+        "non_vacuity": "With the detach temporarily disabled the fixtures reproduced the validator exact V4 foreign-key error on demand, then the switch was removed and never committed.",
+        "drop_design_validated": "The Drop redesign worked under a real forced failure: exactly ONE primary panic plus the deterministic diagnostic, no duplicate backtrace, and zero residue."
+      },
+      "cross_mt_defects_found_and_fixed": [
+        "THE FR ROW HAD ARRIVED AND THE FIXTURE PREDICATE WAS WRONG. wait_for_native_fr matched row event_id against a CLIENT-side receipt id, but MT-109 made the durable FR event_id a workspace-scoped DERIVATION. A timeout diagnostic dumping visible rows proved both route_to_stage rows were present AND that a capability_action / fr.ingest.native_editor decision_outcome allow had been recorded - independently confirming the MT-111 emitter fix works. Fixed with fr_row_matches_producer_event() checking payload.client_event_id with an event_id fallback, applied at all three producer-identity sites.",
+        "MT-027 V5 (commit d896bbd9) TIGHTENED THE SHARED CANONICAL DRIVER after MT-066 proof was written: finish() now requires every action to be rebound to an authoritative terminal snapshot AND carry a passing action-specific predicate. MT-066 five actions had none. Five real predicates were bound: menu exposes the route leaf; busy retains status and retry; retry renders routed content; endpoint-absent surfaces the typed status; recovered shows embed status and routed content with NO project-tree retry state. This is a genuine cross-MT ordering effect worth noting for the validator.",
+        "argus.finish() DELETES THE NATIVE-MCP BINDING. It consumes the driver, dropping the production SwarmMcpServer whose Drop removes the binding file, after which no caller can present a genuine MT-109 token - so the authorized recorder readback inside delete_workspace_and_assert_absent() could not run at all. Fixed by ORDERING (cleanup.finish_and_assert_zero(); then argus.finish();) so the assertion stays STRICT against a live binding rather than relaxing authorization. Evidence is still written only after both.",
+        "THE MT-111 HARNESS FIX WAS INCOMPLETE, caught by querying PostgreSQL DIRECTLY after a run that had already printed its PROVEN line and written event_ledger_fixture_rows_zero: true while 2 rows remained. The mounted app emits MORE native-editor events than the proof tracks by id (the occupied-route blocker among them) and those rows carry no top-level payload.workspace_id, so neither the tracked-id path nor the payload-workspace path reached them. Fixed by adding the two workspace-partitioned key prefixes, carrying this run own generated workspace id, to both the delete set and the zero assertion - scope unchanged."
+      ],
+      "authorization_never_weakened": "Every recorder read presents the real on-disk binding token and a missing binding still fails closed. The MT-109 authorization was never weakened, bypassed, feature-gated or stubbed.",
+      "disclosures": [
+        "Six commits on feat/WP-KERNEL-012, none pushed by the agent: five MT-066 fixes (d7879446, daf6ef0a, a4001787, c55735a0, 7e2601c7) plus 740f3b6f, a snapshot of a concurrent lane in-flight test_app_host_mount.rs - the 18-minute rebuild window let another lane re-dirty the tree and abort the source gate again. Same preserve-never-discard pattern as 5968bb36 and fcf49702; no reset, clean, stash or checkout.",
+        "Files touched this session: tests/test_stage_interop.rs (allowed path) only. tests/pg_proof_support/mod.rs carried the additive get_json_with_session_token from the earlier session (a V3 scope-authority path). No src/ product code and no .GOV/.",
+        "Scoped target dir wp012-mt066 left in place because it holds the provenance-gated binary; delete at MT close. No orphan processes (count=0)."
+      ],
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     }
   },
   "scope": {
@@ -499,28 +633,28 @@
     "validation_instruction": "Independent validator must inspect and rerun from current product HEAD; this implementer handoff does not self-issue PASS."
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-066 FAIL V2. Stage route/capture may have live route tests, but the mounted editor-to-Stage flow has no current canonical Argus inspect/steer/re-observe evidence covering route, busy/retry, capture, error, and recovered states.",
+    "remediation_plan": [
+      "Re-prove Stage route and capture against real PostgreSQL/EventLedger with immutable correlation, busy retry, dead-owner recovery, restart, and cleanup assertions.",
+      "Drive the mounted Stage controls through canonical Argus with stable author_ids and fresh post-action observations; update the canonical UserManual three-tier posture."
+    ],
+    "no_context_instruction": "Read MT-066.json, packet, and current spec. Complete the live receipt and canonical Argus matrix before returning READY_FOR_VALIDATION_V3."
   },
-  "fail_report": "MT-066 FAIL V2. Stage route/capture may have live route tests, but the mounted editor-to-Stage flow has no current canonical Argus inspect/steer/re-observe evidence covering route, busy/retry, capture, error, and recovered states.",
-  "remediation_plan": [
-    "Re-prove Stage route and capture against real PostgreSQL/EventLedger with immutable correlation, busy retry, dead-owner recovery, restart, and cleanup assertions.",
-    "Drive the mounted Stage controls through canonical Argus with stable author_ids and fresh post-action observations; update the canonical UserManual three-tier posture."
-  ],
-  "no_context_instruction": "Read MT-066.json, packet, and current spec. Complete the live receipt and canonical Argus matrix before returning READY_FOR_VALIDATION_V3."
-},
   "validation_v4": {
     "schema_id": "hsk.mt_validation_verdict@1",
     "verdict": "FAIL_V4",

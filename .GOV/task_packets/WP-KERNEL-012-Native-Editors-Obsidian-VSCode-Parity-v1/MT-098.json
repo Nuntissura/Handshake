@@ -14,7 +14,7 @@
   "title": "U2-MT-098-ChatboxPaneBesideWorksurface",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-31T23:33:46.4321471Z",
+  "updated_at_utc": "2026-08-01T14:36:01.5504270Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -46,11 +46,11 @@
       "independent_review": "PASS — READY_FOR_VALIDATION_V2 (mt098_108_review, 2026-07-18). Residual uncertainty: no full-clippy/full-suite receipt was used for this MT-specific remediation; targeted acceptance surfaces are green.",
       "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-098"
     },
-    "ready_for_validation_at_utc": "2026-07-24T16:10:00.000Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "ready_for_validation_at_utc": "2026-08-01T14:36:01.5504270Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-V4",
     "remediation_v3_in_progress": false,
     "completed_by": null,
-    "ready_for_validation_summary": "MT-098 V3: canonical Argus over mounted runtime chat pane - navigation/focus/send/unavailable(EndpointMissing)/retry/cancellation/recovery, no fabricated Assistant turn. Validator PENDING; completed_by null."
+    "ready_for_validation_summary": "MT-098 V4 remediation: mounted Runtime Chat has source-bound canonical focus/draft/send/retry/cancel/recovery predicates for request generations 1-4, truthful EndpointMissing/no-assistant behavior, exact cancelled-generation late-delivery isolation, clean source-bound one-System/zero-user default screenshot proof, documented runtime-chat-cancel recovery workflow, searchable read-only Settings posture, 14/14 applicable Runtime Chat tests green, and two independent adversarial reviews PASS. Validator verdict remains FAIL_V4 pending fresh validation; completed_by remains null."
   },
   "scope": {
     "summary": "OPERATOR PRODUCT-VISION STEER (2026-06-27): the worksurface is notes editors (MT-097) WITH A CHATBOX BESIDE IT — the Cursor / VS-Code / Antigravity editor+chat layout. This MT adds the CHAT panel as a first-class pane docked beside the editors so the fresh default worksurface shows EDITOR(S) + CHAT side by side.\n\nVERIFIED STATE (live-app inspection 2026-06-27): there is NO existing native chat pane (no runtime_chat / ChatPane surface in src/frontend/handshake_native). A chat surface EXISTS only in the legacy React app via Tauri IPC (app/src/components/swarm/OperatorChat.tsx + app/src-tauri kernel_swarm_chat_generate / session_chat_append / session_chat_read), NOT as a backend HTTP route. There is NO /chat or /conversation HTTP endpoint on handshake_core (verified absent in src/backend/handshake_core/src/api/mod.rs). So the SEND/RECEIVE ROUND-TRIP backend route over the native HTTP client is GENUINELY ABSENT.\n\nWhat to build (a REAL chat pane scaffold wired to the real route IF one exists, else a HONEST typed blocker — NOT a mock that fakes responses):\n- CREATE src/frontend/handshake_native/src/runtime_chat/ (mod.rs + panel.rs): a `ChatPanel` egui widget — a scrollback transcript (a Vec<ChatTurn{role, text}>) + a multiline input box + a Send button. Theme tokens only (no Color32 outside theme/palette.rs — CONTROL-4). AccessKit: register the pane container as Role::Region with author_id = \"runtime-chat-panel\", the input as `runtime-chat-input` (TextInput), and the send button as `runtime-chat-send` (Button) so a no-context model + swarm agents can drive it (HBR-VIS/SWARM).\n- CREATE `ChatPaneFactory` (impl crate::pane_registry::PaneFactory) following the editor_pane_factories.rs MT-079 host-mount pattern (a thin factory whose &self render drives a shared Arc<Mutex<ChatPanel>> the shell also holds). Add a `PaneType::RuntimeChat` variant to pane_registry.rs PaneType (arms in BOTH `label()` => \"Chat\" and `default_label()` => \"Chat\"; the compiler enforces exhaustiveness — do not miss one). Register the real ChatPaneFactory in app.rs over the PaneType::RuntimeChat placeholder (alongside install_editor_mounts).\n- WIRE THE SEND PATH to the REAL backend route: inspect backend_client.rs for an existing reusable client; the BACKEND HTTP CHAT ROUTE IS VERIFIED ABSENT, so the Send action records a TYPED BLOCKER (a typed `ChatSendError::EndpointMissing` returned from a `RuntimeChatClient` whose `production()` ctor documents the absent route), and the panel renders an HONEST empty-state / disabled-send banner ('Chat backend route absent — wired when handshake_core exposes POST /chat or the IPC bridge is reachable'). DO NOT fabricate an assistant reply. If, on inspection, a reachable HTTP send/receive route is found (e.g. a /jobs-backed or new chat route), wire the Send -> real POST and round-trip a message instead; prefer the real wire when a route exists.\n- EDIT app.rs `default_panes()` (post-MT-097): ADD `(\"pane-c\", PaneType::RuntimeChat)` so the fresh default worksurface is CodeSymbol + LoomWikiPage + RuntimeChat (editor(s) + chat side by side). default_tab_bar_states() auto-tracks. Verify the SplitLayoutWidget renders the three panes side by side (the chat docked beside the editors).\n- CREATE src/frontend/handshake_native/tests/test_runtime_chat_pane.rs.\n\nReuse notes: the PaneFactory trait + the shared-cell `&self render` threading + the factory-map registration are the EXISTING MT-079 editor-mount pattern (editor_pane_factories.rs is the worked reference). The accessibility registry + theme layer are reused (accessibility/registry.rs, theme/palette.rs). backend_client.rs is the reuse-via-API surface for any real route. src/backend untouched.\n\nRisk if missed: a chat pane that fakes assistant replies (a mock) would violate the no-mock Spec-Realism Gate; an absent route must be an HONEST typed blocker + disabled-send empty-state, not a fabricated round-trip.",

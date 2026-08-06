@@ -1,0 +1,90 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-113",
+  "title": "E5-MT-113-Bound-Author-Id-Composition-So-User-Content-Cannot-Silently-Disable-Completion-Tokens",
+  "group": "E5-Interconnection",
+  "created_at_utc": "2026-08-05T20:19:25.344Z",
+  "updated_at_utc": "2026-08-05T20:19:25.344Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260805-054937",
+    "creation_reason": "Discovered during MT-029 remediation and measured precisely. This is a PRODUCT-VISIBLE observability defect reachable by ordinary user input, not a test-fixture concern, and it is outside MT-029 scope. Captured per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost."
+  },
+  "scope": {
+    "summary": "Bound author_id composition so that user-supplied content can never push a completion token past its byte budget and silently disable Argus observability for that control.",
+    "measured_defect": {
+      "mechanism": "SearchBookmark::stable_id() hex-encodes the query, and bookmark_*_author_id then hex-encodes THAT result - a 4x expansion of the original user bytes. MAX_CLICK_COMPLETION_AUTHOR_BYTES is 256 (src/frontend/handshake_native/src/mcp/action.rs line 55), so the composed id overruns and serialize_* returns None. The node then carries no completion token, the action can never terminalize, and its receipt is permanently indeterminate.",
+      "first_failing_input": "A search query of just 23 CHARACTERS. Measured example: \"authentication middleware refactor\" (34 chars) produces a 304-byte author_id whose token is silently dropped. This is trivially reachable by a real operator.",
+      "budget_raising_is_not_a_fix": "Raising the budget only moves the ceiling: 256 B -> 22 chars, 512 B -> 86, 1024 B -> 213, 2048 B -> 469. Every tier remains reachable by a real query, path, or document title. Raising it also weakens bounded-token flood control and is a SHARED contract change inherited by every MT that emits a token.",
+      "field_budget_asymmetry": "The SAME id is legal as `context` (512 B, used by same-target tokens) but illegal as `pending_target` (256 B, used by observer tokens). A synchronous control therefore proves fine while its asynchronous sibling cannot - which is exactly why bookmark RESTORE passed while bookmark REMOVE did not. That asymmetry is itself a latent trap for future MTs.",
+      "silent_failure": "serialize_* simply returns None. The node carries no value, the action becomes unprovable, and NO diagnostic is emitted anywhere. That silence is what made this cost a full proof cycle to discover."
+    },
+    "recommended_direction_from_the_mt029_agent_not_yet_authorised": [
+      "PREFERRED: stop putting unbounded user content in a durable author_id at all. The root defect is that SearchBookmark::stable_id() derives identity from free text. Mint a bounded id (Uuid::now_v7(), which HBR-INT-008 already REQUIRES for new id mint sites) and keep the content-derived value as a separate dedup key. This bounds the row id by construction at roughly 102 bytes AND stays reversible.",
+      "Where a content-derived id is genuinely unavoidable, hash ONLY the variable component behind a stable prefix. NOTE the trade-off: this loses exact reversibility, which MT-029 actively relies on (hit_identity_from_result_author_id and accesskit_result_ids_are_utf8_injective_and_exactly_reversible), so it must be applied per-component rather than globally.",
+      "Make the failure LOUD regardless of which option is chosen: a debug_assert! plus a typed completion-unavailable marker so an over-budget id surfaces at authoring time instead of becoming a silently unprovable action months later."
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/mcp/action.rs",
+      "src/frontend/handshake_native/src/find_in_files.rs",
+      "src/frontend/handshake_native/src/**",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**"
+    ],
+    "acceptance_criteria": [
+      "AC-113-1: an author_id composed from ARBITRARY user content (query, path, title) can no longer exceed its token budget. Proven with a property-style test over long, multibyte and adversarial inputs, including the measured 23-character regression case.",
+      "AC-113-2: exact reversibility relied on by MT-029 is preserved where it is required. accesskit_result_ids_are_utf8_injective_and_exactly_reversible and hit_identity_from_result_author_id must still pass unchanged; if a component becomes non-reversible, prove nothing depending on reversibility consumes it.",
+      "AC-113-3: an over-budget id can no longer fail SILENTLY. A typed completion-unavailable signal is emitted and is visible to the proof surface, and a debug_assert! fires in debug builds at authoring time.",
+      "AC-113-4: the pending_target (256 B) versus context (512 B) asymmetry is resolved or explicitly documented as intentional, so a synchronous control and its asynchronous sibling cannot diverge in provability for the same id.",
+      "AC-113-5: bookmark REMOVE - the control that concretely failed - produces a terminal non-indeterminate receipt with a realistic long query, proving the fix at the exact site that exposed the defect.",
+      "AC-113-6: if any new id mint site is introduced, it uses Uuid::now_v7() per HBR-INT-008, not v4."
+    ],
+    "proof_targets": [
+      "PT-113-1: property test over generated long/multibyte/adversarial inputs asserting the composed author_id stays within budget and the token always serializes.",
+      "PT-113-2: the MT-029 reversibility tests still pass unchanged.",
+      "PT-113-3: a mounted canonical Argus proof that bookmark REMOVE terminalizes with a realistic long query - the regression that started this."
+    ]
+  },
+  "hbr_obligations": {
+    "VIS": "REQUIRED - this defect makes controls permanently unprovable to Argus, which is an HBR-VIS observability failure.",
+    "INT": "REQUIRED - any new id mint site must use UUID v7 per HBR-INT-008.",
+    "MAN": "Required only if an operator- or model-visible contract changes."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

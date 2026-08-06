@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -166,6 +166,71 @@
       "verdict": "PASS",
       "emitted_by": "KERNEL_BUILDER-20260705-025228",
       "emitted_at_utc": "2026-07-05T05:07:52.554Z"
+    },
+    "kernel_builder_implementation_evidence_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T12:38:56.121Z",
+      "purpose": "Pre-implementation analysis for validation_v4 remediation item 2 (wrapper cleanliness gate), gathered so the implementer does not weaken source provenance while unblocking the run.",
+      "current_gate": "run_mt027_argus_proof.ps1 lines 21-30 runs: git status --porcelain --untracked-files=all -- . :(exclude)AGENTS.md :(exclude)CLAUDE.md, and throws if ANY row is dirty. It therefore treats the ENTIRE repository as MT-027 compiled/configured input.",
+      "why_it_blocks": "The Operator holds an unrelated formatting-only diff in tests/test_find_in_files.rs. The validator explicitly forbade mutating or deleting that change to make the gate pass, so the official wrapper currently cannot bind a fresh run in this shared worktree.",
+      "correct_narrowing": "Rust integration tests each compile into a SEPARATE test binary. tests/test_find_in_files.rs is compiled into the test_find_in_files binary ONLY and provably cannot enter the artifacts of test_block_collection_view. So excluding other test binaries top-level .rs files from the gate removes a false blocker WITHOUT weakening provenance. What MUST remain inside the gate because it genuinely enters this proofs compiled/configured artifacts: (a) src/frontend/handshake_native/src/** (the whole lib is linked into the test binary); (b) the MT-027 test binary source(s) themselves; (c) every SHARED test helper module the MT-027 binary declares via #[path] - at minimum tests/native_gui_support/**, tests/interconnect_support/**, tests/pg_proof_support/** - because those are compiled into it; (d) Cargo.toml / workspace manifests / Cargo.lock; (e) src/backend/handshake_core/** whenever the proof builds or binds the managed backend, since the managed-pg receipt binds the backend SHA.",
+      "forbidden_shortcuts": "Do NOT satisfy item 2 by deleting/mutating the Operators test_find_in_files.rs diff, by git clean/reset/stash, by dropping the gate entirely, or by adding a blanket ignore list that would also hide a genuinely dirty compiled input. The narrowed gate must still FAIL when any file listed in (a)-(e) is dirty.",
+      "alternative_accepted_by_validator": "The remediation text also permits a validator-recorded hash-equivalent unrelated-dirty exclusion. If that route is chosen, the excluded rows must be recorded with their blob hashes in the receipt so a reviewer can confirm exactly what was excluded and that none of it is a compiled input.",
+      "sequencing_note": "KERNEL_BUILDER is committing the whole inherited + remediation tree on feat/WP-KERNEL-012 before the source-provenance-bound MTs run (see packet task gate). That commit PRESERVES the Operators formatting diff rather than discarding it and makes the tree clean, so the wrapper may pass even before the narrowing lands. The narrowing is still required, because the gate must remain usable while other agents hold unrelated dirty files in this shared worktree."
+    },
+    "kernel_builder_partial_progress_2026_08_05": {
+      "by": "KERNEL_BUILDER-20260805-054937",
+      "at_utc": "2026-08-05T17:50:59.867Z",
+      "status": "IN_PROGRESS_AGENT_TERMINATED_BY_PLATFORM_SESSION_LIMIT",
+      "note": "The implementing sub-agent was terminated mid-work by a platform session limit (external constraint, not a work failure).",
+      "completed_and_reported": [
+        "Product observers implemented in graph/block_collection_view.rs: durable bcv.action-completion Role::Status observer; observer-mode declarations on every steerable control; backend-authoritative actions terminalize only on a set_loaded readback at a FRESH load generation; set_error publishes a typed terminal FAILURE; handshake.set-value-completion/v1 observers on the three text inputs bump only when the widget genuinely consumes the AccessKit SetValue; selection projection relocated to sibling <author_id>.state nodes.",
+        "Test rewritten so all 24 canonical rows bind evidence (predicate result, target/status binding, workspace+view id, independent fresh-client backend readback, SHA-256 terminal-tree digest); failed create uses the typed-Rejected path; close-out is finish_require_no_indeterminate().",
+        "Wrapper cleanliness gate narrowed per the KERNEL_BUILDER analysis: gated by default, only other test binaries top-level .rs files excludable and each recorded with HEAD plus worktree blob hashes, zero-indeterminate enforcement, per-row expected status, independent digest recomputation.",
+        "Verified green: test_block_collection_view 29/29, test_app_host_mount_secondary 51/51, test_manual_content 39/39; rustfmt clean; PowerShell parses; a PowerShell-versus-Python digest oracle cross-check matched exactly.",
+        "Pre-existing red proven NOT caused by this MT: in_flight_mutation_controls_are_accessibly_disabled fails identically at committed HEAD from the same repaint cause; fixed by switching to run_steps.",
+        "Caught BEFORE the run: the swarm collection.sort and collection.kanban-move bindings used a different intent than their published declarations, which would have produced indeterminate receipts. Rebuilt from shared intent helpers."
+      ],
+      "cross_mt_fallout_discovered": "IMPORTANT AND NEW: the agent reported that the recorder read is now gated on a real native-MCP session token bound to an on-disk binding file, and it was checking whether the frontend exposes that binding so the MT-027 test can present it HONESTLY. This is direct fallout from the MT-109 authorization hardening: any test that reads the Flight Recorder must now present a real session token. It widens the MT-111 surface beyond product callers to TEST harnesses that read the recorder, and it must be solved by presenting a genuine binding rather than by weakening the new authorization gate.",
+      "remaining_work": "Remediation items 3-5 are NOT done: the fresh wrapper run with a new RunId, the 24-row zero-indeterminate inspection, and the fresh screenshots/trees/managed-PG/process receipt inspection with the full round trip.",
+      "root_cause_found_rows_21_22": {
+        "at_utc": "2026-08-05T19:35:47.815Z",
+        "finding": "Rows 21 and 22 are the ONLY two consecutive canonical actions dispatched against the SAME target (bcv.retry). A terminal record is still published, but declaration() republishes the PREVIOUS action semantic, so row 22 pre-click declaration carried row 21 semantic while begin() had already stored a fresh one. The exact-semantic acknowledgement then fails, which is why those rows would not terminalize.",
+        "significance": "This is a genuine same-target consecutive-action defect in the completion-token declaration path, not a timing flake. Any surface that allows two canonical actions in a row against one control (retry buttons especially) is exposed to it.",
+        "agent_intent": "The agent stated it was fixing this principled rather than by timing tuning, and was terminated by a NETWORK error (ENOTFOUND) before finishing.",
+        "recorded_by": "KERNEL_BUILDER-20260805-054937 so the diagnosis is not rediscovered"
+      }
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-05T20:04:32.489Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER-20260805-054937",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-05T20:04:32.489Z",
+      "remediated_by": "KERNEL_BUILDER-20260805-054937",
+      "addresses_v4_fail": true,
+      "previous_status": "FAIL_V4",
+      "defect": "validation_v4 FAIL_V4 had two parts: (a) the retained 24-action canonical matrix carried INDETERMINATE receipts and no fresh terminal matrix existed for the current source state; (b) the official wrapper could not bind a fresh run in this shared worktree because its cleanliness preflight rejected an unrelated pre-existing test_find_in_files.rs formatting diff owned by the Operator.",
+      "official_run": "run_mt027_argus_proof.ps1 -RunId v5d => exit 0, source_sha b0d84cfc (clean committed HEAD, pushed to origin/feat/WP-KERNEL-012), survivor_count 0, test 1 passed / 0 failed in 28.27s against real PostgreSQL handshake_wp_kernel_012_mt_027 with a fixture-owned backend and a scoped CARGO_TARGET_DIR. Transient roots and the backend runtime root were cleaned; only v5d remains.",
+      "kernel_builder_independent_verification": "KERNEL_BUILDER opened the external process receipt directly rather than accepting the report: 24 trace_receipt_statuses rows; histogram applied x23 + rejected x1; predicate_passed true on EVERY row; 24 UNIQUE terminal_tree_sha256 digests (proving per-row recomputation rather than a copied digest); indeterminate_receipt_count 0; exit_code 0; survivor_count 0; status COMPLETED. Cleanliness gate policy confirmed as gated_by_default_only_other_test_binary_top_level_sources_are_excludable with the lib, the MT-027 binary own source, and the shared #[path] helper directories still gated - exactly the narrowing recorded in this contract before implementation.",
+      "matrix_coverage": "Retry (rows 1, 7, 9, 21, 22), sort (6), kanban move (8), calendar range (10-12), create (13-16), failure (20), retry-create (17-21). Each backend action terminalized ONLY on an authoritative readback at a strictly advancing load generation (0 -> 1 -> 2 ... -> 10); local form actions declare host_local_create_form_state explicitly. All four SetValue rows advanced their set-value-completion observer by exactly one generation carrying the applied value - a causal token, not an echo. The single rejected row is the deliberate create-against-a-dead-backend case carrying a real transport error, i.e. a causally OWNED failure rather than an unprovable one.",
+      "operator_diff_preserved": "The Operator test_find_in_files.rs formatting diff was NEVER touched. It was excluded from the gate with BOTH blob hashes recorded (head dea9b40f, worktree 63bcb708) and no MT-027 commit modified it; it was later committed intact by KERNEL_BUILDER as part of 5dc08b0f. The gate still FAILS on a genuine compiled input, proven against four cases: the lib, a shared #[path] helper directory, the backend crate, and a non-.rs file under tests/.",
+      "defects_found_and_fixed_beyond_the_assignment": [
+        "SWARM INTENT MISMATCH, caught BEFORE the run: collection.sort and collection.kanban-move published their declaration from sync_knowledge_registry but opened their binding in take_knowledge_dispatched with a DIFFERENTLY SHAPED intent JSON. Because acknowledgement compares declared versus acknowledged semantics byte-for-byte, both actions would have returned indeterminate. Found by reading the two construction sites side by side; fixed by building both from shared collection_sort_intent() / collection_kanban_move_intent() helpers.",
+        "SAME-TARGET CONSECUTIVE ACTIONS (rows 21 and 22, the only pair sharing a target): declaration() republished the PREVIOUS action semantic, so row 22 pre-click declaration carried row 21 semantic while begin() had already stored a fresh one, and the exact-semantic acknowledgement failed. Fixed PRINCIPLED by retiring a terminal record on pane rebinding - not by timing tuning; in-flight records are preserved and the exact-semantic acknowledgement itself is untouched. This is a general defect class: any surface allowing two canonical actions in a row against one control (retry buttons especially) was exposed.",
+        "MT-109 RECORDER GATE, solved WITHOUT weakening it: the proof now publishes a genuine native-MCP binding that both processes resolve and presents that token. Not weakened, stubbed, or feature-gated. This is the first worked solution to the MT-111 AC-111-7 test-harness problem and should be the reference pattern for the other MTs.",
+        "DUCKDB WINDOWS MAX_PATH: the backend died opening .../data/flight_recorder.db at 272 characters because DuckDB is C++ and does not support the \\\\?\\ long-path prefix. This is STRUCTURAL for any RunId, not specific to this run, so the runtime root was moved to a short run-scoped directory with a preflight guard that names the budget; containment, freshness and cleanup semantics are unchanged."
+      ],
+      "pre_existing_red_proven_not_caused_here": "in_flight_mutation_controls_are_accessibly_disabled used Harness::run, which cannot converge while a mutation legitimately requests a repaint every frame. Proven pre-existing by copying HEAD versions of both files into place, running that single test (it failed identically at block_collection_view.rs:1036 from the same repaint cause), then restoring the working files byte-for-byte from backups. Fixed with run_steps.",
+      "disclosed_gaps": [
+        "A self-imposed double-capture hash equality check was removed because it was flaky; the digest is now derived by the wrapper from the stored artifact. This is stronger evidence, but it is a deliberate change in method and is flagged rather than hidden.",
+        "Backend and frontend share one scoped target dir and mutually invalidate, so each wrapper run pays a full frontend rebuild of roughly five minutes. Not a correctness issue; worth splitting per-graph later.",
+        "The scoped cargo target dir wp012-mt027 was intentionally retained so an independent validation rerun does not pay a ~30-minute rebuild. This is covered by the deliberate, time-boxed WP-level retention decision recorded in packet.json reconciliation_debt (RD-WP012-SCOPED-ARTIFACT-RETENTION-DEFERRAL)."
+      ],
+      "kb_ready_checklist_receipt": {
+        "verdict": "PASS",
+        "blockers": 0
+      },
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Only a WP Validator or Integration Validator may transition READY_FOR_VALIDATION_V4 -> COMPLETED."
     }
   },
   "scope": {
@@ -659,27 +724,27 @@
     }
   },
   "validation_v2": {
-  "schema_id": "hsk.mt_validation_verdict@1",
-  "verdict": "FAIL_V2",
-  "verdict_label": "FAIL V2",
-  "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-  "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
-  "session": "INTEGRATION_VALIDATOR-20260722-114045",
-  "fresh_run": true,
-  "product_only": true,
-  "repo_governance_paperwork_excluded": true,
-  "spec_version": "v02.201",
-  "source_state": {
-    "head_sha": "30d8657afaac31756852929291b669723f97234e",
-    "worktree": "wtc-native-editors-v1",
-    "dirty_final_source_review": true
-  },
-  "fail_report": "MT-027 FAIL V2. Saved-view creation performs several durable operations before a later best-effort recorder append, so partial collection/view state can survive failure. The Block Collection Views surface also has no dedicated canonical UserManual entry or canonical Argus proof.",
-  "remediation_plan": [
-    "Make table/kanban/calendar view creation and receipt publication transactional or compensating; inject failures between each durable step and verify restart state.",
-    "Add a canonical UserManual entry and run canonical Argus across view creation, mutation, switching, empty/error, and post-action states."
-  ],
-  "no_context_instruction": "Read MT-027.json and current authorities. Repair saved-view atomicity, document the actual surface in canonical UserManual, and prove it with real PostgreSQL and Argus before READY_FOR_VALIDATION_V3."
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-027 FAIL V2. Saved-view creation performs several durable operations before a later best-effort recorder append, so partial collection/view state can survive failure. The Block Collection Views surface also has no dedicated canonical UserManual entry or canonical Argus proof.",
+    "remediation_plan": [
+      "Make table/kanban/calendar view creation and receipt publication transactional or compensating; inject failures between each durable step and verify restart state.",
+      "Add a canonical UserManual entry and run canonical Argus across view creation, mutation, switching, empty/error, and post-action states."
+    ],
+    "no_context_instruction": "Read MT-027.json and current authorities. Repair saved-view atomicity, document the actual surface in canonical UserManual, and prove it with real PostgreSQL and Argus before READY_FOR_VALIDATION_V3."
   },
   "validation_v3": {
     "schema_id": "hsk.mt_remediation_evidence@1",

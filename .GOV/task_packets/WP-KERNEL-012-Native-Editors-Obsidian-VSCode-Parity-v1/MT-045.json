@@ -14,7 +14,7 @@
   "title": "E8-MT045-LargeDocPerformanceProof",
   "group": "E8 Parity + interconnection proof",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-31T22:07:14.4403872Z",
+  "updated_at_utc": "2026-08-02T14:19:47.7848751Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-045.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "NEEDS_REIMPLEMENTATION_V4",
+    "status": "READY_FOR_VALIDATION_V4",
     "active": false,
     "depends_on": [
       "MT-044",
@@ -165,6 +165,49 @@
         "src/frontend/handshake_native/src/rich_editor/wikilinks/* (transclusion cycle-resolver render wiring, REQUIRED by LR-05, operator-sanctioned in the 2026-07-03 reopen)"
       ],
       "note": "Operator granted this scope waiver on 2026-07-21 in the live remediation session. It resolves the earlier CHANGED_FILES_OUTSIDE_MT_CODE_SURFACES mechanical concern for these specific product-source touches, which were pre-existing uncommitted work in wtc-native-editors-v1 (not authored in the remediation session)."
+    },
+    "ready_for_validation_v4_at_utc": "2026-08-02T14:19:47.7848751Z",
+    "ready_for_validation_v4_by": "KERNEL_BUILDER",
+    "remediation_v4": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "remediated_at_utc": "2026-08-02T14:19:47.7848751Z",
+      "remediated_by": "KERNEL_BUILDER",
+      "addresses_v4_fail": true,
+      "source_sha": "9d30382587512f6b17d48ad78fc4423b1bfcbe8d",
+      "canonical_run": {
+        "run_id": "MT045-RUN-V4-20260802-9d303825-01",
+        "status": "PASS",
+        "command_count": 24,
+        "scenario_count": 20,
+        "all_scenarios_passed": true,
+        "summary_path": "Handshake_Artifacts/wp-kernel-012/mt-045/supervisor/MT045-RUN-V4-20260802-9d303825-01/supervisor-summary.json",
+        "summary_sha256": "b6d48ba17ac8a7455f0ad6f348d716f684eb06144017aca566a773cfa1f44845",
+        "immutable_run_sha256": "a30698bbfa5f56a881ab6619f5b040444f6089c2b1043f9c5a2131c26cc30c17",
+        "manifest_snapshot_sha256": "56e6296d6a0dcfc0c1cb84b70c2c5d826b30f1486e93f52af38462ae5c27a154",
+        "diagnostics_receipt_sha256": "62cd47429a94a89d4eb05f3c9b0502e299d5e721f5067fb9e2c221f308b60413",
+        "backend_sha256": "97b03e27bae016f3cad526f798487e7f3334649854cbe9093239068dea98c54d",
+        "postgres_pid": 36052,
+        "postgres_start_time_utc": "2026-08-01T21:46:59.1001749Z",
+        "budget_overrides": [],
+        "leaked_process_count": 0
+      },
+      "required_knowledge_scenarios": {
+        "LK-03": "PASS: 88 ms; tagged_blocks=5000; backlink_count=5000; default 2000 ms budget; override_applied=false",
+        "LK-04": "PASS: 68 ms; result_count=100; default 2000 ms budget; override_applied=false",
+        "LK-05": "PASS: 6 ms; 200 folders, 20 roots, 180 nested, 1000 children, max depth 9; default 1000 ms budget; override_applied=false"
+      },
+      "retained_failure_probe": {
+        "run_id": "MT045-RUN-DIAG-V4-20260802-9d303825-01",
+        "binding_status": "BOUND",
+        "proof_path": "Handshake_Artifacts/wp-kernel-012/mt-045/supervisor/MT045-RUN-DIAG-V4-20260802-9d303825-01/retained-failure-proof.json",
+        "proof_sha256": "cf6057eaf8ff40f7630fb656d1f4f88d80e925cfeeb9c9b7a2df91d1487a1b43",
+        "failure_receipt_sha256": "29ba46b8a06a34b0f2c6441eb59a51c0d9b050cb978a00ac80d3f34bd3affb57",
+        "workspace_cleanup": "deleted_and_verified_absent",
+        "owned_process_reaped": true,
+        "leaked_process_count": 0
+      },
+      "integrity_review": "Independent adversarial review recomputed 80 hashes with zero mismatches and reported no P0/P1/P2 findings.",
+      "validator_boundary": "Builder remediation only. Historical validation_v4.verdict and lifecycle.validator_verdict remain FAIL_V4 pending independent V4 validation; completed_by remains null."
     }
   },
   "scope": {
