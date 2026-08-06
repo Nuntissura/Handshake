@@ -31,17 +31,48 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-113"
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260805-054937",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Found by the MT-113 agent IN ITS OWN CAPTURED FRAME while proving the identity fix, and correctly reported rather than quietly fixed out of scope. Deferred here per the Operator standing rule so it is not lost."
+    "creation_reason": "Found by the MT-113 agent IN ITS OWN CAPTURED FRAME while proving the identity fix, and correctly reported rather than quietly fixed out of scope. Deferred here per the Operator standing rule so it is not lost.",
+    "claimed_at_utc": "2026-08-06T23:03:37.311Z",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_at_utc": "2026-08-06T23:03:37.311Z",
+      "implemented_by": "KERNEL_BUILDER-20260805-054937",
+      "commit": "fef0faa9 on feat/WP-KERNEL-012 - src/frontend/handshake_native/src/find_in_files.rs only.",
+      "implemented_directly_by_kernel_builder": "Implemented by KERNEL_BUILDER rather than a sub-agent: a platform session limit killed all three launched agents within minutes (the sixth such outage this session, resetting 00:10 Europe/Brussels). The worktree was clean and no work was lost. This MT is small, visually verifiable and was already fully diagnosed.",
+      "status_rationale": "HELD at CLAIMED, deliberately NOT advanced. PT-119-1 - a mounted GPU after-frame, OPENED and inspected - is the ACCEPTANCE for this MT and has not yet been captured. Advancing on the strength of a compile would be precisely the failure this MT exists to expose: an automated signal standing in for a human-visible one.",
+      "defect_confirmed_by_direct_inspection_first": "KERNEL_BUILDER OPENED the MT-113 frame before changing anything, rather than working from the report. Observed: the saved-search row reads \"authentication middleware refactor across the workspace mt113-108112-1786047630197954500\" and at the Find pane right edge only a bare \"R\" of Restore survives - Remove is not visible at all.",
+      "root_cause": "find_in_files.rs:3858 laid out ui.label(&bm.label) FIRST inside a left-to-right ui.horizontal. The label is USER CONTENT and therefore unbounded - a saved search carries the operator whole query - so it consumed the full available width before either button was placed, pushing them past the pane edge.",
+      "why_this_needed_its_own_mt": "Argus addressed and clicked Remove perfectly well - its AccessKit node existed and its action terminalized, which MT-113 proved. So an automated proof PASSED while a human operator could neither see nor reach the control. Automated terminality and human reachability diverged. That is exactly the class HBR-VIS exists to catch, and exactly why an Argus receipt cannot serve as this MT acceptance signal.",
+      "fix": "Reserve the CONTROLS first against the row right edge with egui::Layout::right_to_left, adding Remove before Restore so it lands rightmost and the visual order [label ... Restore Remove] is preserved, then let the label truncate into the remaining width via egui::Label::truncate().",
+      "library_behaviour_verified_not_assumed": {
+        "truncate_exists": "Label::truncate() confirmed present at egui 0.33.3 src/widgets/label.rs:71. This was checked rather than inferred from the Button::selectable(..).truncate() pattern copied from command_palette.rs:380 - those are DIFFERENT types and the assumption would have been a compile error.",
+        "tooltip_correction": "An explicit .on_hover_text(&bm.label) was written FIRST and then REMOVED after reading the egui source. Label::show_tooltip_when_elided defaults to TRUE (label.rs:42) and fires only when galley.elided (label.rs:283). The explicit call would have stacked a SECOND tooltip on the built-in one and popped a redundant tooltip on short labels that are not truncated at all. egui own doc example documents combining them as the way to show DIFFERENT text, which is not what this row wants. The built-in behaviour satisfies AC-119-2 more precisely: the untruncated query is recoverable EXACTLY when it is hidden."
+      },
+      "ac_119_3_layout_only": "SATISFIED. The author_ids are derived above the layout from the bookmark id and pane scope through the MT-113 bounded composer, never from layout position, so the MT-113 identity contract is untouched. Proven by the MT-113 tests passing unchanged, including mt113_every_route_that_fits_is_byte_identical_to_the_legacy_composition and mt113_bounded_routes_stay_injective_across_both_regimes.",
+      "results": "cargo test --lib find_in_files => EXIT 0, 46 passed / 0 failed / 0 ignored / 2012 filtered. Every mt113_* test green. Run twice: once on the version carrying the redundant tooltip and again on the corrected version, both green.",
+      "ac_119_4_sibling_rows_checked_without_overclaiming": {
+        "saved_searches_heading": "Static text (RichText \"Saved searches\"). No user content, no overflow risk. SAFE.",
+        "result_rows": "NOT claimed safe. The rows have NO clippable control - the ENTIRE row is the click target (inner.response.interact(Sense::click())) - so no control can be lost. However a long hit.title CAN push the [source_kind] badge out of view, which is the same defect class at lower severity. DELIBERATELY NOT CHANGED here: MT-029 holds mounted visual baselines on this exact pane and altering the result-row layout mid-WP risks disturbing them for a badge, not a control. Recorded rather than silently called safe.",
+        "excerpt_line": "Rendered on its own line inside a vertical layout, so it wraps rather than pushing anything sideways. SAFE."
+      },
+      "disclosed_gaps": [
+        "PT-119-1 NOT YET CAPTURED - the mounted GPU after-frame showing both Restore and Remove fully inside the pane. This is the MT acceptance and the sole reason it is held at CLAIMED. MT-113 cleaned its scoped target dir, so the mounted proof binary needs a rebuild before the frame can be produced.",
+        "PT-119-3 NOT YET WRITTEN - the regression assertion that the control rects lie within the pane rect. Without it this fix can silently regress. Should land with the frame.",
+        "AC-119-4 result-row instance left open (see above) - a candidate for a follow-up MT rather than a mid-WP layout change to an MT-029 baseline surface."
+      ],
+      "scope_compliance": "CLEAN. One file, src/frontend/handshake_native/src/find_in_files.rs, inside MT-119 allowed_paths. The canonical Argus driver was not touched. Pre-existing non-rustfmt-clean sites in this file were left alone, following the MT-113 precedent of avoiding formatter spillover into another MT diff.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
+    }
   },
   "scope": {
     "summary": "Bound the saved-search row layout so an unbounded user query cannot push its Restore and Remove controls outside the Find-in-Files pane.",
