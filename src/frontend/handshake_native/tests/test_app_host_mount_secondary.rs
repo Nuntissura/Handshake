@@ -3535,7 +3535,18 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
         listener.local_addr().expect("404 server address")
     );
     let server = std::thread::spawn(move || {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        // WP-KERNEL-012: this is an ANTI-HANG guard, not an assertion — the real contract is asserted
+        // below as `ever_in_flight` (AC-080-5) and the typed `blocker`, and neither is relaxed here.
+        //
+        // It was 10 seconds, which made the test ORDER-DEPENDENT: it passed run alone and failed inside
+        // its own binary. The two bounds in this test are mismatched in KIND — the client below is
+        // ITERATION-bounded (80 x run_steps(2) plus a 25ms sleep) while this guard is TIME-bounded.
+        // cargo runs this binary's 51 tests in parallel, so under that load the client's fixed
+        // iterations outlast a 10s clock; this thread then panicked with "memory-pack 404 was not
+        // requested" and `server.join()` turned that into a failure of an otherwise-correct test.
+        // Widening the guard cannot mask a real defect: if the shell never issues the read, the client
+        // loop still completes and `ever_in_flight` still fails.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
         loop {
             assert!(
                 std::time::Instant::now() < deadline,
