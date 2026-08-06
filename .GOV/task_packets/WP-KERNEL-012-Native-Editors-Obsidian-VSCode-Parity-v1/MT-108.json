@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-07-31T23:36:08.8188448Z",
+  "updated_at_utc": "2026-08-06T23:24:24.044Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -574,6 +574,17 @@
       "scope_note": "This closes the library portion of AC-108-3. The integration-binary portion and the governed live tests remain to be measured, and several require managed PostgreSQL."
     },
     "what_remains_unmeasured": "Integration binaries beyond test_loom_address, the Palmistry tests, the headless supervisor run, and the real-GPU supervisor run are NOT yet measured at current HEAD. PostgreSQL was not running at measurement time (the sub-agents holding it were killed by a platform session limit), so no PG-backed proof was executed. Stated as unmeasured rather than assumed green.",
-    "honesty_note": "These findings do NOT constitute an MT-108 PASS and no verdict is issued. They exist so the capstone run is configured correctly and does not spend a cycle re-fixing a test that already passes."
+    "honesty_note": "These findings do NOT constitute an MT-108 PASS and no verdict is issued. They exist so the capstone run is configured correctly and does not spend a cycle re-fixing a test that already passes.",
+    "finding_4_test_binary_inventory_for_item_11": {
+      "measured_at_utc": "2026-08-06T23:24:24.043Z",
+      "why": "remediation_plan item 11 requires running \"the complete handshake-native library, every current-source integration binary, bins/build, and required Palmistry tests serially or with proven isolation using --no-fail-fast\". That is only plannable against a real inventory, so one was taken.",
+      "handshake_native_test_binaries": 186,
+      "always_on": 158,
+      "integration_gated": 28,
+      "gating_note": "The 28 carry #[cfg(feature = \"integration\")] and need --features integration PLUS a current-source backend binary and real PostgreSQL. Omitting the feature does NOT fail loudly: the binary compiles and reports \"running 0 tests ... ok\" with EXIT 0. KERNEL_BUILDER hit this exact trap while proving MT-119 and nearly accepted a zero-test green as evidence. Any MT-108 sweep MUST assert a NONZERO executed-test count per binary, or a silent 0-test pass will be counted as coverage.",
+      "cargo_toml_note": "Only 8 [[test]] entries are declared explicitly (test_other_pillar_interop_proofs, test_parity_code_editor, test_parity_knowledge, test_parity_rich_editor, test_parity_search, test_perf_large_code, test_perf_large_knowledge, test_perf_large_rich). The remaining binaries are auto-discovered from tests/*.rs, so an inventory taken from Cargo.toml alone would undercount by more than twenty to one.",
+      "stale_expectation_warning": "Per-binary test counts in the V4 verdicts are already stale: MT-065 validator expected \"17 passed\" while that binary now contains 28 tests (17 in the proof file plus 11 from the shared pg_proof_support module compiled into it). Do not gate the capstone on historical per-binary counts; gate on zero failures plus a nonzero executed count.",
+      "gpu_requirement_restated": "Any full sweep must set HANDSHAKE_GPU_SCREENSHOT=1 or HBR-VIS pixel rows fail as typed DEFERRED and will be misread as product failures - see finding_2."
+    }
   }
 }
