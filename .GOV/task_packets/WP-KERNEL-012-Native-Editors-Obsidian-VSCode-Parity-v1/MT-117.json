@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-06T18:54:28.437Z",
+  "updated_at_utc": "2026-08-06T23:23:11.321Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -79,7 +79,48 @@
       "PT-117-1: MT-074 suite re-run showing 13/13 receipts applied and zero indeterminate.",
       "PT-117-2: the MT-066 and MT-067 suites still green (these are their surfaces).",
       "PT-117-3: a bounded-window typed rejection proven for at least one observer, so an unreached effect cannot hang Pending."
-    ]
+    ],
+    "resolved_targets_prepared_by_kernel_builder": {
+      "note": "Resolved from the MT-074 proof source and cross-checked against product source so the implementer does not have to rediscover them. Each entry names the DISPATCH SITE in the MT-074 suite, the OWNING product module, and the durable effect the observer must bind Applied to. Verify each against source before relying on it.",
+      "targets": [
+        {
+          "target_author_id": "STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID (crate::stage_pane)",
+          "dispatched_at": "tests/test_other_pillar_interop_proofs.rs:3250",
+          "owning_module": "src/stage_pane.rs; the id is re-exported through src/accessibility/registry.rs:76 and :121",
+          "affected_receipts": "OP-01 stage-embed-back and OP-04 stage-embed-back",
+          "bind_applied_to": "The PERSISTED artifact identity: the produced artifact id plus its sha256, as MT-074 predicate mt074-op0N-embed-back-exposes-exact-artifact-and-digest already recomputes. Dispatch or target disappearance must NOT count.",
+          "surface_owner": "MT-066 (Stage)."
+        },
+        {
+          "target_author_id": "editor.rich.save",
+          "dispatched_at": "tests/test_other_pillar_interop_proofs.rs:3325",
+          "owning_module": "rich editor save path; the id appears in manual_content_editors.rs:3715 as the \"save\" editor action mapping",
+          "affected_receipts": "OP-01 save-rich-document",
+          "bind_applied_to": "The ADVANCED doc_version from a fresh backend GET - the MT-074 predicate mt074-op01-save-persists-exact-embed-provenance-in-postgresql already reads it. A local dirty-flag clear is NOT sufficient.",
+          "surface_owner": "rich editor / MT-066 embed provenance."
+        },
+        {
+          "target_author_id": "DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID = \"daily-journal-calendar-event-chip\"",
+          "dispatched_at": "tests/test_other_pillar_interop_proofs.rs (OP-02 and OP-04 calendar-open-event)",
+          "owning_module": "src/graph/daily_journal_panel.rs:57",
+          "affected_receipts": "OP-02 open-calendar-event and OP-04 calendar-open-event",
+          "bind_applied_to": "The EXACT bound CalendarEvent id becoming the mounted/active event, matching MT-074 predicate mt074-op0N-event-chip-activates-exact-calendar-event.",
+          "surface_owner": "MT-067 (Calendar)."
+        },
+        {
+          "target_author_id": "CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID = \"calendar-event-tab-activity\"",
+          "dispatched_at": "tests/test_other_pillar_interop_proofs.rs (OP-02 and OP-04 calendar-open-activity)",
+          "owning_module": "src/graph/daily_journal_panel.rs:68",
+          "affected_receipts": "OP-02 open-calendar-activity and OP-04 calendar-open-activity",
+          "bind_applied_to": "The exact ActivitySpan and its correlated edited-document identity being exposed, matching MT-074 predicate mt074-op0N-activity-tab-exposes-exact-span-and-edited-document.",
+          "surface_owner": "MT-067 (Calendar)."
+        }
+      ],
+      "count_check": "Four target ids cover all SEVEN indeterminate receipts, because Stage embed-back and both Calendar actions each appear twice (once in their own OP scenario and once in the OP-04 aggregate).",
+      "reference_implementations": "Copy the shape from Mt068LocusRefOpenCompletion (src/app.rs, MT068_LOCUS_REF_OPEN_COMPLETION_AUTHOR_ID at :1199) or Mt065FemsSwarmFlowCompletion. Both are durable shell-owned observers on the EXISTING handshake.click-completion/v1 mechanism with a bounded 12s typed rejection. Do NOT invent a second mechanism.",
+      "author_id_budget_warning": "MT-113 landed a bounded author_id contract. Compose any new observer author_id through it and respect MAX_CLICK_COMPLETION_AUTHOR_BYTES; a hand-formatted id that overruns will silently disable the very token this MT adds.",
+      "geometry_warning": "Do NOT attempt to verify anything about these surfaces from argus.inspect() bounds - see RD-WP012-INSPECT-TREE-BOUNDS-ARE-NOT-MOUNTED-GEOMETRY. Those bounds come from a fresh-context re-render and are not the mounted frame."
+    }
   },
   "hbr_obligations": {
     "VIS": "Frames must be OPENED and inspected; reject byte-identical before/after pairs (a known failure mode in this WP).",
