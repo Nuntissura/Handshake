@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-125",
+  "title": "E14-MT-125-Resolve-The-Terminal-And-Model-Folder-Cwd-From-The-Chosen-Workspace-Root-Not-The-Process-Cwd",
+  "group": "E14-Terminal",
+  "created_at_utc": "2026-08-12T13:40:00Z",
+  "updated_at_utc": "2026-08-12T13:40:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-125.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Created to be the TRUTHFUL NON-PASS OWNER of MT-108 residual item (7). The MT-108 V4 remediation plan item 6 requires every re-deferred residual to name an owning MT that REMAINS NON-PASS. Item (7)'s natural owner MT-100 is PASS_V1, so deferring to it would have been a silent close. A repo-wide search of all MT contracts for workspace_root / chosen-folder plumbing returned MT-108.json only, i.e. the residual was UNOWNED."
+  },
+  "scope": {
+    "summary": "Resolve the terminal working directory and the model-folder dialog seed from the operator's chosen workspace root instead of the Handshake process cwd.",
+    "defect_detail": {
+      "verified_at_head": "Confirmed by direct read at HEAD 8a77e315, not inferred. src/frontend/handshake_native/src/app.rs:22126-22130 - active_workspace_terminal_cwd returns std::env::current_dir(). :22132-22138 - active_workspace_model_folder does the same and its own comment admits the cause: 'Project tabs currently carry workspace ids/names, not a canonical filesystem root. Seed the dialog from the process cwd, then require the operator/model to submit the explicit folder value.' open_workspace_terminal (:22186) passes that cwd straight through to the launch.",
+      "operator_visible_consequence": "Opening a terminal for a workspace lands in whatever directory Handshake itself was started from, not the workspace the operator selected. With multiple workspaces open, every terminal lands in the same wrong place, and any relative command the operator or a model runs there targets the wrong tree.",
+      "root_cause_is_a_missing_primitive": "The workspace/project tab model carries ids and names but no canonical filesystem root, so there is nothing correct to resolve to. The fix is to plumb a real workspace root, not to patch the two call sites.",
+      "existing_test_coverage_does_not_reach_it": "tests/test_terminal_launch.rs proves only the typed EndpointMissing blocker path (:33, :67, :87, :126). Nothing asserts the cwd is the chosen folder, which is why the residual survived to the capstone."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/**",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC-125-1: a workspace carries a canonical filesystem root, and active_workspace_terminal_cwd resolves from THAT root rather than std::env::current_dir().",
+      "AC-125-2: with two workspaces open whose roots differ, each opens its terminal in its OWN root. A single-workspace test cannot distinguish the fix from the defect and is not sufficient evidence.",
+      "AC-125-3: the model-folder dialog seed resolves from the same single definition, so the two surfaces cannot drift apart again.",
+      "AC-125-4: a workspace with NO resolvable root fails in a typed, operator-visible way. It must not silently fall back to the process cwd - that silent fallback IS this defect.",
+      "AC-125-5: a regression test that FAILS when the resolution is reverted to std::env::current_dir(). Prove it by reverting and capturing the RED, per the non-vacuity discipline this work packet has had to apply repeatedly."
+    ],
+    "proof_targets": [
+      "PT-125-1: the two-workspace divergence test green, and shown RED against the process-cwd behaviour.",
+      "PT-125-2: the typed no-root failure path proven, with no silent cwd fallback.",
+      "PT-125-3: tests/test_terminal_launch.rs still green, so the existing typed EndpointMissing contract is untouched."
+    ],
+    "risk_if_missed": "Operators and models run commands in the wrong directory with no signal that it is wrong. It also leaves MT-108 residual item (7) unowned, which blocks AC-108-1."
+  },
+  "gui_obligation": {
+    "surface": "Terminal launch and the model-folder dialog",
+    "requirement": "Evidence that the launched terminal reports the chosen workspace root; typed failure surfaced to the operator when no root exists."
+  },
+  "user_manual_obligation": {
+    "requirement": "Document how a workspace root is chosen and what happens when a workspace has none, so a no-context model does not assume the process cwd."
+  },
+  "hbr_obligations": {
+    "SWARM": "Parallel model sessions in different workspaces must not collide on one process cwd.",
+    "INT": "HBR-INT-009: Flight Recorder consideration required for terminal launch as observable runtime behaviour; internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

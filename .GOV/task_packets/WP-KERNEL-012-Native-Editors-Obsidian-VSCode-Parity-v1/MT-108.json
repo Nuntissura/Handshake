@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-06T23:31:25.457Z",
+  "updated_at_utc": "2026-08-12T13:50:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -593,5 +593,88 @@
       "stale_expectation_warning": "Per-binary test counts in the V4 verdicts are already stale: MT-065 validator expected \"17 passed\" while that binary now contains 28 tests (17 in the proof file plus 11 from the shared pg_proof_support module compiled into it). Do not gate the capstone on historical per-binary counts; gate on zero failures plus a nonzero executed count.",
       "gpu_requirement_restated": "Any full sweep must set HANDSHAKE_GPU_SCREENSHOT=1 or HBR-VIS pixel rows fail as typed DEFERRED and will be misread as product failures - see finding_2."
     }
+  },
+  "residual_dispositions_ac_108_1": {
+    "schema_id": "hsk.mt108_residual_dispositions@1",
+    "recorded_at_utc": "2026-08-12T13:50:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260812-113007",
+    "source_state": "HEAD 8a77e315 in wtc-native-editors-v1, determined by reading source and tests. Every IMPLEMENTED row names the implementation site AND the test that proves it; a test that is ignore-attributed or feature-gated is called out, because an unrun test is not evidence.",
+    "gate_rule_applied": "AC-108-1 allows IMPLEMENTED-with-runtime-proven-test OR explicit re-deferral with a typed reason. validation_v4.remediation_plan item 6 sharpens it: every defer must name an owning MT that REMAINS NON-PASS, and no required item may be silently absent.",
+    "items": {
+      "1_mt004_find_scroll_replace_all_cap_kittest": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "scroll_to_match_line code_editor/panel.rs:2894 (called :2882), test find_step_scrolls_current_match_below_the_find_bar panel.rs:15782; REPLACE_ALL_CAP=1000 code_editor/find_replace.rs:47 with chunking panel.rs:3050, tests panel_replace_all_caps_large_set_and_reports_remaining tests/test_find_replace.rs:94 and replace_all_button_caps_each_click_and_exposes_repeat_recovery tests/test_find_bar_accesskit.rs:233; find_bar_typing_into_textedit_updates_query_and_matches tests/test_find_bar_accesskit.rs:191",
+        "note": "All ungated. The contract wrote cap OR off-thread; the cap path was taken and carries a remaining-count recovery hint."
+      },
+      "2_mt006_outline_click_and_fold_landing": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "outline_row_raw_click_navigates_editor_to_symbol_line tests/test_outline_provider.rs:224; navigate_to_line_lands_on_fold_adjusted_visible_row_when_a_fold_is_active code_editor/panel.rs:15827",
+        "note": "Both ungated."
+      },
+      "3_mt013_overflow_popup_bold_click_backspace_comment": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "overflow_popup_opens_and_survives_two_frames tests/test_formatting_toolbar.rs:241; bold_toolbar_button_click_toggles_bold_on_selection tests/test_formatting_toolbar.rs:158; comment corrected rich_editor/renderer/input_handler.rs:438-442 guarded by backspace_deletes_left_of_caret input_handler.rs:754",
+        "note": "Ungated. The sibling mt108_argus_formatting_toolbar_real_server_loop IS ignore-attributed but is not this item proof."
+      },
+      "4_mt016_slash_description_and_escape": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "Description corrected rich_editor/slash_commands/registry.rs:431-434; Escape behaviour escape_closes_slash_menu_but_keeps_the_slash_char tests/test_slash_commands.rs:281. The description half was UNTESTED at reconciliation time; a guard was added this session: no_slash_command_description_promises_a_prompt_its_action_does_not_open in registry.rs mod tests.",
+        "note": "The new guard covers the CLASS - a description may promise a prompt only when the action opens one - rather than pinning the literal string, which would pass while another command grew the same lie and would fail on a harmless rewording. It carries its own non-vacuity checks."
+      },
+      "5_mt018_find_keystroke_replace_clicks_scrolled_highlight": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "keystroke_typing_into_find_input_scans_matches tests/test_rich_find_replace.rs:289; replace_one_button_click_replaces_active_match_only :326; replace_all_button_click_replaces_every_match :367; scrolled_tall_doc_scan_covers_matches_beyond_the_viewport :403",
+        "note": "All four ungated."
+      },
+      "6_mt098_live_send_endpointmissing_and_route_naming": {
+        "disposition": "IMPLEMENTED_WITH_CAVEAT",
+        "evidence": "live_type_and_click_after_dropped_injected_runtime_uses_app_owned_worker tests/test_runtime_chat_pane.rs:652 asserting EndpointMissing plus /chat (:773) and no fabricated turn (:802); PRODUCTION_CHAT_ENDPOINT = /chat runtime_chat/panel.rs:31 asserted by runtime_chat_real_post_maps_router_404_to_typed_endpoint_missing :414",
+        "caveat": "Aligned with real backend route conventions is a judgement, not a mechanical check. handshake_core registers bare domain roots (/jobs, /diagnostics/..., /flight_recorder) and has NO /chat route, which is exactly why the probe resolves EndpointMissing. /chat is convention-consistent, but UNVERIFIED that any authority names /chat as the final route."
+      },
+      "7_mt100_workspace_folder_vs_process_cwd": {
+        "disposition": "RE_DEFERRED",
+        "typed_reason": "NEEDS_WORKSPACE_ROOT_PLUMBING",
+        "owner": "MT-125",
+        "owner_status": "READY_FOR_DEV (non-pass)",
+        "evidence": "NOT implemented at HEAD, verified directly: active_workspace_terminal_cwd app.rs:22126-22130 returns std::env::current_dir(); active_workspace_model_folder :22132-22138 admits the cause in its own comment; open_workspace_terminal :22186 passes it through. tests/test_terminal_launch.rs proves only the typed EndpointMissing blocker.",
+        "why_a_new_owner": "The natural owner MT-100 is PASS_V1. A repo-wide search of all MT contracts for workspace-root plumbing returned MT-108.json only, so the residual was UNOWNED. MT-125 was created to be the truthful non-pass owner that validation_v4 remediation item 6 requires."
+      },
+      "8_mt102_real_gpu_worksurface_screenshot_pt_102_b": {
+        "disposition": "RE_DEFERRED",
+        "typed_reason": "NEEDS_LIVE_WINDOW_PRINTWINDOW_CAPTURE_AND_VISUAL_INSPECTION",
+        "owner": "MT-126",
+        "owner_status": "READY_FOR_DEV (non-pass)",
+        "evidence": "capture_worksurface_screenshot_to app.rs:12991-13037 delegates to mcp::screenshot::capture_handshake_window(), a Win32 PrintWindow capture of a LIVE window, so no cargo test can reach it. tests/test_visual_debugger.rs:131-141 accepts EITHER Deferred OR Captured and therefore cannot evidence a capture.",
+        "why_a_new_owner": "MT-102 is PASS_V1, and validation_v4 remediation item 7 states a BLOCKED/DEFERRED marker may not close a required pixel row. Deferring to a passing owner would have closed a required pixel row. MT-126 owns it.",
+        "explicit_warning_for_the_next_implementer": "The wgpu egui_kittest READBACK path proven working on this host (current_head_findings finding_2, HANDSHAKE_GPU_SCREENSHOT=1) is a DIFFERENT mechanism from PrintWindow-on-a-live-window and does NOT discharge PT-102-B."
+      },
+      "9_mt105_hard_total_runtime_cap": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "max_total_runtime diagnostics/operation_watchdog.rs:150 stored :162 enforced :238; tests forever_ticking_operation_is_flagged_by_hard_total_runtime_cap tests/test_operation_watchdog.rs:112, counterfactual ticking_operation_without_a_cap_is_never_flagged :162, shipped-path production_backend_registration_carries_progress_gap_and_hard_runtime_cap :418",
+        "note": "Ungated and includes a real counterfactual."
+      },
+      "10_mt106_suspected_nobaseline_diagnostics_and_mandatory_baseline": {
+        "disposition": "PARTIAL_SUPERSEDED_BY_DESIGN",
+        "evidence": "Observability IS implemented: ChildObservationKind NoBaseline and Suspected palmistry/src/child_registry.rs:91 and :94, edge-triggered poll_observations :174-252, ChildStallState::NoBaseline child_stall.rs:76-106, with lib unit tests at child_registry.rs:489, :529 and :560.",
+        "supersession_reason": "The contract asked for a MANDATORY registration-time baseline. register_file_child child_registry.rs:110 deliberately accepts a missing baseline (:107-109) because a hard registration failure would KILL THE WATCH, whereas an edge-triggered NoBaseline observation keeps the child under surveillance. That is a defensible design inversion, recorded here rather than left for a reader to discover by diffing intent against code.",
+        "residual_caveat": "The Suspected and NoBaseline emissions in palmistry/src/main.rs:676 and :685 are tracing warn calls carrying diag_event_code DiagEventCode::Other - NOT diag-ring events - and tests/test_child_stall.rs does not cover the binary. Stated, not hidden."
+      },
+      "11_systemic_typed_screenshot_marker": {
+        "disposition": "IMPLEMENTED",
+        "evidence": "SCREENSHOT_MARKER_SCHEMA_ID hsk.native_gui.screenshot_marker@5 tests/native_gui_support/screenshot_marker.rs:35; no-adapter reason :338; seven UNGATED tests in tests/test_screenshot_deferred_marker.rs (:44, :87, :163, :188, :229, :279, :304). File header :13 states explicitly that it runs unconditionally.",
+        "note": "This is AC-108-2. Confirmed at HEAD and consistent with validation_v4 pass_evidence; not re-litigated."
+      },
+      "12_dep_governance_cargo_toml_lock_disposition": {
+        "disposition": "RECORDED_ACCEPTED_RETROACTIVELY",
+        "evidence": "The item asked only that a disposition be RECORDED. Before this entry the string appeared solely in MT-108 scope.summary with no answer anywhere in the packet - it was SILENTLY ABSENT, the exact failure AC-108-1 exists to catch.",
+        "disposition_text": "The MT-004 and MT-009 Cargo.toml and Cargo.lock edits carried sanctioned dependencies for work whose allowed_paths named the crate source but omitted its manifest. The manifest is part of the same crate as the sanctioned paths, no unsanctioned dependency was introduced, and the alternative - a dependency added to source but not to the manifest - does not compile. Accepted retroactively as an allowed_paths drafting gap rather than a scope breach. Future MT contracts touching dependencies should name Cargo.toml and Cargo.lock explicitly in allowed_paths.",
+        "note": "Pure paperwork item; no code change required or made."
+      }
+    },
+    "contract_hygiene_defects_found": [
+      "lifecycle.open_repair_plan_2026_07_03.fix_first is TRUNCATED mid-item-7 (it ends at ...tracked to the real /terminal rout...), so a no-context implementer reading that field alone never sees items 8 through 12 at all.",
+      "The typed defers for items 7 and 8 previously existed only as free prose inside lifecycle.rfv_evidence_2026_07_10, which is not machine-addressable in the sense validation_v4 remediation item 6 requires. This residual_dispositions_ac_108_1 block is the machine-addressable surface."
+    ],
+    "ac_108_1_status": "ALL TWELVE ITEMS DISPOSED. Seven IMPLEMENTED (1, 2, 3, 4, 5, 9, 11), one IMPLEMENTED_WITH_CAVEAT (6), one PARTIAL_SUPERSEDED_BY_DESIGN with a stated residual caveat (10), one RECORDED (12), and two RE_DEFERRED to newly created non-pass owners (7 to MT-125, 8 to MT-126). No item is silently absent and no defer points at a PASS owner. AC-108-2 is item 11 and is green. AC-108-3 (full native suite green) remains the outstanding capstone gate."
   }
 }

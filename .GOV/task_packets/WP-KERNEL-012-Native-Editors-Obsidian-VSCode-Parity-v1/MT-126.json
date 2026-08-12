@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-126",
+  "title": "E15-MT-126-Capture-And-Inspect-The-Real-GPU-Worksurface-Screenshot-PT-102-B-On-A-Live-Window",
+  "group": "E15-Visual",
+  "created_at_utc": "2026-08-12T13:45:00Z",
+  "updated_at_utc": "2026-08-12T13:45:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-126.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Created to be the TRUTHFUL NON-PASS OWNER of MT-108 residual item (8), PT-102-B. MT-108 V4 remediation item 6 requires a re-deferred residual to name an owner that REMAINS NON-PASS, and item 7 of the same plan states that a BLOCKED/DEFERRED marker may not close a required pixel row. MT-102 is PASS_V1, so deferring to it would have closed a required pixel row against a passing owner."
+  },
+  "scope": {
+    "summary": "Capture the real-GPU worksurface screenshot on a live Handshake window and visually inspect it, closing PT-102-B with pixels rather than a typed deferral.",
+    "defect_detail": {
+      "why_no_cargo_test_can_reach_it": "Verified at HEAD 8a77e315. HandshakeApp::capture_worksurface_screenshot_to (src/frontend/handshake_native/src/app.rs:12991-13037) delegates to crate::mcp::screenshot::capture_handshake_window(), which is a Win32 PrintWindow capture of a LIVE application window. No cargo test process owns such a window, so no test invocation can produce a real frame.",
+      "why_the_existing_test_does_not_prove_it": "tests/test_visual_debugger.rs:131-141 accepts EITHER a Deferred OR a Captured outcome. That is correct for a headless CI host but it means the test can never evidence a capture, so a green run says nothing about PT-102-B.",
+      "distinct_from_the_wgpu_readback_path": "MT-108 current_head_findings finding_2 proves this host CAN materially capture GPU frames with HANDSHAKE_GPU_SCREENSHOT=1 (test_loom_address went 16 passed / 0 failed, EXIT 0, and canvas_loom_chip_screenshot produced real pixels). That is the egui_kittest wgpu READBACK path. PT-102-B is the PrintWindow-on-a-live-window path. The two are different mechanisms and the former does NOT discharge the latter - recorded explicitly so a future implementer does not close this item with the wrong evidence.",
+      "host_capability": "The host is proven GPU-capable, so this is a live-run and inspection task, not a hardware blocker."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/**",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC-126-1: a real worksurface screenshot is captured from a live Handshake window on a real-GPU host, and the resulting image is OPENED and DESCRIBED - not merely produced. Record the artifact path and its sha256.",
+      "AC-126-2: the capture must NOT foreground the app, steal focus, hijack keyboard input, or move the OS cursor, per HBR-QUIET and CX-503D1. PrintWindow on a non-foreground window is the sanctioned mechanism; state how quiet operation was verified.",
+      "AC-126-3: the inspection describes what is actually visible - readable controls, no overlap or clipping, correct active/error/disabled states - rather than asserting the file is non-empty. A non-zero byte count is not visual proof.",
+      "AC-126-4: the headless path still emits its typed DEFERRED marker and still passes on a host without a window, so CI is not broken by this MT.",
+      "AC-126-5: record whether any automated assertion is possible at all on this path. If it genuinely cannot be automated, say so as a typed statement so the next capstone does not re-litigate it from scratch."
+    ],
+    "proof_targets": [
+      "PT-126-1: the captured artifact path, its sha256, and a written description of the inspected frame.",
+      "PT-126-2: evidence of quiet operation - no foregrounding, no focus or Z-order change during capture.",
+      "PT-126-3: the headless deferred-marker path re-run and still green."
+    ],
+    "risk_if_missed": "MT-108 AC-108-1 cannot honestly close: a required pixel row would be closed by a typed deferral against a PASS_V1 owner, which the V4 verdict explicitly forbids."
+  },
+  "gui_obligation": {
+    "surface": "Worksurface / visual debugger screenshot path",
+    "requirement": "A real captured frame, opened and described. This MT exists precisely because a marker is not a picture."
+  },
+  "user_manual_obligation": {
+    "requirement": "Document how an operator or model captures a worksurface screenshot, and what the typed DEFERRED marker means when no GPU window is available."
+  },
+  "hbr_obligations": {
+    "VIS": "HBR-VIS: a required pixel row may not be closed by a typed DEFERRED. This MT is the row.",
+    "QUIET": "HBR-QUIET-001: capture must not change foreground window or Z-order.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE for the capture itself; internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}
