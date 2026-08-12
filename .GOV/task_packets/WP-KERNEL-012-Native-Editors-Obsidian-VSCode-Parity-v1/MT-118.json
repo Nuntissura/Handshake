@@ -22,7 +22,7 @@
   "title": "B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T19:10:56.234Z",
-  "updated_at_utc": "2026-08-06T19:10:56.234Z",
+  "updated_at_utc": "2026-08-12T13:15:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [
       "MT-112"
     ],
@@ -41,7 +41,41 @@
     "claimed_by": null,
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Isolated by MT-112 with a real instrumented error after its own identity fix landed. It is a DURABLE CONTRACT decision outside MT-112 allowed_paths and defect_detail, so it is deferred here per the Operator standing rule rather than decided unilaterally or lost."
+    "creation_reason": "Isolated by MT-112 with a real instrumented error after its own identity fix landed. It is a DURABLE CONTRACT decision outside MT-112 allowed_paths and defect_detail, so it is deferred here per the Operator standing rule rather than decided unilaterally or lost.",
+    "implementation_result_kernel_builder_2026_08_12": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "prior_state": "The previous session left MT-118 UNCOMMITTED AND UNPROVEN at status READY_FOR_DEV. Running it revealed the implementation was INCOMPLETE, not merely unlanded.",
+      "red_reproduced_first": "cargo test --lib --features duckdb-flight-recorder,test-utils api::memory:: against real PostgreSQL at 127.0.0.1:5544 => 28 passed / 1 failed / 1991 filtered, 744.41s. The single failure was the MT target test legacy_retry_heals_missing_receipt_once_and_converges: first legacy retry failed: 500 Internal Server Error internal_error.",
+      "what_the_prior_work_DID_achieve": "The heal itself is correct and is retained unchanged. The new AC-118-2 tripwire non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path PASSED, and migration_0345_old_schema_identity_and_down_up_retry_converge PASSED, so the MT-112 identity work is green.",
+      "diagnosis_method": "storage_error maps every non-Validation/NotFound/Conflict error to an opaque 500 and logs through tracing, but handshake_core installs no tracing subscriber under test, so the cause was invisible. A temporary eprintln was added to storage_error, the single test was re-run with --nocapture, the cause was captured, and the instrumentation was REMOVED - verified by grep returning 0 occurrences. Same technique MT-112 had to use for the same opacity.",
+      "root_cause_captured_verbatim": "MT118_TEMP_DIAGNOSTIC storage_error: serialization error: HSK-400-INVALID-EVENT: Event shape violation: payload field proposal_id must be a UUID string: invalid character: expected an optional prefix of urn:uuid: followed by [0-9a-fA-F-], found P at 1",
+      "the_real_defect": "validate_memory_write_proposed_payload (flight_recorder/mod.rs) required proposal_id to be a UUID via require_uuid_string_non_nil, while its OWN SIBLINGS in the same event family - FR-EVT-MEM-002 at :4228 and FR-EVT-MEM-003 at :4270 - accept require_safe_token_string(.., proposal_id, 256) for the SAME logical field. The family contradicted itself: a proposal could be REVIEWED with a non-UUID id but never PROPOSED with one, so a pre-hardening row could never publish FR-EVT-MEM-001 and its retry could never converge.",
+      "fix": "Aligned FR-EVT-MEM-001 proposal_id to require_safe_token_string(map, proposal_id, 256), matching MEM-002 and MEM-003. is_safe_token still enforces non-empty, <=256 bytes, and an ASCII charset of alphanumerics plus -_:./ so no whitespace, quotes, or control characters are admitted. UUID discipline for NEWLY MINTED proposals remains enforced upstream in build_memory_proposal_flight_recorder_event and is pinned by the AC-118-2 tripwire. Neither event_id nor the aggregate id depend on this field - both are stable_uuid derivations - so a non-UUID payload id cannot produce a non-UUID durable key.",
+      "evidence_that_this_changes_no_real_data": {
+        "claim": "No genuine pre-hardening non-UUID proposal row exists anywhere in the live cluster.",
+        "method": "Scanned every schema holding fems_memory_proposals across the managed cluster with a dynamic-SQL sweep.",
+        "result": "66 proposal rows total, 4 with a non-UUID proposal_id. All four are PROP-LEGACY-<uuidv7> values sitting in leaked storage_test_* schemas - fixtures left behind by this very test.",
+        "corroboration": "PROP-LEGACY appears exactly 4 times in the entire source tree, all inside api/memory.rs test fixtures. It is not a production shape.",
+        "consequence": "This is why the fix was NOT keyed on a PROP-LEGACY- prefix: doing so would have shaped product law around a test fixture. It also means the alignment cannot re-key, widen, or reinterpret any existing row."
+      },
+      "temporary_instrumentation_removed": "grep -c MT118_TEMP_DIAGNOSTIC src/backend/handshake_core/src/api/memory.rs => 0.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. This is implementation evidence only.",
+      "green_run": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils api::memory:: -- --test-threads=4, POSTGRES_TEST_URL=postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_118 => CARGO_EXIT=0, test result: ok. 29 passed; 0 failed; 0 ignored; 1991 filtered out; finished in 536.87s.",
+      "acceptance_closure": {
+        "AC-118-1": "SATISFIED. legacy_retry_heals_missing_receipt_once_and_converges ... ok. No assertion was weakened or deleted - the test file was not edited at all.",
+        "AC-118-2": "SATISFIED. non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path ... ok. The heal is reachable ONLY when a pre-existing row never persisted an artifact; the mint path passes LegacyArtifactHeal::Deny and a first-time payload without an artifact still fails closed.",
+        "AC-118-3": "SATISFIED. The target test drives two concurrent retries against the healed legacy row and both converge; simultaneous_proposal_retries_converge_to_one_row_and_receipt also ok.",
+        "AC-118-4": "SATISFIED BY CONSTRUCTION AND REVIEW. heal_legacy_proposal_artifact derives every value from a durable column of fems_memory_proposals or from a fixed structural constant of the single-op editor proposal shape, returns None when the row cannot be rebuilt honestly, and is never written back to the row. Nothing is read from the live request, the session, or the clock.",
+        "AC-118-5": "SATISFIED. migration_0345_old_schema_identity_and_down_up_retry_converge ... ok, and the MT-112 differential test canonical_request_identity_matches_shipped_sql_across_actor_and_hash_edges ... ok.",
+        "PT-118-1": "SATISFIED. RED reproduced first (28 passed / 1 failed), then GREEN.",
+        "PT-118-2": "SATISFIED. The negative test passes and pins the mint-path rejection permanently.",
+        "PT-118-3": "SATISFIED AND EXCEEDED. MT-112 left this suite at 27 passed / 1 failed; the contract asked for 28+/0. Result: 29 passed / 0 failed."
+      }
+    },
+    "ready_for_validation_at_utc": "2026-08-12T13:15:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
+    "ready_for_validation_summary": "GREEN against real PostgreSQL. The prior session heal is retained unchanged and was correct; the remaining blocker was a SECOND UUID enforcement site in the Flight Recorder schema validator, found by capturing the real error behind an opaque 500. AC-118-1 through AC-118-5 and PT-118-1 through PT-118-3 all satisfied. Official validator verdict remains PENDING."
   },
   "scope": {
     "summary": "Let a pre-hardening FEMS memory proposal row that has no _canonical_artifact retry successfully, without weakening the canonical proposal contract for normal rows.",
@@ -57,7 +91,8 @@
     "allowed_paths": [
       "src/backend/handshake_core/src/storage/fems_memory.rs",
       "src/backend/handshake_core/src/api/memory.rs",
-      "src/backend/handshake_core/tests/**"
+      "src/backend/handshake_core/tests/**",
+      "src/backend/handshake_core/src/flight_recorder/mod.rs"
     ],
     "forbidden_paths": [
       "src/frontend/**",
@@ -74,7 +109,16 @@
       "PT-118-1: the named test green against real PostgreSQL, with the RED reproduced first.",
       "PT-118-2: a negative test proving a non-legacy proposal with a non-UUID id is still rejected.",
       "PT-118-3: the full api::memory:: suite green (MT-112 left it at 27 passed / 1 failed; this MT should make it 28+/0)."
-    ]
+    ],
+    "allowed_paths_amendment_2026_08_12": {
+      "schema_id": "hsk.mt_scope_amendment@1",
+      "amended_at_utc": "2026-08-12T12:55:00Z",
+      "amended_by": "KERNEL_BUILDER-20260812-113007",
+      "added": "src/backend/handshake_core/src/flight_recorder/mod.rs",
+      "reason": "AC-118-1 is unreachable without it. The prior uncommitted implementation correctly healed the canonical artifact - proven, because the new AC-118-2 tripwire passes - but the retry STILL failed, with the error merely MOVING from Serialization(missing field schema_version) to an opaque 500. Captured cause: HSK-400-INVALID-EVENT: payload field proposal_id must be a UUID string ... found P at 1, raised by validate_memory_write_proposed_payload in flight_recorder/mod.rs. There is a SECOND UUID enforcement site, downstream of the heal and outside the original allowed_paths.",
+      "authority": "Operator standing rule for this work packet: address a discovered gap inside the current MT when it directly relates to that MT. This is the same defect - a legacy non-UUID proposal id blocking the retry - at a second enforcement site, and AC-118-1 cannot be satisfied without it.",
+      "bounded_to": "The FR-EVT-MEM-001 proposal_id field check only. No other validator, event family, or schema rule was touched."
+    }
   },
   "hbr_obligations": {
     "PRIV": "The heal must not surface actor identity beyond what the durable row already persisted."

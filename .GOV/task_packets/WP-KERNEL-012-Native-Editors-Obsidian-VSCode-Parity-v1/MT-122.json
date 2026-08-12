@@ -1,0 +1,100 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-122",
+  "title": "E12-MT-122-Bound-Find-In-Files-Static-Chrome-And-Result-Rows-So-Neither-Pushes-Content-Off-Pane",
+  "group": "E12-Search",
+  "created_at_utc": "2026-08-12T11:42:00Z",
+  "updated_at_utc": "2026-08-12T12:38:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-122.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-119"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Recorded but never given an owner in MT-119.lifecycle.implementation_result.disclosed_gaps: 'AC-119-4 result-row instance left open ... Candidate for a follow-up MT.' Created here so the disclosure is not lost when MT-119 closes."
+  },
+  "scope": {
+    "summary": "Bound the Find-in-Files rows that can still overflow a narrow pane: the static action row, which drags later rows off-pane with it, and the result row, where a long hit title pushes the [source_kind] badge out of view.",
+    "defect_detail": {
+      "finding_source": "MT-119 AC-119-4 sibling-row survey, which deliberately checked the neighbouring rows rather than declaring them safe by assumption.",
+      "verbatim_disclosure": "Result rows have NO clippable control - the ENTIRE row is the click target (inner.response.interact(Sense::click())) - so no control can be lost. However a long hit.title CAN push the [source_kind] badge out of view, which is the same defect class at lower severity.",
+      "why_it_was_deferred": "MT-029 holds mounted visual baselines on this exact pane. Altering the result-row layout mid-WP risked disturbing those baselines for a badge rather than for a control, so it was recorded rather than silently called safe.",
+      "severity": "Lower than MT-119: no interactive control becomes unreachable. The operator loses a source-kind signal, not an action.",
+      "safe_rows_already_cleared": "The 'Saved searches' heading is static RichText with no user content. The excerpt line renders in a vertical layout so it wraps rather than pushing sideways. Both were checked and are safe; only the result row is open.",
+      "second_defect_found_while_proving_MT119_PT_119_3": {
+        "status": "MEASURED, NOT INFERRED, while implementing the MT-119 PT-119-3 guard on 2026-08-12.",
+        "finding": "At a 420px pane the Find-in-Files STATIC action row overflows on its own, before any user content is involved: find-in-files.save-bookmark (Bookmark Search) renders at x=[388.00, 496.41] and find-in-files.cancel at x=[402.28, 448.59], against a pane right edge of 420.",
+        "propagation_mechanism": "egui Region::expand_to_include_rect widens a Ui max_rect (not only min_rect) to cover that overflow. Every row laid out AFTER the static chrome therefore receives a layout width larger than the visible pane. The saved-search Restore/Remove controls consequently land at x=[380.16,433.28] and x=[441.28,496.41] - outside a 420px pane EVEN WITH THE MT-119 FIX APPLIED.",
+        "why_it_is_a_distinct_defect": "MT-119 fixed user-content-driven overflow in the saved-search row. This is chrome-driven overflow: it needs no user content at all, and it degrades every row below it. Fixing it is a product change and was correctly out of MT-119 scope.",
+        "guard_already_in_place": "The MT-119 guard ships interlock I0 asserting the static-chrome premise, so if this defect worsens the test reports that static chrome outgrew the pane rather than falsely blaming the saved-search layout. That interlock is the tripwire this MT should turn green at a narrow pane."
+      }
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/find_in_files.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC-122-0: at a realistically narrow pane (420px or narrower), the STATIC action row fits inside the pane, and the rows below it are no longer handed a layout width larger than the visible pane. Prove it by setting the MT-119 guard pane width to that narrow value and showing its I0 interlock and the containment assertions pass, where today they cannot.",
+      "AC-122-1: with a hit title long enough to overflow the row, the [source_kind] badge remains fully visible inside the Find-in-Files pane at the tested viewport.",
+      "AC-122-2: the full title stays RECOVERABLE by the operator (elide with a tooltip, wrap, or equivalent). Truncating so two results become indistinguishable is not an acceptable fix - this mirrors AC-119-2.",
+      "AC-122-3: MT-029 mounted visual baselines are re-run and either unchanged, or the change is inspected, described and explicitly re-baselined with the reason recorded. Do not silently re-baseline.",
+      "AC-122-4: the whole row remains a single click target - the interaction contract must not change while fixing the layout.",
+      "AC-122-5: a non-vacuous containment guard for the badge, in the style established by MT-119 PT-119-3 (bounded viewport, measured pane rect, proven to go RED when the fix is reverted)."
+    ],
+    "proof_targets": [
+      "PT-122-1: a mounted frame at a realistic long hit title, OPENED and described, showing the badge inside the pane.",
+      "PT-122-2: the containment guard shown RED with the fix reverted and GREEN with it applied, both outputs captured verbatim.",
+      "PT-122-3: MT-029 visual proofs and MT-113 author-id proofs still green."
+    ],
+    "risk_if_missed": "A search result whose source cannot be identified at a glance degrades the operator's ability to distinguish hits across pillars, and leaves a known, written-down overflow class unowned after MT-119 closes."
+  },
+  "gui_obligation": {
+    "surface": "Find-in-Files result rows",
+    "requirement": "Argus/mounted frame evidence with the badge visible; before/after description required."
+  },
+  "user_manual_obligation": {
+    "requirement": "NOT_APPLICABLE if no documented behaviour changes; if elision or a tooltip is introduced, document the affordance."
+  },
+  "hbr_obligations": {
+    "VIS": "Mounted frame proof required; a compile is not acceptance.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (no business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

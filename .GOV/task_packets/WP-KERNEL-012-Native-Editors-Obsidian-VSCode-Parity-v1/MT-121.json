@@ -1,0 +1,92 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-121",
+  "title": "E11-MT-121-Size-The-MCP-Snapshot-Viewport-So-Model-Visible-Bounds-Describe-The-Real-Window",
+  "group": "E11-Argus",
+  "created_at_utc": "2026-08-12T11:40:00Z",
+  "updated_at_utc": "2026-08-12T11:40:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-121.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Discovered while designing the MT-119 PT-119-3 geometry guard. Every geometry value the MCP snapshot publishes to models is measured in an unsized 10000x10000 egui viewport, so no model can reason about layout, containment, clipping, or overlap from argus.inspect(). This is a live product defect on the model-vision surface, not a test artifact. It is outside MT-119 (layout-only) allowed_paths, so it is deferred here per the Operator standing rule rather than silently absorbed or lost."
+  },
+  "scope": {
+    "summary": "Give the MCP navigation snapshot a real screen rect so the bounds it publishes to models describe the actual window instead of egui's unsized 10000x10000 default viewport.",
+    "defect_detail": {
+      "mechanism": "HandshakeApp::refresh_mcp_snapshot (src/frontend/handshake_native/src/app.rs, around lines 12474-12509) builds a FRESH egui::Context and runs it with RawInput::default(). RawInput::default() leaves screen_rect as None, and egui then falls back to a 10000x10000 viewport (egui-0.33.3/src/input_state/mod.rs:368, viewport_rect: Rect::from_min_size(Default::default(), vec2(10_000.0, 10_000.0))). Every widget therefore lays out as if the window were 10000px wide.",
+      "consequence": "UiNodeBounds published through crate::accessibility::snapshot::collect_ui_tree_snapshot (src/accessibility/snapshot.rs:339, bounds populated at :275-287) are geometrically valid for a 10000x10000 window that does not exist. argus.inspect() consumers - models, the visual debugger, and any HBR-VIS acceptance step - receive coordinates that cannot be compared to a rendered frame.",
+      "measured_evidence": "During MT-119 PT-119-3 a mounted assertion read the saved-search Restore control right edge from the inspect tree at 2605.875px against a derived pane edge of 1557.34px. 2605px lies beyond the ENTIRE 2560px harness window, while the GPU frame captured in the SAME run showed both controls comfortably inside the pane. The inspect tree was describing a synthetic 10000-wide re-render. A second, independent symptom of the same fresh-context root cause is already known: egui::Memory-backed state such as popups and context menus reads back EMPTY through the same path.",
+      "why_it_is_not_only_a_test_problem": "argus.inspect() is the product's model-navigation surface. A model asked to check whether a control is clipped, overlapping, or off-pane will get a confidently wrong answer. The defect degrades model vision in normal operation, not merely in proofs."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/accessibility/**",
+      "src/frontend/handshake_native/src/mcp/**",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC-121-1: refresh_mcp_snapshot renders with a screen_rect that reflects the live viewport rather than RawInput::default(). When no live viewport is available, it uses an explicit, documented, realistic fallback size and records which one it used - it must never silently fall back to the 10000x10000 default.",
+      "AC-121-2: bounds published through the MCP snapshot for a known surface are within the declared viewport. Prove it with an assertion that FAILS if the unsized context is restored - a guard that stays green under the old behaviour does not ship (this is the exact vacuity failure PT-119-3 hit twice).",
+      "AC-121-3: no author_id, role, value, or tree SHAPE changes. This MT changes coordinates only. Re-run the MT-113 author-id proofs and the MT-029 mounted visual baselines and show them unchanged.",
+      "AC-121-4: state explicitly whether egui::Memory-backed surfaces (popups, context menus) become readable once the context is sized, or whether that is a separate fresh-context defect. Do not claim it is fixed without evidence.",
+      "AC-121-5: the UserManual entry for the Argus/MCP inspect surface records that bounds are viewport-relative and names the viewport source, so a no-context model knows what the coordinates mean."
+    ],
+    "proof_targets": [
+      "PT-121-1: a test asserting published bounds lie within the declared viewport, shown RED against the pre-fix unsized context and GREEN after, with both outputs captured verbatim.",
+      "PT-121-2: MT-113 test_author_id_budget and the MT-029 mounted visual proofs still green, proving tree identity and baselines are untouched.",
+      "PT-121-3: a direct before/after comparison for one real surface showing the published bounds now match the rendered frame."
+    ],
+    "risk_if_missed": "MT-108 AC-108-2/AC-108-3 pixel and visual-posture gates, and every future HBR-VIS acceptance step, can be satisfied or refuted by geometry that does not describe the product. That is a false-proof generator aimed directly at the capstone."
+  },
+  "gui_obligation": {
+    "surface": "Argus / MCP inspect navigation surface",
+    "requirement": "The change is observable through argus.inspect() bounds. Record before/after bounds for one named author_id target as evidence."
+  },
+  "user_manual_obligation": {
+    "requirement": "Document that MCP snapshot bounds are viewport-relative, name the viewport source, and state the fallback behaviour when no live viewport exists."
+  },
+  "hbr_obligations": {
+    "VIS": "This MT repairs the surface HBR-VIS acceptance depends on. Argus evidence is required.",
+    "MAN": "UserManual must record the coordinate contract.",
+    "INT": "HBR-INT-009 three-tier consideration: Flight Recorder NOT_APPLICABLE (no business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

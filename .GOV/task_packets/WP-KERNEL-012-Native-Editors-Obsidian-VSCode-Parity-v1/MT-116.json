@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-08-06T12:50:39.525Z",
+  "updated_at_utc": "2026-08-12T11:45:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -79,7 +79,8 @@
     },
     "allowed_paths": [
       "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
-      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs"
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/tests/**"
     ],
     "forbidden_paths": [
       "src/backend/**",
@@ -97,7 +98,16 @@
       "PT-116-2: MT-068 test_locus_interop ordinary suite still green (32 passed / 0 failed / 1 ignored at the time of writing).",
       "PT-116-3: no byte-identical before/after frame pairs - a known failure mode in this WP where render_proof_frame paints the PRECEDING frame; use render_settled_proof_frame."
     ],
-    "implementation_notes": "Read the MT-068 remediation_v4 record first. The single-use navigation record and the mt068.locus-ref-open-completion observer are NOT part of this MT - do not disturb them. This MT is layout-only."
+    "implementation_notes": "Read the MT-068 remediation_v4 record first. The single-use navigation record and the mt068.locus-ref-open-completion observer are NOT part of this MT - do not disturb them. This MT is layout-only.",
+    "allowed_paths_amendment_2026_08_12": {
+      "schema_id": "hsk.mt_scope_amendment@1",
+      "amended_at_utc": "2026-08-12T11:45:00Z",
+      "amended_by": "KERNEL_BUILDER-20260812-113007",
+      "added": "src/frontend/handshake_native/tests/**",
+      "reason": "The contract was internally inconsistent, as the prior session flagged in implementation_result.scope_question_for_operator: AC-116-2 and PT-116-1 REQUIRE a mounted visual proof, and a mounted proof can only live in tests/, but allowed_paths listed only the two src/ rendering files. The MT could therefore never satisfy its own acceptance.",
+      "authority": "CX-503D1 and KERNEL_BUILDER_PROTOCOL HBR gate obligations: when Argus cannot see, identify, steer, or re-observe the changed surface, remediating the missing visual-proof hook is an allowed same-MT/WP scope expansion because it is needed to prove the implemented surface. This adds no new product behaviour - it adds the proof the MT already demands.",
+      "bounded_to": "Authoring the MT-116 mounted chip proof only. It does not authorize product-behaviour changes under tests/ or any edit outside the MT-116 chip surface."
+    }
   },
   "hbr_obligations": {
     "VIS": "IN SCOPE and central - this MT exists purely to correct a visual containment defect. Frames must be opened and inspected, never just captured.",

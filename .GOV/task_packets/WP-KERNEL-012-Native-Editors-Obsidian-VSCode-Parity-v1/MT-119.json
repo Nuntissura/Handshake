@@ -22,7 +22,7 @@
   "title": "E5-MT-119-Bound-Saved-Search-Row-Layout-So-Long-Queries-Cannot-Clip-Restore-And-Remove-Off-Pane",
   "group": "E5-Search",
   "created_at_utc": "2026-08-06T20:30:32.347Z",
-  "updated_at_utc": "2026-08-06T20:30:32.347Z",
+  "updated_at_utc": "2026-08-12T12:35:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [
       "MT-113"
     ],
@@ -66,8 +66,9 @@
         "excerpt_line": "Rendered on its own line inside a vertical layout, so it wraps rather than pushing anything sideways. SAFE."
       },
       "disclosed_gaps": [
-        "PT-119-3 HAS NO WORKING IMPLEMENTATION - see pt_119_3_attempted_and_WITHDRAWN. A lib-level guard is provably incapable of detecting this defect; it needs a mounted rect assertion. THIS REMAINS THE SOLE BLOCKER to READY_FOR_VALIDATION and the MT is held at CLAIMED because of it.",
-        "AC-119-4 result-row instance left open: the rows have NO clippable control (the whole row is the click target) but a long hit.title CAN push the [source_kind] badge out of view. Same class, lower severity. Deliberately not changed to avoid disturbing MT-029 mounted visual baselines mid-WP. Candidate for a follow-up MT."
+        "PT-119-3 is now CLOSED - see pt_119_3_IMPLEMENTED_AND_PROVEN. The two withdrawn attempts are retained above as history and as the reason the third design is shaped the way it is.",
+        "AC-119-4 result-row instance: the rows have NO clippable control (the whole row is the click target) but a long hit.title CAN push the [source_kind] badge out of view. Same class, lower severity. Now OWNED by MT-122 rather than left as an unowned candidate.",
+        "NEW, found while proving PT-119-3: at a 420px pane the STATIC action row (Bookmark Search, Cancel) overflows on its own and drags user-content rows off-pane with it via egui max_rect expansion. Unfixed product defect, same class as MT-122. Routed to MT-122 so it is not lost."
       ],
       "scope_compliance": "CLEAN. One file, src/frontend/handshake_native/src/find_in_files.rs, inside MT-119 allowed_paths. The canonical Argus driver was not touched. Pre-existing non-rustfmt-clean sites in this file were left alone, following the MT-113 precedent of avoiding formatter spillover into another MT diff.",
       "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict.",
@@ -101,8 +102,25 @@
         "why_this_finding_matters_beyond_mt119": "This is the same fresh-context hazard already known to make egui::Memory-backed state (popups, context menus) read back EMPTY - but its consequence for BOUNDS was not previously recorded. Any MT that tries to assert geometry, containment, clipping or overlap from the inspect tree will get answers that do not describe the rendered UI. That directly affects HBR-VIS style acceptance and MT-108 pixel gates.",
         "what_would_actually_work": "Geometry must be measured from the MOUNTED egui pass - for example by having the product expose the rendered rects, or by asserting against the captured frame itself - not from the MCP snapshot tree.",
         "discipline_note": "The assertion was NOT loosened to make it pass. Loosening a threshold until a false positive goes quiet would have fabricated a green with no meaning - the same failure as the vacuous lib-level guard deleted earlier. It was reverted and the finding recorded instead."
+      },
+      "pt_119_3_IMPLEMENTED_AND_PROVEN": {
+        "status": "IMPLEMENTED, NON-VACUITY PROVEN BY RED-THEN-GREEN ON TWO INDEPENDENT MUTATIONS",
+        "test": "mt119_saved_search_controls_stay_inside_the_find_pane, src/frontend/handshake_native/src/find_in_files.rs:6338-6629, inside the existing #[cfg(test)] mod tests.",
+        "mechanism_reused_not_invented": "crate::accessibility::snapshot::collect_ui_tree_snapshot already publishes real rendered bounds keyed by author_id (snapshot.rs:339, UiNodeBounds :121-131). Only the CALLER was ever wrong. No product change was needed and none was made - KB-MRPI-001 reuse ladder.",
+        "harness": "egui::Context::default() + enable_accesskit() + set_pixels_per_point(1.0), RawInput::screen_rect = Some(1280x800), panel rendered inside SidePanel::left(..).exact_width(..), two passes, assertions on the second.",
+        "correction_1_response_rect_is_not_the_pane": "inner.response.rect is the Frame response rect and GROWS to include overflow exactly like ui.max_rect(). It measured 504.406px for a 420px pane. Interlock I1 caught this on the first run. The pane is now taken from the panel CLIP RECT (ui.clip_rect(), measured inside the same pass), which egui sets to panel_rect at panel.rs:292 specifically so overflow does not render visibly - making it the true visibility boundary. This is a THIRD instance of the same measure-the-wrong-rect hazard in this WP.",
+        "correction_2_pane_is_560_not_420": "At 420px the panel STATIC action row already overflows on its own - find-in-files.save-bookmark at x=[388.00,496.41] and find-in-files.cancel at x=[402.28,448.59]. egui Region::expand_to_include_rect widens a Ui max_rect over that overflow, handing every later row a layout width larger than the visible pane, so the saved-search controls land outside a 420px pane EVEN WITH THE MT-119 FIX IN PLACE. That is a real second-order defect but it is NOT what MT-119 fixed, and fixing it would be a product change. Interlock I0 now asserts the static-chrome premise so a future regression reports static chrome outgrew the pane instead of falsely blaming the saved-search layout. Routed to MT-122.",
+        "interlocks": "I0 static chrome fits the pane; I1 pane genuinely bounded (<= PANE_WIDTH + 2.0) - this alone would have killed the first vacuous attempt, which measured ~9984; I2 untruncated galley measured LIVE via ctx.fonts_mut().layout_no_wrap() and asserted >= 1.5x pane width, no hardcoded font metrics; I3 find_unique_by_author_id + .expect() on bounds, never if-let-Some which would pass silently on missing bounds; I4 rendered label width < untruncated width.",
+        "mutation_M1_pre_fix_layout_RED": "panicked at src/find_in_files.rs:6583: MT-119: the Restore control must render FULLY INSIDE the Find-in-Files pane. rect x=[1079.594, 1132.719] vs pane x=[0.000, 560.000] (tolerance 1px). Restore left edge is 519.6px PAST the pane right edge. test result: FAILED. 46 passed; 1 failed. EXIT 101.",
+        "mutation_M2_truncate_removed_RED": "panicked at src/find_in_files.rs:6596: MT-119: the saved-search label must render FULLY INSIDE the Find-in-Files pane. rect x=[-636.250, 427.750] vs pane x=[0.000, 560.000]. Buttons stayed put and their assertions PASSED; the query ran 636.25px off the pane LEFT edge - exactly the case the label assertion exists for, and the case the first vacuous attempt could not see. test result: FAILED. 46 passed; 1 failed. EXIT 101.",
+        "green": "HEAD + test => 47 passed / 0 failed, EXIT 0, zero warnings. Baseline before the test was 46 passed / 0 failed. Both mutations reverted by TARGETED EDIT - no git checkout --, reset, stash or clean, because the branch carries other uncommitted work.",
+        "scope_verified_by_kernel_builder": "git diff --numstat = 292 insertions, 0 deletions, single hunk @@ -6337,0 +6338,292 @@ inside mod tests. 17 assertions. No product source line modified. Verified directly, not accepted on the sub-agent report.",
+        "cargo_fmt_note": "cargo fmt --check exits 1, but every diff is pre-existing at lines 2494-4228; none in the added region. Left alone per the MT-119/MT-113 no-spillover precedent."
       }
-    }
+    },
+    "ready_for_validation_at_utc": "2026-08-12T12:35:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
+    "ready_for_validation_summary": "PT-119-3, the sole blocker recorded by the prior session, is now implemented and PROVEN NON-VACUOUS. Two earlier attempts failed and both are superseded: a lib-level guard that could not fail, and a mounted assertion off argus.inspect() that produced a false positive. Root cause of both, verified first-hand at egui-0.33.3/src/input_state/mod.rs:368 and app.rs:12475/:12498 - an unsized egui context falls back to a 10000x10000 viewport. AC-119-1/2/3/4, PT-119-1 and PT-119-2 were already satisfied by the prior session at this same product source. No product source line changed for PT-119-3: git diff --numstat reports 292 insertions / 0 deletions in one additive hunk inside mod tests."
   },
   "scope": {
     "summary": "Bound the saved-search row layout so an unbounded user query cannot push its Restore and Remove controls outside the Find-in-Files pane.",

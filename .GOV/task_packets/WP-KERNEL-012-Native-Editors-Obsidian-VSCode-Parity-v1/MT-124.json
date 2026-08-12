@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-124",
+  "title": "E13-MT-124-Make-The-Wikilink-Chip-Label-Wrap-With-Its-Galley-So-A-Long-Chip-Cannot-Paint-Outside-The-Reading-Column",
+  "group": "E13-RichEditor",
+  "created_at_utc": "2026-08-12T13:05:00Z",
+  "updated_at_utc": "2026-08-12T13:05:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-124.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [
+      "MT-116"
+    ],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Found and MEASURED while proving MT-116 PT-116-1 on 2026-08-12. It is a DIFFERENT defect from the one MT-116 fixed (spec-size vs paint-size mismatch), it is not covered by the MT-116 pixel guard, and fixing it would have been an unscoped product change. Deferred here per the Operator standing rule rather than absorbed or lost."
+  },
+  "scope": {
+    "summary": "Make the wikilink chip label wrap the same way its galley does, so a long chip inside a narrow reading column cannot paint outside the column with a mis-sized pill behind it.",
+    "defect_detail": {
+      "mechanism": "The chip label is drawn with a single painter.text call, which NEVER WRAPS. The galley that measures the chip DOES wrap. When the label is long enough to need two rows, chip_rect_for_span unions the two galley rows into one tall pill while the painted text runs off in a single line.",
+      "measured_evidence": "At editor font size 20.0 with a 46-character H1 label, the painted label ran 325px PAST the 720pt reading column while chip_rect_for_span produced a single 88px-tall pill. Measured during MT-116 proof authoring, not inferred.",
+      "why_MT116_does_not_cover_it": "MT-116 fixed the pill/label FONT METRIC mismatch (the pill measured at the user-configured style size, the label painted at a hardcoded 15.0 constant). This is a WRAPPING mismatch and survives that fix. The MT-116 pixel guard deliberately REJECTS such a configuration as unmeasurable via a pill-height check rather than asserting on it, so this defect is explicitly outside its coverage.",
+      "related_finding_headings_at_default_size": "The MT-116 record claimed no behavioural change at the default editor size 15.0. That holds for PARAGRAPHS only. An H1 at editor 15.0 resolves to style size 27.0 through HEADING_SCALE, so heading chips DID change at the default size - the H1 before-frame differs between the fixed and reverted builds (936004... vs c72f4f...). Recorded here so the next implementer does not trust the paragraph-only claim for headings."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "src/backend/**"
+    ],
+    "acceptance_criteria": [
+      "AC-124-1: a chip label long enough to wrap paints INSIDE the reading column, and the pill drawn behind it matches the rows the label actually occupies. Neither may be measured by a different rule than the other.",
+      "AC-124-2: proven by direct frame inspection at a magnification where the label is legible - the frame must be OPENED and described, not merely captured. State the exact editor font size, block kind, and id length tested.",
+      "AC-124-3: a non-vacuous painted-output guard, in the style MT-116 established: it must go RED when the wrapping fix is reverted. Beware the two near-vacuous traps MT-116 hit and documented - antialiased pill-corner ring counted as label ink, and a 3-pixel underline remnant holding the ink bounding box full-width.",
+      "AC-124-4: the MT-116 pixel guard must be extended or a sibling added so this configuration is ASSERTED rather than rejected as unmeasurable by its pill-height check.",
+      "AC-124-5: heading chips are covered explicitly at the DEFAULT editor size, because HEADING_SCALE means headings are already off-default there.",
+      "AC-124-6: no regression to the MT-034, MT-042, MT-068 and MT-074 chip surfaces, which share this line-layout code."
+    ],
+    "proof_targets": [
+      "PT-124-1: a mounted GPU frame at a wrapping configuration, OPENED and described, showing label and pill agreeing inside the reading column.",
+      "PT-124-2: the guard shown RED with the fix reverted and GREEN with it applied, both outputs captured verbatim.",
+      "PT-124-3: before/after frame sha256 pairs proving the frames are not byte-identical (the render_proof_frame preceding-frame hazard recorded as PT-116-3)."
+    ],
+    "risk_if_missed": "A long wikilink chip in a heading or a narrow column paints outside the reading column onto the page, which is operator-visible corruption of the document surface rather than a cosmetic pill mismatch."
+  },
+  "gui_obligation": {
+    "surface": "Rich editor wikilink chip rendering",
+    "requirement": "Argus/mounted GPU frame evidence, opened and described, at a wrapping configuration."
+  },
+  "user_manual_obligation": {
+    "requirement": "NOT_APPLICABLE unless the wrapping affordance changes documented editor behaviour."
+  },
+  "hbr_obligations": {
+    "VIS": "Painted-output proof required; a compile or a spec-value assertion is not acceptance. MT-116 proved a spec-only guard cannot detect a paint-site defect.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (no business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

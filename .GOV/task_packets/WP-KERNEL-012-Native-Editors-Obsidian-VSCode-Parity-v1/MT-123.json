@@ -1,0 +1,87 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-123",
+  "title": "B8-MT-123-Make-Isolated-Test-Schema-Teardown-Crash-Safe-And-Reclaim-The-Leaked-Backlog",
+  "group": "B-Backend",
+  "created_at_utc": "2026-08-12T11:50:00Z",
+  "updated_at_utc": "2026-08-12T11:58:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-123.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Measured directly on 2026-08-12 while bringing the managed cluster up for MT-118 proof. The managed_pgdata directory for database handshake (oid 16384) holds 1,814,397 files / 19.1 GB, and an unclean-shutdown recovery spent over 900 seconds fsyncing it before accepting a single connection. Every PostgreSQL-backed proof in this work packet pays that startup tax, including the MT-108 capstone sweep."
+  },
+  "scope": {
+    "summary": "Make isolated per-test PostgreSQL schema teardown survive an aborted test process, and reclaim the 1009-schema backlog, so proof runs and crash recovery stop degrading.",
+    "defect_detail": {
+      "first_hypothesis_was_WRONG_and_is_corrected": "The initial guess was that storage_test_{uuid} schemas (src/backend/handshake_core/src/storage/tests.rs:183) leak because the shared helper has no Drop impl. QUERYING THE LIVE CLUSTER DISPROVED THAT AS THE CAUSE: only 18 storage_test_ schemas exist. Recorded rather than quietly replaced, because the corrected mechanism below is what the implementer must act on.",
+      "measured_cause": "The backlog is knowledge_test_<uuidv7> schemas created by src/backend/handshake_core/tests/knowledge_pg_support.rs:233. Live counts in database handshake: 1045 schemas total, of which 1009 are knowledge_test_ and 18 are storage_test_. pg_class holds 1,809,030 relations, which is ~1793 relations per leaked schema and matches the 1,814,397 on-disk file count almost exactly. Each isolated schema materializes the full migration set, so one leaked schema costs ~1793 relations.",
+      "teardown_exists_but_is_not_crash_safe": "knowledge_pg_support.rs DOES implement teardown - drop_schema_sql (:41), drop_and_verify_schema (:48) which verifies the schema is really gone (:90), and teardown_inner (:170) with an explicit note that an outstanding PoolConnection must not make teardown wait forever. So this is NOT missing cleanup. The failure mode is that teardown only runs when the test process survives to run it. This work packet has a documented history of test processes being killed mid-run (MT-119 implementation_result records a platform session limit killing all three launched agents within minutes, the sixth such outage that session). Every killed run leaves a full ~1793-relation schema behind permanently.",
+      "verification_still_required": "Confirm whether any live process currently owns a knowledge_test_ schema before reclaiming, and whether other databases in this 27-database cluster carry the same backlog. The counts above are for database handshake only."
+    },
+    "allowed_paths": [
+      "src/backend/handshake_core/tests/knowledge_pg_support.rs",
+      "src/backend/handshake_core/src/storage/tests.rs",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**",
+      "src/frontend/**"
+    ],
+    "acceptance_criteria": [
+      "AC-123-1: the real leak mechanism is confirmed at runtime - demonstrate that an ABORTED test process (killed, not panicking) leaves its knowledge_test_ schema behind, so the fix targets the actual failure mode rather than the already-working happy path.",
+      "AC-123-2: teardown becomes crash-safe. A schema orphaned by a killed process must be reclaimable without a human. Acceptable shapes include a startup sweep that reclaims schemas provably older than any live run, or an ownership/heartbeat record the sweeper can check. State explicitly which failure modes still leak.",
+      "AC-123-3: reclamation must NOT drop a schema belonging to a concurrently running test or another worktree. This cluster is shared across work packets running in parallel. Prove the ownership predicate is safe - this is the safety-critical part of the MT.",
+      "AC-123-4: the existing 1009-schema backlog is reclaimed, with before/after schema count, pg_class relation count, and on-disk size recorded. Verify emptiness or back up before dropping; a dropped schema is unrecoverable.",
+      "AC-123-5: no test changes its assertions. This is teardown only. If any test depended on a leaked schema surviving, surface that dependency rather than silently satisfying it.",
+      "AC-123-6: re-measure unclean-shutdown recovery time after reclamation and record it, so the operational benefit is evidenced rather than assumed."
+    ],
+    "proof_targets": [
+      "PT-123-1: before/after schema count, pg_class relation count, and directory size from the live managed cluster.",
+      "PT-123-2: a killed-process test proving the orphan is created, then reclaimed by the new mechanism.",
+      "PT-123-3: a parallel-run proof showing reclamation does not remove another live run schema."
+    ],
+    "risk_if_missed": "Every PostgreSQL-backed proof in this and future work packets pays a growing startup tax, and an unclean shutdown can cost 15+ minutes before any work can start. It also inflates the artifact footprint the Operator asked to keep optimal."
+  },
+  "hbr_obligations": {
+    "SWARM": "Reclamation runs against a cluster shared by parallel work packets. The ownership predicate is the safety-critical part of this MT.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (test-infrastructure teardown, no product business event); internal_diagnostics and Palmistry DEFERRED-with-reason while unshipped per CX-981-005."
+  },
+  "user_manual_obligation": {
+    "requirement": "NOT_APPLICABLE - test-harness teardown, no product behaviour, tool, command, or operator navigation path changes."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}

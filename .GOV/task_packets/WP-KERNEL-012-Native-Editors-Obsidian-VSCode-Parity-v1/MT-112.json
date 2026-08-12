@@ -22,7 +22,7 @@
   "title": "B4-MT-112-Converge-Proposal-Request-Id-Identity-Rust-Vs-Migration-0345",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T13:23:33.064Z",
-  "updated_at_utc": "2026-08-05T13:23:33.064Z",
+  "updated_at_utc": "2026-08-12T13:15:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [],
     "blocks": [],
     "validator_verdict": null,
@@ -95,8 +95,18 @@
         "Because ZERO live rows were re-keyed, the migration collision and rank branches are UNTESTED AGAINST REAL COLLISIONS - exercised only by construction, not by data."
       ],
       "hygiene": "Scoped target dir cleaned per HBR-SWARM-006, 13.53 GB freed, only its own subdir touched and 28 siblings left alone. PostgreSQL PID 36052 never started, stopped or signalled. AGENTS.md/CLAUDE.md left uncommitted per CX-113A. No src/frontend/** touched, so the two co-tenant agents were undisturbed.",
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
-    }
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict.",
+      "ac_112_4_CLOSED_BY_MT118": {
+        "status": "CLOSED",
+        "how": "MT-118 fixed the pre-hardening artifact heal and then a second UUID enforcement site in the Flight Recorder FR-EVT-MEM-001 payload validator, which is what actually kept the legacy retry red after the heal was correct.",
+        "evidence": "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --lib --features duckdb-flight-recorder,test-utils api::memory:: -- --test-threads=4, POSTGRES_TEST_URL=postgresql://postgres@127.0.0.1:5544/handshake_wp_kernel_012_mt_118 => CARGO_EXIT=0, test result: ok. 29 passed; 0 failed; 0 ignored; 1991 filtered out; finished in 536.87s.",
+        "named_tests": "legacy_retry_heals_missing_receipt_once_and_converges ... ok; migration_0345_old_schema_identity_and_down_up_retry_converge ... ok; proposal_missing_provenance_fails_closed ... ok. All three PT-112-1 named tests GREEN with a nonzero executed count of 29.",
+        "note": "The MT-112 blocker record blocker_ac_112_4_is_1_of_2 stated the fix required changing the canonical proposal contract for legacy non-UUID ids in storage/fems_memory.rs. That was correct but INCOMPLETE - it did not know about the Flight Recorder validator, because the real error was hidden behind an opaque 500. Recorded so the validator sees the full causal chain."
+      }
+    },
+    "ready_for_validation_at_utc": "2026-08-12T13:15:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
+    "ready_for_validation_summary": "UNBLOCKED BY MT-118 AND NOW COMPLETE. The prior session correctly HELD this MT at CLAIMED because AC-112-4 requires BOTH convergence tests green and only one was; it routed the remaining defect to MT-118 rather than weakening a test or reaching outside its allowed_paths. MT-118 has now landed and both tests are green in the same run. No MT-112 code changed in this session."
   },
   "scope": {
     "summary": "Converge the FEMS memory-proposal stable request identity between the Rust derivation and migration 0345 so a migrated legacy row and a live retry derive the SAME request_id, restoring retry convergence.",
