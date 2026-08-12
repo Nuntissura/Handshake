@@ -28,9 +28,9 @@ use sqlx::{PgPool, Row};
 
 use crate::ace::{
     FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitAppliedOp, MemoryCommitOpStatus,
-    MemoryCommitReport, MemoryMutationOp, MemoryPack, MemoryPackBudgets, MemoryPackDeterminismMode,
-    MemoryPackItem, MemoryPackRebuildHint, MemoryPackRebuildHintReason, MemoryPolicy,
-    MemoryWriteProposal,
+    MemoryCommitReport, MemoryItemProvenance, MemoryMutationOp, MemoryPack, MemoryPackBudgets,
+    MemoryPackDeterminismMode, MemoryPackItem, MemoryPackRebuildHint, MemoryPackRebuildHintReason,
+    MemoryPolicy, MemoryWriteOp, MemoryWritePolicy, MemoryWriteProposal, PartialMemoryItem,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
@@ -289,6 +289,173 @@ pub fn proposal_artifact_value(proposal: &Value) -> Value {
     proposal
 }
 
+/// Whether a row that never persisted a `_canonical_artifact` may have one rebuilt for it.
+///
+/// MT-118: healing is a RECOVERY path for a row that ALREADY EXISTS in the database. It is
+/// never a mint path. A proposal being inserted for the first time always arrives from the
+/// intake route with its own `_canonical_artifact`, so the insert branch passes
+/// [`LegacyArtifactHeal::Deny`] and a first-time payload without an artifact keeps failing
+/// closed exactly as it did before MT-118. This split is what keeps the legacy non-UUID
+/// `proposal_id` admission (below) unreachable from the normal proposal path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LegacyArtifactHeal {
+    /// The row pre-existed this call; rebuild a missing artifact from durable columns.
+    Allow,
+    /// The row is being created now; a missing artifact is a caller defect, not legacy state.
+    Deny,
+}
+
+/// Where the canonical artifact returned by [`proposal_canonical_artifact`] came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProposalArtifactOrigin {
+    /// `_canonical_artifact` was persisted with the row by hardened intake. Authoritative.
+    Durable,
+    /// Pre-hardening row: no `_canonical_artifact` was ever persisted, so the artifact was
+    /// rebuilt IN MEMORY from durable columns only and is never written back to the row.
+    HealedFromDurableColumns,
+    /// A row with no `_canonical_artifact` that either cannot be rebuilt from what was
+    /// actually persisted, or is not eligible for healing. The raw payload is surfaced
+    /// unchanged so every downstream canonical check still fails closed.
+    UnhealedLegacyPayload,
+}
+
+/// A canonical proposal artifact plus the provenance of how it was obtained.
+#[derive(Debug, Clone)]
+pub struct ProposalArtifact {
+    pub value: Value,
+    pub origin: ProposalArtifactOrigin,
+}
+
+/// Resolve the canonical `hsk.memory_write_proposal@0.1` artifact for a stored proposal row.
+///
+/// MT-118: rows written before `_canonical_artifact` existed (added by MT-064 in `c7063c24`;
+/// `_receipt_identity` had already landed in `892662e0`) carry no artifact at all, so
+/// FR-EVT-MEM-001 could never be built for them and EVERY retry failed with
+/// `memory proposal artifact is not hsk.memory_write_proposal@0.1: missing field
+/// \`schema_version\``. The artifact is therefore rebuilt from durable columns only,
+/// mirroring the "Pre-hardening rows cannot recover the headers" receipt branch in
+/// [`receipt_for_stored_proposal`]: the heal is a pure function of the durable row, so
+/// concurrent retries converge byte-for-byte, and nothing that was not persisted is invented.
+///
+/// The heal is deliberately IN MEMORY and is never written back to `fems_memory_proposals`.
+/// Persisting it would promote a reconstruction to durable evidence, and it would also push
+/// the NEXT retry onto the [`ProposalArtifactOrigin::Durable`] branch, which correctly
+/// refuses a non-UUID `proposal_id` - a persisted heal would therefore break the very retry
+/// convergence it exists to restore.
+pub fn proposal_canonical_artifact(
+    stored: &StoredMemoryProposal,
+    heal: LegacyArtifactHeal,
+) -> ProposalArtifact {
+    if let Some(artifact) = stored.proposal.get("_canonical_artifact") {
+        return ProposalArtifact {
+            value: artifact.clone(),
+            origin: ProposalArtifactOrigin::Durable,
+        };
+    }
+    if heal == LegacyArtifactHeal::Allow {
+        if let Some(value) = heal_legacy_proposal_artifact(stored) {
+            return ProposalArtifact {
+                value,
+                origin: ProposalArtifactOrigin::HealedFromDurableColumns,
+            };
+        }
+    }
+    ProposalArtifact {
+        value: proposal_artifact_value(&stored.proposal),
+        origin: ProposalArtifactOrigin::UnhealedLegacyPayload,
+    }
+}
+
+/// The intake job identity a pre-hardening row is recovered with, from durable state only.
+///
+/// Such a row never persisted the request's `hsk-kernel-task-run-id`. The healed receipt and
+/// the healed canonical artifact both derive the same workspace-scoped default the live
+/// intake route falls back to, from ONE definition, so the two can never drift apart.
+/// HBR-PRIV: it carries NO actor identity, so healing cannot widen actor attribution beyond
+/// what the row already persisted.
+fn legacy_kernel_task_run_id(workspace_id: &str) -> String {
+    format!("native-editor-fems-propose-{workspace_id}")
+}
+
+/// Rebuild the canonical proposal artifact for a pre-hardening row (AC-118-4).
+///
+/// EVERY value comes from a durable column of `fems_memory_proposals` - `proposal_id`,
+/// `workspace_id`, `document_id`, `selection_start`, `selection_end`, `content_hash`,
+/// `memory_class`, `review_gated`, `created_at`, and the durable `proposal` JSONB - or is a
+/// fixed structural constant of the single-op editor proposal shape the intake route has
+/// always emitted. Nothing is read from the live request, the session, or the clock.
+///
+/// Returns `None` when the row does not carry enough durable state to be rebuilt honestly.
+/// The caller then falls back to the raw payload and fails closed, rather than inventing
+/// provenance that was never persisted.
+fn heal_legacy_proposal_artifact(stored: &StoredMemoryProposal) -> Option<Value> {
+    let workspace_uuid = uuid::Uuid::parse_str(&stored.workspace_id).ok()?;
+    let content = stored.proposal.get("content").and_then(Value::as_str)?;
+    // Mirrors the intake route's class -> item_type mapping. An unknown class is NOT guessed.
+    let (allow_procedural, item_type) = match stored.memory_class.as_str() {
+        "procedural" => (true, "tool_protocol"),
+        "episodic" => (false, "intent"),
+        "semantic" => (false, "fact"),
+        _ => return None,
+    };
+    let created_by_job_id = legacy_kernel_task_run_id(&stored.workspace_id);
+    let scope_refs = vec![FemsEntityRef {
+        artefact_type: "workspace".to_owned(),
+        artefact_id: workspace_uuid,
+        selector: "self".to_owned(),
+    }];
+    let source_refs = vec![FemsSourceRef {
+        kind: FemsSourceRefKind::DocBlock,
+        id: stored.document_id.clone(),
+        hash: Some(stored.content_hash.clone()),
+        selector: Some(format!(
+            "bytes:{}-{}",
+            stored.selection_start, stored.selection_end
+        )),
+        created_at: Some(stored.created_at.to_rfc3339()),
+        classification: Some("low".to_owned()),
+    }];
+    let healed = MemoryWriteProposal {
+        schema_version: "hsk.memory_write_proposal@0.1".to_owned(),
+        proposal_id: stored.proposal_id.clone(),
+        created_at: stored.created_at.to_rfc3339(),
+        created_by_job_id: created_by_job_id.clone(),
+        scope_refs: scope_refs.clone(),
+        source_refs: source_refs.clone(),
+        policy: MemoryWritePolicy {
+            allow_procedural,
+            // Read from the durable `review_gated` column rather than forced to `true`: a row
+            // that was never review-gated must stay unhealable and fail closed downstream,
+            // instead of having the review guarantee retroactively asserted on its behalf.
+            require_human_review: stored.review_gated,
+            max_ops: 1,
+        },
+        ops: vec![MemoryWriteOp {
+            op: MemoryMutationOp::Add,
+            temp_id: Some("m1".to_owned()),
+            memory_id: None,
+            item: PartialMemoryItem {
+                memory_class: Some(stored.memory_class.clone()),
+                item_type: Some(item_type.to_owned()),
+                scope_refs: Some(scope_refs),
+                content: Some(content.to_owned()),
+                confidence: Some(1.0),
+                trust_level: Some("user_asserted".to_owned()),
+                provenance: Some(MemoryItemProvenance {
+                    source_refs,
+                    created_by_job_id,
+                }),
+                classification: Some("low".to_owned()),
+                ..PartialMemoryItem::default()
+            },
+            rationale: "Editor selection proposed from source_refs[0]".to_owned(),
+            confidence: 1.0,
+            requires_review: stored.review_gated,
+        }],
+    };
+    serde_json::to_value(healed).ok()
+}
+
 /// Atomically insert a review-gated proposal and its canonical EventLedger receipt.
 /// Always stored as `status='pending_review'`; this function NEVER writes to
 /// `fems_memory_items` (the never-editor-direct invariant). Replaying the same
@@ -312,7 +479,7 @@ async fn insert_memory_proposal_with_receipt_inner(
     stamp_receipt_identity(&mut proposal.proposal, &receipt)?;
     let proposal_json = to_jsonb_text(&proposal.proposal)?;
     let mut tx = pool.begin().await?;
-    sqlx::query(
+    let insert = sqlx::query(
         r#"
         INSERT INTO fems_memory_proposals (
             proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
@@ -344,6 +511,19 @@ async fn insert_memory_proposal_with_receipt_inner(
         }
         _ => StorageError::from(error),
     })?;
+
+    // MT-118 AC-118-2 (the mint/recovery split). `ON CONFLICT DO NOTHING` reports 0 affected
+    // rows exactly when the workspace/request identity was ALREADY durable, which is the only
+    // situation in which a missing `_canonical_artifact` can be genuine pre-hardening state.
+    // A row this call just created must carry its own artifact, so healing - and with it the
+    // legacy non-UUID `proposal_id` admission - is denied on that mint path and such a payload
+    // still fails closed. Both concurrent retries of an existing row see 0 here, so they both
+    // heal from the same durable row and converge.
+    let artifact_heal = if insert.rows_affected() == 0 {
+        LegacyArtifactHeal::Allow
+    } else {
+        LegacyArtifactHeal::Deny
+    };
 
     let stored = get_memory_proposal_by_request_with_executor(
         &mut tx,
@@ -400,7 +580,7 @@ async fn insert_memory_proposal_with_receipt_inner(
         crate::storage::postgres::append_kernel_event_with_executor(&mut *tx, receipt).await?
     };
     let flight_recorder_event =
-        build_memory_proposal_flight_recorder_event(&stored, &persisted_receipt)?;
+        build_memory_proposal_flight_recorder_event(&stored, &persisted_receipt, artifact_heal)?;
     store_memory_lifecycle_outbox_event_with_executor(
         &mut tx,
         &stored.workspace_id,
@@ -615,7 +795,7 @@ fn receipt_for_stored_proposal(
             .unwrap_or("native_editor")
             .to_owned();
         receipt.event_version = "kernel_event_v1".to_owned();
-        receipt.kernel_task_run_id = format!("native-editor-fems-propose-{}", stored.workspace_id);
+        receipt.kernel_task_run_id = legacy_kernel_task_run_id(&stored.workspace_id);
         receipt.session_run_id = "native-editor-session".to_owned();
         receipt.actor = KernelActor::Operator(actor_id);
         receipt.causation_id = None;
@@ -992,16 +1172,24 @@ fn flight_recorder_actor(receipt: &KernelEvent) -> FlightRecorderActor {
 fn build_memory_proposal_flight_recorder_event(
     proposal: &StoredMemoryProposal,
     receipt: &KernelEvent,
+    heal: LegacyArtifactHeal,
 ) -> StorageResult<FlightRecorderEvent> {
-    let artifact = proposal_artifact_value(&proposal.proposal);
-    let canonical: MemoryWriteProposal = serde_json::from_value(artifact).map_err(|error| {
+    let artifact = proposal_canonical_artifact(proposal, heal);
+    // MT-118 AC-118-2 TRIPWIRE. A non-UUID `proposal_id` is admitted ONLY when the artifact
+    // was rebuilt for a pre-existing row that never persisted one. Any artifact that WAS
+    // persisted - including one persisted on a pre-existing row - still has to satisfy the
+    // UUID contract, so the relaxation is unreachable for every proposal that carries its own
+    // `_canonical_artifact`, and unreachable on the insert/mint path in any case.
+    let legacy_proposal_id_admitted =
+        artifact.origin == ProposalArtifactOrigin::HealedFromDurableColumns;
+    let canonical: MemoryWriteProposal = serde_json::from_value(artifact.value).map_err(|error| {
         StorageError::Serialization(format!(
             "memory proposal artifact is not hsk.memory_write_proposal@0.1: {error}"
         ))
     })?;
     if canonical.schema_version != "hsk.memory_write_proposal@0.1"
         || canonical.proposal_id != proposal.proposal_id
-        || uuid::Uuid::parse_str(&canonical.proposal_id).is_err()
+        || (!legacy_proposal_id_admitted && uuid::Uuid::parse_str(&canonical.proposal_id).is_err())
         || canonical.ops.is_empty()
         || canonical.ops.len() > canonical.policy.max_ops as usize
         || !canonical.policy.require_human_review
@@ -1699,8 +1887,15 @@ pub async fn recover_missing_memory_lifecycle_outbox_events(pool: &PgPool) -> St
                 &format!("fems-memory-proposal:{proposal_id}"),
             )
             .await?;
+            // MT-118: this loop only ever visits rows that are ALREADY durable in
+            // `fems_memory_proposals`, so it is a recovery path by construction and cannot
+            // mint one. A pre-hardening row carried the same missing-artifact defect here as
+            // on the retry path, and both must rebuild the artifact through the SAME
+            // definition or the outbox identity check would reject the other one's event.
             Some(build_memory_proposal_flight_recorder_event(
-                &stored, &receipt,
+                &stored,
+                &receipt,
+                LegacyArtifactHeal::Allow,
             )?)
         } else {
             None

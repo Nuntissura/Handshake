@@ -4178,7 +4178,26 @@ fn validate_memory_write_proposed_payload(payload: &Value) -> Result<(), Recorde
 
     require_fixed_string(map, "type", "memory_write_proposed")?;
     require_fixed_string(map, "event_code", "FR-EVT-MEM-001")?;
-    require_uuid_string_non_nil(map, "proposal_id")?;
+    // MT-118: align `proposal_id` with the REST of its own event family rather than keeping a
+    // stricter rule only here. `FR-EVT-MEM-002` (:4228) and `FR-EVT-MEM-003` (:4270) already
+    // accept `require_safe_token_string(.., "proposal_id", 256)` for the SAME logical field, so
+    // before this change a proposal could be REVIEWED with a non-UUID id but could never be
+    // PROPOSED with one - the family contradicted itself, and that contradiction is what made a
+    // pre-hardening row's retry unrecoverable: the heal rebuilt a correct canonical artifact and
+    // then this validator rejected the event anyway.
+    //
+    // This is ALIGNMENT, not a relaxation of the real guarantee:
+    //   * `is_safe_token` (:4903) still enforces non-empty, <=256 bytes, and an ASCII charset of
+    //     alphanumerics plus `-_:./` - no whitespace, quotes, or control characters.
+    //   * UUID discipline for NEWLY MINTED proposals is enforced UPSTREAM, in
+    //     `build_memory_proposal_flight_recorder_event` (storage/fems_memory.rs), which rejects a
+    //     non-UUID `proposal_id` on every path except a pre-existing row whose artifact had to be
+    //     healed from durable columns. That upstream rule is pinned by the permanent tripwire
+    //     `non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path`.
+    //   * The event's own identity does not depend on this field: both `event_id` and the
+    //     aggregate id are `stable_uuid(..)` derivations, so a non-UUID payload id cannot produce
+    //     a non-UUID durable key.
+    require_safe_token_string(map, "proposal_id", 256)?;
     require_sha256_hex(map, "proposal_hash")?;
     require_content_addressed_artifact_handle(map, "artifact_ref")?;
     let proposal_hash = require_key(map, "proposal_hash")?

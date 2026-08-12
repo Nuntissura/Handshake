@@ -537,9 +537,15 @@ async fn get_memory_proposal_artifact(
         .map_err(storage_error)?
         .filter(|proposal| proposal.workspace_id == workspace_id)
         .ok_or_else(|| storage_error(StorageError::NotFound("memory proposal in workspace")))?;
-    Ok(Json(fems_memory::proposal_artifact_value(
-        &proposal.proposal,
-    )))
+    // MT-118: a row read back from storage is by definition pre-existing, so this is the
+    // read side of the same recovery the retry path performs. Resolving the artifact through
+    // ONE definition keeps the existing invariant true for pre-hardening rows as well: the
+    // `artifact://sha256/<hash>` that FR-EVT-MEM-001 publishes is the hash of exactly the
+    // artifact this endpoint returns. Nothing is written back; the heal stays in memory.
+    Ok(Json(
+        fems_memory::proposal_canonical_artifact(&proposal, fems_memory::LegacyArtifactHeal::Allow)
+            .value,
+    ))
 }
 
 fn bad_request(detail: impl Into<String>) -> ApiError {
@@ -3636,6 +3642,224 @@ mod tests {
         assert_eq!(receipt_rows[0].3, "native-editor-session");
         assert_eq!(receipt_rows[0].4, "operator");
         assert_eq!(receipt_rows[0].5, "legacy-actor");
+        Ok(())
+    }
+
+    /// MT-118 AC-118-2 TRIPWIRE. The legacy non-UUID `proposal_id` must be admitted ONLY on
+    /// the heal path; if it is admitted anywhere else the canonical proposal contract has
+    /// been weakened for every proposal in the system.
+    ///
+    /// This is the differential CONTROL for
+    /// `legacy_retry_heals_missing_receipt_once_and_converges`. Both tests seed the same kind
+    /// of pre-existing row, with the same non-UUID `PROP-LEGACY-{uuid}` id, and reach the same
+    /// canonical artifact BYTES - here obtained from the production heal itself rather than
+    /// hand-copied, because MT-112 recorded that a test which hand-copies production logic
+    /// cannot detect production drift. The ONLY difference is that here those bytes are
+    /// PERSISTED in `_canonical_artifact`, which puts them on the durable path. Same bytes,
+    /// different origin, and the durable one must still be rejected.
+    ///
+    /// The second half proves the heal cannot be MINTED: a FIRST-TIME insert whose payload
+    /// carries no `_canonical_artifact` still fails closed with the exact serialization error
+    /// MT-112 could previously only obtain by temporarily instrumenting `storage_error`. That
+    /// error text is pinned here permanently.
+    #[tokio::test]
+    async fn non_uuid_proposal_id_is_admitted_only_on_the_legacy_heal_path(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let workspace_id = create_test_workspace(&state, "heal-tripwire").await?;
+        let content = "tripwire proposal retry";
+        let source =
+            create_test_rich_source(&state, &workspace_id, "heal-tripwire-source", content).await?;
+        let request = ProposalRequest {
+            request_id: None,
+            class: ProposalClass::Episodic,
+            content: content.to_owned(),
+            source,
+            source_document_content: None,
+            review_gated: Some(true),
+            actor_id: Some("tripwire-actor".to_owned()),
+        };
+        let derived_request_id =
+            stable_proposal_request_id(&workspace_id, &request).expect("derived request identity");
+
+        let legacy_proposal_id = format!("PROP-LEGACY-{}", Uuid::now_v7());
+        // Same microsecond normalization the intake route uses, so the row's durable
+        // `created_at` and the artifact rebuilt from it are one byte-identical instant.
+        let created_at =
+            chrono::DateTime::from_timestamp_micros(chrono::Utc::now().timestamp_micros())
+                .expect("normalized fixture instant");
+        let base_payload = json!({
+            "proposal_id": legacy_proposal_id,
+            "request_id": derived_request_id,
+            "workspace_id": workspace_id,
+            "class": request.class.wire(),
+            "content": request.content,
+            "source": request.source,
+            "review_gated": true,
+            "status": PROPOSAL_STATUS_PENDING_REVIEW,
+            "actor_id": request.actor_id,
+        });
+        let legacy = fems_memory::StoredMemoryProposal {
+            proposal_id: legacy_proposal_id.clone(),
+            request_id: derived_request_id.clone(),
+            workspace_id: workspace_id.clone(),
+            document_id: request.source.document_id.clone(),
+            selection_start: i64::try_from(request.source.selection_start)
+                .expect("tripwire fixture selection_start fits PostgreSQL BIGINT"),
+            selection_end: i64::try_from(request.source.selection_end)
+                .expect("tripwire fixture selection_end fits PostgreSQL BIGINT"),
+            content_hash: canonical_content_hash(content).expect("canonical hash"),
+            memory_class: "episodic".to_owned(),
+            status: PROPOSAL_STATUS_PENDING_REVIEW.to_owned(),
+            review_gated: true,
+            created_at,
+            proposal: base_payload.clone(),
+        };
+
+        // The artifact the heal would rebuild for this exact row - taken from production, not
+        // reconstructed by the test.
+        let healed = fems_memory::proposal_canonical_artifact(
+            &legacy,
+            fems_memory::LegacyArtifactHeal::Allow,
+        );
+        assert_eq!(
+            healed.origin,
+            fems_memory::ProposalArtifactOrigin::HealedFromDurableColumns,
+            "the control must start from a row the heal path really does accept"
+        );
+        assert_eq!(
+            healed.value["proposal_id"],
+            Value::String(legacy_proposal_id.clone()),
+            "the rebuilt artifact carries the row's own non-UUID id"
+        );
+        assert!(
+            Uuid::parse_str(&legacy_proposal_id).is_err(),
+            "the fixture id must genuinely be non-UUID or this proves nothing"
+        );
+
+        // CASE 1: identical row, identical artifact BYTES, but PERSISTED -> durable path.
+        let mut persisted_payload = base_payload.clone();
+        persisted_payload
+            .as_object_mut()
+            .expect("fixture payload is an object")
+            .insert("_canonical_artifact".to_owned(), healed.value.clone());
+        sqlx::query(
+            r#"
+            INSERT INTO fems_memory_proposals (
+                proposal_id, request_id, workspace_id, document_id, selection_start,
+                selection_end, content_hash, memory_class, status, review_gated, created_at,
+                proposal
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            "#,
+        )
+        .bind(&legacy.proposal_id)
+        .bind(&legacy.request_id)
+        .bind(&legacy.workspace_id)
+        .bind(&legacy.document_id)
+        .bind(legacy.selection_start)
+        .bind(legacy.selection_end)
+        .bind(&legacy.content_hash)
+        .bind(&legacy.memory_class)
+        .bind(&legacy.status)
+        .bind(legacy.review_gated)
+        .bind(legacy.created_at)
+        .bind(&persisted_payload)
+        .execute(&state.postgres_pool)
+        .await?;
+
+        let mut headers = HeaderMap::new();
+        headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+        headers.insert(HSK_HEADER_ACTOR_ID, "tripwire-actor".parse()?);
+        let (code, body) = create_memory_proposal(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            headers,
+            Json(request.clone()),
+        )
+        .await
+        .err()
+        .expect("a durable artifact with a non-UUID proposal_id must be rejected");
+        assert_eq!(
+            code,
+            StatusCode::CONFLICT,
+            "rejection must be the canonical-contract conflict, not an unrelated failure"
+        );
+        assert_eq!(
+            body.0["detail"], "memory proposal artifact violates the canonical proposal contract",
+            "the ONLY thing wrong with this artifact is its non-UUID proposal_id"
+        );
+        let receipt_key = format!("fems-memory-proposal:{legacy_proposal_id}");
+        let receipts: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
+        )
+        .bind(&receipt_key)
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        assert_eq!(receipts, 0, "the rejected retry must append no receipt");
+
+        // CASE 2: the heal cannot be MINTED. A first-time insert with no `_canonical_artifact`
+        // stays rejected, so the relaxed id check is unreachable from the creation path.
+        let minted_workspace = create_test_workspace(&state, "heal-mint").await?;
+        let minted_proposal_id = format!("PROP-LEGACY-{}", Uuid::now_v7());
+        let minted_request_id = format!("mint-{}", Uuid::now_v7());
+        let minted = fems_memory::StoredMemoryProposal {
+            proposal_id: minted_proposal_id.clone(),
+            request_id: minted_request_id,
+            workspace_id: minted_workspace.clone(),
+            document_id: "doc-mint".to_owned(),
+            selection_start: 0,
+            selection_end: 1,
+            content_hash: "c".repeat(64),
+            memory_class: "episodic".to_owned(),
+            status: PROPOSAL_STATUS_PENDING_REVIEW.to_owned(),
+            review_gated: true,
+            created_at,
+            proposal: json!({
+                "proposal_id": minted_proposal_id,
+                "workspace_id": minted_workspace,
+                "class": "episodic",
+                "content": "minted without a canonical artifact",
+                "review_gated": true,
+                "status": PROPOSAL_STATUS_PENDING_REVIEW,
+            }),
+        };
+        let receipt = NewKernelEvent::builder(
+            "mint-task",
+            "mint-session",
+            KernelEventType::ArtifactProposed,
+            KernelActor::Operator("mint-actor".to_owned()),
+        )
+        .aggregate("fems_memory_proposal", minted_proposal_id.clone())
+        .idempotency_key(format!("fems-memory-proposal:{minted_proposal_id}"))
+        .source_component("fems_memory_proposal_intake")
+        .payload(json!({"proposal_id": &minted_proposal_id}))
+        .build()?;
+        let error = fems_memory::insert_memory_proposal_with_receipt(
+            &state.postgres_pool,
+            &minted,
+            receipt,
+        )
+        .await
+        .expect_err("a first-time insert with no canonical artifact must fail closed");
+        assert!(
+            matches!(&error, StorageError::Serialization(detail)
+                if detail == "memory proposal artifact is not hsk.memory_write_proposal@0.1: missing field `schema_version`"),
+            "the mint path must keep failing with the exact pre-MT-118 error, got {error:?}"
+        );
+        assert!(
+            fems_memory::get_memory_proposal(&state.postgres_pool, &minted_proposal_id)
+                .await?
+                .is_none(),
+            "the rejected mint must leave no durable proposal row"
+        );
+        let minted_receipts: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = $1",
+        )
+        .bind(format!("fems-memory-proposal:{minted_proposal_id}"))
+        .fetch_one(&state.postgres_pool)
+        .await?;
+        assert_eq!(minted_receipts, 0, "the rejected mint must append no receipt");
         Ok(())
     }
 
