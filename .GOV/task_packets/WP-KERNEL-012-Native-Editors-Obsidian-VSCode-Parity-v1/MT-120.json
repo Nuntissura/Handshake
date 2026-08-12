@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-08-12T14:50:00Z",
+  "updated_at_utc": "2026-08-12T15:45:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,8 +31,8 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "CLAIMED",
-    "active": true,
+    "status": "READY_FOR_VALIDATION_V4",
+    "active": false,
     "depends_on": [
       "MT-109",
       "MT-115"
@@ -46,7 +46,6 @@
     "created_by": "KERNEL_BUILDER-20260805-054937",
     "creation_reason": "Isolated by MT-115 at runtime with a decisive positive control. It is a durable SECURITY-CONTRACT decision outside MT-115 allowed_paths, so it is deferred here per the Operator standing rule rather than decided unilaterally or weakened to make a test pass.",
     "claimed_at_utc": "2026-08-12T14:50:00Z",
-    "status_rationale": "Implementation committed at 3e7ec545 with AC-120-1 and AC-120-2 proven. HELD at CLAIMED, deliberately not advanced: AC-120-3, AC-120-4, AC-120-5 and AC-120-6 have not been executed because both proof sub-agents were killed by a platform session limit mid-run. Advancing on two of six acceptance criteria would repeat the gate-ordering error this work packet already made once on MT-114.",
     "implementation_result": {
       "schema_id": "hsk.mt_remediation_evidence@1",
       "implemented_by": "KERNEL_BUILDER-20260812-113007 with an implementing sub-agent under the Coder Protocol",
@@ -69,20 +68,46 @@
         "cargo check --manifest-path src/frontend/handshake_native/Cargo.toml --tests => EXIT 0; test_e7 and test_event_emitter compile UNEDITED"
       ],
       "hbr_man_closed": "MT-120 carries hbr_obligations.MAN and CX-982-002 requires the manual update in the SAME change. The entry lives at user_manual/seed.rs, outside the original allowed_paths; the implementing sub-agent correctly REFUSED to edit it and reported the block instead of reaching outside scope. KERNEL_BUILDER amended allowed_paths with rationale and wrote the entry: it documents the optional-session contract, the 401 no-downgrade rule, the 403 namespace guard, that ownership lives in the payload while attribution stays in the column, and why a restart can legitimately make a prior receipt unclaimable.",
-      "outstanding_not_claimed": {
-        "AC-120-3": "test_e7_swarm_edit_proof NOT RUN. This is also the last blocker for MT-115.",
-        "AC-120-4": "test_flight_recorder_authz NOT RUN (MT-109 negative suite, 12 tests).",
-        "AC-120-5": "live end-to-end product save proven at runtime NOT RUN.",
-        "AC-120-6": "test_event_emitter::event_emitter_native_editor_round_trip NOT RUN.",
-        "why": "Both proof sub-agents were terminated by a platform session limit mid-run (the seventh such outage recorded in this work packet). The suites compile unedited; they are being executed directly by KERNEL_BUILDER."
-      },
       "disclosed_gaps": [
         "The session token is attached ONLY to RichDocSaveBackend (the native editor save). RichDocClient::save_document (the find/replace apply path) still saves unauthenticated, so its receipts carry no anchor and its document_saved claims would be unclaimable. Deliberate blast-radius limit; extending it is a one-line change if MT-115 requires it. Stated rather than discovered later.",
         "cargo check --all-targets is NOT a clean baseline in this repo, with or without features: loom_ai_suggestions_api_tests, knowledge_ingestion_support, micro_task_executor_tests and role_mailbox_tests fail on PRE-EXISTING feature-gating and stale AppState initializers, each with an empty git diff HEAD. Any gate asserting all-targets clean will red on unrelated debt.",
         "Transient shared-target corruption was observed mid-session: roughly 12 bin targets failed with crate hyper / libduckdb_sys required to be available in rlib format plus rustc ICEs, then SELF-HEALED on a later build. Nothing was killed or cleaned. If a future proof sweep reds on rlib-format errors, retry before diagnosing product code."
       ],
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
-    }
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only.",
+      "ac_120_3_PROVEN": {
+        "status": "GREEN",
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_e7_swarm_edit_proof -- --test-threads=1",
+        "result": "E7B_CARGO_EXIT=0, test result: ok. 25 passed; 0 failed; 0 ignored; 0 filtered out; 22.80s. The previously failing swarm_edit_live_pg_conflict_merge_search_and_receipts now passes.",
+        "before": "24 passed / 1 failed, red on the document_saved attribution blocker.",
+        "no_test_edit": "test_e7_swarm_edit_proof.rs was NOT edited. git diff HEAD for that file is empty. The suite went green on the product change alone, which is what AC-120-3 requires.",
+        "environment": "HSK_TEST_BACKEND_BIN = current-source handshake_core.exe (verified NEWER than the last source edit before running, per CX-984-004), HANDSHAKE_TEST_PG_DSN + DATABASE_URL + POSTGRES_TEST_URL = WP-scoped database handshake_wp012_v4_e7 on the managed cluster at 127.0.0.1:5544, HSK_PSQL_BIN set, HANDSHAKE_GPU_SCREENSHOT=1, isolated per-run stage binding root, --test-threads=1.",
+        "first_attempt_was_a_FALSE_RED_and_is_recorded": "The first run returned 24 passed / 1 failed - the IDENTICAL shape to the pre-MT-120 failure - and would have been read as MT-120 not working. Reading the panic site instead of the headline showed two ENVIRONMENT gaps in the invocation, not a product defect: (1) pg_proof_support/mod.rs:631 - owned backend requires explicit HANDSHAKE_TEST_PG_DSN, which is a DISTINCT variable from DATABASE_URL/POSTGRES_TEST_URL; (2) test_e7_swarm_edit_proof.rs:340 - start bounded MT-043 PostgreSQL timeout cleanup: Error { kind: NotFound, message: \"program not found\" }, because the test shells out to psql and psql is not on PATH on this host (HSK_PSQL_BIN overrides it). Recorded so the next runner does not spend a cycle re-diagnosing MT-120 from a false red."
+      },
+      "ac_120_6_PROVEN": {
+        "status": "GREEN",
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_event_emitter -- --test-threads=1",
+        "result": "EMITTER_CARGO_EXIT=0, test result: ok. 33 passed; 0 failed; 0 ignored; 0 filtered out; 69.75s. event_emitter_native_editor_round_trip ... ok.",
+        "no_test_edit": "test_event_emitter.rs was NOT edited. The round trip requires THREE mirrored emissions and previously received two; the third now lands on the product change alone, exactly as AC-120-6 demands."
+      },
+      "ac_120_5_PROVEN": {
+        "status": "GREEN, PROVEN BY DIRECT LEDGER QUERY RATHER THAN BY A PASSING SUITE",
+        "why_a_ledger_query": "AC-120-5 requires a real end-to-end product save whose document_saved INGESTS at runtime, proven live rather than in a stub. A green test is not that evidence by itself, so the durable rows were read directly.",
+        "query": "select payload->'envelope'->>'kind', count(*) from kernel_event_ledger where idempotency_key like 'native-editor-fr%' group by 1",
+        "result": "canvas_node_placed = 2, document_saved = 2, undo_fired = 2 in database handshake_wp012_v4_emitter.",
+        "the_decisive_comparison": "The MT-120 contract recorded the pre-fix census as canvas_node_placed = 8, undo_fired = 8, document_saved = ZERO - the save event never reached the ledger at all. document_saved rows now exist and the three kinds are BALANCED, which is what a completed round trip looks like.",
+        "attribution_confirmed": "The actor_id on the document_saved envelope rows is the SERVER-DERIVED principal handshake-native:94556:0b31b96743ed13d34ca7522b168d0833056ce27547f35f12212d6e74a6477c28, and the payload carries the save_receipt_event_id, correlation_id, session_run_id and kernel_task_run_id the clause validates against.",
+        "honesty_note": "The e7 database was checked FIRST and found to contain 4 KNOWLEDGE_RICH_DOCUMENT_SAVED receipts but ZERO native-editor FR envelope rows. e7 does not exercise the ingestion path, so its green was explicitly NOT counted toward AC-120-5. The evidence above comes from the emitter database, which is where the original zero-count census was taken."
+      },
+      "ac_120_4_PROVEN": {
+        "status": "GREEN, UNCHANGED",
+        "command": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_flight_recorder_authz -- --test-threads=1",
+        "result": "AUTHZ_CARGO_EXIT=0, running 12 tests, test result: ok. 12 passed; 0 failed; 0 ignored; 0 filtered out; 13.24s.",
+        "meaning": "The MT-109 authorization negative suite still passes at exactly 12 tests with no edit, so the 401/403 boundary MT-109 established did not regress while its receipt-ownership clause was made enforceable."
+      }
+    },
+    "ready_for_validation_at_utc": "2026-08-12T15:45:00Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260812-113007",
+    "ready_for_validation_summary": "ALL SIX acceptance criteria proven. AC-120-1 and AC-120-2 by targeted tests (with the non-weakening property verified by KERNEL_BUILDER reading flight_recorder.rs:885-940 directly rather than accepting the sub-agent report); AC-120-3 by test_e7_swarm_edit_proof 25 passed / 0 failed, up from 24/1, with NO test edit; AC-120-4 by test_flight_recorder_authz 12 passed / 0 failed unchanged; AC-120-5 by a direct ledger query showing document_saved rows now exist where the pre-fix census recorded ZERO; AC-120-6 by test_event_emitter 33 passed / 0 failed with event_emitter_native_editor_round_trip green and no test edit. HBR-MAN closed in the same change. Official validator verdict remains PENDING."
   },
   "scope": {
     "summary": "Make the document_saved receipt-ownership check enforceable by authenticating the document-save route as the same principal the Flight Recorder derives, instead of leaving a clause that rejects every legitimate save.",
