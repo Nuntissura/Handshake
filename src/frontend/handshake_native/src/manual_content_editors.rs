@@ -823,7 +823,24 @@ no separate flush_pending_updates API. Direct PostgreSQL rows in this proof are 
 cleanup boundaries; user interactions and readback use the production Stage, Calendar, Locus, knowledge, \
 EventLedger, and Argus routes. A typed failure remains visible and must be recovered through the owning \
 edge's documented retry/reload path; never infer success from a stale tree or immediate indeterminate \
-receipt. Run serially so process-wide Argus binding and environment leases remain attributable."
+receipt. Run serially so process-wide Argus binding and environment leases remain attributable.\n\
+\n\
+MT-117 completion posture for these actions. The Stage embed-back, rich-document save, and the two \
+Calendar interop actions previously dispatched without an action-specific completion predicate, so their \
+canonical Argus receipts finished INDETERMINATE and the product fell back to reporting that the click was \
+dispatched but the target exposes no completion predicate. They now publish a durable observer on the SAME \
+opt-in handshake.click-completion/v1 mechanism the Block Collections, Locus, FEMS and host-mount surfaces \
+already use - no second mechanism, and canonical_argus_driver is unchanged. A steerable MT-117 target \
+publishes its declaration in its own AccessKit value, and the shell-owned Role::Status observer terminalizes \
+it. Applied is bound to the AUTHORITATIVE DURABLE EFFECT, never to the dispatch: the persisted artifact id \
+plus its sha256 for stage-capture-embed-back, the ADVANCED doc_version read back fresh from the backend for \
+editor.rich.save, and the exact bound CalendarEvent id and ActivitySpan/document correlation for the two \
+Calendar targets. A target that disappears, or a click that merely dispatched, does NOT count. If the durable \
+effect does not appear inside the bounded observation window the observer publishes a TYPED REJECTION rather \
+than hanging Pending, so an unreached effect is visible instead of silent. The observers are proof-only in \
+effect: with no Argus binding open the product behaves identically. Consequence for an agent reading this \
+manual - for these four targets a fresh argus.inspect after the click now yields a causally Applied or \
+typed-Rejected receipt, so treating an indeterminate receipt as success is neither necessary nor permitted."
         .to_owned()
 }
 

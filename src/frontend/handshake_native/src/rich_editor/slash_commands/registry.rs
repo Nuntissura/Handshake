@@ -737,4 +737,76 @@ mod tests {
             );
         }
     }
+
+    /// WP-KERNEL-012 MT-108 residual item (4), the untested half.
+    ///
+    /// The item was recorded as "fix code-block slash-menu description promising a nonexistent
+    /// language prompt". The description WAS corrected, but nothing asserted it, so the fix could
+    /// silently regress and AC-108-1 ("implemented with a runtime-proven test") was not met.
+    ///
+    /// This guards the CLASS rather than pinning one string: a description may only promise an
+    /// interactive prompt when the command's action actually opens one. Pinning the literal
+    /// "Fenced monospace code block" would pass while any OTHER command grew the same lie, and it
+    /// would fail on a harmless rewording - the opposite of what is wanted.
+    #[test]
+    fn no_slash_command_description_promises_a_prompt_its_action_does_not_open() {
+        // The variants that genuinely open an interactive surface. Anything else applies
+        // immediately, so its description must not tell the operator to expect a dialog.
+        fn opens_a_prompt(action: &SlashAction) -> bool {
+            matches!(
+                action,
+                SlashAction::OpenEmbedPrompt(_)
+                    | SlashAction::OpenWikilinkAutocomplete
+                    | SlashAction::OpenCodeSymbolSearch
+                    | SlashAction::OpenTransclusionPrompt
+                    | SlashAction::OpenManualInsertPrompt
+            )
+        }
+
+        // Phrasings that promise the operator a follow-up interaction.
+        const PROMPT_PROMISES: &[&str] = &["prompt", "asks for", "ask for", "dialog", "modal"];
+
+        let mut liars = Vec::new();
+        for command in SLASH_COMMANDS {
+            let description = command.description.to_ascii_lowercase();
+            let promised = PROMPT_PROMISES
+                .iter()
+                .find(|needle| description.contains(**needle));
+            if let Some(needle) = promised {
+                if !opens_a_prompt(&command.action) {
+                    liars.push(format!(
+                        "`{}` description {:?} promises {:?} but its action opens no prompt",
+                        command.id, command.description, needle
+                    ));
+                }
+            }
+        }
+
+        assert!(
+            liars.is_empty(),
+            "slash-menu descriptions must not promise an interaction the action does not implement: {}",
+            liars.join("; ")
+        );
+
+        // Non-vacuity: the scan must actually be looking at the command this residual item is
+        // about, and that command must still be a non-prompting insert. Without this, deleting
+        // `code-block` from the catalog - or turning the loop into a no-op - would leave the
+        // assertion above trivially green.
+        let code_block = SLASH_COMMANDS
+            .iter()
+            .find(|command| command.id == "code-block")
+            .expect("the code-block slash command is the subject of MT-108 residual item (4)");
+        assert!(
+            !opens_a_prompt(&code_block.action),
+            "code-block still inserts directly; if it ever gains a language prompt, its \
+             description must be updated in the SAME change and this guard revisited"
+        );
+        assert!(
+            PROMPT_PROMISES
+                .iter()
+                .any(|needle| "prompts for language".contains(needle)),
+            "the PROMPT_PROMISES vocabulary must still match the exact wording this item removed \
+             (\"prompts for language\"), or the guard cannot catch its reintroduction"
+        );
+    }
 }
