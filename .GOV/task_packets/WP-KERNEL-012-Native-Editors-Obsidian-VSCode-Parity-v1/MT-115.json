@@ -22,7 +22,7 @@
   "title": "B5-MT-115-Complete-MT109-Authorization-Fallout-Palmistry-Harnesses-And-Document-Saved-Attribution",
   "group": "B-Backend-Contract",
   "created_at_utc": "2026-08-05T23:19:13.141Z",
-  "updated_at_utc": "2026-08-05T23:19:13.141Z",
+  "updated_at_utc": "2026-08-12T17:05:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -93,7 +93,22 @@
         "palmistry::survivor_store::open_default_or_sibling_falls_back_to_a_local_dir fails on this machine with Os { code: 183, AlreadyExists } because %LOCALAPPDATA%\\handshake\\palmistry is ACL-locked. PROVEN ENVIRONMENTAL, not caused here: it passes with HANDSHAKE_PALMISTRY_SURVIVOR_DIR redirected, and the diff touches only fr_forward.rs. The operator ACLs were not altered.",
         "The scoped target dir wp012-mt115 was retained so a validator avoids a 24-minute rebuild. Delete at WP closeout per HBR-SWARM-006."
       ],
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict."
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict.",
+      "pt_115_1_recheck_2026_08_12": {
+        "status": "IN PROGRESS - re-running all seven at CURRENT source rather than carrying the prior session six-green forward, because MT-120 changed backend_client.rs and the Flight Recorder validator since that measurement.",
+        "green_at_current_source": [
+          "test_e7_swarm_edit_proof => 25 passed / 0 failed, EXIT 0 (was 24/1; the Part-3 document_saved attribution blocker is closed by MT-120)",
+          "test_calendar_interop => 31 passed / 0 failed, EXIT 0",
+          "test_code_note_cross_ref => 30 passed / 0 failed, EXIT 0",
+          "test_fems_interop_proofs => 28 passed / 0 failed, EXIT 0",
+          "test_locus_interop (ordinary) => 32 passed / 0 failed / 1 ignored, EXIT 0"
+        ],
+        "still_to_run": [
+          "test_ckc_embed (--features integration)",
+          "test_locus_interop --ignored live"
+        ],
+        "environment_note": "The prior six-green run used a fuller environment than a naive invocation provides. HANDSHAKE_TEST_PG_DSN is a DISTINCT variable from DATABASE_URL/POSTGRES_TEST_URL, and the harness shells out to bare psql which is not on this host PATH (HSK_PSQL_BIN overrides it). Omitting either produces a FALSE RED that looks exactly like a product failure - it cost one cycle on e7 before the panic sites were read."
+      }
     }
   },
   "scope": {

@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-12T14:10:00Z",
+  "updated_at_utc": "2026-08-12T16:55:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -58,7 +58,38 @@
         "proof": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_content => MANUAL_CARGO_EXIT=0, test result: ok. 39 passed; 0 failed; 0 ignored; 0 filtered out; 2.86s. The count is unchanged at 39 because the entry extends an existing topic body rather than adding a topic; the suite gate is coverage, not topic count."
       },
       "outstanding": "PT-117-1 (test_other_pillar_interop_proofs showing 13/13 receipts applied with zero indeterminate) and PT-117-2 (MT-066 and MT-067 suites green) are integration runs requiring a current-source backend, real PostgreSQL and GPU capture. Dispatched; NOT yet evidenced. MT-117 is deliberately NOT advanced to READY_FOR_VALIDATION until they land - advancing on lib tests plus a manual gate would repeat the gate-ordering error this work packet has already made once.",
-      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only.",
+      "fifth_target_found_and_covered": {
+        "status": "IN PROGRESS - implemented, compile-clean, proof running",
+        "how_it_surfaced": "Re-running test_calendar_interop for PT-117-2 produced 30 passed / 1 FAILED. The failing test open_or_create_daily_note_is_idempotent_against_real_pg_live died on canonical terminal predicate date-b-journal-event-activity-and-ledger-authoritative with an action receipt for target daily-journal-next-day at status=indeterminate and rejection: click was dispatched, but this target exposes no action-specific completion predicate. That is verbatim the fallback message MT-117 exists to remove.",
+        "ruled_out_sweep_interaction": "Re-ran the single test in ISOLATION with --exact. It reproduced identically (EXIT 101, same predicate, same target, same rejection), so it is deterministic and not an artifact of the five-suite sweep or of --test-threads ordering.",
+        "ruled_out_mt117_regression": "The captured AccessKit tree shows daily-journal-next-day with \"value\": null - it publishes NO handshake.click-completion/v1 declaration at all, while sibling controls such as menu-edit and menu-view do. MT-117 could not have removed a declaration that never existed, and grep confirms daily-journal-next-day appears nowhere in the MT-117 implementation. This is a PRE-EXISTING gap of the same class, not a regression.",
+        "why_it_belongs_in_mt117": "Same defect, same mechanism, same suite, and it directly blocks MT-117 PT-117-2 (the MT-067 Calendar suite green). The Operator standing rule for this work packet is to address a discovered gap inside the current MT when it directly relates to that MT.",
+        "implementation": "Added a fifth Mt117Expectation variant JournalDateNav to src/frontend/handshake_native/src/app.rs, following the existing pattern rather than inventing a mechanism: mt117_semantic declares baseline_date_display from the journal nav at DECLARATION time; from_semantic rebuilds it; mt117_advance publishes Applied only when the date header read from the SAME fresh tree the ActionChannel acknowledges shows a DIFFERENT date; the target joins mt117_target_is_persistent because the arrow keeps its exact mounted node through its own navigation.",
+        "single_use_property_preserved": "Because the baseline is captured at declaration, a header still reading the pre-click date means navigation has not landed, so the observer stays Pending and the bounded window publishes a TYPED REJECTION instead of a false Applied. A stale frame can never be replayed as proof of this click - the same property the other four targets have.",
+        "compile": "cargo check --manifest-path src/frontend/handshake_native/Cargo.toml --lib => CHECK_EXIT=0, zero errors, 42.76s.",
+        "proof_pending": "test_calendar_interop re-run in flight. Not claimed until it reports."
+      },
+      "calendar_regression_found_and_fixed": {
+        "correction_to_the_earlier_classification": "An earlier note in this contract said the calendar failure was pre-existing and NOT an MT-117 regression. That was true of daily-journal-next-day and FALSE of the suite. MT-117 DID cause the remaining failure, by a different mechanism on a different node. Corrected here rather than left standing.",
+        "mechanism": "mt033_set_snapshot_node_value REPLACES a node value. The Calendar event chip already published a DOMAIN json object in that same value (calendar_event_id, activity_span_id) which test_calendar_interop reads directly off the node. MT-117 overwrote it, so those fields survived only nested inside the declaration escaped semantic_value, and a suite recorded 31 passed / 0 failed before MT-117 went red on a tree predicate unrelated to completion.",
+        "how_found": "Extracted the captured AccessKit tree from the failure output and compared the chip actual value against what the predicate reads. Not inferred from the test name.",
+        "fix": "mt117_merge_node_value merges the declaration INTO an existing json object value when both sides are objects, so domain fields survive at top level. Declaration keys win on collision so the completion contract cannot be shadowed.",
+        "why_not_the_mt042_shape": "MT-042 solved the identical collision by moving its state projection to a sibling {author_id}.state node so the declaration could own the value. Not available here: the domain fields are read off the chip by a test this MT may not edit.",
+        "systemic_note": "mt033_set_snapshot_node_value is called at TEN observer projection sites. MT-042 worked around this collision explicitly. The hazard is not MT-117-specific and any other observer whose target already carries a domain value has the same latent breakage.",
+        "proof": "test_calendar_interop => CAL3_EXIT=0, 31 passed / 0 failed / 0 ignored, 109.51s - restoring the exact figure MT-115 recorded. Progression: 30/1 receipt indeterminate -> 30/1 receipt APPLIED but tree predicate red -> 31/0. No test assertion edited at any point.",
+        "no_regression_from_the_merge": "Re-ran the three suites that were green BEFORE the merge, because the merge changes what MT-117 writes to every one of its targets: test_code_note_cross_ref 30/0, test_locus_interop 32/0/1, test_other_pillar_interop_proofs 27/0, REGRESS_EXIT=0."
+      },
+      "pt_117_1_NOT_SATISFIED_with_exact_blocker": {
+        "status": "NOT SATISFIED. The MT-074 suite is GREEN at 27 passed / 0 failed, but PT-117-1 requires 13/13 receipts APPLIED and ZERO indeterminate, and the durable evidence shows that is not the case.",
+        "measured_from_post_fix_artifacts": "Receipt census taken from the newest canonical-argus run per scenario, written at 18:46:03 local by the run that finished 18:47:34 - i.e. AFTER the merge fix, not stale. Totals: 51 receipts, 36 applied, 15 INDETERMINATE.",
+        "the_only_indeterminate_targets_are_MT117_own": {
+          "stage-capture-embed-back": "5 indeterminate in op01-stage plus more in op04-aggregate. Rejection: \"persistent observer target identity or action capability drifted\". The declaration IS published, so this is not a missing-predicate problem - the target is listed in mt117_target_is_persistent but does NOT keep its exact mounted node and action capability through its own action, so the persistent contract is the wrong classification for it.",
+          "daily-journal-calendar-event-chip": "4 indeterminate in op02-calendar plus more in op04-aggregate. Rejection: \"click target disappeared before its effect could be observed\". Declared NON-persistent, and the chip is removed or replaced when the calendar event opens, so the click target is gone before the effect can be observed on it."
+        },
+        "what_is_NOT_the_problem": "editor.rich.save and the calendar activity target do not appear as indeterminate at all, and op03-locus is 2/2 applied - the MT-068 Locus observer, whose shell-owned observer node survives target disappearance, is the proven shape in this work packet.",
+        "honest_position": "MT-117 stays CLAIMED. The suite passing is NOT sufficient: AC-117-4 says the strict gate finish_require_no_indeterminate() should become REACHABLE for these scenarios, which it is not while 15 receipts are indeterminate. Reporting the green 27/0 as PT-117-1 satisfied would be exactly the kind of passing-suite-stands-in-for-the-criterion overclaim this work packet keeps having to correct."
+      }
     },
     "claimed_at_utc": "2026-08-12T14:12:00Z",
     "status_rationale": "Implementation is committed (8a77e315) and its lib proof plus the HBR-MAN manual gate are green, but PT-117-1 and PT-117-2 are integration runs that have not yet produced evidence. Held at CLAIMED rather than advanced, matching the discipline the prior session applied to MT-112/115/116/119: an MT does not reach READY_FOR_VALIDATION on partial proof."
