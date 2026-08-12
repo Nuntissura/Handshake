@@ -1073,12 +1073,19 @@ fn mt117_target_mode(author_id: &str) -> Mt117TargetMode {
     // Both are therefore FLEXIBLE, matching the MT-024 sidebar-pin-removal shape - a target that
     // legitimately does not survive its own action - and the MT-068 Locus pattern, which is 2/2
     // applied precisely because its shell-owned observer node outlives the target.
-    if author_id == crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID
-        || author_id
-            == crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID
-    {
+    // The calendar chip is REPLACED when the event opens, and `flexible` is precisely the
+    // "target presence encodes the outcome" contract: Applied requires the target to be gone.
+    if author_id == crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID {
         return Mt117TargetMode::Flexible;
     }
+    // stage-capture-embed-back stays PERSISTENT. Measured, not assumed: in the op01-stage
+    // canonical-argus evidence its node is byte-identical before and after its own click -
+    // node_id 2126558061106822000, role Button, not disabled, actions [Click, Focus], matching
+    // `expected_node_id`/`expected_role` exactly - so `post_render_target_identity_matches` is
+    // satisfied and it does NOT drift. It also stays PRESENT on success, which makes `flexible`
+    // actively wrong for it: that contract rejects Applied-with-target-still-present, and moving
+    // it there swapped one rejection for another ("flexible observer terminal state does not
+    // match Retry target presence").
     Mt117TargetMode::Persistent
 }
 
