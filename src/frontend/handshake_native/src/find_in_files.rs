@@ -6335,4 +6335,296 @@ mod tests {
             );
         }
     }
+
+    /// PT-119-3 — the regression guard for MT-119.
+    ///
+    /// MT-119's defect was that an unbounded saved-search label pushed the Restore/Remove controls
+    /// past the Find-in-Files pane's right edge, where a human operator could neither see nor reach
+    /// them, while Argus still addressed and clicked them perfectly. The acceptance for that fix was
+    /// a mounted GPU frame, which cannot re-run on every commit — so without this test the fix can
+    /// silently regress between mounted runs.
+    ///
+    /// TWO earlier attempts at this guard were withdrawn, and this harness is shaped by BOTH:
+    ///
+    /// 1. A panel-level `set_max_width(420)` guard was VACUOUS. egui's default viewport when
+    ///    `RawInput::screen_rect` is `None` is 10000x10000 (`egui-0.33.3/src/input_state/mod.rs:368`),
+    ///    so nothing in a bare `Context` can overflow: the "420px" pane measured ~9984px wide and the
+    ///    guard stayed green even with the whole pre-fix layout restored. Hence `screen_rect` is set
+    ///    explicitly, the pane is a real `SidePanel` with `exact_width`, and INTERLOCK I1 below asserts
+    ///    the pane really is bounded before any containment claim is made.
+    /// 2. A geometry assertion driven from `argus.inspect()` produced a FALSE POSITIVE (a 2605px right
+    ///    edge inside a 2560px window) because `refresh_mcp_snapshot` re-renders on a FRESH, unsized
+    ///    `egui::Context` — those bounds describe a synthetic re-render, not the mounted frame. Hence
+    ///    the pane rect here is MEASURED inside the SAME pass whose AccessKit update supplies the
+    ///    control bounds; it is never derived from sibling controls.
+    ///
+    /// A THIRD hazard was found while building this guard and is recorded at the measurement site: the
+    /// `SidePanel`'s `inner.response.rect` is NOT the pane. It is the Frame's response rect and GROWS
+    /// to include overflowing content — it measured 504.406px while the pane under it was 420px. The
+    /// pane is the panel's CLIP rect, which is the boundary beyond which egui refuses to paint.
+    ///
+    /// The interlocks are what stop this becoming a third vacuous guard: I0 proves the panel's static
+    /// chrome fits the test pane (so a containment failure can only be about the user-content row), I1
+    /// proves the pane is bounded, I2 proves the fixture genuinely overflows it, I3 fails closed when
+    /// bounds are missing, and I4 proves truncation is actually in force. The label assertion is NOT
+    /// optional — without it, dropping `.truncate()` alone would keep this green while the query ran
+    /// off the pane's left edge.
+    ///
+    /// Non-vacuity was PROVEN, not assumed, by mutating the product and observing red: restoring the
+    /// full pre-fix layout (label first in a `left_to_right` row) fails the Restore/Remove assertions,
+    /// and keeping `right_to_left` but dropping `.truncate()` fails the label assertion.
+    #[test]
+    fn mt119_saved_search_controls_stay_inside_the_find_pane() {
+        use crate::accessibility::{collect_ui_tree_snapshot, UiNodeBounds};
+
+        // A realistic ~200-character operator query: MT-119's defect only appears with user content
+        // long enough to consume the whole row before the controls are placed.
+        let query = "authentication middleware refactor across the workspace including the session \
+                     token refresh path, the retry backoff schedule, and every call site that still \
+                     builds a bearer header by hand";
+        assert!(
+            (180..=240).contains(&query.len()),
+            "fixture drift: the guard is calibrated for a ~200-character query, got {}",
+            query.len()
+        );
+        let bookmark = bookmark_with_query(query);
+        assert_eq!(
+            bookmark.label, query,
+            "the saved-search row renders the raw operator query as its label"
+        );
+        let restore_route = bookmark_restore_author_id(&bookmark.id);
+        let remove_route = bookmark_remove_author_id(&bookmark.id);
+
+        let mut panel = FindInFilesPanelState::new();
+        panel.bind_workspace(Some("ws-mt119"), 0);
+        panel.bookmarks = vec![bookmark.clone()];
+        let panel = std::cell::RefCell::new(panel);
+
+        // Endpoint 127.0.0.1:1 is deliberately dead: this proof is about layout, and no request must
+        // ever be able to change what is rendered.
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build current-thread runtime");
+        let search_client = crate::backend_client::WorkspaceSearchClient::new(
+            "http://127.0.0.1:1",
+            runtime.handle().clone(),
+        );
+        let doc_client = crate::backend_client::RichDocClient::new(
+            "http://127.0.0.1:1",
+            runtime.handle().clone(),
+        );
+
+        // 560px, not the 420px first tried, and the difference is a MEASURED product finding rather
+        // than a tuning convenience. At 420px the panel's STATIC action row already overflows on its
+        // own — `find-in-files.save-bookmark` ("Bookmark Search") measured x=[388.00, 496.41] and
+        // `find-in-files.cancel` x=[402.28, 448.59]. egui's `Region::expand_to_include_rect` widens a
+        // Ui's max_rect (not just its min_rect) to cover overflow, so that earlier row hands EVERY
+        // later row — including the saved-search row — a layout width larger than the visible pane.
+        // The saved-search controls then land at Restore x=[380.16, 433.28] and Remove
+        // x=[441.28, 496.41], i.e. outside a 420px pane EVEN WITH the MT-119 fix in place.
+        //
+        // That is a real second-order defect (static chrome that does not fit a narrow pane drags
+        // user-content rows off-pane with it), but it is NOT the defect MT-119 fixed and fixing it
+        // would be a product change outside this MT. Guarding MT-119 at 420px would therefore pin the
+        // WRONG failure. The width is chosen so the static chrome fits, and INTERLOCK I0 below asserts
+        // that premise explicitly so the guard reports "static chrome outgrew the pane" instead of
+        // silently blaming the saved-search layout if it ever stops holding.
+        const PANE_WIDTH: f32 = 560.0;
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        // Pin DPI: AccessKit bounds are logical pixels, and pinning ppp keeps them directly
+        // comparable to the egui points the pane rect is measured in.
+        ctx.set_pixels_per_point(1.0);
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1280.0, 800.0),
+            )),
+            ..Default::default()
+        };
+
+        let pane_rect_cell = std::cell::Cell::new(egui::Rect::NOTHING);
+        let run_pass = || {
+            ctx.run(input.clone(), |ctx| {
+                let inner = egui::SidePanel::left("mt119-find-in-files-pane")
+                    .resizable(false)
+                    .exact_width(PANE_WIDTH)
+                    .show(ctx, |ui| {
+                        // MEASURED from this pass: the panel's clip rect IS its visible boundary
+                        // (`panel.rs:292` sets it to `panel_rect` precisely so overflow "doesn't do so
+                        // visibly"). Anything outside it is not painted, which is exactly the
+                        // human-reachability question MT-119 is about.
+                        //
+                        // `inner.response.rect` was tried FIRST and rejected on measurement: it is the
+                        // Frame's response rect, which GROWS to include overflowing content, and it
+                        // reported 504.406px for this 420px pane. That is the same expand-to-include-
+                        // overflow hazard as `ui.max_rect()`, and INTERLOCK I1 below is what caught it.
+                        pane_rect_cell.set(ui.clip_rect());
+                        let palette = crate::theme::HsTheme::Dark.palette();
+                        let mut on_open = |_hit: &crate::backend_client::LoomGraphSearchHit| {};
+                        let mut callbacks = FindInFilesCallbacks {
+                            on_open_hit: &mut on_open,
+                        };
+                        show(
+                            ui,
+                            &mut panel.borrow_mut(),
+                            &palette,
+                            &search_client,
+                            &doc_client,
+                            Some("ws-mt119"),
+                            &mut callbacks,
+                        );
+                    });
+                // Bound and deliberately unread: `inner.response.rect` is the Frame's rect, NOT the
+                // pane. It grows to cover overflowing content, so reading it here is the mistake this
+                // guard is documenting, not the measurement.
+                let _rejected_frame_rect = inner.response.rect;
+            })
+        };
+        // Two passes: panel width and the row's right-to-left reservation settle on the second, the
+        // same two-frame settle the mounted interaction proofs use.
+        let _first = run_pass();
+        let second = run_pass();
+
+        let update = second
+            .platform_output
+            .accesskit_update
+            .expect("AccessKit update produced (accesskit enabled + frame run)");
+        let snapshot = collect_ui_tree_snapshot(&update);
+        let pane_rect = pane_rect_cell.get();
+
+        // ── INTERLOCK I1: the pane really is bounded ──────────────────────────────────────────────
+        // The first withdrawn attempt measured ~9984px here and every containment claim it made was
+        // therefore meaningless. Assert the bound BEFORE asserting anything is inside it.
+        assert!(
+            pane_rect.width() > 0.0 && pane_rect.width() <= PANE_WIDTH + 2.0,
+            "INTERLOCK I1: the Find pane must be genuinely bounded to ~{PANE_WIDTH}px before \
+             containment means anything; measured {:.3}px (an unbounded pane makes this guard \
+             vacuous — see the withdrawn set_max_width attempt)",
+            pane_rect.width()
+        );
+
+        // ── INTERLOCK I2: the fixture genuinely stresses the layout ───────────────────────────────
+        // Measure the UNTRUNCATED galley in this same context rather than hardcoding font metrics,
+        // so a future font/style change cannot quietly shrink the fixture below the overflow point.
+        let body_font = egui::TextStyle::Body.resolve(&ctx.style());
+        let untruncated_label_width = ctx.fonts_mut(|fonts| {
+            fonts
+                .layout_no_wrap(bookmark.label.clone(), body_font, egui::Color32::WHITE)
+                .size()
+                .x
+        });
+        assert!(
+            untruncated_label_width >= pane_rect.width() * 1.5,
+            "INTERLOCK I2: the fixture query must genuinely overflow the row — it lays out at \
+             {untruncated_label_width:.3}px against a {:.3}px pane, under the 1.5x floor",
+            pane_rect.width()
+        );
+
+        // ── INTERLOCK I3: fail closed on missing bounds ───────────────────────────────────────────
+        // `expect`, never `if let Some(..)`: a guard that silently passes when the bounds are absent
+        // is the same false assurance as a guard that cannot fail.
+        //
+        // `find_unique_by_author_id`, not `find_by_author_id`: a duplicate route would make the
+        // measurement depend on tree order, which is exactly the kind of quiet ambiguity this guard
+        // exists to refuse.
+        let bounds_of = |author_id: &str| -> UiNodeBounds {
+            snapshot
+                .find_unique_by_author_id(author_id)
+                .unwrap_or_else(|| {
+                    panic!("the saved-search row must publish exactly one node at {author_id}")
+                })
+                .bounds
+                .expect("the addressed saved-search control must carry rendered AccessKit bounds")
+        };
+        let restore_bounds = bounds_of(&restore_route);
+        let remove_bounds = bounds_of(&remove_route);
+
+        // ── INTERLOCK I0: the premise behind PANE_WIDTH still holds ───────────────────────────────
+        // The widest static control in the panel must itself fit. If it stops fitting, the saved-search
+        // row is dragged off-pane by egui's overflow-driven max_rect expansion no matter how MT-119's
+        // row is laid out, and the containment assertions below would be pinning the wrong defect.
+        let widest_static_control =
+            bounds_of(&pane_scoped_author_id(SAVE_BOOKMARK_AUTHOR_ID, None));
+        assert!(
+            widest_static_control.x + widest_static_control.w <= pane_rect.right() + 1.0,
+            "INTERLOCK I0: the panel's STATIC action row must fit the {PANE_WIDTH}px test pane before \
+             a user-content containment claim is meaningful. 'Bookmark Search' rendered to \
+             {:.3}px against a pane right edge of {:.3}px — at that point egui expands the shared \
+             max_rect over the overflow and pushes EVERY later row, saved-search included, outside \
+             the pane regardless of MT-119's layout. Fix the static row (or widen the pane premise); \
+             do not read the assertions below as an MT-119 regression.",
+            widest_static_control.x + widest_static_control.w,
+            pane_rect.right()
+        );
+
+        // The product stamps no author_id on the label, so it is identified by role + text. egui gives
+        // a `Role::Label` node its text as `value` (response.rs:884) and `Galley::text()` returns the
+        // FULL job text, so the untruncated query is what identifies the node even when it renders
+        // elided.
+        //
+        // Assert on the `Label` node, never on its `TextRun` child. In a right-to-left layout egui
+        // hands the galley `halign == RIGHT`, so `galley_pos` is the rect's RIGHT edge; the AccessKit
+        // TextRun rows are then emitted extending RIGHT from that origin and report a MIRRORED rect.
+        // Measured here: Label x=[11.75, 427.75] (correct) vs its TextRun x=[427.75, 843.69]. The
+        // widget response rect on the `Label` node is the real allocated geometry.
+        let label_prefix: String = query.chars().take(40).collect();
+        let label_node = snapshot
+            .iter_nodes()
+            .find(|node| {
+                node.role == "Label"
+                    && node
+                        .value
+                        .as_deref()
+                        .is_some_and(|value| value.starts_with(&label_prefix))
+            })
+            .expect("the saved-search row must publish a Label node carrying the operator query");
+        let label_bounds = label_node
+            .bounds
+            .expect("the saved-search label node must carry rendered AccessKit bounds");
+
+        // ── The guard proper: every part of the row lies inside the pane ──────────────────────────
+        // Restore and Remove catch the original defect (controls pushed off the right edge); the
+        // label catches the other half — with `.truncate()` removed the controls stay put and the
+        // query runs off the pane's LEFT edge instead.
+        const TOL: f32 = 1.0;
+        for (name, b) in [
+            ("Restore control", restore_bounds),
+            ("Remove control", remove_bounds),
+            ("saved-search label", label_bounds),
+        ] {
+            assert!(
+                b.x >= pane_rect.left() - TOL
+                    && b.x + b.w <= pane_rect.right() + TOL
+                    && b.y >= pane_rect.top() - TOL
+                    && b.y + b.h <= pane_rect.bottom() + TOL,
+                "MT-119: the {name} must render FULLY INSIDE the Find-in-Files pane. \
+                 rect x=[{:.3}, {:.3}] y=[{:.3}, {:.3}] vs pane x=[{:.3}, {:.3}] y=[{:.3}, {:.3}] \
+                 (tolerance {TOL}px). A control outside the pane is invisible and unreachable to a \
+                 human operator even though Argus can still click it.",
+                b.x,
+                b.x + b.w,
+                b.y,
+                b.y + b.h,
+                pane_rect.left(),
+                pane_rect.right(),
+                pane_rect.top(),
+                pane_rect.bottom()
+            );
+        }
+
+        // ── INTERLOCK I4: truncation is actually in force ─────────────────────────────────────────
+        // Ordered AFTER the containment loop deliberately. Both must hold, but when the row layout is
+        // broken the operator-meaningful message is WHICH control left the pane and by how much — an
+        // interlock firing first would mask it. I4's own job is to refuse a PASS that is only green
+        // because nothing was being bounded in the first place.
+        assert!(
+            label_bounds.w < untruncated_label_width,
+            "INTERLOCK I4: the label must render TRUNCATED into the width left by the controls; it \
+             rendered {:.3}px wide against an untruncated {untruncated_label_width:.3}px, so nothing \
+             is being bounded and the containment assertions above prove nothing",
+            label_bounds.w
+        );
+    }
 }
