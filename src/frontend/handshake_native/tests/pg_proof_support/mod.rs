@@ -22,7 +22,25 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use handshake_native::backend_client::build_backend_client;
 use sha2::{Digest, Sha256};
 
-const FIXTURE_LOCK_TIMEOUT: Duration = Duration::from_secs(60);
+// This is a QUEUE wait, not a work budget. The managed backend fixture is a single global exclusive
+// resource: every proof that calls `require_reachable_backend`/`require_live_backend` holds this lock for
+// its whole run, and cargo starts all tests in a binary in PARALLEL, so every additional fixture proof in
+// the same binary adds another waiter. The previous 60s value was mismatched in KIND with what it queues
+// behind — demand is COUNT-bounded (one waiter per fixture proof: 5 in test_canvas_board_argus, 3 in
+// test_graph_view_argus, 1 each in test_embeds/test_undo_scope) while the budget was a fixed wall clock,
+// and a single holder is separately allowed up to STARTUP_TIMEOUT (1200s) just to bring its backend up.
+// Measured 2026-08-07 at 2c0aa139: the three test_graph_view_argus fixture proofs need ~55s of exclusive
+// time in total, so under default cargo parallelism the trailing waiters panicked with "managed backend
+// fixture lock timed out after 60s" (12 passed / 2 failed) while each of those tests passed ALONE (15.1s,
+// 21.8s) and all 14 passed under `--test-threads=1` (81.0s). Exactly two waiters fit inside the old 60s
+// window, which is why the binaries fail in proportion to their fixture-proof count and the 1-acquisition
+// binaries never failed at all. A waiter must therefore be allowed to wait at least as long as a holder is
+// allowed to take, so this now matches STARTUP_TIMEOUT. This gates WAITING ONLY: it is acquired before any
+// product interaction, so it can never mask a product defect or let an assertion pass — a proof that
+// cannot obtain the fixture still proves nothing and still fails. It stays hard-capped at the call site by
+// `FIXTURE_LOCK_TIMEOUT.min(command_time_remaining(..))`, so it can never outlive the supervisor-injected
+// command-wide deadline.
+const FIXTURE_LOCK_TIMEOUT: Duration = Duration::from_secs(1200);
 // Every owned backend replays the complete production startup path before it can publish its listen
 // report. On a shared PostgreSQL cluster, another worktree can hold the migration advisory lock and
 // serialize schema/corpus work for more than five minutes. Keep one aggregate startup deadline across

@@ -721,6 +721,330 @@ impl Mt068LocusRefOpenCompletion {
     }
 }
 
+// ── WP-KERNEL-012 MT-117: Stage / rich-save / Calendar canonical action completion ───────────────
+//
+// MT-074 proved with runtime evidence that SEVEN of its thirteen canonical Argus receipts terminalize
+// `indeterminate`. Four target ids cover all seven (the Stage embed-back and both Calendar actions each
+// appear twice — once in their own OP scenario and once in the OP-04 aggregate), because each falls
+// through `crate::mcp::action`'s conservative fallback — literally "click was dispatched, but this
+// target exposes no action-specific completion predicate" — having published no completion token at all.
+// MT-074 is proof-only and structurally cannot fix it.
+//
+// This extends the EXISTING opt-in `handshake.click-completion/v1` observer mechanism, the same shape
+// MT-024, MT-026, MT-028, MT-029, MT-042, MT-064, MT-065, MT-068 and MT-079 already prove; it does NOT
+// invent a second one. In the SAME MT-074 matrix the Locus chip already terminalizes `applied` precisely
+// because MT-068 built a durable shell-owned observer for it, so the fix shape is proven in this WP.
+//
+// Each target terminalizes ONLY on its own AUTHORITATIVE DURABLE effect, read from the live app model
+// and the SAME fresh snapshot the `ActionChannel` acknowledges — never on the click being consumed,
+// never on the target appearing or disappearing, never on same-process state that merely says a
+// request was issued:
+//
+//   * `stage-capture-embed-back` (PERSISTENT target — the capture button keeps its exact node while
+//     the embed lands, because only a NEW route clears Stage content) -> `StagePane::last_embed_back`
+//     reaches `EmbedBackOutcome::Embedded { artifact_id, sha256 }`, which the shell sets ONLY after the
+//     EventLedger acknowledgement (`Persisting` is deliberately non-terminal), AND the mounted
+//     `stage-embed-back-status` node exposes that exact artifact id plus its 12-character sha prefix —
+//     the same identity MT-074's `mt074-op0N-embed-back-exposes-exact-artifact-and-digest` recomputes.
+//   * `editor.rich.save` (PERSISTENT target — the Save action node is `always_present` and enabled) ->
+//     a FRESH authoritative `GET /knowledge/documents/{id}` reports a `doc_version` STRICTLY GREATER
+//     than the pre-dispatch version. The local dirty-flag clear is NOT sufficient, and neither is the
+//     save response the frontend already holds: the readback is an independent re-read of canonical
+//     PostgreSQL state, exactly what MT-074's
+//     `mt074-op01-save-persists-exact-embed-provenance-in-postgresql` performs.
+//   * `daily-journal-calendar-event-chip` (TRANSIENT target — activating it routes a `CalendarEvent`
+//     tab over the journal that painted the chip, so the chip is gone by acknowledgement) -> the EXACT
+//     bound CalendarEvent id owns the ACTIVE tab of the ACTIVE pane and the mounted
+//     `calendar-event-details` projection exposes that id.
+//   * `calendar-event-tab-activity` (PERSISTENT target — the sub-tab stays mounted and selectable) ->
+//     the EXACT persisted ActivitySpan node AND at least one of its declared correlated
+//     edited-document chips are addressable in the terminal tree.
+//
+// Every action is BOUNDED: an effect that never arrives publishes a TYPED terminal rejection after
+// [`MT117_OBSERVATION_WINDOW`] instead of hanging `Pending`. A stuck-`Pending` observer would silently
+// strand every LATER action as `indeterminate`, which is exactly the defect this MT exists to remove.
+//
+// The observer is proof-only: it never gates product behavior (every route works identically with no
+// Argus binding open), and the save readback is issued ONLY while an Argus-bound observation is already
+// `Pending`, so an un-instrumented host performs no extra request and is unaffected.
+
+/// Durable `Role::Status` observer publishing MT-117 Stage / rich-save / Calendar action completion.
+///
+/// MT-113 bounded every author-id-shaped completion-token field to
+/// [`crate::mcp::action::MAX_CLICK_COMPLETION_AUTHOR_BYTES`]. This id, the effect and the context are
+/// FIXED literals (no user content is concatenated into any of them), so they cannot overrun; the only
+/// content-derived field is `semantic_value`, which is checked against
+/// [`crate::mcp::action::MAX_CLICK_COMPLETION_SEMANTIC_BYTES`] before it is ever published.
+pub const MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID: &str = "mt117.interop-action-completion";
+const MT117_INTEROP_ACTION_EFFECT: &str = "mt117.interop-action";
+const MT117_INTEROP_ACTION_CONTEXT: &str = "wp-kernel-012-mt-117";
+/// BOUNDED observation window for one MT-117 action, mirroring the MT-064/MT-065/MT-068 rationale.
+/// Deliberately longer than the `ActionChannel` lease so an expired receipt still leaves a settled,
+/// non-`Pending` observer baseline behind for the next action to declare against.
+const MT117_OBSERVATION_WINDOW: std::time::Duration = std::time::Duration::from_secs(12);
+/// The rich-document Save action node (`rich_author_id_static("save")`).
+const MT117_RICH_SAVE_TARGET: &str = "editor.rich.save";
+
+/// The exact durable effect a dispatched MT-117 action must produce before it may terminalize.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Mt117Expectation {
+    StageEmbedBack {
+        baseline_artifact_id: Option<String>,
+        baseline_sha256: Option<String>,
+    },
+    RichSave {
+        document_id: String,
+        baseline_doc_version: u64,
+    },
+    CalendarEvent {
+        calendar_event_id: String,
+    },
+    CalendarActivity {
+        calendar_event_id: String,
+        activity_span_id: String,
+        edited_document_ids: Vec<String>,
+    },
+}
+
+impl Mt117Expectation {
+    /// Rebuild the expectation from the semantic tuple the target DECLARED before dispatch.
+    ///
+    /// The baseline deliberately comes from the DECLARATION rather than being resampled when the shell
+    /// observes the dispatch: these effects are asynchronous, so by bind time the embed may already be
+    /// `Persisting`/`Embedded` and the save may already have advanced. A baseline sampled then would
+    /// make the transition unobservable and would let a stale success be replayed as proof of THIS click.
+    fn from_semantic(target: &str, semantic: &str) -> Option<Self> {
+        let value: serde_json::Value = serde_json::from_str(semantic).ok()?;
+        if value.get("target").and_then(serde_json::Value::as_str) != Some(target) {
+            return None;
+        }
+        let text = |key: &str| {
+            value
+                .get(key)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        };
+        match value.get("action").and_then(serde_json::Value::as_str)? {
+            "stage-embed-back" => Some(Self::StageEmbedBack {
+                baseline_artifact_id: text("baseline_artifact_id"),
+                baseline_sha256: text("baseline_sha256"),
+            }),
+            "save-rich-document" => Some(Self::RichSave {
+                document_id: text("document_id")?,
+                baseline_doc_version: value
+                    .get("baseline_doc_version")
+                    .and_then(serde_json::Value::as_u64)?,
+            }),
+            "open-calendar-event" => Some(Self::CalendarEvent {
+                calendar_event_id: text("calendar_event_id")?,
+            }),
+            "open-calendar-activity" => Some(Self::CalendarActivity {
+                calendar_event_id: text("calendar_event_id")?,
+                activity_span_id: text("activity_span_id")?,
+                edited_document_ids: value
+                    .get("edited_document_ids")?
+                    .as_array()?
+                    .iter()
+                    .filter_map(|id| id.as_str().map(str::to_owned))
+                    .collect(),
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// One completed independent re-read of canonical document state, delivered off the frame thread.
+#[derive(Debug, Clone)]
+struct Mt117SaveReadback {
+    document_id: String,
+    /// `Ok(doc_version)` from a fresh authoritative GET, or the typed transport/parse failure.
+    result: Result<u64, String>,
+}
+
+/// The shell-owned durable observer that terminalizes the four MT-117 canonical actions.
+#[derive(Debug, Clone)]
+struct Mt117InteropActionCompletion {
+    generation: u64,
+    state: crate::mcp::action::ClickCompletionState,
+    pending_target: Option<String>,
+    semantic_value: Option<String>,
+    expectation: Option<Mt117Expectation>,
+    /// When the current action was bound. Bounds the observation window.
+    pending_since: Option<std::time::Instant>,
+    /// True once the independent save readback has been REQUESTED for the current action, so the frame
+    /// loop issues exactly one re-read per dispatched save rather than one per frame (HBR-QUIET).
+    save_readback_requested: bool,
+    terminal_detail: Option<String>,
+    terminal_error: Option<String>,
+}
+
+impl Default for Mt117InteropActionCompletion {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            state: crate::mcp::action::ClickCompletionState::Ready,
+            pending_target: None,
+            semantic_value: None,
+            expectation: None,
+            pending_since: None,
+            save_readback_requested: false,
+            terminal_detail: None,
+            terminal_error: None,
+        }
+    }
+}
+
+impl Mt117InteropActionCompletion {
+    fn is_pending(&self) -> bool {
+        self.state == crate::mcp::action::ClickCompletionState::Pending
+    }
+
+    /// The declaration a steerable MT-117 target publishes as its AccessKit `value`.
+    ///
+    /// While an action bound to THIS exact control is open the ORIGINAL semantic is republished
+    /// verbatim, because `crate::mcp::action` requires a persistent target's post-action declaration to
+    /// advance by exactly one generation while carrying an UNCHANGED semantic tuple — and these
+    /// semantics are baselines that the action itself invalidates.
+    ///
+    /// A TRANSIENT target declares only while the observer is settled, so a stale declaration can never
+    /// race a live generation transition.
+    fn declaration(
+        &self,
+        author_id: &str,
+        semantic_value: &str,
+        persistent_target: bool,
+    ) -> Option<String> {
+        let bound_to_this_target = self.pending_target.as_deref() == Some(author_id);
+        let semantic_value = if bound_to_this_target {
+            self.semantic_value.as_deref().unwrap_or(semantic_value)
+        } else {
+            semantic_value
+        };
+        if persistent_target {
+            crate::mcp::action::serialize_persistent_observer_click_target(
+                MT117_INTEROP_ACTION_EFFECT,
+                MT117_INTEROP_ACTION_CONTEXT,
+                self.generation,
+                MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
+                semantic_value,
+            )
+        } else {
+            (!self.is_pending())
+                .then(|| {
+                    crate::mcp::action::serialize_observer_click_target(
+                        MT117_INTEROP_ACTION_EFFECT,
+                        MT117_INTEROP_ACTION_CONTEXT,
+                        self.generation,
+                        MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
+                        semantic_value,
+                    )
+                })
+                .flatten()
+        }
+    }
+
+    /// Bind ONE dispatched action. The `is_pending` guard is the shared-observer quiescence gate: a
+    /// second observer-backed action dispatched before the first settles is never absorbed into the
+    /// open generation, it simply finds a `Pending` observer and falls back to `Indeterminate`.
+    fn begin(&mut self, target: String, semantic_value: String, expectation: Mt117Expectation) {
+        if self.is_pending() {
+            return;
+        }
+        self.generation = self.generation.wrapping_add(1).max(1);
+        self.state = crate::mcp::action::ClickCompletionState::Pending;
+        self.pending_target = Some(target);
+        self.semantic_value = Some(semantic_value);
+        self.expectation = Some(expectation);
+        self.pending_since = Some(std::time::Instant::now());
+        self.save_readback_requested = false;
+        self.terminal_detail = None;
+        self.terminal_error = None;
+    }
+
+    /// `true` once the BOUNDED observation window for the in-flight action has elapsed.
+    fn observation_window_elapsed(&self) -> bool {
+        self.is_pending()
+            && self
+                .pending_since
+                .is_some_and(|since| since.elapsed() >= MT117_OBSERVATION_WINDOW)
+    }
+
+    fn complete_applied(&mut self, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Applied;
+            self.terminal_detail = Some(detail);
+            self.terminal_error = None;
+        }
+    }
+
+    fn complete_failed(&mut self, error: String, detail: String) {
+        if self.is_pending() {
+            self.state = crate::mcp::action::ClickCompletionState::Failed;
+            self.terminal_error = Some(error);
+            self.terminal_detail = Some(detail);
+        }
+    }
+
+    fn observer_value(&self) -> Option<String> {
+        match self.state {
+            // A settled Ready baseline must ALWAYS be publishable, including before the first action:
+            // without it every target would declare against a missing observer and every MT-117 click
+            // would fall straight back to `Indeterminate`.
+            crate::mcp::action::ClickCompletionState::Ready
+            | crate::mcp::action::ClickCompletionState::Pending => {
+                crate::mcp::action::serialize_observer_click_state(
+                    MT117_INTEROP_ACTION_EFFECT,
+                    MT117_INTEROP_ACTION_CONTEXT,
+                    self.generation,
+                    self.state,
+                    self.pending_target.as_deref(),
+                    self.semantic_value.as_deref(),
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Applied => {
+                crate::mcp::action::serialize_observer_click_applied(
+                    MT117_INTEROP_ACTION_EFFECT,
+                    MT117_INTEROP_ACTION_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_detail.as_deref()?,
+                )
+            }
+            crate::mcp::action::ClickCompletionState::Failed => {
+                crate::mcp::action::serialize_observer_click_failure(
+                    MT117_INTEROP_ACTION_EFFECT,
+                    MT117_INTEROP_ACTION_CONTEXT,
+                    self.generation,
+                    self.pending_target.as_deref()?,
+                    self.semantic_value.as_deref()?,
+                    self.terminal_error.as_deref()?,
+                    self.terminal_detail.as_deref(),
+                )
+            }
+        }
+    }
+}
+
+/// The MT-117 targets that keep their exact mounted node through their own action, and therefore
+/// declare the STRICTER persistent form. The Calendar event chip is the one transient target: routing
+/// its CalendarEvent tab replaces the journal that painted it.
+fn mt117_target_is_persistent(author_id: &str) -> bool {
+    author_id == crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID
+        || author_id == MT117_RICH_SAVE_TARGET
+        || author_id == crate::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID
+}
+
+/// Read one node's projected value out of the SAME fresh tree the `ActionChannel` acknowledges.
+fn mt117_snapshot_value<'a>(
+    snapshot: &'a crate::accessibility::UiTreeSnapshot,
+    author_id: &str,
+) -> Option<&'a str> {
+    snapshot
+        .find_by_author_id(author_id)
+        .and_then(|node| node.value.as_deref())
+}
+
 #[derive(Debug, Clone)]
 struct Mt028LoomSearchOpenCompletion {
     generation: u64,
@@ -6009,6 +6333,12 @@ pub struct HandshakeApp {
     mt068_locus_ref_open_completion: Mt068LocusRefOpenCompletion,
     /// The exact navigation the MT-068 locus drain last performed (kind, id, routed content id).
     mt068_locus_ref_routed: Option<Mt068LocusRouted>,
+    /// MT-117: shell-owned durable observer for the Stage embed-back, rich-document save, and the two
+    /// Calendar actions, whose MT-074 receipts previously had no action-specific completion predicate.
+    mt117_interop_action_completion: Mt117InteropActionCompletion,
+    /// MT-117: one-slot delivery cell for the INDEPENDENT post-save document re-read. Populated only
+    /// while an Argus-bound save observation is `Pending`, so an un-instrumented host never issues it.
+    mt117_save_readback_cell: Arc<Mutex<Option<Mt117SaveReadback>>>,
     /// MT-064 V5: the shared-selection fingerprint published by the PREVIOUS snapshot projection. A
     /// select-all receipt requires the live selection to have moved off this exact value, so an
     /// already-full selection can never be replayed as proof of the dispatched click.
@@ -7715,6 +8045,8 @@ impl HandshakeApp {
             mt028_loom_search_routed: None,
             mt068_locus_ref_open_completion: Mt068LocusRefOpenCompletion::default(),
             mt068_locus_ref_routed: None,
+            mt117_interop_action_completion: Mt117InteropActionCompletion::default(),
+            mt117_save_readback_cell: Arc::new(Mutex::new(None)),
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
             mcp_token: crate::mcp::SessionToken::generate(),
@@ -11659,6 +11991,427 @@ impl HandshakeApp {
         }
     }
 
+    /// The pre-dispatch semantic tuple an MT-117 target declares, or `None` when this author_id is not
+    /// an MT-117 target or its surface currently carries no bindable identity.
+    ///
+    /// Every value here is read BEFORE the action runs and becomes the causal binding the terminal
+    /// state is checked against, so the receipt can never be attached to a different artifact, document,
+    /// calendar event, or activity span.
+    fn mt117_semantic(&self, author_id: &str) -> Option<String> {
+        let semantic = match author_id {
+            crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID => {
+                // Only an ALREADY-terminal embed is a baseline. `Persisting`/`LedgerPending`/`Failed`
+                // are not durable successes, so they must not suppress the transition this click makes.
+                let baseline = self
+                    .stage_pane
+                    .lock()
+                    .ok()
+                    .and_then(|pane| match pane.last_embed_back.as_ref() {
+                        Some(crate::stage_pane::EmbedBackOutcome::Embedded {
+                            artifact_id,
+                            sha256,
+                            ..
+                        }) => Some((artifact_id.clone(), sha256.clone())),
+                        _ => None,
+                    });
+                serde_json::json!({
+                    "action": "stage-embed-back",
+                    "target": author_id,
+                    "baseline_artifact_id": baseline.as_ref().map(|(id, _)| id.as_str()),
+                    "baseline_sha256": baseline.as_ref().map(|(_, sha)| sha.as_str()),
+                })
+            }
+            MT117_RICH_SAVE_TARGET => {
+                let state = self.active_rich_state();
+                let state = state.lock().ok()?;
+                let save = state.save.as_ref()?;
+                serde_json::json!({
+                    "action": "save-rich-document",
+                    "target": author_id,
+                    "document_id": save.document_id(),
+                    "baseline_doc_version": save.doc_version,
+                })
+            }
+            crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID => {
+                let journal = self.editor_mounts.secondary.daily_journal.lock().ok()?;
+                let event = journal.event.as_ref()?;
+                serde_json::json!({
+                    "action": "open-calendar-event",
+                    "target": author_id,
+                    "calendar_event_id": event.id,
+                })
+            }
+            crate::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID => {
+                let journal = self.editor_mounts.secondary.daily_journal.lock().ok()?;
+                let event = journal.event.as_ref()?;
+                let spans = match &journal.activity {
+                    crate::graph::daily_journal_panel::ActivityCorrelation::Spans(spans) => spans,
+                    _ => return None,
+                };
+                // Bind the EXACT span already correlated to this event, plus the exact documents it
+                // says were edited during it. Both are read from persisted interop state, never
+                // invented, so an activation that renders a DIFFERENT span cannot terminalize.
+                let span = spans
+                    .iter()
+                    .find(|span| span.calendar_event_id.as_deref() == Some(event.id.as_str()))?;
+                serde_json::json!({
+                    "action": "open-calendar-activity",
+                    "target": author_id,
+                    "calendar_event_id": event.id,
+                    "activity_span_id": span.span_id,
+                    "edited_document_ids": span
+                        .edited_doc_ids
+                        .iter()
+                        .map(|doc| doc.as_str())
+                        .collect::<Vec<_>>(),
+                })
+            }
+            _ => return None,
+        }
+        .to_string();
+        // MT-113 authoring contract: an over-budget field would make `serialize_*` return `None` and
+        // silently disable the very token this MT adds. Refuse to publish an unbindable declaration
+        // instead, so the receipt stays an honest `indeterminate` rather than a broken acknowledgement.
+        (semantic.len() <= crate::mcp::action::MAX_CLICK_COMPLETION_SEMANTIC_BYTES)
+            .then_some(semantic)
+    }
+
+    /// Request ONE independent re-read of canonical document state for a dispatched save.
+    ///
+    /// This is the save action's authoritative effect: a fresh authoritative GET, NOT the frontend's own
+    /// save response and NOT the local dirty flag. It is spawned off the frame thread (HBR-QUIET) and is
+    /// issued only while an Argus-bound observation is `Pending`, which is what keeps the observer
+    /// proof-only.
+    fn mt117_request_save_readback(&self, document_id: &str) -> bool {
+        let Some(handle) = self.runtime_handle.clone() else {
+            return false;
+        };
+        let client =
+            crate::backend_client::RichDocClient::new(&self.rich_doc_base_url, handle.clone());
+        let cell = Arc::clone(&self.mt117_save_readback_cell);
+        let document_id = document_id.to_owned();
+        handle.spawn(async move {
+            let result = client
+                .load_document(&document_id)
+                .await
+                .map(|body| body.doc_version)
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(Mt117SaveReadback {
+                    document_id,
+                    result,
+                });
+            }
+        });
+        true
+    }
+
+    /// Advance the in-flight MT-117 action against its AUTHORITATIVE durable effect, read from the live
+    /// app model and from `snapshot` — the SAME fresh tree `ActionChannel::acknowledge_after_render`
+    /// then acknowledges the receipt against.
+    fn mt117_advance(&mut self, snapshot: &crate::accessibility::UiTreeSnapshot) {
+        if !self.mt117_interop_action_completion.is_pending() {
+            return;
+        }
+        let Some(expectation) = self.mt117_interop_action_completion.expectation.clone() else {
+            return;
+        };
+        match expectation {
+            Mt117Expectation::StageEmbedBack {
+                baseline_artifact_id,
+                baseline_sha256,
+            } => {
+                let outcome = self
+                    .stage_pane
+                    .lock()
+                    .ok()
+                    .and_then(|pane| pane.last_embed_back.clone());
+                let Some(crate::stage_pane::EmbedBackOutcome::Embedded {
+                    artifact_id,
+                    sha256,
+                    target_pane,
+                }) = outcome
+                else {
+                    return;
+                };
+                // Single-use: an embed identical to the one already terminal before dispatch is the
+                // PRIOR action's success and can never be replayed as proof of this one.
+                let baseline = baseline_artifact_id.zip(baseline_sha256);
+                if baseline.as_ref() == Some(&(artifact_id.clone(), sha256.clone())) {
+                    return;
+                }
+                let short_sha = sha256.chars().take(12).collect::<String>();
+                let status = mt117_snapshot_value(
+                    snapshot,
+                    crate::stage_pane::STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+                );
+                if !status.is_some_and(|value| {
+                    value.contains(&artifact_id) && value.contains(&short_sha)
+                }) {
+                    return;
+                }
+                self.mt117_interop_action_completion.complete_applied(
+                    serde_json::json!({
+                        "schema_id": "hsk.wp_kernel_012.mt_117.stage_embed_back_applied@1",
+                        "persisted_artifact_id": artifact_id,
+                        "persisted_sha256": sha256,
+                        "persisted_short_sha256": short_sha,
+                        "embed_target_pane": target_pane,
+                        "status_node_author_id":
+                            crate::stage_pane::STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+                        "ledger_acknowledged": true,
+                    })
+                    .to_string(),
+                );
+            }
+            Mt117Expectation::RichSave {
+                document_id,
+                baseline_doc_version,
+            } => {
+                // A delivered readback is terminal either way: it is an independent canonical re-read,
+                // so it can prove the advance OR prove it did not happen.
+                let delivered = self
+                    .mt117_save_readback_cell
+                    .lock()
+                    .ok()
+                    .and_then(|mut slot| slot.take());
+                if let Some(readback) = delivered {
+                    if readback.document_id != document_id {
+                        // A re-read of some OTHER document can never acknowledge this action.
+                        return;
+                    }
+                    match readback.result {
+                        Ok(observed) if observed > baseline_doc_version => {
+                            self.mt117_interop_action_completion.complete_applied(
+                                serde_json::json!({
+                                    "schema_id":
+                                        "hsk.wp_kernel_012.mt_117.rich_save_applied@1",
+                                    "document_id": document_id,
+                                    "baseline_doc_version": baseline_doc_version,
+                                    "readback_doc_version": observed,
+                                    "readback": "GET /knowledge/documents/{document_id}",
+                                    "proof": "advanced doc_version from a fresh authoritative re-read",
+                                })
+                                .to_string(),
+                            );
+                        }
+                        Ok(observed) => self.mt117_interop_action_completion.complete_failed(
+                            format!(
+                                "the fresh authoritative re-read of {document_id} reports doc_version {observed}, which did not advance past the pre-dispatch {baseline_doc_version}"
+                            ),
+                            serde_json::json!({
+                                "schema_id": "hsk.wp_kernel_012.mt_117.rich_save_not_advanced@1",
+                                "document_id": document_id,
+                                "baseline_doc_version": baseline_doc_version,
+                                "readback_doc_version": observed,
+                            })
+                            .to_string(),
+                        ),
+                        Err(error) => self.mt117_interop_action_completion.complete_failed(
+                            format!(
+                                "the fresh authoritative re-read of {document_id} failed: {error}"
+                            ),
+                            serde_json::json!({
+                                "schema_id": "hsk.wp_kernel_012.mt_117.rich_save_readback_failed@1",
+                                "document_id": document_id,
+                                "baseline_doc_version": baseline_doc_version,
+                                "readback_error": error,
+                            })
+                            .to_string(),
+                        ),
+                    }
+                    return;
+                }
+                if self.mt117_interop_action_completion.save_readback_requested {
+                    return;
+                }
+                // Only ask for the re-read once the mounted SaveManager has actually SETTLED a save —
+                // a re-read issued mid-flight would race the write and could read the pre-save version.
+                let settled = {
+                    let state = self.active_rich_state();
+                    let state = state
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    state.save.as_ref().is_some_and(|save| {
+                        save.document_id() == document_id
+                            && !save.is_saving()
+                            && save.doc_version > baseline_doc_version
+                            && save.last_save_receipt_event_id.is_some()
+                    })
+                };
+                if settled && self.mt117_request_save_readback(&document_id) {
+                    self.mt117_interop_action_completion
+                        .save_readback_requested = true;
+                }
+            }
+            Mt117Expectation::CalendarEvent { calendar_event_id } => {
+                // The TabBarState routing model is not projected as an addressable value, so the exact
+                // event must own the ACTIVE tab of the ACTIVE pane in the live model AND be exposed by
+                // the mounted Details projection in this same terminal tree.
+                let active_tab_is_the_event = self
+                    .active_pane
+                    .as_ref()
+                    .and_then(|pane| self.tab_bar_states.get(pane))
+                    .and_then(|bar| bar.tabs.get(bar.active_index))
+                    .is_some_and(|tab| {
+                        tab.pane_type == PaneType::CalendarEvent
+                            && tab.content_id.as_deref() == Some(calendar_event_id.as_str())
+                    });
+                let details_expose_the_event = mt117_snapshot_value(
+                    snapshot,
+                    crate::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+                )
+                .is_some_and(|value| value.contains(&calendar_event_id));
+                let pane_mounted = snapshot
+                    .find_by_author_id(
+                        crate::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+                    )
+                    .is_some();
+                if active_tab_is_the_event && details_expose_the_event && pane_mounted {
+                    self.mt117_interop_action_completion.complete_applied(
+                        serde_json::json!({
+                            "schema_id": "hsk.wp_kernel_012.mt_117.calendar_event_applied@1",
+                            "mounted_calendar_event_id": calendar_event_id,
+                            "active_tab_pane_type": PaneType::CalendarEvent.label(),
+                            "details_author_id":
+                                crate::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+                            "pane_author_id":
+                                crate::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+                        })
+                        .to_string(),
+                    );
+                }
+            }
+            Mt117Expectation::CalendarActivity {
+                calendar_event_id,
+                activity_span_id,
+                edited_document_ids,
+            } => {
+                let span_author =
+                    crate::graph::daily_journal_panel::calendar_event_span_author_id(
+                        &activity_span_id,
+                    );
+                if snapshot.find_by_author_id(&span_author).is_none() {
+                    return;
+                }
+                let observed_documents = edited_document_ids
+                    .iter()
+                    .filter(|doc_id| {
+                        let author = crate::graph::daily_journal_panel::activity_item_author_id(
+                            &crate::interop::DocId::from((*doc_id).clone()),
+                        );
+                        snapshot.find_by_author_id(&author).is_some()
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if observed_documents.is_empty() {
+                    return;
+                }
+                self.mt117_interop_action_completion.complete_applied(
+                    serde_json::json!({
+                        "schema_id": "hsk.wp_kernel_012.mt_117.calendar_activity_applied@1",
+                        "calendar_event_id": calendar_event_id,
+                        "activity_span_id": activity_span_id,
+                        "span_author_id": span_author,
+                        "declared_edited_document_ids": edited_document_ids,
+                        "observed_edited_document_ids": observed_documents,
+                    })
+                    .to_string(),
+                );
+            }
+        }
+    }
+
+    /// MT-117: project the shell-owned Stage / rich-save / Calendar observer into the authoritative MCP
+    /// snapshot and publish each mounted target's declaration.
+    fn project_mt117_interop_action_completion(
+        &mut self,
+        snapshot: &mut crate::accessibility::UiTreeSnapshot,
+    ) {
+        if !self.mt117_interop_action_completion.is_pending() {
+            let activation = self
+                .mcp_action_channel
+                .lock()
+                .map(|channel| channel.unique_dispatched_activation())
+                .unwrap_or_else(|poisoned| poisoned.into_inner().unique_dispatched_activation());
+            if let Some((target, _payload, Some(semantic))) = activation {
+                if let Some(expectation) = Mt117Expectation::from_semantic(&target, &semantic) {
+                    // A stale readback from an earlier action must never acknowledge this one.
+                    if let Ok(mut slot) = self.mt117_save_readback_cell.lock() {
+                        *slot = None;
+                    }
+                    self.mt117_interop_action_completion
+                        .begin(target, semantic, expectation);
+                }
+            }
+        }
+
+        self.mt117_advance(snapshot);
+
+        // BOUNDED polling: an effect that never arrives fails with a TYPED rejection instead of leaving
+        // the observer pending forever, which would block every LATER action from binding at all.
+        if self
+            .mt117_interop_action_completion
+            .observation_window_elapsed()
+        {
+            let expectation = self.mt117_interop_action_completion.expectation.clone();
+            let target = self
+                .mt117_interop_action_completion
+                .pending_target
+                .clone()
+                .unwrap_or_default();
+            self.mt117_interop_action_completion.complete_failed(
+                format!(
+                    "the MT-117 durable effect for {target} did not appear within the bounded {}s observation window",
+                    MT117_OBSERVATION_WINDOW.as_secs()
+                ),
+                serde_json::json!({
+                    "schema_id": "hsk.wp_kernel_012.mt_117.observation_window_elapsed@1",
+                    "target": target,
+                    "expectation": format!("{expectation:?}"),
+                    "save_readback_requested":
+                        self.mt117_interop_action_completion.save_readback_requested,
+                })
+                .to_string(),
+            );
+        }
+
+        let declarations = snapshot
+            .iter_nodes()
+            .filter_map(|node| {
+                let author_id = node.author_id.as_deref()?;
+                let semantic = self.mt117_semantic(author_id)?;
+                self.mt117_interop_action_completion
+                    .declaration(author_id, &semantic, mt117_target_is_persistent(author_id))
+                    .map(|value| (author_id.to_owned(), value))
+            })
+            .collect::<Vec<_>>();
+        for (author_id, value) in declarations {
+            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+        }
+
+        if let Some(value) = self.mt117_interop_action_completion.observer_value() {
+            snapshot
+                .root
+                .children
+                .push(crate::accessibility::UiTreeNode {
+                    id: MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID.to_owned(),
+                    author_id: Some(MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID.to_owned()),
+                    node_id: egui::Id::new(MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID).value(),
+                    role: "Status".to_owned(),
+                    label: Some(
+                        "MT-117 Stage, rich-save and Calendar action completion".to_owned(),
+                    ),
+                    value: Some(value),
+                    disabled: false,
+                    actions: Vec::new(),
+                    bounds: None,
+                    children: Vec::new(),
+                });
+            snapshot.widget_count = snapshot.widget_count.saturating_add(1);
+        }
+    }
+
     fn project_mt046_ckc_module_completion(
         &mut self,
         snapshot: &mut crate::accessibility::UiTreeSnapshot,
@@ -11767,6 +12520,9 @@ impl HandshakeApp {
             self.project_mt028_loom_search_open_completion(&mut snapshot);
             self.project_mt029_find_result_open_completion(&mut snapshot);
             self.project_mt068_locus_ref_open_completion(&mut snapshot);
+            // MT-117 owns only the four Stage/rich-save/Calendar targets no earlier observer claims,
+            // so it can never overwrite another mechanism's declaration.
+            self.project_mt117_interop_action_completion(&mut snapshot);
             self.project_mt079_host_mount_completion(&mut snapshot);
             // MT-065 V5 projects LAST: it owns only the four FEMS swarm-flow targets no earlier
             // observer claims, so publishing it last keeps its declarations from being overwritten
@@ -12095,6 +12851,8 @@ impl HandshakeApp {
             mt028_loom_search_routed: None,
             mt068_locus_ref_open_completion: Mt068LocusRefOpenCompletion::default(),
             mt068_locus_ref_routed: None,
+            mt117_interop_action_completion: Mt117InteropActionCompletion::default(),
+            mt117_save_readback_cell: Arc::new(Mutex::new(None)),
             mt064_prior_selection_fingerprint: Mt064SelectionState::default().value(),
             mt064_prior_proposal_operation_id: "none".to_owned(),
             mcp_token: crate::mcp::SessionToken::generate(),
@@ -38478,6 +39236,266 @@ mod mt064_v5_completion_negative_tests {
             app.mt064_fems_proposal_flow_completion.state,
             ClickCompletionState::Pending,
             "a dialog missing a required author_id is not a complete proposal surface"
+        );
+    }
+}
+
+/// WP-KERNEL-012 MT-117 (PT-117-3): the bounded observation window must produce a TYPED terminal
+/// rejection at the receipt boundary, never an observer that hangs `Pending`.
+///
+/// Every assertion here drives the REAL [`crate::mcp::action::ActionChannel`] over trees built by the
+/// REAL [`Mt117InteropActionCompletion`] state machine — the declaration, the observer value, and the
+/// generation transitions are all produced by the product code the projection uses, not hand-written
+/// JSON. A hand-built token would prove only that the test can spell the schema.
+#[cfg(test)]
+mod mt117_bounded_completion_tests {
+    use super::*;
+    use crate::accessibility::{UiTreeNode, UiTreeSnapshot};
+    use crate::mcp::action::{ActionChannel, ActionReceiptStatus, ClickCompletionState, UiAction};
+
+    /// The Stage capture control: a PERSISTENT MT-117 target.
+    const TARGET: &str = crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID;
+    const TARGET_NODE_ID: u64 = 4117;
+    const OBSERVER_NODE_ID: u64 = 4118;
+
+    fn node(author_id: &str, node_id: u64, role: &str, value: Option<String>) -> UiTreeNode {
+        UiTreeNode {
+            id: author_id.to_owned(),
+            author_id: Some(author_id.to_owned()),
+            node_id,
+            role: role.to_owned(),
+            label: Some(author_id.to_owned()),
+            value,
+            disabled: false,
+            actions: vec!["Click".to_owned()],
+            bounds: None,
+            children: Vec::new(),
+        }
+    }
+
+    fn snapshot(children: Vec<UiTreeNode>) -> UiTreeSnapshot {
+        let widget_count = children.len() + 1;
+        UiTreeSnapshot {
+            root: UiTreeNode {
+                id: "root".to_owned(),
+                author_id: None,
+                node_id: 1,
+                role: "Window".to_owned(),
+                label: None,
+                value: None,
+                disabled: false,
+                actions: Vec::new(),
+                bounds: None,
+                children,
+            },
+            captured_at_utc: "0.0Z".to_owned(),
+            widget_count,
+        }
+    }
+
+    /// The tree an Argus client would see for a given observer state: the persistent target carrying
+    /// its declaration, plus the durable `Role::Status` observer node.
+    fn tree_for(observer: &Mt117InteropActionCompletion, live_semantic: &str) -> UiTreeSnapshot {
+        let declaration = observer
+            .declaration(TARGET, live_semantic, true)
+            .expect("the persistent MT-117 target always publishes a declaration");
+        let observer_value = observer
+            .observer_value()
+            .expect("the MT-117 observer always publishes a value");
+        snapshot(vec![
+            node(TARGET, TARGET_NODE_ID, "Button", Some(declaration)),
+            UiTreeNode {
+                actions: Vec::new(),
+                ..node(
+                    MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
+                    OBSERVER_NODE_ID,
+                    "Status",
+                    Some(observer_value),
+                )
+            },
+        ])
+    }
+
+    /// Drive one canonical click end to end over the REAL ActionChannel and return its terminal
+    /// receipt status. `pre` is the tree the client inspected and steered from; `post` is the fresh
+    /// authoritative tree the channel acknowledges against.
+    fn receipt_status_for(
+        pre: &UiTreeSnapshot,
+        post: &UiTreeSnapshot,
+    ) -> ActionReceiptStatus {
+        let mut channel = ActionChannel::new();
+        let outcome = channel
+            .enqueue(pre, TARGET, UiAction::Click)
+            .expect("the MT-117 Stage target is steerable");
+        channel.drain_revalidated_into_events(pre);
+        channel.acknowledge_after_render(post);
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == outcome.receipt_id)
+            .expect("receipt is retained")
+            .status
+    }
+
+    fn stage_semantic() -> String {
+        serde_json::json!({
+            "action": "stage-embed-back",
+            "target": TARGET,
+            "baseline_artifact_id": serde_json::Value::Null,
+            "baseline_sha256": serde_json::Value::Null,
+        })
+        .to_string()
+    }
+
+    /// A settled observer plus the exact pre-dispatch tree, and the bound observer ready to terminalize.
+    fn bound() -> (UiTreeSnapshot, Mt117InteropActionCompletion, String) {
+        let semantic = stage_semantic();
+        let settled = Mt117InteropActionCompletion::default();
+        let pre = tree_for(&settled, &semantic);
+        let mut observer = settled;
+        let expectation = Mt117Expectation::from_semantic(TARGET, &semantic)
+            .expect("the declared MT-117 semantic rebuilds its expectation");
+        observer.begin(TARGET.to_owned(), semantic.clone(), expectation);
+        (pre, observer, semantic)
+    }
+
+    #[test]
+    fn mt117_declaration_semantic_round_trips_into_its_expectation() {
+        let semantic = stage_semantic();
+        assert_eq!(
+            Mt117Expectation::from_semantic(TARGET, &semantic),
+            Some(Mt117Expectation::StageEmbedBack {
+                baseline_artifact_id: None,
+                baseline_sha256: None,
+            }),
+        );
+        // A semantic declared by a DIFFERENT target can never bind this one.
+        assert_eq!(
+            Mt117Expectation::from_semantic("editor.rich.save", &semantic),
+            None
+        );
+    }
+
+    #[test]
+    fn mt117_author_ids_respect_the_mt113_bounded_token_budget() {
+        // MT-113: an over-budget author-id-shaped field silently disables the very token this MT adds.
+        assert!(
+            MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID.len()
+                <= crate::mcp::action::MAX_CLICK_COMPLETION_AUTHOR_BYTES
+        );
+        for target in [
+            TARGET,
+            MT117_RICH_SAVE_TARGET,
+            crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+            crate::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+        ] {
+            assert!(
+                target.len() <= crate::mcp::action::MAX_CLICK_COMPLETION_AUTHOR_BYTES,
+                "{target} overruns the pending_target budget"
+            );
+        }
+        assert!(stage_semantic().len() <= crate::mcp::action::MAX_CLICK_COMPLETION_SEMANTIC_BYTES);
+        // The real serializers must actually accept these ids (a `None` here is exactly the silent
+        // disablement MT-113 exists to catch).
+        assert!(Mt117InteropActionCompletion::default()
+            .declaration(TARGET, &stage_semantic(), true)
+            .is_some());
+    }
+
+    #[test]
+    fn mt117_pending_observer_never_terminalizes_the_receipt() {
+        let (pre, observer, semantic) = bound();
+        assert!(observer.is_pending());
+        assert!(
+            !observer.observation_window_elapsed(),
+            "a freshly bound action is inside its window"
+        );
+        let post = tree_for(&observer, &semantic);
+        assert_eq!(
+            receipt_status_for(&pre, &post),
+            ActionReceiptStatus::Dispatched,
+            "an in-flight MT-117 action stays non-terminal until its durable effect is observed"
+        );
+    }
+
+    #[test]
+    fn mt117_bounded_window_publishes_a_typed_rejection_instead_of_hanging_pending() {
+        let (pre, mut observer, semantic) = bound();
+        // Rewind the bind instant past the bounded window. This is the ONLY thing the elapsed check
+        // reads, so it reproduces a real 12s unreached effect without sleeping for it.
+        observer.pending_since = Some(
+            std::time::Instant::now()
+                .checked_sub(MT117_OBSERVATION_WINDOW + std::time::Duration::from_secs(1))
+                .expect("monotonic clock is far enough past boot to rewind one window"),
+        );
+        assert!(
+            observer.observation_window_elapsed(),
+            "an effect that never arrives must leave the bounded window"
+        );
+        observer.complete_failed(
+            "the MT-117 durable effect did not appear within the bounded window".to_owned(),
+            serde_json::json!({ "schema_id": "hsk.wp_kernel_012.mt_117.observation_window_elapsed@1" })
+                .to_string(),
+        );
+        assert_eq!(observer.state, ClickCompletionState::Failed);
+
+        let post = tree_for(&observer, &semantic);
+        assert_eq!(
+            receipt_status_for(&pre, &post),
+            ActionReceiptStatus::Rejected,
+            "the bounded window must reach the receipt boundary as a TYPED terminal rejection, never \
+             as a silent Pending hang and never as Applied"
+        );
+
+        // The rejection is causally bound to THIS exact action, not a transport-wide failure.
+        let published = observer.observer_value().expect("failed observer publishes");
+        let token: serde_json::Value =
+            serde_json::from_str(&published).expect("the failure token is well-formed JSON");
+        assert_eq!(token["state"], "failed");
+        assert_eq!(token["generation"], 1);
+        assert_eq!(token["pending_target"], TARGET);
+        assert_eq!(token["semantic_value"], semantic);
+        assert!(token["terminal_error"].is_string());
+
+        // A settled (non-Pending) baseline remains, so the NEXT action can still bind rather than
+        // being stranded as `indeterminate` forever by a stuck observer.
+        assert!(!observer.is_pending());
+        assert!(observer
+            .declaration(TARGET, &semantic, true)
+            .is_some());
+    }
+
+    #[test]
+    fn mt117_applied_requires_the_exact_generation_transition() {
+        let (pre, mut observer, semantic) = bound();
+        observer.complete_applied(
+            serde_json::json!({ "persisted_artifact_id": "artifact-1" }).to_string(),
+        );
+        assert_eq!(
+            receipt_status_for(&pre, &tree_for(&observer, &semantic)),
+            ActionReceiptStatus::Applied
+        );
+
+        // A persistent target whose declaration did NOT advance cannot acknowledge the action, even
+        // with an Applied observer: the acknowledgement is a tuple, not a single flag.
+        let stale_declaration = Mt117InteropActionCompletion::default()
+            .declaration(TARGET, &semantic, true)
+            .expect("settled declaration");
+        let post_stale = snapshot(vec![
+            node(TARGET, TARGET_NODE_ID, "Button", Some(stale_declaration)),
+            UiTreeNode {
+                actions: Vec::new(),
+                ..node(
+                    MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
+                    OBSERVER_NODE_ID,
+                    "Status",
+                    observer.observer_value(),
+                )
+            },
+        ]);
+        assert_eq!(
+            receipt_status_for(&pre, &post_stale),
+            ActionReceiptStatus::Indeterminate
         );
     }
 }
