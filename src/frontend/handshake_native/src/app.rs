@@ -39450,7 +39450,7 @@ mod mt117_bounded_completion_tests {
     /// its declaration, plus the durable `Role::Status` observer node.
     fn tree_for(observer: &Mt117InteropActionCompletion, live_semantic: &str) -> UiTreeSnapshot {
         let declaration = observer
-            .declaration(TARGET, live_semantic, true)
+            .declaration(TARGET, live_semantic, mt117_target_mode(TARGET))
             .expect("the persistent MT-117 target always publishes a declaration");
         let observer_value = observer
             .observer_value()
@@ -39551,7 +39551,7 @@ mod mt117_bounded_completion_tests {
         // The real serializers must actually accept these ids (a `None` here is exactly the silent
         // disablement MT-113 exists to catch).
         assert!(Mt117InteropActionCompletion::default()
-            .declaration(TARGET, &stage_semantic(), true)
+            .declaration(TARGET, &stage_semantic(), mt117_target_mode(TARGET))
             .is_some());
     }
 
@@ -39614,7 +39614,7 @@ mod mt117_bounded_completion_tests {
         // being stranded as `indeterminate` forever by a stuck observer.
         assert!(!observer.is_pending());
         assert!(observer
-            .declaration(TARGET, &semantic, true)
+            .declaration(TARGET, &semantic, mt117_target_mode(TARGET))
             .is_some());
     }
 
@@ -39632,7 +39632,7 @@ mod mt117_bounded_completion_tests {
         // A persistent target whose declaration did NOT advance cannot acknowledge the action, even
         // with an Applied observer: the acknowledgement is a tuple, not a single flag.
         let stale_declaration = Mt117InteropActionCompletion::default()
-            .declaration(TARGET, &semantic, true)
+            .declaration(TARGET, &semantic, mt117_target_mode(TARGET))
             .expect("settled declaration");
         let post_stale = snapshot(vec![
             node(TARGET, TARGET_NODE_ID, "Button", Some(stale_declaration)),
