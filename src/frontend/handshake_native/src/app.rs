@@ -804,6 +804,20 @@ enum Mt117Expectation {
         activity_span_id: String,
         edited_document_ids: Vec<String>,
     },
+    /// Daily-journal date navigation. Added after the four original targets because
+    /// `test_calendar_interop::open_or_create_daily_note_is_idempotent_against_real_pg_live`
+    /// proved `daily-journal-next-day` has the SAME defect the other four had: its AccessKit
+    /// `value` was `null`, so a canonical Argus click on it finished `indeterminate` with
+    /// "click was dispatched, but this target exposes no action-specific completion predicate",
+    /// and the suite's terminal-predicate assertion could never pass. It publishes no declaration
+    /// of its own, so this is a pre-existing gap rather than a regression - MT-117 could not have
+    /// removed a declaration that never existed.
+    JournalDateNav {
+        /// The displayed date BEFORE the click, captured at declaration time. Single-use: if the
+        /// header still reads this value the navigation has not happened yet, so a stale frame can
+        /// never be replayed as proof of THIS click.
+        baseline_date_display: String,
+    },
 }
 
 impl Mt117Expectation {
@@ -847,6 +861,9 @@ impl Mt117Expectation {
                     .iter()
                     .filter_map(|id| id.as_str().map(str::to_owned))
                     .collect(),
+            }),
+            "journal-date-nav" => Some(Self::JournalDateNav {
+                baseline_date_display: text("baseline_date_display")?,
             }),
             _ => None,
         }
@@ -1033,6 +1050,10 @@ fn mt117_target_is_persistent(author_id: &str) -> bool {
     author_id == crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID
         || author_id == MT117_RICH_SAVE_TARGET
         || author_id == crate::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID
+        // The date-nav arrow keeps its exact mounted node across its own navigation - only the
+        // date header's value changes - so it declares like the other persistent targets.
+        || author_id
+            == crate::rich_editor::daily_notes::date_nav::DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.next_day
 }
 
 /// Read one node's projected value out of the SAME fresh tree the `ActionChannel` acknowledges.
@@ -12032,6 +12053,19 @@ impl HandshakeApp {
                     "baseline_doc_version": save.doc_version,
                 })
             }
+            id if id
+                == crate::rich_editor::daily_notes::date_nav::DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS
+                    .next_day =>
+            {
+                // The baseline is the CURRENTLY displayed date. Navigation is what this click must
+                // durably produce, so the header still reading this value means it has not happened.
+                let journal = self.editor_mounts.secondary.daily_journal.lock().ok()?;
+                serde_json::json!({
+                    "action": "journal-date-nav",
+                    "target": author_id,
+                    "baseline_date_display": journal.nav.current_display(),
+                })
+            }
             crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID => {
                 let journal = self.editor_mounts.secondary.daily_journal.lock().ok()?;
                 let event = journal.event.as_ref()?;
@@ -12117,6 +12151,37 @@ impl HandshakeApp {
             return;
         };
         match expectation {
+            Mt117Expectation::JournalDateNav {
+                baseline_date_display,
+            } => {
+                // The authoritative durable effect of a date-nav click is that the journal actually
+                // navigated: the date header, read from the SAME fresh tree the ActionChannel
+                // acknowledges, now shows a DIFFERENT date than it did at declaration time. Reading
+                // it from the snapshot rather than from panel state keeps this bound to what the
+                // operator and a steering model can both observe.
+                let Some(header) = mt117_snapshot_value(
+                    snapshot,
+                    crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
+                ) else {
+                    return;
+                };
+                if header == baseline_date_display {
+                    // Still the pre-click date: navigation has not landed. Stay Pending so the
+                    // bounded window can publish a typed rejection rather than a false Applied.
+                    return;
+                }
+                let header = header.to_owned();
+                self.mt117_interop_action_completion.complete_applied(
+                    serde_json::json!({
+                        "schema_id": "hsk.wp_kernel_012.mt_117.journal_date_nav_applied@1",
+                        "baseline_date_display": baseline_date_display,
+                        "resulting_date_display": header,
+                        "date_header_author_id":
+                            crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
+                    })
+                    .to_string(),
+                );
+            }
             Mt117Expectation::StageEmbedBack {
                 baseline_artifact_id,
                 baseline_sha256,
