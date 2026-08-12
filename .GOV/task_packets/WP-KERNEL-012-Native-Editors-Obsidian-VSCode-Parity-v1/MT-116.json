@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-08-12T16:05:00Z",
+  "updated_at_utc": "2026-08-12T18:35:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -80,9 +80,11 @@
           "test_locus_interop (MT-068 chip surface) 32 passed / 0 failed / 1 ignored",
           "test_other_pillar_interop_proofs (MT-074 chip surface) 27 passed / 0 failed",
           "test_code_note_cross_ref (MT-034 surface) 30 passed / 0 failed",
-          "test_fems_interop_proofs 28 passed / 0 failed"
+          "test_fems_interop_proofs 28 passed / 0 failed",
+          "test_e7_knowledge_accesskit (MT-042 shared chip surface) 35 passed / 0 failed",
+          "test_graph_view 20 passed / 0 failed"
         ],
-        "outstanding": "MT-042 chip surface not yet re-run.",
+        "outstanding": "test_block_collection_view reports 42 passed / 1 failed. The single failure is block_collection_views_live_pg_self_seed_full_round_trip, and it is NOT a chip-rendering regression: it fails BEFORE any rendering, binding the production Argus localhost server with Custom { kind: PermissionDenied, error: \"MCP discovery binding was not safely published: mcp binding: replace ...wp-kernel-012-mt-027/argus-binding/mt027-session/handshake/swarm_mcp_binding.json atomically: The system cannot find the path specified. (os error 3)\" }. The underlying error is os error 3 - a MISSING DIRECTORY - not a permission problem, and the path belongs to ANOTHER microtask (mt-027) binding root. The directory was observed to exist one minute AFTER the failure, which points at a creation race in the binding publisher rather than a defect in the MT-116 line-layout change. Re-running in isolation to classify it.",
         "note": "A build-corruption retry was required first: the initial sweep failed to COMPILE with crate egui_winit required to be available in rlib format plus a rustc STATUS_STACK_BUFFER_OVERRUN. That is the transient shared-target hazard disclosed by the MT-120 implementer; it self-healed on retry exactly as predicted, and no test conclusion was drawn from the failed build."
       }
     }

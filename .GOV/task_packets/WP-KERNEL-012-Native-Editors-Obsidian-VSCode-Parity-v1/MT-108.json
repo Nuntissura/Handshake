@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-12T14:25:00Z",
+  "updated_at_utc": "2026-08-12T20:45:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -683,5 +683,38 @@
       "The typed defers for items 7 and 8 previously existed only as free prose inside lifecycle.rfv_evidence_2026_07_10, which is not machine-addressable in the sense validation_v4 remediation item 6 requires. This residual_dispositions_ac_108_1 block is the machine-addressable surface."
     ],
     "ac_108_1_status": "ALL TWELVE ITEMS DISPOSED. Seven IMPLEMENTED (1, 2, 3, 4, 5, 9, 11), one IMPLEMENTED_WITH_CAVEAT (6), one PARTIAL_SUPERSEDED_BY_DESIGN with a stated residual caveat (10), one RECORDED (12), and two RE_DEFERRED to newly created non-pass owners (7 to MT-125, 8 to MT-126). No item is silently absent and no defer points at a PASS owner. AC-108-2 is item 11 and is green. AC-108-3 (full native suite green) remains the outstanding capstone gate."
+  },
+  "ac_108_3_sweep_2026_08_12": {
+    "schema_id": "hsk.mt_capstone_sweep_progress@1",
+    "recorded_at_utc": "2026-08-12T19:05:00Z",
+    "recorded_by": "KERNEL_BUILDER-20260812-113007",
+    "library_portion_GREEN": "cargo test --lib => LIB2_EXIT=0, test result: ok. 2065 passed; 0 failed; 0 ignored; 0 filtered out. Up from the 2058 recorded in current_head_findings; the delta is this session added guards (MT-119 containment guard, MT-108 residual item 4 slash-description guard, MT-117 tests).",
+    "library_sweep_caught_a_real_break": "The first library run FAILED to compile with four E0308 mismatched-types errors: replacing the MT-117 boolean persistent flag with Mt117TargetMode left four in-crate TEST call sites still passing true. cargo check --lib does NOT compile #[cfg(test)] code, so check had passed. Fixed at e37449eb. Discipline for the rest of this work packet: --lib is not a compile gate for test code, --all-targets is. This is the capstone gate doing exactly what it exists for.",
+    "integration_portion_BLOCKED_BY_TARGET_CORRUPTION": {
+      "symptom": "Building all 187 test binaries against the SHARED target dir fails with corrupt-metadata errors, not source errors: E0786 found invalid metadata files for crate (test, handshake_native, image), E0463 can't find crate for egui_kittest / handshake_native, and downstream E0282 type annotations needed for Arc<_,_> and E0277 the size for values of type str cannot be known - all classic consequences of unreadable rlib metadata.",
+      "not_a_source_defect": "egui_kittest is an UNCONDITIONAL dev-dependency (Cargo.toml:372), not feature-gated, so can't find crate is not a missing --features. Individually targeted suites built and ran GREEN from this same tree minutes earlier.",
+      "retry_did_not_clear_it": "The MT-120 implementer recorded this hazard as self-healing on a later build. It did NOT self-heal here: two successive full builds produced 289 then 210 errors of the same family.",
+      "action": "Switched to a PER-OWNER SCOPED CARGO_TARGET_DIR under ../Handshake_Artifacts/handshake-cargo-target/wp012-v4-capstone, which is what CX-984-002 mandates and which the shared root violates. Building fresh sidesteps the poisoned metadata.",
+      "why_this_matters_beyond_this_run": "CX-984-003 documents exactly this: concurrent builds sharing one CARGO_TARGET_DIR contend on the cargo file lock and cross-contaminate. This session ran up to four cargo processes against the shared root. The capstone sweep is the largest build in the work packet and is the most likely to expose it.",
+      "RESOLVED": {
+        "root_cause": "BUILD CONCURRENCY, not source, not the target dir, not the incremental cache alone. Proven by isolation: a 4-binary batch built CLEANLY (exit 0, zero errors) in the SAME scoped target dir where the full 187-binary build produced 210 errors, and capping parallelism with -j 2 took the full build from 210 errors -> 1 -> 0.",
+        "evidence_it_was_never_a_source_defect": "Every one of the 210 errors was from the corrupt-metadata family - 47 E0282, 15 E0786, 6 E0277, 4 E0463 - and ZERO were real source errors. E0786 appeared even for untouched dependency crates (serde, egui, reqwest), which cannot be explained by any change in this work packet.",
+        "what_was_ruled_out_and_how": [
+          "Disk exhaustion: 2.9T free on D:, and the scoped target dir genuinely built 6.9G.",
+          "Missing feature: egui_kittest is an UNCONDITIONAL dev-dependency (Cargo.toml:372), so \"can't find crate\" could never be a missing --features.",
+          "Source regression: individually targeted suites from the same tree built and ran GREEN minutes earlier.",
+          "Memory pressure: 48.7 GB free of 131 GB at the time of failure."
+        ],
+        "contributing_factor": "Two FOREIGN cargo builds (the Operator parallel work packets) ran concurrently throughout. Those were never touched, per the process-ownership rule.",
+        "final_state": "All 187 test binaries build CLEANLY with CARGO_INCREMENTAL=0, a per-owner scoped CARGO_TARGET_DIR, and -j 2. EXIT=0, zero errors.",
+        "why_this_matters_beyond_this_run": "CX-984-003 documents shared-target-dir contention. This is the SAME class of corruption arising from build CONCURRENCY ALONE, inside a correctly scoped per-owner target dir. The mitigation is a bounded -j, not only scoping. Any future capstone sweep on a loaded host needs it, or it will read 200+ phantom compile errors as product breakage."
+      }
+    },
+    "status": "Library portion GREEN at 2065/0. All test binaries now BUILD clean. Execution of the integration sweep pending PostgreSQL, which is mid-recovery.",
+    "postgresql_blocker": {
+      "observed": "The managed cluster went down when externally-killed test processes took backends with them, then FAILED to restart with Windows exception 0xC0000142 STATUS_DLL_INIT_FAILED on the startup process - resource exhaustion at DLL init, not data corruption. Memory was NOT the constraint (48.7 GB free of 131 GB); 452 processes were live in one session, so desktop-heap/handle exhaustion is the likely cause.",
+      "action": "Retried; the cluster is now in recovery. No foreign process was killed to make room.",
+      "standing_hazard": "This cluster carries 1,814,397 files / 19.1 GB and takes 15+ minutes to fsync on an unclean start. MT-123 owns the reclamation that would shrink it."
+    }
   }
 }
