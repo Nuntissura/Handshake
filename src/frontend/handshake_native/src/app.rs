@@ -3349,6 +3349,48 @@ impl Mt033ArgusActionCompletion {
     }
 }
 
+/// WP-KERNEL-012 MT-117: publish a completion declaration WITHOUT destroying a node's existing
+/// domain value.
+///
+/// When both the current value and the declaration are JSON objects, the declaration's fields are
+/// merged into the existing object and the domain fields survive at the top level where their
+/// readers expect them. Declaration keys win on collision so the completion contract cannot be
+/// shadowed. In every other case (no current value, or either side not an object) this behaves
+/// exactly like [`mt033_set_snapshot_node_value`] and the declaration simply becomes the value.
+fn mt117_merge_node_value(
+    node: &mut crate::accessibility::UiTreeNode,
+    author_id: &str,
+    declaration: &str,
+) -> bool {
+    if node.author_id.as_deref() == Some(author_id) {
+        let merged = node
+            .value
+            .as_deref()
+            .and_then(|existing| {
+                let existing = serde_json::from_str::<serde_json::Value>(existing).ok()?;
+                let declaration = serde_json::from_str::<serde_json::Value>(declaration).ok()?;
+                let mut existing = match existing {
+                    serde_json::Value::Object(map) => map,
+                    _ => return None,
+                };
+                let declaration = match declaration {
+                    serde_json::Value::Object(map) => map,
+                    _ => return None,
+                };
+                for (key, value) in declaration {
+                    existing.insert(key, value);
+                }
+                serde_json::to_string(&serde_json::Value::Object(existing)).ok()
+            })
+            .unwrap_or_else(|| declaration.to_owned());
+        node.value = Some(merged);
+        return true;
+    }
+    node.children
+        .iter_mut()
+        .any(|child| mt117_merge_node_value(child, author_id, declaration))
+}
+
 fn mt033_set_snapshot_node_value(
     node: &mut crate::accessibility::UiTreeNode,
     author_id: &str,
@@ -12452,7 +12494,20 @@ impl HandshakeApp {
             })
             .collect::<Vec<_>>();
         for (author_id, value) in declarations {
-            mt033_set_snapshot_node_value(&mut snapshot.root, &author_id, &value);
+            // MERGE, never clobber. `mt033_set_snapshot_node_value` REPLACES a node's value, and
+            // some MT-117 targets already publish a DOMAIN json object in that same `value` - the
+            // Calendar event chip publishes `calendar_event_id` and `activity_span_id`, which
+            // `test_calendar_interop` reads directly off the node. Replacing it moved those fields
+            // out of reach (they survived only nested inside the declaration's escaped
+            // `semantic_value`), so a suite that predates MT-117 and had been green went red on a
+            // tree predicate that has nothing to do with completion.
+            //
+            // MT-042 solved the same collision the other way, by moving its state projection to a
+            // sibling `{author_id}.state` node so the declaration could own the value outright.
+            // That option is not available here: the domain fields are read off the chip by a test
+            // this MT may not edit, so the value must keep carrying them. Declaration keys win on
+            // collision, so the completion contract can never be shadowed by domain data.
+            mt117_merge_node_value(&mut snapshot.root, &author_id, &value);
         }
 
         if let Some(value) = self.mt117_interop_action_completion.observer_value() {
