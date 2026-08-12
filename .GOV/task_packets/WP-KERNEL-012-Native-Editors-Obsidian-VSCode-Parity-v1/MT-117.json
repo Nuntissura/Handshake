@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-06T23:23:11.321Z",
+  "updated_at_utc": "2026-08-12T14:10:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-066",
@@ -40,10 +40,28 @@
     ],
     "blocks": [],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Proven by MT-074 remediation with runtime evidence: seven of its thirteen canonical receipts terminalize indeterminate because the targets expose no product-side completion predicate. MT-074 is proof-only and structurally cannot fix it. Captured here per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost."
+    "creation_reason": "Proven by MT-074 remediation with runtime evidence: seven of its thirteen canonical receipts terminalize indeterminate because the targets expose no product-side completion predicate. MT-074 is proof-only and structurally cannot fix it. Captured here per the Operator standing rule that a discovered gap outside the current MT is deferred to a future MT in the same work packet rather than lost.",
+    "implementation_result_kernel_builder_2026_08_12": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007",
+      "prior_state": "The previous session left the MT-117 implementation UNCOMMITTED at status READY_FOR_DEV, with no proof run.",
+      "committed": "8a77e315 on feat/WP-KERNEL-012 (src/frontend/handshake_native/src/app.rs).",
+      "pt_117_3_SATISFIED": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib mt117 => EXIT 0, 5 passed / 0 failed / 2059 filtered, including mt117_bounded_window_publishes_a_typed_rejection_instead_of_hanging_pending, which is PT-117-3 exactly. Also green: mt117_declaration_semantic_round_trips_into_its_expectation, mt117_author_ids_respect_the_mt113_bounded_token_budget, mt117_pending_observer_never_terminalizes_the_receipt, mt117_applied_requires_the_exact_generation_transition.",
+      "ac_117_1_and_117_3_verified_by_inspection": "AC-117-1 satisfied - the observers use the EXISTING handshake.click-completion/v1 mechanism and are projected alongside their siblings (project_mt117_interop_action_completion is called in the same block as the MT-024/026/028/029/068/079 projections), so no second mechanism was invented. AC-117-3 satisfied - canonical_argus_driver.rs is absent from the commit diff, so finish() is untouched.",
+      "hbr_man_obligation_was_UNMET_and_is_now_CLOSED": {
+        "finding": "The MT-117 implementation touched ONLY app.rs. Its own hbr_obligations.MAN requires updating the internal manual if the documented completion posture for these actions changes - and it does change, from indeterminate to causally Applied or typed-Rejected. CX-982-002 requires the UserManual update in the SAME implementation change. The packet operator_requirement_verification_manual_settings_menubar had already predicted exactly this: it records that MT-117 and MT-120 carry a MAN obligation and that test_manual_content must be re-run after they land.",
+        "fix": "Added an MT-117 completion-posture paragraph to the MT-074 other-pillar interop topic in src/frontend/handshake_native/src/manual_content_editors.rs. It documents that Applied binds to the AUTHORITATIVE DURABLE EFFECT rather than to dispatch (persisted artifact id plus sha256 for stage-capture-embed-back; the ADVANCED doc_version read back fresh for editor.rich.save; the exact CalendarEvent id and ActivitySpan/document correlation for the two Calendar targets), that a bounded window publishes a TYPED REJECTION instead of hanging Pending, that the observers are proof-only with no Argus binding open, and that an agent may therefore no longer treat an indeterminate receipt as success for these four targets.",
+        "why_it_mattered": "The topic previously ended by telling agents to never infer success from an immediate indeterminate receipt - guidance that was correct BEFORE MT-117 and misleading after it, in the same way MT-068 had to correct manual guidance during the prior session.",
+        "proof": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_manual_content => MANUAL_CARGO_EXIT=0, test result: ok. 39 passed; 0 failed; 0 ignored; 0 filtered out; 2.86s. The count is unchanged at 39 because the entry extends an existing topic body rather than adding a topic; the suite gate is coverage, not topic count."
+      },
+      "outstanding": "PT-117-1 (test_other_pillar_interop_proofs showing 13/13 receipts applied with zero indeterminate) and PT-117-2 (MT-066 and MT-067 suites green) are integration runs requiring a current-source backend, real PostgreSQL and GPU capture. Dispatched; NOT yet evidenced. MT-117 is deliberately NOT advanced to READY_FOR_VALIDATION until they land - advancing on lib tests plus a manual gate would repeat the gate-ordering error this work packet has already made once.",
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    },
+    "claimed_at_utc": "2026-08-12T14:12:00Z",
+    "status_rationale": "Implementation is committed (8a77e315) and its lib proof plus the HBR-MAN manual gate are green, but PT-117-1 and PT-117-2 are integration runs that have not yet produced evidence. Held at CLAIMED rather than advanced, matching the discipline the prior session applied to MT-112/115/116/119: an MT does not reach READY_FOR_VALIDATION on partial proof."
   },
   "scope": {
     "summary": "Add durable product-side completion observers for the Stage embed-back, rich-document save, and Calendar event/activity actions so their canonical Argus receipts terminalize applied instead of indeterminate.",

@@ -22,7 +22,7 @@
   "title": "B7-MT-120-Make-Document-Saved-Attribution-Enforceable-By-Authenticating-The-Save-Route",
   "group": "B-Backend",
   "created_at_utc": "2026-08-06T20:32:17.598Z",
-  "updated_at_utc": "2026-08-06T23:52:25.452Z",
+  "updated_at_utc": "2026-08-12T14:50:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -31,7 +31,7 @@
     "policy": "NONE_JSON_IS_AUTHORITY"
   },
   "lifecycle": {
-    "status": "READY_FOR_DEV",
+    "status": "CLAIMED",
     "active": true,
     "depends_on": [
       "MT-109",
@@ -41,10 +41,48 @@
       "MT-115"
     ],
     "validator_verdict": null,
-    "claimed_by": null,
+    "claimed_by": "KERNEL_BUILDER-20260812-113007",
     "completed_by": null,
     "created_by": "KERNEL_BUILDER-20260805-054937",
-    "creation_reason": "Isolated by MT-115 at runtime with a decisive positive control. It is a durable SECURITY-CONTRACT decision outside MT-115 allowed_paths, so it is deferred here per the Operator standing rule rather than decided unilaterally or weakened to make a test pass."
+    "creation_reason": "Isolated by MT-115 at runtime with a decisive positive control. It is a durable SECURITY-CONTRACT decision outside MT-115 allowed_paths, so it is deferred here per the Operator standing rule rather than decided unilaterally or weakened to make a test pass.",
+    "claimed_at_utc": "2026-08-12T14:50:00Z",
+    "status_rationale": "Implementation committed at 3e7ec545 with AC-120-1 and AC-120-2 proven. HELD at CLAIMED, deliberately not advanced: AC-120-3, AC-120-4, AC-120-5 and AC-120-6 have not been executed because both proof sub-agents were killed by a platform session limit mid-run. Advancing on two of six acceptance criteria would repeat the gate-ordering error this work packet already made once on MT-114.",
+    "implementation_result": {
+      "schema_id": "hsk.mt_remediation_evidence@1",
+      "implemented_by": "KERNEL_BUILDER-20260812-113007 with an implementing sub-agent under the Coder Protocol",
+      "commit": "3e7ec545 on feat/WP-KERNEL-012.",
+      "design_decision_settled_by_direct_inspection": {
+        "what_was_rejected": "Rebinding the ledger actor_id COLUMN to the server-derived principal. This is the obvious fix and it is WRONG.",
+        "how_it_was_settled": "Two adversarial review lenses reached OPPOSITE conclusions - a correctness lens recommended rebinding the column, a security lens called it a blocking contradiction. KERNEL_BUILDER read the source rather than taking either: test_e7_swarm_edit_proof.rs:2944-2973 runs a DO block asserting kernel_event_ledger.actor_id = {app_attribution.actor_id}, which is the CLIENT-declared per-agent id, and :2866-2881 asserts assert_ne!(recorder_actor, save_actor_id). Rebinding the column fails AC-120-3 and AC-120-2 at the same time. The security lens was right.",
+        "what_was_done_instead": "The save route optionally authenticates via stage::capture_context and stamps the SERVER-DERIVED principal into the SERVER-WRITTEN receipt payload as minted_by_principal. validate_document_save_receipt compares THAT field against event.canonical_actor_id(). Ownership lives in the payload; per-agent attribution stays in the actor_id column."
+      },
+      "non_weakening_verification_by_kernel_builder": "Verified by reading flight_recorder.rs:885-940 directly, not accepted from the sub-agent report. The comparison is an UNCONDITIONAL conjunct of the authentic expression - no if, no ||, no unwrap_or(true). Absent, blank or non-string minted_by_principal fails CLOSED, and a blank claiming actor can never match a blank minted principal. Every other conjunct is byte-identical: event_type, aggregate_type, aggregate_id, actor_kind, kernel_task_run_id, session_run_id, correlation, the \"saved\" discriminator, workspace_id, content_hash. The old client-column comparison is absent from the file.",
+      "ac_120_1_PROVEN": "mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id asserts byte-equality between the save receipt minted_by_principal and the principal an INDEPENDENT capture_context-gated route (Stage) derives from the same binding. Deliberately not a local digest recomputation: the first attempt did recompute locally and produced a FALSE RED because serde_json::Value key ordering differs from the typed enum serialization - the product was correct and the test was wrong.",
+      "ac_120_2_PROVEN": "Cross-principal receipt is unclaimable (400) with ZERO ledger and FR residue, and the SAME envelope succeeds once the receipt is minted by the claimant - proving the rejection was the principal and not an unrelated clause. Absent/empty/whitespace minted_by_principal also unclaimable. The ledger actor_id column is asserted == the per-agent id AND != the derived principal, so attribution is provably intact. Nothing was deleted or relaxed.",
+      "backward_compatibility": "A save with NO session token behaves exactly as before: it succeeds, but its receipt carries no anchor and is unclaimable. This is what keeps app/src (a forbidden path for this MT) and roughly 28 tokenless test call sites working without a scope breach. A token that is PRESENT but invalid or stale is 401 HSK-401-DOC-SESSION and never downgrades to the header identity - that silent fallback was identified in advance as the single most dangerous shape this change could take.",
+      "namespace_guard": "A client x-hsk-actor-id in the reserved handshake-native: namespace is 403 HSK-403-DOC-ACTOR-SPOOF on every document route unless it equals the principal the server just derived. Without this the derived principal would become a bearer-equivalent label an unauthenticated caller could stamp - the MT contract own positive control proved that works today.",
+      "run_ids_untouched_on_purpose": "kernel_task_run_id, session_run_id and correlation_id are compared against the CLIENT-supplied FR payload. Adopting capture_context own run ids (the shape api::memory middleware uses) would have replaced one unsatisfiable clause with three.",
+      "green_runs": [
+        "api::flight_recorder::tests --include-ignored => 39 passed / 0 failed (1009s)",
+        "wp_kernel_012_native_editor_routes_pg_tests --include-ignored => 18 passed / 0 failed (588s)",
+        "knowledge_documents_api_tests --include-ignored => 27 passed / 0 failed (1516s)",
+        "cargo check --manifest-path src/frontend/handshake_native/Cargo.toml --tests => EXIT 0; test_e7 and test_event_emitter compile UNEDITED"
+      ],
+      "hbr_man_closed": "MT-120 carries hbr_obligations.MAN and CX-982-002 requires the manual update in the SAME change. The entry lives at user_manual/seed.rs, outside the original allowed_paths; the implementing sub-agent correctly REFUSED to edit it and reported the block instead of reaching outside scope. KERNEL_BUILDER amended allowed_paths with rationale and wrote the entry: it documents the optional-session contract, the 401 no-downgrade rule, the 403 namespace guard, that ownership lives in the payload while attribution stays in the column, and why a restart can legitimately make a prior receipt unclaimable.",
+      "outstanding_not_claimed": {
+        "AC-120-3": "test_e7_swarm_edit_proof NOT RUN. This is also the last blocker for MT-115.",
+        "AC-120-4": "test_flight_recorder_authz NOT RUN (MT-109 negative suite, 12 tests).",
+        "AC-120-5": "live end-to-end product save proven at runtime NOT RUN.",
+        "AC-120-6": "test_event_emitter::event_emitter_native_editor_round_trip NOT RUN.",
+        "why": "Both proof sub-agents were terminated by a platform session limit mid-run (the seventh such outage recorded in this work packet). The suites compile unedited; they are being executed directly by KERNEL_BUILDER."
+      },
+      "disclosed_gaps": [
+        "The session token is attached ONLY to RichDocSaveBackend (the native editor save). RichDocClient::save_document (the find/replace apply path) still saves unauthenticated, so its receipts carry no anchor and its document_saved claims would be unclaimable. Deliberate blast-radius limit; extending it is a one-line change if MT-115 requires it. Stated rather than discovered later.",
+        "cargo check --all-targets is NOT a clean baseline in this repo, with or without features: loom_ai_suggestions_api_tests, knowledge_ingestion_support, micro_task_executor_tests and role_mailbox_tests fail on PRE-EXISTING feature-gating and stale AppState initializers, each with an empty git diff HEAD. Any gate asserting all-targets clean will red on unrelated debt.",
+        "Transient shared-target corruption was observed mid-session: roughly 12 bin targets failed with crate hyper / libduckdb_sys required to be available in rlib format plus rustc ICEs, then SELF-HEALED on a later build. Nothing was killed or cleaned. If a future proof sweep reds on rlib-format errors, retry before diagnosing product code."
+      ],
+      "validation_boundary": "KERNEL_BUILDER issues NO PASS verdict. Implementation evidence only."
+    }
   },
   "scope": {
     "summary": "Make the document_saved receipt-ownership check enforceable by authenticating the document-save route as the same principal the Flight Recorder derives, instead of leaving a clause that rejects every legitimate save.",
@@ -60,7 +98,8 @@
       "src/backend/handshake_core/src/api/mod.rs",
       "src/backend/handshake_core/tests/**",
       "src/frontend/handshake_native/src/backend_client.rs",
-      "src/frontend/handshake_native/tests/**"
+      "src/frontend/handshake_native/tests/**",
+      "src/backend/handshake_core/src/user_manual/seed.rs"
     ],
     "forbidden_paths": [
       ".GOV/**",
@@ -86,6 +125,15 @@
       "caveat": "Recorded as a hypothesis. Confirm by dumping the unfiltered recorder rows for the run workspace and identifying which of the three event names is absent.",
       "status": "CONFIRMED BY LEDGER QUERY",
       "confirming_evidence": "Envelope kinds in kernel_event_ledger for native-editor-fr-% keys: canvas_node_placed = 8, undo_fired = 8, document_saved = ZERO. The save event never reaches the ledger, which is precisely the ingestion rejection this MT fixes."
+    },
+    "allowed_paths_amendment_2026_08_12": {
+      "schema_id": "hsk.mt_scope_amendment@1",
+      "amended_at_utc": "2026-08-12T14:40:00Z",
+      "amended_by": "KERNEL_BUILDER-20260812-113007",
+      "added": "src/backend/handshake_core/src/user_manual/seed.rs",
+      "reason": "MT-120 carries hbr_obligations.MAN (\"Update the internal manual: the documented attribution contract changes\"), and CX-982-002 requires that update in the SAME implementation change. The manual entry for this route lives at user_manual/seed.rs:1035-1052, which the original allowed_paths omitted. The implementing sub-agent correctly REFUSED to edit it and reported the block rather than reaching outside scope.",
+      "authority": "Operator standing rule for this work packet: address a discovered gap inside the current MT when it directly relates to that MT. The manual obligation IS MT-120 own obligation, so it is closed here rather than deferred.",
+      "bounded_to": "The knowledge-document save-receipt manual entry only."
     }
   },
   "hbr_obligations": {

@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-12T13:50:00Z",
+  "updated_at_utc": "2026-08-12T14:25:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -619,7 +619,14 @@
       "4_mt016_slash_description_and_escape": {
         "disposition": "IMPLEMENTED",
         "evidence": "Description corrected rich_editor/slash_commands/registry.rs:431-434; Escape behaviour escape_closes_slash_menu_but_keeps_the_slash_char tests/test_slash_commands.rs:281. The description half was UNTESTED at reconciliation time; a guard was added this session: no_slash_command_description_promises_a_prompt_its_action_does_not_open in registry.rs mod tests.",
-        "note": "The new guard covers the CLASS - a description may promise a prompt only when the action opens one - rather than pinning the literal string, which would pass while another command grew the same lie and would fail on a harmless rewording. It carries its own non-vacuity checks."
+        "note": "The new guard covers the CLASS - a description may promise a prompt only when the action opens one - rather than pinning the literal string, which would pass while another command grew the same lie and would fail on a harmless rewording. It carries its own non-vacuity checks.",
+        "guard_non_vacuity_proven": {
+          "green": "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --lib slash_commands::registry => CARGO_EXIT=0, test result: ok. 12 passed; 0 failed; 2053 filtered out.",
+          "red": "Reintroduced the exact original lie (description \"Fenced code block; prompts for language\") => RED_RUN_CARGO_EXIT=101, test result: FAILED. 11 passed; 1 failed. Panic message: slash-menu descriptions must not promise an interaction the action does not implement: code-block description \"Fenced code block; prompts for language\" promises \"prompt\" but its action opens no prompt.",
+          "restored": "Description restored by targeted edit. git diff --numstat for registry.rs = 72 insertions / 0 deletions, so no product line differs from HEAD and the file is byte-identical to the state that passed GREEN.",
+          "why_recorded": "A guard whose RED was never captured is not a guard. Two PT-119-3 attempts and two MT-116 measurement passes in this same work packet were vacuous until their RED was forced, so the same standard is applied here rather than trusting a first-run green."
+        },
+        "committed": "dfdde2c3 on feat/WP-KERNEL-012."
       },
       "5_mt018_find_keystroke_replace_clicks_scrolled_highlight": {
         "disposition": "IMPLEMENTED",
