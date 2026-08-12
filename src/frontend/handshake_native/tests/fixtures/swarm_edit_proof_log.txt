@@ -1,41 +1,56 @@
-PROOF_RUNNING attempt_id=66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769 generation=1786048098230674500
+PROOF_RUNNING attempt_id=53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2 generation=1786550807235211800
 [T0001] NOTE authoritative managed-PostgreSQL attempt started
-[T0002] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofTarget-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769\"}"
+[T0002] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofTarget-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2\"}"
 [T0003] RESPONSE tree_change=mounted slash-note request accepted db_result=PASS
-[T0004] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofNote-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769\"}"
+[T0004] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofNote-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2\"}"
 [T0005] RESPONSE tree_change=mounted slash-note request accepted db_result=PASS
 [T0006] RESPONSE tree_change=exact slash-created source and target rows exist in canonical knowledge_rich_documents db_result=PASS
 [T0007] RESPONSE tree_change=production slash-create navigation mounted the exact source document without test-state rebinding db_result=PASS
 [T0008] DISPATCH author_id=editor.rich.root action=Focus payload=null
 [T0009] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
-[T0010] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"wikilink\",\"label\":\"SwarmProofTarget-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769\",\"ref_kind\":\"note\",\"ref_value\":\"KRD-019fd8c354c27be19e3d252fdae7373d\"}"
+[T0010] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"wikilink\",\"label\":\"SwarmProofTarget-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2\",\"ref_kind\":\"note\",\"ref_value\":\"KRD-019ff6ba21bd7442abf071824a05fed6\"}"
 [T0011] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
 [T0012] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"code\":\"\",\"kind\":\"code_block\",\"language\":\"rust\"}"
 [T0013] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
 [T0014] DISPATCH author_id=editor.rich.code-block.open.re-block-513637473 action=Click payload=null
 [T0015] RESPONSE tree_change=exact rich code block opened in the native code editor db_result=PASS
-[T0016] DISPATCH author_id=editor.code.text#document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636343338363333333335333533323337333736363336333336323636333633343633333636333331333536333636333933333333333433373a31 action=SetValue payload="fn swarm_merge() -> &'static str { \"MT-043\" }\n"
+[T0016] DISPATCH author_id=editor.code.text#document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636363336363236313332333233343636333736323333333233383338363436343339333233363636333733363334363236343338333133303a31 action=SetValue payload="fn swarm_merge() -> &'static str { \"MT-043\" }\n"
 [T0017] RESPONSE tree_change=agent-authored code entered the exact bound native code buffer db_result=PASS
-[T0018] DISPATCH author_id=editor.code.save.document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636343338363333333335333533323337333736363336333336323636333633343633333636333331333536333636333933333333333433373a31 action=Click payload=null
+[T0018] DISPATCH author_id=editor.code.save.document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363636363336363236313332333233343636333736323333333233383338363436343339333233363636333733363334363236343338333133303a31 action=Click payload=null
 [T0019] RESPONSE tree_change=editor.code.save entered the exact rich-code persistence bridge db_result=PASS
-[T0020] RESPONSE tree_change=exact rich code content binding mounted as rich-code-block:4b52442d3031396664386333353532373766363362663634633663313563663933333437:1 db_result=PASS
-[T0021] NOTE PROCESS_AGENT label=actor-b-crash-mid-edit pid=73624 seq=0 marker=REQUEST_READY role=crashing-agent-mid-edit
-[T0022] DISPATCH author_id=editor.rich.root action=SetValue payload="agent-b-recoverable-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769"
+[T0020] RESPONSE tree_change=exact rich code content binding mounted as rich-code-block:4b52442d3031396666366261323234663762333238386464393236663736346264383130:1 db_result=PASS
+[T0021] NOTE PROCESS_AGENT label=actor-b-crash-mid-edit pid=84896 seq=0 marker=REQUEST_READY role=crashing-agent-mid-edit
+[T0022] DISPATCH author_id=editor.rich.root action=SetValue payload="agent-b-recoverable-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2"
 [T0023] RESPONSE tree_change=crashing editor-agent process was killed after an acknowledged mounted edit db_result=PASS
 [T0024] DISPATCH author_id=editor.rich.save action=Click payload=null
 [T0025] RESPONSE tree_change=actor B stale save intent entered the mounted save manager db_result=PASS
 [T0026] RESPONSE tree_change=loser refetched canonical server document after 409 db_result=PASS
-[T0027] NOTE PROCESS_AGENT label=actor-b-survivor-refetch-merge-save pid=83172 seq=0 marker=REQUEST_READY role=survivor-merge-agent
+[T0027] NOTE PROCESS_AGENT label=actor-b-survivor-refetch-merge-save pid=59400 seq=0 marker=REQUEST_READY role=survivor-merge-agent
 [T0028] DISPATCH author_id=editor.rich.conflict.keep-server action=Click payload=null
 [T0029] RESPONSE tree_change=mounted conflict UI adopted the refetched server version db_result=PASS
-[T0030] DISPATCH author_id=editor.rich.root action=ReplaceSelectedText payload="agent-b-recoverable-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769"
+[T0030] DISPATCH author_id=editor.rich.root action=ReplaceSelectedText payload="agent-b-recoverable-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2"
 [T0031] RESPONSE tree_change=loser merged its recoverable edit into the adopted server document through mounted AccessKit db_result=PASS
 [T0032] DISPATCH author_id=editor.rich.save action=Click payload=null
 [T0033] RESPONSE tree_change=loser submitted the merged winner-plus-loser document db_result=PASS
-[T0034] DISPATCH author_id=search.query action=SetValue payload="SwarmProofNote-66924-7ff4c93f-38e3-4a6b-b6dc-5f73636ed769"
+[T0034] DISPATCH author_id=search.query action=SetValue payload="SwarmProofNote-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2"
 [T0035] RESPONSE tree_change=continuous mounted search state advanced db_result=PASS
 [T0036] DISPATCH author_id=search.run action=Click payload=null
 [T0037] RESPONSE tree_change=continuous mounted search state advanced db_result=PASS
-[T0038] DISPATCH author_id=search.result.KRD-019fd8c355277f63bf64c6c15cf93347 action=Click payload=null
+[T0038] DISPATCH author_id=search.result.KRD-019ff6ba224f7b3288dd926f764bd810 action=Click payload=null
 [T0039] RESPONSE tree_change=search result activated on continuous app db_result=PASS
-PROOF_FAIL: authoritative live attempt exited before all proof gates passed
+[T0040] RESPONSE tree_change=both actors have distinct exact-one canonical EventLedger receipts and automatic attributed Flight Recorder rows db_result=PASS
+[T0041] NOTE FLIGHT_RECORDER actor_a={"activity_span_id":null,"actor":"human","actor_id":"handshake-native:65128:fb0fd0b8c23ccae1a710115d9227f15d7db52927b94ef3f72f026df542901326","capability_id":null,"event_id":"2fb3bf7a-be69-8408-8453-edf3de5472d0","event_type":"system","job_id":null,"model_id":null,"model_session_id":null,"payload":{"action":"document_saved","actor_id":"handshake-native:65128:fb0fd0b8c23ccae1a710115d9227f15d7db52927b94ef3f72f026df542901326","client_event_id":"e49b5fe8-9d57-4084-ad7b-5c8c843da6db","editor_surface":"pane-b","event_family":"native_editor","kind":"document_saved","native_payload":{"actor_kind":"operator","content_hash":"3e5216efb77f8ed4580083e8b2a8e9f411ca5cd516e8f224536f4828a664cbb8","correlation_id":"native-editor-save-KRD-019ff6ba224f7b3288dd926f764bd810-native-editor-65128-6","document_id":"KRD-019ff6ba224f7b3288dd926f764bd810","kernel_task_run_id":"native-editor-doc-KRD-019ff6ba224f7b3288dd926f764bd810","save_receipt_event_id":"KE-019ff6ba-2523-7813-9694-0be837e286ea","session_run_id":"native-editor-65128-6"},"ops":[{"kind":"document_saved","payload":{"actor_kind":"operator","content_hash":"3e5216efb77f8ed4580083e8b2a8e9f411ca5cd516e8f224536f4828a664cbb8","correlation_id":"native-editor-save-KRD-019ff6ba224f7b3288dd926f764bd810-native-editor-65128-6","document_id":"KRD-019ff6ba224f7b3288dd926f764bd810","kernel_task_run_id":"native-editor-doc-KRD-019ff6ba224f7b3288dd926f764bd810","save_receipt_event_id":"KE-019ff6ba-2523-7813-9694-0be837e286ea","session_run_id":"native-editor-65128-6"}}],"pane_id":"pane-b","schema":"hsk.native_editor@0.1","schema_version":"hsk.native_editor@0.1","ts_utc":"2026-08-12T16:07:02.666454200+00:00","workspace_id":"019ff6ba-2097-7b22-b5b7-7bf9511900a1"},"policy_decision_id":null,"session_span_id":"2bd6e28a-307c-4a80-a71c-0d165eb5ec08","timestamp":"2026-08-12T16:07:02.666454+00:00","trace_id":"2bd6e28a-307c-4a80-a71c-0d165eb5ec08","workflow_id":null,"wsids":["019ff6ba-2097-7b22-b5b7-7bf9511900a1"]} actor_b={"activity_span_id":null,"actor":"human","actor_id":"handshake-native:65128:fb0fd0b8c23ccae1a710115d9227f15d7db52927b94ef3f72f026df542901326","capability_id":null,"event_id":"c6e6f5e0-4d45-853e-8865-aea644b6e407","event_type":"system","job_id":null,"model_id":null,"model_session_id":null,"payload":{"action":"document_saved","actor_id":"handshake-native:65128:fb0fd0b8c23ccae1a710115d9227f15d7db52927b94ef3f72f026df542901326","client_event_id":"8c5439c3-ce18-4ac4-b94d-e7b6fdf91765","editor_surface":"pane-b","event_family":"native_editor","kind":"document_saved","native_payload":{"actor_kind":"operator","content_hash":"ac0007d1624890e2c72ac3c50cd63da473bc9d53b0db25888d1db81563b563bf","correlation_id":"native-editor-save-KRD-019ff6ba224f7b3288dd926f764bd810-native-editor-65128-11","document_id":"KRD-019ff6ba224f7b3288dd926f764bd810","kernel_task_run_id":"native-editor-doc-KRD-019ff6ba224f7b3288dd926f764bd810","save_receipt_event_id":"KE-019ff6ba-27ce-7fc1-ad59-e65a97b50571","session_run_id":"native-editor-65128-11"},"ops":[{"kind":"document_saved","payload":{"actor_kind":"operator","content_hash":"ac0007d1624890e2c72ac3c50cd63da473bc9d53b0db25888d1db81563b563bf","correlation_id":"native-editor-save-KRD-019ff6ba224f7b3288dd926f764bd810-native-editor-65128-11","document_id":"KRD-019ff6ba224f7b3288dd926f764bd810","kernel_task_run_id":"native-editor-doc-KRD-019ff6ba224f7b3288dd926f764bd810","save_receipt_event_id":"KE-019ff6ba-27ce-7fc1-ad59-e65a97b50571","session_run_id":"native-editor-65128-11"}}],"pane_id":"pane-b","schema":"hsk.native_editor@0.1","schema_version":"hsk.native_editor@0.1","ts_utc":"2026-08-12T16:07:02.896042600+00:00","workspace_id":"019ff6ba-2097-7b22-b5b7-7bf9511900a1"},"policy_decision_id":null,"session_span_id":"48a6b5ef-996b-4a91-a246-9e5c1914074a","timestamp":"2026-08-12T16:07:02.896042+00:00","trace_id":"48a6b5ef-996b-4a91-a246-9e5c1914074a","workflow_id":null,"wsids":["019ff6ba-2097-7b22-b5b7-7bf9511900a1"]}
+[T0042] RESPONSE tree_change=exact canonical loom_edges source->target row exists after final save db_result=PASS
+[T0043] RESPONSE tree_change=mounted graph tree contains source=graph.node.u8-4b52442d3031396666366261323234663762333238386464393236663736346264383130 and target=graph.node.u8-4b52442d3031396666366261323162643734343261626630373138323461303566656436 db_result=PASS
+[T0044] DISPATCH author_id=graph.select-node action=ClickWithPayload payload="{\"block_id\":\"KRD-019ff6ba224f7b3288dd926f764bd810\"}"
+[T0045] RESPONSE tree_change=graph selected the exact source block before the cleanup refresh db_result=PASS
+[T0046] DISPATCH author_id=graph.mode.local action=Click payload=null
+[T0047] RESPONSE tree_change=graph entered Local mode through AccessKit db_result=PASS
+[T0048] DISPATCH author_id=graph.mode.global action=Click payload=null
+[T0049] RESPONSE tree_change=graph returned to Global mode and issued a canonical cleanup refresh db_result=PASS
+[T0050] RESPONSE tree_change=document cleanup removed both canonical rows/edges and the refreshed graph tree removed both AccessKit node identities db_result=PASS
+[T0051] RESPONSE tree_change=sidecar-less crash-window cleanup removed the attempt-named canonical workspace within its bounded budget db_result=PASS
+[T0052] NOTE LIVE workspace=019ff6ba-2097-7b22-b5b7-7bf9511900a1 document=KRD-019ff6ba224f7b3288dd926f764bd810 block=KRD-019ff6ba224f7b3288dd926f764bd810
+[T0053] NOTE FINAL_PERSISTED doc_version=3 code_exact_count=1 backlink_exact_count=1 loser_edit_exact_count=1 content_json={"content":[{"content":[{"text":"agent-b-recoverable-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2","type":"text"},{"attrs":{"label":"SwarmProofTarget-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2","refKind":"note","refValue":"KRD-019ff6ba21bd7442abf071824a05fed6","resolved":true},"type":"hsLink"},{"text":"","type":"text"}],"type":"paragraph"},{"attrs":{"language":"rust"},"content":[{"text":"fn swarm_merge() -> &'static str { \"MT-043\" }\n","type":"text"}],"type":"codeBlock"}],"type":"doc"}
+[T0054] NOTE actors=[mt043-agent-a-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2,mt043-agent-b-53748-6ec1f898-0f2f-444f-8dd5-bfb7e9bbf7d2] winner_receipt=KE-019ff6ba-2523-7813-9694-0be837e286ea merge_receipt=KE-019ff6ba-27ce-7fc1-ad59-e65a97b50571 fr_event_ids=[2fb3bf7a-be69-8408-8453-edf3de5472d0,c6e6f5e0-4d45-853e-8865-aea644b6e407] result=search.result.KRD-019ff6ba224f7b3288dd926f764bd810 elapsed_ms=17172
+PROOF_PASS
