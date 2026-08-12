@@ -929,7 +929,7 @@ impl Mt117InteropActionCompletion {
         &self,
         author_id: &str,
         semantic_value: &str,
-        persistent_target: bool,
+        mode: Mt117TargetMode,
     ) -> Option<String> {
         let bound_to_this_target = self.pending_target.as_deref() == Some(author_id);
         let semantic_value = if bound_to_this_target {
@@ -937,26 +937,31 @@ impl Mt117InteropActionCompletion {
         } else {
             semantic_value
         };
-        if persistent_target {
-            crate::mcp::action::serialize_persistent_observer_click_target(
-                MT117_INTEROP_ACTION_EFFECT,
-                MT117_INTEROP_ACTION_CONTEXT,
-                self.generation,
-                MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
-                semantic_value,
-            )
-        } else {
-            (!self.is_pending())
-                .then(|| {
-                    crate::mcp::action::serialize_observer_click_target(
-                        MT117_INTEROP_ACTION_EFFECT,
-                        MT117_INTEROP_ACTION_CONTEXT,
-                        self.generation,
-                        MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
-                        semantic_value,
-                    )
-                })
-                .flatten()
+        match mode {
+            Mt117TargetMode::Persistent => {
+                crate::mcp::action::serialize_persistent_observer_click_target(
+                    MT117_INTEROP_ACTION_EFFECT,
+                    MT117_INTEROP_ACTION_CONTEXT,
+                    self.generation,
+                    MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
+                    semantic_value,
+                )
+            }
+            // A flexible target may legitimately vanish or change capability as a result of its own
+            // click, so the driver must not treat that as drift. Completion is read from the
+            // shell-owned observer node, which outlives the target - the MT-068 Locus shape.
+            // Declared unconditionally (not gated on `!is_pending`) so the declaration is still on
+            // the node at dispatch time; gating it there is what leaves a target undeclared and
+            // produces an `indeterminate` receipt with no predicate at all.
+            Mt117TargetMode::Flexible => {
+                crate::mcp::action::serialize_flexible_observer_click_target(
+                    MT117_INTEROP_ACTION_EFFECT,
+                    MT117_INTEROP_ACTION_CONTEXT,
+                    self.generation,
+                    MT117_INTEROP_ACTION_COMPLETION_AUTHOR_ID,
+                    semantic_value,
+                )
+            }
         }
     }
 
@@ -1046,14 +1051,35 @@ impl Mt117InteropActionCompletion {
 /// The MT-117 targets that keep their exact mounted node through their own action, and therefore
 /// declare the STRICTER persistent form. The Calendar event chip is the one transient target: routing
 /// its CalendarEvent tab replaces the journal that painted it.
-fn mt117_target_is_persistent(author_id: &str) -> bool {
-    author_id == crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID
-        || author_id == MT117_RICH_SAVE_TARGET
-        || author_id == crate::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID
-        // The date-nav arrow keeps its exact mounted node across its own navigation - only the
-        // date header's value changes - so it declares like the other persistent targets.
+/// How an MT-117 target behaves across its OWN action, which decides the declaration mode.
+///
+/// Getting this wrong does not fail loudly at compile time - it fails as an `indeterminate`
+/// receipt with a drift/disappearance rejection, while the suite still passes because the strict
+/// no-indeterminate gate is not enforced. Measured from the MT-074 canonical-argus evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mt117TargetMode {
+    /// Keeps its exact mounted node, role and action capability through its own action.
+    Persistent,
+    /// May be removed, replaced, or have its capability change as a DIRECT result of its own
+    /// action. Completion is carried by the shell-owned observer node instead of by the target.
+    Flexible,
+}
+
+fn mt117_target_mode(author_id: &str) -> Mt117TargetMode {
+    // MEASURED, not assumed. The MT-074 canonical-argus receipts showed these two targets rejecting
+    // with "persistent observer target identity or action capability drifted" (stage embed-back,
+    // whose control changes capability while the capture runs) and "click target disappeared before
+    // its effect could be observed" (the calendar chip, which is replaced when the event opens).
+    // Both are therefore FLEXIBLE, matching the MT-024 sidebar-pin-removal shape - a target that
+    // legitimately does not survive its own action - and the MT-068 Locus pattern, which is 2/2
+    // applied precisely because its shell-owned observer node outlives the target.
+    if author_id == crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID
         || author_id
-            == crate::rich_editor::daily_notes::date_nav::DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.next_day
+            == crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID
+    {
+        return Mt117TargetMode::Flexible;
+    }
+    Mt117TargetMode::Persistent
 }
 
 /// Read one node's projected value out of the SAME fresh tree the `ActionChannel` acknowledges.
@@ -12489,7 +12515,7 @@ impl HandshakeApp {
                 let author_id = node.author_id.as_deref()?;
                 let semantic = self.mt117_semantic(author_id)?;
                 self.mt117_interop_action_completion
-                    .declaration(author_id, &semantic, mt117_target_is_persistent(author_id))
+                    .declaration(author_id, &semantic, mt117_target_mode(author_id))
                     .map(|value| (author_id.to_owned(), value))
             })
             .collect::<Vec<_>>();
