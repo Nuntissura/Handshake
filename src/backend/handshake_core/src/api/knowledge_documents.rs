@@ -65,6 +65,23 @@ const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 const HSK_HEADER_KERNEL_TASK_RUN_ID: &str = "x-hsk-kernel-task-run-id";
 const HSK_HEADER_SESSION_RUN_ID: &str = "x-hsk-session-run-id";
 const HSK_HEADER_CORRELATION_ID: &str = "x-hsk-correlation-id";
+/// The native-MCP session credential. Same spelling as `api::stage`'s private constant — that module
+/// owns the validation, this module only decides whether to present the headers to it.
+const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
+
+/// WP-KERNEL-012 MT-120: the SERVER-WRITTEN field in a `KNOWLEDGE_RICH_DOCUMENT_SAVED` receipt payload
+/// naming the authenticated native principal that minted the receipt.
+///
+/// It exists because the ledger `actor_id` column is the CLIENT-declared per-agent attribution (two
+/// swarm agents saving the same document must remain individually attributable), while the Flight
+/// Recorder derives its own process principal from `stage::capture_context`. Those are deliberately
+/// different values, so receipt ownership needs its own server-written anchor: this field. It is
+/// written ONLY from an authenticated session and is never accepted from the request body.
+pub const SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD: &str = "minted_by_principal";
+
+/// The actor-id namespace `stage::capture_context` mints (`handshake-native:{pid}:{fingerprint}`).
+/// A client may not declare an id in this namespace unless it authenticated AS that exact principal.
+const RESERVED_NATIVE_PRINCIPAL_PREFIX: &str = "handshake-native:";
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
@@ -195,6 +212,33 @@ fn forbidden(reason: impl Into<String>) -> ApiError {
     )
 }
 
+/// WP-KERNEL-012 MT-120: an `x-hsk-session-token` was PRESENTED and did not authenticate (absent,
+/// forged, or stale binding). This is deliberately a hard 401 and NEVER a downgrade to the header
+/// identity: silently continuing as the client-declared actor would let a failed credential buy the
+/// unauthenticated path, which is the single most dangerous failure mode of an optional credential.
+fn doc_session_unauthenticated() -> ApiError {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(json!({
+            "error": "HSK-401-DOC-SESSION",
+            "detail": "x-hsk-session-token was presented but did not authenticate a live native-MCP session"
+        })),
+    )
+}
+
+/// WP-KERNEL-012 MT-120: the caller declared an `x-hsk-actor-id` inside the reserved
+/// `handshake-native:` principal namespace without an authenticated session that owns exactly that
+/// id. Without this guard an unauthenticated caller forges the server-derived principal by header.
+fn doc_actor_spoof_denied() -> ApiError {
+    (
+        StatusCode::FORBIDDEN,
+        Json(json!({
+            "error": "HSK-403-DOC-ACTOR-SPOOF",
+            "reason": "x-hsk-actor-id claims the reserved handshake-native: principal namespace without an authenticated session for that principal"
+        })),
+    )
+}
+
 fn conflict(detail: impl Into<String>) -> ApiError {
     (
         StatusCode::CONFLICT,
@@ -228,9 +272,33 @@ struct DocContext {
     kernel_task_run_id: String,
     session_run_id: String,
     correlation_id: Option<String>,
+    /// WP-KERNEL-012 MT-120: the SERVER-DERIVED native principal when the caller presented a valid
+    /// `x-hsk-session-token`, otherwise `None`. It never replaces `actor` (per-agent attribution),
+    /// it is an ADDITIONAL server-written anchor consumed only by the save receipt.
+    minted_by_principal: Option<String>,
+}
+
+/// WP-KERNEL-012 MT-120 — OPTIONAL-BUT-VERIFIED session resolution.
+///
+/// * header ABSENT  -> `Ok(None)`; the route behaves exactly as it did before this MT (no filesystem
+///   read, no process probe, no behavior change for any existing caller).
+/// * header PRESENT and valid -> `Ok(Some(server-derived actor id))`.
+/// * header PRESENT and invalid/stale -> `Err(401 HSK-401-DOC-SESSION)`. NEVER a silent downgrade to
+///   the client-declared header identity.
+fn authenticated_native_principal(headers: &HeaderMap) -> Result<Option<String>, ApiError> {
+    if header_str(headers, HSK_HEADER_SESSION_TOKEN).is_none() {
+        return Ok(None);
+    }
+    match crate::api::stage::capture_context(headers) {
+        Ok(ctx) => Ok(Some(ctx.actor_id)),
+        Err(_) => Err(doc_session_unauthenticated()),
+    }
 }
 
 fn doc_context(headers: &HeaderMap) -> Result<DocContext, ApiError> {
+    // Resolve the credential FIRST: a presented-but-invalid token must fail closed regardless of
+    // which other headers are missing, so a broken credential can never be laundered into a 400.
+    let minted_by_principal = authenticated_native_principal(headers)?;
     let actor_id = header_str(headers, HSK_HEADER_ACTOR_ID)
         .ok_or_else(|| bad_request(format!("{HSK_HEADER_ACTOR_ID} header is required")))?
         .to_string();
@@ -244,6 +312,15 @@ fn doc_context(headers: &HeaderMap) -> Result<DocContext, ApiError> {
     let session_run_id = header_str(headers, HSK_HEADER_SESSION_RUN_ID)
         .ok_or_else(|| bad_request(format!("{HSK_HEADER_SESSION_RUN_ID} header is required")))?
         .to_string();
+    // WP-KERNEL-012 MT-120 RESERVED-NAMESPACE GUARD (every document route, not just save): the
+    // `handshake-native:` namespace belongs to `stage::capture_context`. A caller may only declare an
+    // id inside it when it authenticated as EXACTLY that principal. Without this an unauthenticated
+    // request forges the derived principal with a single header.
+    if actor_id.starts_with(RESERVED_NATIVE_PRINCIPAL_PREFIX)
+        && minted_by_principal.as_deref() != Some(actor_id.as_str())
+    {
+        return Err(doc_actor_spoof_denied());
+    }
     // MT-158 hardening (adversarial-v2): the actor kind is a free client
     // string, so it is validated STRICTLY server-side and privilege is never
     // inferred. A missing header is the LEAST-privileged kind (read-only),
@@ -273,6 +350,7 @@ fn doc_context(headers: &HeaderMap) -> Result<DocContext, ApiError> {
         kernel_task_run_id,
         session_run_id,
         correlation_id: header_str(headers, HSK_HEADER_CORRELATION_ID).map(ToOwned::to_owned),
+        minted_by_principal,
     })
 }
 
@@ -1348,18 +1426,34 @@ async fn save_document(
         .map_err(storage_error)?;
 
     // ---- post-commit (MT-149): nothing below may error a committed save. ----
+    // WP-KERNEL-012 MT-120: when (and only when) the caller authenticated a live native-MCP session,
+    // stamp the SERVER-DERIVED principal into the receipt payload. This is the anchor the Flight
+    // Recorder's `document_saved` receipt-ownership clause compares against. The ledger `actor_id`
+    // column deliberately stays the CLIENT-declared per-agent id so two swarm agents saving the same
+    // document remain individually attributable; ownership and attribution are different questions
+    // and now have different fields. `ctx.actor`, the run ids and the correlation id are untouched —
+    // the same clause compares those against the client-supplied Flight Recorder payload.
+    let mut receipt_payload = json!({
+        "event": "saved",
+        "doc_version": saved.doc_version,
+        "workspace_id": saved.workspace_id.clone(),
+        "content_hash": saved.content_sha256.clone(),
+        "reference_targets": receipt_reference_targets,
+    });
+    if let Some(principal) = ctx.minted_by_principal.as_deref() {
+        if let Some(map) = receipt_payload.as_object_mut() {
+            map.insert(
+                SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD.to_owned(),
+                Value::String(principal.to_owned()),
+            );
+        }
+    }
     let (receipt, receipt_error) = record_receipt_non_fatal(
         &db,
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &saved.rich_document_id,
-        json!({
-            "event": "saved",
-            "doc_version": saved.doc_version,
-            "workspace_id": saved.workspace_id.clone(),
-            "content_hash": saved.content_sha256.clone(),
-            "reference_targets": receipt_reference_targets,
-        }),
+        receipt_payload,
     )
     .await;
 

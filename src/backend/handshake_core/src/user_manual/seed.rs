@@ -1049,7 +1049,29 @@ fn page_rich_documents_surface() -> NewUserManualPage {
                  `GET .../history/:doc_version`. To audit a save, take its \
                  `save_receipt_event_id`, read the document aggregate through \
                  `GET /kernel/events/aggregates/knowledge_rich_document/:id`, and match the exact \
-                 `event_id`; an empty list means that aggregate has no ledger events.",
+                 `event_id`; an empty list means that aggregate has no ledger events.\n\n\
+                 WP-KERNEL-012 MT-120 — save receipt OWNERSHIP. The save route now authenticates an \
+                 OPTIONAL native session: send `x-hsk-session-token` and the server derives the \
+                 `handshake-native:{pid}:{fingerprint}` principal from the native-MCP binding and stamps \
+                 it into the server-written receipt payload as `minted_by_principal`. Sending NO token is \
+                 still accepted and behaves exactly as before — the save succeeds, but its receipt carries \
+                 no anchor and is therefore UNCLAIMABLE by a `document_saved` Flight Recorder event. A \
+                 token that is present but invalid or stale is 401 `HSK-401-DOC-SESSION`; it NEVER falls \
+                 back to the header identity, because a silent downgrade would restore the forgeable path. \
+                 A client may not put a `handshake-native:` value in `x-hsk-actor-id` unless it equals the \
+                 principal the server just derived — otherwise 403 `HSK-403-DOC-ACTOR-SPOOF`, on every \
+                 document route.\n\n\
+                 What this does NOT change: the ledger `actor_id` COLUMN still carries the CLIENT-declared \
+                 per-agent attribution, so two agents saving in one process remain distinguishable. \
+                 Ownership lives in the payload field; attribution lives in the column. Do not conflate \
+                 them. `kernel_task_run_id`, `session_run_id` and `correlation_id` are also unchanged — the \
+                 Flight Recorder compares those against the client-supplied event payload, so rebinding \
+                 them would replace one unsatisfiable clause with three.\n\n\
+                 Why a save's `document_saved` event may be rejected with 400 `HSK-400-INVALID-EVENT`: the \
+                 receipt has no `minted_by_principal` (the save was unauthenticated), or it was minted by a \
+                 DIFFERENT principal than the one now claiming it — including the same app after a restart, \
+                 because the fingerprint is derived from process birth identity. Recovery is to re-save \
+                 under the current session rather than to re-issue the event.",
             ),
             section(
                 "safety",

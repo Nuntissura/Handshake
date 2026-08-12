@@ -9796,12 +9796,49 @@ impl RichDocClient {
 #[derive(Clone)]
 pub struct RichDocSaveBackend {
     client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
+    /// The base URL this backend was mounted against. Kept so the MT-120 session-authenticated
+    /// transport can be rebuilt for the SAME host without a second source of truth for the URL.
+    base_url: String,
     session_run_id: String,
     actor_id: String,
 }
 
+/// WP-KERNEL-012 MT-120: the process-wide session-authenticated document transport, keyed by the token
+/// it carries.
+///
+/// The token itself is re-resolved from the on-disk native-MCP binding on EVERY save (see
+/// [`crate::event_emitter::flight_recorder_session_token`], which never caches), so a rebind is picked
+/// up immediately. Only the reqwest connection pool is memoized, and it is rebuilt the moment the token
+/// changes — a cached client can therefore never present a superseded credential.
+static SESSION_SCOPED_DOC_CLIENT: std::sync::Mutex<Option<(String, reqwest::Client)>> =
+    std::sync::Mutex::new(None);
+
+/// A bounded reqwest client that presents `x-hsk-session-token` on every request it makes.
+fn session_scoped_http_client(token: &str) -> Option<reqwest::Client> {
+    let mut guard = SESSION_SCOPED_DOC_CLIENT.lock().ok()?;
+    if let Some((cached_token, client)) = guard.as_ref() {
+        if cached_token == token {
+            return Some(client.clone());
+        }
+    }
+    let mut header_map = reqwest::header::HeaderMap::new();
+    // A malformed credential must degrade to the existing unauthenticated client, never panic a save.
+    let mut value = reqwest::header::HeaderValue::from_str(token).ok()?;
+    value.set_sensitive(true);
+    header_map.insert("x-hsk-session-token", value);
+    let client = reqwest::Client::builder()
+        .connect_timeout(BACKEND_CONNECT_TIMEOUT)
+        .timeout(BACKEND_REQUEST_TIMEOUT)
+        .default_headers(header_map)
+        .build()
+        .ok()?;
+    *guard = Some((token.to_owned(), client.clone()));
+    Some(client)
+}
+
 impl RichDocSaveBackend {
     pub fn new(base_url: impl Into<String>) -> Self {
+        let base_url = base_url.into();
         Self {
             // This constructor is mounted by `HandshakeApp` with its configured backend URL, so it is a
             // production transport even though the URL is injectable. Keep the injectable URL while
@@ -9809,8 +9846,9 @@ impl RichDocSaveBackend {
             // the isolated fresh-pool seam for its direct HTTP tests.
             client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
                 shared_http_client(),
-                base_url,
+                base_url.clone(),
             ),
+            base_url,
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
             actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }
@@ -9819,8 +9857,44 @@ impl RichDocSaveBackend {
     pub fn production() -> Self {
         Self {
             client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::production(),
+            base_url: BACKEND_BASE_URL.to_owned(),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
             actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-120: the transport this save should use.
+    ///
+    /// When a live native-MCP binding exists the save is issued through a client that presents
+    /// `x-hsk-session-token`, so `knowledge_documents::save_document` authenticates the SAME principal
+    /// the Flight Recorder derives and stamps `minted_by_principal` into the canonical save receipt —
+    /// which is what makes the `document_saved` receipt-ownership clause satisfiable.
+    ///
+    /// When no binding exists (or the credential is malformed) the save falls back to the EXISTING
+    /// unauthenticated client, so saves keep working exactly as they do today. This is safe precisely
+    /// because the backend treats the credential as optional-but-verified: an absent token is the old
+    /// path, and a presented-but-invalid token is a hard 401 rather than a silent downgrade.
+    ///
+    /// The declared `x-hsk-actor-id` is NOT touched here: per-agent save attribution must survive in
+    /// the ledger `actor_id` column.
+    ///
+    /// Takes the fallback client + base URL by value rather than `&self` so the binding file read
+    /// happens on the async save worker, never on the egui frame thread (HBR-QUIET).
+    fn transport(
+        fallback: &crate::backend::knowledge_documents::KnowledgeDocumentsClient,
+        base_url: &str,
+    ) -> crate::backend::knowledge_documents::KnowledgeDocumentsClient {
+        let Ok(token) = crate::event_emitter::flight_recorder_session_token() else {
+            return fallback.clone();
+        };
+        match session_scoped_http_client(&token) {
+            Some(client) => {
+                crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                    client,
+                    base_url.to_owned(),
+                )
+            }
+            None => fallback.clone(),
         }
     }
 
@@ -9856,11 +9930,16 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
         content_json: serde_json::Value,
         expected_version: u64,
     ) -> crate::rich_editor::save::save_manager::SaveFuture {
-        let client = self.client.clone();
+        let fallback_client = self.client.clone();
+        let base_url = self.base_url.clone();
         let headers = self.headers(document_id);
         let read_headers = headers.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
+            // MT-120: resolve the credential per save (never cached) so a rebind is picked up by the
+            // very next save; falls back to the unauthenticated client when no binding exists. Done
+            // here, off the egui frame thread, because it touches the filesystem (HBR-QUIET).
+            let client = Self::transport(&fallback_client, &base_url);
             let body = crate::backend::knowledge_documents::SaveDocumentRequest {
                 expected_version: i64::try_from(expected_version).unwrap_or(i64::MAX),
                 content_json,

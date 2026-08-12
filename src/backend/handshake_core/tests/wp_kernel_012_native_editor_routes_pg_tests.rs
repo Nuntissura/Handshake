@@ -2704,3 +2704,290 @@ async fn stage_flight_projection_failure_returns_500_and_retry_heals_once() {
     .unwrap();
     assert_eq!(final_count, 1, "retries never duplicate durable capture");
 }
+
+// ---------------------------------------------------------------------------
+// WP-KERNEL-012 MT-120 — the document-save route authenticates the SAME principal
+// the Flight Recorder derives, so the `document_saved` receipt-ownership clause
+// becomes SATISFIABLE without being removed.
+//
+//   * AC-120-1  an authenticated save stamps the SERVER-DERIVED principal into the
+//               receipt payload (`minted_by_principal`) while the ledger `actor_id`
+//               column keeps the CLIENT-declared per-agent attribution.
+//   * MT-120    a caller may not FORGE the reserved `handshake-native:` principal
+//               namespace by header (403 HSK-403-DOC-ACTOR-SPOOF).
+//   * MT-120    a presented-but-invalid session token is a hard 401
+//               HSK-401-DOC-SESSION and NEVER downgrades to the header identity.
+// ---------------------------------------------------------------------------
+
+/// Obtain the SERVER-DERIVED native principal as an INDEPENDENT ground truth: authenticate an
+/// unrelated `stage::capture_context`-gated route with the same binding and read back the actor id it
+/// attributed the request to.
+///
+/// This is deliberately not a local recomputation of the digest. The point of AC-120-1 is that the
+/// document-save route authenticates the *same principal another capture_context route derives*, and
+/// only a value produced by that code path can prove it.
+async fn derived_native_principal_from_stage_route(
+    base: &str,
+    http: &reqwest::Client,
+    binding: &StageBindingEnv,
+    recorder: &CollectingRecorder,
+    workspace_id: &str,
+) -> String {
+    // An authenticated request that is denied AFTER the auth boundary (wrong content type) still
+    // records the native actor — the cheapest authenticated attribution probe in this suite.
+    let denial = binding
+        .headers(http.post(format!("{base}/workspaces/{workspace_id}/stage/artifacts")))
+        .header(reqwest::header::CONTENT_TYPE, "text/plain")
+        .body("mt120-derived-principal-probe")
+        .send()
+        .await
+        .expect("mt120 authenticated stage probe");
+    assert_eq!(
+        denial.status(),
+        400,
+        "the probe must pass authentication and fail on the DTO, not on the credential"
+    );
+    let events = recorder.events.lock().unwrap();
+    let actor = events
+        .iter()
+        .map(|event| event.actor_id.clone())
+        .find(|actor| actor.starts_with("handshake-native:"))
+        .expect("an authenticated stage request records the server-derived native actor");
+    drop(events);
+    actor
+}
+
+/// Create a document and return `(rich_document_id, doc_version)` so saves carry the REAL
+/// optimistic-concurrency token instead of a guessed one.
+async fn mt120_seed_document(
+    base: &str,
+    http: &reqwest::Client,
+    workspace_id: &str,
+) -> (String, i64) {
+    let created: Value = operator_headers(
+        http.post(format!("{base}/knowledge/documents")),
+        "mt120-create",
+    )
+    .json(&json!({
+        "workspace_id": workspace_id,
+        "title": "MT120 Save Attribution",
+        "content_json": {
+            "type": "doc",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "before" }] }]
+        }
+    }))
+    .send()
+    .await
+    .expect("mt120 create doc")
+    .json()
+    .await
+    .expect("mt120 create json");
+    (
+        created["document"]["rich_document_id"]
+            .as_str()
+            .expect("mt120 rich_document_id")
+            .to_string(),
+        created["document"]["doc_version"]
+            .as_i64()
+            .expect("mt120 doc_version"),
+    )
+}
+
+fn mt120_save_body(expected_version: i64, text: &str) -> Value {
+    json!({
+        "expected_version": expected_version,
+        "content_json": {
+            "type": "doc",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": text }] }]
+        }
+    })
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn mt120_authenticated_save_stamps_derived_principal_without_rebinding_actor_id() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt120_authenticated_save: no PostgreSQL");
+        return;
+    };
+    let _binding_test_guard = STAGE_BINDING_TEST_LOCK.lock().await;
+    let binding = StageBindingEnv::install();
+    let recorder = Arc::new(CollectingRecorder::default());
+    let state = app_state_with_recorder(&pg, recorder.clone()).await;
+    let workspace_id = pg.create_workspace().await;
+    // Both routers share ONE AppState + ONE binding, so the two routes must resolve one principal.
+    let (base, http) = serve(
+        docs_api::routes(state.clone()).merge(stage_api::routes(state.clone())),
+    )
+    .await;
+    let derived =
+        derived_native_principal_from_stage_route(&base, &http, &binding, &recorder, &workspace_id)
+            .await;
+    let (doc_id, doc_version) = mt120_seed_document(&base, &http, &workspace_id).await;
+
+    // A per-agent save actor that is NOT the derived principal — exactly what the product sends.
+    let agent_actor = "mt120-agent-a";
+    let saved = binding
+        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+        .header("x-hsk-actor-id", agent_actor)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-A")
+        .header("x-hsk-session-run-id", "SR-MT120-A")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version, "after"))
+        .send()
+        .await
+        .expect("mt120 authenticated save");
+    assert_eq!(saved.status(), 200, "authenticated save must succeed");
+    let saved: Value = saved.json().await.expect("mt120 save json");
+    let receipt = saved["save_receipt_event_id"]
+        .as_str()
+        .expect("mt120 save receipt id")
+        .to_string();
+
+    let (actor_id, payload): (String, Value) =
+        sqlx::query_as("SELECT actor_id, payload FROM kernel_event_ledger WHERE event_id = $1")
+            .bind(&receipt)
+            .fetch_one(&state.postgres_pool)
+            .await
+            .expect("read MT-120 save receipt");
+    // AC-120-2: per-agent attribution SURVIVES in the actor_id column. Rebinding it would destroy
+    // swarm attribution (and the MT-043 exact-attribution DO block in test_e7).
+    assert_eq!(actor_id, agent_actor);
+    assert_ne!(actor_id, derived);
+    // AC-120-1: the ownership anchor is server-written and IS the Flight Recorder's derived principal.
+    assert_eq!(
+        payload["minted_by_principal"].as_str(),
+        Some(derived.as_str()),
+        "authenticated save must stamp the server-derived principal: {payload}"
+    );
+
+    // The owner of the reserved namespace may declare its own id; the guard permits exactly that.
+    let owner_save = binding
+        .headers(http.put(format!("{base}/knowledge/documents/{doc_id}/save")))
+        .header("x-hsk-actor-id", &derived)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-OWNER")
+        .header("x-hsk-session-run-id", "SR-MT120-OWNER")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version + 1, "owner"))
+        .send()
+        .await
+        .expect("mt120 owner save");
+    assert_eq!(
+        owner_save.status(),
+        200,
+        "the authenticated owner of the reserved namespace is not a spoofer"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn mt120_unauthenticated_caller_cannot_forge_the_reserved_native_principal() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt120_namespace_forgery: no PostgreSQL");
+        return;
+    };
+    let state = app_state(&pg).await;
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = serve(docs_api::routes(state.clone())).await;
+    let (doc_id, doc_version) = mt120_seed_document(&base, &http, &workspace_id).await;
+
+    let forged = "handshake-native:1:deadbeef";
+    // NO session token at all — the exact positive control recorded in the MT-120 contract.
+    let response = http
+        .put(format!("{base}/knowledge/documents/{doc_id}/save"))
+        .header("x-hsk-actor-id", forged)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-FORGE")
+        .header("x-hsk-session-run-id", "SR-MT120-FORGE")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version, "forged"))
+        .send()
+        .await
+        .expect("mt120 forged save request");
+    assert_eq!(response.status(), 403);
+    let body: Value = response.json().await.expect("mt120 forged save body");
+    assert_eq!(body["error"], "HSK-403-DOC-ACTOR-SPOOF");
+
+    // The guard sits on the shared identity path, so a READ route forges nothing either.
+    let read = http
+        .get(format!("{base}/knowledge/documents/{doc_id}"))
+        .header("x-hsk-actor-id", forged)
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-FORGE")
+        .header("x-hsk-session-run-id", "SR-MT120-FORGE")
+        .send()
+        .await
+        .expect("mt120 forged read request");
+    assert_eq!(read.status(), 403);
+
+    let forged_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM kernel_event_ledger WHERE actor_id = $1")
+            .bind(forged)
+            .fetch_one(&state.postgres_pool)
+            .await
+            .expect("count forged ledger rows");
+    assert_eq!(forged_rows, 0, "a forged principal must leave no ledger row");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "requires_pg"]
+async fn mt120_invalid_session_token_is_401_and_never_downgrades_to_the_header_identity() {
+    let Some(pg) = knowledge_pg().await else {
+        eprintln!("SKIP mt120_invalid_session: no PostgreSQL");
+        return;
+    };
+    let _binding_test_guard = STAGE_BINDING_TEST_LOCK.lock().await;
+    let _binding = StageBindingEnv::install();
+    let state = app_state(&pg).await;
+    let workspace_id = pg.create_workspace().await;
+    let (base, http) = serve(docs_api::routes(state.clone())).await;
+    let (doc_id, doc_version) = mt120_seed_document(&base, &http, &workspace_id).await;
+
+    let before: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_id = $1 AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_SAVED'",
+    )
+    .bind(&doc_id)
+    .fetch_one(&state.postgres_pool)
+    .await
+    .expect("count saves before");
+
+    // Well-formed but WRONG token: the binding installed above is live, this credential is not its
+    // token, so `capture_context` fails — the stale/forged-credential case.
+    let stale_token = "b".repeat(64);
+    let response = http
+        .put(format!("{base}/knowledge/documents/{doc_id}/save"))
+        .header("x-hsk-session-token", &stale_token)
+        .header("x-hsk-actor-id", "mt120-agent-stale")
+        .header("x-hsk-kernel-task-run-id", "KTR-MT120-STALE")
+        .header("x-hsk-session-run-id", "SR-MT120-STALE")
+        .header("x-hsk-actor-kind", "operator")
+        .json(&mt120_save_body(doc_version, "stale"))
+        .send()
+        .await
+        .expect("mt120 stale-token save request");
+    assert_eq!(
+        response.status(),
+        401,
+        "a presented-but-invalid token must fail closed, not fall back"
+    );
+    let body: Value = response.json().await.expect("mt120 stale-token body");
+    assert_eq!(body["error"], "HSK-401-DOC-SESSION");
+
+    // Proof it did NOT silently continue as the header identity: no save happened at all.
+    let after: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE aggregate_id = $1 AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_SAVED'",
+    )
+    .bind(&doc_id)
+    .fetch_one(&state.postgres_pool)
+    .await
+    .expect("count saves after");
+    assert_eq!(after, before, "a rejected credential must not save");
+    let leaked: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM kernel_event_ledger WHERE actor_id = $1")
+            .bind("mt120-agent-stale")
+            .fetch_one(&state.postgres_pool)
+            .await
+            .expect("count downgraded ledger rows");
+    assert_eq!(
+        leaked, 0,
+        "a rejected credential must never be laundered into the header identity"
+    );
+}

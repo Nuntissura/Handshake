@@ -882,6 +882,32 @@ async fn validate_document_save_receipt(
         .get("correlation_id")
         .and_then(|value| value.as_str().map(str::to_owned));
 
+    // WP-KERNEL-012 MT-120 — receipt OWNERSHIP anchor.
+    //
+    // This is a STRENGTHENING, not a relaxation. The comparison used to read the ledger `actor_id`
+    // COLUMN, which is the CLIENT-declared per-agent attribution supplied by the save request header,
+    // while `event.canonical_actor_id()` is the SERVER-derived `handshake-native:{pid}:{fingerprint}`
+    // principal. Those two values can never be equal for a real product save, so the clause rejected
+    // every legitimate save: a guard that always fails is an outage wearing a security costume, and it
+    // enforces nothing. The comparison now reads a SERVER-WRITTEN receipt-payload field that only an
+    // authenticated document-save can produce (`knowledge_documents::save_document` stamps it from
+    // `stage::capture_context`, never from the request body). That makes the invariant MT-109 wants —
+    // a save receipt is claimable only by the principal that minted it — actually enforceable, while
+    // per-agent attribution survives untouched in the `actor_id` column.
+    //
+    // Fail-closed: an absent, non-string, or blank field is UNCLAIMABLE, and a blank claiming actor
+    // can never match a blank minted principal. This stays an UNCONDITIONAL conjunct below.
+    let minted_by_principal = receipt_payload
+        .get(crate::api::knowledge_documents::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|principal| !principal.is_empty());
+    let claiming_principal = Some(event.canonical_actor_id().trim()).filter(|id| !id.is_empty());
+    let receipt_owned_by_claimant = matches!(
+        (minted_by_principal, claiming_principal),
+        (Some(minted), Some(claiming)) if minted == claiming
+    );
+
     let authentic = row.try_get::<String, _>("event_type").map_err(db_error)?
         == KernelEventType::KnowledgeRichDocumentSaved.as_str()
         && row
@@ -891,10 +917,11 @@ async fn validate_document_save_receipt(
         && row.try_get::<String, _>("aggregate_id").map_err(db_error)?
             == payload["document_id"].as_str().unwrap_or_default()
         && row.try_get::<String, _>("actor_kind").map_err(db_error)? == request_actor_kind
-        // The canonical save receipt must belong to the SAME authenticated actor that is now
-        // claiming it: `event.actor_id` is server-derived by this point, so a caller cannot bind
-        // its native event to another principal's document-save receipt.
-        && row.try_get::<String, _>("actor_id").map_err(db_error)? == event.canonical_actor_id()
+        // The canonical save receipt must belong to the SAME authenticated principal that is now
+        // claiming it: `event.actor_id` is server-derived by this point, and `minted_by_principal`
+        // is server-written by the save route, so a caller cannot bind its native event to another
+        // principal's document-save receipt. See the MT-120 note above.
+        && receipt_owned_by_claimant
         && row
             .try_get::<String, _>("kernel_task_run_id")
             .map_err(db_error)?
@@ -2040,6 +2067,20 @@ mod tests {
     async fn authentic_document_saved_envelope(
         state: &AppState,
     ) -> Result<NativeEditorFrEventV0_1, Box<dyn std::error::Error>> {
+        authentic_document_saved_envelope_minted_by(state, TEST_ACTOR_ID).await
+    }
+
+    /// Mint a canonical save receipt owned by `minted_by_principal` and return the native envelope
+    /// that claims it.
+    ///
+    /// WP-KERNEL-012 MT-120: the ledger `actor_id` column is deliberately a DISTINCT client-declared
+    /// per-agent id, exactly as a real save produces (`x-hsk-actor-id` is per-agent attribution, the
+    /// native principal is server-derived). Ownership therefore lives in the server-written
+    /// `minted_by_principal` payload field, which is what the claim is validated against.
+    async fn authentic_document_saved_envelope_minted_by(
+        state: &AppState,
+        minted_by_principal: &str,
+    ) -> Result<NativeEditorFrEventV0_1, Box<dyn std::error::Error>> {
         let document_id = format!("DOC-{}", Uuid::now_v7());
         let workspace_id = format!("WS-{}", Uuid::now_v7());
         ensure_test_workspace(state, &workspace_id).await?;
@@ -2047,9 +2088,17 @@ mod tests {
         let task = format!("task-{}", Uuid::now_v7());
         let session = format!("session-{}", Uuid::now_v7());
         let correlation = format!("correlation-{}", Uuid::now_v7());
-        // The canonical save receipt must belong to the SAME authenticated principal the native
-        // event is now attributed to; the handler no longer accepts a caller-declared actor.
-        let actor_id = TEST_ACTOR_ID.to_owned();
+        // The CLIENT-declared per-agent save actor. It is NOT the native principal, and the ledger
+        // column keeps it so swarm attribution survives (AC-120-2 / the MT-043 attribution assert).
+        let actor_id = format!("mt120-agent-{}", Uuid::now_v7());
+        let mut receipt_payload = json!({
+            "event":"saved",
+            "doc_version":2,
+            "workspace_id":workspace_id,
+            "content_hash":content_hash,
+        });
+        receipt_payload[crate::api::knowledge_documents::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD] =
+            json!(minted_by_principal);
         let receipt = state
             .storage
             .append_kernel_event(
@@ -2057,17 +2106,12 @@ mod tests {
                     task.clone(),
                     session.clone(),
                     KernelEventType::KnowledgeRichDocumentSaved,
-                    KernelActor::Operator(actor_id.clone()),
+                    KernelActor::Operator(actor_id),
                 )
                 .aggregate("knowledge_rich_document", document_id.clone())
                 .source_component("knowledge_documents_api")
                 .correlation_id(correlation.clone())
-                .payload(json!({
-                    "event":"saved",
-                    "doc_version":2,
-                    "workspace_id":workspace_id,
-                    "content_hash":content_hash,
-                }))
+                .payload(receipt_payload)
                 .build()?,
             )
             .await?;
@@ -3547,6 +3591,105 @@ mod tests {
             .await
             .map_err(|(status, _)| format!("authentic receipt rejected: {status}"))?;
         assert_eq!(ack["ok"], true);
+        Ok(())
+    }
+
+    /// WP-KERNEL-012 MT-120 / AC-120-2 — THE BINDING IS NOT WEAKENED.
+    ///
+    /// A save receipt minted by principal A is NOT claimable by principal B, and the rejection leaves
+    /// ZERO residue (validation runs before the pending EventLedger write and before any FR write).
+    /// The SAME envelope is then re-pointed at a receipt minted by the claiming principal and
+    /// succeeds — proving the rejection was the PRINCIPAL and not some unrelated conjunct.
+    #[tokio::test]
+    async fn document_saved_receipt_minted_by_another_principal_is_unclaimable(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        // Principal A is some OTHER live native process; the ingesting principal is TEST_ACTOR_ID.
+        let other_principal = "handshake-native:999999:0f0f0f0f";
+        assert_ne!(other_principal, TEST_ACTOR_ID);
+        let foreign =
+            authentic_document_saved_envelope_minted_by(&state, other_principal).await?;
+
+        let fr_before = native_editor_fr_row_count(&state).await?;
+        let ledger_before = native_editor_ledger_row_count(&state).await?;
+        let (status, _) = ingest_native_editor(State(state.clone()), Json(foreign.clone()))
+            .await
+            .expect_err("a receipt minted by another principal must not be claimable");
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(
+            native_editor_fr_row_count(&state).await?,
+            fr_before,
+            "cross-principal rejection wrote a Flight Recorder row"
+        );
+        assert_eq!(
+            native_editor_ledger_row_count(&state).await?,
+            ledger_before,
+            "cross-principal rejection wrote an EventLedger pending row"
+        );
+
+        // Flip ONLY the receipt to one minted by the claiming principal: the same envelope shape now
+        // ingests, so nothing but the principal was ever in question.
+        let owned = authentic_document_saved_envelope_minted_by(&state, TEST_ACTOR_ID).await?;
+        let mut same_shape = foreign;
+        same_shape.workspace_id = owned.workspace_id.clone();
+        same_shape.payload = owned.payload.clone();
+        let Json(ack) = ingest_native_editor(State(state.clone()), Json(same_shape))
+            .await
+            .map_err(|(status, _)| format!("own-principal receipt rejected: {status}"))?;
+        assert_eq!(ack["ok"], true);
+        Ok(())
+    }
+
+    /// WP-KERNEL-012 MT-120 — FAIL CLOSED on an absent ownership anchor. A legacy or unauthenticated
+    /// save leaves a receipt with no `minted_by_principal`; that receipt is UNCLAIMABLE, and so is a
+    /// blank one. The clause is unconditional: absence is never "assume it matches".
+    #[tokio::test]
+    async fn document_saved_receipt_without_minted_by_principal_is_unclaimable(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        for mutate in [None, Some(""), Some("   ")] {
+            let envelope = authentic_document_saved_envelope(&state).await?;
+            let receipt_id = envelope.payload["save_receipt_event_id"]
+                .as_str()
+                .expect("fixture receipt id")
+                .to_owned();
+            let field = crate::api::knowledge_documents::SAVE_RECEIPT_MINTED_BY_PRINCIPAL_FIELD;
+            let patched = match mutate {
+                None => format!("payload - '{field}'"),
+                Some(value) => format!("jsonb_set(payload, '{{{field}}}', to_jsonb('{value}'::text))"),
+            };
+            sqlx::query(&format!(
+                "UPDATE kernel_event_ledger SET payload = {patched} WHERE event_id = $1"
+            ))
+            .bind(&receipt_id)
+            .execute(&state.postgres_pool)
+            .await?;
+
+            let fr_before = native_editor_fr_row_count(&state).await?;
+            let ledger_before = native_editor_ledger_row_count(&state).await?;
+            let (status, _) = ingest_native_editor(State(state.clone()), Json(envelope))
+                .await
+                .expect_err("a receipt without a server-written ownership anchor is unclaimable");
+            assert_eq!(
+                status,
+                StatusCode::BAD_REQUEST,
+                "minted_by_principal={mutate:?} must reject"
+            );
+            assert_eq!(
+                native_editor_fr_row_count(&state).await?,
+                fr_before,
+                "absent-anchor rejection wrote a Flight Recorder row"
+            );
+            assert_eq!(
+                native_editor_ledger_row_count(&state).await?,
+                ledger_before,
+                "absent-anchor rejection wrote an EventLedger pending row"
+            );
+        }
         Ok(())
     }
 
