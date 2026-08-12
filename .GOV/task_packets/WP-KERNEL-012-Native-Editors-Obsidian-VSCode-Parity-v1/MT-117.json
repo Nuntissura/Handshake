@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-12T16:55:00Z",
+  "updated_at_utc": "2026-08-12T17:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -89,6 +89,25 @@
         },
         "what_is_NOT_the_problem": "editor.rich.save and the calendar activity target do not appear as indeterminate at all, and op03-locus is 2/2 applied - the MT-068 Locus observer, whose shell-owned observer node survives target disappearance, is the proven shape in this work packet.",
         "honest_position": "MT-117 stays CLAIMED. The suite passing is NOT sufficient: AC-117-4 says the strict gate finish_require_no_indeterminate() should become REACHABLE for these scenarios, which it is not while 15 receipts are indeterminate. Reporting the green 27/0 as PT-117-1 satisfied would be exactly the kind of passing-suite-stands-in-for-the-criterion overclaim this work packet keeps having to correct."
+      },
+      "pt_117_1_blocked_by_a_real_contract_conflict": {
+        "status": "BLOCKED ON A DURABLE-CONTRACT CONFLICT. Not weakened, not faked, not closed.",
+        "progress_made": "Receipt census across the newest canonical-argus run per scenario improved from 36 applied / 15 indeterminate to 38 applied / 13 indeterminate. MT-117 DID close save-rich-document and the calendar activity target - neither appears as indeterminate any more. op03-locus is 2/2. The remaining 13 are two targets only.",
+        "target_1_stage_capture_embed_back": {
+          "remaining": "5 indeterminate in op01-stage. op04-aggregate no longer reports it.",
+          "rejection": "persistent observer target identity or action capability drifted",
+          "measured": "Its node is byte-identical before and after its own click - node_id 2126558061106822000, role Button, disabled=false, actions [Click, Focus] - matching expected_node_id and expected_role exactly. So it does NOT drift by identity.",
+          "mode_experiment_and_its_result": "Reclassifying it Flexible was tried and REVERTED on evidence: flexible means target PRESENCE ENCODES OUTCOME (Applied requires the target to be gone), and the stage control stays present on success, so flexible rejected it with \"flexible observer terminal state does not match Retry target presence\". Persistent is the correct mode; the residual failure is elsewhere, most likely the !node.disabled clause in post_render_target_identity_matches firing while the button is disabled mid-capture and the observer has already left Pending (pending_async_target_identity only tolerates disabled while state == Pending)."
+        },
+        "target_2_daily_journal_calendar_event_chip": {
+          "remaining": "4 indeterminate in op02-calendar and 4 in op04-aggregate.",
+          "rejection": "click target disappeared before its effect could be observed, with observed_value NULL",
+          "ROOT_CAUSE": "ClickCompletionToken is #[serde(deny_unknown_fields)] (mcp/action.rs:177). The chip value must therefore be EITHER a parseable completion declaration OR the domain json the test reads off it - never both. The MT-117 merge fix adds calendar_event_id and daily_note_doc_id alongside the declaration keys, which makes parse_click_completion_token FAIL, so the driver sees NO declaration on the target and falls through to the generic disappeared path.",
+          "the_conflict_stated_plainly": "test_calendar_interop asserts argus_node_json_value_field_equals(tree, chip, \"calendar_event_id\", ...) - it requires the domain field at the TOP LEVEL of the chip value. The driver requires that same value to parse as a closed token. These are mutually exclusive. The chip carried NO declaration before MT-117, which is why the test passed at 31/0 then.",
+          "why_the_mt042_shape_does_not_resolve_it_here": "MT-042 hit the identical collision and moved its STATE to a sibling {author_id}.state node so the declaration could own the value. That works when the sibling is what readers consult. Here the reader is a test this MT may not edit, and it reads the chip node itself.",
+          "resolution_requires_an_authority_decision": "Three options, each touching a durable contract: (a) move the chip domain fields into the declaration semantic_value and update test_calendar_interop to read them there - forbidden to this MT, the test may not be edited; (b) relax ClickCompletionToken from deny_unknown_fields so a token may carry domain siblings - a product-wide schema change affecting every observer; (c) accept that this target cannot carry a declaration and exclude it from the PT-117-1 count with a typed reason. Not decided unilaterally."
+        },
+        "current_state_is_green_on_both_suites": "test_calendar_interop 31 passed / 0 failed and test_other_pillar_interop_proofs 27 passed / 0 failed, MODE2_EXIT=0, with the merge fix and the chip classified Flexible. The suites are green; PT-117-1 as literally written (13/13 applied, zero indeterminate) is NOT met, and is reported as not met."
       }
     },
     "claimed_at_utc": "2026-08-12T14:12:00Z",
