@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-13T09:50:00Z",
+  "updated_at_utc": "2026-08-13T13:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -815,5 +815,69 @@
     ],
     "systemic_finding_worth_a_guard": "MT-132 and MT-133 are different defects with one shape: a widget can be AccessKit-discoverable at bounds X while not pointer-hittable at X - shadowed by a later same-layer widget (hit_test.rs:437) or clipped to an empty interact_rect (ui.rs:1140), while AccessKit bounds stay unclipped (response.rs:836-841). Any proof asserting only node presence, role and label is blind to both. A helper asserting that a node bounds centre resolves back to that same widget would have caught both.",
     "ac_108_3_status": "STILL NOT MET, and not claimed. The failure count is materially lower than the snapshot and every remaining item now has a named owner and a root cause, but the full suite is not green."
+  },
+  "ac_108_3_state_after_remediation_2026_08_13": {
+    "schema_id": "hsk.mt108_state@1",
+    "recorded_at_utc": "2026-08-13T13:30:00Z",
+    "headline": "Of the 25 binaries the 2026-08-13T00:30 sweep recorded as FAILED, 20 are now green. AC-108-3 is still NOT MET and is not claimed.",
+    "green_now": {
+      "count": 20,
+      "binaries": [
+        "test_backend_down_responsive 33/0/1",
+        "test_block_collection_view 29/0",
+        "test_command_palette 9/0",
+        "test_folder_tree 15/0",
+        "test_loom_address 16/0",
+        "test_manual_pane_editors 10/0",
+        "test_module_switcher 6/0",
+        "test_notes_end_to_end 14/0",
+        "test_parity_knowledge 25/0/14",
+        "test_project_tabs 7/0",
+        "test_properties 10/0",
+        "test_quick_switcher 15/0",
+        "test_rename_inline_input 4/0",
+        "test_resource_counters 5/0",
+        "test_slash_commands 24/0/1",
+        "test_sticky_scroll 6/0",
+        "test_uia_steer_proof 3/0",
+        "test_locus_interop 32/0/1 (dedicated database)",
+        "test_stage_interop 31/0 (dedicated database)",
+        "test_ckc_embed 26/0"
+      ]
+    },
+    "still_red": {
+      "test_menu_wireup": "38/3. file_export_click_yields_export_bytes_not_save_manager_state, file_save_dispatches_editor_save_path, palette_save_live_row_click_reaches_active_rich_save_manager. PROVEN pre-existing: stashing all of this session work and re-running gives 35/6 at clean HEAD with these three among them. Not yet root-caused.",
+      "test_swarm_concurrency": "Root-caused and filed as MT-134: the MT-028 LeaseRegistry has zero call sites, so a contended widget fails fast with -32004 instead of waiting. Not fixed inline because the wait cannot live in dispatch_request without deadlocking against the frame loop.",
+      "test_e7_knowledge_accesskit_argus": "11/1 with --features integration,wgpu_screenshots, on \"FEMS contaminated proof tree\" (:225). Pre-existing and already routed to MT-042.",
+      "environment_dependent_not_yet_supplied": [
+        "test_code_nav_client and test_completion_hover_accesskit - the MT-008 ready fixture (HANDSHAKE_TEST_WORKSPACE_ID plus a prepared workspace with indexed code).",
+        "test_perf_large_code / _knowledge / _rich - HSK_MT045_SOURCE_SHA from the supervisor.",
+        "test_interconnect_loom_backlink_search - a credentialed Flight Recorder read (GET /events returns 401 HSK-401-FR-SESSION), the MT-109 boundary."
+      ]
+    },
+    "what_the_remediation_actually_consisted_of": {
+      "genuine_product_defects_fixed": [
+        "Reopening a Notes document never re-loaded it, so draft recovery on a second open could not fire AT ALL. Regression dated to 459cd055.",
+        "Clipboard routed by shell bookkeeping instead of the caret, so a code pane with a stale selection swallowed Ctrl+V and mutated a buffer the caret had left.",
+        "An AccessKit click on the rich editor surface never took egui focus, so the code pane kept republishing itself as the shared focus owner.",
+        "The editor context surface covered the sticky band and shadowed every header click (MT-132).",
+        "The rename Apply row fell outside its window clip rect - discoverable in AccessKit, unhittable by pointer (MT-133).",
+        "Two egui framework containers in the slash menu emitted unnamed interactive nodes, panicking the HBR-SWARM gate from product source (MT-131).",
+        "The Stage embed-back button changed AccessKit node identity exactly when its own action succeeded (MT-117).",
+        "MT-120 shipped a second reqwest ClientBuilder; the session credential now travels per request.",
+        "Seven flight_recorder_pane ids and two settings reset ids were in no registry at all."
+      ],
+      "stale_expectations_corrected_with_provenance": [
+        "PT-005 counted panic!/todo!/unimplemented! inside #[cfg(test)] modules - 7/7 false positives.",
+        "E3-23/E3-24 demanded the exact routes MT-021 documented as forbidden for that view.",
+        "MT-017 read base_state() instead of the document it loaded, broken by the 892662e0 multi-view split.",
+        "The resource-sample baseline was read AFTER the construction frame that emitted the only due sample.",
+        "test_uia_steer_proof still asserted the MT-026/027 no-SetValue-on-text workaround.",
+        "The manual-vs-registry audit read only half the registry and could never match a templated row.",
+        "test_command_palette and test_quick_switcher asserted from a provisional mid-action snapshot instead of rebinding to the authoritative terminal tree."
+      ],
+      "methodology_defects_in_the_sweep_itself": "A single shared database (test_stage_interop 30/1 shared vs 31/0 dedicated, no code change), no HANDSHAKE_GPU_SCREENSHOT, no HANDSHAKE_ARGUS_BINDING_ROOT, and no matrix env. Any future sweep must use per-binary scoped databases and set all four, or it manufactures failures."
+    },
+    "honest_position": "AC-108-3 requires the full handshake-native suite green. It is not. Five binaries remain red or unsupplied, each with a named owner and a root cause. MT-108 stays NEEDS_REIMPLEMENTATION_V4 and is NOT advanced."
   }
 }
