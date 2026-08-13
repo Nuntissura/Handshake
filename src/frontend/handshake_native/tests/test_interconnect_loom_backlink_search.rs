@@ -313,6 +313,12 @@ fn interconnect_ic10_backlink_cross_surface() {
 #[test]
 fn interconnect_ic11_search_v2_across_surfaces() {
     let attempt = ScenarioAttempt::begin("IC-11");
+    // MT-109 made the whole Flight Recorder route group fail-closed, and these two scenarios poll
+    // the recorder. Publish a REAL native-MCP binding so the shared poll helper can present the same
+    // x-hsk-session-token the mounted client presents - the pattern MT-115 established for its own
+    // seven suites. This does not weaken the boundary: an absent, forged or stale binding still fails
+    // closed at the middleware. Held for the whole scenario; dropping it unpublishes the binding.
+    let _native_binding = interconnect_support::RealNativeMcpBinding::publish();
     let mut be = require_live_backend();
     let ws = be.workspace_id.clone();
     const PROBE: &str = "XSEARCH_PROBE";
@@ -890,6 +896,12 @@ fn typed_no_model_skip_classifier_is_fail_closed() {
 #[test]
 fn interconnect_ic14_quick_switcher_both_editors() {
     let attempt = ScenarioAttempt::begin("IC-14");
+    // MT-109 made the whole Flight Recorder route group fail-closed, and these two scenarios poll
+    // the recorder. Publish a REAL native-MCP binding so the shared poll helper can present the same
+    // x-hsk-session-token the mounted client presents - the pattern MT-115 established for its own
+    // seven suites. This does not weaken the boundary: an absent, forged or stale binding still fails
+    // closed at the middleware. Held for the whole scenario; dropping it unpublishes the binding.
+    let _native_binding = interconnect_support::RealNativeMcpBinding::publish();
     let mut be = require_live_backend();
     let ws = be.workspace_id.clone();
     const PROBE: &str = "XSEARCH_PROBE";

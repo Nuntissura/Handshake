@@ -1472,7 +1472,16 @@ impl LiveBackend {
     pub fn poll_event_by_payload(&self, field: &str, value: &str) -> serde_json::Value {
         let deadline = bounded_command_deadline(Duration::from_secs(10));
         loop {
-            let events = self.get_json(&format!("/events?wsid={}", self.workspace_id));
+            // MT-109 made the WHOLE Flight Recorder route group fail-closed, so this read must present
+            // the same x-hsk-session-token the mounted native client presents. MT-115 credentialed its
+            // own seven suites, but this SHARED poll helper kept using the uncredentialed get_json,
+            // right beside the credentialed variant - so every other suite that polls the recorder got
+            // a bare 401 HSK-401-FR-SESSION. The credential is read from the proof own real on-disk
+            // binding: an absent, forged or stale binding still fails closed at the middleware.
+            let events = self.get_json_with_session_token(
+                &format!("/events?wsid={}", self.workspace_id),
+                &live_flight_recorder_session_token(),
+            );
             if let Some(event) = events.as_array().and_then(|rows| {
                 rows.iter().find(|event| {
                     event
@@ -1545,7 +1554,16 @@ impl LiveBackend {
     pub fn poll_event_by_id(&self, event_id: &str) -> serde_json::Value {
         let deadline = bounded_command_deadline(Duration::from_secs(10));
         loop {
-            let events = self.get_json(&format!("/events?event_id={event_id}"));
+            // MT-109 made the WHOLE Flight Recorder route group fail-closed, so this read must present
+            // the same x-hsk-session-token the mounted native client presents. MT-115 credentialed its
+            // own seven suites, but this SHARED poll helper kept using the uncredentialed get_json,
+            // right beside the credentialed variant - so every other suite that polls the recorder got
+            // a bare 401 HSK-401-FR-SESSION. The credential is read from the proof own real on-disk
+            // binding: an absent, forged or stale binding still fails closed at the middleware.
+            let events = self.get_json_with_session_token(
+                &format!("/events?event_id={event_id}"),
+                &live_flight_recorder_session_token(),
+            );
             if let Some(event) = events.as_array().and_then(|rows| {
                 rows.iter().find(|event| {
                     event.get("event_id").and_then(serde_json::Value::as_str) == Some(event_id)
