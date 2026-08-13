@@ -22,7 +22,7 @@
   "title": "E6-MT-116-Fix-Cross-Reference-Chip-Pill-Width-So-Long-Ids-Render-Inside-Their-Pill",
   "group": "E6-Interop",
   "created_at_utc": "2026-08-06T12:50:39.525Z",
-  "updated_at_utc": "2026-08-13T10:30:00Z",
+  "updated_at_utc": "2026-08-13T16:00:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -111,6 +111,31 @@
         "honesty_note": "This is recorded rather than omitted. The binary is not green, and MT-116 must not be read as having proven MT-042 healthy."
       },
       "ac_116_3_verdict": "AC-116-3 is MET on its own terms: every chip surface it names re-runs without regression - MT-034 test_code_note_cross_ref 18/0, MT-068 test_locus_interop 32/0/1, MT-074 test_other_pillar_interop_proofs 27/0, plus test_stage_interop 31/0, test_ckc_embed 26/0 and test_block_collection_view 29/0. MT-042 test_e7_knowledge_accesskit_argus carries ONE pre-existing failure of its own, already owned by MT-042, which is disclosed rather than counted as a pass."
+    },
+    "pt_116_1_and_ac_116_2_ac_116_4_INSPECTED": {
+      "schema_id": "hsk.mt_visual_inspection@1",
+      "recorded_at_utc": "2026-08-13T16:00:00Z",
+      "inspected_by": "KERNEL_BUILDER-20260812-113007",
+      "method": "The frames were OPENED and described, not merely captured — CX-503D1. Each PNG below was viewed directly and its contents are reported from what was seen.",
+      "artifact_root": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-116/ (frames dated 2026-08-13 01:51, which postdates the MT-116 chip fix).",
+      "ac_116_2_id_length_tested": "The resolved chip carries WP-KERNEL-012-MT116-RESOLVED-0123456789ABCDE — exactly 44 characters, the length the contract names.",
+      "variants_all_three_checked_per_ac_116_4": {
+        "resolved_blue": {
+          "frame": "mt116-above-default-resolved-chip-full-2x.png and -chip-tail-5x.png",
+          "observed": "At 2x the full label sits inside a light-blue pill whose background extends past the text on both sides. At 5x the tail reads 0-0123456789ABCDE and the pill background continues visibly PAST the final E before the pill terminates. Contained, with margin."
+        },
+        "unresolved_missing_red": {
+          "frame": "mt116-below-default-unresolved-missing-chip-full-4x.png",
+          "observed": "A pink/red pill carrying ? WP-MT116-UNRESOLVED-0123456789ABCDEF-MISSING (unresolved). The leading ? marker, the -MISSING suffix and the trailing (unresolved) qualifier are ALL inside the pill; the red background encloses the full string. This is the below-default font-size case."
+        },
+        "code_ref_in_an_H1_heading": {
+          "frame": "mt116-heading-h1-code-ref-chip-full-2x.png and -chip-tail-5x.png",
+          "observed": "A blue pill with the code-ref chevron marker carrying MT116CODEREFSYMBOL0123456789ABCDEFGHIJKLMNOP. At 5x the tail reads 9ABCDEFGHIJKLMNOP with the pill background extending past the final P, and the code-ref underline terminating at the pill edge rather than running past it.",
+          "why_this_is_the_decisive_one": "This is the case the packet record says was MISSED by the original cosmetic framing: line_layout routes a Heading through heading_with_base, which multiplies by HEADING_SCALE up to 1.8x, so a chip in an H1 was painted at the hardcoded 15.0 inside a pill measured at 1.8x the editor size. It is the LARGEST metric mismatch the defect could produce, and it renders contained."
+        }
+      },
+      "verdict": "PT-116-1 SATISFIED (a mounted 44-character-id chip frame opened and inspected), AC-116-2 SATISFIED (inspected at magnification where the label is legible, exact id length stated), AC-116-4 SATISFIED (resolved, unresolved -MISSING, and code-ref variants all checked, across above-default, below-default and H1-heading scales).",
+      "honesty_note": "These frames predate a LATER edit to rich_editor_widget.rs in this session (9fe1d89b, focus-follows-click on the editable surface). That change adds a focus request on click and touches no chip layout, spec or paint path, so the frames remain valid for the chip-containment property. Stated rather than left for a validator to notice."
     }
   },
   "scope": {
