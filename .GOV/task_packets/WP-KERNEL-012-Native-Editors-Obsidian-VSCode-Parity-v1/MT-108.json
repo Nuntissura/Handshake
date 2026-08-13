@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-13T15:30:00Z",
+  "updated_at_utc": "2026-08-13T16:40:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -819,7 +819,7 @@
   "ac_108_3_state_after_remediation_2026_08_13": {
     "schema_id": "hsk.mt108_state@1",
     "recorded_at_utc": "2026-08-13T13:30:00Z",
-    "headline": "Of the 25 binaries the sweep recorded as FAILED, 21 are green. 3 are inside the governed MT-045 supervisor run and 1 is filed as MT-134. AC-108-3 is still NOT MET and is not claimed.",
+    "headline": "Of the 25 binaries the sweep recorded as FAILED, 21 are green. test_perf_large_code is red on a real measured perf overshoot; two perf binaries were never reached; test_swarm_concurrency is filed as MT-134. AC-108-3 is NOT MET.",
     "green_now": {
       "count": 21,
       "binaries": [
@@ -856,7 +856,7 @@
       "test_e7_knowledge_accesskit_argus_RESOLVED": "12/0. The modal-contamination guard banned the SUBSTRING fems rather than a modal, and two shell-owned always-published click-completion observers (mt064.fems-proposal-flow-completion, mt065.fems-swarm-flow-completion) merely mention it. Settled against a historical PASSING artifact set for the same test that carries the identical observer family and zero fems. Fixed at 6ed4a271.",
       "test_interconnect_loom_backlink_search_RESOLVED": "19/0/1. The SHARED pg_proof_support recorder poll helpers used the uncredentialed get_json while the credentialed variant sat beside them, so every suite outside MT-115 seven got a bare 401. Fixed at e50abc15.",
       "mt008_binaries_RESOLVED": "test_code_nav_client 18/0 and test_completion_hover_accesskit 16/0. Neither needed the ready fixture: the MT-008 live gate only hard-fails when --features integration is explicitly enabled, and the remaining failure was the GPU screenshot host gate.",
-      "perf_trio_IN_PROGRESS": "test_perf_large_code / _knowledge / _rich. HSK_MT045_SOURCE_SHA is just git rev-parse HEAD and was supplied; the next gate is HSK_MT045_DIAGNOSTIC_RECEIPT, a supervisor preflight attestation bound to run_id + source_sha. Hand-authoring that receipt would be manufacturing evidence, so the GOVERNED supervisor script tests/run_mt045_perf_proof.ps1 is being run instead (RunId MT045-RUN-20260813-KB01)."
+      "perf_trio_MEASURED": "test_perf_large_code is RED on a real measurement: LC-06 500-file index 10928 ms against a 10000 ms budget, after LC-01..LC-05 all passed under the governed supervisor with a PASS preflight. test_perf_large_rich and test_perf_large_knowledge were never reached and carry no verdict."
     },
     "what_the_remediation_actually_consisted_of": {
       "genuine_product_defects_fixed": [
@@ -882,6 +882,28 @@
       "methodology_defects_in_the_sweep_itself": "A single shared database (test_stage_interop 30/1 shared vs 31/0 dedicated, no code change), no HANDSHAKE_GPU_SCREENSHOT, no HANDSHAKE_ARGUS_BINDING_ROOT, and no matrix env. Any future sweep must use per-binary scoped databases and set all four, or it manufactures failures."
     },
     "honest_position": "AC-108-3 requires the full handshake-native suite green. It is not. Five binaries remain red or unsupplied, each with a named owner and a root cause. MT-108 stays NEEDS_REIMPLEMENTATION_V4 and is NOT advanced.",
-    "updated_at_utc": "2026-08-13T15:30:00Z"
+    "updated_at_utc": "2026-08-13T15:30:00Z",
+    "perf_trio_governed_supervisor_run": {
+      "schema_id": "hsk.mt045_supervisor_run@1",
+      "recorded_at_utc": "2026-08-13T16:40:00Z",
+      "run_id": "MT045-RUN-20260813-KB02",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File src/frontend/handshake_native/tests/run_mt045_perf_proof.ps1 -RunId MT045-RUN-20260813-KB02 -CommandTimeoutSeconds 900",
+      "why_the_governed_script_rather_than_env_vars": "HSK_MT045_SOURCE_SHA turned out to be nothing more than git rev-parse HEAD and was supplied directly. The NEXT gate, HSK_MT045_DIAGNOSTIC_RECEIPT, is a supervisor preflight ATTESTATION bound to run_id + source_sha with status PASS. Hand-authoring that file would have been manufacturing evidence for a gate that was never passed, so the governed script was run instead.",
+      "preflight": "diagnostics-preflight.json status = PASS, run_id = MT045-RUN-20260813-KB02.",
+      "results": {
+        "passed": [
+          "perf_proof_perf_lc01_initial_render 1/0",
+          "perf_proof_perf_lc02_scroll_to_bottom 1/0",
+          "perf_proof_perf_lc03_find_replace 1/0",
+          "perf_proof_perf_lc04_multi_cursor 1/0",
+          "perf_proof_perf_lc05_memory 1/0"
+        ],
+        "failed": "perf_proof_perf_lc06_codebase_index — \"LC-06: 500-file index 10928 ms must be <= 10000 ms\" (test_perf_large_code.rs:768). Over budget by 928 ms, i.e. 9.3%.",
+        "not_reached": "test_perf_large_rich and test_perf_large_knowledge. The supervisor throws on the first failing label, so those two binaries never ran in this session and NO claim is made about them."
+      },
+      "the_budget_was_NOT_raised": "The panic names its own override, PERF_BUDGET_LC06_MS. Setting it to make the run green would convert a measured regression into a passing number, which is precisely what a perf budget exists to prevent. It was left alone.",
+      "load_confounder_stated_not_used_as_an_excuse": "This machine is carrying concurrent work-packet builds by Operator design, and this session was itself running cargo builds. A 9.3% overshoot on a wall-clock index budget is inside the range machine load can plausibly explain — but that is a HYPOTHESIS, not a finding. It is recorded as a real failing measurement. A clean verdict needs one re-run on a quiet machine; if it still exceeds, it is a genuine LC-06 regression.",
+      "first_attempt_failed_for_my_own_reason": "Run MT045-RUN-20260813-KB01 died at lc01 with \"compiled MT-045 proof source is not bound to the supervisor committed HEAD\" (left e50abc15, right 25276cf8). I had continued committing product changes while a SHA-BOUND supervisor was running, so HEAD moved out from under it. Operational error, not a product defect, and recorded so the next runner does not chase it."
+    }
   }
 }
