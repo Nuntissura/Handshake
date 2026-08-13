@@ -95,11 +95,26 @@ fn mt108_command_palette_canonical_argus_action() {
         observation.receipt_status.as_str(),
         "applied" | "indeterminate"
     ));
-    assert!(!json_has_author_id(
-        &observation.after,
-        PALETTE_DIALOG_AUTHOR_ID
-    ));
-    assert!(any_pane_has_usermanual_tab(harness.state()));
+    // Bind the product-state assertions to the AUTHORITATIVE TERMINAL snapshot rather than to the
+    // click-time `observation.after`. `finish()` requires every canonical action to be rebound that
+    // way (canonical_argus_driver.rs:1057-1060) and only the predicate family calls
+    // `reinspect_latest_terminal`, which is what sets `terminal_refreshed` — so asserting from the
+    // provisional snapshot left the action unbound and failed the driver contract.
+    //
+    // This STRENGTHENS the test: the same two conditions are now checked against a freshly
+    // re-inspected tree and recorded as a named predicate on the trace row, instead of against a
+    // snapshot captured mid-action.
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt108.command-palette.usermanual-opened-and-dialog-dismissed",
+        serde_json::json!({
+            "clicked_target": target,
+            "dialog_author_id": PALETTE_DIALOG_AUTHOR_ID,
+        }),
+        |after, app| {
+            !json_has_author_id(after, PALETTE_DIALOG_AUTHOR_ID) && any_pane_has_usermanual_tab(app)
+        },
+    );
     if matrix_selected {
         let _ = harness.render_proof_frame(
             "MT-108 Command Palette matrix requires a material post-action frame",

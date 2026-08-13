@@ -358,17 +358,34 @@ fn mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state(
         observation.receipt_status.as_str(),
         "applied" | "indeterminate"
     ));
-    assert!(!harness.state().quick_switcher_open());
-    assert!(harness
-        .state()
-        .tab_bar_states()
-        .values()
-        .any(|bar| bar.tabs.iter().any(|tab| {
-            tab.content_id.as_deref() == Some("KRD-ARGUS")
-                && tab.pane_type == PaneType::LoomWikiPage
-        })));
-    let after = argus.inspect(&mut harness);
-    assert!(!json_has_author_id(&after, SWITCHER_DIALOG_AUTHOR_ID));
+    // Bind the post-action state to the AUTHORITATIVE TERMINAL snapshot. `finish()` requires every
+    // canonical action to be rebound that way (canonical_argus_driver.rs:1057-1060), and only the
+    // predicate family calls `reinspect_latest_terminal`, which is what sets `terminal_refreshed`.
+    // A bare `argus.inspect(..)` reads a tree WITHOUT rebinding the action to it, so the driver
+    // correctly refused to certify the run.
+    //
+    // Same three conditions as before — switcher closed, the KRD-ARGUS wiki tab open, and the
+    // dialog gone from the tree — now evaluated against a freshly re-inspected tree and recorded as
+    // a named predicate on the trace row. Strictly stronger than asserting them separately.
+    argus.assert_latest_terminal_predicate_with_app_evidence(
+        &mut harness,
+        "mt070.quick-switcher.document-opened-and-dialog-dismissed",
+        serde_json::json!({
+            "clicked_target": target,
+            "expected_content_id": "KRD-ARGUS",
+            "dialog_author_id": SWITCHER_DIALOG_AUTHOR_ID,
+        }),
+        |after, app| {
+            !app.quick_switcher_open()
+                && app.tab_bar_states().values().any(|bar| {
+                    bar.tabs.iter().any(|tab| {
+                        tab.content_id.as_deref() == Some("KRD-ARGUS")
+                            && tab.pane_type == PaneType::LoomWikiPage
+                    })
+                })
+                && !json_has_author_id(after, SWITCHER_DIALOG_AUTHOR_ID)
+        },
+    );
     if matrix_scenario.is_some() {
         let _ = harness.render_proof_frame(
             "MT-108 Quick Switcher matrix requires a material post-action frame",
