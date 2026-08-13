@@ -693,9 +693,18 @@ impl StagePane {
                 }
 
                 // The routed-content region (Role::GenericContainer) — the route-leg landing.
+                // `.id(..)` (= id_salt + global_scope), NOT `.id_salt(..)`. MEASURED: with id_salt egui
+                // derives `unique_id = parent.with(salt).with(next_auto_id_salt)` (egui-0.33.3
+                // ui.rs:309-311), so the id moves whenever the number of PRECEDING siblings changes.
+                // The status region above this one swaps `stage-route-status` for
+                // `stage-embed-back-status` on a successful embed-back, which shifted this node and the
+                // button below it while 156 of 159 author_ids in the same tree held their node_id
+                // steady. global_scope makes both ids the bare salt (ui.rs:307), which is egui's own
+                // documented remedy: "an id of the new Ui that is independent of the parent Ui". Its
+                // precondition — the subtree is rendered in exactly one place per frame — holds here.
                 let routed_id = egui::Id::new(STAGE_ROUTED_CONTENT_AUTHOR_ID);
                 let routed_resp = ui
-                    .scope_builder(egui::UiBuilder::new().id_salt(routed_id), |ui| {
+                    .scope_builder(egui::UiBuilder::new().id(routed_id), |ui| {
                         ui.label(
                             egui::RichText::new("Routed content")
                                 .color(palette.text_subtle)
@@ -734,8 +743,13 @@ impl StagePane {
                     }));
                 let btn_resp = ui
                     .scope_builder(
+                        // `.id(..)` for the same measured reason as the routed-content region above:
+                        // this button's node_id must not move when its own action succeeds. It did,
+                        // which is why the MT-117 persistent observer rejected with "persistent
+                        // observer target identity or action capability drifted" — role, enabled state
+                        // and actions were byte-identical before and after; only node_id changed.
                         egui::UiBuilder::new()
-                            .id_salt(egui::Id::new(STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)),
+                            .id(egui::Id::new(STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)),
                         |ui| ui.add_enabled(action_enabled, btn),
                     )
                     .inner;
