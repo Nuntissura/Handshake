@@ -267,7 +267,16 @@ fn file_save_dispatches_editor_save_path() {
         app.dispatch_palette_action_for_test(CMD_VIEW_RICH_NOTE),
         "precondition: activate the mounted rich editor pane without binding a backend document id"
     );
-    let rich_state = app.mounted_rich_state();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+    // Install the SaveManager AFTER the first frames. HandshakeApp::ui() calls
+    // ensure_rich_document_workspace() on frame 1, and bind_workspace overwrites the base rich state
+    // IN PLACE with a fresh RichEditorState::demo() (editor_pane_factories.rs:866-889), because the
+    // bound workspace id starts empty while the active project id does not. Installing before the
+    // harness destroyed this exact observation instrument through the very same Arc, and the click
+    // then built a REAL runtime-backed SaveManager that fired a live PUT at an absent backend and
+    // drained to SaveState::Error before the assertion ran. The save ROUTING was never wrong.
+    let rich_state = harness.state().mounted_rich_state();
     rich_state.lock().unwrap().save = Some(
         handshake_native::rich_editor::save::save_manager::SaveManager::new(
             std::sync::Arc::new(handshake_native::backend_client::RichDocSaveBackend::new(
@@ -278,8 +287,6 @@ fn file_save_dispatches_editor_save_path() {
             1,
         ),
     );
-    let mut harness = shell_harness(app);
-    harness.run_steps(3);
 
     // No editor command observed yet, and the MT-020 SaveManager is NOT in flight before the menu Save.
     assert!(
@@ -1326,7 +1333,16 @@ fn palette_save_live_row_click_reaches_active_rich_save_manager() {
         app.dispatch_palette_action_for_test(CMD_VIEW_RICH_NOTE),
         "precondition: activate the mounted rich editor pane"
     );
-    let rich_state = app.mounted_rich_state();
+    let mut harness = shell_harness(app);
+    harness.run_steps(2);
+    // Install the SaveManager AFTER the first frames. HandshakeApp::ui() calls
+    // ensure_rich_document_workspace() on frame 1, and bind_workspace overwrites the base rich state
+    // IN PLACE with a fresh RichEditorState::demo() (editor_pane_factories.rs:866-889), because the
+    // bound workspace id starts empty while the active project id does not. Installing before the
+    // harness destroyed this exact observation instrument through the very same Arc, and the click
+    // then built a REAL runtime-backed SaveManager that fired a live PUT at an absent backend and
+    // drained to SaveState::Error before the assertion ran. The save ROUTING was never wrong.
+    let rich_state = harness.state().mounted_rich_state();
     rich_state.lock().unwrap().save = Some(
         handshake_native::rich_editor::save::save_manager::SaveManager::new(
             std::sync::Arc::new(handshake_native::backend_client::RichDocSaveBackend::new(
@@ -1337,8 +1353,6 @@ fn palette_save_live_row_click_reaches_active_rich_save_manager() {
             1,
         ),
     );
-    let mut harness = shell_harness(app);
-    harness.run_steps(2);
     assert!(
         !rich_state.lock().unwrap().save_is_in_flight(),
         "SaveManager idle before palette Save click"
@@ -1782,6 +1796,41 @@ fn file_export_click_yields_export_bytes_not_save_manager_state() {
         !rich_state.lock().unwrap().save_is_in_flight(),
         "SaveManager idle before the export click"
     );
+
+    // Seed the BOUND document through the PRODUCTION load installer, not by poking .doc.
+    //
+    // open_document binds a content_id, so the active rich state is a fresh per-view state that
+    // state_for_view deliberately creates BLANK (editor_pane_factories.rs:258-263) until its
+    // authoritative GET lands - and there is no backend here, so it never does. Exporting that blank
+    // doc emitted markdown for one empty paragraph — two bare newlines: non-empty bytes that trim to
+    // empty, which is what the assertion caught. It passed historically because mounted_rich_state()
+    // resolved to the single shared RichEditorState::demo(); the per-view store (892662e0) made a
+    // BOUND document resolve to a blank view instead.
+    //
+    // Using the real installer also marks the view READY, which the export path now requires - see
+    // the loading gate added to export_active_document. Seeding .doc directly would have left the
+    // view unready and exercised a state no operator can reach.
+    harness
+        .state_mut()
+        .apply_loaded_rich_document_for_test(handshake_native::backend_client::RichDocBody {
+        document_id: "KRD-mt069-export-target".to_owned(),
+        workspace_id: "default-project".to_owned(),
+        doc_version: 1,
+        title: "MT-069 export target".to_owned(),
+        content_json: serde_json::json!({
+            "type": "doc",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "MT-069 export body" }] }]
+        }),
+        crdt_document_id: None,
+        authority_label: "AUTHORITATIVE".to_owned(),
+        owner_actor_kind: Some("operator".to_owned()),
+        owner_actor_id: Some("operator".to_owned()),
+        project_ref: None,
+        folder_ref: None,
+        created_at: "2026-08-13T00:00:00Z".to_owned(),
+        updated_at: "2026-08-13T00:00:00Z".to_owned(),
+    })
+    .expect("production load installer seeds the export target");
 
     // Open FILE, click each Export Document format by its stable author_id (the swarm-agent click path).
     for (author_id, expected_ext) in [

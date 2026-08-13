@@ -15593,6 +15593,33 @@ impl HandshakeApp {
     ) -> bool {
         use crate::rich_editor::save::conflict_ui::{NativeFileSaveSink, PendingFileSave};
         use crate::rich_editor::save::export::{export_document, AssetByteSource};
+
+        // Refuse to export a document whose authoritative GET has not landed.
+        //
+        // `state_for_view` deliberately creates a bound document's view BLANK until its load installs
+        // (editor_pane_factories.rs:258-263), and the MOUNT honours that with a non-editable loading
+        // gate (:1671-1693). This path had no such gate, so FILE > Export on a still-loading document
+        // serialized the empty placeholder and wrote it to an operator-CHOSEN path — silently
+        // replacing whatever was there with an empty file. That is data loss triggered by a menu
+        // click, not a cosmetic issue.
+        //
+        // Returns false with a typed log, the same honest no-op shape the Export arms already use
+        // when there is no active rich target (app.rs:14750-14755).
+        if let Some((pane_id, document_id)) = self.active_rich_document_binding() {
+            if !self
+                .editor_mounts
+                .rich_documents
+                .is_view_ready(&document_id, &pane_id)
+            {
+                tracing::info!(
+                    document_id = %document_id,
+                    pane_id = %pane_id,
+                    "editor Export requires a loaded document; the authoritative load has not landed yet; no-op"
+                );
+                return false;
+            }
+        }
+
         let rich = self.active_rich_state();
         let mut state = match rich.lock() {
             Ok(s) => s,
