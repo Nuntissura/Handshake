@@ -1,0 +1,93 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-134",
+  "title": "E12-MT-134-Wire-The-MT-028-Lease-Registry-Into-The-Widget-Mutation-Path-It-Was-Built-For",
+  "group": "E12-Swarm",
+  "created_at_utc": "2026-08-13T12:20:00Z",
+  "updated_at_utc": "2026-08-13T12:20:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-134.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "scope": {
+    "summary": "src/frontend/handshake_native/src/mcp/leases.rs implements a complete 468-line LeaseRegistry - waiting acquisition, per-acquire timeout backstop, and deadlock-free ordered multi-key acquisition - and it has ZERO call sites anywhere outside its own file. The widget-mutation RPC path never acquires a lease. Instead ActionChannel::enqueue fails fast with ActionError::TargetBusy, which tools.rs:314 maps to ERR_LEASE_TIMEOUT (-32004). The substrate was built and never connected.",
+    "evidence": {
+      "zero_call_sites": "grep for acquire_all / .acquire( across src/frontend/handshake_native/src excluding leases.rs returns NOTHING. The registry is dead code by wiring, not by design.",
+      "what_happens_instead": "action.rs:1077-1093 scans queue + in_flight for a conflicting lease and returns Err(ActionError::TargetBusy) IMMEDIATELY. There is no wait and no deadline.",
+      "the_failing_proof": "test_swarm_concurrency::test_swarm_concurrency_n5. Its own comment states the contract: \"Under a generous timeout the lease only WAITS; every mutation must enqueue.\" All five agents target shell.chrome.theme-toggle / the rail input concurrently, and agents 0, 1 and 2 each got {\"code\":-32004,\"message\":\"widget 'shell.chrome.theme-toggle' already has an unacknowledged mutation\"} on action 0. The test asserts queued == true.",
+      "the_registry_already_does_the_right_thing": "leases.rs documents waiting acquisition (:157-158, :21), the timeout as a SECONDARY backstop rather than the primary mechanism (:38-39), and acquire_all sorting keys so the classic ABBA deadlock is eliminated by construction (:35-37). None of that is reachable today."
+    },
+    "the_constraint_that_makes_this_architectural": {
+      "why_a_retry_loop_inside_dispatch_request_CANNOT_work": "dispatch_request (tools.rs:344-350) is SYNCHRONOUS and holds `channel: &mut ActionChannel` for its whole body. Waiting there would block while holding the exclusive borrow the frame loop needs in order to drain the queue and RELEASE the very lease being waited on. It would not merely be slow - it would deadlock.",
+      "where_the_wait_must_live": "Above the channel borrow, at the async server layer that owns the channel lock (mcp/server.rs), so the lock is RELEASED between attempts and the frame loop can make progress. Any implementer who tries the obvious in-dispatch retry first will lose a cycle to this; it is recorded so they do not.",
+      "second_design_question": "A lease guard must live until the action TERMINALIZES (applied / rejected / indeterminate), not until enqueue returns - otherwise a second agent acquires while the first action is still in flight and the torn-state guarantee is gone. Decide explicitly whether the guard is carried on the pending action record and dropped at acknowledgement, or whether the existing queue+in_flight scan stays the authority and the registry only provides the WAIT. The second is much smaller and may be sufficient; state which was chosen and why."
+    },
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/mcp/server.rs",
+      "src/frontend/handshake_native/src/mcp/tools.rs",
+      "src/frontend/handshake_native/src/mcp/action.rs",
+      "src/frontend/handshake_native/src/mcp/leases.rs",
+      "src/frontend/handshake_native/tests/**"
+    ],
+    "forbidden_paths": [
+      "src/backend/**",
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": {
+      "AC-134-1": "A mutating RPC whose target is busy WAITS for the lease instead of returning -32004 immediately, up to a documented deadline. The wait must not hold the ActionChannel borrow.",
+      "AC-134-2": "test_swarm_concurrency::test_swarm_concurrency_n5 passes: five concurrent agents, every mutation enqueued, no torn state, each response carrying its own agent_id.",
+      "AC-134-3": "The timeout still FIRES. Prove it RED: hold a lease past the deadline and show -32004 is still returned. A wait that can never time out is a hang, not a fix.",
+      "AC-134-4": "No lock is held across an await, and no ordering exists by which two multi-key operations can deadlock. If acquire_all is used, its ordered-acquisition property must be preserved rather than re-implemented at the call site.",
+      "AC-134-5": "The guard lifetime decision from scope.the_constraint_that_makes_this_architectural.second_design_question is recorded in this contract with its rationale before implementation starts."
+    },
+    "proof_targets": {
+      "PT-134-1": "test_swarm_concurrency green at n5.",
+      "PT-134-2": "The AC-134-3 RED run showing the deadline still returns -32004.",
+      "PT-134-3": "A concurrency proof that two agents targeting DIFFERENT widgets never block each other - otherwise the fix has serialized the whole surface instead of per-resource leasing."
+    },
+    "risk_if_missed": "HBR-SWARM parallel steering does not work under contention. Any two agents touching the same widget lose actions with a bare -32004, and the operator-facing symptom is a swarm that silently drops work. The registry that would fix it already exists and is inert."
+  },
+  "lifecycle": {
+    "status": "NOT_STARTED",
+    "active": false,
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "Isolated while clearing MT-108 AC-108-3. test_swarm_concurrency was UNROUTED in the MT-127 table; root-caused to the MT-028 lease registry having zero call sites. Not fixed inline because the wait cannot live where the failure surfaces - dispatch_request holds &mut ActionChannel, so waiting there deadlocks against the frame loop that would release the lease. That is a design decision, not a patch."
+  },
+  "hbr_obligations": {
+    "SWARM": "This IS the HBR-SWARM contention path. Attribution must survive: each response keeps its own agent_id.",
+    "MAN": "UserManual must state the wait-and-timeout contract an agent should expect on a contended widget.",
+    "INT": "HBR-INT-009: Flight Recorder NOT_APPLICABLE (transport-level leasing); internal_diagnostics and Palmistry DEFERRED-with-reason per CX-981-005."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}
