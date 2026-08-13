@@ -6509,9 +6509,14 @@ mod tests {
         // Measure the UNTRUNCATED galley in this same context rather than hardcoding font metrics,
         // so a future font/style change cannot quietly shrink the fixture below the overflow point.
         let body_font = egui::TextStyle::Body.resolve(&ctx.style());
+        // The colour is irrelevant to WIDTH, which is all this interlock measures, so take it from
+        // the theme palette rather than writing a literal. `test_theme` bans hardcoded `Color32`
+        // literals outside palette.rs/syntax.rs and scans this file's test module too - a literal
+        // here turns that guard red, which is exactly how the capstone sweep caught it.
+        let measure_palette = crate::theme::HsTheme::Dark.palette();
         let untruncated_label_width = ctx.fonts_mut(|fonts| {
             fonts
-                .layout_no_wrap(bookmark.label.clone(), body_font, egui::Color32::WHITE)
+                .layout_no_wrap(bookmark.label.clone(), body_font, measure_palette.text)
                 .size()
                 .x
         });
