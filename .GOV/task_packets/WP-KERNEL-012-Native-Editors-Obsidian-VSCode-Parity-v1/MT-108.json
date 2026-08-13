@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-13T13:30:00Z",
+  "updated_at_utc": "2026-08-13T14:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -819,9 +819,9 @@
   "ac_108_3_state_after_remediation_2026_08_13": {
     "schema_id": "hsk.mt108_state@1",
     "recorded_at_utc": "2026-08-13T13:30:00Z",
-    "headline": "Of the 25 binaries the 2026-08-13T00:30 sweep recorded as FAILED, 20 are now green. AC-108-3 is still NOT MET and is not claimed.",
+    "headline": "Of the 25 binaries the 2026-08-13T00:30 sweep recorded as FAILED, 21 are now green. AC-108-3 is still NOT MET and is not claimed.",
     "green_now": {
-      "count": 20,
+      "count": 21,
       "binaries": [
         "test_backend_down_responsive 33/0/1",
         "test_block_collection_view 29/0",
@@ -842,18 +842,19 @@
         "test_uia_steer_proof 3/0",
         "test_locus_interop 32/0/1 (dedicated database)",
         "test_stage_interop 31/0 (dedicated database)",
-        "test_ckc_embed 26/0"
+        "test_ckc_embed 26/0",
+        "test_menu_wireup 41/0"
       ]
     },
     "still_red": {
-      "test_menu_wireup": "38/3. file_export_click_yields_export_bytes_not_save_manager_state, file_save_dispatches_editor_save_path, palette_save_live_row_click_reaches_active_rich_save_manager. PROVEN pre-existing: stashing all of this session work and re-running gives 35/6 at clean HEAD with these three among them. Not yet root-caused.",
       "test_swarm_concurrency": "Root-caused and filed as MT-134: the MT-028 LeaseRegistry has zero call sites, so a contended widget fails fast with -32004 instead of waiting. Not fixed inline because the wait cannot live in dispatch_request without deadlocking against the frame loop.",
       "test_e7_knowledge_accesskit_argus": "11/1 with --features integration,wgpu_screenshots, on \"FEMS contaminated proof tree\" (:225). Pre-existing and already routed to MT-042.",
       "environment_dependent_not_yet_supplied": [
         "test_code_nav_client and test_completion_hover_accesskit - the MT-008 ready fixture (HANDSHAKE_TEST_WORKSPACE_ID plus a prepared workspace with indexed code).",
         "test_perf_large_code / _knowledge / _rich - HSK_MT045_SOURCE_SHA from the supervisor.",
         "test_interconnect_loom_backlink_search - a credentialed Flight Recorder read (GET /events returns 401 HSK-401-FR-SESSION), the MT-109 boundary."
-      ]
+      ],
+      "test_menu_wireup_RESOLVED": "41 passed / 0 failed, up from 35/6 at clean HEAD. The three failures were NOT a handle mismatch: the test Arc and the product Arc were the SAME, and the divergence was TEMPORAL - bind_workspace overwrites the base rich state IN PLACE on frame 1 (editor_pane_factories.rs:866-889), destroying a SaveManager installed before the harness was built. Fixing it exposed a real product defect: export_active_document had no readiness gate, so FILE > Export on a still-loading document wrote an EMPTY file to an operator-chosen path. Fixed at 25276cf8."
     },
     "what_the_remediation_actually_consisted_of": {
       "genuine_product_defects_fixed": [
@@ -878,6 +879,7 @@
       ],
       "methodology_defects_in_the_sweep_itself": "A single shared database (test_stage_interop 30/1 shared vs 31/0 dedicated, no code change), no HANDSHAKE_GPU_SCREENSHOT, no HANDSHAKE_ARGUS_BINDING_ROOT, and no matrix env. Any future sweep must use per-binary scoped databases and set all four, or it manufactures failures."
     },
-    "honest_position": "AC-108-3 requires the full handshake-native suite green. It is not. Five binaries remain red or unsupplied, each with a named owner and a root cause. MT-108 stays NEEDS_REIMPLEMENTATION_V4 and is NOT advanced."
+    "honest_position": "AC-108-3 requires the full handshake-native suite green. It is not. Five binaries remain red or unsupplied, each with a named owner and a root cause. MT-108 stays NEEDS_REIMPLEMENTATION_V4 and is NOT advanced.",
+    "updated_at_utc": "2026-08-13T14:30:00Z"
   }
 }
