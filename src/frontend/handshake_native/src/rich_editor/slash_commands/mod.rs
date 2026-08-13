@@ -55,6 +55,16 @@ use crate::rich_editor::document_model::selection::Selection;
 /// `slash-menu`, Role::Menu). A swarm agent addresses the open menu by this stable key.
 pub const SLASH_MENU_AUTHOR_ID: &str = "slash-menu";
 
+/// The AccessKit author_ids of the slash-menu list scrollbars.
+///
+/// egui creates an interaction widget for BOTH axes unconditionally, and the shown one senses
+/// click-and-drag — an interactive node with role `Unknown` and no author_id, which the HBR-SWARM
+/// gate (`accessibility::registry`) panics on. They are named rather than hidden because the list is
+/// genuinely scrollable: the catalog carries more commands than [`SLASH_MENU_MAX_VISIBLE`], so an
+/// agent driving the menu needs a real handle on the bar.
+pub const SLASH_MENU_SCROLLBAR_H_AUTHOR_ID: &str = "slash-menu-scrollbar-h";
+pub const SLASH_MENU_SCROLLBAR_V_AUTHOR_ID: &str = "slash-menu-scrollbar-v";
+
 /// The author_id PREFIX for each menu item row (`slash-item-{id}`, AC-7 / MT scope:
 /// Role::MenuItem). The full id is `{SLASH_ITEM_AUTHOR_ID_PREFIX}{cmd.id}`.
 pub const SLASH_ITEM_AUTHOR_ID_PREFIX: &str = "slash-item-";

@@ -8241,7 +8241,7 @@ impl CodeEditorPanel {
             // center scope so it claims its strip and the scroll area divides the remaining rect — the
             // reservation is structural (the scroll area gets `available_height - band_height`), not an
             // overlay, so occlusion is impossible by construction.
-            self.render_sticky_band(ui, total_lines, line_height);
+            let sticky_band_rect = self.render_sticky_band(ui, total_lines, line_height);
 
             // SCROLL-AREA scope (AC-004: Role::ScrollView, author_id "code_editor_scroll_area"). The
             // virtualized rows render inside it via `show_rows`, which only invokes the closure for
@@ -8420,8 +8420,18 @@ impl CodeEditorPanel {
             // widgets. The editor's primary caret/gutter handlers have already consumed this frame's
             // input above, while the find bar is rendered after this and therefore remains topmost over
             // its own controls.
+            //
+            // AC-006: the rect must also EXCLUDE the sticky band on Y, exactly as it already excludes
+            // the gutter on X. `full_rect` is captured before the gutter panel and before the band
+            // claim their strips, so `full_rect.top()` is the top of the BAND. Covering the band with a
+            // full `Sense::click()` surface registered after it meant egui's last-widget-wins tie-break
+            // (hit_test.rs:436-440) handed every sticky-header click to this surface instead, and the
+            // header's `Label` never reported `clicked()` -- so no scroll was ever requested. The
+            // thin-widget escape hatch could not save it either: `should_prioritize_hits_on_back`
+            // returns false when the front rect contains the back one (hit_test.rs:453-456).
+            let editor_body_top = sticky_band_rect.map_or(full_rect.top(), |band| band.bottom());
             let editor_body_context_rect = egui::Rect::from_min_max(
-                egui::pos2(gutter_rect.right(), full_rect.top()),
+                egui::pos2(gutter_rect.right(), editor_body_top),
                 full_rect.max,
             );
             self.render_editor_context_menu(ui, editor_body_context_rect);
@@ -9943,10 +9953,18 @@ impl CodeEditorPanel {
     /// (the SAME fold-aware scroll path). Emits the `code_editor_sticky_scroll` (Role::GenericContainer)
     /// container node and a `sticky-header-{depth}` (Role::Button) node per header. A no-op (and no nodes)
     /// when no scope encloses the viewport top.
-    fn render_sticky_band(&self, ui: &mut egui::Ui, total_lines: usize, line_height: f32) {
+    /// Renders the pinned-header band and returns the rect it claimed, or `None` when no band was
+    /// emitted. AC-006: the caller MUST exclude that rect from the editor-body context surface -- see
+    /// the call site for why an overlapping later widget silently eats the header click.
+    fn render_sticky_band(
+        &self,
+        ui: &mut egui::Ui,
+        total_lines: usize,
+        line_height: f32,
+    ) -> Option<egui::Rect> {
         // MT-035: honor the Settings sticky-scroll toggle — when disabled, emit no band + no headers.
         if !self.sticky_scroll_enabled() {
-            return;
+            return None;
         }
         // Recompute headers EVERY frame from the CURRENT scroll offset + the live fold regions (RISK-004 /
         // MC-004 — no caching across edits). The first visible BUFFER line is the start of the last painted
@@ -9959,7 +9977,7 @@ impl CodeEditorPanel {
                 .compute(viewport_top, &fold_set.regions, &buffer)
         };
         if headers.is_empty() {
-            return;
+            return None;
         }
 
         let band_height = headers.len() as f32 * line_height;
@@ -9972,7 +9990,7 @@ impl CodeEditorPanel {
         let syntax = syntax_tokens_for(ui.visuals());
         let mut click_line: Option<usize> = None;
 
-        egui::TopBottomPanel::top(panel_id)
+        let band_response = egui::TopBottomPanel::top(panel_id)
             .resizable(false)
             .exact_height(band_height)
             .show_separator_line(true)
@@ -10037,9 +10055,9 @@ impl CodeEditorPanel {
         // Apply a header click AFTER the panel closure (fold-aware scroll, the same path JumpTo uses).
         if let Some(line) = click_line {
             self.record_jump_origin();
-            let visible_line = self.buffer_line_to_visible_line(line);
-            self.scroll_to_line(visible_line);
+            self.scroll_to_line(self.buffer_line_to_visible_line(line));
         }
+        Some(band_response.response.rect)
     }
 
     /// The `egui::Id` salt for the outline panel scope (default uses the fixed nav-band slot; instances

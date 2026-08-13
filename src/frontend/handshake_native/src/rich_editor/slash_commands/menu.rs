@@ -29,6 +29,7 @@ use crate::theme::HsPalette;
 use super::registry::{filter_slash_commands, SlashCategory, SlashCommand, SLASH_MENU_MAX_VISIBLE};
 use super::{
     slash_item_author_id, SlashMenuState, SLASH_ITEM_ROLE, SLASH_MENU_AUTHOR_ID, SLASH_MENU_ROLE,
+    SLASH_MENU_SCROLLBAR_H_AUTHOR_ID, SLASH_MENU_SCROLLBAR_V_AUTHOR_ID,
     SLASH_PROMPT_CANCEL_AUTHOR_ID, SLASH_PROMPT_DIALOG_AUTHOR_ID, SLASH_PROMPT_INPUT_AUTHOR_ID,
     SLASH_PROMPT_OK_AUTHOR_ID,
 };
@@ -147,8 +148,17 @@ pub fn render_slash_menu(
 
     let mut clicked_index: Option<usize> = None;
 
+    // `.sense(Sense::hover())` is REQUIRED, not cosmetic. `fixed_pos` sets `movable = false`
+    // (egui-0.33.3 area.rs:277-281) while leaving `interactable = true`, so the Area's move-response
+    // otherwise defaults to `Sense::click()` (area.rs:504-514). egui then auto-builds an AccessKit node
+    // for it (context.rs:1208-1212) carrying `Action::Click` but NO role and NO author_id
+    // (response.rs:832-848) -- which is precisely what the HBR-SWARM gate panics on
+    // (accessibility/registry.rs:674-679, :697-714). The popup is already addressable as `slash-menu`
+    // on the Frame below; this invisible move handle is not a surface anyone should target, so it is
+    // de-sensed rather than named. Same tactic as app.rs:34394-34396.
     egui::Area::new(ui.id().with("slash-menu-area"))
         .order(egui::Order::Foreground)
+        .sense(egui::Sense::hover())
         .fixed_pos(popup_pos)
         .show(ui.ctx(), |ui| {
             let frame = egui::Frame::popup(ui.style());
@@ -160,7 +170,7 @@ pub fn render_slash_menu(
                         ui.colored_label(palette.text_subtle, "No matching commands");
                         return;
                     }
-                    egui::ScrollArea::vertical()
+                    let scroll_out = egui::ScrollArea::vertical()
                         .id_salt("slash-menu-scroll")
                         .max_height(row_height(ui) * SLASH_MENU_MAX_VISIBLE as f32)
                         .auto_shrink([false, false])
@@ -188,6 +198,25 @@ pub fn render_slash_menu(
                                 }
                             }
                         });
+                    // Name BOTH scrollbar interaction ids. egui builds each one as the scroll-area id
+                    // combined with the dimension index, for d in 0..2 (scroll_area.rs:1317), and the
+                    // SHOWN one senses click_and_drag
+                    // (:1318-1323) -- another role-Unknown clickable node with no author_id, the same
+                    // gate violation as the Area above. The bar is a genuinely useful target for an
+                    // agent driving a 21-command list through a 20-row window, so it is NAMED rather
+                    // than hidden. Naming the hidden axis too is harmless: an unshown bar senses only
+                    // hover and is not interactive by the gate definition.
+                    for d in 0..2usize {
+                        crate::accessibility::emit_interactive_node(
+                            ui.ctx(),
+                            scroll_out.id.with(d),
+                            &crate::rich_editor::scoped_author_id(if d == 0 {
+                                SLASH_MENU_SCROLLBAR_H_AUTHOR_ID
+                            } else {
+                                SLASH_MENU_SCROLLBAR_V_AUTHOR_ID
+                            }),
+                        );
+                    }
                 })
                 .response;
 

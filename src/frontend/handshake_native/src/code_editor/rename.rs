@@ -974,8 +974,25 @@ pub fn render_preview(
             // both hunk colors track dark/light like every other widget instead of baking literals.
             let diff_removed_color = super::gutter::diagnostic_tokens_for(ui.visuals()).error;
             let diff_added_color = rename_preview_added_color(ui.visuals());
+            // The diff list must leave room for the Apply/Cancel row BELOW it, inside the viewport.
+            //
+            // With a flat `.max_height(360.0)` and `auto_shrink([false, false])` the list claims
+            // `min(available, 360)` regardless of content (egui-0.33.3 scroll_area.rs:717-720), and the
+            // window's stored size follows its UNCLAMPED content (area.rs:667) while `constrain` only
+            // pins the TOP (area.rs:559). On a short viewport the action row therefore fell past the
+            // window's clip rect (area.rs:630), which empties its `interact_rect`
+            // (ui.rs:1140) and makes it unhittable (hit_test.rs:421-422) — while its AccessKit node
+            // kept advertising the UNCLIPPED bounds (response.rs:836-841). That combination is why the
+            // node-present and Role::Button assertions passed while the click silently did nothing:
+            // the tree said the button was there, and the hit test said nothing was.
+            //
+            // Clamping to the live content rect is the same defence slash_commands/menu.rs:121,134-141
+            // already uses. This is a real product defect, not a test artefact: an operator with a
+            // short editor area could not reach Apply or Cancel either.
+            let action_row_reserve = 140.0;
+            let max_list_height = (ctx.content_rect().height() - action_row_reserve).clamp(80.0, 360.0);
             egui::ScrollArea::vertical()
-                .max_height(360.0)
+                .max_height(max_list_height)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     for file in &preview.files {
