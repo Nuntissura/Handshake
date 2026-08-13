@@ -108,6 +108,26 @@ fn live_author_id_set() -> HashSet<String> {
     for ident in DECLARED_IDENTITIES {
         set.insert(ident.author_id.to_owned());
     }
+    // The HASHED half of the SAME registry. DECLARED_IDENTITIES only carries hand-assigned numeric
+    // NodeIds; ids backed by egui hashed ids live in DECLARED_HASHED_AUTHOR_IDS. Reading only the first
+    // half made the audit report perfectly-registered surfaces as ORPHANS - stage-route-status and
+    // stage-route-retry sit in that list, while their sibling stage-embed-back-status had been
+    // hand-excluded instead, which is how the gap stayed hidden. Both halves are LIVE registry
+    // resources, so this keeps the audit non-tautological.
+    for author_id in handshake_native::accessibility::DECLARED_HASHED_AUTHOR_IDS {
+        set.insert((*author_id).to_owned());
+    }
+    // The FEMS memory-class radios are GENERATED from the live enum, not a static array, so source
+    // them from the same generator the widget uses rather than re-typing three literals.
+    for class in [
+        handshake_native::fems::memory_proposal::MemoryClass::Episodic,
+        handshake_native::fems::memory_proposal::MemoryClass::Semantic,
+        handshake_native::fems::memory_proposal::MemoryClass::Procedural,
+    ] {
+        set.insert(handshake_native::fems::memory_proposal::fems_class_author_id(class));
+    }
+    // The MT-036 Flight Recorder open-completion observer, from its own exported const.
+    set.insert(handshake_native::app::MT036_FLIGHT_RECORDER_OPEN_COMPLETION_AUTHOR_ID.to_owned());
     // The command-palette dialog/search/list container ids, sourced from the REAL registry const
     // (PALETTE_AUTHOR_IDS = command-palette.dialog/.search/.list) — NOT hand-typed literals. These are
     // already covered by DECLARED_IDENTITIES above; pulling them from the same const the registry exports
@@ -880,9 +900,13 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
 
     let rows = agent_tool_rows();
     let mut orphans: Vec<&str> = Vec::new();
+    // BOTH dynamic menu-leaf arrays. EDITORS_MENU_LEAF_AUTHOR_IDS is the exact sibling of
+    // EDITOR_MENU_LEAF_AUTHOR_IDS - same kind of popup leaf, same lifetime, rendered by the same
+    // top_menu_bar::item path which names every node - and it was simply never added here.
     let dynamic_menu_leaves: HashSet<&str> =
         handshake_native::top_menu_bar::EDITOR_MENU_LEAF_AUTHOR_IDS
             .iter()
+            .chain(handshake_native::top_menu_bar::EDITORS_MENU_LEAF_AUTHOR_IDS)
             .copied()
             .collect();
     let dynamic_settings_ids: HashSet<&str> =
@@ -950,6 +974,24 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
             // Truthful conditional status/retry/action nodes are absent from the healthy default tree.
             // Focused recovery-path tests (including MT-098's in-flight canonical Cancel proof) prove
             // the mounted nodes instead of seeding static identities.
+            continue;
+        }
+        // A documented id containing a {placeholder} documents a PATTERN, not an address: the live id
+        // is prefix + a runtime value (a document id, a symbol entity id). Exact-matching such a row
+        // against the live set can NEVER succeed, so it was reported as an orphan forever while the
+        // product emitted the ids correctly. Check the PREFIX against the real prefix constant instead.
+        if let Some((prefix, _)) = row.author_id.split_once('{') {
+            let known_prefix = [
+                handshake_native::code_editor::note_refs_panel::ROW_AUTHOR_ID_PREFIX,
+                handshake_native::rich_editor::slash_commands::CODE_SYMBOL_RESULT_AUTHOR_ID_PREFIX,
+                "code-ref-chip-",
+            ]
+            .contains(&prefix);
+            assert!(
+                known_prefix,
+                "AC-004: templated row {:?} has no matching live author_id prefix",
+                row.author_id
+            );
             continue;
         }
         if !live.contains(row.author_id) {

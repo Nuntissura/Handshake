@@ -164,6 +164,11 @@ pub const EDITOR_SETTINGS_CONTROL_AUTHOR_IDS: &[&str] = &[
     FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID,
     ATELIER_CKC_STAGE_SETTINGS_POSTURE_AUTHOR_ID,
     SYNTAX_PALETTE_MODE_AUTHOR_ID,
+    // The two RESET controls are editor-settings controls like every id above and are rendered from
+    // this same section (:931, :1064). Their omission from this array is what made the
+    // manual-vs-registry audit report them as ORPHANS while the buttons were emitting them.
+    EDITOR_PREFS_RESET_AUTHOR_ID,
+    SYNTAX_PALETTE_RESET_AUTHOR_ID,
 ];
 
 /// Stable author_ids for every Custom palette swatch, in [`HighlightScope::ALL`] order.

@@ -60,7 +60,8 @@ pub use live::{
     TITLE_BAR_NODE_ID,
 };
 pub use registry::{
-    assert_no_unnamed_interactive, DeclaredIdentity, DECLARED_IDENTITIES, INTERACTIVE_ROLES,
+    assert_no_unnamed_interactive, DeclaredIdentity, DECLARED_HASHED_AUTHOR_IDS,
+    DECLARED_IDENTITIES, INTERACTIVE_ROLES,
     PALETTE_AUTHOR_IDS, PANE_NODE_ID_BASE, THEME_TOGGLE_AUTHOR_ID, THEME_TOGGLE_NODE_ID,
 };
 pub use snapshot::{

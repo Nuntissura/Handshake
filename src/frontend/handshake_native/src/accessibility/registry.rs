@@ -151,6 +151,18 @@ pub const DECLARED_HASHED_AUTHOR_IDS: &[&str] = &[
     CALENDAR_EVENT_ACTIVITY_AUTHOR_ID,
     CALENDAR_EVENT_NORMALIZATION_BADGE_AUTHOR_ID,
     CALENDAR_EVENT_LEGACY_BADGE_AUTHOR_ID,
+    // Flight Recorder pane. These are real, permanently registered addresses that the built-in
+    // manual documents, and they belong here for the same reason every id above does: so an
+    // independently mounted surface cannot silently reuse one. Their absence from the registry is
+    // what made the manual-vs-registry audit report them as ORPHANS while the widgets were emitting
+    // them perfectly correctly.
+    crate::flight_recorder_pane::FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+    crate::flight_recorder_pane::FLIGHT_RECORDER_RETRY_AUTHOR_ID,
+    crate::flight_recorder_pane::FLIGHT_RECORDER_ACTION_COMPLETION_AUTHOR_ID,
+    crate::flight_recorder_pane::FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
+    crate::flight_recorder_pane::FLIGHT_RECORDER_LOADING_STATUS_AUTHOR_ID,
+    crate::flight_recorder_pane::FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
+    crate::flight_recorder_pane::FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
 ];
 
 /// Registered prefixes for date-dependent AccessKit rows in the two mounted date navigators.
