@@ -22,7 +22,7 @@
   "title": "E10-MT-117-Add-Stage-And-Calendar-Completion-Observers-So-Their-Actions-Terminalize-Applied",
   "group": "E10-Interop",
   "created_at_utc": "2026-08-06T18:54:28.437Z",
-  "updated_at_utc": "2026-08-12T17:20:00Z",
+  "updated_at_utc": "2026-08-13T00:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -108,10 +108,16 @@
           "resolution_requires_an_authority_decision": "Three options, each touching a durable contract: (a) move the chip domain fields into the declaration semantic_value and update test_calendar_interop to read them there - forbidden to this MT, the test may not be edited; (b) relax ClickCompletionToken from deny_unknown_fields so a token may carry domain siblings - a product-wide schema change affecting every observer; (c) accept that this target cannot carry a declaration and exclude it from the PT-117-1 count with a typed reason. Not decided unilaterally."
         },
         "current_state_is_green_on_both_suites": "test_calendar_interop 31 passed / 0 failed and test_other_pillar_interop_proofs 27 passed / 0 failed, MODE2_EXIT=0, with the merge fix and the chip classified Flexible. The suites are green; PT-117-1 as literally written (13/13 applied, zero indeterminate) is NOT met, and is reported as not met."
+      },
+      "pt_117_2_SATISFIED": {
+        "status": "GREEN - both owning surfaces",
+        "MT-067 Calendar": "test_calendar_interop => 31 passed / 0 failed, CAL3_EXIT=0",
+        "MT-066 Stage": "test_stage_interop => 31 passed / 0 failed, EXIT=0, 208.23s",
+        "stage_was_blocked_by_a_self_inflicted_dirty_tree": "test_stage_interop first failed with \"MT-066 canonical proof refuses dirty/untracked transitive runtime source outside the known authority files\", naming swarm_edit_proof_log.txt and perf_proof/perf_manifest.json. Both are proof RUN ARTIFACTS their own suites regenerate, so executing the AC-108-3 sweep dirtied them and thereby blocked MT-066 - the sweep was self-blocking. Committed at fbf732fb and the suite went green with no code change. AGENTS.md and CLAUDE.md stayed uncommitted and were NOT rejected; the gate treats them as known authority files."
       }
     },
     "claimed_at_utc": "2026-08-12T14:12:00Z",
-    "status_rationale": "Implementation is committed (8a77e315) and its lib proof plus the HBR-MAN manual gate are green, but PT-117-1 and PT-117-2 are integration runs that have not yet produced evidence. Held at CLAIMED rather than advanced, matching the discipline the prior session applied to MT-112/115/116/119: an MT does not reach READY_FOR_VALIDATION on partial proof."
+    "status_rationale": "PT-117-2 and PT-117-3 are GREEN and the HBR-MAN manual obligation is closed. PT-117-1 (13/13 receipts applied, zero indeterminate) remains BLOCKED on a durable-contract conflict recorded in pt_117_1_blocked_by_a_real_contract_conflict: ClickCompletionToken is deny_unknown_fields, so the calendar chip value cannot simultaneously carry a parseable declaration and the domain fields test_calendar_interop reads off that same node. Resolving it needs an authority decision, so MT-117 is held at CLAIMED rather than advanced on two of three proof targets."
   },
   "scope": {
     "summary": "Add durable product-side completion observers for the Stage embed-back, rich-document save, and Calendar event/activity actions so their canonical Argus receipts terminalize applied instead of indeterminate.",

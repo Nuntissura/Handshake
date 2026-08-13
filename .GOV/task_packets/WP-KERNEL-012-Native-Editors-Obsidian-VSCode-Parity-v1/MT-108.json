@@ -22,7 +22,7 @@
   "title": "R1-MT-108-WaveA-Audit-Residual-Hardening",
   "group": "R1",
   "created_at_utc": "2026-07-02T03:14:11Z",
-  "updated_at_utc": "2026-08-12T20:45:00Z",
+  "updated_at_utc": "2026-08-13T00:30:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-108.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -715,6 +715,69 @@
       "observed": "The managed cluster went down when externally-killed test processes took backends with them, then FAILED to restart with Windows exception 0xC0000142 STATUS_DLL_INIT_FAILED on the startup process - resource exhaustion at DLL init, not data corruption. Memory was NOT the constraint (48.7 GB free of 131 GB); 452 processes were live in one session, so desktop-heap/handle exhaustion is the likely cause.",
       "action": "Retried; the cluster is now in recovery. No foreign process was killed to make room.",
       "standing_hazard": "This cluster carries 1,814,397 files / 19.1 GB and takes 15+ minutes to fsync on an unclean start. MT-123 owns the reclamation that would shrink it."
+    },
+    "full_sweep_executed": {
+      "schema_id": "hsk.mt108_ac1083_sweep@1",
+      "recorded_at_utc": "2026-08-13T00:30:00Z",
+      "command_shape": "Per-binary: cargo test --features integration --no-fail-fast -j 2 --test <binary> -- --test-threads=1, with CARGO_INCREMENTAL=0 and a per-owner scoped CARGO_TARGET_DIR. Run through a resumable runner so results accumulate; every binary executed exactly once and its full log retained.",
+      "totals": "ALL 187 test binaries executed: OK=154, FAILED=25, ZERO_TESTS=6, TIMEOUT=2.",
+      "verdict": "AC-108-3 is NOT MET. It requires the full handshake-native suite green; 25 binaries report failures. Reported as not met rather than narrated around.",
+      "results_artifact": "../Handshake_Artifacts/handshake-test/wp012-v4-sweep/ac-108-3-sweep-results.tsv (binary, verdict, passed, failed, exit code) plus per-binary logs.",
+      "two_run_configuration_requirements_proven_not_assumed": {
+        "bounded_j": "Building all 187 binaries at default parallelism produced 210 CORRUPT-METADATA errors (E0282/E0786/E0277/E0463) and ZERO real source errors, including E0786 for untouched crates such as serde and reqwest. A 4-binary batch built cleanly in the SAME target dir. Capping to -j 2 took it 210 -> 1 -> 0. Without a bounded -j a future sweep reads 200+ phantom compile errors as product breakage.",
+        "test_threads_1": "Four binaries FAILED under default test parallelism and PASS serialized: test_ckc_embed 39/0, test_e7_swarm_edit_proof 25/0, test_event_emitter 33/0, test_drawer_item_actions 13/0. This is the same fixture-lock queueing class that produced the packet’s earlier phantom \"six more failures\". A sweep without --test-threads=1 manufactures failures."
+      },
+      "self_blocking_hazard_found": "Executing the sweep REGENERATES tracked proof run artifacts (tests/fixtures/swarm_edit_proof_log.txt, tests/perf_proof/perf_manifest.json). MT-066 and MT-068 canonical proofs refuse to certify against a dirty transitive runtime source and name those exact paths, so running the suite blocked the suite. Committing them at c90319b1 and fbf732fb cleared it with NO code change: test_stage_interop went 31/0 and test_locus_interop --include-ignored went 33/0/0.",
+      "regressions_this_session_introduced_and_fixed": [
+        "Four E0308 errors: the MT-117 Mt117TargetMode change left four in-crate TEST call sites passing a bool. cargo check --lib does not compile #[cfg(test)] code so check passed it. Fixed at e37449eb.",
+        "test_theme::no_hardcoded_color32_outside_theme_module: the MT-119 interlock measured a galley with egui::Color32::WHITE, and that lint scans test code. Now reads HsTheme::Dark.palette().text. Fixed at 45026d20; test_theme 19/0 and find_in_files 47/0."
+      ],
+      "failure_classification": {
+        "note": "Classified from each binary’s first panic message, retained in the per-binary logs. Environmental means the proof needs a supervisor-prepared input the sweep does not provide; it is NOT a claim that the product is correct.",
+        "environmental_supervisor_or_fixture_dependent": {
+          "test_code_nav_client": "MT-008 live proof requires HANDSHAKE_TEST_WORKSPACE_ID from the ready fixture. HANDSHAKE_TEST_DB_URL must be the fixture HTTP base URL (not a PG DSN) and a prepared workspace with indexed code is required.",
+          "test_completion_hover_accesskit": "Same MT-008 ready-fixture dependency.",
+          "test_perf_large_code": "canonical MT-045 proof requires HSK_MT045_SOURCE_SHA from the supervisor.",
+          "test_perf_large_knowledge": "Same MT-045 supervisor dependency.",
+          "test_perf_large_rich": "Same MT-045 supervisor dependency.",
+          "test_interconnect_loom_backlink_search": "GET /events -> 401 HSK-401-FR-SESSION. Needs a credentialed recorder read, the MT-109 boundary MT-115 credentialed for its own seven suites.",
+          "test_block_collection_view": "Fails at Argus localhost bind, BEFORE any rendering: MCP discovery binding not safely published, os error 3 (missing path) under another microtask’s binding root (wp-kernel-012-mt-027), where a stale swarm_mcp_binding.lock sits with no .json. Deterministic in isolation."
+        },
+        "product_assertion_failures_needing_per_MT_ownership": [
+          "test_backend_down_responsive - only the canonical backend builder and the explicitly bounded path may construct",
+          "test_command_palette - every canonical action must be rebound to an authoritative terminal snapshot",
+          "test_quick_switcher - same canonical-terminal-predicate class as test_command_palette",
+          "test_folder_tree - requests[2] does not start with GET",
+          "test_loom_address - the MT-032 diagnostics proof must own a fresh process-global recorder",
+          "test_manual_pane_editors - documented author_id(s) absent from the live AccessKit registry (ORPHANS)",
+          "test_menu_wireup - .md export contains document text",
+          "test_module_switcher - returning to project a does not restore its saved STUDIO module",
+          "test_notes_end_to_end - timed out waiting for author_id=\"draft-recovery-banner\" in the mounted tree",
+          "test_parity_knowledge - E3-24 native global-graph URL mismatch",
+          "test_project_tabs - project b’s previously-stored layout was not loaded on switch",
+          "test_properties - MT-017 production load path does not install properties context",
+          "test_rename_inline_input - AccessKit click on the stable Apply id does not apply the preview",
+          "test_resource_counters - the live frame path emitted no new ResourceSample",
+          "test_slash_commands - an interactive widget with role Unknown has no stable author_id",
+          "test_sticky_scroll - AC-006 clicking the fn sticky header did not scroll the viewport",
+          "test_swarm_concurrency - agent 0 action 0 must enqueue without torn state",
+          "test_uia_steer_proof - set_value resolves to Focus on a text input"
+        ],
+        "zero_tests_executed": [
+          "test_drawer_integration",
+          "test_e7_knowledge_accesskit_argus",
+          "test_focus_audit_live",
+          "test_mt108_argus_matrix",
+          "test_no_silent_hang_end_to_end",
+          "test_interconnect_loom_backlink_search"
+        ],
+        "zero_tests_warning": "A binary reporting \"running 0 tests ... ok\" EXITS 0 and would be counted as coverage by any gate keyed on exit codes. These six executed nothing and are recorded as ZERO_TESTS, never as pass. This is the exact trap the packet already hit once.",
+        "timeouts": [
+          "bundled_deps_audit and installer_build_smoke exceeded the 300s per-binary budget. Both are build-class proofs; they need a longer budget, not a verdict."
+        ]
+      },
+      "relationship_to_the_v4_verdict": "The V4 verdict recorded that current-head focused binaries already returned nonzero for context menus, other-pillar interop, app-host mount, backend-down audit and Runtime Chat coverage, and that 31 MTs carried FAIL verdicts. The failures above are consistent with that pre-existing surface rather than newly introduced: app-host mount and other-pillar interop are now GREEN (55/0, 51/0 and 27/0), and backend-down remains red. No claim is made here that any specific one is pre-existing without its own per-MT evidence.",
+      "honest_position": "AC-108-1 is disposed and AC-108-2 is green, but AC-108-3 is NOT met at 25 failing binaries. MT-108 therefore stays NEEDS_REIMPLEMENTATION_V4 and is NOT advanced. The capstone must not close over a red full suite - that is precisely what its own V4 report failed it for."
     }
   }
 }
