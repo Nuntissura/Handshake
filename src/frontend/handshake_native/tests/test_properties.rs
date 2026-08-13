@@ -644,7 +644,19 @@ fn mt017_app_load_path_installs_properties_context() {
     })
     .expect("production rich-document load installer accepts the loaded doc");
 
-    let rich_state = app.mounted_rich_state();
+    // Read the state the load actually wrote, by DOCUMENT, not `mounted_rich_state()`.
+    //
+    // This test was sound when written: `mounted_rich_state()` was a single shared
+    // `editor_mounts.rich_state` and the installer wrote to that same handle. The later multi-view
+    // `RichEditorDocumentStore` refactor split it into per-(document_id, pane_id) states and gave
+    // `active_rich_state()` a `None => base_state()` fallback (app.rs:15150-15158). This test never
+    // opens a tab, so `active_pane` stays `None`, the binding is `None`, and
+    // `mounted_rich_state()` returns `base_state()` — the untitled/demo surface
+    // (editor_pane_factories.rs:185-190), a different Arc the load never touched. The install sites
+    // are all present and correct (app.rs:16160, :16283, :16314); only the READ was stale.
+    //
+    // Same document-keyed read the working sibling uses (test_notes_end_to_end.rs:1471-1504).
+    let rich_state = app.mounted_rich_state_for_document_for_test("KRD-MT017-APP");
     let state = rich_state.lock().unwrap();
     let props = state
         .properties

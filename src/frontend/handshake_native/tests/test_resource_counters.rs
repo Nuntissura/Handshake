@@ -291,10 +291,23 @@ fn live_gpu_info_captured_from_wgpu_render_state() {
 /// cheap; the per-frame cost on a non-sampling frame is a single Instant comparison).
 #[test]
 fn live_sampling_is_bounded_and_does_not_stutter() {
+    // Baseline BEFORE the harness is constructed, so the delta spans the construction frame.
+    //
+    // `SAMPLE_INTERVAL` is one real second (diagnostics/resource_counters.rs:55) gated on
+    // `Instant::now()`, and only the FIRST sample is always-due (:202-215). `Harness::step` merely
+    // sets `predicted_dt` and never sleeps (egui_kittest lib.rs:286-291), so simulated egui time is
+    // invisible to the sampler and no number of stepped frames can produce a second sample.
+    // `build_eframe` itself runs one full update frame during construction (egui_kittest
+    // lib.rs:137-141) — which is where the one due sample fires. Reading the baseline after that
+    // captured the sample and then asked for another within milliseconds, so the delta was
+    // structurally always zero.
+    //
+    // `samples_before == 2` in the failure was itself the proof the live path DOES emit: this binary
+    // constructs exactly two harnesses, one always-due sample each.
+    let samples_before = global_resource_sample_count();
     let mut harness: Harness<HandshakeApp> =
         Harness::builder().build_eframe(|cc| HandshakeApp::new(cc));
 
-    let samples_before = global_resource_sample_count();
     let slow_before = global_slow_frame_count();
     let sample_count_before = harness.state().resource_sample_count();
     let frames_before = harness.state().frame_counter();

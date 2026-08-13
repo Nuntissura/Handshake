@@ -72,18 +72,29 @@ fn e3_23_local_spec(ws: &str, title: &str) -> GetRequestSpec {
 fn parity_local_graph_native() {
     let spec = e3_23_local_spec("ws-1", "focus-note");
     assert_eq!(spec.method, HttpMethod::Get);
+    // MT-021 settled this route DELIBERATELY, and this assertion had not caught up. backend_client.rs
+    // :2196-2211 records the verified decision: LOCAL is
+    // GET /workspaces/:ws/loom/graph/local?start_block_id&max_depth&node_limit -> LoomGraph, the
+    // authoritative undirected PostgreSQL neighbourhood, and graph-search "is a heterogeneous
+    // retrieval/search surface, NOT a graph projection, and MUST NOT be used to fabricate star edges
+    // for this view". Asserting graph-search here demanded exactly the surface MT-021 forbids.
+    //
+    // The stale expectation was already contradicted INSIDE this file: the live sibling
+    // parity_local_graph is documented as "(GET /loom/graph/local)" and the backend serves that route
+    // (api/loom.rs:291). The parity contract is unchanged in strength - an exact route plus its exact
+    // query keys - only corrected to the route the system actually uses.
     assert!(
-        spec.url.ends_with("/workspaces/ws-1/loom/graph-search"),
+        spec.url.ends_with("/workspaces/ws-1/loom/graph/local"),
         "E3-23: native local-graph URL (got {})",
         spec.url
     );
     assert!(
-        has_query(&spec, "backlink_depth", "2"),
+        has_query(&spec, "max_depth", "2"),
         "E3-23: depth-2 local graph query"
     );
     assert!(
-        has_query_key(&spec, "q"),
-        "E3-23: the local graph queries by focus title"
+        has_query_key(&spec, "start_block_id"),
+        "E3-23: the local graph queries by focus block id"
     );
     println!(
         "E3-23 NATIVE PASS: LoomGraphClient::local_request_with_depth built {} (depth 2)",
@@ -139,10 +150,20 @@ fn e3_24_global_spec(ws: &str) -> GetRequestSpec {
 fn parity_global_graph_native() {
     let spec = e3_24_global_spec("ws-1");
     assert_eq!(spec.method, HttpMethod::Get);
+    // Same MT-021 correction as E3-23. GLOBAL is
+    // GET /workspaces/:ws/loom/graph/global?node_limit=5000&hub_degree_threshold=0 -> LoomGraph
+    // (backend_client.rs:2196-2211, backend route api/loom.rs:296). views/all is a real route but a
+    // DIFFERENT one - MT-021 keeps it as "the independent count oracle used by the managed-PG proof",
+    // not a graph projection. This files own live sibling parity_global_graph already fetches
+    // /loom/graph/global.
     assert!(
-        spec.url.ends_with("/workspaces/ws-1/loom/views/all"),
+        spec.url.ends_with("/workspaces/ws-1/loom/graph/global"),
         "E3-24: native global-graph URL (got {})",
         spec.url
+    );
+    assert!(
+        has_query(&spec, "node_limit", "5000") && has_query(&spec, "hub_degree_threshold", "0"),
+        "E3-24: the global graph disables hub suppression so every LoomBlock is projected"
     );
     println!(
         "E3-24 NATIVE PASS: LoomGraphClient::global_request built {}",
