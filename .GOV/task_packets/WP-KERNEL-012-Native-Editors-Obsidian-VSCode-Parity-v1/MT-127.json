@@ -22,7 +22,7 @@
   "title": "R2-MT-127-Own-The-AC-108-3-Red-Surface-Measured-By-The-Full-187-Binary-Sweep",
   "group": "R2-Capstone",
   "created_at_utc": "2026-08-13T00:40:00Z",
-  "updated_at_utc": "2026-08-13T00:50:00Z",
+  "updated_at_utc": "2026-08-13T01:20:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-127.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -79,7 +79,8 @@
       "test_slash_commands - no_unnamed_interactive_nodes_with_menu_open: an interactive widget with role Unknown has no stable author_id (src/accessibility/registry.rs:705)",
       "test_sticky_scroll - AC-006 clicking the fn sticky header did not scroll the viewport",
       "test_swarm_concurrency - agent 0 action 0 must enqueue without torn state",
-      "test_uia_steer_proof - set_value resolves to Focus on a text input"
+      "test_uia_steer_proof - set_value resolves to Focus on a text input",
+      "test_e7_knowledge_accesskit_argus - mt042_v4_canonical_argus_complete_runtime_proof: FEMS contaminated proof tree (tests/test_e7_knowledge_accesskit_argus.rs:225). ONLY VISIBLE with --features integration,wgpu_screenshots."
     ],
     "zero_tests_executed": {
       "binaries": [
@@ -90,7 +91,20 @@
         "test_no_silent_hang_end_to_end",
         "test_interconnect_loom_backlink_search"
       ],
-      "why_this_is_dangerous": "A binary that executes zero tests reports \"running 0 tests ... ok\" and EXITS 0. Any gate keyed on exit codes counts it as coverage. These are recorded as ZERO_TESTS and MUST NOT be counted as pass. This work packet has already been bitten by this exact trap once."
+      "why_this_is_dangerous": "A binary that executes zero tests reports \"running 0 tests ... ok\" and EXITS 0. Any gate keyed on exit codes counts it as coverage. These are recorded as ZERO_TESTS and MUST NOT be counted as pass. This work packet has already been bitten by this exact trap once.",
+      "RESOLVED_2026_08_13": {
+        "method": "Read each binary own runner output rather than inferring from the zero count.",
+        "finding": "FOUR of the six are DELIBERATELY #[ignore]d governed live/runner-only proofs, each carrying a documented reason in its ignore message. They are NOT gaps and NOT silently missing coverage - they are exactly the class MT-108 validation_v4 verification_required names: \"Execute every governed live/runner-only acceptance test separately and require green rather than counting default ignores as pass.\"",
+        "per_binary": {
+          "test_drawer_integration": "2 tests, ignored: needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and HSK_TEST_WORKSPACE_ID.",
+          "test_focus_audit_live": "1 test, ignored: LIVE Win32 audit that spawns a real on-screen window AND installs a global WH_KEYBOARD_LL hook. Requires an interactive desktop and a running message pump; the ignore message explicitly says to run it on a controlled test desktop with --ignored, like the GPU-gated pixel proofs. Running it blindly would violate HBR-QUIET.",
+          "test_mt108_argus_matrix": "1 test, ignored: MT-108 runner-only matrix row; requires bounded external supervisor identity and GPU capture. This is the runner the V4 verdict specifically flagged as ignored rather than executed.",
+          "test_no_silent_hang_end_to_end": "1 test, ignored: LIVE MT-106 capstone that builds and runs real Palmistry plus a real child process. Needs palmistry built or HANDSHAKE_PALMISTRY_EXE set.",
+          "test_interconnect_loom_backlink_search": "Recorded twice by the runner (once FAILED on the 401 recorder read, once ZERO_TESTS). Its real verdict is the FAILED one.",
+          "test_e7_knowledge_accesskit_argus_CORRECTED": "NOT empty. The file is gated at FILE level on all(integration, wgpu_screenshots); with both features it runs 12 tests. See COVERAGE_HOLE_IN_THE_SWEEP_ITSELF."
+        },
+        "consequence_for_ac_108_3": "AC-108-3 cannot be satisfied by a default sweep alone. The four governed ignores must each be run separately WITH their required environment - interactive desktop, GPU capture, supervisor identity, live backend, Palmistry binary - and required green. Counting their default-ignored exit 0 as coverage is the precise failure mode the V4 verdict called out."
+      }
     },
     "timeouts": [
       "bundled_deps_audit: re-run at a 540s budget and STILL timed out, failing at 412s with \"build_installer.ps1 failed\". The underlying rustc exit code is 143 (SIGTERM) - the process was KILLED, not a compile error. This proof drives the installer release build with -C lto=fat -C codegen-units=1 -C target-feature=+crt-static, the most expensive compile in the tree. It needs a budget measured in tens of minutes and a host that is not already running parallel work-packet builds. BUDGET, not defect.",
@@ -109,7 +123,7 @@
     "acceptance_criteria": [
       "AC-127-1: every binary in product_assertion_failures is routed to an owning microtask - existing or new - with its first panic message and the file:line it fires at recorded. No binary may be left unowned.",
       "AC-127-2: every environmental entry either RUNS once its supervisor input is supplied, or is recorded as a typed blocker naming the exact missing input. Environmental is never treated as pass.",
-      "AC-127-3: every ZERO_TESTS binary is resolved to one of: genuinely empty, gated behind a feature that must be named, or a real gap. A zero-test exit-0 may never be counted as coverage.",
+      "AC-127-3: each ZERO_TESTS binary is resolved. The four governed #[ignore]d proofs (test_drawer_integration, test_focus_audit_live, test_mt108_argus_matrix, test_no_silent_hang_end_to_end) must be RUN SEPARATELY with their documented environment and required green - a default-ignored exit 0 is never coverage. test_e7_knowledge_accesskit_argus contains literally zero tests and needs an explicit decision: populate or delete.",
       "AC-127-4: the two build-class binaries (bundled_deps_audit, installer_build_smoke) are re-run with a budget long enough for a fat-LTO release build to COMPLETE, on a host not concurrently running other cargo builds, and their real verdict recorded. A rustc exit code of 143 is a kill, never a product verdict.",
       "AC-127-5: no failure is closed by weakening, deleting or relaxing an assertion. Every closure is a product fix or a typed blocker with evidence.",
       "AC-127-6: the sweep is re-run at the end with the SAME run configuration and the new totals recorded, so the red surface is measured rather than assumed to have shrunk."
@@ -119,7 +133,25 @@
       "PT-127-2: for each product failure, the owning MT id and the evidence that closed it or the typed blocker that holds it open.",
       "PT-127-3: a zero-failure, zero-ZERO_TESTS sweep, which is what AC-108-3 actually requires."
     ],
-    "risk_if_missed": "MT-108 cannot honestly reach PASS. Worse, the next capstone attempt re-discovers the same 25 failures from scratch, which is precisely the waste this contract exists to prevent."
+    "risk_if_missed": "MT-108 cannot honestly reach PASS. Worse, the next capstone attempt re-discovers the same 25 failures from scratch, which is precisely the waste this contract exists to prevent.",
+    "COVERAGE_HOLE_IN_THE_SWEEP_ITSELF": {
+      "severity": "HIGH - this invalidates any AC-108-3 count taken with --features integration alone.",
+      "finding": "NINE test binaries are gated on the wgpu_screenshots feature as well as integration. The sweep ran with --features integration ONLY, so those binaries compiled with fewer tests - and one of them, test_e7_knowledge_accesskit_argus, is gated at FILE level with #![cfg(all(feature = \"integration\", feature = \"wgpu_screenshots\"))] and therefore reported \"running 0 tests ... ok\" with EXIT 0.",
+      "the_trap_caught_the_sweep_that_was_designed_to_avoid_it": "MT-108 current_head_findings warns that a gated binary reports 0 tests and exits 0, and that any sweep MUST assert a nonzero executed count. The sweep recorded ZERO_TESTS rather than pass, which is why the hole was found - but the run configuration itself was still short one feature.",
+      "measured_delta_with_both_features": {
+        "test_e7_knowledge_accesskit_argus": "0 tests -> 12 tests (11 passed / 1 FAILED). The failure is mt042_v4_canonical_argus_complete_runtime_proof at :225 with \"FEMS contaminated proof tree\" - the MT-042 V4 canonical Argus proof, which had never executed in this sweep at all.",
+        "test_ckc_embed": "39 -> 40 passed / 0 failed",
+        "test_event_emitter": "33 -> 34 passed / 0 failed",
+        "test_code_note_cross_ref": "30 -> 31 passed / 0 failed",
+        "test_undo_scope": "41 -> 42 passed / 0 failed",
+        "test_markdown_render": "6 passed / 0 failed",
+        "test_sidebar_panel": "24 passed / 0 failed",
+        "test_wiki_page_panel": "21 passed / 0 failed",
+        "test_three_tier_end_to_end": "4 passed / 0 failed / 1 ignored"
+      },
+      "net_effect": "EIGHT of the nine are GREEN with both features and simply had under-counted coverage. ONE surfaced a genuine, previously invisible product failure (MT-042 V4 canonical Argus, FEMS contaminated proof tree). The corrected sweep totals are therefore 155 OK and 25 FAILED, with the MT-042 canonical proof newly visible.",
+      "required_run_configuration_correction": "AC-108-3 sweeps MUST use --features integration,wgpu_screenshots. With integration alone, nine binaries under-report and one reports nothing at all while exiting 0."
+    }
   },
   "hbr_obligations": {
     "STOP": "None of these may be closed by narrowing the sweep or by counting a zero-test binary as coverage.",
