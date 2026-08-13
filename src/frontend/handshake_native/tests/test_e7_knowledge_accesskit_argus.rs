@@ -218,14 +218,33 @@ fn drive_until(
 
 fn assert_no_modal_contamination(tree: &serde_json::Value) {
     let serialized = tree.to_string().to_ascii_lowercase();
-    assert!(
-        !serialized.contains("fems."),
-        "FEMS contaminated proof tree"
-    );
-    assert!(
-        !serialized.contains("fems-"),
-        "FEMS contaminated proof tree"
-    );
+    // Ban the MODAL, not the substring "fems".
+    //
+    // The property this guards is "no modal is open over the proof surface". A blanket substring ban
+    // does not express that, and it stopped being true the moment the shell gained durable
+    // click-completion observers whose author_ids merely MENTION fems:
+    //   mt064.fems-proposal-flow-completion  (app.rs:309, projected unconditionally at :12672)
+    //   mt065.fems-swarm-flow-completion     (app.rs:1577, projected unconditionally at :12683)
+    // Both are shell-owned Role::Status nodes published every snapshot in the DEFAULT state
+    // (generation 0, state ready), so this fired on the very first inspect_clean with nothing clicked
+    // and no modal anywhere. Confirmed against a historical PASSING artifact set for this same test
+    // (wp-kernel-012-mt-042-v4/run-51300-...), whose tree carries the identical family of durable
+    // observers — mt033/mt034/mt035/mt036/mt042 — and zero occurrences of fems, because MT-064/065
+    // did not exist yet. The observers and the assertion landed on divergent branches days apart.
+    //
+    // Matching author_id EXACTLY means a shell observer that merely names FEMS can no longer trip
+    // this, while a genuinely mounted proposal dialog still does — it publishes this dialog id AND
+    // "role":"dialog", which the check below independently catches.
+    for modal_author_id in [
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+        handshake_native::fems::memory_proposal::FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+    ] {
+        assert!(
+            !json_has_author_id(tree, modal_author_id),
+            "FEMS modal `{modal_author_id}` contaminated proof tree"
+        );
+    }
     assert!(
         !serialized.contains("modal.scrim"),
         "modal scrim contaminated proof tree"
