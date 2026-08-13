@@ -521,7 +521,12 @@ fn edit_find_replace_dispatch_to_active_rich_panel() {
     harness.run_steps(3);
 
     let found = dispatch_palette_live(&mut harness, CMD_EDITOR_FIND_FIND);
-    harness.run();
+    // Bounded frames, NOT run-to-convergence: the rich find command focuses the editor surface, and a
+    // FOCUSED text surface blinks its caret, which egui reports as a perpetual repaint request
+    // (egui text_selection::visuals). run() therefore trips max_steps on a pane that is behaving
+    // correctly. Same reason every_editor_menu_command_dispatches_without_panic drives step() while a
+    // save is in flight. The assertions below are unchanged.
+    harness.run_steps(3);
     assert!(found, "Find reports a real rich-panel dispatch");
     {
         let state = rich_state.lock().unwrap();
@@ -536,7 +541,7 @@ fn edit_find_replace_dispatch_to_active_rich_panel() {
     }
 
     let replaced = dispatch_palette_live(&mut harness, CMD_EDITOR_FIND_REPLACE);
-    harness.run();
+    harness.run_steps(3);
     assert!(replaced, "Replace reports a real rich-panel dispatch");
     {
         let state = rich_state.lock().unwrap();
@@ -1548,8 +1553,29 @@ fn no_todo_unimplemented_or_panic_on_wired_handlers() {
         ),
         ("src/app.rs", include_str!("../src/app.rs")),
     ];
+    // PT-005 scans DISPATCH PATHS. A `panic!("first search fires")` inside a `#[cfg(test)] mod` is a unit
+    // test asserting an enum variant, not a stubbed handler, and it ships in no binary — counting it made
+    // this proof fire on seven such lines in app.rs while production app.rs was clean, i.e. 7/7 false
+    // positives and zero signal. Top-level test modules are therefore skipped WHOLE.
+    //
+    // The skip is deliberately narrow so a real stub cannot hide behind it: it triggers only on a line that
+    // is EXACTLY `#[cfg(test)]` at column 0, and ends at the next line that is EXACTLY `}` at column 0 —
+    // the closing brace of that top-level module. Production code never sits inside a top-level
+    // `#[cfg(test)] mod`, so nothing reachable at runtime leaves the scan. An indented `#[cfg(test)]` (an
+    // inner item, or a single gated fn beside production code) is NOT matched and stays fully scanned.
     for (name, src) in files {
+        let mut in_test_module = false;
         for (lineno, line) in src.lines().enumerate() {
+            if in_test_module {
+                if line == "}" {
+                    in_test_module = false;
+                }
+                continue;
+            }
+            if line == "#[cfg(test)]" {
+                in_test_module = true;
+                continue;
+            }
             // Skip comment / doc lines — the forbidden macro NAMES legitimately appear in the AC-003
             // documentation explaining why they are NOT used. Only real CODE lines must be clean.
             let trimmed = line.trim_start();
@@ -1564,6 +1590,12 @@ fn no_todo_unimplemented_or_panic_on_wired_handlers() {
                 );
             }
         }
+        assert!(
+            !in_test_module,
+            "PT-005 scan of {name} ended inside a #[cfg(test)] module — the column-0 `}}` module-close \
+             assumption no longer holds, so production lines were silently skipped. Fix the scanner \
+             before trusting this proof."
+        );
     }
 }
 

@@ -416,6 +416,23 @@ pub mod interop_adapter {
         pane_id: PaneId,
         has_focus: bool,
     ) -> bool {
+        // MT-031: an explicitly PUBLISHED bus focus owner outranks this pane's egui focus.
+        //
+        // `has_focus` is egui-local and can be stale: an AccessKit-driven click into another editor
+        // moves the shared focus owner without necessarily clearing egui focus here, so a code pane
+        // holding a leftover selection would keep consuming Ctrl+V and paste into a buffer the caret
+        // left. That is silent corruption of a file the operator is not editing, so the check runs
+        // BEFORE the `has_focus` gate rather than beside it.
+        //
+        // Only an owner naming a DIFFERENT pane suppresses consumption. With no owner published, the
+        // egui-focus behaviour below is unchanged.
+        let owner_is_another_pane =
+            InteractionBus::with_try_lock(bus, |b| b.focus_owner().cloned())
+                .flatten()
+                .is_some_and(|owner| owner != pane_id);
+        if owner_is_another_pane {
+            return false;
+        }
         if !has_focus {
             return false;
         }

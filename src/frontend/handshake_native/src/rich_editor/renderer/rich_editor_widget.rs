@@ -1538,7 +1538,16 @@ impl RichEditorWidget {
                 // editor-surface id so a swarm agent can locate the surface by a stable key.
                 let surface_id = ui.id().with(RICH_EDITOR_TEXT_AUTHOR_ID);
                 let surface = ui.interact(full_rect, surface_id, surface_sense);
-                let focus_requested = !read_only && state.editor_focus_pending;
+                // MT-031: a CLICK on the editable surface takes keyboard focus, exactly as clicking into
+                // any text field does. Without this the surface only ever focused via the explicit
+                // `editor_focus_pending` command flag, so an out-of-process agent clicking
+                // `editor.rich.text` through AccessKit left egui focus wherever it already was —
+                // typically a code pane, which then kept republishing ITSELF as the shared bus focus
+                // owner (`code_editor::interop_adapter::drive_bus_in_render`) and went on swallowing
+                // Ctrl+V into a buffer the caret had left. Focus follows the click, so ownership follows
+                // the caret.
+                let focus_requested =
+                    !read_only && (state.editor_focus_pending || surface.clicked());
                 if focus_requested {
                     surface.request_focus();
                     state.editor_focus_pending = false;

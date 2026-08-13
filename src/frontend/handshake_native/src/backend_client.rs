@@ -9808,9 +9808,6 @@ impl RichDocClient {
 #[derive(Clone)]
 pub struct RichDocSaveBackend {
     client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
-    /// The base URL this backend was mounted against. Kept so the MT-120 session-authenticated
-    /// transport can be rebuilt for the SAME host without a second source of truth for the URL.
-    base_url: String,
     session_run_id: String,
     actor_id: String,
 }
@@ -9825,9 +9822,8 @@ impl RichDocSaveBackend {
             // the isolated fresh-pool seam for its direct HTTP tests.
             client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
                 shared_http_client(),
-                base_url.clone(),
+                base_url,
             ),
-            base_url,
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
             actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }
@@ -9836,7 +9832,6 @@ impl RichDocSaveBackend {
     pub fn production() -> Self {
         Self {
             client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::production(),
-            base_url: BACKEND_BASE_URL.to_owned(),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
             actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }

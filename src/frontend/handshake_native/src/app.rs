@@ -14541,7 +14541,13 @@ impl HandshakeApp {
             | cr::CMD_EDITOR_EDIT_PASTE
             | cr::CMD_EDITOR_EDIT_SELECT_ALL
             | cr::CMD_EDITOR_FIND_FIND => {
-                let active_target = self.active_editor_target(ctx);
+                let active_target = match command_id {
+                    // Clipboard commands follow the CARET. See `clipboard_editor_target`.
+                    cr::CMD_EDITOR_EDIT_CUT
+                    | cr::CMD_EDITOR_EDIT_COPY
+                    | cr::CMD_EDITOR_EDIT_PASTE => self.clipboard_editor_target(ctx),
+                    _ => self.active_editor_target(ctx),
+                };
                 match (active_target, command_id) {
                     (Some(ActiveEditorTarget::Code), cr::CMD_EDITOR_EDIT_SELECT_ALL) => {
                         let panel = self.active_mounted_code_panel();
@@ -18733,6 +18739,26 @@ impl HandshakeApp {
                 .flatten();
         let focus_owner = focus_owner?;
         self.editor_target_for_pane(&focus_owner)
+    }
+
+    /// Resolve the target for CUT / COPY / PASTE only.
+    ///
+    /// Clipboard commands follow the CARET, so an explicit bus focus owner wins over the shell's
+    /// `active_pane` bookkeeping — the reverse of [`Self::active_editor_target`], which is correct for
+    /// menu enablement but wrong here. `active_pane` tracks which pane the shell last made active and
+    /// does NOT clear when the operator (or an out-of-process agent) moves the caret into another
+    /// editor, so preferring it let a code pane holding a STALE selection swallow a Ctrl+V that the
+    /// focused rich pane should have received, mutating a buffer the user was not typing in. That is
+    /// silent data corruption, not a routing preference.
+    ///
+    /// This restores consistency with [`Self::active_editor_pane_id`], which already resolves
+    /// focus-owner-first and is what the paste/copy implementations use to pick the concrete pane —
+    /// the two halves of the same decision disagreed, and the target half was the wrong one.
+    ///
+    /// `active_pane` remains the fallback so a pane with no published bus owner still routes.
+    fn clipboard_editor_target(&self, ctx: &egui::Context) -> Option<ActiveEditorTarget> {
+        self.focused_editor_target(ctx)
+            .or_else(|| self.active_editor_target(ctx))
     }
 
     fn active_editor_target(&self, ctx: &egui::Context) -> Option<ActiveEditorTarget> {
