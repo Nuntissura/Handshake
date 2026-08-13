@@ -1,0 +1,134 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-127",
+  "title": "R2-MT-127-Own-The-AC-108-3-Red-Surface-Measured-By-The-Full-187-Binary-Sweep",
+  "group": "R2-Capstone",
+  "created_at_utc": "2026-08-13T00:40:00Z",
+  "updated_at_utc": "2026-08-13T00:50:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-127.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "policy": "NONE_JSON_IS_AUTHORITY"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "active": true,
+    "depends_on": [],
+    "blocks": [
+      "MT-108"
+    ],
+    "validator_verdict": null,
+    "claimed_by": null,
+    "completed_by": null,
+    "created_by": "KERNEL_BUILDER-20260812-113007",
+    "creation_reason": "The AC-108-3 sweep executed ALL 187 handshake-native test binaries for the first time and produced a measured red surface: 154 OK, 25 FAILED, 6 ZERO_TESTS, 2 TIMEOUT. MT-108 is the capstone and must not absorb 25 upstream defects - its own V4 verdict says so explicitly (remediation item 1: resolve each failed MT through its authoritative per-MT remediation, do not suppress upstream failures inside the aggregate runner). This contract OWNS the red surface so no failing binary is lost between capstone attempts."
+  },
+  "scope": {
+    "summary": "Route every binary failing the AC-108-3 full sweep to an owning microtask with evidence, so the capstone can be re-run against a green suite instead of re-discovering the same 25 failures.",
+    "measured_baseline": {
+      "sweep_date_utc": "2026-08-13",
+      "totals": "187 executed: OK=154, FAILED=25, ZERO_TESTS=6, TIMEOUT=2",
+      "results_artifact": "../Handshake_Artifacts/handshake-test/wp012-v4-sweep/ac-108-3-sweep-results.tsv, plus a retained per-binary log for every one of the 187",
+      "run_configuration_that_MUST_be_reproduced": "cargo test --features integration --no-fail-fast -j 2 --test <binary> -- --test-threads=1, with CARGO_INCREMENTAL=0 and a per-owner scoped CARGO_TARGET_DIR. Omitting the bounded -j produces 210 phantom corrupt-metadata compile errors; omitting --test-threads=1 fails four binaries that pass serialized."
+    },
+    "environmental_not_product": {
+      "note": "These need a supervisor-prepared input the sweep does not provide. Environmental does NOT mean the product is correct - it means the proof could not run.",
+      "test_code_nav_client": "MT-008 live proof needs HANDSHAKE_TEST_WORKSPACE_ID from a ready fixture; HANDSHAKE_TEST_DB_URL must be the fixture HTTP base URL, not a PostgreSQL DSN.",
+      "test_completion_hover_accesskit": "Same MT-008 ready-fixture dependency.",
+      "test_perf_large_code": "MT-045 canonical proof needs HSK_MT045_SOURCE_SHA from the supervisor.",
+      "test_perf_large_knowledge": "Same.",
+      "test_perf_large_rich": "Same.",
+      "test_interconnect_loom_backlink_search": "Recorder read returns 401 HSK-401-FR-SESSION; needs the credentialed read MT-115 established for its own suites.",
+      "test_block_collection_view": "Fails at Argus localhost bind BEFORE any rendering: os error 3 under wp-kernel-012-mt-027's binding root, where a stale swarm_mcp_binding.lock sits with no .json. Deterministic in isolation. The stale lock was preserved, not deleted, at swarm_mcp_binding.lock.stale-preserved-20260812."
+    },
+    "product_assertion_failures": [
+      "test_backend_down_responsive - only the canonical backend builder and the explicitly bounded path may construct",
+      "test_command_palette - every canonical action must be rebound to an authoritative terminal snapshot",
+      "test_quick_switcher - same canonical-terminal-predicate class as test_command_palette",
+      "test_folder_tree - requests[2] does not start with GET",
+      "test_loom_address - the MT-032 diagnostics proof must own a fresh process-global recorder",
+      "test_manual_pane_editors - documented author_id(s) absent from the live AccessKit registry (ORPHANS)",
+      "test_menu_wireup - .md export contains document text",
+      "test_module_switcher - returning to project a does not restore its saved STUDIO module",
+      "test_notes_end_to_end - timed out waiting for author_id draft-recovery-banner in the mounted tree",
+      "test_parity_knowledge - E3-24 native global-graph URL mismatch",
+      "test_project_tabs - project b's previously-stored layout was not loaded on switch",
+      "test_properties - MT-017 production load path does not install properties context",
+      "test_rename_inline_input - AccessKit click on the stable Apply id does not apply the preview",
+      "test_resource_counters - the live frame path emitted no new ResourceSample",
+      "test_slash_commands - no_unnamed_interactive_nodes_with_menu_open: an interactive widget with role Unknown has no stable author_id (src/accessibility/registry.rs:705)",
+      "test_sticky_scroll - AC-006 clicking the fn sticky header did not scroll the viewport",
+      "test_swarm_concurrency - agent 0 action 0 must enqueue without torn state",
+      "test_uia_steer_proof - set_value resolves to Focus on a text input"
+    ],
+    "zero_tests_executed": {
+      "binaries": [
+        "test_drawer_integration",
+        "test_e7_knowledge_accesskit_argus",
+        "test_focus_audit_live",
+        "test_mt108_argus_matrix",
+        "test_no_silent_hang_end_to_end",
+        "test_interconnect_loom_backlink_search"
+      ],
+      "why_this_is_dangerous": "A binary that executes zero tests reports \"running 0 tests ... ok\" and EXITS 0. Any gate keyed on exit codes counts it as coverage. These are recorded as ZERO_TESTS and MUST NOT be counted as pass. This work packet has already been bitten by this exact trap once."
+    },
+    "timeouts": [
+      "bundled_deps_audit: re-run at a 540s budget and STILL timed out, failing at 412s with \"build_installer.ps1 failed\". The underlying rustc exit code is 143 (SIGTERM) - the process was KILLED, not a compile error. This proof drives the installer release build with -C lto=fat -C codegen-units=1 -C target-feature=+crt-static, the most expensive compile in the tree. It needs a budget measured in tens of minutes and a host that is not already running parallel work-packet builds. BUDGET, not defect.",
+      "installer_build_smoke: same build class, same treatment. Not yet re-run at a longer budget."
+    ],
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/**",
+      "src/frontend/handshake_native/tests/**",
+      "src/backend/handshake_core/src/**",
+      "src/backend/handshake_core/tests/**"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "app/src/**"
+    ],
+    "acceptance_criteria": [
+      "AC-127-1: every binary in product_assertion_failures is routed to an owning microtask - existing or new - with its first panic message and the file:line it fires at recorded. No binary may be left unowned.",
+      "AC-127-2: every environmental entry either RUNS once its supervisor input is supplied, or is recorded as a typed blocker naming the exact missing input. Environmental is never treated as pass.",
+      "AC-127-3: every ZERO_TESTS binary is resolved to one of: genuinely empty, gated behind a feature that must be named, or a real gap. A zero-test exit-0 may never be counted as coverage.",
+      "AC-127-4: the two build-class binaries (bundled_deps_audit, installer_build_smoke) are re-run with a budget long enough for a fat-LTO release build to COMPLETE, on a host not concurrently running other cargo builds, and their real verdict recorded. A rustc exit code of 143 is a kill, never a product verdict.",
+      "AC-127-5: no failure is closed by weakening, deleting or relaxing an assertion. Every closure is a product fix or a typed blocker with evidence.",
+      "AC-127-6: the sweep is re-run at the end with the SAME run configuration and the new totals recorded, so the red surface is measured rather than assumed to have shrunk."
+    ],
+    "proof_targets": [
+      "PT-127-1: an updated ac-108-3-sweep-results.tsv from a re-run, with per-binary logs retained.",
+      "PT-127-2: for each product failure, the owning MT id and the evidence that closed it or the typed blocker that holds it open.",
+      "PT-127-3: a zero-failure, zero-ZERO_TESTS sweep, which is what AC-108-3 actually requires."
+    ],
+    "risk_if_missed": "MT-108 cannot honestly reach PASS. Worse, the next capstone attempt re-discovers the same 25 failures from scratch, which is precisely the waste this contract exists to prevent."
+  },
+  "hbr_obligations": {
+    "STOP": "None of these may be closed by narrowing the sweep or by counting a zero-test binary as coverage.",
+    "INT": "HBR-INT-009: per-tier outcome recorded per owning MT as those MTs are worked; not restated here."
+  },
+  "user_manual_obligation": {
+    "requirement": "Per owning MT. This tracking contract changes no product behaviour itself."
+  },
+  "handoff": {
+    "validation_topology": "INTEGRATION_VALIDATOR_BATCH_MT_THEN_SPEC_V1"
+  }
+}
