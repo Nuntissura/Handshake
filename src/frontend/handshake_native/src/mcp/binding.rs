@@ -431,8 +431,51 @@ fn atomic_replace(path: &std::path::Path, bytes: &[u8]) -> Result<(), BindingErr
         }
         const MOVEFILE_REPLACE_EXISTING: u32 = 0x1;
         const MOVEFILE_WRITE_THROUGH: u32 = 0x8;
-        let from: Vec<u16> = temp.as_os_str().encode_wide().chain(Some(0)).collect();
-        let to: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+
+        // WP-KERNEL-012 MT-129: both operands go to Win32 in EXTENDED-LENGTH (verbatim) form.
+        //
+        // Every other operation in this function — create_new, the icacls harden, write_all,
+        // sync_all — goes through Rust `std::fs`, which normalizes to `\\?\` internally and so
+        // tolerates paths past the legacy 260-char limit. This ONE call did not: it handed
+        // `encode_wide()` output straight to `MoveFileExW`. The result was a publish that could
+        // create, harden, write and fsync its temp file and then fail to rename it with
+        // ERROR_PATH_NOT_FOUND (os error 3) — a "path not found" for a directory that demonstrably
+        // existed, because the SOURCE name had crossed MAX_PATH.
+        //
+        // Measured, not inferred: with the crate root as CWD the destination `.json` resolves at 235
+        // chars while the temp name `swarm_mcp_binding.{pid}.{19-digit-nanos}.tmp` reaches exactly
+        // 260 for a 5-digit PID — and Windows test PIDs are 5-6 digits. The affected binaries carry
+        // NO application manifest at all, so machine-wide LongPathsEnabled cannot rescue them.
+        //
+        // `verbatim_wide` canonicalizes to absolute first (a relative path cannot take the prefix)
+        // and only then applies it, so a caller-supplied relative root behaves the same as an
+        // absolute one.
+        fn verbatim_wide(path: &std::path::Path) -> Vec<u16> {
+            let absolute = path
+                .canonicalize()
+                .unwrap_or_else(|_| match std::env::current_dir() {
+                    Ok(cwd) if path.is_relative() => cwd.join(path),
+                    _ => path.to_path_buf(),
+                });
+            let text = absolute.as_os_str().to_string_lossy().into_owned();
+            let prefixed = if text.starts_with(r"\\?\") {
+                text
+            } else if let Some(unc) = text.strip_prefix(r"\\") {
+                format!(r"\\?\UNC\{unc}")
+            } else {
+                format!(r"\\?\{text}")
+            };
+            std::ffi::OsStr::new(&prefixed)
+                .encode_wide()
+                .chain(Some(0))
+                .collect()
+        }
+
+        // The temp file exists at this point, so `canonicalize` resolves it. The destination may or
+        // may not exist yet, which is exactly why `verbatim_wide` falls back to joining the CWD
+        // instead of requiring the path to be present.
+        let from: Vec<u16> = verbatim_wide(&temp);
+        let to: Vec<u16> = verbatim_wide(path);
         // SAFETY: both pointers reference NUL-terminated UTF-16 buffers for the duration of the call.
         let replaced = unsafe {
             MoveFileExW(
@@ -452,9 +495,20 @@ fn atomic_replace(path: &std::path::Path, bytes: &[u8]) -> Result<(), BindingErr
     let replace_result = std::fs::rename(&temp, path);
 
     if let Err(error) = replace_result {
+        // MT-129 AC-129-3: name BOTH operands and their lengths.
+        //
+        // This message previously named only the destination. When the long-path defect fired, the
+        // destination was a perfectly valid 235-character path while the 260-character SOURCE was
+        // what Win32 rejected — so the error pointed diagnosis at the one path that was fine, and
+        // cost this packet a full cycle chasing a stale-lock theory instead. The lengths are
+        // included because "path not found" for a directory that visibly exists is only
+        // interpretable once you can see which operand crossed the limit.
+        let temp_display = temp.display().to_string();
+        let path_display = path.display().to_string();
         return Err(unpublished.cleanup_on_error(BindingError(format!(
-            "replace {} atomically: {error}",
-            path.display()
+            "replace {path_display} atomically (from {temp_display}; source_len={} dest_len={}): {error}",
+            temp_display.chars().count(),
+            path_display.chars().count(),
         ))));
     }
     unpublished.disarm();
@@ -962,5 +1016,67 @@ mod tests {
             None => std::env::remove_var(var),
         }
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// WP-KERNEL-012 MT-129: publishing must survive a root long enough to cross the legacy
+    /// MAX_PATH limit.
+    ///
+    /// RED before the fix: every other operation in `atomic_replace` goes through `std::fs`, which
+    /// normalizes to the verbatim form internally, but `MoveFileExW` received raw `encode_wide()`
+    /// output. The publish therefore created, hardened, wrote and fsynced its temp file and then
+    /// failed the rename with ERROR_PATH_NOT_FOUND (os error 3) - a path-not-found for a directory
+    /// that demonstrably existed, because the SOURCE name had crossed the limit. The temp name is
+    /// `swarm_mcp_binding.{pid}.{19-digit-nanos}.tmp`, so it crosses well before the destination
+    /// `.json` does.
+    ///
+    /// The root below is padded so the temp name lands past 260 characters on any host.
+    #[test]
+    fn write_binding_survives_a_root_past_the_legacy_max_path_limit() {
+        let _guard = BINDING_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        // Build a deep-but-legal root. Each segment is short enough to be a valid file name; it is the
+        // TOTAL length that matters, which is exactly the property under test.
+        let mut deep = std::env::temp_dir().join(format!("hsk_mt129_{}", std::process::id()));
+        while deep.as_os_str().len() < 200 {
+            deep = deep.join("mt129_depth_segment");
+        }
+        let _ = std::fs::remove_dir_all(&deep);
+        std::fs::create_dir_all(&deep).expect("create deep MT-129 root");
+
+        #[cfg(target_os = "windows")]
+        let var = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let var = "XDG_DATA_HOME";
+        let prev = std::env::var_os(var);
+        std::env::set_var(var, &deep);
+
+        let binding = McpBinding {
+            tcp_addr: "127.0.0.1:9".to_owned(),
+            pipe_name: None,
+            token: "m".repeat(64),
+            pid: std::process::id(),
+            process_birth: process_birth_identity(std::process::id())
+                .expect("current test process birth identity"),
+        };
+
+        // The env var stays pointed at the deep root until AFTER remove_binding, otherwise the
+        // cleanup resolves against the operator REAL app-data path instead of the test root.
+        let written = write_binding(&binding)
+            .expect("MT-129: publishing under a >MAX_PATH root must succeed");
+        assert!(written.exists(), "binding file exists after a long-path write");
+        let read_back: McpBinding =
+            serde_json::from_str(&std::fs::read_to_string(&written).expect("read long-path binding"))
+                .expect("parse long-path binding");
+        assert_eq!(read_back, binding);
+
+        remove_binding(&binding).expect("remove long-path binding");
+
+        match prev {
+            Some(value) => std::env::set_var(var, value),
+            None => std::env::remove_var(var),
+        }
+        let _ = std::fs::remove_dir_all(&deep);
     }
 }
